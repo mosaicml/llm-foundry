@@ -165,7 +165,7 @@ def build_callback(
     if name == 'lr_monitor':
         return LRMonitor()
     elif name == 'memory_monitor':
-        return MemoryMonitor()
+        return MemoryMonitor(**kwargs)
     elif name == 'oom_observer':
         return OOMObserver(**kwargs)
     elif name == 'memory_snapshot':

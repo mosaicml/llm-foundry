@@ -48,6 +48,9 @@ from composer.utils import dist
 from streaming import Stream, StreamingDataset
 from transformers import PreTrainedTokenizerBase
 
+from llmfoundry.data.finetuning.collator import (_HF_IGNORE_INDEX,
+                                                 stitch_turns_decoder_only,
+                                                 stitch_turns_encoder_decoder)
 from llmfoundry.utils.logging_utils import SpecificWarningFilter
 
 log = logging.getLogger(__name__)
@@ -70,7 +73,7 @@ PromptResponseDict = Mapping[str, str]
 ChatFormattedDict = Mapping[str, List[Dict[str, str]]]
 Example = Union[PromptResponseDict, ChatFormattedDict]
 ExampleType = Literal['prompt_response', 'chat']
-TokenizedExample = Dict[str, List[int]]
+TokenizedExample = Dict[str, List[Dict[str, List[int]]]]
 
 
 def _get_example_type(example: Example) -> ExampleType:
@@ -157,18 +160,21 @@ def _validate_chat_formatted_example(example: ChatFormattedDict):
 
 def _slice_chat_formatted_example(
         example: ChatFormattedDict,
-        tokenizer: PreTrainedTokenizerBase) -> Tuple[str, str]:
-    """Slices the chat example into a formatted prompt and response.
+        tokenizer: PreTrainedTokenizerBase) -> List[Tuple[str, str]]:
+    """Slices chat example into a list of templated prompt, response turns.
+
+    Note: Assistant messages mark the end of chat turns. So there are as many turns as there are
+        assistant messages in the chat example.
 
     Args:
         example (ChatFormattedDict): The chat example containing the messages.
         tokenizer (PreTrainedTokenizerBase): The tokenizer to apply the chat template.
 
     Returns:
-        Tuple[str, str]: The prompt and response as separate strings.
+        List[Tuple[str, str]]: A list of templated prompt and response string pairs, one pair per chat turn.
 
     Raises:
-        ValueError: If the chat example has less than two messages or if the last message is not from the assistant.
+        ValueError: If any chat turn in the example has less than two messages or if the last message is not from the assistant.
         KeyError: If a message does not have a role or content.
     """
     _validate_chat_formatted_example(example)
@@ -179,35 +185,62 @@ def _slice_chat_formatted_example(
         raise ValueError(
             f'last message must be from assistant. {last_message=}')
 
-    full_conversation = tokenizer.apply_chat_template(messages, tokenize=False)
-    prompt = tokenizer.apply_chat_template(messages[:-1],
-                                           tokenize=False,
-                                           add_generation_prompt=True)
-    if prompt != full_conversation[:len(prompt)]:
-        raise ValueError(
-            f'prompt must be the first part of the full conversation. {prompt=}, {full_conversation=}'
-        )
-    response = full_conversation[len(prompt):]
-    if len(response) == 0:
-        raise ValueError(
-            f'chat example must have at least one assistant message. {messages=}'
-        )
-    return prompt, response
+    def slice_out_last_turn(
+            messages_through_current_turn: List[Dict[str, str]],
+            conversation_through_previous_turn: str) -> Tuple[str, str]:
+        full_conversation = tokenizer.apply_chat_template(
+            messages_through_current_turn, tokenize=False)
+        prompt_with_history = tokenizer.apply_chat_template(
+            messages_through_current_turn[:-1],
+            tokenize=False,
+            add_generation_prompt=True)
+        if conversation_through_previous_turn != full_conversation[:len(
+                conversation_through_previous_turn)]:
+            raise ValueError(
+                f'The full conversation must start with the conversation through the previous turn. {conversation_through_previous_turn=}, {full_conversation=}'
+            )
+        if conversation_through_previous_turn != prompt_with_history[:len(
+                conversation_through_previous_turn)]:
+            raise ValueError(
+                f'The prompt_with_histry must start with the conversation through the previous turn. {conversation_through_previous_turn=}, {prompt_with_history=}'
+            )
+        if prompt_with_history != full_conversation[:len(prompt_with_history)]:
+            raise ValueError(
+                f'prompt_with_history must be the first part of the full conversation. {prompt_with_history=}, {full_conversation=}'
+            )
+        prompt = prompt_with_history[len(conversation_through_previous_turn):]
+        response = full_conversation[len(prompt_with_history):]
+        return prompt, response
+
+    templated_prompt_response_turns: List[Tuple[str, str]] = []
+    conversation_through_previous_turn = ''
+    for idx, message in enumerate(messages):
+        if message['role'] == 'assistant':
+            prompt, response = slice_out_last_turn(
+                messages[:idx + 1], conversation_through_previous_turn)
+            templated_prompt_response_turns.append((prompt, response))
+            conversation_through_previous_turn += prompt
+            conversation_through_previous_turn += response
+
+    return templated_prompt_response_turns
 
 
 def _tokenize_with_bos_removal(tokenizer: PreTrainedTokenizerBase, text: str,
-                               text_target: str) -> TokenizedExample:
+                               text_target: str) -> Dict[str, List[int]]:
     """Tokenizes the prompt and response using the provided tokenizer.
 
     Args:
         tokenizer (PreTrainedTokenizerBase): The tokenizer to use for tokenization.
-        prompt (str): The prompt to tokenize.
-        response (str): The response to tokenize.
+        text (str): The prompt to tokenize.
+        text_target (str): The response to tokenize.
 
     Returns:
-        TokenizedExample: The tokenized example.
+        Dict[str, List[int]]: The tokenized text and text_target.
     """
-    tokenized_sample = tokenizer(text=text, text_target=text_target)
+    tokenized_sample = tokenizer(text=text,
+                                 text_target=text_target,
+                                 padding=False,
+                                 truncation=False)
 
     # Remove the BOS token from the start of the labels if it was automatically added
     if hasattr(tokenizer, 'add_bos_token') and tokenizer.add_bos_token:
@@ -230,8 +263,23 @@ def _tokenize_chat_formatted_example(
     Returns:
         TokenizedExample: The tokenized example.
     """
-    prompt, response = _slice_chat_formatted_example(example, tokenizer)
-    return tokenizer(text=prompt, text_target=response)
+    # Note: We do not add special tokens when tokenizing chat-formatted examples because
+    # special tokens are expected to be added via the tokenizer's chat template. So,
+    # we instead expect the prompt/response outputs of `_slice_chat_formatted_example`
+    # (which calls `apply_chat_template`) to have the correct special tokens already.
+    # We disable padding and truncation because those are handled in the collator, which needs to
+    # be able to assume that none of the tokens are pad tokens.
+    return {
+        'turns': [
+            tokenizer(text=prompt,
+                      text_target=response,
+                      add_special_tokens=False,
+                      padding=False,
+                      truncation=False)
+            for prompt, response in _slice_chat_formatted_example(
+                example, tokenizer)
+        ]
+    }
 
 
 def _tokenize_prompt_response_formatted_example(
@@ -269,11 +317,21 @@ def _tokenize_prompt_response_formatted_example(
             f'Unable to tokenize example because {response_key} was not a string. {example=}'
         )
 
-    return _tokenize_with_bos_removal(
-        tokenizer=tokenizer,
-        text=prompt,
-        text_target=response,
-    )
+    # Note: We default to the tokenizer's add_bos_token and add_eos_token behavior here
+    # (which we do not do for chat-formatted examples). This is because chat examples specifically
+    # go through the tokenizer's `apply_chat_template` method, which handles special tokens,
+    # and these prompt-response-formatted examples do not.
+    # We disable padding and truncation because those are handled in the collator, which needs to
+    # be able to assume that none of the tokens are pad tokens.
+    return {
+        'turns': [
+            _tokenize_with_bos_removal(
+                tokenizer=tokenizer,
+                text=prompt,
+                text_target=response,
+            )
+        ]
+    }
 
 
 def tokenize_formatted_example(
@@ -305,31 +363,62 @@ def tokenize_formatted_example(
         raise ValueError(f'Unknown conversation type {example_format=}')
 
 
-def is_valid_ift_example(pad_token_id: int, max_seq_len: int,
-                         example: Dict) -> bool:
+def is_valid_ift_example(max_seq_len: int, target_prompts: str,
+                         target_responses: str, decoder_only_format: bool,
+                         example: TokenizedExample) -> bool:
     """Check if the example is a valid ift example.
 
-    This functions does the following check:
-    a. Length of input_ids should be less than max_seq_len
-    b. Both input_ids and labels should not be empty
-    c. Labels should have at least 1 non-padding token.
+    This function confirms that none of the ``input_ids`` and ``labels`` fields
+    are empty in any of the turns within the example.
+
+    This function also prepares the final input_ids and labels
+    of the (potentially multi-turn) example, using the target settings
+    and format, and checks whether they are suitable for training at max_seq_len.
+    The example is not valid if (1) after truncation (if necessary),
+    the training targets contain no loss-generating tokens, or (2) either the
+    input_ids and labels are empty.
+
+    The token sequences in ``example`` are assumed to not have had
+    any padding or truncation applied already.
 
     Args:
-        pad_token_id (int): The id of the padding token.
         max_seq_len (int): Maximum sequence length.
+        target_prompts (str): The prompts that are used as targets.
+        target_responses (str): The responses that are used as targets.
+        decoder_only_format (bool): Whether the data will be formatted
+            for a decoder-only model.
         example (Dict): The input example after tokenization, which has
-            ``input_ids`` and ``labels`` fields.
+            a list of dicts, each with ``input_ids`` and ``labels`` fields.
 
     Returns:
         bool: Indicator of whether the input example is valid
     """
-    less_than_max_seq_len = len(example['input_ids']) < max_seq_len
-    non_empty_input = len(example['input_ids']) > 0
-    non_empty_labels = len(example['labels']) > 0
-    non_padding_response = any(
-        token_id != pad_token_id for token_id in example['labels'])
-    return (less_than_max_seq_len and non_empty_input and non_empty_labels and
-            non_padding_response)
+    for turn in example['turns']:
+        if len(turn['input_ids']) == 0:
+            return False
+        if len(turn['labels']) == 0:
+            return False
+
+    if decoder_only_format:
+        input_ids, labels = stitch_turns_decoder_only(
+            example_turns=example['turns'],
+            target_prompts=target_prompts,
+            target_responses=target_responses,
+        )
+
+    else:
+        input_ids, labels = stitch_turns_encoder_decoder(
+            example_turns=example['turns'],)
+    input_ids = input_ids[:max_seq_len]
+    labels = labels[:max_seq_len]
+
+    if len(input_ids) == 0:
+        return False
+
+    if len([label for label in labels if label != _HF_IGNORE_INDEX]) == 0:
+        return False
+
+    return True
 
 
 def _stream_remote_local_validate(remote: Optional[str], local: Optional[str],
@@ -467,8 +556,11 @@ class StreamingFinetuningDataset(StreamingDataset):
     # How to process a sample
     def __getitem__(self, idx: int) -> Dict[str, Any]:
         sample = super().__getitem__(idx)
+        if 'turns' in sample:
+            # Already tokenized in latest format
+            return sample
         if 'input_ids' in sample:
-            # Already tokenized data
+            # Already tokenized data (old format)
             if isinstance(sample['input_ids'], bytes):
                 sample['input_ids'] = np.frombuffer(
                     sample['input_ids'],
@@ -485,8 +577,8 @@ class StreamingFinetuningDataset(StreamingDataset):
                 raise ValueError(
                     f'Expect input_ids to be bytes or numpy.ndarray type, but got {type(sample["input_ids"])}'
                 )
-
-            return sample
+            # Convert to latest format by wrapping sample as a "turn"
+            return {'turns': [sample]}
         return tokenize_formatted_example(sample, tokenizer=self.tokenizer)
 
 
@@ -608,7 +700,9 @@ class DatasetConstructor:
         self, dataset_name: str, split: Optional[str], safe_load: bool,
         max_seq_len: int, preprocessing_fn: Optional[Callable[[dict[str, Any]],
                                                               dict[str, str]]],
-        tokenizer: PreTrainedTokenizerBase, hf_kwargs: Dict[str, Any]
+        tokenizer: PreTrainedTokenizerBase, target_prompts: str,
+        target_responses: str, decoder_only_format: bool, hf_kwargs: Dict[str,
+                                                                          Any]
     ) -> Union[hf_datasets.DatasetDict, hf_datasets.Dataset,
                hf_datasets.IterableDatasetDict, hf_datasets.IterableDataset]:
         """Load a HuggingFace Datasets, preprocess, and tokenize.
@@ -705,10 +799,9 @@ class DatasetConstructor:
                 desc='Tokenizing dataset',
             )
 
-            pad_token_id = tokenizer.pad_token_id
-
             filtered_dataset = tokenized_dataset.filter(
-                partial(is_valid_ift_example, pad_token_id, max_seq_len),
+                partial(is_valid_ift_example, max_seq_len, target_prompts,
+                        target_responses, decoder_only_format),
                 num_proc=num_cpus_to_use,
                 desc='Filtering out long prompts',
             )

@@ -1,4 +1,4 @@
-# Mosaic Eval Gauntlet v0.1.0 - Evaluation Suite
+# Mosaic Eval Gauntlet v0.3.0 - Evaluation Suite
 
 
 <!-- SETUPTOOLS_LONG_DESCRIPTION_HIDE_BEGIN -->
@@ -24,7 +24,7 @@ At evaluation time, we run all the benchmarks, average the subscores within each
 
 For example, if benchmark A has a random baseline accuracy of 25%, and the model achieved 30%, we would report this as (0.3 - 0.25)/(1-0.25) = 0.0667. This can be thought of as the accuracy above chance rescaled so the max is 1. For benchmarks in which the random guessing baseline accuracy is ~0 we report the accuracy as is. Note that with this rescaling, a model could technically score below 0 on a category as a whole, but we haven’t found this to occur with any of the models we’ve tested.
 
-This is version v0.1.0 of the Eval Gauntlet.
+This is version v0.3.0 of the Eval Gauntlet.
 
 ### Reading Comprehension
 

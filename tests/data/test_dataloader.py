@@ -37,6 +37,7 @@ from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
                                        get_tokens_per_batch_func)
 from llmfoundry.utils.builders import build_tokenizer
 from llmfoundry.utils.exceptions import (IncorrectMessageKeyQuantityError,
+                                         InvalidContentTypeError,
                                          InvalidLastChatMessageRoleError,
                                          InvalidPromptTypeError,
                                          InvalidResponseTypeError,
@@ -738,12 +739,12 @@ def test_finetuning_dataloader_is_valid_ift_example(
 
 
 invalid_prompt_response_params = [
-    'add_invalid_prompt_type', 'add_invalid_response_type',
-    'add_unknown_conversation_type', 'add_too_many_example_keys'
+    'add_bad_data_dropped', 'add_invalid_prompt_type',
+    'add_invalid_response_type', 'add_unknown_conversation_type',
+    'add_too_many_example_keys'
 ]
 
 
-@pytest.mark.parametrize('add_bad_data_dropped', [True, False])
 @pytest.mark.parametrize(
     ','.join(invalid_prompt_response_params),
     generate_exclusive_test_params(invalid_prompt_response_params))
@@ -910,7 +911,7 @@ def test_malformed_conversation_data(tmp_path: pathlib.Path,
         error_context = pytest.raises(InvalidLastChatMessageRoleError,
                                       match='Invalid last message role:')
     if add_invalid_message_key_quantity:
-        error_context = pytest.raises(InvalidResponseTypeError,
+        error_context = pytest.raises(InvalidContentTypeError,
                                       match='Expected response to be')
     if add_invalid_content_type:
         error_context = pytest.raises(IncorrectMessageKeyQuantityError,

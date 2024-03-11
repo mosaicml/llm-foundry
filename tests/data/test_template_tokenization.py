@@ -11,6 +11,7 @@ from llmfoundry.data.finetuning.tasks import (_ALLOWED_PROMPT_KEYS,
                                               _slice_chat_formatted_example,
                                               tokenize_formatted_example)
 from llmfoundry.utils.builders import build_tokenizer
+from llmfoundry.utils.exceptions import TooManyKeysInExampleError
 
 
 def test_tokenize_chat_example_malformed():
@@ -159,7 +160,7 @@ def test_tokenize_instruct_example_malformed():
     ]
 
     for example in malformed_prompt_response_examples:
-        with pytest.raises(KeyError):
+        with pytest.raises(TooManyKeysInExampleError):
             tokenize_formatted_example(example, MagicMock())
 
 

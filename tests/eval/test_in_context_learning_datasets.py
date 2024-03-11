@@ -2046,13 +2046,15 @@ def test_eval_split_batch(mpt_tokenizer: transformers.AutoTokenizer,
         assert microbatch['generation_kwargs']['use_cache'] == True
         assert microbatch['generation_kwargs']['eos_token_id'] == 0
 
+
 @pytest.mark.parametrize('num_fewshot', [0, 5])
 @pytest.mark.parametrize('dataset_uri', ['lambada_small.jsonl'])
 # @pytest.mark.gpu
 # @pytest.mark.world_size(2)
 def test_lm_task_evaluation(num_fewshot: int, dataset_uri: str,
-        tiny_gpt2_tokenizer: transformers.AutoTokenizer, tmp_path: Path,
-        tiny_gpt2_model: transformers.AutoModelForCausalLM):
+                            tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+                            tmp_path: Path,
+                            tiny_gpt2_model: transformers.AutoModelForCausalLM):
     pytest.importorskip('datasets')
     in_memory_logger = InMemoryLogger(
     )  # track the logged metrics in the in_memory_logger

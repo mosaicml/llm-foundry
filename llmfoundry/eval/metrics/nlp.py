@@ -737,7 +737,7 @@ Result: """
 
         for i, (sample_output, sample_answer) in enumerate(zip(outputs, labels)):
             # TODO: Is this valid?
-            sample_output = sample_output.split("\n")[0]
+            # sample_output = sample_output.split("\n")[0]
             metric_result_dict['context'].append(batch['input_ids'][i])
             metric_result_dict['output'].append(sample_output)
             result = self.call_judge(sample_output, sample_answer, metric_kwargs)

@@ -37,7 +37,8 @@ if is_flash_v2_installed():
         from flash_attn.layers.rotary import \
             RotaryEmbedding as DAILRotaryEmbedding
     except Exception as e:
-        raise e
+        print("No Rotary Embedding. Okay for just eval'ing TRT models")
+        # raise e
 
 if is_flash_v1_installed():
     try:  # This try...except is needed because transformers requires it despite the 'if' statement above

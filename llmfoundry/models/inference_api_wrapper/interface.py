@@ -20,8 +20,11 @@ from transformers import AutoTokenizer
 class InferenceAPIEvalWrapper(ComposerModel):
 
     def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer):
+        self.model_name = model_cfg['version']
+
         self.tokenizer = tokenizer
         self.labels = None
+        self.device = None
         # set up training and eval metrics
         eval_metrics = [
             LanguageCrossEntropy(),
@@ -44,6 +47,7 @@ class InferenceAPIEvalWrapper(ComposerModel):
             metrics = self.eval_metrics
 
         return metrics if metrics else {}
+
 
     def get_next_token_logit_tensor(self,
                                     prompt: str) -> Optional[torch.Tensor]:
@@ -89,7 +93,14 @@ class InferenceAPIEvalWrapper(ComposerModel):
 
     def update_metric(self, batch: Any, outputs: Any, metric: Metric) -> None:
         batch = self.rebatch(batch)
+        metric = metric.to(device=self.device)
+
         self.labels = batch.pop('labels')
+        if isinstance(metric, InContextLearningQAAccuracy):
+            # Labels are strings, not tokens, for QA tasks.
+            metric.update(outputs, self.labels, batch)
+            return
+        
         self.labels[:, :-1] = self.labels[:, 1:].clone()
         self.labels[:, -1] = -100
         if isinstance(metric, InContextLearningMetric) and batch.get(

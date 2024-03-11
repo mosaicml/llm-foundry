@@ -1,0 +1,13 @@
+eval_gauntlet:
+  weighting: EQUAL
+  subtract_random_baseline: true
+  rescale_accuracy: true
+  averages:
+    core_average:
+    - world_knowledge
+  categories:
+  - name: world_knowledge
+    benchmarks:
+    - name: jeopardy
+      num_fewshot: 3
+      random_baseline: 0

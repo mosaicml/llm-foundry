@@ -41,7 +41,6 @@ from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.models.mpt import (ComposerMPTCausalLM, MPTConfig,
                                    MPTForCausalLM, MPTModel, MPTPreTrainedModel)
 from llmfoundry.tokenizers import TiktokenTokenizerWrapper
-
 if is_flash_v1_installed():
     transformers.utils.is_flash_attn_available = lambda: False
 

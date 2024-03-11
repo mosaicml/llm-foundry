@@ -71,11 +71,15 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
 
     if eval_gauntlet_config is not None:
         metrics['llmfoundry/gauntlet_configured'] = True
+    else:
+        metrics['llmfoundry/gauntlet_configured'] = False
 
     if isinstance(icl_tasks, str):
         metrics['llmfoundry/icl_configured'] = True
     elif len(icl_tasks) > 0:
         metrics['llmfoundry/icl_configured'] = True
+    else: 
+        metrics['llmfoundry/icl_configured'] = False
 
     if model_config.get('vocab_size', None) is not None:
         metrics['llmfoundry/vocab_size'] = model_config.get('vocab_size')

@@ -339,11 +339,9 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
         build_logger(name, logger_cfg)
         for name, logger_cfg in loggers_cfg.items()
     ])
-    # tokenizer_cfg: Dict[str,
-    #                     Any] = om.to_container(model_cfg.tokenizer,
-    #                                            resolve=True)  # type: ignore
-    log_analytics_details(mosaicml_logger, model_configs, icl_tasks,
-                          eval_gauntlet_config)
+    if mosaicml_logger is not None:
+        log_analytics_details(mosaicml_logger, model_configs, icl_tasks,
+                              eval_gauntlet_config)
 
     for model_cfg in model_configs:
         (trainer, logger_keys, eval_gauntlet_callback,

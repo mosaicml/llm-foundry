@@ -546,10 +546,6 @@ def main(cfg: DictConfig) -> Trainer:
             # Adds mosaicml logger to composer if the run was sent from Mosaic platform, access token is set, and mosaic logger wasn't previously added
             mosaicml_logger = MosaicMLLogger()
             loggers.append(mosaicml_logger)
-            # log_analytics_details(mosaicml_logger, model_config,
-            #                       train_loader_config, eval_loader_config,
-            #                       callback_configs, tokenizer_name, load_path,
-            #                       save_folder)
 
     if metadata is not None:
         # Flatten the metadata for logging

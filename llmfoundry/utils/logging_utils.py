@@ -2,6 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
+from typing import List
+
+from composer.loggers import MosaicMLLogger
+from composer.loggers.logger_destination import LoggerDestination
+
+
+def find_mosaicml_logger(loggers: List[LoggerDestination]) -> MosaicMLLogger:
+    return next(
+        (logger for logger in loggers if isinstance(logger, MosaicMLLogger)),
+        None)
 
 
 class SpecificWarningFilter(logging.Filter):

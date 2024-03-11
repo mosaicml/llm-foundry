@@ -718,6 +718,7 @@ Result: """
         # Initializatin takes ~12 ms
         del self.client
         self.client = None
+        return metric_result_dict
 
     def compute(self):
         assert isinstance(self.correct, Tensor)

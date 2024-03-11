@@ -1,7 +1,7 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: v0.5.0
+  git_branch: openai_compatible_gauntlet
   # git_commit:  # OR use your commit hash
   pip_install: -e ".[gpu-flash2,openai]"
   ssh_clone: false  # Should be true if using a private repo
@@ -11,10 +11,13 @@ command: |
   composer eval/eval.py /mnt/config/parameters.yaml
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
-run_name: openai-eval
-gpu_num:  #
-gpu_type:  #
-cluster:  # replace with your cluster here!
+name: openai-gauntlet-eval
+# gpu_type: None #
+
+compute:
+  instance: mosaic.bm-c64m512.1
+  cluster: r1z1  # replace with your cluster here!
+  gpu_num: 0 #
 
 image: mosaicml/llm-foundry:2.1.0_cu121_flash2-latest
 
@@ -25,13 +28,15 @@ parameters:
   device_eval_batch_size: 4
   models:
   -
-    model_name: openai/gpt-3.5-instruct
+    model_name: openai/gpt-3.5-turbo-instruct
     model:
       name: openai_causal_lm
-      version: gpt-3.5-instruct
+      version: gpt-3.5-turbo-instruct
     tokenizer:
       name: tiktoken
       kwargs:
-        model_name: gpt-3.5-instruct
+        model_name: gpt-3.5-turbo-instruct
+
+        
 
   icl_tasks: "eval/yamls/api_compatible_tasks_v0.3.yaml"

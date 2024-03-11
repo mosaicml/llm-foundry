@@ -311,7 +311,13 @@ class OpenAICausalLMEvalWrapper(OpenAIEvalInterface):
             assert isinstance(completion.choices[0].logprobs, Logprobs)
             assert isinstance(completion.choices[0].logprobs.top_logprobs, list)
 
-        if len(completion.choices[0].logprobs.top_logprobs[0]) > 0:
+        if len(completion.choices) == 0 \
+            or len(completion.choices[0].logprobs.top_logprobs) == 0 \
+            or  len(completion.choices[0].logprobs.top_logprobs[0]) == 0:
+            # the model sometimes stops early even though we are still requesting tokens!
+            # not sure if there's a fix
+            return None
+        else:
             # Construct tensor of shape (vocab_size,) with logprobs for each token
             tokenizer_logprobs = dict(
                 completion.choices[0].logprobs.top_logprobs[0])
@@ -321,7 +327,3 @@ class OpenAICausalLMEvalWrapper(OpenAIEvalInterface):
                 encoding = self.tokenizer(k)['input_ids']
                 tensor[encoding[0]] = tokenizer_logprobs[k]
             return tensor
-        else:
-            # the model sometimes stops early even though we are still requesting tokens!
-            # not sure if there's a fix
-            return None

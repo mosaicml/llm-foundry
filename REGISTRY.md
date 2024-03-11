@@ -12,6 +12,7 @@ You can specify registered components via a Python entrypoint if you are buildin
 
 For example, the following would register the `WandBLogger` class, under the key `wandb`, in the `llm_foundry.loggers` registry:
 
+<!--pytest.mark.skip-->
 ```yaml
 [build-system]
 requires = ["setuptools>=42", "wheel"]
@@ -33,6 +34,7 @@ my_logger = "foundry_registry.loggers:MyLogger"
 
 You can also register a component directly in your code:
 
+<!--pytest.mark.skip-->
 ```python
 from composer.loggers import LoggerDestination
 from llmfoundry.registry import loggers
@@ -47,6 +49,7 @@ loggers.register("my_logger", func=MyLogger)
 
 You can also use decorators to register components directly from your code:
 
+<!--pytest.mark.skip-->
 ```python
 from composer.loggers import LoggerDestination
 from llmfoundry.registry import loggers
@@ -58,6 +61,7 @@ class MyLogger(LoggerDestination):
 
 For both the direct call and decorator approaches, if using the LLM Foundry train/eval scripts, you will need to provide the `code_paths` argument, which is a list of files need to execute in order to register your components. For example, you may have a file called `foundry_imports.py` that contains the following:
 
+<!--pytest.mark.skip-->
 ```python
 from foundry_registry.loggers import MyLogger
 from llmfoundry.registry import loggers
@@ -67,6 +71,7 @@ loggers.register("my_logger", func=MyLogger)
 
 You would then provide `code_paths` to the train/eval scripts in your yaml config:
 
+<!--pytest.mark.skip-->
 ```yaml
 ...
 code_paths:

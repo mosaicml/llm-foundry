@@ -7,11 +7,11 @@ import os
 import sys
 import time
 import warnings
-from composer.core.callback import Callback
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import torch
+from composer.core.callback import Callback
 from composer.loggers import MosaicMLLogger
 from composer.loggers.logger_destination import LoggerDestination
 from composer.models.base import ComposerModel
@@ -24,9 +24,9 @@ from transformers import PreTrainedTokenizerBase
 
 install()
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
-from llmfoundry.utils.builders import (add_metrics_to_eval_loaders, build_callback,
-                                       build_evaluators, build_logger,
-                                       build_tokenizer)
+from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
+                                       build_callback, build_evaluators,
+                                       build_logger, build_tokenizer)
 from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device)
 
@@ -275,7 +275,7 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
                                                         'callbacks',
                                                         must_exist=False,
                                                         default_value=None)
-    
+
     # Warn for unused parameters
     for key in cfg:
         warnings.warn(

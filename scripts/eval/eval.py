@@ -22,7 +22,8 @@ from omegaconf import OmegaConf as om
 from rich.traceback import install
 from transformers import PreTrainedTokenizerBase
 
-from llmfoundry.utils.logging_utils import find_mosaicml_logger
+from llmfoundry.utils.logging_utils import (find_mosaicml_logger,
+                                            get_cloud_provider_from_path)
 
 install()
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
@@ -92,7 +93,8 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
 
         load_path = model_config.get('load_path', None)
         if load_path is not None:
-            model_config_data['cloud_provider_data'] = load_path.split(':')[0]
+            model_config_data[
+                'cloud_provider_data'] = get_cloud_provider_from_path(load_path)
 
         metrics['llmfoundry/model_configs'].append(
             json.dumps(model_config_data, sort_keys=True))

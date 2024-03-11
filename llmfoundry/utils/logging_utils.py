@@ -15,6 +15,18 @@ def find_mosaicml_logger(
         None)
 
 
+def get_cloud_provider_from_path(path: str) -> str:
+    """Gets the cloud provider from the a given string path.
+
+    If we see a ':', we know that the service provider is present in the URI.
+    Otherwise, we assume that the model is local.
+    """
+    cloud_path_split = path.split(':')
+    if len(cloud_path_split) > 1:
+        return cloud_path_split[0]
+    return 'local'
+
+
 class SpecificWarningFilter(logging.Filter):
 
     def __init__(self, message_to_suppress: str):

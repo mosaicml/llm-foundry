@@ -24,6 +24,8 @@ from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from rich.traceback import install
 
+from llmfoundry.utils.logging_utils import get_cloud_provider_from_path
+
 install()
 
 from transformers import PreTrainedTokenizerBase
@@ -195,10 +197,13 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
         metrics['llmfoundry/icl_configured'] = False
 
     if load_path is not None:
-        metrics['llmfoundry/cloud_provider_data'] = load_path.split(':')[0]
+        metrics[
+            'llmfoundry/cloud_provider_data'] = get_cloud_provider_from_path(
+                load_path)
     if save_folder is not None:
-        metrics['llmfoundry/cloud_provider_checkpoints'] = save_folder.split(
-            ':')[0]
+        metrics[
+            'llmfoundry/cloud_provider_checkpoints'] = get_cloud_provider_from_path(
+                save_folder)
 
     if train_loader_dataset.get('hf_name', None) is not None:
         metrics['llmfoundry/train_dataset_hf_name'] = train_loader_dataset.get(

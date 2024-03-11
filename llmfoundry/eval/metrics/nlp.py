@@ -630,7 +630,7 @@ class InContextLearningLLMAsAJudge(InContextLearningMetric):
 # Any response other than one "Yes", "No", or "Invalid" is unusable and will not be scored, so please adhere to the instructions carefully.
 
     BASE_EQUIVALENCE_PROMPT = """Please determine whether the supplied statements or answers are equivalent. 
-If one statment has a long continuation, only consider the first segment of the statement.
+If one statement has a long continuation, only consider the first segment of the statement.
 Respond with either [[Yes]] or [[No]]. Any response other than one [[Yes]] or [[No]] is unusable and will not be scored, so please adhere to the instructions carefully.
 Here are some examples to help you understand the task. They are not a part of the statements we are comparing.
 
@@ -642,7 +642,7 @@ Statement 1: Computer hard drive
 Statement 2: Solid state drive
 Result: [[No]]
 
-Statement 1: Potatos are nutritious.
+Statement 1: Potatoes are nutritious.
 Statement 2: Taters have many healthy benefits.
 Result: [[Yes]]
 

@@ -145,15 +145,15 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
                                                                           None],
                           icl_tasks_config: Optional[Union[ListConfig, str]],
                           eval_gauntlet: Optional[Union[DictConfig, str]]):
+    train_loader_dataset = train_loader_config.get('dataset', {})
     metrics = {
         'llmfoundry/tokenizer_name':
             tokenizer_name,
-        'llmfoundry/llmfoundry_run_type':
-            'training',
+        'llmfoundry/script': 'train',
         'llmfoundry/train_loader_name':
             train_loader_config.get('name'),
         'llmfoundry/train_loader_workers':
-            train_loader_config.get('dataset').get('num_workers'),
+            train_loader_dataset.get('num_workers'),
     }
 
     if callback_configs is not None:
@@ -163,30 +163,34 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
 
     if eval_gauntlet is not None:
         metrics['llmfoundry/gauntlet_configured'] = True
+    else:
+        metrics['llmfoundry/gauntlet_configured'] = False
 
     if icl_tasks_config is not None:
         if isinstance(icl_tasks_config, str):
             metrics['llmfoundry/icl_configured'] = True
         elif len(icl_tasks_config) > 0:
             metrics['llmfoundry/icl_configured'] = True
+        else: 
+            metrics['llmfoundry/icl_configured'] = False
+    else:
+        metrics['llmfoundry/icl_configured'] = False
 
-    # TODO: what's a good name for this? ideally we want the keys to be the same for
-    # training and eval to make querying easier.
+
     if load_path is not None:
-        metrics['llmfoundry/cloud_provider_loading'] = load_path.split(':')[0]
+        metrics['llmfoundry/cloud_provider_data'] = load_path.split(':')[0]
     if save_folder is not None:
-        metrics['llmfoundry/cloud_provider_saving'] = save_folder.split(':')[0]
+        metrics['llmfoundry/cloud_provider_checkpoints'] = save_folder.split(':')[0]
 
-    if train_loader_config.get('dataset').get('hf_name', None) is not None:
-        metrics['llmfoundry/train_dataset_hf_name'] = train_loader_config.get(
-            'dataset').get('hf_name')
+    if train_loader_dataset.get('hf_name', None) is not None:
+        metrics['llmfoundry/train_dataset_hf_name'] = train_loader_dataset.get('hf_name', None)
     if train_loader_config.get('name') == 'finetuning':
-        metrics['llmfoundry/llmfoundry_run_subtype'] = 'IFT (finetuning)'
+        metrics['llmfoundry/train_task_type'] = 'INSTRUCTION_FINETUNE'
     elif train_loader_config.get('name') == 'text':
         if load_path is not None or model_config.get('pretrained') == True:
-            metrics['llmfoundry/llmfoundry_run_subtype'] = 'CPT (finetuning)'
+            metrics['llmfoundry/train_task_type'] = 'CONTINUED_PRETRAIN'
         else:
-            metrics['llmfoundry/llmfoundry_run_subtype'] = 'Pre-training'
+            metrics['llmfoundry/train_task_type'] = 'PRETRAIN'
 
     if eval_loader_config is not None:
         metrics['llmfoundry/eval_loaders'] = []
@@ -198,12 +202,11 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
 
         for loader_config in eval_loader_configs:
             eval_loader_info = {}
-            eval_loader_info['eval_loader_name'] = loader_config.get('name')
-            eval_loader_info['eval_loader_workers'] = loader_config.get(
-                'dataset').get('num_workers')
-            if loader_config['dataset'].get('hf_name', None) is not None:
-                eval_loader_info['eval_dataset_hf_name'] = loader_config.get(
-                    'dataset').get('hf_name')
+            eval_loader_dataset = loader_config.get('dataset', {})
+            eval_loader_info['name'] = loader_config.get('name')
+            eval_loader_info['num_workers'] = eval_loader_dataset.get('num_workers', None)
+            if eval_loader_dataset.get('hf_name', None) is not None:
+                eval_loader_info['dataset_hf_name'] = eval_loader_dataset.get('hf_name')
 
             # Log as a key-sorted JSON string, so that we can easily parse it in Spark / SQL
             metrics['llmfoundry/eval_loaders'].append(

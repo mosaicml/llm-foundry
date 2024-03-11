@@ -64,7 +64,7 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
                           eval_gauntlet_config: Optional[Union[str,
                                                                DictConfig]]):
     metrics = {
-        'llmfoundry/llmfoundry_run_type': 'eval',
+        'llmfoundry/script': 'eval',
         'llmfoundry/tokenizer_name': tokenizer_name,
         'llmfoundry/model_name': model_config.get('model_name'),
     }
@@ -85,7 +85,7 @@ def log_analytics_details(mosaicml_logger: MosaicMLLogger,
         metrics['llmfoundry/n_heads'] = model_config.get('n_heads')
 
     if load_path is not None:
-        metrics['llmfoundry/cloud_provider_loading'] = load_path.split(':')[0]
+        metrics['llmfoundry/cloud_provider_data'] = load_path.split(':')[0]
     """
     TODO: right now, we need to get the following subtypes for eval:
         -- Batch Generation

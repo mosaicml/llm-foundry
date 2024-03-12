@@ -752,7 +752,6 @@ Result: """
         # Initializatin takes ~12 ms
         del self.client
         self.client = None
-        log.info("InContextLearningLLMAsAJudge: " + str(metric_result_dict))
         return metric_result_dict
 
     def compute(self):

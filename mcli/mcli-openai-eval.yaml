@@ -12,12 +12,13 @@ command: |
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
 name: openai-gauntlet-eval
-# gpu_type: None #
 
 compute:
-  instance: mosaic.bm-c64m512.1
-  cluster: r1z1  # replace with your cluster here!
-  gpu_num: 0 #
+  instance: mosaic.a100-40sxm.1
+  cluster: r1z2  # replace with your cluster here!
+  gpu_num: 2 #
+  gpu_type: a100_40gb #
+
 
 image: mosaicml/llm-foundry:2.1.0_cu121_flash2-latest
 

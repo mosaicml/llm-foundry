@@ -678,7 +678,7 @@ Result: """
         self.add_state('invalid_judge_response', default=torch.tensor(0.), dist_reduce_fx='sum')
         self.add_state('total', default=torch.tensor(0.), dist_reduce_fx='sum')
         self.client = None
-        self.metric_result_dict = {'context': [], 'output': [], 'result': [], 'score':[]}
+        self.metric_result_dict = {'context': [], 'output': [], 'label': [], 'result': [], 'score':[]}
 
     def init_openai(self):
         try:
@@ -706,19 +706,20 @@ Result: """
         self.total += 1
         return result
 
-    def call_judge(self, sample_answer: str, sample_label: str, metric_kwargs: Dict) -> List[str]:
+    # TODO: make these arg names better
+    def call_judge(self, sample_output: str, sample_label: str, metric_kwargs: Dict) -> List[str]:
         # TODO: allow different models
         openai_user_input = metric_kwargs.get('judge_prompt', deepcopy(self.BASE_USER_INPOUT))
 
-        if sample_answer.startswith(' '):
-            sample_answer = sample_answer.lstrip()
+        if sample_output.startswith(' '):
+            sample_output = sample_output.lstrip()
 
         # Randomly choose the true answer or the model output to be the first statment
         # to avoid some model bias
         if random.random() <= .5:
-            formatted_input = openai_user_input.format(statement1=sample_answer, statement2=sample_label)
+            formatted_input = openai_user_input.format(statement1=sample_output, statement2=sample_label)
         else:
-            formatted_input = openai_user_input.format(statement1=sample_label, statement2=sample_answer)
+            formatted_input = openai_user_input.format(statement1=sample_label, statement2=sample_output)
         system_prompt = metric_kwargs.get('system_prompt', self.BASE_EQUIVALENCE_PROMPT)
         response = self.client.chat.completions.create(
             model=metric_kwargs.get('judge_model_name', "gpt-3.5-turbo"),
@@ -735,12 +736,13 @@ Result: """
         metric_result_dict = deepcopy(self.metric_result_dict)
         metric_kwargs = batch.get('metric_kwargs', {})
 
-        for i, (sample_output, sample_answer) in enumerate(zip(outputs, labels)):
+        for i, (sample_output, sample_label) in enumerate(zip(outputs, labels)):
             # TODO: Is this valid?
             # sample_output = sample_output.split("\n")[0]
             metric_result_dict['context'].append(batch['input_ids'][i])
             metric_result_dict['output'].append(sample_output)
-            result = self.call_judge(sample_output, sample_answer, metric_kwargs)
+            result = self.call_judge(sample_output, sample_label, metric_kwargs)
+            metric_result_dict['label'].append(sample_label)
             metric_result_dict['result'].append(result)
             
             score = self.score_result(result)

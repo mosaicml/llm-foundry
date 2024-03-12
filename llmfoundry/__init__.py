@@ -19,11 +19,6 @@ new_files_warning_filter = SpecificWarningFilter(
 
 hf_dynamic_modules_logger.addFilter(new_files_warning_filter)
 
-# Before importing any transformers models, we need to disable transformers flash attention if
-# we are in an environment with flash attention version <2. Transformers hard errors on a not properly
-# gated import otherwise.
-import transformers
-
 from llmfoundry import algorithms, callbacks, loggers, optim, registry, utils
 from llmfoundry.data import (ConcatTokensDataset, MixtureOfDenoisersCollator,
                              NoConcatDataset, Seq2SeqFinetuningCollator,
@@ -33,17 +28,13 @@ from llmfoundry.models.hf import (ComposerHFCausalLM, ComposerHFPrefixLM,
                                   ComposerHFT5)
 from llmfoundry.models.layers.attention import (
     MultiheadAttention, attn_bias_shape, build_alibi_bias, build_attn_bias,
-    flash_attn_fn, is_flash_v1_installed,
-    scaled_multihead_dot_product_attention, triton_flash_attn_fn)
+    flash_attn_fn, scaled_multihead_dot_product_attention, triton_flash_attn_fn)
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY, MPTMLP, build_ffn
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.models.mpt import (ComposerMPTCausalLM, MPTConfig,
                                    MPTForCausalLM, MPTModel, MPTPreTrainedModel)
 from llmfoundry.tokenizers import TiktokenTokenizerWrapper
-
-if is_flash_v1_installed():
-    transformers.utils.is_flash_attn_available = lambda: False
 
 __all__ = [
     'build_text_denoising_dataloader',
@@ -81,4 +72,4 @@ __all__ = [
     'registry',
 ]
 
-__version__ = '0.5.0'
+__version__ = '0.6.0'

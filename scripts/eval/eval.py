@@ -27,6 +27,7 @@ from llmfoundry.utils.logging_utils import (find_mosaicml_logger,
 
 install()
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
+from llmfoundry.registry import import_file
 from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_evaluators, build_logger,
                                        build_tokenizer)
@@ -236,6 +237,16 @@ def evaluate_model(
 
 
 def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
+    # Run user provided code if specified
+    code_paths = pop_config(cfg,
+                            'code_paths',
+                            must_exist=False,
+                            default_value=[],
+                            convert=True)
+    # Import any user provided code
+    for code_path in code_paths:
+        import_file(code_path)
+
     om.resolve(cfg)
 
     # Create copy of config for logging

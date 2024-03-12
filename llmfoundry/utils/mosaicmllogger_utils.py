@@ -21,7 +21,7 @@ def log_eval_analytics(mosaicml_logger: MosaicMLLogger,
                                                                    ListConfig],
                        eval_gauntlet_config: Optional[Union[str, DictConfig]]):
     """Logs analytics for runs using the `eval.py` script.
-    
+
     TODO: right now, we need to get the following subtypes for eval:
         -- Batch Generation
         -- Checkpoint Conversion
@@ -63,9 +63,8 @@ def log_train_analytics(mosaicml_logger: MosaicMLLogger,
                         model_config: DictConfig,
                         train_loader_config: DictConfig,
                         eval_loader_config: Union[DictConfig, ListConfig, None],
-                        callback_configs: Union[DictConfig,
-                                                None], tokenizer_name: str,
-                        load_path: Union[str, None],
+                        callback_configs: Union[DictConfig, None],
+                        tokenizer_name: str, load_path: Union[str, None],
                         icl_tasks_config: Optional[Union[ListConfig, str]],
                         eval_gauntlet: Optional[Union[DictConfig, str]]):
     """Logs analytics for runs using the `train.py` script.

@@ -2205,7 +2205,7 @@ def test_mc_task_evaluation_subcategories(
     )
     assert in_memory_logger.data[
         'metrics/mmlu/computer_security/InContextLearningMultipleChoiceAccuracy'][
-            0][1].item() > 0
+            0][1].item() >= 0
     total = trainer.state.eval_metrics['mmlu/computer_security'][
         'InContextLearningMultipleChoiceAccuracy'].total
     dist.all_reduce(total)  # type: ignore

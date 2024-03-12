@@ -11,6 +11,7 @@ from omegaconf import DictConfig, ListConfig
 
 def find_mosaicml_logger(
         loggers: List[LoggerDestination]) -> Union[MosaicMLLogger, None]:
+    """Returns the first MosaicMLLogger from a list, and None otherwise."""
     return next(
         (logger for logger in loggers if isinstance(logger, MosaicMLLogger)),
         None)

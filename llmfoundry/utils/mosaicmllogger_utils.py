@@ -5,7 +5,6 @@ from typing import Any, Dict, List, Optional, Union
 
 from composer.loggers import MosaicMLLogger
 from composer.loggers.logger_destination import LoggerDestination
-from composer.utils.file_helpers import parse_uri
 from omegaconf import DictConfig, ListConfig
 
 
@@ -21,7 +20,12 @@ def log_eval_analytics(mosaicml_logger: MosaicMLLogger,
                        model_configs: ListConfig, icl_tasks: Union[str,
                                                                    ListConfig],
                        eval_gauntlet_config: Optional[Union[str, DictConfig]]):
-    """Logs analytics for runs using the `eval.py` script."""
+    """Logs analytics for runs using the `eval.py` script.
+    
+    TODO: right now, we need to get the following subtypes for eval:
+        -- Batch Generation
+        -- Checkpoint Conversion
+    """
     metrics: Dict[str, Any] = {
         'llmfoundry/script': 'eval',
     }
@@ -48,19 +52,9 @@ def log_eval_analytics(mosaicml_logger: MosaicMLLogger,
         if model_config.get('n_heads', None) is not None:
             model_config_data['n_heads'] = model_config.get('n_heads')
 
-        load_path = model_config.get('load_path', None)
-        if load_path is not None:
-            backend, _, _ = parse_uri(load_path)
-            model_config_data[
-                'cloud_provider_data'] = backend if backend else 'local'
-
-        metrics['llmfoundry/model_configs'].append(
-            json.dumps(model_config_data, sort_keys=True))
-    """
-    TODO: right now, we need to get the following subtypes for eval:
-        -- Batch Generation
-        -- Checkpoint Conversion
-    """
+        if len(model_config_data) > 0:
+            metrics['llmfoundry/model_configs'].append(
+                json.dumps(model_config_data, sort_keys=True))
     mosaicml_logger.log_metrics(metrics)
     mosaicml_logger._flush_metadata(force_flush=True)
 
@@ -71,8 +65,7 @@ def log_train_analytics(mosaicml_logger: MosaicMLLogger,
                         eval_loader_config: Union[DictConfig, ListConfig, None],
                         callback_configs: Union[DictConfig,
                                                 None], tokenizer_name: str,
-                        load_path: Union[str, None], save_folder: Union[str,
-                                                                        None],
+                        load_path: Union[str, None],
                         icl_tasks_config: Optional[Union[ListConfig, str]],
                         eval_gauntlet: Optional[Union[DictConfig, str]]):
     """Logs analytics for runs using the `train.py` script.
@@ -110,15 +103,6 @@ def log_train_analytics(mosaicml_logger: MosaicMLLogger,
             metrics['llmfoundry/icl_configured'] = False
     else:
         metrics['llmfoundry/icl_configured'] = False
-
-    if load_path is not None:
-        backend, _, _ = parse_uri(load_path)
-        metrics[
-            'llmfoundry/cloud_provider_data'] = backend if backend else 'local'
-    if save_folder is not None:
-        backend, _, _ = parse_uri(save_folder)
-        metrics[
-            'llmfoundry/cloud_provider_checkpoints'] = backend if backend else 'local'
 
     if train_loader_dataset.get('hf_name', None) is not None:
         metrics['llmfoundry/train_dataset_hf_name'] = train_loader_dataset.get(

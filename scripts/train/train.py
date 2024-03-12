@@ -547,7 +547,7 @@ def main(cfg: DictConfig) -> Trainer:
     if mosaicml_logger is not None:
         log_train_analytics(mosaicml_logger, model_config, train_loader_config,
                             eval_loader_config, callback_configs,
-                            tokenizer_name, load_path, save_folder,
+                            tokenizer_name, load_path,
                             icl_tasks_config, eval_gauntlet_config)
 
     # Build Model

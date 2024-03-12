@@ -21,8 +21,8 @@ class MonolithicCheckpointSaver(Callback):
 
     Args:
         save_folder (str): Folder to save checkpoints to (can be a URI)
-        filename (str): Filename to save checkpoints to.
         batch_interval (int): Number of batches between checkpoints.
+        filename (str): Filename to save checkpoints to.
         overwrite (bool): Whether to overwrite previous checkpoints.
         keep_optimizers (bool): Whether to save the optimizer state in the monolithic checkpoint.
     """

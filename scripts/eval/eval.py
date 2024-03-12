@@ -158,7 +158,6 @@ def evaluate_model(
         for name, logger_cfg in loggers_cfg.items()
     ]
 
-    # mosaicml_logger = None
     if metadata is not None:
         # Flatten the metadata for logging
         loggers_cfg.pop('metadata', None)

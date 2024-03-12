@@ -3,6 +3,7 @@
 
 """MosaicML LLM Foundry package setup."""
 
+import copy
 import os
 import re
 
@@ -98,15 +99,12 @@ extra_deps['tensorboard'] = [
     'mosaicml[tensorboard]>=0.20.1,<0.21',
 ]
 
-extra_deps['gpu'] = [
-    'flash-attn==1.0.9',
-    # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
-    'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v1.0.9#subdirectory=csrc/xentropy',
-]
-
+# Flash 2 group kept for backwards compatibility
 extra_deps['gpu-flash2'] = [
     'flash-attn==2.5.0',
 ]
+
+extra_deps['gpu'] = copy.deepcopy(extra_deps['gpu-flash2'])
 
 extra_deps['peft'] = [
     'mosaicml[peft]>=0.20.1,<0.21',

@@ -133,6 +133,12 @@ class InContextLearningGenerationAccuracy(InContextLearningMetric):
                        default=torch.tensor(0.),
                        dist_reduce_fx='sum')
         self.add_state('total', default=torch.tensor(0.), dist_reduce_fx='sum')
+        self.metric_result_dict = {
+            'cleaned_output': [],
+            'original_label': [],
+            'cleaned_label': [],
+            'result': [],
+        }
 
     def normalize_answer(self, answer: str):
         """Lower text and remove punctuation, articles and extra whitespace.
@@ -170,6 +176,7 @@ class InContextLearningGenerationAccuracy(InContextLearningMetric):
         cot_delimiter = batch.get('cot_delimiter', '')
         do_normalization = batch.get('do_normalization', True)
         stopping_criteria = batch.get('stopping_criteria', None)
+        metric_result_dict = copy.deepcopy(self.metric_result_dict)
         for sample_output, sample_labels in zip(outputs, labels):
             final_answer = sample_output
 
@@ -189,11 +196,20 @@ class InContextLearningGenerationAccuracy(InContextLearningMetric):
                 cleaned_final_answer = final_answer
                 cleaned_sample_labels = set(sample_labels)
 
+            metric_result_dict['original_label'].append(sample_labels)
+            metric_result_dict['cleaned_output'].append(cleaned_final_answer)
+            metric_result_dict['cleaned_label'].append(cleaned_sample_labels)
+
             if any(
                     cleaned_final_answer.startswith(label)
                     for label in cleaned_sample_labels):
                 self.correct += torch.tensor(1.0)
+                metric_result_dict['result'].append(1)
+            else:
+                metric_result_dict['result'].append(0)
             self.total += torch.tensor(1.0)
+
+            return metric_result_dict
 
     def compute(self):
         assert isinstance(self.correct, Tensor)

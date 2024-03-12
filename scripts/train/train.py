@@ -574,13 +574,19 @@ def main(cfg: DictConfig) -> Trainer:
     optimizer = build_optimizer(model, optimizer_name, optimizer_config)
 
     # Now add the eval metrics
-    if eval_loader_config is not None and not use_async_eval:
-        eval_metrics = model.get_metrics(is_train=False)
-        non_icl_metrics = [
-            metric_name for metric_name, metric in eval_metrics.items()
-            if not isinstance(metric, InContextLearningMetric)
-        ]
-        evaluators = add_metrics_to_eval_loaders(evaluators, non_icl_metrics)
+    try:
+        if eval_loader_config is not None and not use_async_eval:
+            eval_metrics = model.get_metrics(is_train=False)
+            non_icl_metrics = [
+                metric_name for metric_name, metric in eval_metrics.items()
+                if not isinstance(metric, InContextLearningMetric)
+            ]
+            evaluators = add_metrics_to_eval_loaders(evaluators,
+                                                     non_icl_metrics)
+    except Exception as e:
+        if mosaicml_logger is not None:
+            mosaicml_logger.log_exception(e)
+        raise e
 
     # Build the Trainer
     log.info('Building trainer...')

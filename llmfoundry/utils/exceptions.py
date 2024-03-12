@@ -51,7 +51,7 @@ class TooManyKeysInExampleError(ValueError):
     """Error thrown when a data sample has too many keys."""
 
     def __init__(self, desired_keys: set[str], keys: set[str]) -> None:
-        message = f'Data sample has {len(keys)} keys in `allowed_keys`: {desired_keys} Please specify exactly one.'
+        message = f'Data sample has {len(keys)} keys in `allowed_keys`: {desired_keys} Please specify exactly one. Provided keys: {keys}'
         super().__init__(message)
 
 

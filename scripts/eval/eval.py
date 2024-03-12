@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import copy
-import json
 import logging
 import os
 import sys
@@ -12,7 +11,6 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import torch
-from composer.loggers import MosaicMLLogger
 from composer.loggers.logger_destination import LoggerDestination
 from composer.models.base import ComposerModel
 from composer.trainer import Trainer
@@ -22,8 +20,8 @@ from omegaconf import OmegaConf as om
 from rich.traceback import install
 from transformers import PreTrainedTokenizerBase
 
-from llmfoundry.utils.logging_utils import (find_mosaicml_logger,
-                                            get_cloud_provider_from_path)
+from llmfoundry.utils.mosaicmllogger_utils import (find_mosaicml_logger,
+                                                   log_eval_analytics)
 
 install()
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
@@ -59,53 +57,6 @@ def load_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
 
     assert composer_model is not None
     return composer_model
-
-
-def log_analytics_details(mosaicml_logger: MosaicMLLogger,
-                          model_configs: ListConfig,
-                          icl_tasks: Union[str, ListConfig],
-                          eval_gauntlet_config: Optional[Union[str,
-                                                               DictConfig]]):
-    metrics: Dict[str, Any] = {
-        'llmfoundry/script': 'eval',
-    }
-
-    if eval_gauntlet_config is not None:
-        metrics['llmfoundry/gauntlet_configured'] = True
-    else:
-        metrics['llmfoundry/gauntlet_configured'] = False
-
-    if isinstance(icl_tasks, str):
-        metrics['llmfoundry/icl_configured'] = True
-    elif len(icl_tasks) > 0:
-        metrics['llmfoundry/icl_configured'] = True
-    else:
-        metrics['llmfoundry/icl_configured'] = False
-
-    metrics['llmfoundry/model_configs'] = []
-    for model_config in model_configs:
-        model_config_data = {}
-        if model_config.get('vocab_size', None) is not None:
-            model_config_data['vocab_size'] = model_config.get('vocab_size')
-        if model_config.get('d_model', None) is not None:
-            model_config_data['d_model'] = model_config.get('d_model')
-        if model_config.get('n_heads', None) is not None:
-            model_config_data['n_heads'] = model_config.get('n_heads')
-
-        load_path = model_config.get('load_path', None)
-        if load_path is not None:
-            model_config_data[
-                'cloud_provider_data'] = get_cloud_provider_from_path(load_path)
-
-        metrics['llmfoundry/model_configs'].append(
-            json.dumps(model_config_data, sort_keys=True))
-    """
-    TODO: right now, we need to get the following subtypes for eval:
-        -- Batch Generation
-        -- Checkpoint Conversion
-    """
-    mosaicml_logger.log_metrics(metrics)
-    mosaicml_logger._flush_metadata(force_flush=True)
 
 
 def evaluate_model(
@@ -352,8 +303,8 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
         for name, logger_cfg in loggers_cfg.items()
     ])
     if mosaicml_logger is not None:
-        log_analytics_details(mosaicml_logger, model_configs, icl_tasks,
-                              eval_gauntlet_config)
+        log_eval_analytics(mosaicml_logger, model_configs, icl_tasks,
+                           eval_gauntlet_config)
 
     for model_cfg in model_configs:
         (trainer, logger_keys, eval_gauntlet_callback,

@@ -1376,6 +1376,8 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
         self.passage_delimiter = passage_delimiter
         self.passage_query_delimiter = passage_query_delimiter
         self.use_gold_docs_only = use_gold_docs_only
+        self.max_prompt_length = 0
+        self.max_answer_length = 0
         batch_mapping = {'input_ids': 'documents', 'labels': 'answer', 'queries':'query'}
         # static_keys = ['mode', 'metric_kwargs', 'generation_length', 'generation_kwargs']
         static_keys = ['mode', 'generation_length', 'generation_kwargs']
@@ -1798,6 +1800,9 @@ def get_icl_task_dataloader(
         pass_at_k: int = 1,
         generations_per_sample: int = 1,
         cot_delimiter: str = '',
+        passage_delimiter: str = '\nPassage: ',
+        passage_query_delimiter: str = '\nQuery: ',
+        use_gold_docs_only: bool = True,
         has_categories: bool = False,
         hf_loading_vars: Optional[Dict] = None,
         hf_parsing_map: Optional[Dict] = None,
@@ -1916,6 +1921,9 @@ def get_icl_task_dataloader(
                 destination_path=partition_uri + '_tmp',
                 prelimiter=question_prelimiter,
                 cot_delimiter=cot_delimiter,
+                passage_delimiter=passage_delimiter,
+                passage_query_delimiter=passage_query_delimiter,
+                use_gold_docs_only=use_gold_docs_only,
                 fewshot_random_seed=fewshot_random_seed,
                 pass_at_k=pass_at_k,
                 generations_per_sample=generations_per_sample,
@@ -1943,6 +1951,9 @@ def get_icl_task_dataloader(
             destination_path=destination_path,
             prelimiter=question_prelimiter,
             cot_delimiter=cot_delimiter,
+            passage_delimiter=passage_delimiter,
+            passage_query_delimiter=passage_query_delimiter,
+            use_gold_docs_only=use_gold_docs_only,
             fewshot_random_seed=fewshot_random_seed,
             pass_at_k=pass_at_k,
             generations_per_sample=generations_per_sample,

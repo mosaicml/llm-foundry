@@ -24,7 +24,7 @@ class MonolithicCheckpointSaver(Callback):
         filename (str): Filename to save checkpoints to.
         batch_interval (int): Number of batches between checkpoints.
         overwrite (bool): Whether to overwrite previous checkpoints.
-        keep_optimizer(bool): Whether to save the optimizer state in the monolithic checkpoint.
+        keep_optimizers (bool): Whether to save the optimizer state in the monolithic checkpoint.
     """
 
     def __init__(self,

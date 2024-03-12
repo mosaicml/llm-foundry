@@ -99,11 +99,11 @@ extra_deps['tensorboard'] = [
     'mosaicml[tensorboard]>=0.20.1,<0.21',
 ]
 
+# Flash 2 group kept for backwards compatibility
 extra_deps['gpu-flash2'] = [
     'flash-attn==2.5.0',
 ]
 
-# Removing support for flash attention 1 without breaking the installation commands
 extra_deps['gpu'] = copy.deepcopy(extra_deps['gpu-flash2'])
 
 extra_deps['peft'] = [

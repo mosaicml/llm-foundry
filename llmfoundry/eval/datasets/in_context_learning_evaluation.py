@@ -1377,7 +1377,8 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
         self.passage_query_delimiter = passage_query_delimiter
         self.use_gold_docs_only = use_gold_docs_only
         batch_mapping = {'input_ids': 'documents', 'labels': 'answer', 'queries':'query'}
-        static_keys = ['mode', 'metric_kwargs', 'generation_length', 'generation_kwargs']
+        # static_keys = ['mode', 'metric_kwargs', 'generation_length', 'generation_kwargs']
+        static_keys = ['mode', 'generation_length', 'generation_kwargs']
         list_keys = ['labels', 'queries']
         tensor_keys = ['input_ids', 'attention_mask']
 
@@ -1391,14 +1392,14 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
                          tensor_keys=tensor_keys,
                          *args,
                          **kwargs)
-        self.max_answer_length = self._get_max_answer_length()
+        self._set_max_prompt_and_answer_lengths()
         self.dataset = self.dataset.map(self._trim_padding)
         self.base_batch = {
             'input_ids': [],
             'mode': 'generate',
             'labels': [],
             'queries': [],
-            'metric_kwargs': {},
+            # 'metric_kwargs': {},
             'generation_length': self.max_answer_length,
             'generation_kwargs': {
                 # 'max_new_tokens': self.max_answer_length,
@@ -1471,20 +1472,29 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
                                  ) -> str:
         return example[self.answer_key]
 
-    def _get_max_answer_length(self) -> int:
-        f"""
-        Loops over the dataset and finds the longest answer length.
+    def _set_max_prompt_and_answer_lengths(self):
+        """Iterates through the dataset and finds the maximum prompt length and
+        sequence lengths.
 
         Returns:
-            int: the maximum answer length with an additional buffer of {_MAX_ANSWER_BUFFER_LENGTH} if chain of thought is present
+            None
         """
+        max_prompt_length = 0
         max_answer_length = 0
         for example in self.dataset:
+            assert isinstance(example, Dict)
+            unpadded_example = [
+                token for token in example[self.context_key]
+                if token != self.pad_tok_id
+            ]
+            max_prompt_length = max(max_prompt_length, len(unpadded_example))
+
             answer = self._get_answer_from_example(example)
             max_answer_length = max(max_answer_length,
                                     len(self.tokenizer(answer)['input_ids']))
-        max_answer_length = max_answer_length
-        return max_answer_length
+
+        self.max_prompt_length = max_prompt_length
+        self.max_answer_length = max_answer_length + _MAX_ANSWER_BUFFER_LENGTH
 
     def _trim_padding(self, example: Dict):
         """Adjusts padding to the max_seq_len - max_answer_length rather than max_seq_len.
@@ -1501,6 +1511,7 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
             if token != self.pad_tok_id
         ]
         # Reapply padding only to max_prompt_length
+        # TODO: use max_prompt_length instead?
         full_prompt = trim_context(unpadded_prompt, [], self.max_seq_len - self.max_answer_length)
         padded_context = make_padded_input(full_prompt, [],
                                            self.max_seq_len - self.max_answer_length,

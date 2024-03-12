@@ -511,13 +511,13 @@ def build_icl_evaluators(
                 'num_beams is no longer supported as a top level icl_task parameter.'  + \
                 'Please use generation_kwargs.num_beams instead.')
 
-    def _get_parsing_vars(icl_cfg: DictConfig):
-        pass
+    # def _get_parsing_vars(icl_cfg: DictConfig):
+    #     pass
 
     for icl_cfg in icl_tasks_list:
         assert isinstance(icl_cfg, DictConfig)
         _validate_cfg(icl_cfg)
-        parsing_vars = _get_parsing_vars(icl_cfg)
+        # parsing_vars = _get_parsing_vars(icl_cfg)
         for num_fewshot in list(icl_cfg.num_fewshot):
             if tokenizer.pad_token_id is None:
                 # Current workaround to support GPT2 tokenizer with `pad_token_id = None`

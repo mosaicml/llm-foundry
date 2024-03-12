@@ -176,7 +176,7 @@ class InContextLearningGenerationAccuracy(InContextLearningMetric):
         cot_delimiter = batch.get('cot_delimiter', '')
         do_normalization = batch.get('do_normalization', True)
         stopping_criteria = batch.get('stopping_criteria', None)
-        metric_result_dict = copy.deepcopy(self.metric_result_dict)
+        metric_result_dict = deepcopy(self.metric_result_dict)
         for sample_output, sample_labels in zip(outputs, labels):
             final_answer = sample_output
 

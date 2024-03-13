@@ -150,8 +150,11 @@ class InContextLearningGenerationExactMatchAccuracy(InContextLearningMetric):
                     self.normalize_answer(label) for label in sample_labels
                 }
             else:
-                cleaned_final_answer = final_answer
-                cleaned_sample_labels = set(sample_labels)
+                # even if normalization is off, we should still strip leading/trailing whitespaces
+                cleaned_final_answer = final_answer.strip()
+                cleaned_sample_labels = {
+                    sample_label.strip() for sample_label in sample_labels
+                }
 
             if any(
                     cleaned_final_answer.startswith(label)

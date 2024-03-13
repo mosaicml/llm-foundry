@@ -60,7 +60,6 @@ def test_tokenizer_needs_prefix_space_when_space_not_needed(
 
 
 def test_tokenizer_needs_prefix_space_when_space_needed():
-    transformers = pytest.importorskip('transformers')
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         'facebook/opt-125m',
         use_fast=False)  # type: ignore reportUnboundVariable
@@ -255,7 +254,6 @@ def test_update_generation_kwargs(
 
 def test_stop_sequences_criteria(
         tiny_gpt2_tokenizer: transformers.AutoTokenizer):
-    pytest.importorskip('transformers')
     eos_criteria = MultiTokenEOSCriteria('\n\n', tiny_gpt2_tokenizer, 2)
     seq1 = tiny_gpt2_tokenizer('Dogs are furry')['input_ids']
     seq2 = tiny_gpt2_tokenizer('Dogs are furry\n\n')['input_ids']
@@ -274,7 +272,6 @@ def test_stop_sequences_criteria(
 
 def test_stop_sequences_criteria_sentencepiece(
         tiny_llama_tokenizer: transformers.AutoTokenizer):
-    pytest.importorskip('datasets')
 
     tokenizer = tiny_llama_tokenizer
     eos_criteria = MultiTokenEOSCriteria('\n\n', tokenizer, 2)
@@ -328,10 +325,9 @@ def test_update_generation_kwargs_no_kwargs(
 
 
 def test_update_generation_kwargs_no_kwargs_qa_dataset(tmp_path: Path):
-    pytest.importorskip('datasets')
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/triviaqa_small.jsonl'
-    transformers = pytest.importorskip('transformers')
+
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         'facebook/opt-125m')  # type: ignore reportUnboundVariable
 
@@ -353,10 +349,9 @@ def test_update_generation_kwargs_no_kwargs_qa_dataset(tmp_path: Path):
 
 
 def test_update_generation_kwargs_with_kwargs_qa_dataset(tmp_path: Path):
-    pytest.importorskip('datasets')
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/triviaqa_small.jsonl'
-    transformers = pytest.importorskip('transformers')
+
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         'facebook/opt-125m')  # type: ignore reportUnboundVariable
 
@@ -469,7 +464,6 @@ def test_get_answer_from_example(
     r'ignore:The repository for mosaicml/test_dataset contains custom code which must*:FutureWarning'
 )
 def test_fix_eos_on_preamble(tmp_path: Path):
-    transformers = pytest.importorskip('transformers')
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         'facebook/opt-125m',
         use_fast=False)  # type: ignore reportUnboundVariable
@@ -594,10 +588,9 @@ def test_tokenize_example_with_no_tokenize_labels(
 
 
 def test_qa_set_cot_no_cot(tmp_path: Path):
-    pytest.importorskip('datasets')
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/triviaqa_small.jsonl'
-    transformers = pytest.importorskip('transformers')
+
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         'facebook/opt-125m')  # type: ignore reportUnboundVariable
 
@@ -619,10 +612,9 @@ def test_qa_set_cot_no_cot(tmp_path: Path):
 
 
 def test_qa_set_cot_has_cot(tmp_path: Path):
-    pytest.importorskip('datasets')
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/gsm8k_small.jsonl'
-    transformers = pytest.importorskip('transformers')
+
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         'facebook/opt-125m')  # type: ignore reportUnboundVariable
 
@@ -670,7 +662,7 @@ def test_qa_get_max_answer_length(
 
 def test_qa_get_answer_from_example_with_no_cot(
         tmp_path: Path, tiny_gpt2_tokenizer: transformers.AutoTokenizer):
-    pytest.importorskip('datasets')
+
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/triviaqa_small.jsonl'
 
@@ -699,7 +691,7 @@ def test_qa_get_answer_from_example_with_no_cot(
 
 def test_qa_get_answer_from_example_with_cot(
         tmp_path: Path, tiny_gpt2_tokenizer: transformers.AutoTokenizer):
-    pytest.importorskip('datasets')
+
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/triviaqa_small.jsonl'
 
@@ -729,7 +721,7 @@ def test_qa_get_answer_from_example_with_cot(
 
 def test_qa_tokenize_example(tiny_gpt2_tokenizer: transformers.AutoTokenizer,
                              tmp_path: Path):
-    pytest.importorskip('datasets')
+
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/triviaqa_small.jsonl'
 
@@ -999,7 +991,6 @@ def test_schema_tokenize_example(
 def test_mc_task_dataloader_subcategories(
         dataset_uri: str, tiny_gpt2_tokenizer: transformers.AutoTokenizer,
         tmp_path: Path):
-    pytest.importorskip('datasets')
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
 
@@ -1048,7 +1039,6 @@ def test_mc_task_dataloader_subcategories(
 def test_lm_task_dataloader_extra_space(
         dataset_uri: str, tiny_gpt2_tokenizer: transformers.AutoTokenizer,
         tmp_path: Path):
-    pytest.importorskip('datasets')
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
 
@@ -1093,7 +1083,6 @@ def test_lm_task_dataloader_extra_space(
 def test_lm_task_dataloader(dataset_uri: str,
                             tiny_gpt2_tokenizer: transformers.AutoTokenizer,
                             tmp_path: Path):
-    pytest.importorskip('datasets')
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
 
@@ -1136,7 +1125,6 @@ def test_lm_task_dataloader(dataset_uri: str,
 def test_schema_task_dataloader(dataset_uri: str, prelimiter: str,
                                 tiny_gpt2_tokenizer: transformers.AutoTokenizer,
                                 tmp_path: Path):
-    pytest.importorskip('datasets')
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
 
@@ -1186,8 +1174,6 @@ def test_schema_task_dataloader(dataset_uri: str, prelimiter: str,
 @pytest.mark.parametrize('dataset_uri', ['winograd_small.jsonl'])
 def test_schema_task_dataloader_sentpiece_tokenizer(dataset_uri: str,
                                                     tmp_path: Path):
-    pytest.importorskip('datasets')
-    transformers = pytest.importorskip('transformers')
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     tokenizer = transformers.AutoTokenizer.from_pretrained(
@@ -1239,7 +1225,6 @@ def test_schema_task_dataloader_sentpiece_tokenizer(dataset_uri: str,
 def test_lm_task_dataloader_opt_tokenizer(
         tiny_opt_tokenizer: transformers.AutoTokenizer, dataset_uri: str,
         num_fewshot: int, tmp_path: Path):
-    pytest.importorskip('datasets')
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
 
@@ -1284,7 +1269,6 @@ def test_lm_task_dataloader_opt_tokenizer(
 def test_mc_task_dataloader_opt_tokenizer(
         tiny_opt_tokenizer: transformers.AutoTokenizer, dataset_uri: str,
         num_fewshot: int, tmp_path: Path):
-    pytest.importorskip('datasets')
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
 
@@ -1338,7 +1322,6 @@ def test_mc_task_dataloader_opt_tokenizer(
 @pytest.mark.parametrize('num_fewshot', [0, 1])
 def test_mc_split_batch(tiny_opt_tokenizer: transformers.AutoTokenizer,
                         dataset_uri: str, num_fewshot: int, tmp_path: Path):
-    pytest.importorskip('datasets')
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
 
@@ -1408,7 +1391,7 @@ def test_mc_split_batch(tiny_opt_tokenizer: transformers.AutoTokenizer,
 @pytest.mark.parametrize('dataset_uri', ['triviaqa_small.jsonl'])
 def test_qa_split_batch(tiny_opt_tokenizer: transformers.AutoTokenizer,
                         dataset_uri: str, tmp_path: Path):
-    pytest.importorskip('datasets')
+
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/{dataset_uri}'
     tokenizer = tiny_opt_tokenizer
@@ -1464,7 +1447,6 @@ def test_qa_split_batch(tiny_opt_tokenizer: transformers.AutoTokenizer,
 def test_qa_task_dataloader_w_null_eos(
         dataset_uri: str, tiny_gpt2_tokenizer: transformers.AutoTokenizer,
         tmp_path: Path, num_fewshot: int, prompt_string: str):
-    pytest.importorskip('datasets')
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
 
@@ -1496,7 +1478,6 @@ def test_qa_task_dataloader(dataset_uri: str,
                             tiny_gpt2_tokenizer: transformers.AutoTokenizer,
                             tmp_path: Path, num_fewshot: int,
                             prompt_string: str):
-    pytest.importorskip('datasets')
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
 
@@ -1555,7 +1536,6 @@ def test_qa_task_dataloader(dataset_uri: str,
 def test_qa_task_with_cot_dataloader(
         dataset_uri: str, tiny_gpt2_tokenizer: transformers.AutoTokenizer,
         tmp_path: Path, num_fewshot: int):
-    pytest.importorskip('datasets')
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
 
@@ -1616,7 +1596,6 @@ def test_qa_task_with_cot_dataloader(
 def test_mc_task_dataloader(dataset_uri: str, prelimiter: str,
                             tiny_gpt2_tokenizer: transformers.AutoTokenizer,
                             tmp_path: Path):
-    pytest.importorskip('datasets')
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
 
@@ -1674,10 +1653,9 @@ def test_mc_task_dataloader(dataset_uri: str, prelimiter: str,
 
 @pytest.mark.parametrize('dataset_uri', ['human_eval_small.jsonl'])
 def test_code_eval_split_batch(dataset_uri: str, tmp_path: Path):
-    pytest.importorskip('datasets')
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/{dataset_uri}'
-    transformers = pytest.importorskip('transformers')
+
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         'EleutherAI/gpt-neox-20b')  # type: ignore reportUnboundVariable
 
@@ -1737,7 +1715,6 @@ def test_code_eval_sentpiece_dataloader(
         dataset_uri: str, tmp_path: Path, num_fewshot: int, prompt_string: str,
         generations_per_sample: int,
         tiny_llama_tokenizer: transformers.AutoTokenizer):
-    pytest.importorskip('datasets')
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
 
@@ -1820,11 +1797,8 @@ def test_code_eval_sentpiece_dataloader(
 
 @pytest.mark.parametrize('dataset_uri', ['human_eval_small.jsonl'])
 def test_code_eval_test_cases(dataset_uri: str, tmp_path: Path):
-    pytest.importorskip('datasets')
-
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
 
-    transformers = pytest.importorskip('transformers')
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         'huggyllama/llama-7b')  # type: ignore reportUnboundVariable
     dataset_uri = f'{local_data}/{dataset_uri}'
@@ -1873,11 +1847,8 @@ def test_code_eval_test_cases(dataset_uri: str, tmp_path: Path):
 
 @pytest.mark.parametrize('dataset_uri', ['human_eval_small.jsonl'])
 def test_code_eval_pass_at_k_validity(dataset_uri: str, tmp_path: Path):
-    pytest.importorskip('datasets')
-
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
 
-    transformers = pytest.importorskip('transformers')
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         'huggyllama/llama-7b')  # type: ignore reportUnboundVariable
     dataset_uri = f'{local_data}/{dataset_uri}'
@@ -1908,11 +1879,9 @@ def test_code_eval_pass_at_k_validity(dataset_uri: str, tmp_path: Path):
 def test_code_eval_task_dataloader(dataset_uri: str, tmp_path: Path,
                                    num_fewshot: int, prompt_string: str,
                                    generations_per_sample: int):
-    pytest.importorskip('datasets')
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
 
-    transformers = pytest.importorskip('transformers')
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         'mosaicml/mpt-7b')  # type: ignore reportUnboundVariable
     dataset_uri = f'{local_data}/{dataset_uri}'
@@ -1998,7 +1967,6 @@ def test_code_eval_task_dataloader(dataset_uri: str, tmp_path: Path,
 @pytest.mark.parametrize('num_fewshot', [0, 1])
 def test_eval_split_batch(mpt_tokenizer: transformers.AutoTokenizer,
                           dataset_uri: str, num_fewshot: int, tmp_path: Path):
-    pytest.importorskip('datasets')
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     tokenizer = mpt_tokenizer  # type: ignore reportUnboundVariable
@@ -2055,7 +2023,7 @@ def test_lm_task_evaluation(num_fewshot: int, dataset_uri: str,
                             tiny_gpt2_tokenizer: transformers.AutoTokenizer,
                             tmp_path: Path,
                             tiny_gpt2_model: transformers.AutoModelForCausalLM):
-    pytest.importorskip('datasets')
+
     in_memory_logger = InMemoryLogger(
     )  # track the logged metrics in the in_memory_logger
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
@@ -2102,7 +2070,7 @@ def test_schema_task_evaluation(
         num_fewshot: int, dataset_uri: str,
         tiny_gpt2_tokenizer: transformers.AutoTokenizer, tmp_path: Path,
         tiny_gpt2_model: transformers.AutoModelForCausalLM):
-    pytest.importorskip('datasets')
+
     in_memory_logger = InMemoryLogger(
     )  # track the logged metrics in the in_memory_logger
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
@@ -2159,7 +2127,7 @@ def test_mc_task_evaluation_subcategories(
         dataset_uri: str, num_fewshot: int,
         tiny_gpt2_model: transformers.AutoModelForCausalLM,
         tiny_gpt2_tokenizer: transformers.AutoTokenizer, tmp_path: Path):
-    pytest.importorskip('datasets')
+
     in_memory_logger = InMemoryLogger(
     )  # track the logged metrics in the in_memory_logger
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
@@ -2222,7 +2190,7 @@ def test_mc_task_evaluation(num_fewshot: int, dataset_uri: str,
                             tiny_gpt2_tokenizer: transformers.AutoTokenizer,
                             tmp_path: Path,
                             tiny_gpt2_model: transformers.AutoModelForCausalLM):
-    pytest.importorskip('datasets')
+
     in_memory_logger = InMemoryLogger(
     )  # track the logged metrics in the in_memory_logger
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
@@ -2288,7 +2256,7 @@ def test_qa_task_evaluation_opt_tokenizer(
         tiny_opt_tokenizer: transformers.AutoTokenizer,
         tiny_opt_model: transformers.AutoModelForCausalLM, num_fewshot: int,
         dataset_uri: str, tmp_path: Path):
-    pytest.importorskip('datasets')
+
     in_memory_logger = InMemoryLogger(
     )  # track the logged metrics in the in_memory_logger
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
@@ -2345,7 +2313,7 @@ def test_qa_task_evaluation_with_cot_opt_tokenizer(
         tiny_opt_tokenizer: transformers.AutoTokenizer,
         tiny_opt_model: transformers.AutoModelForCausalLM, num_fewshot: int,
         dataset_uri: str, tmp_path: Path):
-    pytest.importorskip('datasets')
+
     in_memory_logger = InMemoryLogger(
     )  # track the logged metrics in the in_memory_logger
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
@@ -2402,7 +2370,7 @@ def test_qa_task_evaluation(num_fewshot: int, dataset_uri: str,
                             tiny_gpt2_tokenizer: transformers.AutoTokenizer,
                             tiny_gpt2_model: transformers.AutoModelForCausalLM,
                             tmp_path: Path):
-    pytest.importorskip('datasets')
+
     in_memory_logger = InMemoryLogger(
     )  # track the logged metrics in the in_memory_logger
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
@@ -2458,7 +2426,7 @@ def test_qa_task_with_cot_evaluation(
         num_fewshot: int, dataset_uri: str,
         tiny_gpt2_tokenizer: transformers.AutoTokenizer,
         tiny_gpt2_model: transformers.AutoModelForCausalLM, tmp_path: Path):
-    pytest.importorskip('datasets')
+
     in_memory_logger = InMemoryLogger(
     )  # track the logged metrics in the in_memory_logger
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
@@ -2533,7 +2501,7 @@ def test_code_eval_microbatching(
         tiny_opt_tokenizer: transformers.AutoTokenizer,
         tiny_opt_model: transformers.AutoModelForCausalLM, num_fewshot: int,
         dataset_uri: str, tmp_path: Path, generations_per_sample: int):
-    pytest.importorskip('datasets')
+
     monkeypatch.setenv('CODE_EVAL_DEVICE', 'LOCAL')
     in_memory_logger = InMemoryLogger(
     )  # track the logged metrics in the in_memory_logger
@@ -2593,7 +2561,7 @@ def test_code_eval_sentpiece_evaluation(
         tiny_opt_tokenizer: transformers.AutoTokenizer,
         tiny_opt_model: transformers.AutoModelForCausalLM, tmp_path: Path,
         generations_per_sample: int):
-    pytest.importorskip('datasets')
+
     monkeypatch.setenv('CODE_EVAL_DEVICE', 'LOCAL')
     in_memory_logger = InMemoryLogger(
     )  # track the logged metrics in the in_memory_logger
@@ -2652,7 +2620,7 @@ def test_code_eval_task_evaluation(
         tiny_gpt2_tokenizer: transformers.AutoTokenizer,
         tiny_gpt2_model: transformers.AutoModelForCausalLM, tmp_path: Path,
         generations_per_sample: int):
-    pytest.importorskip('datasets')
+
     monkeypatch.setenv('CODE_EVAL_DEVICE', 'LOCAL')
     in_memory_logger = InMemoryLogger(
     )  # track the logged metrics in the in_memory_logger
@@ -2701,7 +2669,6 @@ def test_code_eval_task_evaluation(
 def test_lm_spacing_dataloader(dataset_uri: str,
                                tiny_gpt2_tokenizer: transformers.AutoTokenizer,
                                tmp_path: Path):
-    pytest.importorskip('datasets')
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
 
@@ -2762,7 +2729,6 @@ def test_hf_dataloading_lm_dataloader(
         hf_loading_vars: Dict[str,
                               str], hf_parsing_map: Optional[Dict[str,
                                                                   List[str]]]):
-    pytest.importorskip('datasets')
 
     tokenizer = tiny_gpt2_tokenizer
     batch_size = 2
@@ -2826,7 +2792,6 @@ def test_hf_dataloading_custom_parsing(
         dataset_uri: str, tiny_gpt2_tokenizer: transformers.AutoTokenizer,
         tmp_path: Path, num_fewshot: int, prompt_string: str,
         hf_loading_vars: Dict[str, str], hf_parsing_map: Dict[str, List[str]]):
-    pytest.importorskip('datasets')
 
     tokenizer = tiny_gpt2_tokenizer
     batch_size = 2

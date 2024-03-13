@@ -12,13 +12,16 @@ import json
 import logging
 import os
 import random
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Dict, Iterable, List, Optional, Union
 
 import torch
+import transformers
 from composer.core import DataSpec
 from composer.core.data_spec import _default_split_batch, _split_list
 from composer.datasets.utils import stop_sequences_criteria
 from composer.utils import MissingConditionalImportError, dist, get_file
+from datasets import Dataset as HFDataset
+from datasets import IterableDataset, load_dataset
 from torch.utils.data import DataLoader, Dataset
 
 from llmfoundry.eval.datasets.utils import (convert_tokens_to_tensors,
@@ -29,11 +32,6 @@ from llmfoundry.eval.datasets.utils import (convert_tokens_to_tensors,
                                             trim_context)
 
 log = logging.getLogger(__name__)
-
-if TYPE_CHECKING:
-    import transformers
-    from datasets import \
-        Dataset as HFDataset  # pyright: ignore[reportGeneralTypeIssues]
 
 # Allow models to have slightly more tokens than were used in the most verbose CoT in the dataset
 _MAX_ANSWER_BUFFER_LENGTH = 10
@@ -135,16 +133,6 @@ class InContextLearningDataset(Dataset):
         hf_parsing_map: Optional[Dict] = None,
         generation_kwargs: Optional[Dict] = None,
     ):
-        try:
-            import datasets
-            del datasets
-        except ImportError as e:
-            raise MissingConditionalImportError(
-                extra_deps_group='nlp',
-                conda_package='datasets',
-                conda_channel='conda-forge',
-            ) from e
-
         self.tokenizer = tokenizer
         self.prefix_space = tokenizer_needs_prefix_space(self.tokenizer)
 
@@ -621,6 +609,10 @@ class InContextLearningGenerationTaskWithAnswersDataset(InContextLearningDataset
             })
         self.max_answer_length = self._get_max_answer_length(dataset)
         # NOTE: This is the only time we use the class variable padding_size.
+        if self.max_seq_len < self.max_answer_length:
+            log.warning(f'`max_seq_len` {self.max_seq_len} was less than `max_answer_len`: {self.max_answer_length}' \
+                        + ' setting  `max_seq_len`=`max_answer_len`')
+            self.max_seq_len = self.max_answer_length
         self.padding_size = self.max_seq_len - self.max_answer_length
         return dataset
 
@@ -1259,9 +1251,19 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
             **kwargs,
         )
         self._set_max_prompt_and_answer_lengths()
+        if self.max_seq_len < self.max_prompt_length:
+            log.warning(f'`max_seq_len` {self.max_seq_len} was less than `max_prompt_len`: {self.max_prompt_length}' \
+                        + ' setting  `max_seq_len`=`max_prompt_len`')
+            self.max_seq_len = self.max_prompt_length
         dataset_size = len(self.dataset)
         self.dataset = self.dataset.map(self._trim_padding)
         self.dataset = self.repeat_dataset(self.dataset, generations_per_sample)
+
+        if self.max_answer_length < self.max_seq_len - self.max_prompt_length:
+            generation_length = self.max_answer_length
+        else:
+            generation_length = self.max_seq_len - self.max_prompt_length
+
         self.base_batch = {
             'input_ids': [],
             'mode':
@@ -1291,8 +1293,7 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
             'dataset_size':
                 dataset_size,
             'generation_length':  # TODO: deprecate with next composer release
-                min(self.max_answer_length,
-                    self.max_seq_len - self.max_prompt_length),
+                generation_length
         }
         if 'generation_kwargs' in kwargs:
             self.update_generation_kwargs(kwargs['generation_kwargs'])
@@ -1564,17 +1565,6 @@ def partition_dataset_by_category(dataset_uri: str, destination_path: str,
     Returns:
         Dict[str, str]: Mapping of category names to partitioned dataset local files names.
     """
-    try:
-        from datasets import \
-            Dataset as HFDataset  # pyright: ignore[reportGeneralTypeIssues]
-        from datasets import (  # pyright: ignore[reportGeneralTypeIssues]
-            IterableDataset, load_dataset)
-    except ImportError as e:
-        raise MissingConditionalImportError(
-            extra_deps_group='nlp',
-            conda_package='datasets',
-            conda_channel='conda-forge',
-        ) from e
     if dataset_uri.startswith('hf://'):
         dataset_uri = dataset_uri.replace('hf://', '')
         dataset = load_dataset(dataset_uri, **hf_loading_vars)

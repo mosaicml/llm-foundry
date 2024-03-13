@@ -1356,9 +1356,11 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
         query_id: int, the query id
         query: string, the question
         answer: string, the correct answer to the query
-        golden_ids: list of ints, indices into the documents 
-        documents: list of strings 
+        golden_ids: list of ints, indices into the documents for the documents required to answer the query
+        documents: list of strings, one string per document
 
+        # TODO: Add shuffle documents option
+        # TODO: Add move to beginning/middle/end options
     Args:
         passage_delimiter (str): Delimiter to place between each passage.
         passage_query_delimiter (str): Delimiter to place between the last passage and the query.
@@ -1366,8 +1368,6 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
 
     def __init__(
             self,
-            # TODO: pass these in properly
-            # passage_delimiter: str = ' ',
             passage_delimiter: str = '\nPassage: ',
             passage_query_delimiter: str = '\nQuery: ',
             use_gold_docs_only: bool = True,
@@ -1427,7 +1427,6 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
             hf_parsing_map: Dict[str, Any] | None = None) -> 'HFDataset':
         dataset = super().read_dataset(dataset_uri, destination_path,
                                        hf_loading_vars, hf_parsing_map)
-        # TODO: These should not be hardcoded
         if self.use_gold_docs_only:
             dataset = dataset.map(self._filter_to_gold_documents)
         return dataset.map(
@@ -1681,12 +1680,14 @@ def build_icl_dataloader(
     sampler = dist.get_sampler(dataset, drop_last=False, shuffle=False)
 
     split_batch = None
+    # TODO: I hate this 
     if isinstance(
             dataset,
         (
             InContextLearningMultipleChoiceTaskDataset,
             InContextLearningGenerationWithAnswersTaskDataset,
             InContextLearningCodeEvalDataset,
+            InContextLearningRAGGenerationTaskDataset,
         ),
     ):
         split_batch = dataset.split_batch

@@ -8,6 +8,7 @@ on:
     branches:
     - main
     - release/**
+  workflow_call:
   workflow_dispatch:
 # Cancel old runs when a new commit is pushed to the same branch if not on main or dev
 concurrency:

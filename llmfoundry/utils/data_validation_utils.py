@@ -5,29 +5,19 @@ import json
 import os
 import re
 import tempfile
-from argparse import ArgumentParser, Namespace
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
-from typing import Callable, Mapping, cast
+from argparse import Namespace
+from typing import Mapping, Optional, Tuple, Union
 
-import torch
-import datasets
-import numpy as np
 import pandas as pd
-from composer.utils import (ObjectStore, maybe_create_object_store_from_uri,
-                            parse_uri)
+import torch
 from datasets import get_dataset_split_names
 from huggingface_hub import dataset_info
 from omegaconf import OmegaConf as om
 from streaming.base.storage.download import download_file
 from streaming.base.storage.upload import CloudUploader
+from tqdm import tqdm
 
-from llmfoundry.data import ConcatTokensDataset
 from llmfoundry.utils import build_tokenizer
-from composer.utils import dist, get_file, parse_uri
-
-from llmfoundry.data.finetuning.tasks import (DOWNLOADED_FT_DATASETS_DIRPATH,
-                                              SUPPORTED_EXTENSIONS,
-                                              dataset_constructor)
 
 
 def get_import_exception_message(package_name: str, extra_deps: str) -> str:
@@ -104,7 +94,7 @@ def create_om_cfg(FT_API_args: Namespace):
     return cfg, tokenizer
 
 
-def token_counts_and_validation(FT_API_args):
+def token_counts_and_validation(FT_API_args: Namespace):
     from llmfoundry.data.finetuning import build_finetuning_dataloader
 
     cfg, tokenizer = create_om_cfg(FT_API_args)
@@ -123,7 +113,7 @@ def token_counts_and_validation(FT_API_args):
     return total_tokens
 
 
-def get_num_samples_in_batch(batch: dict) -> int:
+def get_num_samples_in_batch(batch: dict) -> Mapping:
     decoder_only = True
 
     if not isinstance(batch, Mapping) or ('attention_mask' not in batch and
@@ -156,7 +146,7 @@ def get_num_samples_in_batch(batch: dict) -> int:
     }
 
 
-def token_counts(FT_API_args):
+def token_counts(FT_API_args: Namespace):
     from llmfoundry.data.finetuning import build_finetuning_dataloader
 
     cfg, tokenizer = create_om_cfg(FT_API_args)
@@ -168,7 +158,7 @@ def token_counts(FT_API_args):
     detected_cpu_count = os.cpu_count() or 1
     num_cpus_to_use = max(1, detected_cpu_count)
 
-    token_lens = dataloader.dataset.map(
+    token_lens = dataloader.dataset.map(  # pyright: ignore
         get_num_samples_in_batch,
         batched=False,
         num_proc=num_cpus_to_use,
@@ -219,7 +209,7 @@ def is_hf_dataset_path(path: str):
 
 
 def is_uc_delta_table(name: str):
-    """name is in the form of catalog.scheme.tablename.
+    """Name is in the form of catalog.scheme.tablename.
 
     Args:
         name (str): a string folder/file/table path
@@ -266,17 +256,17 @@ def integrity_check(out: Union[str, Tuple[str, str]]):
         return n_shard_files == actual_n_shard_files
 
 
-def parse_args(tokenizer,
-               concat_tokens,
-               output_folder,
-               input_folder,
-               compression='zstd',
-               bos_text='',
-               eos_text='',
-               no_wrap=False,
-               processes=32,
-               reprocess=True,
-               skip_mdswrite=False) -> Namespace:
+def parse_args(tokenizer: str,
+               concat_tokens: int,
+               output_folder: str,
+               input_folder: str,
+               compression: str = 'zstd',
+               bos_text: str = '',
+               eos_text: str = '',
+               no_wrap: bool = False,
+               processes: int = 32,
+               reprocess: bool = True,
+               skip_mdswrite: bool = False) -> Namespace:
     parsed = Namespace(tokenizer=tokenizer,
                        concat_tokens=concat_tokens,
                        output_folder=output_folder,
@@ -291,7 +281,7 @@ def parse_args(tokenizer,
     # Make sure we have needed concat options
     if (parsed.concat_tokens is not None and
             isinstance(parsed.concat_tokens, int) and parsed.tokenizer is None):
-        parser.error(
+        raise ValueError(
             'When setting --concat_tokens, you must specify a --tokenizer')
     # now that we have validated them, change BOS/EOS to strings
     if parsed.bos_text is None:
@@ -300,31 +290,34 @@ def parse_args(tokenizer,
         parsed.eos_text = ''
     return parsed
 
-def cpt_token_counts(args: Namespace) -> int:
-    """Count tokens from the concatenated dataset"""
 
-    from llmfoundry.utils.data_prep_utils import convert_text_to_mds, _args_str
-    n_samples = convert_text_to_mds(tokenizer_name=args.tokenizer,
-                                    output_folder=args.output_folder,
-                                    input_folder=args.input_folder,
-                                    concat_tokens=args.concat_tokens,
-                                    eos_text=args.eos_text,
-                                    bos_text=args.bos_text,
-                                    no_wrap=args.no_wrap,
-                                    compression=args.compression,
-                                    processes=args.processes,
-                                    reprocess=True, # overwrite args.reprocess,
-                                    args_str=_args_str(args),
-                                    skip_mdswrite = True) # overwrite args.skip_mdswrite
+def cpt_token_counts(args: Namespace) -> int:
+    """Wrapper of convert_text_to_mds.
+
+    Count tokens from the concatenated dataset. Skip MDS write because it
+    creates some issues in spark environment.
+    """
+    from llmfoundry.utils.data_prep_utils import _args_str, convert_text_to_mds
+    n_samples = convert_text_to_mds(
+        tokenizer_name=args.tokenizer,
+        output_folder=args.output_folder,
+        input_folder=args.input_folder,
+        concat_tokens=args.concat_tokens,
+        eos_text=args.eos_text,
+        bos_text=args.bos_text,
+        no_wrap=args.no_wrap,
+        compression=args.compression,
+        processes=args.processes,
+        reprocess=True,  # overwrite args.reprocess,
+        args_str=_args_str(args),
+        skip_mdswrite=True)  # overwrite args.skip_mdswrite
 
     return n_samples
 
 
-def plot_hist(data, save_plot_path=None):
-    """A helper function to draw the frequency of counts of tokens in a dataset"""
-
+def plot_hist(data: pd.DataFrame, save_plot_path: Optional[str] = None):
+    """Helper function draw frequency of token counts in a dataset."""
     import matplotlib.pyplot as plt
-    import pandas as pd
 
     # Figure and Axis Setup
     plt.figure(figsize=(10, 6))
@@ -347,7 +340,7 @@ def plot_hist(data, save_plot_path=None):
     median_val = data.median()
     plt.axvline(mean_val, color='red', linestyle='dashed', linewidth=1)
     plt.axvline(median_val, color='green', linestyle='dashed', linewidth=1)
-    min_ylim, max_ylim = plt.ylim()
+    _, max_ylim = plt.ylim()
     plt.text(mean_val * 1.1, max_ylim * 0.9, f'Mean: {mean_val:.2f}')
     plt.text(median_val * 1.1, max_ylim * 0.8, f'Median: {median_val:.2f}')
 
@@ -356,6 +349,3 @@ def plot_hist(data, save_plot_path=None):
 
     # Show the Plot
     plt.show()
-
-
-

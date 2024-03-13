@@ -3,27 +3,25 @@
 
 import json
 import logging
+import math
 import os
+import tempfile
+from argparse import Namespace
+from concurrent.futures import ProcessPoolExecutor
 from glob import glob
-from typing import List, Optional
-from typing import Iterable, List, Tuple, cast
+from typing import Iterable, List, Optional, Tuple, cast
 
 from composer.utils import (ObjectStore, maybe_create_object_store_from_uri,
                             parse_uri)
-import math
-import tempfile
-from argparse import ArgumentParser, Namespace
-from concurrent.futures import ProcessPoolExecutor
-from glob import glob
-
-import psutil
 from streaming import MDSWriter
 from tqdm import tqdm
 from transformers import AutoTokenizer
+
 from llmfoundry.data import ConcatTokensDataset
 
 log = logging.getLogger(__name__)
 DONE_FILENAME = '.text_to_mds_conversion_done'
+
 
 def with_id(basename: str, shard_id: int) -> str:
     """Get a new basename with the given shard_id.
@@ -153,19 +151,17 @@ def get_object_names(input_folder: str) -> List[str]:
     return names
 
 
-def get_task_args(
-    object_names: List[str],
-    output_root: str,
-    input_folder: str,
-    n_groups: int,
-    tokenizer_name: str,
-    concat_tokens: int,
-    eos_text: str,
-    bos_text: str,
-    no_wrap: bool,
-    compression: str,
-    skip_mdswrite: bool = False
-) -> Iterable:
+def get_task_args(object_names: List[str],
+                  output_root: str,
+                  input_folder: str,
+                  n_groups: int,
+                  tokenizer_name: str,
+                  concat_tokens: int,
+                  eos_text: str,
+                  bos_text: str,
+                  no_wrap: bool,
+                  compression: str,
+                  skip_mdswrite: bool = False) -> Iterable:
     """Get download_and_convert arguments split across n_groups.
 
     Each group handles a portion of object_names.
@@ -209,18 +205,16 @@ def download_and_convert_starargs(args: Tuple):
     return download_and_convert(*args)
 
 
-def download_and_convert(
-    file_names: List[str],
-    output_folder: str,
-    input_folder: str,
-    tokenizer_name: str,
-    concat_tokens: int,
-    eos_text: str,
-    bos_text: str,
-    no_wrap: bool,
-    compression: str,
-    skip_mdswrite: bool = False
-) -> int:
+def download_and_convert(file_names: List[str],
+                         output_folder: str,
+                         input_folder: str,
+                         tokenizer_name: str,
+                         concat_tokens: int,
+                         eos_text: str,
+                         bos_text: str,
+                         no_wrap: bool,
+                         compression: str,
+                         skip_mdswrite: bool = False) -> int:
     """Downloads and converts text fies to MDS format.
 
     Args:
@@ -258,8 +252,7 @@ def download_and_convert(
             bos_text=bos_text,
             no_wrap=no_wrap,
         )
-
-        n_tokens = len([1 for _ in dataset]) * concat_tokens
+        n_tokens = len([1 for _ in dataset]) * concat_tokens  # pyright: ignore
 
         if skip_mdswrite:
             return n_tokens
@@ -349,20 +342,18 @@ def write_done_file(folder: str, args_str: str, object_names: List[str]):
         done_file.write('\n'.join([args_str] + object_names) + '\n')
 
 
-def convert_text_to_mds(
-    tokenizer_name: str,
-    output_folder: str,
-    input_folder: str,
-    concat_tokens: int,
-    eos_text: str,
-    bos_text: str,
-    no_wrap: bool,
-    compression: str,
-    processes: int,
-    args_str: str,
-    reprocess: bool,
-    skip_mdswrite: bool=False
-) -> int:
+def convert_text_to_mds(tokenizer_name: str,
+                        output_folder: str,
+                        input_folder: str,
+                        concat_tokens: int,
+                        eos_text: str,
+                        bos_text: str,
+                        no_wrap: bool,
+                        compression: str,
+                        processes: int,
+                        args_str: str,
+                        reprocess: bool,
+                        skip_mdswrite: bool = False) -> int:
     """Convert a folder of text files to MDS format.
 
     Args:
@@ -380,7 +371,7 @@ def convert_text_to_mds(
         skip_mdswrite (bool): Whether to skip mds write
 
     Return:
-        (int): total number of tokens in the processed dataset
+        (int): total number of tokens in the processed dataset or -1 if the dataset is already processed
     """
     is_remote_output = is_remote_path(output_folder)
 
@@ -396,7 +387,7 @@ def convert_text_to_mds(
             +
             'reprocess is set to False. Set reprocess to True if you would like to force reprocessing.'
         )
-        return
+        return -1
 
     # Use a temporary local directory if the output is remote and there are more than 1 processes
     local_output_folder = tempfile.TemporaryDirectory(
@@ -418,9 +409,10 @@ def convert_text_to_mds(
         merge_shard_groups(local_output_folder)
         total_tokens = sum(pool)
     else:
-        total_tokens = download_and_convert(object_names, local_output_folder, input_folder,
-                             tokenizer_name, concat_tokens, eos_text, bos_text,
-                             no_wrap, compression, skip_mdswrite)
+        total_tokens = download_and_convert(object_names, local_output_folder,
+                                            input_folder, tokenizer_name,
+                                            concat_tokens, eos_text, bos_text,
+                                            no_wrap, compression, skip_mdswrite)
 
     # Write a done file with the args and object names
     write_done_file(local_output_folder, args_str, object_names)
@@ -463,4 +455,3 @@ def _args_str(original_args: Namespace) -> str:
     )
 
     return str(args)
-

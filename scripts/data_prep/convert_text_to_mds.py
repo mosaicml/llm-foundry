@@ -2,7 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from argparse import ArgumentParser, Namespace
-from llmfoundry.utils.data_prep_utils import convert_text_to_mds
+
+import psutil
+from transformers import AutoTokenizer
+
+from llmfoundry.utils.data_prep_utils import _args_str, convert_text_to_mds
+
 
 def parse_args() -> Namespace:
     """Parse commandline arguments."""
@@ -90,14 +95,11 @@ def parse_args() -> Namespace:
         'only reprocess upon changes to the input folder or dataset creation parameters.',
     )
 
-    parser.add_argument(
-        '--skip_mdswrite',
-        type=bool,
-        required=False,
-        default=False,
-        help='If true, skip mdswrite.'
-    )
-
+    parser.add_argument('--skip_mdswrite',
+                        type=bool,
+                        required=False,
+                        default=False,
+                        help='If true, skip mdswrite.')
 
     parsed = parser.parse_args()
 
@@ -117,7 +119,6 @@ def parse_args() -> Namespace:
     if parsed.eos_text is None:
         parsed.eos_text = ''
     return parsed
-
 
 
 if __name__ == '__main__':

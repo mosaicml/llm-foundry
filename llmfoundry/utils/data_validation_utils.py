@@ -6,6 +6,7 @@ import os
 import re
 import tempfile
 from argparse import Namespace
+from urllib.parse import urlparse
 from typing import Mapping, Optional, Tuple, Union
 
 import pandas as pd
@@ -18,7 +19,7 @@ from streaming.base.storage.upload import CloudUploader
 from tqdm import tqdm
 
 from llmfoundry.utils import build_tokenizer
-
+from llmfoundry.data.finetuning import build_finetuning_dataloader
 
 def get_import_exception_message(package_name: str, extra_deps: str) -> str:
     """Get import exception message.
@@ -95,7 +96,6 @@ def create_om_cfg(FT_API_args: Namespace):
 
 
 def token_counts_and_validation(FT_API_args: Namespace):
-    from llmfoundry.data.finetuning import build_finetuning_dataloader
 
     cfg, tokenizer = create_om_cfg(FT_API_args)
 
@@ -147,7 +147,6 @@ def get_num_samples_in_batch(batch: dict) -> Mapping:
 
 
 def token_counts(FT_API_args: Namespace):
-    from llmfoundry.data.finetuning import build_finetuning_dataloader
 
     cfg, tokenizer = create_om_cfg(FT_API_args)
 
@@ -192,20 +191,69 @@ def check_HF_datasets(dataset_names_with_splits: list):
             return False, f'Failed to load Hugging Face dataset {dataset_name_with_split}. Split not found.'
     return True, ''
 
+def parse_hf_dataset_url(url: str) -> Tuple[str, str]:
+    """Parses a Hugging Face dataset URL to extract the prefix and submixes.
 
-def is_hf_dataset_path(path: str):
+    This function assumes a specific URL format used by Hugging Face datasets.
+    It splits the URL path to extract the prefix (if any) and the submixes name.
+    The expected URL format is 'https://huggingface.co/datasets/{prefix}/{submixes}'.
+    If the URL does not include a prefix, it defaults to an empty string.
+
+    Args:
+        url (str): The Hugging Face dataset URL to be parsed.
+
+    Returns:
+        tuple: A tuple containing two elements:
+               - prefix (str): The extracted prefix from the URL. If no prefix is present, returns an empty string.
+               - submixes (str): The name of the submixes extracted from the URL.
+
+    Raises:
+        ValueError: If the URL does not conform to the expected format.
+
+    Examples:
+    >>> parse_hf_dataset_url("https://huggingface.co/datasets/test_prefix/test_submix")
+    ('test_prefix', 'test_submix')
+
+    >>> parse_hf_dataset_url("https://huggingface.co/datasets/test_submix")
+    ('', 'test_submix')
+    """
+    parsed_url = urlparse(url.rstrip('/'))
+    path_parts = parsed_url.path.split('/')
+
+    # Assuming the URL format is: https://huggingface.co/datasets/{prefix}/{submixes}
+    if len(path_parts) >= 3 and path_parts[1] == 'datasets':
+        prefix = '' if len(path_parts) == 3 else path_parts[2]
+        submixes = path_parts[2] if len(path_parts) == 3 else path_parts[3]
+        return prefix, submixes
+    else:
+        raise ValueError('Invalid Hugging Face dataset URL format')
+
+
+
+def is_hf_dataset_path(path: str, check_split: bool = False) -> Tuple[bool, bool]:
     """Check if a given string is a dataset path used by Hugging Face.
 
     Args:
         path (str): The string to be checked.
+        check_split (bool): Whether insist path ends with a split component
 
     Returns:
-        bool: True if the string is a dataset path, False otherwise.
+        (bool,bool): First indicates if it is a dataset id, second indicates if it is a dataset repo id
     """
-    # Regular expression to match the dataset path pattern
-    pattern = r'^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+/?(train|validation|test)?/?$'
+    if check_split:
+        pattern = r'^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+/(train|validation|test)/?$'
+    else:
+        pattern = r'^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+(/train|/validation|/test)?/?$'
 
-    return bool(re.match(pattern, path))
+    is_dataset_id = bool(re.match(pattern, path))
+
+    try:
+        _, _ = parse_hf_dataset_url(path)
+        is_repo_id = True
+    except ValueError as _:
+        is_repo_id = False
+
+    return is_dataset_id, is_repo_id
 
 
 def is_uc_delta_table(name: str):
@@ -216,8 +264,7 @@ def is_uc_delta_table(name: str):
     Return:
         (bool): True if name is valid UC delta table format
     """
-    return '.' in name and '/' not in name and '\\' not in name and len(
-        name.split('.')) == 3
+    return '.' in name and '/' not in name and '\\' not in name and len(name.split('.')) == 3
 
 
 def integrity_check(out: Union[str, Tuple[str, str]]):

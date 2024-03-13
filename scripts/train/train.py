@@ -31,6 +31,7 @@ from transformers import PreTrainedTokenizerBase
 from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.callbacks import AsyncEval
 from llmfoundry.data.dataloader import build_dataloader
+from llmfoundry.registry import import_file
 from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_algorithm, build_callback,
                                        build_evaluators, build_logger,
@@ -79,6 +80,23 @@ def validate_config(cfg: DictConfig):
                     'Model type "hf_prefix_lm" requires `decoder_only_format` to be ``True``. ' +\
                     'Overriding `decoder_only_format` from ``False`` to ``True``.')
                 loader.mixture_of_denoisers.decoder_only_format = True
+        elif loader.name == 'finetuning':
+            if cfg.model.name == 'hf_prefix_lm':
+                is_prefix_lm = True
+            elif cfg.model.name == 'mpt_causal_lm':
+                is_prefix_lm = cfg.model.get('attn_config',
+                                             {}).get('prefix_lm', False)
+            else:
+                # Note: This only covers the two prefix-lms introduced in this repo
+                is_prefix_lm = False
+            target_responses = loader.dataset.get('target_responses', 'last')
+            target_prompts = loader.dataset.get('target_prompts', 'none')
+            prefix_lm_safe = target_responses == 'last' and target_prompts == 'none'
+            if is_prefix_lm and not prefix_lm_safe:
+                raise ValueError(
+                    'The model configuration is building a Prefix-LM, which requires that the finetuning ' +\
+                    'dataloader uses `target_responses`="last" and `target_prompts`="none".'
+                )
 
     if 'icl_tasks' in cfg:
         if cfg.model.name == 'hf_t5':
@@ -141,6 +159,16 @@ def main(cfg: DictConfig) -> Trainer:
         message=
         'torch.distributed.*_base is a private function and will be deprecated.*'
     )
+
+    # Run user provided code if specified
+    code_paths = pop_config(cfg,
+                            'code_paths',
+                            must_exist=False,
+                            default_value=[],
+                            convert=True)
+    # Import any user provided code
+    for code_path in code_paths:
+        import_file(code_path)
 
     # Check for incompatibilities between the model and data loaders
     validate_config(cfg)

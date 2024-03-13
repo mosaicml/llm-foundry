@@ -554,6 +554,7 @@ def build_icl_evaluators(
                 prompt_string=icl_cfg.prompt_string,
                 example_delimiter=icl_cfg.example_delimiter,
                 continuation_delimiter=icl_cfg.continuation_delimiter,
+                # TODO: change this from question_prelimiter to prelimiter
                 question_prelimiter=icl_cfg.get('question_prelimiter', ''),
                 pass_at_k=icl_cfg.pass_at_k,
                 generations_per_sample=icl_cfg.generations_per_sample,

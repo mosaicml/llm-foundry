@@ -177,6 +177,8 @@ class InContextLearningGenerationAccuracy(InContextLearningMetric):
         do_normalization = batch.get('do_normalization', True)
         stopping_criteria = batch.get('stopping_criteria', None)
         metric_result_dict = deepcopy(self.metric_result_dict)
+        if not isinstance(labels[0], list):
+            labels = [[label] for label in labels]
         for sample_output, sample_labels in zip(outputs, labels):
             final_answer = sample_output
 
@@ -752,9 +754,7 @@ Result: """
         metric_result_dict = deepcopy(self.metric_result_dict)
         metric_kwargs = batch.get('metric_kwargs', {})
 
-        for i, (sample_output, sample_label) in enumerate(zip(outputs, labels)):
-            metric_result_dict['context'].append(batch['input_ids'][i])
-            metric_result_dict['output'].append(sample_output)
+        for sample_output, sample_label in zip(outputs, labels):
             result = self.call_judge(sample_output, sample_label, metric_kwargs)
             metric_result_dict['label'].append(sample_label)
             metric_result_dict['result'].append(result)

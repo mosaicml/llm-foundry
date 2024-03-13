@@ -1432,7 +1432,7 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
         return dataset.map(
             lambda example: {
                 'documents':
-                    self.passage_delimiter.join([passage for passage in example['documents']]),
+                    ' '.join([self.passage_delimiter + passage for passage in example['documents']]),
                 'answer':
                     example['answer'],
                 'query':

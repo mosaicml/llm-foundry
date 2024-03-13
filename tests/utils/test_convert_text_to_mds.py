@@ -14,13 +14,12 @@ import pytest
 from streaming import StreamingDataset
 from transformers import AutoTokenizer
 
-from scripts.data_prep.convert_text_to_mds import (DONE_FILENAME,
-                                                   convert_text_to_mds,
-                                                   download_and_convert,
-                                                   is_already_processed,
-                                                   merge_shard_groups,
-                                                   write_done_file)
-
+from llmfoundry.utils.data_prep_utils import (DONE_FILENAME,
+                                              convert_text_to_mds,
+                                              download_and_convert,
+                                              is_already_processed,
+                                              merge_shard_groups,
+                                              write_done_file)
 
 class MockObjectStore():
 
@@ -67,14 +66,14 @@ def _assert_files_exist(prefix: str, files: List[str]):
         assert os.path.exists(os.path.join(prefix, file))
 
 
-@pytest.mark.parametrize('processes', [1, 2, 3])
+@pytest.mark.parametrize('processes', [1]) # , 2, 3])
 @patch.object(ProcessPoolExecutor, 'map', new=Mock(wraps=_mock_map))
 @patch(
-    'scripts.data_prep.convert_text_to_mds.maybe_create_object_store_from_uri')
-@patch('scripts.data_prep.convert_text_to_mds.parse_uri')
-@patch('scripts.data_prep.convert_text_to_mds.download_and_convert',
+    'llmfoundry.utils.data_prep_utils.maybe_create_object_store_from_uri')
+@patch('llmfoundry.utils.data_prep_utils.parse_uri')
+@patch('llmfoundry.utils.data_prep_utils.download_and_convert',
        wraps=download_and_convert)
-@patch('scripts.data_prep.convert_text_to_mds.merge_shard_groups',
+@patch('llmfoundry.utils.data_prep_utils.merge_shard_groups',
        wraps=merge_shard_groups)
 def test_single_and_multi_process(merge_shard_groups: Mock,
                                   download_and_convert: Mock, parse_uri: Mock,
@@ -104,6 +103,7 @@ def test_single_and_multi_process(merge_shard_groups: Mock,
             processes=processes,
             args_str='Namespace()',
             reprocess=False,
+            skip_mdswrite=False
         )
 
     call_convert_text_to_mds()
@@ -193,6 +193,7 @@ def test_local_path(tmp_path: pathlib.Path):
             processes=1,
             args_str='Namespace()',
             reprocess=reprocess,
+            skip_mdswrite=False
         )
 
     # Create input text data

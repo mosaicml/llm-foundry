@@ -272,7 +272,7 @@ from llmfoundry.utils.data_prep_utils import (DownloadingIterable,
                                               merge_shard_groups)
 
 log = logging.getLogger(__name__)
-DONE_FILENAME = '/Volumes/main/mosaic_hackathon/managed-volume/text_to_mds_conversion_done'
+DONE_FILENAME = '.text_to_mds_conversion_done'
 
 
 def parse_args(tokenizer,

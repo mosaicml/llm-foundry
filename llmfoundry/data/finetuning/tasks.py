@@ -51,7 +51,8 @@ from transformers import PreTrainedTokenizerBase
 from llmfoundry.data.finetuning.collator import (_HF_IGNORE_INDEX,
                                                  stitch_turns_decoder_only,
                                                  stitch_turns_encoder_decoder)
-from llmfoundry.utils.exceptions import (IncorrectMessageKeyQuantityError,
+from llmfoundry.utils.exceptions import (ConsecutiveRepeatedChatRolesError,
+                                         IncorrectMessageKeyQuantityError,
                                          InvalidContentTypeError,
                                          InvalidFileExtensionError,
                                          InvalidLastChatMessageRoleError,
@@ -59,7 +60,6 @@ from llmfoundry.utils.exceptions import (IncorrectMessageKeyQuantityError,
                                          InvalidPromptTypeError,
                                          InvalidResponseTypeError,
                                          InvalidRoleError,
-                                         MissingHuggingFaceURLSplitError,
                                          NotEnoughChatDataError,
                                          TooManyKeysInExampleError,
                                          UnableToProcessPromptResponseError,
@@ -157,6 +157,7 @@ def _validate_chat_formatted_example(example: ChatFormattedDict):
         raise InvalidLastChatMessageRoleError(last_role,
                                               _ALLOWED_LAST_MESSAGE_ROLES)
 
+    last_message_role = None
     for message in messages:
         role_key, content_key = _get_key(message, _ALLOWED_ROLE_KEYS), _get_key(
             message, _ALLOWED_CONTENT_KEYS)
@@ -166,6 +167,10 @@ def _validate_chat_formatted_example(example: ChatFormattedDict):
             raise InvalidRoleError(message[role_key], _ALLOWED_ROLES)
         if not isinstance(message[content_key], str):
             raise InvalidContentTypeError(type(message[content_key]))
+        if last_message_role is not None and last_message_role == message[
+                role_key]:
+            raise ConsecutiveRepeatedChatRolesError(last_message_role)
+        last_message_role = message[role_key]
 
 
 def _slice_chat_formatted_example(

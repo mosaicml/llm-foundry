@@ -99,6 +99,7 @@ def make_tiny_conversation_ft_dataset(
     add_invalid_message_key_quantity: bool = False,
     add_invalid_content_type: bool = False,
     add_invalid_role: bool = False,
+    add_not_alternating_roles: bool = False,
 ):
     if Path(path).suffix != '.jsonl':
         raise ValueError(f'Path {path} must be a jsonl file.')
@@ -180,6 +181,23 @@ def make_tiny_conversation_ft_dataset(
                 'content': None
             }]
         })  # type: ignore (intentional test)
+
+    if add_not_alternating_roles:
+        # not alternating roles
+        samples.append({
+            'messages': [{
+                'role':
+                    'system',
+                'content':
+                    'A conversation between a user and a helpful assistant.'
+            }, {
+                'role': 'user',
+                'content': "Hi there. What's the capital of the moon?"
+            }, {
+                'role': 'user',
+                'content': "This question doesn't make sense."
+            }]
+        })
 
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'w') as _f:

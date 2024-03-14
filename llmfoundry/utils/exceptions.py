@@ -63,6 +63,15 @@ class NotEnoughChatDataError(ValueError):
         super().__init__(message)
 
 
+class ConsecutiveRepeatedChatRolesError(ValueError):
+    """Error thrown when there are consecutive repeated chat roles."""
+
+    def __init__(self, repeated_role: str) -> None:
+        self.repeated_role = repeated_role
+        message = f'Conversation roles must alternate but found {repeated_role} repeated consecutively.'
+        super().__init__(message)
+
+
 class InvalidLastChatMessageRoleError(ValueError):
     """Error thrown when the last message role in a chat example is invalid."""
 

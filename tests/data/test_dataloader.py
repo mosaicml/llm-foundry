@@ -36,7 +36,8 @@ from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
                                        build_text_dataloader,
                                        get_tokens_per_batch_func)
 from llmfoundry.utils.builders import build_tokenizer
-from llmfoundry.utils.exceptions import (IncorrectMessageKeyQuantityError,
+from llmfoundry.utils.exceptions import (ConsecutiveRepeatedChatRolesError,
+                                         IncorrectMessageKeyQuantityError,
                                          InvalidContentTypeError,
                                          InvalidLastChatMessageRoleError,
                                          InvalidPromptTypeError,
@@ -843,7 +844,7 @@ def test_malformed_data(
 
 invalid_conversation_params = [
     'add_invalid_last_chat_message', 'add_invalid_message_key_quantity',
-    'add_invalid_content_type', 'add_invalid_role'
+    'add_invalid_content_type', 'add_invalid_role', 'add_not_alternating_roles'
 ]
 
 
@@ -854,7 +855,8 @@ def test_malformed_conversation_data(tmp_path: pathlib.Path,
                                      add_invalid_last_chat_message: bool,
                                      add_invalid_message_key_quantity: bool,
                                      add_invalid_content_type: bool,
-                                     add_invalid_role: bool):
+                                     add_invalid_role: bool,
+                                     add_not_alternating_roles: bool):
     tokenizer_name = 'mosaicml/mpt-7b'
     max_seq_len = 2048
     dataset_size = 5
@@ -880,6 +882,7 @@ def test_malformed_conversation_data(tmp_path: pathlib.Path,
             add_invalid_message_key_quantity=add_invalid_message_key_quantity,
             add_invalid_content_type=add_invalid_content_type,
             add_invalid_role=add_invalid_role,
+            add_not_alternating_roles=add_not_alternating_roles,
         )
 
     cfg = {
@@ -917,7 +920,12 @@ def test_malformed_conversation_data(tmp_path: pathlib.Path,
         error_context = pytest.raises(InvalidContentTypeError,
                                       match='Expected content to be')
     if add_invalid_role:
-        error_context = pytest.raises(InvalidRoleError, match='Invalid role')
+        error_context = pytest.raises(InvalidRoleError,
+                                      match='Expected role to be one of')
+
+    if add_not_alternating_roles:
+        error_context = pytest.raises(ConsecutiveRepeatedChatRolesError,
+                                      match='Conversation roles must alternate')
 
     with error_context:
         build_finetuning_dataloader(cfg, tokenizer,

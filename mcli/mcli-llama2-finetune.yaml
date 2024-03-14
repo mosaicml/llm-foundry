@@ -38,7 +38,7 @@ parameters:
     pretrained: true
     # Note: you must have set the HUGGING_FACE_HUB_TOKEN environment variable and have access to the llama2 models
     use_auth_token: true
-    use_flash_attention_2: true
+    attention_patch_type: triton
 
   # Tokenizer
   tokenizer:
@@ -62,7 +62,7 @@ parameters:
       # # Or use `python llmfoundry/scripts/misc/profile_packing.py --yaml-path /path/to/this/yaml/ ...`
       # # to profile this run's optimal packing_ratio as it depends on GPU count,
       # # batch size, sequence length
-      # packing_ratio: auto
+      # packing_ratio:
     drop_last: true
     num_workers: 8
     pin_memory: false

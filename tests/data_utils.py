@@ -191,10 +191,10 @@ def make_tiny_conversation_ft_dataset(
                 'content':
                     'A conversation between a user and a helpful assistant.'
             }, {
-                'role': 'user',
+                'role': 'assistant',
                 'content': "Hi there. What's the capital of the moon?"
             }, {
-                'role': 'user',
+                'role': 'assistant',
                 'content': "This question doesn't make sense."
             }]
         })

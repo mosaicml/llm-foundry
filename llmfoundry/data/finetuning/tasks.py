@@ -107,10 +107,8 @@ def _get_example_type(example: Example) -> ExampleType:
     if any(allowed_message_key in example
            for allowed_message_key in _ALLOWED_MESSAGES_KEYS):
         return 'chat'
-    elif any([
-            pr in example
-            for pr in _ALLOWED_PROMPT_KEYS.union(_ALLOWED_RESPONSE_KEYS)
-    ]):
+    elif any(pr in example for pr in _ALLOWED_PROMPT_KEYS) and any(
+            pr in example for pr in _ALLOWED_RESPONSE_KEYS):
         return 'prompt_response'
     else:
         raise UnknownConversationTypeError(example)

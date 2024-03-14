@@ -11,9 +11,6 @@ from glob import glob
 from typing import Iterable, List, Tuple, cast
 
 import psutil
-from composer.loggers import MosaicMLLogger
-from composer.loggers.mosaicml_logger import (MOSAICML_ACCESS_TOKEN_ENV_VAR,
-                                              MOSAICML_PLATFORM_ENV_VAR)
 from composer.utils import (ObjectStore, maybe_create_object_store_from_uri,
                             parse_uri)
 from streaming import MDSWriter

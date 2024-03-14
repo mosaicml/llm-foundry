@@ -1,28 +1,28 @@
 icl_tasks:
 -
   label: jeopardy
-  dataset_uri: eval/local_data/world_knowledge/jeopardy_all.jsonl # ADD YOUR OWN DATASET URI
+  dataset_uri: eval/local_data/world_knowledge/jeopardy_all.jsonl  # ADD YOUR OWN DATASET URI
   num_fewshot: [10]
   icl_task_type: language_modeling
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  continuation_delimiter: "\nAnswer: "  # this separates questions from answers
   has_categories: true
 -
   label: arc_challenge
-  dataset_uri: eval/local_data/world_knowledge/arc_challenge.jsonl # ADD YOUR OWN DATASET URI
+  dataset_uri: eval/local_data/world_knowledge/arc_challenge.jsonl  # ADD YOUR OWN DATASET URI
   num_fewshot: [10]
   icl_task_type: multiple_choice
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  continuation_delimiter: "\nAnswer: "  # this separates questions from answers
 -
   label: copa
-  dataset_uri: eval/local_data/commonsense_reasoning/copa.jsonl # ADD YOUR OWN DATASET URI
+  dataset_uri: eval/local_data/commonsense_reasoning/copa.jsonl  # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
   icl_task_type: multiple_choice
 -
   label: piqa
-  dataset_uri: eval/local_data/commonsense_reasoning/piqa.jsonl  # ADD YOUR OWN DATASET URI
+  dataset_uri: eval/local_data/commonsense_reasoning/piqa.jsonl   # ADD YOUR OWN DATASET URI
   num_fewshot: [10]
   icl_task_type: multiple_choice
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  continuation_delimiter: "\nAnswer: "  # this separates questions from answers
 -
   label: lambada_openai
   dataset_uri: eval/local_data/language_understanding/lambada_openai.jsonl
@@ -30,12 +30,12 @@ icl_tasks:
   icl_task_type: language_modeling
 -
   label: hellaswag
-  dataset_uri: eval/local_data/language_understanding/hellaswag.jsonl # ADD YOUR OWN DATASET URI
+  dataset_uri: eval/local_data/language_understanding/hellaswag.jsonl  # ADD YOUR OWN DATASET URI
   num_fewshot: [10]
   icl_task_type: multiple_choice
 -
   label: winograd
-  dataset_uri: eval/local_data/language_understanding/winograd_wsc.jsonl # ADD YOUR OWN DATASET URI
+  dataset_uri: eval/local_data/language_understanding/winograd_wsc.jsonl  # ADD YOUR OWN DATASET URI
   num_fewshot: [0]
   icl_task_type: schema
 -
@@ -70,11 +70,11 @@ icl_tasks:
   icl_task_type: language_modeling
 -
   label: pubmed_qa_labeled
-  dataset_uri: eval/local_data/reading_comprehension/pubmed_qa_labeled.jsonl # ADD YOUR OWN DATASET URI
+  dataset_uri: eval/local_data/reading_comprehension/pubmed_qa_labeled.jsonl  # ADD YOUR OWN DATASET URI
   num_fewshot: [10]
   icl_task_type: language_modeling
 -
   label: squad
-  dataset_uri: eval/local_data/reading_comprehension/squad.jsonl # ADD YOUR OWN DATASET URI
+  dataset_uri: eval/local_data/reading_comprehension/squad.jsonl  # ADD YOUR OWN DATASET URI
   num_fewshot: [10]
   icl_task_type: language_modeling

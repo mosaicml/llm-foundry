@@ -216,7 +216,6 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
         # Get around this issue by retokenizing the batch to remove spacing from the continuation as well as
         # decoding the whole continuation at once.
         padding_tok = self.tokenizer.pad_token_id if self.tokenizer.pad_token_id else self.tokenizer.eos_token_id
-        log.info(batch['mode'])
         if batch.get('mode', '') == 'generate':
             outputs = []
             # generate-based implementation

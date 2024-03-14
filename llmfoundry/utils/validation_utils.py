@@ -83,24 +83,33 @@ def create_om_cfg(FT_API_args: Namespace):
     return cfg, tokenizer
 
 
-def token_counts_and_validation(FT_API_args):
-    from llmfoundry.data.finetuning import build_finetuning_dataloader
+def token_counts_with_collate(FT_API_args):
+    from llmfoundry.data.finetuning import build_finetuning_dataloader, _build_collate_fn
 
     cfg, tokenizer = create_om_cfg(FT_API_args)
+    detected_cpu_count = os.cpu_count() or 1
+    num_cpus_to_use = max(1, detected_cpu_count)
+    cfg.num_workers = num_cpus_to_use
 
     device_batch_size = 1
     dataspec = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
     dataloader = dataspec.dataloader
-    token_counting_func = dataspec.get_num_tokens_in_batch
 
-    total_tokens = []
-    for batch in tqdm(dataloader):
-        n_batch_tokens = token_counting_func(batch)
-        if n_batch_tokens == 0:
-            raise ValueError('Empty train sample')
-        total_tokens.append(n_batch_tokens)
-    return total_tokens
+    collate_fn, dataloader_batch_size = _build_collate_fn(
+        cfg, tokenizer, device_batch_size)
 
+    def mapper(example: dict):
+        batch = collate_fn([example])
+        return get_num_samples_in_batch(batch)
+
+    token_lens = dataloader.dataset.map(
+        mapper,
+        batched=False,
+        num_proc=num_cpus_to_use,
+        desc='List of Token length',
+    )
+
+    return token_lens
 
 from typing import Any, Callable, Dict, List, Mapping, Optional, Union, cast
 

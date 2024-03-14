@@ -119,16 +119,17 @@ class InferenceAPIEvalWrapper(ComposerModel):
             self.labels[:, :-1] = self.labels[:, 1:].clone()
             self.labels[:, -1] = -100
             assert self.labels is not None
-            metric.update(batch, outputs, self.labels)
+            metric_result = metric.update(batch, outputs, self.labels)
         elif isinstance(metric, InContextLearningMetric) and batch.get(
                 'mode', None) == 'generate':
             self.labels = batch.pop('labels')
             assert self.labels is not None
-            metric.update(batch=batch, outputs=outputs, labels=self.labels)
+            metric_result = metric.update(batch=batch, outputs=outputs, labels=self.labels)
         else:
             raise NotImplementedError(
                 'Inference API wrapper only supports InContextLearningMetrics and mode=icl_task,mode=generate'
             )
+        return metric_result
 
     def forward(self):
         raise NotImplementedError(

@@ -561,6 +561,7 @@ def build_icl_evaluators(
                 passage_delimiter=icl_cfg.get('passage_delimiter', "\nPassage: "),
                 passage_query_delimiter=icl_cfg.get('passage_query_delimiter', '\nQuery: '),
                 use_gold_docs_only=icl_cfg.get('use_gold_docs_only', True),
+                use_no_documents=icl_cfg.get('use_no_documents', False),
                 has_categories=icl_cfg.get('has_categories', False),
                 cot_delimiter=icl_cfg.get('cot_delimiter', ''),
                 generation_kwargs=icl_cfg.get('generation_kwargs', {}),

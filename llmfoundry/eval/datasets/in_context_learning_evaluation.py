@@ -1371,11 +1371,13 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
             passage_delimiter: str = '\nPassage: ',
             passage_query_delimiter: str = '\nQuery: ',
             use_gold_docs_only: bool = True,
+            use_no_documents: bool = False,
             *args: Any,
             **kwargs: Any):
         self.passage_delimiter = passage_delimiter
         self.passage_query_delimiter = passage_query_delimiter
         self.use_gold_docs_only = use_gold_docs_only
+        self.use_no_documents = use_no_documents
         self.max_prompt_length = 0
         self.max_answer_length = 0
         batch_mapping = {'input_ids': 'documents', 'labels': 'answer', 'queries':'query'}
@@ -1458,7 +1460,10 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
         """
         passages = example['documents']
         query = example['query']
-        context = f'{self.prelimiter}{passages}{self.passage_query_delimiter}{query}'
+        if self.use_no_documents:
+            context = f'{self.prelimiter}{self.passage_query_delimiter}{query}'
+        else:
+            context = f'{self.prelimiter}{passages}{self.passage_query_delimiter}{query}'
 
         if len(preceding_text) > 0:
             context = f'{self.example_delimiter}{context}'
@@ -1512,10 +1517,12 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
             if token != self.pad_tok_id
         ]
         # Reapply padding only to max_prompt_length
-        # TODO: use max_prompt_length instead?
+        padding_length = min(self.max_prompt_length, self.max_seq_len - self.max_answer_length)
+        # TODO: if use max_prompt_length, trimming might be redundant?
+        # TODO: is padding_length right here or self.max_seq_len - self.max_answer_length?
         full_prompt = trim_context(unpadded_prompt, [], self.max_seq_len - self.max_answer_length)
         padded_context = make_padded_input(full_prompt, [],
-                                           self.max_seq_len - self.max_answer_length,
+                                           padding_length,
                                            self.pad_tok_id, self.padding_side)
         example[self.context_key] = padded_context
         return example
@@ -1804,6 +1811,7 @@ def get_icl_task_dataloader(
         passage_delimiter: str = '\nPassage: ',
         passage_query_delimiter: str = '\nQuery: ',
         use_gold_docs_only: bool = True,
+        use_no_documents: bool = False,
         has_categories: bool = False,
         hf_loading_vars: Optional[Dict] = None,
         hf_parsing_map: Optional[Dict] = None,
@@ -1925,6 +1933,7 @@ def get_icl_task_dataloader(
                 passage_delimiter=passage_delimiter,
                 passage_query_delimiter=passage_query_delimiter,
                 use_gold_docs_only=use_gold_docs_only,
+                use_no_documents=use_no_documents,
                 fewshot_random_seed=fewshot_random_seed,
                 pass_at_k=pass_at_k,
                 generations_per_sample=generations_per_sample,
@@ -1955,6 +1964,7 @@ def get_icl_task_dataloader(
             passage_delimiter=passage_delimiter,
             passage_query_delimiter=passage_query_delimiter,
             use_gold_docs_only=use_gold_docs_only,
+            use_no_documents=use_no_documents,
             fewshot_random_seed=fewshot_random_seed,
             pass_at_k=pass_at_k,
             generations_per_sample=generations_per_sample,

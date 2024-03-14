@@ -123,7 +123,7 @@ def get_num_samples_in_batch(batch: dict) -> int:
 
     # Count number of non padding tokens in batch
     if 'attention_mask' in batch:
-        input_ids_tokens = int(sum(batch['attention_mask']))
+        input_ids_tokens = batch['attention_mask'].numel() # int(sum(batch['attention_mask']))
     else:
         input_ids_tokens = batch['input_ids'].numel()
 
@@ -144,20 +144,24 @@ def token_counts(FT_API_args):
     from llmfoundry.data.finetuning import build_finetuning_dataloader
 
     cfg, tokenizer = create_om_cfg(FT_API_args)
+    detected_cpu_count = os.cpu_count() or 1
+    num_cpus_to_use = max(1, detected_cpu_count)
+    cfg.num_workers = num_cpus_to_use
 
     device_batch_size = 1
     dataspec = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
     dataloader = dataspec.dataloader
 
-    detected_cpu_count = os.cpu_count() or 1
-    num_cpus_to_use = max(1, detected_cpu_count)
+    token_lens = 0
+    for b in dataloader:
+        token_lens += get_num_samples_in_batch(b)
 
-    token_lens = dataloader.dataset.map(
-        get_num_samples_in_batch,
-        batched=False,
-        num_proc=num_cpus_to_use,
-        desc='List of Token length',
-    )
+    #token_lens = dataloader.dataset.map(
+    #    get_num_samples_in_batch,
+    #    batched=False,
+    #    num_proc=num_cpus_to_use,
+    #    desc='List of Token length',
+    #)
 
     return token_lens
 

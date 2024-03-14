@@ -152,9 +152,9 @@ def token_counts(FT_API_args):
     dataspec = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
     dataloader = dataspec.dataloader
 
-    token_lens = 0
+    token_lens = []
     for b in dataloader:
-        token_lens += get_num_samples_in_batch(b)['ntokens']
+        token_lens.append(get_num_samples_in_batch(b)['ntokens'])
 
     #token_lens = dataloader.dataset.map(
     #    get_num_samples_in_batch,

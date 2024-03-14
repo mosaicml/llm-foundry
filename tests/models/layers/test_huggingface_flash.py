@@ -76,10 +76,13 @@ def test_patch_equivalence(patch_fn_name: str, explicit_mask: bool,
     causal_mask = causal_mask[None,
                               None, :, :].expand(batch_size, 1, sequence_length,
                                                  sequence_length)
+    position_ids = torch.arange(sequence_length, dtype=torch.long, device=device)
+    position_ids = position_ids[None, :].expand(batch_size, sequence_length)
+    
     attn_output, _, _ = attention(
         hidden_states=hidden_states,
         attention_mask=causal_mask if explicit_mask else None,
-        position_ids=None,
+        position_ids=position_ids,
         past_key_value=None,
         use_cache=False,
     )
@@ -91,7 +94,7 @@ def test_patch_equivalence(patch_fn_name: str, explicit_mask: bool,
         new_output, _, _ = attention(
             hidden_states=hidden_states,
             attention_mask=causal_mask if explicit_mask else None,
-            position_ids=None,
+            position_ids=position_ids,
             past_key_value=None,
             use_cache=False,
         )

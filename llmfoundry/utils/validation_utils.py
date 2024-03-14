@@ -154,7 +154,7 @@ def token_counts(FT_API_args):
 
     token_lens = 0
     for b in dataloader:
-        token_lens += get_num_samples_in_batch(b)
+        token_lens += get_num_samples_in_batch(b)['ntokens']
 
     #token_lens = dataloader.dataset.map(
     #    get_num_samples_in_batch,

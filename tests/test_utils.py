@@ -7,15 +7,17 @@ import pytest
 
 
 def generate_exclusive_test_params(param_names: List[str]):
-    """Creates pytest.param objects for each parameter name given. For each
+    """Generates pytest.param objects with one true parameter for testing.
+
+    Creates pytest.param objects for each parameter name given. For each
     param object, one parameter is set to True (indicating a test case for
-    malformed data) while the rest are set to False.  
-    
-    Parameters:
-    - param_names (List[str]): The names of parameters to create test cases for.
+    malformed data) while the rest are set to False.
+
+    Args:
+        param_names (List[str]): The names of parameters to create test cases for.
 
     Yields:
-    - pytest.param: Each with one parameter set to True, indicating the specific case being tested.
+        pytest.param: Each with one parameter set to True, indicating the specific case being tested.
     """
     for _, name in enumerate(param_names):
         params = {param_name: False for param_name in param_names}

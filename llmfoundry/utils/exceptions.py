@@ -3,7 +3,7 @@
 
 """Custom exceptions for the LLMFoundry."""
 from collections.abc import Mapping
-from typing import Dict, List
+from typing import Any, Dict, List
 
 
 # Finetuning dataloader exceptions
@@ -74,18 +74,19 @@ class InvalidLastChatMessageRoleError(ValueError):
 class IncorrectMessageKeyQuantityError(ValueError):
     """Error thrown when a message has an incorrect number of keys."""
 
-    def __init__(self, num_keys: int) -> None:
-        self.num_keys = num_keys
-        message = f'Expected 2 keys in message, but found {num_keys}'
+    def __init__(self, keys: List[str]) -> None:
+        self.keys = keys
+        message = f'Expected 2 keys in message, but found {len(keys)}'
         super().__init__(message)
 
 
 class InvalidRoleError(ValueError):
     """Error thrown when a role is invalid."""
 
-    def __init__(self, role: str) -> None:
+    def __init__(self, role: str, valid_roles: set[str]) -> None:
         self.role = role
-        message = f'Invalid role: {role}'
+        self.valid_roles = valid_roles
+        message = f'Expected role to be one of {valid_roles} but found: {role}'
         super().__init__(message)
 
 
@@ -116,19 +117,11 @@ class InvalidResponseTypeError(TypeError):
         super().__init__(message)
 
 
-class MissingLocalPathSplitError(ValueError):
-    """Error thrown when there's no split in a local dataset config."""
-
-    def __init__(self, local: str, split: str) -> None:
-        self.split = split
-        message = f'Local directory {local} does not contain split {split}'
-        super().__init__(message)
-
-
 class InvalidPromptResponseKeysError(ValueError):
     """Error thrown when missing expected prompt and response keys."""
 
-    def __init__(self, mapping: Dict[str, str]):
+    def __init__(self, mapping: Dict[str, str], example: Dict[str, Any]):
+        self.example = example
         message = f'Expected {mapping=} to have keys "prompt" and "response".'
         super().__init__(message)
 

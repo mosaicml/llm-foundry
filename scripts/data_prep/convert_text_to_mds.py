@@ -25,13 +25,9 @@ from llmfoundry.utils.data_prep_utils import (DownloadingIterable,
                                               merge_shard_groups)
 from llmfoundry.utils.exceptions import (InputFolderMissingDataError,
                                          OutputFolderNotEmptyError)
+from llmfoundry.utils.logging_utils import get_mosaicml_logger
 
 log = logging.getLogger(__name__)
-mosaicml_logger = None
-if os.environ.get(MOSAICML_PLATFORM_ENV_VAR, 'false').lower(
-) == 'true' and os.environ.get(MOSAICML_ACCESS_TOKEN_ENV_VAR):
-    # Adds mosaicml logger to composer if the run was sent from Mosaic platform, access token is set
-    mosaicml_logger = MosaicMLLogger()
 
 DONE_FILENAME = '.text_to_mds_conversion_done'
 
@@ -456,6 +452,8 @@ def _args_str(original_args: Namespace) -> str:
 
 if __name__ == '__main__':
     args = parse_args()
+    mosaicml_logger = get_mosaicml_logger()
+
     try:
         convert_text_to_mds(tokenizer_name=args.tokenizer,
                             output_folder=args.output_folder,
@@ -469,5 +467,6 @@ if __name__ == '__main__':
                             reprocess=args.reprocess,
                             args_str=_args_str(args))
     except Exception as e:
-        mosaicml_logger.log_exception(e)
+        if mosaicml_logger is not None:
+            mosaicml_logger.log_exception(e)
         raise e

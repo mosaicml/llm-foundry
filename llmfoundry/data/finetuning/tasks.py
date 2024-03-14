@@ -60,7 +60,6 @@ from llmfoundry.utils.exceptions import (IncorrectMessageKeyQuantityError,
                                          InvalidResponseTypeError,
                                          InvalidRoleError,
                                          MissingHuggingFaceURLSplitError,
-                                         MissingLocalPathSplitError,
                                          NotEnoughChatDataError,
                                          TooManyKeysInExampleError,
                                          UnableToProcessPromptResponseError,
@@ -162,9 +161,9 @@ def _validate_chat_formatted_example(example: ChatFormattedDict):
         role_key, content_key = _get_key(message, _ALLOWED_ROLE_KEYS), _get_key(
             message, _ALLOWED_CONTENT_KEYS)
         if len(message.keys()) != 2:
-            raise IncorrectMessageKeyQuantityError(len(message.keys()))
+            raise IncorrectMessageKeyQuantityError(list(message.keys()))
         if message[role_key] not in _ALLOWED_ROLES:
-            raise InvalidRoleError(message[role_key])
+            raise InvalidRoleError(message[role_key], _ALLOWED_ROLES)
         if not isinstance(message[content_key], str):
             raise InvalidContentTypeError(type(message[content_key]))
 
@@ -428,7 +427,8 @@ def _stream_remote_local_validate(remote: Optional[str], local: Optional[str],
         if local is not None and os.path.isdir(local):
             contents = set(os.listdir(local))
             if split is not None and split not in contents:
-                raise MissingLocalPathSplitError(local, split)
+                raise ValueError(
+                    f'Local directory {local} does not contain split {split}')
 
 
 class StreamingFinetuningDataset(StreamingDataset):
@@ -636,7 +636,7 @@ class DatasetConstructor:
 
         def _preprocessor(example: Dict[str, Any]) -> Dict[str, str]:
             if list(mapping.keys()) != ['prompt', 'response']:
-                raise InvalidPromptResponseKeysError(mapping)
+                raise InvalidPromptResponseKeysError(mapping, example)
             return {
                 'prompt': example[mapping['prompt']],
                 'response': example[mapping['response']]
@@ -695,9 +695,8 @@ class DatasetConstructor:
         return preprocessing_fn
 
     def build_from_hf(
-        self, dataset_name: str, split: Optional[str], safe_load: bool,
-        max_seq_len: int, preprocessing_fn: Optional[Callable[[dict[str, Any]],
-                                                              dict[str, str]]],
+        self, dataset_name: str, split: str, safe_load: bool, max_seq_len: int,
+        preprocessing_fn: Optional[Callable[[dict[str, Any]], dict[str, str]]],
         tokenizer: PreTrainedTokenizerBase, target_prompts: str,
         target_responses: str, decoder_only_format: bool, hf_kwargs: Dict[str,
                                                                           Any]
@@ -773,9 +772,6 @@ class DatasetConstructor:
                         for f in dataset_files):
                     raise InvalidFileExtensionError(dataset_name,
                                                     SUPPORTED_EXTENSIONS)
-
-            if split is None:
-                raise MissingHuggingFaceURLSplitError()
 
             dataset = hf_datasets.load_dataset(dataset_name,
                                                split=split,

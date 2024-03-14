@@ -19,9 +19,6 @@ import pyarrow as pa
 import pyspark.sql.connect.proto as pb2
 import pyspark.sql.connect.proto.cloud_pb2 as cloud_pb2
 import requests
-from composer.loggers import MosaicMLLogger
-from composer.loggers.mosaicml_logger import (MOSAICML_ACCESS_TOKEN_ENV_VAR,
-                                              MOSAICML_PLATFORM_ENV_VAR)
 from databricks import sql
 from databricks.connect import DatabricksSession
 from databricks.sdk import WorkspaceClient
@@ -41,16 +38,12 @@ from llmfoundry.utils.exceptions import (ClusterDoesNotExistError,
                                          FailedToCreateSQLConnectionError,
                                          JSONOutputFolderExistsError,
                                          JSONOutputFolderNotLocalError)
+from llmfoundry.utils.logging_utils import get_mosaicml_logger
 
 MINIMUM_DB_CONNECT_DBR_VERSION = '14.1'
 MINIMUM_SQ_CONNECT_DBR_VERSION = '12.2'
 
 log = logging.getLogger(__name__)
-mosaicml_logger = None
-if os.environ.get(MOSAICML_PLATFORM_ENV_VAR, 'false').lower(
-) == 'true' and os.environ.get(MOSAICML_ACCESS_TOKEN_ENV_VAR):
-    # Adds mosaicml logger to composer if the run was sent from Mosaic platform, access token is set
-    mosaicml_logger = MosaicMLLogger()
 
 Result = namedtuple(
     'Result', ['url', 'row_count', 'compressed_size', 'uncompressed_size'
@@ -552,8 +545,8 @@ if __name__ == '__main__':
         help=
         'The name of the combined final jsonl that combines all partitioned jsonl'
     )
-
     args = parser.parse_args()
+    mosaicml_logger = get_mosaicml_logger()
 
     try:
         w = WorkspaceClient()

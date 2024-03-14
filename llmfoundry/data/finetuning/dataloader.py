@@ -176,12 +176,12 @@ def build_finetuning_dataloader(cfg: DictConfig,
         # Build HF dataloader
         dataset_name_or_path = cfg.dataset.hf_name
         split = cfg.dataset.get('split')
+        if split is None:
+            raise MissingHuggingFaceURLSplitError()
 
         # If dataset is a remote path, download it first.
         backend, _, _ = parse_uri(dataset_name_or_path)
         if backend not in ['', None]:
-            if split is None:
-                raise MissingHuggingFaceURLSplitError()
             dataset_name_or_path = _download_remote_hf_dataset(
                 remote_path=dataset_name_or_path, split=split)
             split = split.replace('-', '_')

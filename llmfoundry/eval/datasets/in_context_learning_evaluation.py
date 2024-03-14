@@ -575,9 +575,9 @@ class InContextLearningGenerationTaskWithAnswersDataset(InContextLearningDataset
                 'use_cache': True,
                 'eos_token_id': self.tokenizer.eos_token_id,
             },
-            'generation_length':
-                self.
-                max_answer_length,  # TODO: deprecate with next composer udpate
+            'generation_length': max(
+                self.max_answer_length,
+                1),  # TODO: deprecate with next composer udpate
         }
         self.batch_mapping = {
             'input_ids': self.context_key,
@@ -1293,7 +1293,7 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
             'dataset_size':
                 dataset_size,
             'generation_length':  # TODO: deprecate with next composer release
-                generation_length
+                max(generation_length, 1)
         }
         if 'generation_kwargs' in kwargs:
             self.update_generation_kwargs(kwargs['generation_kwargs'])

@@ -282,10 +282,8 @@ def _tokenize_chat_formatted_example(
     }
 
 
-def _tokenize_prompt_response_formatted_example(
-        example: PromptResponseDict,
-        tokenizer: PreTrainedTokenizerBase) -> TokenizedExample:
-    """Tokenize a formatted example and validate expected keys."""
+def _validate_prompt_response_formatted_example(example: PromptResponseDict):
+    """Validate expected keys."""
     example_keys = set(example.keys())
     prompt_keys = example_keys.intersection(_ALLOWED_PROMPT_KEYS)
     response_keys = example_keys.intersection(_ALLOWED_RESPONSE_KEYS)
@@ -316,6 +314,14 @@ def _tokenize_prompt_response_formatted_example(
         raise TypeError(
             f'Unable to tokenize example because {response_key} was not a string. {example=}'
         )
+
+    return prompt, response
+
+def _tokenize_prompt_response_formatted_example(
+        example: PromptResponseDict,
+        tokenizer: PreTrainedTokenizerBase) -> TokenizedExample:
+    """Tokenize a formatted example and validate expected keys."""
+    prompt, response = _validate_prompt_response_formatted_example(example)
 
     # Note: We default to the tokenizer's add_bos_token and add_eos_token behavior here
     # (which we do not do for chat-formatted examples). This is because chat examples specifically

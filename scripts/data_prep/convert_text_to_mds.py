@@ -144,6 +144,7 @@ def _args_str(original_args: Namespace) -> str:
 
     return str(args)
 
+
 if __name__ == '__main__':
     args = parse_args()
     convert_text_to_mds(tokenizer_name=args.tokenizer,

@@ -6,7 +6,6 @@ import logging
 import math
 import os
 import tempfile
-from argparse import Namespace
 from concurrent.futures import ProcessPoolExecutor
 from glob import glob
 from typing import Iterable, List, Optional, Tuple, cast

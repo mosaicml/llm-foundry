@@ -33,8 +33,8 @@ from pyspark.sql.connect.dataframe import DataFrame
 from pyspark.sql.dataframe import DataFrame as SparkDataFrame
 from pyspark.sql.types import Row
 
-MINIMUM_DB_CONNECT_DBR_VERSION = '14.1.0'
-MINIMUM_SQ_CONNECT_DBR_VERSION = '12.2.0'
+MINIMUM_DB_CONNECT_DBR_VERSION = '14.1'
+MINIMUM_SQ_CONNECT_DBR_VERSION = '12.2'
 
 log = logging.getLogger(__name__)
 
@@ -315,7 +315,7 @@ def fetch(
     sparkSession: Optional[SparkSession] = None,
     dbsql: Optional[Connection] = None,
 ) -> None:
-    """Fetch UC delta table with databricks-connnect as JSONL.
+    """Fetch UC delta table with databricks-connect as JSONL.
 
     Args:
         method (str): dbconnect or dbsql
@@ -377,6 +377,84 @@ def fetch(
         cursor.close()
 
 
+def validate_and_get_cluster_info(cluster_id: str,
+                                  databricks_host: str,
+                                  databricks_token: str,
+                                  http_path: Optional[str],
+                                  use_serverless: bool = False) -> tuple:
+    """Validate and get cluster info for running the Delta to JSONL conversion.
+
+    Args:
+        cluster_id (str): cluster id to validate and fetch additional info for
+        databricks_host (str): databricks host name
+        databricks_token (str): databricks auth token
+        http_path (Optional[str]): http path to use for sql connect
+        use_serverless (bool): whether to use serverless or not
+    """
+    method = 'dbsql'
+    dbsql = None
+    sparkSession = None
+
+    if use_serverless:
+        method = 'dbconnect'
+    else:
+        w = WorkspaceClient()
+        res = w.clusters.get(cluster_id=cluster_id)
+        if res is None:
+            raise ValueError(
+                f'Cluster id {cluster_id} does not exist. Check cluster id and try again!'
+            )
+        stripped_runtime = re.sub(
+            r'[a-zA-Z]',
+            '',
+            res.spark_version.split('-scala')[0].replace(  # type: ignore
+                'x-snapshot', ''))
+        runtime_version = re.sub(r'[.-]*$', '', stripped_runtime)
+        if version.parse(runtime_version) < version.parse(
+                MINIMUM_SQ_CONNECT_DBR_VERSION):
+            raise ValueError(
+                f'The minium DBR version required is {MINIMUM_SQ_CONNECT_DBR_VERSION} but got {version.parse(runtime_version)}'
+            )
+
+        if http_path is None and version.parse(
+                runtime_version) >= version.parse(
+                    MINIMUM_DB_CONNECT_DBR_VERSION):
+            method = 'dbconnect'
+
+    if method == 'dbconnect':
+        try:
+            if use_serverless:
+                session_id = str(uuid4())
+                sparkSession = DatabricksSession.builder.host(
+                    databricks_host).token(databricks_token).header(
+                        'x-databricks-session-id', session_id).getOrCreate()
+
+            else:
+                sparkSession = DatabricksSession.builder.remote(
+                    host=databricks_host,
+                    token=databricks_token,
+                    cluster_id=cluster_id).getOrCreate()
+
+        except Exception as e:
+            raise RuntimeError(
+                'Failed to create databricks connection. Check hostname and access token!'
+            ) from e
+    else:
+        try:
+            dbsql = sql.connect(
+                server_hostname=re.compile(r'^https?://').sub(
+                    '', databricks_host).strip(
+                    ),  # sqlconnect hangs if hostname starts with https
+                http_path=http_path,
+                access_token=databricks_token,
+            )
+        except Exception as e:
+            raise RuntimeError(
+                'Failed to create sql connection to db workspace. To use sql connect, you need to provide http_path and cluster_id!'
+            ) from e
+    return method, dbsql, sparkSession
+
+
 def fetch_DT(args: Namespace) -> None:
     """Fetch UC Delta Table to local as jsonl."""
     log.info(f'Start .... Convert delta to json')
@@ -400,59 +478,12 @@ def fetch_DT(args: Namespace) -> None:
 
     log.info(f'Directory {args.json_output_folder} created.')
 
-    method = 'dbsql'
-    dbsql = None
-    sparkSession = None
-
-    if args.use_serverless:
-        method = 'dbconnect'
-    else:
-        w = WorkspaceClient()
-        res = w.clusters.get(cluster_id=args.cluster_id)
-        runtime_version = res.spark_version.split('-scala')[0].replace(
-            'x-snapshot', '0').replace('x', '0')
-        if version.parse(runtime_version) < version.parse(
-                MINIMUM_SQ_CONNECT_DBR_VERSION):
-            raise ValueError(
-                f'The minium DBR version required is {MINIMUM_SQ_CONNECT_DBR_VERSION} but got {version.parse(runtime_version)}'
-            )
-
-        if args.http_path is None and version.parse(
-                runtime_version) >= version.parse(
-                    MINIMUM_DB_CONNECT_DBR_VERSION):
-            method = 'dbconnect'
-
-    if method == 'dbconnect':
-        try:
-            if args.use_serverless:
-                session_id = str(uuid4())
-                sparkSession = DatabricksSession.builder.host(
-                    args.DATABRICKS_HOST).token(args.DATABRICKS_TOKEN).header(
-                        'x-databricks-session-id', session_id).getOrCreate()
-
-            else:
-                sparkSession = DatabricksSession.builder.remote(
-                    host=args.DATABRICKS_HOST,
-                    token=args.DATABRICKS_TOKEN,
-                    cluster_id=args.cluster_id).getOrCreate()
-
-        except Exception as e:
-            raise RuntimeError(
-                'Failed to create databricks connection. Check hostname and access token!'
-            ) from e
-    else:
-        try:
-            dbsql = sql.connect(
-                server_hostname=re.compile(r'^https?://').sub(
-                    '', args.DATABRICKS_HOST).strip(
-                    ),  # sqlconnect hangs if hostname starts with https
-                http_path=args.http_path,
-                access_token=args.DATABRICKS_TOKEN,
-            )
-        except Exception as e:
-            raise RuntimeError(
-                'Failed to create sql connection to db workspace. To use sql connect, you need to provide http_path and cluster_id!'
-            ) from e
+    method, dbsql, sparkSession = validate_and_get_cluster_info(
+        cluster_id=args.cluster_id,
+        databricks_host=args.DATABRICKS_HOST,
+        databricks_token=args.DATABRICKS_TOKEN,
+        http_path=args.http_path,
+        use_serverless=args.use_serverless)
 
     fetch(method, args.delta_table_name, args.json_output_folder,
           args.batch_size, args.processes, sparkSession, dbsql)
@@ -494,9 +525,8 @@ if __name__ == '__main__':
                         help='number of processes allowed to use')
     parser.add_argument(
         '--cluster_id',
-        required=True,
+        required=False,
         type=str,
-        default=None,
         help=
         'cluster id has runtime newer than 14.1.0 and access mode of either assigned or shared can use databricks-connect.'
     )
@@ -513,7 +543,9 @@ if __name__ == '__main__':
         required=False,
         type=str,
         default='train-00000-of-00001.jsonl',
-        help='The combined final jsonl that combines all partitioned jsonl')
+        help=
+        'The name of the combined final jsonl that combines all partitioned jsonl'
+    )
     args = parser.parse_args()
 
     from databricks.sdk import WorkspaceClient

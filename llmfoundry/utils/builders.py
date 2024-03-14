@@ -12,8 +12,9 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 import torch
 from composer import algorithms
 from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
-                                MemoryMonitor, OptimizerMonitor,
-                                RuntimeEstimator, SpeedMonitor)
+                                MemoryMonitor, MemorySnapshot, OOMObserver,
+                                OptimizerMonitor, RuntimeEstimator,
+                                SpeedMonitor)
 from composer.core import Algorithm, Callback, Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
@@ -28,16 +29,16 @@ from composer.utils import dist
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from torch.optim.optimizer import Optimizer
-from torchmetrics import Metric
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from llmfoundry.callbacks import (AsyncEval, EvalGauntlet, FDiffMetrics,
-                                  GlobalLRScaling, HuggingFaceCheckpointer,
-                                  LayerFreezing, MonolithicCheckpointSaver,
+from llmfoundry.callbacks import (AsyncEval, CurriculumLearning, EvalGauntlet,
+                                  FDiffMetrics, GlobalLRScaling,
+                                  HuggingFaceCheckpointer, LayerFreezing,
+                                  MonolithicCheckpointSaver,
                                   ScheduledGarbageCollector)
 from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
-                              DecoupledLionW, DecoupledLionW_8bit)
+                              DecoupledLionW)
 from llmfoundry.optim.scheduler import InverseSquareRootWithWarmupScheduler
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
 
@@ -108,9 +109,8 @@ def build_eval_loaders(
 
 def add_metrics_to_eval_loaders(
     evaluators: List[Evaluator],
-    metrics: Dict[str, Metric],
+    metric_names: List[str],
 ) -> List[Evaluator]:
-    metric_names = list(metrics.keys())
     eval_loaders, other_evaluators = [], []
     for evaluator in evaluators:
         if evaluator.metric_names == []:
@@ -165,7 +165,11 @@ def build_callback(
     if name == 'lr_monitor':
         return LRMonitor()
     elif name == 'memory_monitor':
-        return MemoryMonitor()
+        return MemoryMonitor(**kwargs)
+    elif name == 'oom_observer':
+        return OOMObserver(**kwargs)
+    elif name == 'memory_snapshot':
+        return MemorySnapshot(**kwargs)
     elif name == 'speed_monitor':
         return SpeedMonitor(window_size=kwargs.get('window_size', 1),
                             gpu_flops_available=kwargs.get(
@@ -212,28 +216,33 @@ def build_callback(
         if config is None:
             raise ValueError(
                 'Parameters config is required for async eval callback')
-
-        return AsyncEval(**kwargs, training_config=config)
+        return AsyncEval(**kwargs, training_params=config)
+    elif name == 'curriculum_learning':
+        if config is None:
+            raise ValueError(
+                'Parameters config is required for curriculum learning callback'
+            )
+        if 'train_loader' not in config:
+            raise ValueError(
+                'Curriculum learning callback requires a train_loader key in the run config.'
+            )
+        return CurriculumLearning(**kwargs,
+                                  current_dataset_config=config['train_loader'])
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 
 
 def build_logger(name: str, kwargs: Dict[str, Any]) -> LoggerDestination:
-    kwargs_dict = {
-        k: v if isinstance(v, str) else om.to_container(v, resolve=True)
-        for k, v in kwargs.items()
-    }
-
     if name == 'wandb':
-        return WandBLogger(**kwargs_dict)
+        return WandBLogger(**kwargs)
     elif name == 'tensorboard':
-        return TensorboardLogger(**kwargs_dict)
+        return TensorboardLogger(**kwargs)
     elif name == 'in_memory_logger':
-        return InMemoryLogger(**kwargs_dict)
+        return InMemoryLogger(**kwargs)
     elif name == 'mlflow':
-        return MLFlowLogger(**kwargs_dict)
+        return MLFlowLogger(**kwargs)
     elif name == 'inmemory':
-        return InMemoryLogger(**kwargs_dict)
+        return InMemoryLogger(**kwargs)
     else:
         raise ValueError(f'Not sure how to build logger: {name}')
 
@@ -364,8 +373,6 @@ def build_optimizer(model: torch.nn.Module, name: str,
         return DecoupledClipLion(params, **optimizer_config)
     elif name == 'adalr_lion':
         return DecoupledAdaLRLion(params, **optimizer_config)
-    elif name == 'decoupled_lionw_8b':
-        return DecoupledLionW_8bit(params, **optimizer_config)
     else:
         raise ValueError(f'Not sure how to build optimizer: {name}')
 
@@ -411,6 +418,10 @@ def build_tokenizer(
             'model_max_length',
             int(1e30),
         )
+
+    if not hasattr(tokenizer, 'eos_token') or tokenizer.eos_token is None:
+        raise ValueError(
+            f'The tokenizer {tokenizer_name} must have an eos_token.')
 
     if dist.is_available() and dist.is_initialized(
     ) and dist.get_world_size() > 1:
@@ -487,8 +498,15 @@ def build_icl_evaluators(
             icl_cfg.batch_size = default_batch_size
         if 'pass_at_k' not in icl_cfg:
             icl_cfg.pass_at_k = 1
-        if 'num_beams' not in icl_cfg:
-            icl_cfg.num_beams = 20
+        if 'fewshot_random_seed' not in icl_cfg:
+            icl_cfg.fewshot_random_seed = 1234
+        if 'generations_per_sample' not in icl_cfg:
+            icl_cfg.generations_per_sample = 1
+
+        if 'num_beams' in icl_cfg:
+            raise ValueError(
+                'num_beams is no longer supported as a top level icl_task parameter.'  + \
+                'Please use generation_kwargs.num_beams instead.')
 
     for icl_cfg in icl_tasks_list:
         assert isinstance(icl_cfg, DictConfig)
@@ -507,6 +525,16 @@ def build_icl_evaluators(
                 os.remove(destination_path)
             dist.barrier()
 
+            hf_parsing_map = icl_cfg.get('hf_parsing_map', {})
+            hf_loading_vars = icl_cfg.get('hf_loading_vars', {})
+
+            early_stopping_criteria = icl_cfg.get('early_stopping_criteria',
+                                                  None)
+            if isinstance(early_stopping_criteria, ListConfig):
+                early_stopping_criteria = om.to_container(
+                    early_stopping_criteria)
+            assert early_stopping_criteria is None or isinstance(
+                early_stopping_criteria, list)
             dataloaders = get_icl_task_dataloader(
                 icl_cfg.icl_task_type,
                 icl_cfg.dataset_uri,
@@ -517,13 +545,19 @@ def build_icl_evaluators(
                 num_fewshot=num_fewshot,
                 prompt_string=icl_cfg.prompt_string,
                 example_delimiter=icl_cfg.example_delimiter,
+                hf_loading_vars=hf_loading_vars,
+                hf_parsing_map=hf_parsing_map,
                 continuation_delimiter=icl_cfg.continuation_delimiter,
                 question_prelimiter=icl_cfg.get('question_prelimiter', ''),
                 destination_path=destination_path,
+                fewshot_random_seed=icl_cfg.fewshot_random_seed,
                 pass_at_k=icl_cfg.pass_at_k,
-                generations_per_sample=icl_cfg.num_beams,
+                generations_per_sample=icl_cfg.generations_per_sample,
                 has_categories=icl_cfg.get('has_categories', False),
-                cot_delimiter=icl_cfg.get('cot_delimiter', ''))
+                cot_delimiter=icl_cfg.get('cot_delimiter', ''),
+                generation_kwargs=icl_cfg.get('generation_kwargs', {}),
+                early_stopping_criteria=early_stopping_criteria,
+                do_normalization=icl_cfg.get('do_normalization', True))
             if hasattr(
                     icl_cfg,
                     'has_categories') and icl_cfg.has_categories and isinstance(

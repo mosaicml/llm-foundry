@@ -6,6 +6,8 @@
 Inspired by https://github.com/karpathy/minGPT/blob/master/mingpt/model.py
 """
 
+from __future__ import annotations
+
 import math
 import warnings
 from typing import (Any, Dict, List, Mapping, MutableMapping, Optional, Tuple,
@@ -24,10 +26,13 @@ from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
 from composer.models import HuggingFaceModel
 from composer.utils import dist
 
+from llmfoundry.metrics import TokenAccuracy
 from llmfoundry.models.layers.attention import is_flash_v2_installed
+from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
 if is_flash_v2_installed():
     try:  # This try...except is needed because transformers requires it despite the 'if' statement above
+        from flash_attn import bert_padding
         from flash_attn.layers.rotary import \
             RotaryEmbedding as DAILRotaryEmbedding
     except Exception as e:
@@ -45,17 +50,11 @@ from transformers.models.llama.modeling_llama import \
 from transformers.models.llama.modeling_llama import \
     LlamaRotaryEmbedding as HFRotaryEmbedding
 
-from llmfoundry.models.layers.attention import (ATTN_CLASS_REGISTRY,
-                                                attn_bias_shape,
+from llmfoundry.models.layers.attention import (attn_bias_shape,
                                                 build_attn_bias, gen_slopes)
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.layers.custom_embedding import SharedEmbedding
-from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY as FC_CLASS_REGISTRY
-from llmfoundry.models.layers.ffn import \
-    FFN_CLASS_REGISTRY as FFN_CLASS_REGISTRY
-from llmfoundry.models.layers.ffn import MPTMLP as MPTMLP
 from llmfoundry.models.layers.ffn import build_ffn as build_ffn
-from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 from llmfoundry.models.mpt.configuration_mpt import MPTConfig
 
 # NOTE: All utils are imported directly even if unused so that
@@ -76,6 +75,10 @@ from llmfoundry.models.utils.param_init_fns import (
     generic_param_init_fn_,  # type: ignore (see note)
     MODEL_INIT_REGISTRY,
 )
+
+from llmfoundry.models.utils.act_ckpt import (pass_on_block_idx,
+                                              build_act_ckpt_mod_to_blocks,
+                                              check_mapping_blocks_overlap)
 
 try:
     from llmfoundry.models.layers.flash_attn_triton import flash_attn_func as flash_attn_func
@@ -202,6 +205,11 @@ def gen_attention_mask_in_length(sequence_id: Union[None, torch.Tensor], S: int,
             raise ValueError(
                 f'Sequence length ({S}) does not match length of sequences in sequence_id ({sequence_id.shape[-1]}).'
             )
+        if attention_mask is not None:
+            # -1 is used to pad the sequence_id where attention mask is False (https://github.com/mosaicml/llm-foundry/blob/706ea7dd40ba60a98dea5f37695d143d91c98b6c/llmfoundry/data/packing.py#L249).
+            # We replace those -1 with 0 to prevent `torch.nn.functional.one_hot(sequence_id)` in the next line from failing.
+            # We apply the attention mask again after the one_hot operation.
+            sequence_id = sequence_id.masked_fill(~attention_mask, 0)
         attention_mask_in_length = torch.nn.functional.one_hot(sequence_id)
         if attention_mask is not None:
             attention_mask_in_length = attention_mask_in_length.masked_fill(
@@ -214,6 +222,44 @@ def gen_attention_mask_in_length(sequence_id: Union[None, torch.Tensor], S: int,
             value=0)
 
     return attention_mask_in_length
+
+
+def gen_flash_attn_padding_info(
+        bsz: int,
+        S: int,
+        past_key_len: int,
+        device: torch.device,
+        attention_mask_in_length: Optional[torch.Tensor] = None,
+        attention_mask: Optional[torch.Tensor] = None):
+    flash_attn_padding_info = {}
+    if attention_mask_in_length is None:
+        key_padding_mask = attention_mask
+        if key_padding_mask is None:
+            key_padding_mask = torch.ones((bsz, past_key_len + S),
+                                          dtype=torch.bool,
+                                          device=device)
+        query_padding_mask = key_padding_mask[:, -S:]
+        unpadding_function = bert_padding.unpad_input
+    else:
+        key_padding_mask = attention_mask_in_length
+        query_padding_mask = attention_mask_in_length
+        unpadding_function = bert_padding.unpad_input_for_concatenated_sequences
+
+    _, indices_q, cu_seqlens_q, max_seqlen_q = unpadding_function(
+        torch.empty(bsz, S, 1, device=device), query_padding_mask)
+    _, indices_k, cu_seqlens_k, max_seqlen_k = unpadding_function(
+        torch.empty(bsz, past_key_len + S, 1, device=device), key_padding_mask)
+    _, indices_v, _, _ = unpadding_function(
+        torch.empty(bsz, past_key_len + S, 1, device=device), key_padding_mask)
+
+    flash_attn_padding_info['indices_q'] = indices_q
+    flash_attn_padding_info['indices_k'] = indices_k
+    flash_attn_padding_info['indices_v'] = indices_v
+    flash_attn_padding_info['cu_seqlens_q'] = cu_seqlens_q
+    flash_attn_padding_info['cu_seqlens_k'] = cu_seqlens_k
+    flash_attn_padding_info['max_seqlen_q'] = max_seqlen_q
+    flash_attn_padding_info['max_seqlen_k'] = max_seqlen_k
+    return flash_attn_padding_info
 
 
 def apply_sequence_id(attn_bias: torch.Tensor, sequence_id: torch.LongTensor,
@@ -244,6 +290,14 @@ class MPTPreTrainedModel(PreTrainedModel):
     config_class = MPTConfig
     base_model_prefix = 'model'
     _no_split_modules = ['MPTBlock']
+
+
+def _fsdp_wrap_fn(
+    self: Union[MPTModel, MPTForCausalLM],
+    module: nn.Module,
+) -> bool:
+    # FSDP Wrap function for MPT Models
+    return isinstance(module, MPTBlock)
 
 
 class MPTModel(MPTPreTrainedModel):
@@ -291,6 +345,13 @@ class MPTModel(MPTPreTrainedModel):
                 **config.to_dict(),
             ) for _ in range(config.n_layers)
         ])
+
+        # Tag all modules in the transformer blocks with the corresponding block_idx and max_block_idx
+        for i, block in enumerate(self.blocks):
+            block.block_idx = i
+            block.max_block_idx = config.n_layers - 1
+            pass_on_block_idx(block)
+
         self.norm_f = norm_class(config.d_model, device=config.init_device)
 
         self.rope = config.attn_config['rope']
@@ -515,10 +576,12 @@ class MPTModel(MPTPreTrainedModel):
             raise ValueError(
                 'You cannot specify both input_ids and inputs_embeds.')
         elif input_ids is not None:
+            bsz = input_ids.size(0)
             S = input_ids.size(1)
             x = self.wte(input_ids)
             input_device = input_ids.device
         elif inputs_embeds is not None:
+            bsz = inputs_embeds.size(0)
             S = inputs_embeds.size(1)
             x = inputs_embeds
             input_device = inputs_embeds.device
@@ -530,22 +593,23 @@ class MPTModel(MPTPreTrainedModel):
         ), f'Cannot forward input with seq_len={S}, this model only supports seq_len<={self.config.max_seq_len}'
 
         rotary_emb_w_meta_info = None
-        if self.learned_pos_emb or self.rope:
-            past_position = 0
-            if past_key_values is not None:
-                if len(past_key_values) != self.config.n_layers:
-                    raise ValueError(
-                        f'past_key_values must provide a past_key_value for each attention '
-                        +
-                        f'layer in the network ({len(past_key_values)=}; {self.config.n_layers=}).'
-                    )
-                # For attn_impl: triton and flash the past key tensor spec is (batch, seq, dim).
-                # For attn_impl: torch the past key tensor spec is (batch, heads, head_dim, seq).
-                # Here we shift position embedding using the `seq` dim of the past key
-                past_position = past_key_values[0][0].size(1)
-                if self.attn_impl == 'torch':
-                    past_position = past_key_values[0][0].size(3)
 
+        past_position = 0
+        if past_key_values is not None:
+            if len(past_key_values) != self.config.n_layers:
+                raise ValueError(
+                    f'past_key_values must provide a past_key_value for each attention '
+                    +
+                    f'layer in the network ({len(past_key_values)=}; {self.config.n_layers=}).'
+                )
+            # For attn_impl: triton and flash the past key tensor spec is (batch, seq, dim).
+            # For attn_impl: torch the past key tensor spec is (batch, heads, head_dim, seq).
+            # Here we shift position embedding using the `seq` dim of the past key
+            past_position = past_key_values[0][0].size(1)
+            if self.attn_impl == 'torch':
+                past_position = past_key_values[0][0].size(3)
+
+        if self.learned_pos_emb or self.rope:
             if self.learned_pos_emb and (S + past_position >
                                          self.config.max_seq_len):
                 raise ValueError(
@@ -623,6 +687,12 @@ class MPTModel(MPTPreTrainedModel):
 
         all_hidden_states = () if output_hidden_states else None
         all_self_attns = () if output_attentions else None
+        flash_attn_padding_info = {}
+        if self.attn_impl == 'flash':
+            flash_attn_padding_info = gen_flash_attn_padding_info(
+                bsz, S, past_position, x.device, attention_mask_in_length,
+                attention_mask)
+
         for b_idx, block in enumerate(self.blocks):
             if output_hidden_states:
                 assert all_hidden_states is not None  # pyright
@@ -637,8 +707,8 @@ class MPTModel(MPTPreTrainedModel):
                 attention_mask=attention_mask,
                 is_causal=self.is_causal,
                 output_attentions=bool(output_attentions),
-                attention_mask_in_length=attention_mask_in_length,
                 alibi_slopes=alibi_slopes,
+                flash_attn_padding_info=flash_attn_padding_info,
             )
             if presents is not None:
                 presents += (present,)
@@ -673,7 +743,7 @@ class MPTModel(MPTPreTrainedModel):
 
     # FSDP Wrap function
     def fsdp_wrap_fn(self, module: nn.Module) -> bool:
-        return isinstance(module, MPTBlock)
+        return _fsdp_wrap_fn(self, module)
 
     # Activation Checkpointing
     def activation_checkpointing_fn(self, module: nn.Module) -> bool:
@@ -749,7 +819,8 @@ class MPTForCausalLM(MPTPreTrainedModel):
             self.transformer.set_input_embeddings(new_embeddings)
 
     def tie_weights(self) -> None:
-        self.lm_head = None
+        if getattr(self.config, 'tie_word_embeddings', True):
+            self.lm_head = None
 
     def set_decoder(self, decoder: MPTModel) -> None:
         self.transformer = decoder
@@ -834,45 +905,61 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
     # FSDP Wrap function
     def fsdp_wrap_fn(self, module: nn.Module) -> bool:
-        return isinstance(module, MPTBlock)
+        return _fsdp_wrap_fn(self, module)
 
     # Activation Checkpointing
     def activation_checkpointing_fn(self, module: nn.Module) -> bool:
-        act_ckpt_list = getattr(self.config, 'activation_checkpointing_target',
-                                None) or ['MPTBlock']
-        if isinstance(act_ckpt_list, str):
-            act_ckpt_list = [act_ckpt_list]
-        elif not isinstance(act_ckpt_list, list):
-            raise ValueError(
-                f'activation_checkpointing_target must be either a single string or a list, but got {type(act_ckpt_list)}'
+        """The MPT activation checkpointing (act ckpt) function.
+
+        When `activation_checkpointing` in fsdp_config is set to true, this function will be called on all the modules in the FSDP wrapped model and determine whether a given module should be activation checkpointed. It checks the checkpointing target (`activation_checkpointing_target` in `model`) which can be specified as below:
+            1. null (or no such field): The whole MPTBlock will be activation checkpointed on all layers
+            2. a list of modules to act ckpt on all layers, e.g.,
+                activation_checkpointing_target:
+                    - grouped_query_attention
+                    - mptmlp
+            3. a dictionary of module name with target_blocks, e.g.,
+                activation_checkpointing_target:
+                    {
+                            "mptblock": target_blocks_1,
+                            "grouped_query_attention": target_blocks_2
+                    }
+                target_blocks (target_blocks_1, target_blocks_2 above) can be:
+                - a single integer n: the first n transformer block will be activation checkpointed
+                - a string of first-n, middle-m, last-k, range-i-j: the first n, the middle m,  the last k, or the range [i, j) layers will be activation checkpointed. E.g, 'first-2, last-2' means the first 2 and last 2 transformer blocks will be activation checkpointed
+                    middle-m is range [start, end) where ``start = max(max_block_idx // 2 - m // 2, 0), end = min(start + m, max_block_idx + 1)``
+                - a list of integers corresponds to the list of transformer block ids, e.g., [2] means the second transformer block will be activation checkpointed. [2, 3] means the second and third transformer blocks will be activation checkpointed
+                - a list of mixed integers and strings of first-n, middle-m, last-k, range-i-j
+
+            An example in yaml config file:
+                fsdp_config:
+                    activation_checkpointing: true
+                model:
+                    activation_checkpointing_target:
+                        {
+                            "mptblock": 'first-5',
+                            "grouped_query_attention": 'last-35'
+                        }
+        """
+        if not hasattr(module, 'block_idx'):
+            log.debug(
+                f'{module.__class__.__name__} cannot be activation checkpointed. Only transformer block or its submodules are eligible for activation checkpointing.'
             )
+            return False
 
-        if 'MPTBlock' in act_ckpt_list or 'mptblock' in act_ckpt_list:
-            if len(act_ckpt_list) > 1:
-                log.info(
-                    'Activation checkpointing MPTBlock only (ignoring other sub-block modules specified in activation_checkpointing_target).'
-                )
-            return isinstance(module, MPTBlock)
+        act_ckpt_target = getattr(self.config,
+                                  'activation_checkpointing_target', None)
+        act_ckpt_mod_to_blocks = build_act_ckpt_mod_to_blocks(
+            act_ckpt_target, MPTBlock, module.max_block_idx)
 
-        mod_types = ()
-        for mod_name in act_ckpt_list:
-            if mod_name.lower() == 'mptblock':
-                mod_types += (MPTBlock,)
-            elif mod_name in ATTN_CLASS_REGISTRY:
-                mod_types += (ATTN_CLASS_REGISTRY[mod_name],)
-            elif mod_name in FFN_CLASS_REGISTRY:
-                mod_types += (FFN_CLASS_REGISTRY[mod_name],)
-            elif mod_name in NORM_CLASS_REGISTRY:
-                mod_types += (NORM_CLASS_REGISTRY[mod_name],)
-            else:
-                msg = ', '.join(
-                    list(ATTN_CLASS_REGISTRY.keys()) +
-                    list(FFN_CLASS_REGISTRY.keys()) +
-                    list(NORM_CLASS_REGISTRY.keys()) + ['MPTBlock'])
-                raise ValueError(
-                    f'{mod_name} (specified in activation_checkpointing_target) is not a recognized option out of available options {msg}.'
-                )
-        return isinstance(module, mod_types)
+        check_mapping_blocks_overlap(act_ckpt_mod_to_blocks,
+                                     module.max_block_idx)
+
+        for k in act_ckpt_mod_to_blocks.keys():
+            if isinstance(module, k):
+                blocks = act_ckpt_mod_to_blocks[k]
+                return True if blocks == -1 else module.block_idx in blocks
+
+        return False
 
     def prepare_inputs_for_generation(
         self,
@@ -953,11 +1040,15 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         model = MPTForCausalLM(hf_config)
 
         use_train_metrics = om_model_config.get('use_train_metrics', True)
-        train_metrics = [LanguageCrossEntropy(),
-                         LanguagePerplexity()] if use_train_metrics else []
+        train_metrics = [
+            LanguageCrossEntropy(),
+            LanguagePerplexity(),
+            TokenAccuracy()
+        ] if use_train_metrics else []
         eval_metrics = [
             LanguageCrossEntropy(),
             LanguagePerplexity(),
+            TokenAccuracy(),
             InContextLearningLMAccuracy(),
             InContextLearningMultipleChoiceAccuracy(),
             InContextLearningQAAccuracy(),

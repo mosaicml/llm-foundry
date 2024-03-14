@@ -1,18 +1,28 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import json
 import os
 import platform
+import warnings
 from argparse import ArgumentParser, Namespace
-from typing import Dict, Iterable, List, Optional, Union
+from typing import Callable, Dict, Iterable, Optional, Union
 
 import datasets as hf_datasets
 import psutil
+from datasets import Dataset, DatasetDict, IterableDataset, IterableDatasetDict
 from streaming import MDSWriter
-from torch.utils.data import DataLoader, IterableDataset
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from llmfoundry.data.finetuning.tasks import dataset_constructor
+from llmfoundry.data.finetuning.collator import validate_target_settings
+from llmfoundry.data.finetuning.tasks import (_get_example_type,
+                                              dataset_constructor,
+                                              is_valid_ift_example,
+                                              tokenize_formatted_example)
+from llmfoundry.utils.builders import build_tokenizer
+
+HFDataset = Union[DatasetDict, Dataset, IterableDatasetDict, IterableDataset]
 
 
 def parse_args() -> Namespace:
@@ -23,7 +33,7 @@ def parse_args() -> Namespace:
         type=str,
         required=True,
         help=
-        'Name/path of the dataset (e.g., first argument to `datasets.load_dataset`)'
+        'Name of the dataset (e.g., first argument to `datasets.load_dataset`, for jsonl data format, it is `json`)'
     )
     parser.add_argument('--data_subset',
                         type=str,
@@ -38,6 +48,13 @@ def parse_args() -> Namespace:
                         default=None,
                         help='Name or import path of function used to preprocess (reformat) the dataset. ' +\
                              'See README for additional details.')
+    parser.add_argument(
+        '--data_files',
+        nargs='+',
+        default=[],
+        help=
+        'Data file for each split. If set, its length should be exact same as len(splits)'
+    )
     parser.add_argument(
         '--skip-preprocessing',
         action='store_true',
@@ -63,6 +80,32 @@ def parse_args() -> Namespace:
                         default=None,
                         help='(Optional) name of compression algorithm to use.')
     parser.add_argument('--num_workers', type=int, required=False, default=None)
+    parser.add_argument('--tokenizer', type=str, required=False, default=None)
+    parser.add_argument('--tokenizer_kwargs', type=str, required=False)
+
+    ##### Used to determine whether an example needs to be filtered out ####
+    parser.add_argument('--max_seq_len', type=int, default=2048)
+    parser.add_argument(
+        '--target_prompts',
+        type=str,
+        default='none',
+        help='Used to determine which samples are valid at max_seq_len. ' +\
+             'This is the policy for when to use prompts as training targets. Default "none" means prompts are never used as training targets.'
+    )
+    parser.add_argument(
+        '--target_responses',
+        type=str,
+        default='last',
+        help='Used to determine which samples are valid at max_seq_len. ' +\
+             'This is the policy for which responses to treat as training targets. Default "last" means the only the final response (if multi-turn) is used.'
+    )
+    parser.add_argument(
+        '--encoder_decoder',
+        action='store_true',
+        help='Used to determine which samples are valid at max_seq_len. ' +\
+             'Set this flag if the data are intended to be used to train an encoder-decoder model. If so, you must use the default ' +\
+            '``target_prompts`` and ``target_responses`` settings of "none" and "last", respectively.'
+    )
 
     parsed = parser.parse_args()
 
@@ -73,30 +116,21 @@ def parse_args() -> Namespace:
             f'--out_root={parsed.out_root} contains {os.listdir(parsed.out_root)} which cannot overlap with the requested splits {parsed.splits}.'
         )
 
+    if parsed.tokenizer_kwargs is not None:
+        parsed.tokenizer_kwargs = json.loads(parsed.tokenizer_kwargs)
+    else:
+        parsed.tokenizer_kwargs = {}
+
+    if len(parsed.data_files) > 0 and len(parsed.data_files) != len(
+            parsed.splits):
+        raise ValueError(
+            f'If data_files is set, data_files and splits must have the same length. Got {len(parsed.data_files)=} while {len(parsed.splits)=}'
+        )
+
     return parsed
 
 
-class SimpleDataset(IterableDataset):
-    """An IterableDataset that returns text samples for MDSWriter.
-
-    Returns dicts of {'key': bytes} for each 'key' in `columns`
-    """
-
-    def __init__(self, dataset_name: str, data_subset: Union[str, None],
-                 split: str, columns: List[str]):
-        self.hf_dataset = hf_datasets.load_dataset(path=dataset_name,
-                                                   name=data_subset,
-                                                   split=split,
-                                                   streaming=True)
-        self.columns = columns
-
-    def __iter__(self) -> Iterable[Dict[str, bytes]]:
-        for sample in self.hf_dataset:
-            # convert to bytes to store in MDS binary format
-            yield {key: sample[key].encode('utf-8') for key in self.columns}
-
-
-def build_dataloader(dataset: SimpleDataset,
+def build_dataloader(dataset: HFDataset,
                      batch_size: int,
                      num_workers: Optional[int] = None) -> DataLoader:
     if num_workers is None:
@@ -150,6 +184,20 @@ def generate_samples(
             yield {k: v[idx] for k, v in batch.items()}
 
 
+def get_columns_and_format(dataset: HFDataset, tokenizing: bool,
+                           preprocessing_fn: Callable):
+    ex = preprocessing_fn(next(iter(dataset)))
+    example_type = _get_example_type(ex)
+    if tokenizing:
+        return {'turns': 'json'}, example_type
+    if example_type == 'chat':
+        # Chat format
+        return {'messages': 'json'}, example_type
+    else:
+        # Prompt-response format
+        return {'prompt': 'str', 'response': 'str'}, example_type
+
+
 def main(args: Namespace) -> None:
     """Main: create a streaming dataset.
 
@@ -170,17 +218,41 @@ def main(args: Namespace) -> None:
                 'include the "--skip-preprocessing" flag to avoid this error.'
             )
 
-    columns = ['prompt', 'response']
+    # Make sure the target settings are valid
+    validate_target_settings(
+        target_prompts=args.target_prompts,
+        target_responses=args.target_responses,
+        decoder_only_format=not args.encoder_decoder,
+    )
 
-    for split_name in args.splits:
+    tokenizer = None
+    tokenizer_kwargs = args.tokenizer_kwargs
+    tokenizer_kwargs.update({'model_max_length': args.max_seq_len})
+    if args.tokenizer:
+        tokenizer = build_tokenizer(args.tokenizer, tokenizer_kwargs)
+
+    for i, split_name in enumerate(args.splits):
+        data_file = None
+        if len(args.data_files) > 0:
+            data_file = args.data_files[i]
         dataset = hf_datasets.load_dataset(path=args.dataset,
                                            name=args.data_subset,
                                            split=split_name,
+                                           data_files=data_file,
                                            streaming=True)
-        loader = build_dataloader(dataset=dataset,
-                                  batch_size=512,
-                                  num_workers=args.num_workers)
-        samples = generate_samples(loader)
+        # Determine the output columns
+        columns, example_type = get_columns_and_format(
+            dataset=dataset,
+            tokenizing=tokenizer is not None,
+            preprocessing_fn=preprocessing_fn)
+        # Prepare the iterables
+        if example_type == 'chat':
+            samples = iter(dataset)
+        else:
+            loader = build_dataloader(dataset=dataset,
+                                      batch_size=512,
+                                      num_workers=args.num_workers)
+            samples = generate_samples(loader)
 
         # Write samples
         print(f'Converting {split_name} to MDS format...')
@@ -190,25 +262,57 @@ def main(args: Namespace) -> None:
             keep_local = True
         else:
             keep_local = False
-        with MDSWriter(columns={key: 'str' for key in columns},
+        with MDSWriter(columns=columns,
                        out=out,
                        compression=args.compression,
                        keep_local=keep_local) as out:
+            examples_removed = 0
             for sample in tqdm(samples, desc=split_name):
                 formatted_sample = preprocessing_fn(sample)
-                if ('prompt'
-                        not in formatted_sample) or ('response'
-                                                     not in formatted_sample):
-                    raise KeyError(
-                        'Unable to tokenize example because it has not been properly formatted. ' +\
-                        '"prompt" and "response" are required keys but at least one was missing ' +\
-                        f'from {formatted_sample=}.'
-                    )
-                encoded_sample = {
-                    key: formatted_sample[key].encode('utf-8')
-                    for key in columns
-                }
-                out.write(encoded_sample)
+
+                # Use the _get_example_type utility to confirm that the formatted sample
+                # can be interpreted by the tokenization code
+                try:
+                    example_type = _get_example_type(formatted_sample)
+                except Exception as e:
+                    raise ValueError(
+                        'Encountered an error when checking example for proper formatting. ' +\
+                        f'example={formatted_sample}'
+                    ) from e
+                if tokenizer is not None:
+                    sample = tokenize_formatted_example(formatted_sample,
+                                                        tokenizer=tokenizer)
+                    if not is_valid_ift_example(
+                            args.max_seq_len,
+                            target_prompts=args.target_prompts,
+                            target_responses=args.target_responses,
+                            decoder_only_format=not args.encoder_decoder,
+                            example=sample):
+                        examples_removed += 1
+                        continue
+
+                    sample_to_write = {'turns': []}
+                    for turn in sample['turns']:
+                        turn_to_write = {}
+                        for key in ['input_ids', 'labels']:
+                            turn_to_write[key] = list(turn[key])
+                        sample_to_write['turns'].append(turn_to_write)
+                    out.write(sample_to_write)
+                else:
+                    if example_type == 'prompt_response':
+                        encoded_sample = {
+                            key: formatted_sample[key].encode('utf-8')
+                            for key in ['prompt', 'response']
+                        }
+                    else:
+                        encoded_sample = formatted_sample
+                    out.write(encoded_sample)
+        if tokenizer is not None and examples_removed > 0:
+            warnings.warn(
+                f'Dropped {examples_removed} examples where the prompt was longer than {args.max_seq_len}, '
+                +
+                'the prompt or response was empty, or the response was all padding tokens.'
+            )
 
 
 if __name__ == '__main__':

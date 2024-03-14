@@ -19,11 +19,8 @@ from llmfoundry.utils.data_validation_utils import (check_HF_datasets,
                                                     parse_args, plot_hist,
                                                     token_counts,
                                                     token_counts_with_collate)
-# yapf: disable
 from llmfoundry.utils.model_download_utils import (
     download_from_hf_hub, download_from_http_fileserver)
-
-# yapf: enable
 
 __all__ = [
     'build_callback',

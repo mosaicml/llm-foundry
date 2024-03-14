@@ -16,7 +16,6 @@ from huggingface_hub import dataset_info
 from omegaconf import OmegaConf as om
 from streaming.base.storage.download import download_file
 from streaming.base.storage.upload import CloudUploader
-from tqdm import tqdm
 
 from llmfoundry.data.finetuning import build_finetuning_dataloader
 from llmfoundry.utils import build_tokenizer
@@ -96,8 +95,9 @@ def create_om_cfg(FT_API_args: Namespace):
     return cfg, tokenizer
 
 
-def token_counts_with_collate(FT_API_args):
-    from llmfoundry.data.finetuning import build_finetuning_dataloader, _build_collate_fn
+def token_counts_with_collate(FT_API_args: Namespace):
+    from llmfoundry.data.finetuning import (_build_collate_fn,
+                                            build_finetuning_dataloader)
 
     cfg, tokenizer = create_om_cfg(FT_API_args)
     detected_cpu_count = os.cpu_count() or 1
@@ -108,14 +108,13 @@ def token_counts_with_collate(FT_API_args):
     dataspec = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
     dataloader = dataspec.dataloader
 
-    collate_fn, dataloader_batch_size = _build_collate_fn(
-        cfg, tokenizer, device_batch_size)
+    collate_fn, _ = _build_collate_fn(cfg, tokenizer, device_batch_size)
 
     def mapper(example: dict):
-        batch = collate_fn([example])
+        batch = collate_fn([example])  # pyright: ignore
         return get_num_samples_in_batch(batch)
 
-    token_lens = dataloader.dataset.map(
+    token_lens = dataloader.dataset.map(  # pyright: ignore
         mapper,
         batched=False,
         num_proc=num_cpus_to_use,

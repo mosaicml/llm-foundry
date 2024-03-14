@@ -794,7 +794,7 @@ class DatasetConstructor:
                 return tokenize_formatted_example(example, tokenizer)
 
             detected_cpu_count = os.cpu_count() or 1
-            detected_cpus_with_margin = detected_cpu_count - 8 # pyright: ignore
+            detected_cpus_with_margin = detected_cpu_count - 8  # pyright: ignore
             num_cpus_to_use = detected_cpu_count  # Hack for Valiation instead of max(1, detected_cpus_with_margin)
 
             columns_to_remove = list(dataset[0].keys())

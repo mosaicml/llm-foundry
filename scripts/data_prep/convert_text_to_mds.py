@@ -6,7 +6,7 @@ from argparse import ArgumentParser, Namespace
 import psutil
 from transformers import AutoTokenizer
 
-from llmfoundry.utils.data_prep_utils import _args_str, convert_text_to_mds
+from llmfoundry.utils.data_prep_utils import convert_text_to_mds
 
 
 def parse_args() -> Namespace:
@@ -120,6 +120,29 @@ def parse_args() -> Namespace:
         parsed.eos_text = ''
     return parsed
 
+
+def _args_str(original_args: Namespace) -> str:
+    """Create a string from the args to determine whether to reprocess.
+
+    Args:
+        original_args (Namespace): Arguments to main function.
+    """
+    # Take the arguments that influence the final result.
+    # reprocess and max_mds_writer_workers are not taken.
+    args = Namespace(
+        tokenizer_name=original_args.tokenizer,
+        output_folder=original_args.output_folder,
+        input_folder=original_args.input_folder,
+        concat_tokens=original_args.concat_tokens,
+        eos_text=original_args.eos_text,
+        bos_text=original_args.bos_text,
+        no_wrap=original_args.no_wrap,
+        compression=original_args.compression,
+        processes=original_args.processes,
+        skip_mdswrite=original_args.skip_mdswrite,
+    )
+
+    return str(args)
 
 if __name__ == '__main__':
     args = parse_args()

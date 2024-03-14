@@ -24,7 +24,7 @@ from llmfoundry.utils.validation_utils import (_args_str, check_HF_datasets,
                                                pandas_processing_fn,
                                                parse_args, plot_hist,
                                                token_counts,
-                                               token_counts_and_validation)
+                                               token_counts_with_collate)
 # yapf: enable
 
 __all__ = [
@@ -44,7 +44,7 @@ __all__ = [
     'log_config',
     'pop_config',
     'create_om_cfg',
-    'token_counts_and_validation',
+    'token_counts_with_collate',
     'token_counts',
     'check_HF_datasets',
     'is_hf_dataset_path',

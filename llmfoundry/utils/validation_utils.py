@@ -123,7 +123,7 @@ def get_num_samples_in_batch(batch: dict) -> int:
 
     # Count number of non padding tokens in batch
     if 'attention_mask' in batch:
-        input_ids_tokens = batch['attention_mask'].numel() # int(sum(batch['attention_mask']))
+        input_ids_tokens = int(torch.sum(batch['attention_mask']).item())
     else:
         input_ids_tokens = batch['input_ids'].numel()
 

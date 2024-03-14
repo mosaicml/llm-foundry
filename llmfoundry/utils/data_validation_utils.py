@@ -6,8 +6,8 @@ import os
 import re
 import tempfile
 from argparse import Namespace
-from urllib.parse import urlparse
 from typing import Mapping, Optional, Tuple, Union
+from urllib.parse import urlparse
 
 import pandas as pd
 import torch
@@ -18,8 +18,9 @@ from streaming.base.storage.download import download_file
 from streaming.base.storage.upload import CloudUploader
 from tqdm import tqdm
 
-from llmfoundry.utils import build_tokenizer
 from llmfoundry.data.finetuning import build_finetuning_dataloader
+from llmfoundry.utils import build_tokenizer
+
 
 def get_import_exception_message(package_name: str, extra_deps: str) -> str:
     """Get import exception message.
@@ -96,7 +97,6 @@ def create_om_cfg(FT_API_args: Namespace):
 
 
 def token_counts_and_validation(FT_API_args: Namespace):
-
     cfg, tokenizer = create_om_cfg(FT_API_args)
 
     device_batch_size = 1
@@ -147,7 +147,6 @@ def get_num_samples_in_batch(batch: dict) -> Mapping:
 
 
 def token_counts(FT_API_args: Namespace):
-
     cfg, tokenizer = create_om_cfg(FT_API_args)
 
     device_batch_size = 1
@@ -191,6 +190,7 @@ def check_HF_datasets(dataset_names_with_splits: list):
             return False, f'Failed to load Hugging Face dataset {dataset_name_with_split}. Split not found.'
     return True, ''
 
+
 def parse_hf_dataset_url(url: str) -> Tuple[str, str]:
     """Parses a Hugging Face dataset URL to extract the prefix and submixes.
 
@@ -229,8 +229,8 @@ def parse_hf_dataset_url(url: str) -> Tuple[str, str]:
         raise ValueError('Invalid Hugging Face dataset URL format')
 
 
-
-def is_hf_dataset_path(path: str, check_split: bool = False) -> Tuple[bool, bool]:
+def is_hf_dataset_path(path: str,
+                       check_split: bool = False) -> Tuple[bool, bool]:
     """Check if a given string is a dataset path used by Hugging Face.
 
     Args:
@@ -264,7 +264,8 @@ def is_uc_delta_table(name: str):
     Return:
         (bool): True if name is valid UC delta table format
     """
-    return '.' in name and '/' not in name and '\\' not in name and len(name.split('.')) == 3
+    return '.' in name and '/' not in name and '\\' not in name and len(
+        name.split('.')) == 3
 
 
 def integrity_check(out: Union[str, Tuple[str, str]]):

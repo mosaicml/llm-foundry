@@ -20,12 +20,7 @@ def log_eval_analytics(mosaicml_logger: MosaicMLLogger,
                        model_configs: ListConfig, icl_tasks: Union[str,
                                                                    ListConfig],
                        eval_gauntlet_config: Optional[Union[str, DictConfig]]):
-    """Logs analytics for runs using the `eval.py` script.
-
-    TODO: right now, we need to get the following subtypes for eval:
-        -- Batch Generation
-        -- Checkpoint Conversion
-    """
+    """Logs analytics for runs using the `eval.py` script."""
     metrics: Dict[str, Any] = {
         'llmfoundry/script': 'eval',
     }
@@ -67,10 +62,7 @@ def log_train_analytics(mosaicml_logger: MosaicMLLogger,
                         tokenizer_name: str, load_path: Union[str, None],
                         icl_tasks_config: Optional[Union[ListConfig, str]],
                         eval_gauntlet: Optional[Union[DictConfig, str]]):
-    """Logs analytics for runs using the `train.py` script.
-
-    TODO: clean up this code and make it more readable.
-    """
+    """Logs analytics for runs using the `train.py` script."""
     train_loader_dataset = train_loader_config.get('dataset', {})
     metrics: Dict[str, Any] = {
         'llmfoundry/tokenizer_name':

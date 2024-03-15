@@ -132,6 +132,7 @@ class MPTGLU(nn.Module):
         super().__init__()
         ffn_hidden_size = resolve_ffn_hidden_size(d_model, expansion_ratio,
                                                   ffn_hidden_size)
+        self.ffn_hidden_size = ffn_hidden_size
         self.fc_kwargs: dict[str, Any] = {
             'bias': bias,
         }
@@ -153,7 +154,7 @@ class MPTGLU(nn.Module):
 
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        up, gate = self.up_gate_proj(x).split(x.size(-1), dim=-1)
+        up, gate = self.up_gate_proj(x).split(self.ffn_hidden_size, dim=-1)
         return self.down_proj(self.act(gate) * up)
 
 

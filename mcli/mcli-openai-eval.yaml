@@ -5,8 +5,13 @@ integrations:
   # git_commit:  # OR use your commit hash
   pip_install: -e ".[gpu-flash2,openai]"
   ssh_clone: false  # Should be true if using a private repo
-
+- integration_type: wandb
+  entity: mosaic-ml
+  project: openai_eval
+  
 command: |
+  pip uninstall mosaicml -y
+  pip install git+https://github.com/mosaicml/composer.git
   cd llm-foundry/scripts
   composer eval/eval.py /mnt/config/parameters.yaml
 
@@ -14,13 +19,13 @@ command: |
 name: openai-gauntlet-eval
 
 compute:
-  instance: mosaic.a100-40sxm.1
-  cluster: r1z2  # replace with your cluster here!
-  gpu_num: 2 #
-  gpu_type: a100_40gb #
+  instance: mosaic.a100-80sxm.1
+  cluster: r1z1  # replace with your cluster here!
+  gpu_num: 8 #
+  gpu_type: a100_80gb #
 
 
-image: mosaicml/llm-foundry:2.1.0_cu121_flash2-latest
+image: mosaicml/llm-foundry:2.2.1_cu121_flash2-latest
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:
@@ -38,7 +43,10 @@ parameters:
       kwargs:
         model_name: gpt-3.5-turbo-instruct
 
-
+  loggers:
+    wandb: {}
+  callbacks:
+    eval_output_logging: {}
 
   icl_tasks: 
   - label: gsm8k

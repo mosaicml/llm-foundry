@@ -11,9 +11,9 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import torch
 from composer import algorithms
-from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
-                                MemoryMonitor, MemorySnapshot, OOMObserver,
-                                OptimizerMonitor, RuntimeEstimator,
+from composer.callbacks import (EarlyStopper, EvalOutputLogging, Generate,
+                                LRMonitor, MemoryMonitor, MemorySnapshot,
+                                OOMObserver, OptimizerMonitor, RuntimeEstimator,
                                 SpeedMonitor)
 from composer.core import Algorithm, Callback, Evaluator
 from composer.datasets.in_context_learning_evaluation import \
@@ -175,6 +175,8 @@ def build_callback(
                                 'gpu_flops_available', None))
     elif name == 'fdiff':
         return FDiffMetrics(**kwargs)
+    elif name == 'eval_output_logging':
+        return EvalOutputLogging(**kwargs)
     elif name == 'runtime_estimator':
         return RuntimeEstimator()
     elif name == 'optimizer_monitor':

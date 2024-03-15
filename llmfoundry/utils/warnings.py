@@ -44,6 +44,14 @@ class ExperimentalWarning(Warning):
 
 # Decorator version of experimental warning
 def experimental(feature_name: str):
+    """Decorator to mark a function as experimental.
+
+    The message displayed will be {feature_name} is experimental and may change with future versions.
+
+    Args:
+        feature_name (str): The name of the experimental feature.
+    """
+
     def decorator(func: Callable):
 
         def wrapper(*args: Any, **kwargs: Any):

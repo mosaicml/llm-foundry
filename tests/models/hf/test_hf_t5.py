@@ -1,10 +1,13 @@
-import transformers
+# Copyright 2024 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 import pytest
+import transformers
+from omegaconf import OmegaConf
 
 from llmfoundry.models.hf.hf_t5 import ComposerHFT5
 from llmfoundry.utils.warnings import ExperimentalWarning
 
-from omegaconf import OmegaConf
 
 def test_experimental_hf_t5():
     cfg = OmegaConf.create({

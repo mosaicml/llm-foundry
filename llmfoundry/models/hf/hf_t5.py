@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import warnings
 from typing import Mapping
 
 from composer.metrics.nlp import LanguageCrossEntropy, MaskedAccuracy
@@ -24,6 +23,7 @@ __all__ = ['ComposerHFT5']
 
 # HuggingFace hardcodes the ignore index to -100
 _HF_IGNORE_INDEX = -100
+
 
 @experimental('ComposerHFT5')
 class ComposerHFT5(HuggingFaceModelWithZLoss):

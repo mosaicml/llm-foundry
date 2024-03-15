@@ -1,7 +1,8 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-from typing import Any, Callable
 import warnings
+from typing import Any, Callable
+
 
 class VersionedDeprecationWarning(DeprecationWarning):
     """A custom deprecation warning class that includes version information.
@@ -40,11 +41,15 @@ class ExperimentalWarning(Warning):
             f'{feature_name} is experimental and may change with future versions.'
         )
 
+
 # Decorator version of experimental warning
 def experimental(feature_name: str):
     def decorator(func: Callable):
+
         def wrapper(*args: Any, **kwargs: Any):
             warnings.warn(ExperimentalWarning(feature_name))
             return func(*args, **kwargs)
+
         return wrapper
+
     return decorator

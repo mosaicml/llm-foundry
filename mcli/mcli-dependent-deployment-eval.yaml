@@ -22,8 +22,8 @@ name: dependent-deployment-gauntlet-eval
 # gpu_type: a100_80gb #
 
 compute:
-  gpus: 2
-  cluster: r1z2
+  gpus: 8
+  cluster: r1z1
 
 image: mosaicml/llm-foundry:2.2.1_cu121_flash2-latest
 dependent_deployment:
@@ -33,7 +33,7 @@ dependent_deployment:
     download_parameters:
       hf_path: mosaicml/mpt-7b
       precision: float16
-      world_size: 2
+      world_size: 8
       max_input_len: 2048
       max_output_len: 2048
     model_parameters:
@@ -77,37 +77,37 @@ parameters:
     early_stopping_criteria:
     - "\n\n"
     - "Question:"
-  - label: mmlu
-    dataset_uri: eval/local_data/api_compatible_gauntlet/world_knowledge/mmlu.jsonl
-    num_fewshot:
-    - 5
-    icl_task_type: question_answering
-    continuation_delimiter: "\n\nAnswer:"
-    has_categories: true
-    example_delimiter: \n\n
-    early_stopping_criteria:
-    - \n\n
-    - "Question:"
-    - "Q:"
-  - label: arc_challenge
-    dataset_uri: eval/local_data/api_compatible_gauntlet/world_knowledge/arc_challenge.jsonl
-    num_fewshot:
-    - 25
-    icl_task_type: question_answering
-    continuation_delimiter: "\n\nAnswer:"
-    example_delimiter: \n\n
-    early_stopping_criteria:
-    - \n\n
-    - "Question:"
-    - "Q:"
-  - label: hellaswag
-    dataset_uri: eval/local_data/api_compatible_gauntlet/language_understanding/hellaswag.jsonl
-    num_fewshot:
-    - 10
-    icl_task_type: question_answering
-    continuation_delimiter: "\n\nAnswer:"
-    example_delimiter: \n\n
-    early_stopping_criteria:
-    - \n\n
-    - "Question:"
-    - "Q:"
+  # - label: mmlu
+  #   dataset_uri: eval/local_data/api_compatible_gauntlet/world_knowledge/mmlu.jsonl
+  #   num_fewshot:
+  #   - 5
+  #   icl_task_type: question_answering
+  #   continuation_delimiter: "\n\nAnswer:"
+  #   has_categories: true
+  #   example_delimiter: \n\n
+  #   early_stopping_criteria:
+  #   - \n\n
+  #   - "Question:"
+  #   - "Q:"
+  # - label: arc_challenge
+  #   dataset_uri: eval/local_data/api_compatible_gauntlet/world_knowledge/arc_challenge.jsonl
+  #   num_fewshot:
+  #   - 25
+  #   icl_task_type: question_answering
+  #   continuation_delimiter: "\n\nAnswer:"
+  #   example_delimiter: \n\n
+  #   early_stopping_criteria:
+  #   - \n\n
+  #   - "Question:"
+  #   - "Q:"
+  # - label: hellaswag
+  #   dataset_uri: eval/local_data/api_compatible_gauntlet/language_understanding/hellaswag.jsonl
+  #   num_fewshot:
+  #   - 10
+  #   icl_task_type: question_answering
+  #   continuation_delimiter: "\n\nAnswer:"
+  #   example_delimiter: \n\n
+  #   early_stopping_criteria:
+  #   - \n\n
+  #   - "Question:"
+  #   - "Q:"

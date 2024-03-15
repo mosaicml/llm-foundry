@@ -256,7 +256,8 @@ def build_text_dataloader(
     mlm_probability = cfg.dataset.pop('mlm_probability', None)
     eos_token_id = cfg.dataset.pop('eos_token_id', None)
     bos_token_id = cfg.dataset.pop('bos_token_id', None)
-    if eos_token_id is None and bos_token_id is None and hasattr(tokenizer, 'eos_token_id'): 
+    if eos_token_id is None and bos_token_id is None and hasattr(
+            tokenizer, 'eos_token_id'):
         eos_token_id = tokenizer.eos_token_id
 
     streams = build_streams(cfg.dataset)

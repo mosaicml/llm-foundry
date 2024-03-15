@@ -181,23 +181,6 @@ class FailedToConnectToDatabricksError(RuntimeError):
         super().__init__(message)
 
 
-class JSONOutputFolderNotLocalError(ValueError):
-    """Error thrown when the output folder is not local."""
-
-    def __init__(self) -> None:
-        message = 'Check the json_output_folder and verify it is a local path!'
-        super().__init__(message)
-
-
-class JSONOutputFolderExistsError(RuntimeError):
-    """Error thrown when the output folder already exists."""
-
-    def __init__(self, output_folder: str) -> None:
-        self.output_folder = output_folder
-        message = f'Output folder {output_folder} already exists and is not empty. Please remove it and retry.'
-        super().__init__(message)
-
-
 ## Convert Text to MDS exceptions
 class InputFolderMissingDataError(ValueError):
     """Error thrown when the input folder is missing data."""

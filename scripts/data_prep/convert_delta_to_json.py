@@ -35,9 +35,7 @@ from pyspark.sql.types import Row
 
 from llmfoundry.utils.exceptions import (ClusterDoesNotExistError,
                                          FailedToConnectToDatabricksError,
-                                         FailedToCreateSQLConnectionError,
-                                         JSONOutputFolderExistsError,
-                                         JSONOutputFolderNotLocalError)
+                                         FailedToCreateSQLConnectionError)
 from llmfoundry.utils.logging_utils import get_mosaicml_logger
 
 MINIMUM_DB_CONNECT_DBR_VERSION = '14.1'
@@ -463,12 +461,15 @@ def fetch_DT(args: Namespace) -> None:
 
     obj = urllib.parse.urlparse(args.json_output_folder)
     if obj.scheme != '':
-        raise JSONOutputFolderNotLocalError()
+        raise ValueError(
+            'Check the json_output_folder and verify it is a local path!')
 
     if os.path.exists(args.json_output_folder):
         if not os.path.isdir(args.json_output_folder) or os.listdir(
                 args.json_output_folder):
-            raise JSONOutputFolderExistsError(args.json_output_folder)
+            raise RuntimeError(
+                f'Output folder {args.json_output_folder} already exists and is not empty. Please remove it and retry.'
+            )
 
     os.makedirs(args.json_output_folder, exist_ok=True)
 

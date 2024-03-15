@@ -57,10 +57,6 @@ def make_tiny_ft_dataset(
             'response': None
         })  # type: ignore (intentional test)
 
-    if add_unknown_conversation_type:
-        # unknown conversation type
-        samples.append({'foo': 'hello', 'response': 'goodbye'})
-
     if add_too_many_example_keys:
         # too many keys
         samples.append({
@@ -84,6 +80,9 @@ def make_tiny_ft_dataset(
         samples.append({'prompt': 'hello', 'response': end_token})
         # prompt just pad
         samples.append({'prompt': pad_token, 'response': 'goodbye'})
+    if add_unknown_conversation_type:
+        # unknown conversation type
+        samples = [{'foo': 'yee', 'bar': 'haw'}]
 
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'w') as _f:

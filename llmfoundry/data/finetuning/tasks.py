@@ -107,8 +107,8 @@ def _get_example_type(example: Example) -> ExampleType:
     if any(allowed_message_key in example
            for allowed_message_key in _ALLOWED_MESSAGES_KEYS):
         return 'chat'
-    elif any(pr in example for pr in _ALLOWED_PROMPT_KEYS) and any(
-            pr in example for pr in _ALLOWED_RESPONSE_KEYS):
+    elif any(p in example for p in _ALLOWED_PROMPT_KEYS) and any(
+            r in example for r in _ALLOWED_RESPONSE_KEYS):
         return 'prompt_response'
     else:
         raise UnknownConversationTypeError(example)
@@ -313,7 +313,6 @@ def _tokenize_prompt_response_formatted_example(
     response_key = response_keys.pop()
     prompt = example[prompt_key]
     response = example[response_key]
-
     if not isinstance(prompt, str):
         raise InvalidPromptTypeError(type(prompt))
 

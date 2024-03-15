@@ -54,13 +54,6 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
                     'No OpenAI API Key found. Ensure it is saved as an environmental variable called OPENAI_API_KEY.'
                 )
 
-        else:
-            # Using a custom base URL, where the API key may not be required
-            log.info(
-                f'Making request to custom base URL: {base_url}{"" if api_key is not None else " (no API key set)"}'
-            )
-            api_key = 'placeholder'  # This cannot be None
-
         self.client = openai.OpenAI(base_url=base_url, api_key=api_key)
         if 'version' in model_cfg:
             self.model_name = model_cfg['version']

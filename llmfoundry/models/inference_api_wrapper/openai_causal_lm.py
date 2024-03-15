@@ -43,10 +43,7 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
                 conda_channel='conda-forge') from e
 
         api_key = os.environ.get(model_cfg.get('api_env_key', 'OPENAI_API_KEY'))
-        log.info(f"Using api key: {model_cfg.get('api_env_key', 'OPENAI_API_KEY')}")
-        log.info(api_key)
         base_url = model_cfg.get('base_url')
-        log.info(f"Using base url: {base_url}")
         if base_url is None:
             # Using OpenAI default, where the API key is required
             if api_key is None:
@@ -128,7 +125,6 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
             generation_kwargs: Optional[dict] = None) -> ChatCompletion:
         if generation_kwargs is None:
             generation_kwargs = {}
-        log.info(f"Using model: {self.model_name}")
         return self.client.chat.completions.create(
             model=self.model_name,
             messages=[{

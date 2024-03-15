@@ -117,7 +117,7 @@ class MPTMLP(nn.Module):
         return self.down_proj(self.act(self.up_proj(x)))
 
 
-class MPTGLU(MPTMLP):
+class MPTGLU(nn.Module):
 
     def __init__(
         self,
@@ -129,23 +129,32 @@ class MPTGLU(MPTMLP):
         device: Optional[str] = None,
         bias: bool = True,
     ):
-        super().__init__(
-            d_model=d_model,
-            expansion_ratio=expansion_ratio,
-            fc_type=fc_type,
-            ffn_hidden_size=ffn_hidden_size,
-            act_fn=act_fn,
-            device=device,
-            bias=bias,
-        )
-        self.gate_proj = FC_CLASS_REGISTRY[fc_type](
+        super().__init__()
+        ffn_hidden_size = resolve_ffn_hidden_size(d_model, expansion_ratio,
+                                                  ffn_hidden_size)
+        self.fc_kwargs: dict[str, Any] = {
+            'bias': bias,
+        }
+
+        self.fc_kwargs['device'] = device
+
+        self.up_gate_proj = FC_CLASS_REGISTRY[fc_type](
             d_model,
-            self.up_proj.out_features,
+            2 * ffn_hidden_size,
             **self.fc_kwargs,
         )
+        self.act = act_fn
+        self.down_proj = FC_CLASS_REGISTRY[fc_type](
+            ffn_hidden_size,
+            d_model,
+            **self.fc_kwargs,
+        )
+        self.down_proj._is_residual = True
+
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.down_proj(self.act(self.gate_proj(x)) * self.up_proj(x))
+        up, gate = self.up_gate_proj(x).split(x.size(-1), dim=-1)
+        return self.down_proj(self.act(gate) * up)
 
 
 FFN_CLASS_REGISTRY = {

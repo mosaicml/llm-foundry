@@ -72,13 +72,18 @@ class InferenceAPIEvalWrapper(ComposerModel):
                 tokens = tokens.tolist()
                 tokens = [t for t in tokens if t != padding_tok]
                 prompt = self.tokenizer.decode(tokens)
+                if 'generation_length' in batch:
+                    num_tokens = batch['generation_length']
+                elif 'generation_kwargs' in batch:
+                    num_tokens = batch['generation_kwargs'].get('max_new_tokens', 2)
+                
                 for i in range(
                         0,
                         batch.get('generation_kwargs',
                                   {}).get('num_return_sequences', 1)):
                     api_output = self.try_generate_completion(  #
                         prompt,
-                        num_tokens=batch['generation_length'],
+                        num_tokens=num_tokens,
                         generation_kwargs=batch.get('generation_kwargs', {}))
                     sample_output = self.completion_to_string(api_output)[0]
                     outputs.append(sample_output)

@@ -224,13 +224,20 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
                 tokens = tokens.tolist()
                 tokens = [t for t in tokens if t != padding_tok]
                 prompt = self.tokenizer.decode(tokens)
+
+                if 'generation_length' in batch:
+                    num_tokens = batch['generation_length']
+                elif 'generation_kwargs' in batch:
+                    num_tokens = batch['generation_kwargs'].get('max_new_tokens', 2)
+                
+
                 for _ in range(
                         0,
                         batch.get('generation_kwargs',
                                   {}).get('num_return_sequences', 1)):
                     api_output = self.try_generate_completion(  #
                         prompt,
-                        num_tokens=batch['generation_length'],
+                        num_tokens=num_tokens,
                         generation_kwargs=batch.get('generation_kwargs', {}))
 
                     assert api_output is not None

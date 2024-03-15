@@ -7,22 +7,19 @@ integrations:
   ssh_clone: false  # Should be true if using a private repo
 - integration_type: wandb
   entity: mosaic-ml
-  project: openai_eval
-  
+  project: openai_eval_jeremy
+
 command: |
   pip uninstall mosaicml -y
-  pip install git+https://github.com/mosaicml/composer.git
+  pip install git+https://github.com/mosaicml/composer.git@dev
   cd llm-foundry/scripts
   composer eval/eval.py /mnt/config/parameters.yaml
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
 name: openai-gauntlet-eval
-
-compute:
-  instance: mosaic.a100-80sxm.1
-  cluster: r1z1  # replace with your cluster here!
-  gpu_num: 8 #
-  gpu_type: a100_80gb #
+cluster: r1z1  # replace with your cluster here!
+gpu_num: 8 #
+gpu_type: a100_80gb #
 
 
 image: mosaicml/llm-foundry:2.2.1_cu121_flash2-latest

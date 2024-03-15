@@ -38,6 +38,52 @@ parameters:
       kwargs:
         model_name: gpt-3.5-turbo-instruct
 
-        
 
-  icl_tasks: "eval/yamls/api_compatible_tasks_v0.3.yaml"
+
+  icl_tasks: 
+  - label: gsm8k
+    dataset_uri: eval/local_data/api_compatible_gauntlet/symbolic_problem_solving/gsm8k_prepended_8shot.jsonl
+    num_fewshot:
+    - 0
+    icl_task_type: question_answering
+    cot_delimiter: "The answer is "
+    continuation_delimiter: "\n\nA:"
+    question_prelimiter: ""
+    do_normalization: false
+    early_stopping_criteria:
+    - "\n\n"
+    - "Question:"
+  - label: mmlu
+    dataset_uri: eval/local_data/api_compatible_gauntlet/world_knowledge/mmlu.jsonl
+    num_fewshot:
+    - 5
+    icl_task_type: question_answering
+    continuation_delimiter: "\n\nAnswer:"
+    has_categories: true
+    example_delimiter: \n\n
+    early_stopping_criteria:
+    - \n\n
+    - "Question:"
+    - "Q:"
+  - label: arc_challenge
+    dataset_uri: eval/local_data/api_compatible_gauntlet/world_knowledge/arc_challenge.jsonl
+    num_fewshot:
+    - 25
+    icl_task_type: question_answering
+    continuation_delimiter: "\n\nAnswer:"
+    example_delimiter: \n\n
+    early_stopping_criteria:
+    - \n\n
+    - "Question:"
+    - "Q:"
+  - label: hellaswag
+    dataset_uri: eval/local_data/api_compatible_gauntlet/language_understanding/hellaswag.jsonl
+    num_fewshot:
+    - 10
+    icl_task_type: question_answering
+    continuation_delimiter: "\n\nAnswer:"
+    example_delimiter: \n\n
+    early_stopping_criteria:
+    - \n\n
+    - "Question:"
+    - "Q:"

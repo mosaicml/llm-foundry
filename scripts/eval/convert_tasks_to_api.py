@@ -3,15 +3,17 @@
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
-import re
+
 API_DIR = 'eval/local_data/api_compatible_gauntlet'
 
 # example_delimiter
+
 
 def process_row(sample: dict, task_type: str, task_cfg: DictConfig):
     if task_type == 'question_answering' or task_type == 'language_modeling' or task_type == 'code_evaluation':
@@ -24,24 +26,26 @@ def process_row(sample: dict, task_type: str, task_cfg: DictConfig):
         cont_delim = task_cfg.get('continuation_delimiter', ' ')
         alphabet = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']
         alphabet = alphabet[0:len(choices)]
-        
+
         choices_str = 'Choices:\n' + '\n'.join(
             [f'{a}. {c}' for a, c in zip(alphabet, choices)])
-        
+
         if 'Choices:' in query:
             choices_str = ''
-       
 
         context = f'{query}\n{choices_str}{cont_delim}'
         if 'Question:' not in context and 'Q:' not in context:
-            context = "Question: " + context
+            context = 'Question: ' + context
         answer = alphabet[gold_idx]
         context = re.sub('(Answer:|A:)', '', context)
         if 'category' in sample:
-            return {'context': context.strip(), 'answer': answer.strip(), 'category': sample['category']}
+            return {
+                'context': context.strip(),
+                'answer': answer.strip(),
+                'category': sample['category']
+            }
         else:
             return {'context': context.strip(), 'answer': answer.strip()}
-
     elif task_type == 'schema':
         context_options = sample['context_options']
         gold_idx = sample['gold']
@@ -56,13 +60,17 @@ def process_row(sample: dict, task_type: str, task_cfg: DictConfig):
         ])
 
         if 'Question:' not in context_options_str and 'Q:' not in context_options_str:
-            context = "Question: " + context_options_str
+            context = 'Question: ' + context_options_str
 
         prompt += context_options_str
         answer = alphabet[gold_idx]
         prompt = re.sub('(Answer:|A:)', '', prompt)
         if 'category' in sample:
-            return {'context': prompt.strip(), 'answer': answer.strip(), 'category': sample['category']}
+            return {
+                'context': prompt.strip(),
+                'answer': answer.strip(),
+                'category': sample['category']
+            }
         else:
             return {'context': prompt.strip(), 'answer': answer.strip()}
 
@@ -78,13 +86,13 @@ def process_task_cfg(task: DictConfig, task_type: str, uri: str):
         task['icl_task_type'] = 'question_answering'
         task['continuation_delimiter'] = '\\n\\nAnswer:'
         task['example_delimiter'] = '\\n\\n'
-        task['early_stopping_criteria'] = ["\\n\\n", "Question:", "Q:"]
+        task['early_stopping_criteria'] = ['\\n\\n', 'Question:', 'Q:']
     elif task_type == 'schema':
         task['dataset_uri'] = new_uri
         task['icl_task_type'] = 'question_answering'
         task['continuation_delimiter'] = '\\n\\nAnswer:'
         task['example_delimiter'] = '\\n\\n'
-        task['early_stopping_criteria'] = ["\\n\\n", "Question:", "Q:"]
+        task['early_stopping_criteria'] = ['\\n\\n', 'Question:', 'Q:']
 
     return task
 

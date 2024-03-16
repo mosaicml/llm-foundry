@@ -1372,12 +1372,14 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
             passage_query_delimiter: str = '\nQuery: ',
             use_gold_docs_only: bool = True,
             use_no_documents: bool = False,
+            total_docs: int = -1,
             *args: Any,
             **kwargs: Any):
         self.passage_delimiter = passage_delimiter
         self.passage_query_delimiter = passage_query_delimiter
         self.use_gold_docs_only = use_gold_docs_only
         self.use_no_documents = use_no_documents
+        self.total_docs = total_docs
         self.max_prompt_length = 0
         self.max_answer_length = 0
         batch_mapping = {'input_ids': 'documents', 'labels': 'answer', 'queries':'query'}
@@ -1417,8 +1419,19 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
     def _filter_to_gold_documents(self, example: Dict[str, Any]):
         gold_idxes = example['gold_idxs']
         documents = example['documents']
-        filtered_documents = [documents[idx] for idx in gold_idxes]
-        example['documents'] = filtered_documents
+        gold_docs = [documents[idx] for idx in gold_idxes]
+        example['documents'] =gold_docs 
+        return example
+    
+    def _filter_to_total_docs(self, example: Dict[str, Any]):
+        gold_idxes = example['gold_idxs']
+        documents = example['documents']
+        gold_docs = [documents[idx] for idx in gold_idxes]
+        total_docs_idxes = list(range(0, self.total_docs))
+        total_docs_idxes = [idx for idx in total_docs_idxes if idx not in gold_idxes]
+        assert self.total_docs <= len(documents)
+        non_gold_docs = [documents[idx] for idx in total_docs_idxes]
+        example['documents'] = gold_docs + non_gold_docs
         return example
 
     def read_dataset(
@@ -1431,6 +1444,8 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
                                        hf_loading_vars, hf_parsing_map)
         if self.use_gold_docs_only:
             dataset = dataset.map(self._filter_to_gold_documents)
+        if self.total_docs > 0:
+            dataset = dataset.map(self._filter_to_total_docs)
         return dataset.map(
             lambda example: {
                 'documents':

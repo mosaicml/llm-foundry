@@ -89,7 +89,7 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
         if generation_kwargs is None:
             generation_kwargs = {}
         try:
-            from openai import APITimeoutError, RateLimitError
+            from openai import APITimeoutError, RateLimitError, InternalServerError
         except ImportError as e:
             raise MissingConditionalImportError(
                 extra_deps_group='openai',
@@ -109,6 +109,10 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
                 sleep(delay)
                 continue
             except APITimeoutError as e:
+                delay *= 2 * (1 + random.random())
+                sleep(delay)
+                continue
+            except InternalServerError as e:
                 delay *= 2 * (1 + random.random())
                 sleep(delay)
                 continue

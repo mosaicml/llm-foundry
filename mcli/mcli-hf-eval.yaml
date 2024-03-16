@@ -1,43 +1,48 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: v0.5.0
+  git_branch: openai_compatible_gauntlet
   # git_commit:  # OR use your commit hash
-  pip_install: -e ".[gpu-flash2]"
+  pip_install: -e ".[gpu-flash2,openai]"
   ssh_clone: false  # Should be true if using a private repo
+- integration_type: wandb
+  entity: mosaic-ml
+  project: dependent_deployment_eval_jeremy
 
 command: |
+  pip uninstall mosaicml -y
+  pip install git+https://github.com/mosaicml/composer.git@dev
   cd llm-foundry/scripts
   composer eval/eval.py /mnt/config/parameters.yaml
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
-run_name: mpt-eval
+name: mpt-eval-logging
 gpu_num: 8
 # gpu_type:
-# cluster:  # replace with your cluster here!
+cluster:  r1z1  # replace with your cluster here!
 
-image: mosaicml/llm-foundry:2.1.0_cu121_flash2-latest
+image: mosaicml/llm-foundry:2.2.1_cu121_flash2-latest
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:
   dist_timeout: 6000
   seed: 1
-  max_seq_len: 1024
+  max_seq_len: 2048
   device_eval_batch_size: 4
   precision: amp_fp16
 
   models:
   -
-    model_name: mosaicml/mpt-7b-instruct
+    model_name: mosaicml/mpt-7b
     # Tokenizer
     tokenizer:
-      name: EleutherAI/gpt-neox-20b
+      name:  mosaicml/mpt-7b
       kwargs:
         model_max_length: ${max_seq_len}
 
     model:
       name: hf_causal_lm
-      pretrained_model_name_or_path: mosaicml/mpt-7b-instruct
+      pretrained_model_name_or_path:  mosaicml/mpt-7b
       init_device: mixed
       pretrained: true
       use_auth_token: false
@@ -50,5 +55,21 @@ parameters:
     limit_all_gathers: True
 
 
-  icl_tasks: "eval/yamls/tasks_v0.3.yaml"
-  eval_gauntlet: "eval/yamls/eval_gauntlet_v0.3.yaml"
+  loggers:
+    wandb: {}
+  callbacks:
+    eval_output_logging: {}
+
+  icl_tasks: 
+  - label: gsm8k
+    dataset_uri: eval/local_data/api_compatible_gauntlet/symbolic_problem_solving/gsm8k_prepended_8shot.jsonl
+    num_fewshot:
+    - 0
+    icl_task_type: question_answering
+    cot_delimiter: "The answer is "
+    continuation_delimiter: "\n\nA:"
+    question_prelimiter: ""
+    do_normalization: false
+    early_stopping_criteria:
+    - "\n\n"
+    - "Question:"

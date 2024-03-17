@@ -1,5 +1,7 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
+import warnings
+from typing import Any, Callable
 
 
 class VersionedDeprecationWarning(DeprecationWarning):
@@ -38,3 +40,24 @@ class ExperimentalWarning(Warning):
         super().__init__(
             f'{feature_name} is experimental and may change with future versions.'
         )
+
+
+# Decorator version of experimental warning
+def experimental(feature_name: str):
+    """Decorator to mark a function as experimental.
+
+    The message displayed will be {feature_name} is experimental and may change with future versions.
+
+    Args:
+        feature_name (str): The name of the experimental feature.
+    """
+
+    def decorator(func: Callable):
+
+        def wrapper(*args: Any, **kwargs: Any):
+            warnings.warn(ExperimentalWarning(feature_name))
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator

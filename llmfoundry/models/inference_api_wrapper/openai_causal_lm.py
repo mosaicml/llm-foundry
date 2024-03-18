@@ -146,7 +146,7 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
                 'content': prompt
             }],
             max_tokens=num_tokens,
-            temperature=generation_kwargs.get('temperature', 0.0))
+            temperature=generation_kwargs.get('temperature', 1.0))
 
     def completion_to_string(self, completion: ChatCompletion):
         return [choice.message.content for choice in completion.choices]
@@ -308,7 +308,7 @@ class OpenAICausalLMEvalWrapper(OpenAIEvalInterface):
             prompt=prompt,
             max_tokens=num_tokens,
             logprobs=5,
-            temperature=generation_kwargs.get('temperature', 0.0))
+            temperature=generation_kwargs.get('temperature', 1.0))
 
     def process_result(self, completion: Optional['Completion']):
         if completion is None:

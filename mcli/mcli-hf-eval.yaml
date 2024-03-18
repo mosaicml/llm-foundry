@@ -70,6 +70,8 @@ parameters:
     continuation_delimiter: "\n\nA:"
     question_prelimiter: ""
     do_normalization: false
+    generation_kwargs: 
+      temperature: 1.0
     early_stopping_criteria:
     - "\n\n"
     - "Question:"

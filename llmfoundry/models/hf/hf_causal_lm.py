@@ -9,19 +9,17 @@ import warnings
 from typing import TYPE_CHECKING, Any, Dict, Mapping
 
 # required for loading a python model into composer
-from composer.metrics.nlp import (InContextLearningCodeEvalAccuracy,
-                                  InContextLearningLMAccuracy,
-                                  InContextLearningLMExpectedCalibrationError,
-                                  InContextLearningMCExpectedCalibrationError,
-                                  InContextLearningMultipleChoiceAccuracy,
-                                  InContextLearningQAAccuracy,
-                                  LanguageCrossEntropy, LanguagePerplexity)
+from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
 from composer.models.huggingface import peft_installed
 from composer.utils import dist
 from omegaconf import DictConfig
 from transformers import (AutoConfig, AutoModelForCausalLM, PreTrainedModel,
                           PreTrainedTokenizerBase)
 
+from llmfoundry.eval.metrics import (
+    InContextLearningCodeEvalAccuracy,
+    InContextLearningGenerationExactMatchAccuracy, InContextLearningLMAccuracy,
+    InContextLearningMultipleChoiceAccuracy)
 from llmfoundry.metrics import TokenAccuracy
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
@@ -123,10 +121,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             TokenAccuracy(),
             InContextLearningLMAccuracy(),
             InContextLearningMultipleChoiceAccuracy(),
-            InContextLearningQAAccuracy(),
-            InContextLearningCodeEvalAccuracy(),
-            InContextLearningLMExpectedCalibrationError(),
-            InContextLearningMCExpectedCalibrationError()
+            InContextLearningGenerationExactMatchAccuracy(),
+            InContextLearningCodeEvalAccuracy()
         ]
         if not om_model_config.get('use_train_metrics', True):
             train_metrics = []

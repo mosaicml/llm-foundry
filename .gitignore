@@ -2,6 +2,7 @@
 my-copy-c4*/
 my-copy-arxiv*/
 *.jsonl*
+!tests/eval/local_data/*.jsonl
 
 # WandB
 wandb/

@@ -39,6 +39,7 @@ __all__ = [
     'build_optimizer',
     'build_scheduler',
     'build_tokenizer',
+    'build_metric',
 ]
 
 
@@ -196,7 +197,7 @@ def build_algorithm(name: str, kwargs: Dict[str, Any]) -> Algorithm:
                                    post_validation_function=None,
                                    kwargs=kwargs)
 
-def build_metrics(name: str, kwargs: Dict[str, Any]) -> Metric:
+def build_metric(name: str, kwargs: Dict[str, Any]) -> Metric:
     """Builds a metric from the registry."""
     return builder(name=name,
                    registry=registry.metrics,

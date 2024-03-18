@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from typing import Mapping, MutableMapping
 
-from composer.metrics.nlp import LanguageCrossEntropy, MaskedAccuracy
 from composer.utils import dist
 from omegaconf import DictConfig
 from transformers import (AutoConfig, AutoModelForCausalLM,
@@ -19,12 +18,10 @@ from llmfoundry.models.utils import (adapt_tokenizer_for_denoising,
                                      add_bidirectional_mask_if_missing,
                                      convert_hf_causal_lm_to_prefix_lm,
                                      init_empty_weights)
+from llmfoundry.utils.registry_utils import build_metric
+from llmfoundry.metrics import DEFAULT_PREFIX_LM_METRICS
 
 __all__ = ['ComposerHFPrefixLM']
-
-# HuggingFace hardcodes the ignore index to -100
-_HF_IGNORE_INDEX = -100
-
 
 class ComposerHFPrefixLM(HuggingFaceModelWithZLoss):
     """Configures a :class:`.HuggingFaceModel` around a Prefix LM.
@@ -130,8 +127,7 @@ class ComposerHFPrefixLM(HuggingFaceModelWithZLoss):
         model = convert_hf_causal_lm_to_prefix_lm(model)
 
         metrics = [
-            LanguageCrossEntropy(ignore_index=_HF_IGNORE_INDEX),
-            MaskedAccuracy(ignore_index=_HF_IGNORE_INDEX)
+            build_metric(metric, {}) for metric in DEFAULT_PREFIX_LM_METRICS + om_model_config.get('additional_train_metrics', [])
         ]
 
         composer_model = super().__init__(model=model,

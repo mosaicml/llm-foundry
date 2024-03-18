@@ -7,7 +7,7 @@ from composer.metrics import (InContextLearningCodeEvalAccuracy,
                               InContextLearningLMExpectedCalibrationError,
                               InContextLearningMCExpectedCalibrationError,
                               InContextLearningMultipleChoiceAccuracy,
-                              InContextLearningQAAccuracy)
+                              InContextLearningQAAccuracy, MaskedAccuracy)
 from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
 from llmfoundry.registry import metrics
 
@@ -20,14 +20,15 @@ metrics.register('qa_accuracy', func=InContextLearningQAAccuracy)
 metrics.register('code_eval_accuracy', func=InContextLearningCodeEvalAccuracy)
 metrics.register('language_cross_entropy', func=LanguageCrossEntropy)
 metrics.register('language_perplexity', func=LanguagePerplexity)
+metrics.register('masked_accuracy', func=MaskedAccuracy)
 
-DEFAULT_LM_TRAIN_METRICS = [
+DEFAULT_CAUSAL_LM_TRAIN_METRICS = [
     'language_cross_entropy',
     'language_perplexity',
-    'token_accuracy'
+    'token_accuracy',
 ]
 
-DEFAULT_LM_EVAL_METRICS = [
+DEFAULT_CAUSAL_LM_EVAL_METRICS = [
     'language_cross_entropy',
     'language_perplexity',
     'token_accuracy',
@@ -36,7 +37,17 @@ DEFAULT_LM_EVAL_METRICS = [
     'mc_expected_calibration_error',
     'mc_accuracy',
     'qa_accuracy',
-    'code_eval_accuracy'
+    'code_eval_accuracy',
+]
+
+DEFAULT_PREFIX_LM_METRICS = [
+    'language_cross_entropy',
+    'masked_accuracy',
+]
+
+DEFAULT_ENC_DEC_METRICS = [
+    'language_cross_entropy',
+    'masked_accuracy',
 ]
 
 __all__ = [

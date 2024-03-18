@@ -8,27 +8,21 @@ import os
 import warnings
 from typing import TYPE_CHECKING, Any, Dict, Mapping
 
-# required for loading a python model into composer
-from composer.metrics.nlp import (InContextLearningCodeEvalAccuracy,
-                                  InContextLearningLMAccuracy,
-                                  InContextLearningLMExpectedCalibrationError,
-                                  InContextLearningMCExpectedCalibrationError,
-                                  InContextLearningMultipleChoiceAccuracy,
-                                  InContextLearningQAAccuracy,
-                                  LanguageCrossEntropy, LanguagePerplexity)
 from composer.models.huggingface import peft_installed
 from composer.utils import dist
 from omegaconf import DictConfig
 from transformers import (AutoConfig, AutoModelForCausalLM, PreTrainedModel,
                           PreTrainedTokenizerBase)
 
-from llmfoundry.metrics import TokenAccuracy
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.utils import init_empty_weights
 from llmfoundry.utils.config_utils import pop_config
 from llmfoundry.utils.warnings import VersionedDeprecationWarning
+from llmfoundry.utils.registry_utils import build_metric
+from llmfoundry.metrics import DEFAULT_CAUSAL_LM_EVAL_METRICS, DEFAULT_CAUSAL_LM_TRAIN_METRICS
+
 
 if TYPE_CHECKING:
     from peft import PeftConfig
@@ -123,25 +117,13 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                 'PEFT is not installed, but peft_config was passed. Please install LLM Foundry with the peft extra to use peft_config.'
             )
 
-        # Set up training and eval metrics
+        use_train_metrics = om_model_config.get('use_train_metrics', True)
         train_metrics = [
-            LanguageCrossEntropy(),
-            LanguagePerplexity(),
-            TokenAccuracy()
-        ]
+            build_metric(metric, {}) for metric in DEFAULT_CAUSAL_LM_TRAIN_METRICS + om_model_config.get('additional_train_metrics', [])
+        ] if use_train_metrics else []
         eval_metrics = [
-            LanguageCrossEntropy(),
-            LanguagePerplexity(),
-            TokenAccuracy(),
-            InContextLearningLMAccuracy(),
-            InContextLearningMultipleChoiceAccuracy(),
-            InContextLearningQAAccuracy(),
-            InContextLearningCodeEvalAccuracy(),
-            InContextLearningLMExpectedCalibrationError(),
-            InContextLearningMCExpectedCalibrationError()
+            build_metric(metric, {}) for metric in DEFAULT_CAUSAL_LM_EVAL_METRICS + om_model_config.get('additional_eval_metrics', [])
         ]
-        if not om_model_config.get('use_train_metrics', True):
-            train_metrics = []
 
         # Construct the Hugging Face config to use
         config = AutoConfig.from_pretrained(

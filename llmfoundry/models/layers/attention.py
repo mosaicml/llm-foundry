@@ -401,7 +401,7 @@ def triton_flash_attn_fn(
 
     if dropout_p:
         raise NotImplementedError(
-            f'Dropout not implemented for attn_impl: flash.')
+            f'Dropout not implemented for attn_impl: triton.')
     dropout_p = dropout_p if training else 0.0
 
     if needs_weights:

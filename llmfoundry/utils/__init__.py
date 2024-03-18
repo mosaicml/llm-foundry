@@ -13,6 +13,9 @@ from llmfoundry.utils.config_utils import (calculate_batch_size_info,
 # yapf: disable
 from llmfoundry.utils.model_download_utils import (
     download_from_hf_hub, download_from_http_fileserver)
+from llmfoundry.utils.mosaicmllogger_utils import (find_mosaicml_logger,
+                                                   log_eval_analytics,
+                                                   log_train_analytics)
 
 # yapf: enable
 
@@ -32,4 +35,7 @@ __all__ = [
     'update_batch_size_info',
     'log_config',
     'pop_config',
+    'find_mosaicml_logger',
+    'log_eval_analytics',
+    'log_train_analytics',
 ]

@@ -20,7 +20,8 @@ from omegaconf import OmegaConf as om
 from rich.traceback import install
 from transformers import PreTrainedTokenizerBase
 
-from llmfoundry.utils import find_mosaicml_logger, log_eval_analytics
+from llmfoundry.utils.mosaicmllogger_utils import (find_mosaicml_logger,
+                                                   log_eval_analytics)
 
 install()
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY

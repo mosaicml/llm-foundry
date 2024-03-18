@@ -18,13 +18,15 @@ from transformers import (AutoConfig, AutoModelForCausalLM, PreTrainedModel,
 
 from llmfoundry.eval.metrics import (
     InContextLearningCodeEvalAccuracy,
-    InContextLearningGenerationWithAnswersAccuracy, InContextLearningLMAccuracy,
+    InContextLearningGenerationExactMatchAccuracy, InContextLearningLMAccuracy,
     InContextLearningMultipleChoiceAccuracy)
+from llmfoundry.metrics import TokenAccuracy
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.utils import init_empty_weights
 from llmfoundry.utils.config_utils import pop_config
+from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
 if TYPE_CHECKING:
     from peft import PeftConfig
@@ -68,6 +70,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
     def __init__(self, om_model_config: DictConfig,
                  tokenizer: PreTrainedTokenizerBase):
         pretrained_model_name_or_path = om_model_config.pretrained_model_name_or_path
+        pretrained_lora_id_or_path = om_model_config.get(
+            'pretrained_lora_id_or_path', None)
 
         if not om_model_config.get(
                 'trust_remote_code', True
@@ -106,13 +110,18 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             )
 
         # Set up training and eval metrics
-        train_metrics = [LanguageCrossEntropy(), LanguagePerplexity()]
+        train_metrics = [
+            LanguageCrossEntropy(),
+            LanguagePerplexity(),
+            TokenAccuracy()
+        ]
         eval_metrics = [
             LanguageCrossEntropy(),
             LanguagePerplexity(),
+            TokenAccuracy(),
             InContextLearningLMAccuracy(),
             InContextLearningMultipleChoiceAccuracy(),
-            InContextLearningGenerationWithAnswersAccuracy(),
+            InContextLearningGenerationExactMatchAccuracy(),
             InContextLearningCodeEvalAccuracy()
         ]
         if not om_model_config.get('use_train_metrics', True):
@@ -245,6 +254,15 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         if peft_config_dict is not None:
             peft_config = self._get_peft_config(peft_config_dict)
 
+        if pretrained_lora_id_or_path is not None:
+            if not peft_installed:
+                raise ValueError(
+                    'PEFT is not installed, but lora_id_or_path was passed. Please install LLM Foundry with the peft extra to use lora_id_or_path.'
+                )
+            from peft import PeftModelForCausalLM
+            model = PeftModelForCausalLM.from_pretrained(
+                model, pretrained_lora_id_or_path)
+
         super().__init__(
             model=model,
             shift_labels=True,
@@ -263,6 +281,11 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             raise ValueError(
                 f'attention_patch_type is only supported for llama models, but got {model.config.model_type}'
             )
+
+        warnings.warn(
+            VersionedDeprecationWarning(
+                'Attention patches for Llama models are deprecated. We recommend `use_flash_attention_2: True` for Llama models.',
+                remove_version='0.7.0'))
 
         log.debug(
             f'Patching llama attention with {attention_patch_type} attention')

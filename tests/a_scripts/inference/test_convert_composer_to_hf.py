@@ -253,12 +253,12 @@ def test_callback_inits():
         save_folder='test',
         save_interval='1ba',
         mlflow_registered_model_name='test_model_name')
-    assert hf_checkpointer.mlflow_logging_config == {
-        'task': 'text-generation',
-        'metadata': {
-            'task': 'llm/v1/completions'
-        }
-    }
+
+    assert hf_checkpointer.mlflow_logging_config['task'] == 'text-generation'
+    assert hf_checkpointer.mlflow_logging_config['metadata'][
+        'task'] == 'llm/v1/completions'
+    assert 'input_example' in hf_checkpointer.mlflow_logging_config
+    assert 'signature' in hf_checkpointer.mlflow_logging_config
 
 
 @pytest.mark.gpu
@@ -306,7 +306,7 @@ def test_huggingface_conversion_callback_interval(
     mlflow_logger_mock = MagicMock(spec=MLFlowLogger)
     mlflow_logger_mock.state_dict = lambda *args, **kwargs: {}
     mlflow_logger_mock.save_model = MagicMock(wraps=_save_model_mock)
-    mlflow_logger_mock.register_model = MagicMock()
+    mlflow_logger_mock.register_model_with_run_id = MagicMock()
     mlflow_logger_mock.model_registry_prefix = ''
     mlflow_logger_mock._experiment_id = 'mlflow-experiment-id'
     mlflow_logger_mock._run_id = 'mlflow-run-id'
@@ -331,11 +331,13 @@ def test_huggingface_conversion_callback_interval(
             transformers_model=ANY,
             path=ANY,
             task='text-generation',
+            input_example=ANY,
+            signature=ANY,
             metadata={'task': 'llm/v1/completions'})
-        assert mlflow_logger_mock.register_model.call_count == 1
+        assert mlflow_logger_mock.register_model_with_run_id.call_count == 1
     else:
         assert mlflow_logger_mock.save_model.call_count == 0
-        assert mlflow_logger_mock.register_model.call_count == 0
+        assert mlflow_logger_mock.register_model_with_run_id.call_count == 0
 
     normal_checkpoints = [
         name for name in os.listdir(os.path.join(tmp_path, 'checkpoints'))
@@ -562,7 +564,7 @@ def test_huggingface_conversion_callback(
     mlflow_logger_mock = MagicMock(spec=MLFlowLogger)
     mlflow_logger_mock.state_dict = lambda *args, **kwargs: {}
     mlflow_logger_mock.save_model = MagicMock(wraps=_save_model_mock)
-    mlflow_logger_mock.register_model = MagicMock()
+    mlflow_logger_mock.register_model_with_run_id = MagicMock()
     mlflow_logger_mock.model_registry_prefix = ''
     mlflow_logger_mock._experiment_id = 'mlflow-experiment-id'
     mlflow_logger_mock._run_id = 'mlflow-run-id'
@@ -593,20 +595,43 @@ def test_huggingface_conversion_callback(
                 }
             }
         else:
+            import numpy as np
+            from mlflow.models.signature import ModelSignature
+            from mlflow.types.schema import ColSpec, Schema
+
+            input_schema = Schema([
+                ColSpec('string', 'prompt'),
+                ColSpec('double', 'temperature', optional=True),
+                ColSpec('integer', 'max_tokens', optional=True),
+                ColSpec('string', 'stop', optional=True),
+                ColSpec('integer', 'candidate_count', optional=True)
+            ])
+
+            output_schema = Schema([ColSpec('string', 'predictions')])
+
+            default_signature = ModelSignature(inputs=input_schema,
+                                               outputs=output_schema)
+
+            default_input_example = {
+                'prompt': np.array(['What is Machine Learning?'])
+            }
+
             expectation = {
                 'flavor': 'transformers',
                 'transformers_model': ANY,
                 'path': ANY,
                 'task': 'text-generation',
+                'signature': default_signature,
+                'input_example': default_input_example,
                 'metadata': {
                     'task': 'llm/v1/completions'
                 }
             }
         mlflow_logger_mock.save_model.assert_called_with(**expectation)
-        assert mlflow_logger_mock.register_model.call_count == 1
+        assert mlflow_logger_mock.register_model_with_run_id.call_count == 1
     else:
         assert mlflow_logger_mock.log_model.call_count == 0
-        assert mlflow_logger_mock.register_model.call_count == 0
+        assert mlflow_logger_mock.register_model_with_run_id.call_count == 0
 
     # summon full params to check equivalence
     from torch.distributed.fsdp import FullyShardedDataParallel as FSDP

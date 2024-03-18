@@ -4,16 +4,21 @@
 # Copyright 2022 MosaicML Composer authors
 # SPDX-License-Identifier: Apache-2.0
 
+from typing import Any, List
+
+import pytest
 import torch
+import transformers
 
 from llmfoundry.eval.datasets.post_processing import make_postprocessing_func
 from llmfoundry.eval.metrics import (
     InContextLearningCodeEvalAccuracy,
-    InContextLearningGenerationWithAnswersAccuracy, InContextLearningLMAccuracy,
+    InContextLearningGenerationExactMatchAccuracy, InContextLearningLMAccuracy,
     InContextLearningMultipleChoiceAccuracy)
 
 
-def test_in_context_learning_lm_accuracy(tiny_gpt2_tokenizer):
+def test_in_context_learning_lm_accuracy(
+        tiny_gpt2_tokenizer: transformers.AutoTokenizer):
     contexts = ['The dog is', 'I love to eat', 'I hate', 'The weather is']
     continuations = [' furry', ' pie', ' long lines', ' snowy']
     pad = tiny_gpt2_tokenizer.pad_token_id
@@ -87,13 +92,14 @@ def test_in_context_learning_qa_cot_accuracy():
             make_postprocessing_func('qa_normalization')
         ]
     }
-    metric = InContextLearningGenerationWithAnswersAccuracy()
+    metric = InContextLearningGenerationExactMatchAccuracy()
     metric.update(batch, outputs, labels)
 
     assert metric.compute() == (2 / 4)
 
 
-def test_in_context_learning_code_eval_accuracy(monkeypatch):
+def test_in_context_learning_code_eval_accuracy(
+        monkeypatch: pytest.MonkeyPatch):
     outputs = [
         '    return 1 if n <= 1 else fib(n - 1) + fib(n - 1)\ndef new_function()',  # incorrect
         '   if n <= 1:\n        return 1\n    return fib(n-1) + fib(n-2)',  # incorrect spacing
@@ -110,13 +116,26 @@ def test_in_context_learning_code_eval_accuracy(monkeypatch):
     test_inputs = [['(1,)', '(2,)', '(4,)'], ['(1,)', '(2,)', '(4,)'],
                    ['(1,)', '(2,)', '(4,)']]
     test_outputs = [['1', '2', '5'], ['2', '4', '8'], ['2', '3', '5']]
+    sample_ids = [0, 1, 2]
     languages = ['python', 'python', 'python']
     monkeypatch.setenv('CODE_EVAL_DEVICE', 'LOCAL')
+    generations_per_sample = 2
+
+    def repeat(values: List[Any]):
+        return [val for val in values for _ in range(generations_per_sample)]
+
+    transformers = pytest.importorskip('transformers')
+    tokenizer = transformers.AutoTokenizer.from_pretrained(
+        'mosaicml/mpt-7b')  # type: ignore reportUnboundVariable
+    tokenizer.pad_token = tokenizer.eos_token
+    input_ids = tokenizer.batch_encode_plus(repeat(prompts),
+                                            return_tensors='pt',
+                                            padding=True)['input_ids']
     batch = {
         # This tests deterministic beam search rather than sampling
+        'input_ids': input_ids,
         'generation_kwargs': {
             'num_beams': 1,
-            'num_return_sequences': 2
         },
         'prompts':
             prompts,
@@ -171,7 +190,8 @@ def test_in_context_learning_code_eval_accuracy(monkeypatch):
     assert metric.compute() == 0.0  # without post processing it is 0
 
 
-def test_in_context_learning_mc_accuracy(tiny_gpt2_tokenizer):
+def test_in_context_learning_mc_accuracy(
+        tiny_gpt2_tokenizer: transformers.AutoTokenizer):
     contexts = [
         'Q: How do you cook a cake?', 'Q: How do you cook a cake?',
         'Q: How old is the earth?', 'Q: How old is the earth?'

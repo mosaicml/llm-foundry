@@ -9,7 +9,6 @@ from typing import Any, Dict, Optional, Union
 from transformers import PretrainedConfig
 
 from llmfoundry.models.layers.attention import (check_alibi_support,
-                                                is_flash_v1_installed,
                                                 is_flash_v2_installed)
 from llmfoundry.models.layers.blocks import attn_config_defaults
 
@@ -214,17 +213,21 @@ class MPTConfig(PretrainedConfig):
         if self.attn_config['attn_impl'] not in ['torch', 'flash', 'triton']:
             raise ValueError(
                 f"Unknown attn_impl={self.attn_config['attn_impl']}")
+        if self.attn_config['prefix_lm']:
+            warnings.warn(
+                VersionedDeprecationWarning(
+                    'Support for Prefix Language Models is deprecated.',
+                    remove_version='0.7.0'))
+        if self.attn_config['attn_impl'] == 'triton':
+            warnings.warn(
+                VersionedDeprecationWarning(
+                    'Support for triton attention is deprecated. Please use torch or flash attention.',
+                    remove_version='0.7.0'))
+
         if self.attn_config['prefix_lm'] and self.attn_config[
                 'attn_impl'] not in ['torch', 'triton']:
             raise NotImplementedError(
                 'prefix_lm only implemented with torch and triton attention.')
-
-        if self.attn_config['attn_impl'] == 'flash' and is_flash_v1_installed():
-            warnings.warn(
-                VersionedDeprecationWarning(
-                    'Support for Flash Attention v1 is deprecated. Please upgrade to Flash Attention v2.4.2. To install Flash Attention v2.4.2, please run `pip install -e ".[gpu-flash2]"` from the root directory of the llm-foundry repository.',
-                    remove_version='0.6.0',
-                ))
 
         if self.attn_config[
                 'attn_impl'] == 'triton' and not self.attn_config['prefix_lm']:

@@ -1,4 +1,4 @@
-# Mosaic Eval Gauntlet v0.1.0 - Evaluation Suite
+# Mosaic Eval Gauntlet v0.3.0 - Evaluation Suite
 
 
 <!-- SETUPTOOLS_LONG_DESCRIPTION_HIDE_BEGIN -->
@@ -24,7 +24,7 @@ At evaluation time, we run all the benchmarks, average the subscores within each
 
 For example, if benchmark A has a random baseline accuracy of 25%, and the model achieved 30%, we would report this as (0.3 - 0.25)/(1-0.25) = 0.0667. This can be thought of as the accuracy above chance rescaled so the max is 1. For benchmarks in which the random guessing baseline accuracy is ~0 we report the accuracy as is. Note that with this rescaling, a model could technically score below 0 on a category as a whole, but we haven’t found this to occur with any of the models we’ve tested.
 
-This is version v0.1.0 of the Eval Gauntlet.
+This is version v0.3.0 of the Eval Gauntlet.
 
 ### Reading Comprehension
 
@@ -233,23 +233,19 @@ Language understanding tasks evaluate the model’s ability to understand the st
     - Number of few shot examples: 5
     - Random baseline accuracy: 50%
 
+### Long Context Gauntlet
 
+We've included three different tasks for long (> 4000 tokens) context length evals. They are meant as litmus tests for a model's ability to properly utilize it's longer context length, which is often the result of fine-tuning after pre-training. For some of these datasets, we explicitly create sets where the required information is located in different sections of the input context, either the beginning, middle, or end of the input context.
 
-### Programming
-Programming tasks evaluate the model's ability to understand code, write functionally correct code given a specification, simulate code, and document code. Right now we just have HumanEval but later versions will include more. By default the programming tasks are disabled in `scripts/eval/yamls/tasks.yaml` due to their long duration.
-
-36. HumanEval Python code generation
-    - Description: HumanEval Python consists of 164 python programming challenges, in which the model is presented with the method signature and docstring comment for a python program and is expected to complete the program. We then test the resultant code’s functional correctness on a number of test input/output pairs.
-    - Year released: 2022
-    - Number of few shot examples: 0
-    - Random baseline accuracy: 0%
-37. HumanEval C++ code generation
-    - Description: HumanEval C++ consists of 161 C++ programming challenges, in which the model is presented with the method signature and docstring comment for a C++ program and is expected to complete the program. We then test the resultant code’s functional correctness on a number of test input/output pairs. The C++ translation of HumanEval comes from the [CodeGeex](https://huggingface.co/datasets/THUDM/humaneval-x/viewer/cpp) project.
-    - Year released: 2022
-    - Number of few shot examples: 0
-    - Random baseline accuracy: 0%
-38. HumanEval JS code generation
-    - Description: HumanEval JS consists of 164 Javscript programming challenges, in which the model is presented with the method signature and docstring comment for a Javacript program and is expected to complete the program. We then test the resultant code’s functional correctness on a number of test input/output pairs. The JS translation of HumanEval comes from the [CodeGeex](https://huggingface.co/datasets/THUDM/humaneval-x/viewer/cpp) project.
-    - Year released: 2022
-    - Number of few shot examples: 0
-    - Random baseline accuracy: 0%
+1. HotPotQAXL
+    - Description: [HotPotQA](https://hotpotqa.github.io/) is originally a dataset of ten documents and a question requiring comprehension of one or more of the supplied documents. The non-related documents are completely unrelated and called "distractor" documents. To extend this to longer context lengths, we randomly sample documents from the full set of documents across the dataset, adding them to the current datapoint until the set of documents and its question fills the current context length. We insert the "gold" document(s) (the document(s) containing the information that answers the question) within the first third, second third, or last third of the context length.
+    - Lengths: 2k, 4k, 8k, 16k, 32k, 64k
+    - Locations: beginning, middle, end
+2. Key Value Pairs (Needle In a Haystack)
+    - Description: We construct a `.json` of key value pairs, where both the key and value are random hashes, in the style of [Lost in the Middle](https://github.com/nelson-liu/lost-in-the-middle). We ask the model to produce a value given a key from a specific key value pair found int he json. The pair is correspondingly located in the first third, second third, or last third of the json.
+    - Lengths: 2k, 4k, 8k, 16k, 32k, 64k
+    - Locations: beginning, middle, end
+2. WikiQA Numeric
+    - Description: [WikiQA Numeric](https://huggingface.co/datasets/abacusai/WikiQA-Altered_Numeric_QA) is a Wikipedia Question Answering dataset with a focus on questions with numeric answers. We preprocess the data only to easily parse it for our framework.
+    - Lengths: 2k, 4k, 8k, 16k
+    - Locations: N/A

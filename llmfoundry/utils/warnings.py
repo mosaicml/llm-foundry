@@ -14,7 +14,7 @@ class VersionedDeprecationWarning(DeprecationWarning):
         ...     warnings.warn(
         ...         VersionedDeprecationWarning(
         ...             "Function XYZ is deprecated.",
-        ...             after_version="2.0.0"
+        ...             remove_version="2.0.0"
         ...         )
         ...     )
         ...
@@ -25,3 +25,16 @@ class VersionedDeprecationWarning(DeprecationWarning):
     def __init__(self, message: str, remove_version: str) -> None:
         super().__init__(message +
                          f' It will be removed in version {remove_version}.')
+
+
+class ExperimentalWarning(Warning):
+    """A warning for experimental features.
+
+    Attributes:
+        feature_name (str): The name of the experimental feature.
+    """
+
+    def __init__(self, feature_name: str) -> None:
+        super().__init__(
+            f'{feature_name} is experimental and may change with future versions.'
+        )

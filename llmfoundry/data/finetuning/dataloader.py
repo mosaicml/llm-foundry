@@ -11,17 +11,22 @@ from omegaconf import DictConfig
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
-from llmfoundry.data.finetuning.collator import Seq2SeqFinetuningCollator
+from llmfoundry.data.finetuning.collator import (Seq2SeqFinetuningCollator,
+                                                 validate_target_settings)
 from llmfoundry.data.finetuning.tasks import (DOWNLOADED_FT_DATASETS_DIRPATH,
                                               SUPPORTED_EXTENSIONS,
                                               dataset_constructor)
 from llmfoundry.data.packing import BinPackCollator, auto_packing_ratio
-from llmfoundry.data.text_data import get_tokens_per_batch_func
+from llmfoundry.data.text_data import build_streams, get_tokens_per_batch_func
 
 log = logging.getLogger(__name__)
 
 # HuggingFace hardcodes the ignore index to -100
 _HF_IGNORE_INDEX = -100
+
+# Default settings to use for target responses and target prompts
+_DEFAULT_TARGET_RESPONSES = 'last'
+_DEFAULT_TARGET_PROMPTS = 'none'
 
 
 def build_finetuning_dataloader(cfg: DictConfig,
@@ -72,6 +77,13 @@ def build_finetuning_dataloader(cfg: DictConfig,
             cfg.dataset.decoder_only_format (bool): Whether to format the
                 examples for a decoder-only model. See :class:`Seq2SeqFinetuningCollator`
                 docstring for details.
+            cfg.dataset.target_responses (str): Which responses are used as training targets.
+                Defaults to "last", meaning only the final response in multi-turn examples
+                will serve as training targets. See :class:`Seq2SeqFinetuningCollator` docstring for
+                details.
+            cfg.dataset.target_prompts (str): Which prompts are used as training targets.
+                Defaults to "none", meaning prompts are never used as training targets.
+                See :class:`Seq2SeqFinetuningCollator` docstring for details.
             cfg.dataset.allow_pad_trimming (bool, optional): Whether to allow
                 the collator to trim padding. See :class:`Seq2SeqFinetuningCollator`
                 docstring for details. Default: ``False``.
@@ -128,11 +140,14 @@ def build_finetuning_dataloader(cfg: DictConfig,
 
     dataset = None  # for pyright
     sampler = None
-    if cfg.dataset.get('remote') is not None:
+    if cfg.dataset.get('remote') is not None or cfg.dataset.get(
+            'streams') is not None:
         # Build streaming dataloader
+        streams = build_streams(cfg.dataset)
         dataset = dataset_constructor.build_from_streaming(
             tokenizer=tokenizer,
-            local=cfg.dataset.local,
+            streams=streams,
+            local=cfg.dataset.get('local', None),
             remote=cfg.dataset.get('remote', None),
             split=cfg.dataset.get('split', None),
             download_retry=cfg.dataset.get('download_retry', 2),
@@ -152,6 +167,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
             sampling_method=cfg.dataset.get('sampling_method', 'balanced'),
             sampling_granularity=cfg.dataset.get('sampling_granularity', 1),
             batching_method=cfg.dataset.get('batching_method', 'random'),
+            max_seq_len=cfg.dataset.max_seq_len,
         )
 
     else:
@@ -188,6 +204,11 @@ def build_finetuning_dataloader(cfg: DictConfig,
             max_seq_len=cfg.dataset.max_seq_len,
             preprocessing_fn=preprocessing_fn,
             tokenizer=tokenizer,
+            target_prompts=cfg.dataset.get('target_prompts',
+                                           _DEFAULT_TARGET_PROMPTS),
+            target_responses=cfg.dataset.get('target_responses',
+                                             _DEFAULT_TARGET_RESPONSES),
+            decoder_only_format=cfg.dataset.decoder_only_format,
             hf_kwargs=cfg.dataset.get('hf_kwargs', {}))
 
         # Ensure dataset is large enough.
@@ -278,12 +299,52 @@ def _validate_config(dataset_cfg: DictConfig) -> None:
                 'Using a streaming dataset requires setting both `remote` and `local`, ' +\
                 'but dataset.local is None.'
             )
+    elif dataset_cfg.get('streams') is not None:
+        # Using the streaming dataset codepath
+        illegal_keys = ['hf_name', 'hf_kwargs', 'preprocessing_fn', 'safe_load']
+        discovered_illegal_keys = []
+        for key in illegal_keys:
+            if dataset_cfg.get(key) is not None:
+                discovered_illegal_keys.append('`' + key + '`')
+        if discovered_illegal_keys:
+            raise ValueError(
+                'The dataset config sets a value for `streams` as well as the ' +\
+                f'following keys: {", ".join(discovered_illegal_keys)}.\n' +\
+                'Those keys are used when building from a HuggingFace dataset, but ' +\
+                'setting `streams` instructs the dataset to build from a streaming dataset.'
+            )
+        illegal_keys = ['remote', 'local']
+        discovered_illegal_keys = []
+        for key in illegal_keys:
+            if dataset_cfg.get(key) is not None:
+                discovered_illegal_keys.append('`' + key + '`')
+        if discovered_illegal_keys:
+            raise ValueError(
+                'The dataset config sets a value for `streams` as well as the ' +\
+                f'following keys: {", ".join(discovered_illegal_keys)}.\n' +\
+                'Please either use single stream (set remote/local only) ' +\
+                'or put remote/local under streams'
+            )
+
     else:
         raise ValueError(
-            'In the dataset config, you must set either `hf_name` to use a ' +\
-            'HuggingFace dataset or set `remote` to use a streaming ' +\
-            'dataset, but both were None.'
+            'In the dataset config, you must set `hf_name` to use a HuggingFace ' +\
+            'dataset, or set `remote` to use a streaming dataset, or set ' +\
+            '`streams` to use multiple streaming datasets,  but all were None.'
         )
+    if dataset_cfg.get('max_seq_len') is None:
+        raise ValueError(
+            'In the dataset config, you must set the `max_seq_len`')
+
+    # Raise an error if the target_prompts + target_responses + decoder_only_format settings
+    # are invalid
+    target_responses = str(
+        dataset_cfg.get('target_responses', _DEFAULT_TARGET_RESPONSES)).lower()
+    target_prompts = str(
+        dataset_cfg.get('target_prompts', _DEFAULT_TARGET_PROMPTS)).lower()
+    decoder_only_format = dataset_cfg.decoder_only_format
+    validate_target_settings(target_prompts, target_responses,
+                             decoder_only_format)
 
 
 def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
@@ -374,6 +435,10 @@ def _build_collate_fn(
         tokenizer=tokenizer,
         max_seq_len=max_seq_len,
         decoder_only_format=dataset_cfg.decoder_only_format,
+        target_responses=dataset_cfg.get('target_responses',
+                                         _DEFAULT_TARGET_RESPONSES),
+        target_prompts=dataset_cfg.get('target_prompts',
+                                       _DEFAULT_TARGET_PROMPTS),
         allow_pad_trimming=dataset_cfg.get('allow_pad_trimming', False),
     )
 
@@ -439,19 +504,21 @@ if __name__ == '__main__':
                 2048,
             'decoder_only_format':
                 True,
-            'separator_text':
-                False,
             'allow_pad_trimming':
                 False,
             'num_canonical_nodes':
                 472,
             'shuffle':
                 True,
+            'target_responses':
+                'last',
+            'target_prompts':
+                'none',
         },
         'drop_last': False,
         'num_workers': 0,
         'pin_memory': False,
-        'prefetch_factor': 2,
+        'prefetch_factor': None,
         'persistent_workers': False,
         'timeout': 0
     })
@@ -460,7 +527,7 @@ if __name__ == '__main__':
     tokenizer_kwargs = {'model_max_length': cfg.dataset.max_seq_len}
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
-    device_batch_size = 2
+    device_batch_size = 1
     dataloader = build_finetuning_dataloader(cfg, tokenizer,
                                              device_batch_size).dataloader
 
@@ -488,7 +555,8 @@ if __name__ == '__main__':
                                 torch.logical_and(
                                     is_subseq, batch['attention_mask'][j] ==
                                     1)],
-                                             skip_special_tokens=False))
+                                             skip_special_tokens=False,
+                                             clean_up_tokenization_spaces=True))
                         print(
                             '\033[92m{}\033[00m\n'.format('CONTEXT:  '),
                             tokenizer.decode(batch['input_ids'][
@@ -496,7 +564,8 @@ if __name__ == '__main__':
                                 torch.logical_and(
                                     is_subseq, batch['bidirectional_mask'][j] ==
                                     1)],
-                                             skip_special_tokens=False))
+                                             skip_special_tokens=False,
+                                             clean_up_tokenization_spaces=True))
                         print(
                             '\033[91m{}\033[00m\n'.format('TARGET:   '),
                             tokenizer.decode(batch['input_ids'][
@@ -504,33 +573,39 @@ if __name__ == '__main__':
                                 torch.logical_and(
                                     is_subseq,
                                     batch['labels'][j] != _HF_IGNORE_INDEX)],
-                                             skip_special_tokens=False))
+                                             skip_special_tokens=False,
+                                             clean_up_tokenization_spaces=True))
                 else:
                     print(
                         '\033[93m{}\033[00m\n'.format('INPUT IDS:'),
                         tokenizer.decode(
                             batch['input_ids'][j,
                                                batch['attention_mask'][j] == 1],
-                            skip_special_tokens=False))
+                            skip_special_tokens=False,
+                            clean_up_tokenization_spaces=True))
                     print(
                         '\033[92m{}\033[00m\n'.format('CONTEXT:  '),
                         tokenizer.decode(batch['input_ids'][
                             j, batch['bidirectional_mask'][j] == 1],
-                                         skip_special_tokens=False))
+                                         skip_special_tokens=False,
+                                         clean_up_tokenization_spaces=True))
                     print(
                         '\033[91m{}\033[00m\n'.format('TARGET:   '),
                         tokenizer.decode(batch['input_ids'][
                             j, batch['labels'][j] != _HF_IGNORE_INDEX],
-                                         skip_special_tokens=False))
+                                         skip_special_tokens=False,
+                                         clean_up_tokenization_spaces=True))
             else:
                 print(
                     '\033[92m{}\033[00m\n'.format('CONTEXT:  '),
                     tokenizer.decode(
                         batch['input_ids'][j, batch['attention_mask'][j] == 1],
-                        skip_special_tokens=False))
+                        skip_special_tokens=False,
+                        clean_up_tokenization_spaces=True))
                 print(
                     '\033[91m{}\033[00m\n'.format('TARGET:   '),
                     tokenizer.decode(batch['labels'][
                         j, batch['decoder_attention_mask'][j] == 1],
-                                     skip_special_tokens=False))
+                                     skip_special_tokens=False,
+                                     clean_up_tokenization_spaces=True))
         print('   ')

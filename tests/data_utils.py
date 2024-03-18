@@ -39,10 +39,6 @@ def make_tiny_ft_dataset(
         samples.append({'prompt': '', 'response': 'goodbye'})
         # empty response
         samples.append({'prompt': 'hello', 'response': ''})
-        # response just pad
-        samples.append({'prompt': 'hello', 'response': pad_token})
-        # response just pad multiple times
-        samples.append({'prompt': 'hello', 'response': pad_token * 3})
 
     if add_bad_data_error:
         # prompt just None

@@ -12,23 +12,14 @@ from composer.core.precision import get_precision_context
 from composer.utils import reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
+from transformers.models.llama.modeling_llama import LlamaAttention
 
 from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.models.hf.hf_fsdp import rgetattr
-from llmfoundry.models.layers.attention import (is_flash_v1_installed,
-                                                is_flash_v2_installed)
-from llmfoundry.utils.builders import build_tokenizer
-
-# Before importing any transformers models, we need to disable transformers flash attention if
-# we are in an environment with flash attention version <2. Transformers hard errors on a not properly
-# gated import otherwise.
-if is_flash_v1_installed():
-    transformers.utils.is_flash_attn_available = lambda: False
-
-from transformers.models.llama.modeling_llama import LlamaAttention
-
+from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.layers.llama_attention_monkeypatch import (
     llama_attention_patch_torch, llama_attention_patch_triton)
+from llmfoundry.utils.builders import build_tokenizer
 
 
 @pytest.mark.parametrize('patch_fn_name', ['torch', 'triton'])
@@ -85,10 +76,15 @@ def test_patch_equivalence(patch_fn_name: str, explicit_mask: bool,
     causal_mask = causal_mask[None,
                               None, :, :].expand(batch_size, 1, sequence_length,
                                                  sequence_length)
+    position_ids = torch.arange(sequence_length,
+                                dtype=torch.long,
+                                device=device)
+    position_ids = position_ids[None, :].expand(batch_size, sequence_length)
+
     attn_output, _, _ = attention(
         hidden_states=hidden_states,
         attention_mask=causal_mask if explicit_mask else None,
-        position_ids=None,
+        position_ids=position_ids,
         past_key_value=None,
         use_cache=False,
     )
@@ -100,7 +96,7 @@ def test_patch_equivalence(patch_fn_name: str, explicit_mask: bool,
         new_output, _, _ = attention(
             hidden_states=hidden_states,
             attention_mask=causal_mask if explicit_mask else None,
-            position_ids=None,
+            position_ids=position_ids,
             past_key_value=None,
             use_cache=False,
         )

@@ -1172,12 +1172,10 @@ def test_generate(attention_impl: str, precision: str, pos_emb_config: dict,
                          max_new_tokens=5,
                          use_cache=True)
         _ = mpt.generate(input_ids=None,
-                         inputs_embeds=None,
                          max_new_tokens=5,
                          use_cache=False,
                          bos_token_id=50256)
         _ = mpt.generate(input_ids=None,
-                         inputs_embeds=None,
                          max_new_tokens=5,
                          use_cache=True,
                          bos_token_id=50256)

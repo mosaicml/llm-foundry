@@ -16,8 +16,6 @@ from composer.callbacks import (EarlyStopper, EvalOutputLogging, Generate,
                                 OOMObserver, OptimizerMonitor, RuntimeEstimator,
                                 SpeedMonitor)
 from composer.core import Algorithm, Callback, Evaluator
-from composer.datasets.in_context_learning_evaluation import \
-    get_icl_task_dataloader
 from composer.loggers import (InMemoryLogger, LoggerDestination, MLFlowLogger,
                               TensorboardLogger, WandBLogger)
 from composer.optim import DecoupledAdamW
@@ -37,6 +35,7 @@ from llmfoundry.callbacks import (AsyncEval, CurriculumLearning, EvalGauntlet,
                                   MonolithicCheckpointSaver,
                                   ScheduledGarbageCollector)
 from llmfoundry.data.dataloader import build_dataloader
+from llmfoundry.eval.datasets import get_icl_task_dataloader
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW)
 from llmfoundry.optim.scheduler import InverseSquareRootWithWarmupScheduler
@@ -164,7 +163,7 @@ def build_callback(
     if name == 'lr_monitor':
         return LRMonitor()
     elif name == 'memory_monitor':
-        return MemoryMonitor()
+        return MemoryMonitor(**kwargs)
     elif name == 'oom_observer':
         return OOMObserver(**kwargs)
     elif name == 'memory_snapshot':
@@ -478,8 +477,10 @@ def build_icl_evaluators(
                 icl_cfg.metric_names = [
                     'InContextLearningMultipleChoiceAccuracy'
                 ]
-            elif icl_cfg.icl_task_type == 'question_answering':
-                icl_cfg.metric_names = ['InContextLearningQAAccuracy']
+            elif icl_cfg.icl_task_type == 'generation_task_with_answers' or icl_cfg.icl_task_type == 'question_answering':
+                icl_cfg.metric_names = [
+                    'InContextLearningGenerationExactMatchAccuracy'
+                ]
             elif icl_cfg.icl_task_type == 'code_evaluation':
                 icl_cfg.metric_names = ['InContextLearningCodeEvalAccuracy']
             else:

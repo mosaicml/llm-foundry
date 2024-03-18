@@ -2,7 +2,51 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from llmfoundry.metrics.token_acc import TokenAccuracy
+from composer.metrics import (InContextLearningCodeEvalAccuracy,
+                              InContextLearningLMAccuracy,
+                              InContextLearningLMExpectedCalibrationError,
+                              InContextLearningMCExpectedCalibrationError,
+                              InContextLearningMultipleChoiceAccuracy,
+                              InContextLearningQAAccuracy)
+from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
+from llmfoundry.registry import metrics
+
+metrics.register('token_accuracy', func=TokenAccuracy)
+metrics.register('lm_accuracy', func=InContextLearningLMAccuracy)
+metrics.register('lm_expected_calibration_error', func=InContextLearningLMExpectedCalibrationError)
+metrics.register('mc_expected_calibration_error', func=InContextLearningMCExpectedCalibrationError)
+metrics.register('mc_accuracy', func=InContextLearningMultipleChoiceAccuracy)
+metrics.register('qa_accuracy', func=InContextLearningQAAccuracy)
+metrics.register('code_eval_accuracy', func=InContextLearningCodeEvalAccuracy)
+metrics.register('language_cross_entropy', func=LanguageCrossEntropy)
+metrics.register('language_perplexity', func=LanguagePerplexity)
+
+DEFAULT_LM_TRAIN_METRICS = [
+    'language_cross_entropy',
+    'language_perplexity',
+    'token_accuracy'
+]
+
+DEFAULT_LM_EVAL_METRICS = [
+    'language_cross_entropy',
+    'language_perplexity',
+    'token_accuracy',
+    'lm_accuracy',
+    'lm_expected_calibration_error',
+    'mc_expected_calibration_error',
+    'mc_accuracy',
+    'qa_accuracy',
+    'code_eval_accuracy'
+]
 
 __all__ = [
     'TokenAccuracy',
+    'InContextLearningLMAccuracy',
+    'InContextLearningLMExpectedCalibrationError',
+    'InContextLearningMCExpectedCalibrationError',
+    'InContextLearningMultipleChoiceAccuracy',
+    'InContextLearningQAAccuracy',
+    'InContextLearningCodeEvalAccuracy',
+    'LanguageCrossEntropy',
+    'LanguagePerplexity',
 ]

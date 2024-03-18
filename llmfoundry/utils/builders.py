@@ -19,6 +19,7 @@ from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from torch.optim.optimizer import Optimizer
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
+from torchmetrics import Metric
 
 from llmfoundry import registry
 from llmfoundry.callbacks import EvalGauntlet
@@ -194,6 +195,15 @@ def build_algorithm(name: str, kwargs: Dict[str, Any]) -> Algorithm:
                                    pre_validation_function=Algorithm,
                                    post_validation_function=None,
                                    kwargs=kwargs)
+
+def build_metrics(name: str, kwargs: Dict[str, Any]) -> Metric:
+    """Builds a metric from the registry."""
+    return builder(name=name,
+                   registry=registry.metrics,
+                   partial_function=True,
+                   pre_validation_function=Metric,
+                   post_validation_function=None,
+                   kwargs=kwargs)
 
 
 def _extract_param_groups(

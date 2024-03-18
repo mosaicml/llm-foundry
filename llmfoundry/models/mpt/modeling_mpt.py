@@ -16,13 +16,6 @@ from typing import (Any, Dict, List, Mapping, MutableMapping, Optional, Tuple,
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from composer.metrics import (InContextLearningCodeEvalAccuracy,
-                              InContextLearningLMAccuracy,
-                              InContextLearningLMExpectedCalibrationError,
-                              InContextLearningMCExpectedCalibrationError,
-                              InContextLearningMultipleChoiceAccuracy,
-                              InContextLearningQAAccuracy)
-from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
 from composer.models import HuggingFaceModel
 from composer.utils import dist
 
@@ -1034,6 +1027,9 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         om_model_config: DictConfig,
         tokenizer: Optional[PreTrainedTokenizerBase] = None,
     ):
+        from llmfoundry.utils.registry_utils import build_metric
+        from llmfoundry.metrics import DEFAULT_LM_EVAL_METRICS, DEFAULT_LM_TRAIN_METRICS
+
         resolved_om_model_config = om.to_container(om_model_config,
                                                    resolve=True)
         hf_config = MPTConfig.from_dict(resolved_om_model_config)
@@ -1041,20 +1037,10 @@ class ComposerMPTCausalLM(HuggingFaceModel):
 
         use_train_metrics = om_model_config.get('use_train_metrics', True)
         train_metrics = [
-            LanguageCrossEntropy(),
-            LanguagePerplexity(),
-            TokenAccuracy()
+            build_metric(metric) for metric in DEFAULT_LM_TRAIN_METRICS + resolved_om_model_config.get('additional_train_metrics', [])
         ] if use_train_metrics else []
         eval_metrics = [
-            LanguageCrossEntropy(),
-            LanguagePerplexity(),
-            TokenAccuracy(),
-            InContextLearningLMAccuracy(),
-            InContextLearningMultipleChoiceAccuracy(),
-            InContextLearningQAAccuracy(),
-            InContextLearningCodeEvalAccuracy(),
-            InContextLearningLMExpectedCalibrationError(),
-            InContextLearningMCExpectedCalibrationError(),
+            build_metric(metric) for metric in DEFAULT_LM_EVAL_METRICS + resolved_om_model_config.get('additional_eval_metrics', [])
         ]
 
         super().__init__(

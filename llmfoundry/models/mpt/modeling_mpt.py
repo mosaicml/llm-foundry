@@ -602,7 +602,7 @@ class MPTModel(MPTPreTrainedModel):
                     +
                     f'layer in the network ({len(past_key_values)=}; {self.config.n_layers=}).'
                 )
-            # For attn_impl: triton and flash the past key tensor spec is (batch, seq, dim).
+            # For attn_impl: flash and flash the past key tensor spec is (batch, seq, dim).
             # For attn_impl: torch the past key tensor spec is (batch, heads, head_dim, seq).
             # Here we shift position embedding using the `seq` dim of the past key
             past_position = past_key_values[0][0].size(1)

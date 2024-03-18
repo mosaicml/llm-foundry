@@ -373,7 +373,7 @@ def triton_flash_attn_fn(
             # installing triton-pre-mlir works for both torch1.13.1 and torch2.0+
             # default recommendation is to install this variant
             raise RuntimeError(
-                'Requirements for `attn_impl: triton` not installed. Either (1) have a CUDA-compatible GPU '
+                'Requirements for `attn_impl: flash` not installed. Either (1) have a CUDA-compatible GPU '
                 +
                 'and `pip install .[gpu]` if installing from llm-foundry source or '
                 +
@@ -401,12 +401,12 @@ def triton_flash_attn_fn(
 
     if dropout_p:
         raise NotImplementedError(
-            f'Dropout not implemented for attn_impl: triton.')
+            f'Dropout not implemented for attn_impl: flash.')
     dropout_p = dropout_p if training else 0.0
 
     if needs_weights:
         raise NotImplementedError(
-            f'attn_impl: triton cannot return attn weights.')
+            f'attn_impl: flash cannot return attn weights.')
 
     if key_padding_mask is not None:
         warnings.warn(

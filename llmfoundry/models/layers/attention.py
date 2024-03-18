@@ -406,7 +406,7 @@ def triton_flash_attn_fn(
 
     if needs_weights:
         raise NotImplementedError(
-            f'attn_impl: flash cannot return attn weights.')
+            f'attn_impl: triton cannot return attn weights.')
 
     if key_padding_mask is not None:
         warnings.warn(

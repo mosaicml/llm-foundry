@@ -47,7 +47,7 @@ dependent_deployment:
 parameters:
   seed: 1
   max_seq_len: 2048
-  device_eval_batch_size: 4
+  device_eval_batch_size: 1
   models:
   - model:
       name: fmapi_chat

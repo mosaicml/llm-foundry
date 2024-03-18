@@ -16,7 +16,7 @@ command: |
   composer eval/eval.py /mnt/config/parameters.yaml
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
-name: dependent-deployment-gauntlet-eval
+name: dependent-deployment-llama-gauntlet-eval
 # cluster: r1z1  # replace with your cluster here!
 # gpu_num: 8 #
 # gpu_type: a100_80gb #
@@ -30,18 +30,17 @@ dependent_deployment:
   image: mosaicml/inference-server:0.2.27-trtllm
   model:
     downloader: trt_download.download_mpt
+    model_parameters:
+      tokenizer_name: mosaicml/mpt-7b
+      max_context_length: 2048
     download_parameters:
       hf_path: mosaicml/mpt-7b
       precision: float16
       world_size: 8
       max_input_len: 2048
       max_output_len: 2048
-    model_parameters:
-      max_context_length: 2048
-      tokenizer_name: mosaicml/mpt-7b
   env_variables:
     MODEL_BACKEND_OVERRIDE: trtllm
-  
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:
@@ -58,7 +57,6 @@ parameters:
         model_max_length: ${max_seq_len}
     model_name: mpt-dep-deployment
 
-  
   loggers:
     wandb: {}
   callbacks:

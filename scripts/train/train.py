@@ -23,8 +23,7 @@ from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from rich.traceback import install
 
-from llmfoundry.utils import (find_mosaicml_logger,
-                                                   log_train_analytics)
+from llmfoundry.utils import find_mosaicml_logger, log_train_analytics
 
 install()
 

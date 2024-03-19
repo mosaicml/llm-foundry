@@ -34,7 +34,7 @@ def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
     return builder(
         name=name,
         registry=registry.dataloaders,
-        partial_function=True,
+        partial_function=False,
         pre_validation_function=None,
         post_validation_function=None,
         kwargs=kwargs | extra_kwargs,

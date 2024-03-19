@@ -10,7 +10,7 @@ from composer.models import ComposerModel
 from torchmetrics import Metric
 from transformers import AutoTokenizer
 
-from llmfoundry.metrics import DEFAULT_LM_EVAL_METRICS
+from llmfoundry.metrics import DEFAULT_CAUSAL_LM_EVAL_METRICS
 from llmfoundry.utils.builders import build_metric
 
 
@@ -20,7 +20,7 @@ class InferenceAPIEvalWrapper(ComposerModel):
         self.tokenizer = tokenizer
         self.labels = None
         eval_metrics = [
-            build_metric(metric) for metric in DEFAULT_LM_EVAL_METRICS
+            build_metric(metric) for metric in DEFAULT_CAUSAL_LM_EVAL_METRICS
         ]
         self.eval_metrics = {
             metric.__class__.__name__: metric for metric in eval_metrics

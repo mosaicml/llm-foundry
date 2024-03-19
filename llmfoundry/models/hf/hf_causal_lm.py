@@ -21,7 +21,6 @@ from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.utils import init_empty_weights
 from llmfoundry.utils.config_utils import pop_config
-from llmfoundry.utils.builders import build_metric
 from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
 if TYPE_CHECKING:
@@ -66,6 +65,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
 
     def __init__(self, om_model_config: DictConfig,
                  tokenizer: PreTrainedTokenizerBase):
+        from llmfoundry.utils.builders import build_metric
+
         pretrained_model_name_or_path = om_model_config.pretrained_model_name_or_path
         pretrained_lora_id_or_path = om_model_config.get(
             'pretrained_lora_id_or_path', None)

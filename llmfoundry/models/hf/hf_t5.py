@@ -17,7 +17,6 @@ from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.utils import (adapt_tokenizer_for_denoising,
                                      init_empty_weights)
-from llmfoundry.utils.builders import build_metric
 from llmfoundry.utils.warnings import experimental
 
 __all__ = ['ComposerHFT5']
@@ -57,6 +56,8 @@ class ComposerHFT5(HuggingFaceModelWithZLoss):
 
     def __init__(self, om_model_config: DictConfig,
                  tokenizer: PreTrainedTokenizerBase):
+        from llmfoundry.utils.builders import build_metric
+
         config = AutoConfig.from_pretrained(
             om_model_config.pretrained_model_name_or_path,
             trust_remote_code=om_model_config.get('trust_remote_code', True),

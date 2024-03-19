@@ -19,7 +19,6 @@ from llmfoundry.models.utils import (adapt_tokenizer_for_denoising,
                                      add_bidirectional_mask_if_missing,
                                      convert_hf_causal_lm_to_prefix_lm,
                                      init_empty_weights)
-from llmfoundry.utils.builders import build_metric
 
 __all__ = ['ComposerHFPrefixLM']
 
@@ -66,6 +65,8 @@ class ComposerHFPrefixLM(HuggingFaceModelWithZLoss):
 
     def __init__(self, om_model_config: DictConfig,
                  tokenizer: PreTrainedTokenizerBase):
+        from llmfoundry.utils.builders import build_metric
+
         config = AutoConfig.from_pretrained(
             om_model_config.pretrained_model_name_or_path,
             trust_remote_code=om_model_config.get('trust_remote_code', True),

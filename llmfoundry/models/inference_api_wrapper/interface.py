@@ -69,8 +69,9 @@ class InferenceAPIEvalWrapper(ComposerModel):
                 if 'generation_length' in batch:
                     num_tokens = batch['generation_length']
                 elif 'generation_kwargs' in batch:
-                    num_tokens = batch['generation_kwargs'].get('max_new_tokens', 2)
-                
+                    num_tokens = batch['generation_kwargs'].get(
+                        'max_new_tokens', 2)
+
                 for i in range(
                         0,
                         batch.get('generation_kwargs',
@@ -128,7 +129,9 @@ class InferenceAPIEvalWrapper(ComposerModel):
                 'mode', None) == 'generate':
             self.labels = batch.pop('labels')
             assert self.labels is not None
-            metric_result = metric.update(batch=batch, outputs=outputs, labels=self.labels)
+            metric_result = metric.update(batch=batch,
+                                          outputs=outputs,
+                                          labels=self.labels)
         else:
             raise NotImplementedError(
                 'Inference API wrapper only supports InContextLearningMetrics and mode=icl_task,mode=generate'

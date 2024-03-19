@@ -60,7 +60,7 @@ parameters:
   callbacks:
     eval_output_logging: {}
 
-  icl_tasks: 
+  icl_tasks:
   - label: gsm8k
     dataset_uri: eval/local_data/api_compatible_gauntlet/symbolic_problem_solving/gsm8k_prepended_8shot.jsonl
     num_fewshot:
@@ -70,7 +70,7 @@ parameters:
     continuation_delimiter: "\n\nA:"
     question_prelimiter: ""
     do_normalization: false
-    generation_kwargs: 
+    generation_kwargs:
       temperature: 1.0
     early_stopping_criteria:
     - "\n\n"

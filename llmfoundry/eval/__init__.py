@@ -10,12 +10,9 @@ from llmfoundry.eval.datasets import (
     InContextLearningCodeEvalDataset, InContextLearningDataset,
     InContextLearningGenerationTaskWithAnswersDataset,
     InContextLearningLMTaskDataset, InContextLearningMultipleChoiceTaskDataset,
-    InContextLearningSchemaTaskDataset, get_icl_task_dataloader)
-from llmfoundry.eval.datasets import (get_continuation_span,
-                                            get_fewshot_sample_idxs,
-                                            make_padded_input, strip_data,
-                                            tokenizer_needs_prefix_space,
-                                            trim_context)
+    InContextLearningSchemaTaskDataset, get_continuation_span,
+    get_fewshot_sample_idxs, get_icl_task_dataloader, make_padded_input,
+    strip_data, tokenizer_needs_prefix_space, trim_context)
 from llmfoundry.eval.metrics import (
     InContextLearningCodeEvalAccuracy,
     InContextLearningGenerationExactMatchAccuracy, InContextLearningLMAccuracy,

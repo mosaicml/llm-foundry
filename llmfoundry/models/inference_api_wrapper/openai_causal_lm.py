@@ -89,7 +89,8 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
         if generation_kwargs is None:
             generation_kwargs = {}
         try:
-            from openai import APITimeoutError, RateLimitError, InternalServerError
+            from openai import (APITimeoutError, InternalServerError,
+                                RateLimitError)
         except ImportError as e:
             raise MissingConditionalImportError(
                 extra_deps_group='openai',
@@ -229,8 +230,8 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
                 if 'generation_length' in batch:
                     num_tokens = batch['generation_length']
                 elif 'generation_kwargs' in batch:
-                    num_tokens = batch['generation_kwargs'].get('max_new_tokens', 2)
-                
+                    num_tokens = batch['generation_kwargs'].get(
+                        'max_new_tokens', 2)
 
                 for _ in range(
                         0,

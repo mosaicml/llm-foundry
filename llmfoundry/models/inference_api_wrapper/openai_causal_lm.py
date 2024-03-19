@@ -82,7 +82,7 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
 
     def try_generate_completion(
         self,
-        prompt: str,
+        prompt: Union[str, List],
         num_tokens: int,
         generation_kwargs: Optional[dict] = None
     ) -> Optional[Union[Completion, ChatCompletion]]:

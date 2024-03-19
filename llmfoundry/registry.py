@@ -1,11 +1,13 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-from typing import Type
+from typing import Callable, Type
 
-from composer.core import Algorithm, Callback
+from composer.core import Algorithm, Callback, DataSpec
 from composer.loggers import LoggerDestination
 from composer.optim import ComposerScheduler
+from omegaconf import DictConfig
 from torch.optim import Optimizer
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.interfaces import CallbackWithConfig
 from llmfoundry.utils.registry_utils import create_registry
@@ -63,6 +65,15 @@ schedulers = create_registry('llmfoundry',
                              generic_type=Type[ComposerScheduler],
                              entry_points=True,
                              description=_schedulers_description)
+
+_dataloaders_description = """The dataloaders registry is used to register functions that create a DataSpec. The function should take
+a DictConfig, a PreTrainedTokenizerBase, and an int as arguments, and return a DataSpec."""
+dataloaders = create(
+    'llmfoundry',
+    'dataloaders',
+    generic_type=Callable[[DictConfig, PreTrainedTokenizerBase, int], DataSpec],
+    entry_points=True,
+    description=_dataloaders_description)
 
 __all__ = [
     'loggers',

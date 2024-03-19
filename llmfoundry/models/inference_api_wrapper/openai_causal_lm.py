@@ -129,25 +129,32 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
 
     def generate_completion(
             self,
-            prompt: str,
+            prompt: Union[str, List[dict]], #
             num_tokens: int,
             generation_kwargs: Optional[dict] = None) -> ChatCompletion:
         if generation_kwargs is None:
             generation_kwargs = {}
+        if isinstance(prompt, str):
+            messages = [{
+                    'role':
+                        'system',
+                    'content':
+                        self.model_cfg.get('system_role_prompt',
+                                        'Please complete the following text: ')
+                }, {
+                    'role': 'user',
+                    'content': prompt
+                }]
+        elif isinstance(prompt, list):
+            messages = prompt
+        else:
+            raise ValueError(f"Prompt must be str or list: {prompt}")
         return self.client.chat.completions.create(
-            model=self.model_name,
-            messages=[{
-                'role':
-                    'system',
-                'content':
-                    self.model_cfg.get('system_role_prompt',
-                                       'Please complete the following text: ')
-            }, {
-                'role': 'user',
-                'content': prompt
-            }],
-            max_tokens=num_tokens,
-            temperature=generation_kwargs.get('temperature', 1.0))
+                model=self.model_name,
+                messages=messages,
+                max_tokens=num_tokens,
+                temperature=generation_kwargs.get('temperature', 1.0))
+
 
     def completion_to_string(self, completion: ChatCompletion):
         return [choice.message.content for choice in completion.choices]

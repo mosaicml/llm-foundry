@@ -1,0 +1,98 @@
+integrations:
+- integration_type: git_repo
+  git_repo: mosaicml/llm-foundry
+  git_branch: openai_compatible_gauntlet
+  # git_commit:  # OR use your commit hash
+  pip_install: -e ".[gpu-flash2,openai]"
+  ssh_clone: false  # Should be true if using a private repo
+- integration_type: wandb
+  entity: mosaic-ml
+  project: dependent_deployment_eval_jeremy
+
+command: |
+  pip uninstall mosaicml -y
+  pip install git+https://github.com/mosaicml/composer.git@dev
+  cd llm-foundry/scripts
+  composer eval/eval.py /mnt/config/parameters.yaml
+
+# Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
+name: mixtral-inference-deployment-gauntlet-eval
+# cluster: r1z1  # replace with your cluster here!
+# gpu_num: 8 #
+# gpu_type: a100_80gb #
+
+compute:
+  gpus: 8
+  cluster: r1z1
+
+image: mosaicml/llm-foundry:2.2.1_cu121_flash2-latest
+
+# The below is injected as a YAML file: /mnt/config/parameters.yaml
+parameters:
+  seed: 1
+  max_seq_len: 2048
+  device_eval_batch_size: 1
+  models:
+  - model_name: mixtral
+    model:
+      name: fmapi_chat
+      base_url: https://mixtral-8x7b-instruct-at-trtllm-newimg-lorxa5.inf.hosted-on.mosaicml.hosting/v2
+    tokenizer:
+      name: mistralai/Mixtral-8x7B-Instruct-v0.1
+      kwargs:
+        model_name: mistralai/Mixtral-8x7B-Instruct-v0.1
+
+  loggers:
+    wandb: {}
+  callbacks:
+    eval_output_logging: {}
+
+  icl_tasks:
+  - label: gsm8k
+    dataset_uri: eval/local_data/api_compatible_gauntlet/symbolic_problem_solving/gsm8k_prepended_8shot.jsonl
+    num_fewshot:
+    - 0
+    icl_task_type: question_answering
+    cot_delimiter: "The answer is "
+    continuation_delimiter: "\n\nA:"
+    question_prelimiter: ""
+    do_normalization: false
+    generation_kwargs:
+      temperature: 1.0
+    early_stopping_criteria:
+    - "\n\n"
+    - "Question:"
+  # - label: mmlu
+  #   dataset_uri: eval/local_data/api_compatible_gauntlet/world_knowledge/mmlu.jsonl
+  #   num_fewshot:
+  #   - 5
+  #   icl_task_type: question_answering
+  #   continuation_delimiter: "\n\nAnswer:"
+  #   has_categories: true
+  #   example_delimiter: \n\n
+  #   early_stopping_criteria:
+  #   - \n\n
+  #   - "Question:"
+  #   - "Q:"
+  # - label: arc_challenge
+  #   dataset_uri: eval/local_data/api_compatible_gauntlet/world_knowledge/arc_challenge.jsonl
+  #   num_fewshot:
+  #   - 25
+  #   icl_task_type: question_answering
+  #   continuation_delimiter: "\n\nAnswer:"
+  #   example_delimiter: \n\n
+  #   early_stopping_criteria:
+  #   - \n\n
+  #   - "Question:"
+  #   - "Q:"
+  # - label: hellaswag
+  #   dataset_uri: eval/local_data/api_compatible_gauntlet/language_understanding/hellaswag.jsonl
+  #   num_fewshot:
+  #   - 10
+  #   icl_task_type: question_answering
+  #   continuation_delimiter: "\n\nAnswer:"
+  #   example_delimiter: \n\n
+  #   early_stopping_criteria:
+  #   - \n\n
+  #   - "Question:"
+  #   - "Q:"

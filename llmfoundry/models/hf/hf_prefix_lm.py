@@ -12,6 +12,7 @@ from omegaconf import DictConfig
 from transformers import (AutoConfig, AutoModelForCausalLM,
                           PreTrainedTokenizerBase)
 
+from llmfoundry.metrics import DEFAULT_PREFIX_LM_METRICS
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.utils import (adapt_tokenizer_for_denoising,
@@ -19,9 +20,9 @@ from llmfoundry.models.utils import (adapt_tokenizer_for_denoising,
                                      convert_hf_causal_lm_to_prefix_lm,
                                      init_empty_weights)
 from llmfoundry.utils.registry_utils import build_metric
-from llmfoundry.metrics import DEFAULT_PREFIX_LM_METRICS
 
 __all__ = ['ComposerHFPrefixLM']
+
 
 class ComposerHFPrefixLM(HuggingFaceModelWithZLoss):
     """Configures a :class:`.HuggingFaceModel` around a Prefix LM.
@@ -127,7 +128,8 @@ class ComposerHFPrefixLM(HuggingFaceModelWithZLoss):
         model = convert_hf_causal_lm_to_prefix_lm(model)
 
         metrics = [
-            build_metric(metric, {}) for metric in DEFAULT_PREFIX_LM_METRICS + om_model_config.get('additional_train_metrics', [])
+            build_metric(metric, {}) for metric in DEFAULT_PREFIX_LM_METRICS +
+            om_model_config.get('additional_train_metrics', [])
         ]
 
         composer_model = super().__init__(model=model,

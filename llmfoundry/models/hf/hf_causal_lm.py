@@ -14,15 +14,15 @@ from omegaconf import DictConfig
 from transformers import (AutoConfig, AutoModelForCausalLM, PreTrainedModel,
                           PreTrainedTokenizerBase)
 
+from llmfoundry.metrics import (DEFAULT_CAUSAL_LM_EVAL_METRICS,
+                                DEFAULT_CAUSAL_LM_TRAIN_METRICS)
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.utils import init_empty_weights
 from llmfoundry.utils.config_utils import pop_config
-from llmfoundry.utils.warnings import VersionedDeprecationWarning
 from llmfoundry.utils.registry_utils import build_metric
-from llmfoundry.metrics import DEFAULT_CAUSAL_LM_EVAL_METRICS, DEFAULT_CAUSAL_LM_TRAIN_METRICS
-
+from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
 if TYPE_CHECKING:
     from peft import PeftConfig
@@ -119,10 +119,14 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
 
         use_train_metrics = om_model_config.get('use_train_metrics', True)
         train_metrics = [
-            build_metric(metric, {}) for metric in DEFAULT_CAUSAL_LM_TRAIN_METRICS + om_model_config.get('additional_train_metrics', [])
+            build_metric(metric, {})
+            for metric in DEFAULT_CAUSAL_LM_TRAIN_METRICS +
+            om_model_config.get('additional_train_metrics', [])
         ] if use_train_metrics else []
         eval_metrics = [
-            build_metric(metric, {}) for metric in DEFAULT_CAUSAL_LM_EVAL_METRICS + om_model_config.get('additional_eval_metrics', [])
+            build_metric(metric, {})
+            for metric in DEFAULT_CAUSAL_LM_EVAL_METRICS +
+            om_model_config.get('additional_eval_metrics', [])
         ]
 
         # Construct the Hugging Face config to use

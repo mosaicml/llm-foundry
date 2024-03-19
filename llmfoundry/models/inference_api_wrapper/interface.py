@@ -10,9 +10,8 @@ from composer.models import ComposerModel
 from torchmetrics import Metric
 from transformers import AutoTokenizer
 
-from llmfoundry.utils.registry_utils import build_metric
 from llmfoundry.metrics import DEFAULT_LM_EVAL_METRICS
-
+from llmfoundry.utils.registry_utils import build_metric
 
 
 class InferenceAPIEvalWrapper(ComposerModel):

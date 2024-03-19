@@ -1027,8 +1027,9 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         om_model_config: DictConfig,
         tokenizer: Optional[PreTrainedTokenizerBase] = None,
     ):
+        from llmfoundry.metrics import (DEFAULT_CAUSAL_LM_EVAL_METRICS,
+                                        DEFAULT_CAUSAL_LM_TRAIN_METRICS)
         from llmfoundry.utils.registry_utils import build_metric
-        from llmfoundry.metrics import DEFAULT_CAUSAL_LM_EVAL_METRICS, DEFAULT_CAUSAL_LM_TRAIN_METRICS
 
         resolved_om_model_config = om.to_container(om_model_config,
                                                    resolve=True)
@@ -1037,10 +1038,14 @@ class ComposerMPTCausalLM(HuggingFaceModel):
 
         use_train_metrics = om_model_config.get('use_train_metrics', True)
         train_metrics = [
-            build_metric(metric, {}) for metric in DEFAULT_CAUSAL_LM_TRAIN_METRICS + resolved_om_model_config.get('additional_train_metrics', [])
+            build_metric(metric, {})
+            for metric in DEFAULT_CAUSAL_LM_TRAIN_METRICS +
+            resolved_om_model_config.get('additional_train_metrics', [])
         ] if use_train_metrics else []
         eval_metrics = [
-            build_metric(metric, {}) for metric in DEFAULT_CAUSAL_LM_EVAL_METRICS + resolved_om_model_config.get('additional_eval_metrics', [])
+            build_metric(metric, {})
+            for metric in DEFAULT_CAUSAL_LM_EVAL_METRICS +
+            resolved_om_model_config.get('additional_eval_metrics', [])
         ]
 
         super().__init__(

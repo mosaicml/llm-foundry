@@ -6,7 +6,6 @@ from composer.core import Algorithm, Callback
 from composer.loggers import LoggerDestination
 from composer.optim import ComposerScheduler
 from torch.optim import Optimizer
-
 from torchmetrics import Metric
 
 from llmfoundry.interfaces import CallbackWithConfig

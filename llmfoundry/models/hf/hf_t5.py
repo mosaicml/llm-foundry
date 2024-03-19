@@ -12,16 +12,16 @@ from omegaconf import DictConfig
 from transformers import (AutoConfig, PreTrainedTokenizerBase,
                           T5ForConditionalGeneration)
 
+from llmfoundry.metrics import DEFAULT_ENC_DEC_METRICS
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.utils import (adapt_tokenizer_for_denoising,
                                      init_empty_weights)
-from llmfoundry.utils.warnings import experimental
 from llmfoundry.utils.registry_utils import build_metric
-from llmfoundry.metrics import DEFAULT_ENC_DEC_METRICS
-
+from llmfoundry.utils.warnings import experimental
 
 __all__ = ['ComposerHFT5']
+
 
 @experimental('ComposerHFT5')
 class ComposerHFT5(HuggingFaceModelWithZLoss):
@@ -120,7 +120,8 @@ class ComposerHFT5(HuggingFaceModelWithZLoss):
                 f'init_device="{init_device}" must be either "cpu" or "meta".')
 
         metrics = [
-            build_metric(metric, {}) for metric in DEFAULT_ENC_DEC_METRICS + om_model_config.get('additional_train_metrics', [])
+            build_metric(metric, {}) for metric in DEFAULT_ENC_DEC_METRICS +
+            om_model_config.get('additional_train_metrics', [])
         ]
 
         composer_model = super().__init__(model=model,

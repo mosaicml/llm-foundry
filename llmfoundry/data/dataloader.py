@@ -8,7 +8,8 @@ from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from transformers import PreTrainedTokenizerBase
 
-from llmfoundry.utils.registry_utils import builder, registry
+from llmfoundry.utils.registry_utils import builder
+from llmfoundry import registry
 
 
 def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,

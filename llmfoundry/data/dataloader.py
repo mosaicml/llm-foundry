@@ -22,18 +22,14 @@ def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
         device_batch_size (int): The size of the batches (number of examples)
             that the dataloader will produce.
     """
-    cfg_kwargs = om.to_container(cfg)
-    assert isinstance(cfg_kwargs, dict)
-
-    name = cfg_kwargs.pop('name')
     kwargs = {
-        'cfg': cfg_kwargs,
+        'cfg': cfg,
         'tokenizer': tokenizer,
         'device_batch_size': device_batch_size
     }
 
     return builder(
-        name=name,
+        name=cfg.name,
         registry=registry.dataloaders,
         partial_function=False,
         pre_validation_function=None,

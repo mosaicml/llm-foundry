@@ -56,6 +56,7 @@ DEFAULT_ENC_DEC_METRICS = [
     'masked_accuracy',
 ]
 
+
 def build_metric(name: str, kwargs: Dict[str, Any]) -> Metric:
     """Builds a metric from the registry."""
     return builder(name=name,
@@ -64,6 +65,7 @@ def build_metric(name: str, kwargs: Dict[str, Any]) -> Metric:
                    pre_validation_function=Metric,
                    post_validation_function=None,
                    kwargs=kwargs)
+
 
 __all__ = [
     'TokenAccuracy',

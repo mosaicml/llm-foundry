@@ -19,7 +19,6 @@ import torch.nn.functional as F
 from composer.models import HuggingFaceModel
 from composer.utils import dist
 
-from llmfoundry.metrics import TokenAccuracy
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
@@ -1033,6 +1032,8 @@ class ComposerMPTCausalLM(HuggingFaceModel):
 
         resolved_om_model_config = om.to_container(om_model_config,
                                                    resolve=True)
+        assert isinstance(resolved_om_model_config, dict)
+
         hf_config = MPTConfig.from_dict(resolved_om_model_config)
         model = MPTForCausalLM(hf_config)
 

@@ -20,7 +20,8 @@ class InferenceAPIEvalWrapper(ComposerModel):
         self.tokenizer = tokenizer
         self.labels = None
         eval_metrics = [
-            build_metric(metric) for metric in DEFAULT_CAUSAL_LM_EVAL_METRICS
+            build_metric(metric, {})
+            for metric in DEFAULT_CAUSAL_LM_EVAL_METRICS
         ]
         self.eval_metrics = {
             metric.__class__.__name__: metric for metric in eval_metrics

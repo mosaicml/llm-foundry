@@ -17,7 +17,7 @@ from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.utils import (adapt_tokenizer_for_denoising,
                                      init_empty_weights)
-from llmfoundry.utils.registry_utils import build_metric
+from llmfoundry.utils.builders import build_metric
 from llmfoundry.utils.warnings import experimental
 
 __all__ = ['ComposerHFT5']

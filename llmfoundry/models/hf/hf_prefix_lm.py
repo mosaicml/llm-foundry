@@ -19,7 +19,7 @@ from llmfoundry.models.utils import (adapt_tokenizer_for_denoising,
                                      add_bidirectional_mask_if_missing,
                                      convert_hf_causal_lm_to_prefix_lm,
                                      init_empty_weights)
-from llmfoundry.utils.registry_utils import build_metric
+from llmfoundry.utils.builders import build_metric
 
 __all__ = ['ComposerHFPrefixLM']
 

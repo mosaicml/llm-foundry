@@ -21,7 +21,7 @@ from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.utils import init_empty_weights
 from llmfoundry.utils.config_utils import pop_config
-from llmfoundry.utils.registry_utils import build_metric
+from llmfoundry.utils.builders import build_metric
 from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
 if TYPE_CHECKING:

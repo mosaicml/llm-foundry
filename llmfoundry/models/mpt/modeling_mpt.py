@@ -1029,7 +1029,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
     ):
         from llmfoundry.metrics import (DEFAULT_CAUSAL_LM_EVAL_METRICS,
                                         DEFAULT_CAUSAL_LM_TRAIN_METRICS)
-        from llmfoundry.utils.registry_utils import build_metric
+        from llmfoundry.utils.builders import build_metric
 
         resolved_om_model_config = om.to_container(om_model_config,
                                                    resolve=True)

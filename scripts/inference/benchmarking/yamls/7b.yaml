@@ -23,7 +23,7 @@ model:
   resid_pdrop: 0.0
   emb_pdrop: 0.0
   attn_config:
-    attn_impl: triton
+    attn_impl: flash
 
 device: null
 model_dtype: bf16

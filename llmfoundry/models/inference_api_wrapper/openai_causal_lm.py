@@ -44,7 +44,6 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
         if api_key is None:
             api_key = os.environ.get('OPENAI_API_KEY')
 
-        api_key = os.environ.get('OPENAI_API_KEY')
         base_url = model_cfg.get('base_url')
         if base_url is None:
             # Using OpenAI default, where the API key is required

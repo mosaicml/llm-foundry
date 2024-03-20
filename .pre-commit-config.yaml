@@ -67,6 +67,7 @@ repos:
     - "#"
     - --allow-past-years
     types: [python]
+    exclude: scripts/data_prep/validate_and_tokenize_data.py
 - repo: https://github.com/PyCQA/docformatter
   rev: v1.5.0
   hooks:

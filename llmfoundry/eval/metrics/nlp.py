@@ -354,6 +354,7 @@ class InContextLearningGenerationAccuracyJSONParsing(InContextLearningMetric):
                 else:
                     metric_result_dict['result'].append(0)
             else: 
+                cleaned_final_answer = self.normalize_answer(sample_output)
                 metric_result_dict['valid_json'].append(0)
                 metric_result_dict['result'].append(0)
 

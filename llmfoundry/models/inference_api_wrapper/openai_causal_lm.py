@@ -125,8 +125,8 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
 
 class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
 
-    def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer) -> None:
-        super().__init__(model_cfg, tokenizer)
+    def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer,  api_key: Optional[str] = None) -> None:
+        super().__init__(model_cfg, tokenizer, api_key)
         self.model_cfg = model_cfg
 
     def generate_completion(
@@ -311,8 +311,8 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
 
 class OpenAICausalLMEvalWrapper(OpenAIEvalInterface):
 
-    def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer) -> None:
-        super().__init__(model_cfg, tokenizer)
+    def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer,  api_key: Optional[str] = None) -> None:
+        super().__init__(model_cfg, tokenizer, api_key)
         self.generate_completion = lambda prompt, num_tokens, generation_kwargs: self.client.completions.create(  # pyright: ignore
             model=self.model_name,
             prompt=prompt,

@@ -4,7 +4,7 @@
 import logging
 import os
 import time
-from typing import Dict
+from typing import Dict, Optional
 
 import requests
 from transformers import AutoTokenizer
@@ -47,7 +47,7 @@ class FMAPIEvalInterface(OpenAIEvalInterface):
                     f'Endpoint {ping_url} did not become read after {waited_s:,} seconds, exiting'
                 )
 
-    def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer):
+    def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer, api_key: Optional[str] = None):
         is_local = model_cfg.pop('local', False)
         if is_local:
             base_url = os.environ.get('MOSAICML_MODEL_ENDPOINT',
@@ -60,7 +60,7 @@ class FMAPIEvalInterface(OpenAIEvalInterface):
                 'Must specify base_url or use local=True in model_cfg for FMAPIsEvalWrapper'
             )
 
-        super().__init__(model_cfg, tokenizer)
+        super().__init__(model_cfg, tokenizer, api_key)
 
 
 class FMAPICasualLMEvalWrapper(FMAPIEvalInterface, OpenAICausalLMEvalWrapper):

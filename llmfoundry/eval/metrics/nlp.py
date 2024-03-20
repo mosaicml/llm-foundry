@@ -362,7 +362,6 @@ class InContextLearningGenerationAccuracyJSONParsing(InContextLearningMetric):
             metric_result_dict['cleaned_output'].append(cleaned_final_answer)
             metric_result_dict['cleaned_label'].append(cleaned_sample_labels)
 
-
         return metric_result_dict
     
     def convert_date_format(self, date_str: str):

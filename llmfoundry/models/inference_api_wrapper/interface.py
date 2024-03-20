@@ -13,9 +13,9 @@ from transformers import AutoTokenizer
 from llmfoundry.eval.metrics import (InContextLearningLMAccuracy,
                                      InContextLearningMetric,
                                      InContextLearningMultipleChoiceAccuracy,
-                                     InContextLearningGenerationAccuracy)
-
-# TODO: add other metrics?
+                                     InContextLearningGenerationAccuracy,
+                                     InContextLearningLLMAsAJudge,
+                                     InContextLearningGenerationAccuracyJSONParsing)
 
 class InferenceAPIEvalWrapper(ComposerModel):
 
@@ -28,7 +28,9 @@ class InferenceAPIEvalWrapper(ComposerModel):
             LanguagePerplexity(),
             InContextLearningLMAccuracy(),
             InContextLearningMultipleChoiceAccuracy(),
-            InContextLearningGenerationAccuracy()
+            InContextLearningGenerationAccuracy(),
+            InContextLearningLLMAsAJudge(),
+            InContextLearningGenerationAccuracyJSONParsing()
         ]
         self.eval_metrics = {
             metric.__class__.__name__: metric for metric in eval_metrics

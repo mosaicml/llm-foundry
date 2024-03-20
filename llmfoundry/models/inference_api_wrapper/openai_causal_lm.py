@@ -32,7 +32,7 @@ MAX_RETRIES = 10
 
 class OpenAIEvalInterface(InferenceAPIEvalWrapper):
 
-    def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer) -> None:
+    def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer, api_key: Optional[str] = None) -> None:
         super().__init__(model_cfg, tokenizer)
         try:
             import openai
@@ -41,6 +41,8 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
                 extra_deps_group='openai',
                 conda_package='openai',
                 conda_channel='conda-forge') from e
+        if api_key is None:
+            api_key = os.environ.get('OPENAI_API_KEY')
 
         api_key = os.environ.get('OPENAI_API_KEY')
         base_url = model_cfg.get('base_url')

@@ -3,7 +3,114 @@ eval_gauntlet:
   subtract_random_baseline: true
   rescale_accuracy: true
   categories:
-  - name: 2k
+  - name: beginning
+    benchmarks:
+    - name: hotpotqa_beginning_2k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: kv_pairs_beginning_2k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: hotpotqa_beginning_4k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: kv_pairs_beginning_4k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: hotpotqa_beginning_8k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: kv_pairs_beginning_8k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: hotpotqa_beginning_16k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: kv_pairs_beginning_16k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: hotpotqa_beginning_32k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: kv_pairs_beginning_32k
+      num_fewshot: 0
+      random_baseline: 0
+  - name: middle
+    benchmarks:
+    - name: hotpotqa_middle_2k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: kv_pairs_middle_2k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: hotpotqa_middle_4k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: kv_pairs_middle_4k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: hotpotqa_middle_8k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: kv_pairs_middle_8k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: hotpotqa_middle_16k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: kv_pairs_middle_16k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: hotpotqa_middle_32k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: kv_pairs_middle_32k
+      num_fewshot: 0
+      random_baseline: 0
+  - name: end
+    benchmarks:
+    - name: hotpotqa_end_2k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: kv_pairs_end_2k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: hotpotqa_end_4k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: kv_pairs_end_4k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: hotpotqa_end_8k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: kv_pairs_end_8k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: hotpotqa_end_16k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: kv_pairs_end_16k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: hotpotqa_end_32k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: kv_pairs_end_32k
+      num_fewshot: 0
+      random_baseline: 0
+  - name: full
+    benchmarks:
+    - name: wikiqa_2k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: wikiqa_4k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: wikiqa_8k
+      num_fewshot: 0
+      random_baseline: 0
+    - name: 2k
     benchmarks:
     - name: hotpotqa_beginning_2k
       num_fewshot: 0
@@ -112,23 +219,4 @@ eval_gauntlet:
     - name: kv_pairs_end_32k
       num_fewshot: 0
       random_baseline: 0
-  - name: 64k
-    benchmarks:
-    - name: hotpotqa_beginning_64k
-      num_fewshot: 0
-      random_baseline: 0
-    - name: hotpotqa_middle_64k
-      num_fewshot: 0
-      random_baseline: 0
-    - name: hotpotqa_end_64k
-      num_fewshot: 0
-      random_baseline: 0
-    - name: kv_pairs_beginning_64k
-      num_fewshot: 0
-      random_baseline: 0
-    - name: kv_pairs_middle_64k
-      num_fewshot: 0
-      random_baseline: 0
-    - name: kv_pairs_end_64k
-      num_fewshot: 0
-      random_baseline: 0
+  

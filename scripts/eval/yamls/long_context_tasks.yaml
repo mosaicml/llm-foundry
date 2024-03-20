@@ -227,16 +227,6 @@ icl_tasks:
     section: beginning
     split: test
 -
-  label: hotpotqa_beginning_64k
-  dataset_uri: hf://mosaicml/long_context_eval
-  num_fewshot: [0]
-  icl_task_type: question_answering
-  hf_loading_vars:
-    name: hotpotqa
-    context_length: 65536
-    section: beginning
-    split: test
--
   label: hotpotqa_middle_16k
   dataset_uri: hf://mosaicml/long_context_eval
   num_fewshot: [0]
@@ -254,16 +244,6 @@ icl_tasks:
   hf_loading_vars:
     name: hotpotqa
     context_length: 32768
-    section: middle
-    split: test
--
-  label: hotpotqa_middle_64k
-  dataset_uri: hf://mosaicml/long_context_eval
-  num_fewshot: [0]
-  icl_task_type: question_answering
-  hf_loading_vars:
-    name: hotpotqa
-    context_length: 65536
     section: middle
     split: test
 -
@@ -287,16 +267,6 @@ icl_tasks:
     section: end
     split: test
 -
-  label: hotpotqa_end_64k
-  dataset_uri: hf://mosaicml/long_context_eval
-  num_fewshot: [0]
-  icl_task_type: question_answering
-  hf_loading_vars:
-    name: hotpotqa
-    context_length: 65536
-    section: end
-    split: test
--
   label: kv_pairs_beginning_16k
   dataset_uri: hf://mosaicml/long_context_eval
   num_fewshot: [0]
@@ -314,16 +284,6 @@ icl_tasks:
   hf_loading_vars:
     name: hotpotqa
     context_length: 32768
-    section: beginning
-    split: test
--
-  label: kv_pairs_beginning_64k
-  dataset_uri: hf://mosaicml/long_context_eval
-  num_fewshot: [0]
-  icl_task_type: question_answering
-  hf_loading_vars:
-    name: hotpotqa
-    context_length: 65536
     section: beginning
     split: test
 -
@@ -347,16 +307,6 @@ icl_tasks:
     section: middle
     split: test
 -
-  label: kv_pairs_middle_64k
-  dataset_uri: hf://mosaicml/long_context_eval
-  num_fewshot: [0]
-  icl_task_type: question_answering
-  hf_loading_vars:
-    name: hotpotqa
-    context_length: 65536
-    section: middle
-    split: test
--
   label: kv_pairs_end_16k
   dataset_uri: hf://mosaicml/long_context_eval
   num_fewshot: [0]
@@ -376,13 +326,4 @@ icl_tasks:
     context_length: 32768
     section: end
     split: test
--
-  label: kv_pairs_end_64k
-  dataset_uri: hf://mosaicml/long_context_eval
-  num_fewshot: [0]
-  icl_task_type: question_answering
-  hf_loading_vars:
-    name: hotpotqa
-    context_length: 65536
-    section: end
-    split: test
+

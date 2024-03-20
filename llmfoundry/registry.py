@@ -31,7 +31,8 @@ callbacks = create_registry('llmfoundry',
 _callbacks_with_config_description = """The callbacks_with_config registry is used to register classes that implement the CallbackWithConfig interface.
 These are the same as the callbacks registry, except that they additionally take the full training config as an argument to their constructor."""
 callbacks_with_config = create_registry(
-    'llm_foundry.callbacks_with_config',
+    'llm_foundry',
+    'callbacks_with_config',
     generic_type=Type[CallbackWithConfig],
     entry_points=True,
     description=_callbacks_with_config_description)

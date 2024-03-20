@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+# yapf: disable # isort: skip
 from llmfoundry.utils.builders import (build_algorithm, build_callback,
                                        build_icl_evaluators, build_logger,
                                        build_optimizer, build_scheduler,
@@ -10,11 +11,17 @@ from llmfoundry.utils.checkpoint_conversion_helpers import (
 from llmfoundry.utils.config_utils import (calculate_batch_size_info,
                                            log_config, pop_config,
                                            update_batch_size_info)
-# yapf: disable
+from llmfoundry.utils.data_validation_utils import (check_HF_datasets,
+                                                    cpt_token_counts,
+                                                    create_om_cfg,
+                                                    integrity_check,
+                                                    is_hf_dataset_path,
+                                                    is_uc_delta_table,
+                                                    parse_args, plot_hist,
+                                                    token_counts,
+                                                    token_counts_with_collate)
 from llmfoundry.utils.model_download_utils import (
     download_from_hf_hub, download_from_http_fileserver)
-
-# yapf: enable
 
 __all__ = [
     'build_callback',
@@ -32,4 +39,14 @@ __all__ = [
     'update_batch_size_info',
     'log_config',
     'pop_config',
+    'create_om_cfg',
+    'token_counts_with_collate',
+    'token_counts',
+    'check_HF_datasets',
+    'is_hf_dataset_path',
+    'is_uc_delta_table',
+    'parse_args',
+    'cpt_token_counts',
+    'integrity_check',
+    'plot_hist',
 ]

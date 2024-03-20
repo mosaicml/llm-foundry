@@ -14,12 +14,12 @@ import pytest
 from streaming import StreamingDataset
 from transformers import AutoTokenizer
 
-from scripts.data_prep.convert_text_to_mds import (DONE_FILENAME,
-                                                   convert_text_to_mds,
-                                                   download_and_convert,
-                                                   is_already_processed,
-                                                   merge_shard_groups,
-                                                   write_done_file)
+from llmfoundry.utils.data_prep_utils import (DONE_FILENAME,
+                                              convert_text_to_mds,
+                                              download_and_convert,
+                                              is_already_processed,
+                                              merge_shard_groups,
+                                              write_done_file)
 
 
 class MockObjectStore():
@@ -38,6 +38,7 @@ class MockObjectStore():
                         object_name: str,
                         filename: str,
                         overwrite: bool = False):
+        print(f'download object is called: {object_name}, {filename}')
         dirname = os.path.dirname(filename)
         if dirname:
             os.makedirs(dirname, exist_ok=True)
@@ -69,12 +70,11 @@ def _assert_files_exist(prefix: str, files: List[str]):
 
 @pytest.mark.parametrize('processes', [1, 2, 3])
 @patch.object(ProcessPoolExecutor, 'map', new=Mock(wraps=_mock_map))
-@patch(
-    'scripts.data_prep.convert_text_to_mds.maybe_create_object_store_from_uri')
-@patch('scripts.data_prep.convert_text_to_mds.parse_uri')
-@patch('scripts.data_prep.convert_text_to_mds.download_and_convert',
+@patch('llmfoundry.utils.data_prep_utils.maybe_create_object_store_from_uri')
+@patch('llmfoundry.utils.data_prep_utils.parse_uri')
+@patch('llmfoundry.utils.data_prep_utils.download_and_convert',
        wraps=download_and_convert)
-@patch('scripts.data_prep.convert_text_to_mds.merge_shard_groups',
+@patch('llmfoundry.utils.data_prep_utils.merge_shard_groups',
        wraps=merge_shard_groups)
 def test_single_and_multi_process(merge_shard_groups: Mock,
                                   download_and_convert: Mock, parse_uri: Mock,
@@ -92,25 +92,24 @@ def test_single_and_multi_process(merge_shard_groups: Mock,
     parse_uri.return_value = ('s3', 'fake-test-bucket', str(remote_folder))
 
     def call_convert_text_to_mds() -> None:
-        convert_text_to_mds(
-            tokenizer_name=tokenizer_name,
-            output_folder=f's3://fake-test-output-path',
-            input_folder=f's3://fake-test-input-path',
-            concat_tokens=concat_tokens,
-            eos_text='',
-            bos_text='',
-            no_wrap=False,
-            compression='zstd',
-            processes=processes,
-            args_str='Namespace()',
-            reprocess=False,
-        )
+        convert_text_to_mds(tokenizer_name=tokenizer_name,
+                            output_folder=f's3://fake-test-output-path',
+                            input_folder=f's3://fake-test-input-path',
+                            concat_tokens=concat_tokens,
+                            eos_text='',
+                            bos_text='',
+                            no_wrap=False,
+                            compression='zstd',
+                            processes=processes,
+                            args_str='Namespace()',
+                            reprocess=False,
+                            skip_mdswrite=False)
 
     call_convert_text_to_mds()
 
     # Check call counts
     assert download_and_convert.call_count == processes  # called once per process
-    assert mock_object_store.download_object.call_count == n_text_files + 1  # text files + done file
+    assert mock_object_store.download_object.call_count == 2 * n_text_files + 1  # text files + done file
     assert mock_object_store.upload_object.call_count == processes + 2  # shard per process + done file + index.json
 
     if processes > 1:
@@ -132,7 +131,7 @@ def test_single_and_multi_process(merge_shard_groups: Mock,
 
     # Check call counts
     assert download_and_convert.call_count == processes  # No changes because we shoudn't reprocess
-    assert mock_object_store.download_object.call_count == n_text_files + 2  # One more done file is downloaded
+    assert mock_object_store.download_object.call_count == 2 * n_text_files + 2  # One more done file is downloaded
     assert mock_object_store.upload_object.call_count == processes + 2  # No changes
 
     # Create an extra text file and call again.
@@ -145,7 +144,7 @@ def test_single_and_multi_process(merge_shard_groups: Mock,
 
     # Check call counts
     assert download_and_convert.call_count == processes * 2  # called once per process
-    assert mock_object_store.download_object.call_count == n_text_files + 1  # text files + done file
+    assert mock_object_store.download_object.call_count == 2 * n_text_files + 1  # text files + done file
     assert mock_object_store.upload_object.call_count == processes + 2  # shard per process + done file + index.json
 
     # Compute the expected number of tokens
@@ -181,19 +180,18 @@ def test_local_path(tmp_path: pathlib.Path):
     output_folder = tmp_path / 'output'
 
     def call_convert_text_to_mds(reprocess: bool):
-        convert_text_to_mds(
-            tokenizer_name='mosaicml/mpt-7b',
-            output_folder=str(output_folder),
-            input_folder=str(input_folder),
-            concat_tokens=1,
-            eos_text='',
-            bos_text='',
-            no_wrap=False,
-            compression='zstd',
-            processes=1,
-            args_str='Namespace()',
-            reprocess=reprocess,
-        )
+        convert_text_to_mds(tokenizer_name='mosaicml/mpt-7b',
+                            output_folder=str(output_folder),
+                            input_folder=str(input_folder),
+                            concat_tokens=1,
+                            eos_text='',
+                            bos_text='',
+                            no_wrap=False,
+                            compression='zstd',
+                            processes=1,
+                            args_str='Namespace()',
+                            reprocess=reprocess,
+                            skip_mdswrite=False)
 
     # Create input text data
     os.makedirs(input_folder, exist_ok=True)

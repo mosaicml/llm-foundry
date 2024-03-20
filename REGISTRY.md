@@ -81,4 +81,6 @@ code_paths:
 
 
 ## Discovering registrable components
-Coming soon
+To help find and understand registrable components, you can use the `llmfoundry` cli command.
+
+We provide two commands, `llmfoundry registry get [--group]` and `llmfoundry registry find <group> <name>`. The first command will list all registered components, and the second command will provide information about a specific registered component. Use `--help` on any of these commands for more information.

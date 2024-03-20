@@ -27,6 +27,8 @@ from composer.loggers.mosaicml_logger import (
     MOSAICML_PLATFORM_ENV_VAR,
 )
 from composer.utils import get_free_tcp_port
+from llmfoundry.composerpatch import MLFlowLogger
+
 
 CLEANUP_TIMEOUT = datetime.timedelta(seconds=30)
 
@@ -313,9 +315,11 @@ def _launch_processes(
     stderr_file_format: Union[str, None],
     training_script_args: List[Any],
     processes: Dict[int, subprocess.Popen],
+    log_dirs: set[str],
 ):
     log.info('Starting distributed environment on local node for global_rank(%s-%s)', base_rank, base_rank + nproc - 1)
     log.info('Distributed KV store: tcp://%s:%s', master_addr, master_port)
+    log.warning(f"ygong: stdout_file_format={stdout_file_format}, stderr_file_format={stderr_file_format}")
 
     for local_rank in range(nproc):
         global_rank = base_rank + local_rank
@@ -359,7 +363,7 @@ def _launch_processes(
                 )
             else:
 
-                def _get_file(format: str):
+                def _get_file__(format: str):
                     filename = format.format(
                         rank=global_rank,
                         world_size=world_size,
@@ -367,10 +371,13 @@ def _launch_processes(
                         local_world_size=nproc,
                         node_rank=node_rank,
                     )
+                    dir = os.path.normpath(os.path.dirname(filename))
+                    os.makedirs(dir, exist_ok=True)
+                    log_dirs.add(dir)
                     return open(filename, 'x+')
 
-                stdout_file = _get_file(stdout_file_format)
-                stderr_file = _get_file(stderr_file_format) if stderr_file_format is not None else None
+                stdout_file = _get_file__(stdout_file_format)
+                stderr_file = _get_file__(stderr_file_format) if stderr_file_format is not None else None
 
                 process = subprocess.Popen(
                     cmd,
@@ -384,7 +391,15 @@ def _launch_processes(
             processes[global_rank] = process
 
 
-def _monitor_processes(processes: Dict[int, subprocess.Popen]):
+def _monitor_processes(
+        processes: Dict[int, subprocess.Popen], 
+        log_dirs: set[str],
+        launcher_log: str,):
+    import mlflow
+    log_frequency = 200
+    cycle = 0
+                    
+    mlflow_runid = None
     try:
         while True:
             process_has_crashed = False
@@ -405,7 +420,29 @@ def _monitor_processes(processes: Dict[int, subprocess.Popen]):
                         log.info(f'Rank {global_rank} finished successfully.')
             if process_has_crashed or all_processes_finished:
                 break
+
+            if cycle == 0:
+                if mlflow_runid is None:
+                    if os.path.exists(MLFlowLogger.CONFIG_FILE):
+                        import json
+                        with open(MLFlowLogger.CONFIG_FILE, "r") as f:
+                            data = json.load(f)
+                            log.error(f"ygong:Started mlflow run {data}")
+                        mlflow_runid = data[MLFlowLogger.RUN_ID_FIELD]
+                        mlflow.set_tracking_uri(data[MLFlowLogger.TRACKING_URI_FIELD])
+                        mlflow.start_run(run_id=data[MLFlowLogger.RUN_ID_FIELD], experiment_id=data[MLFlowLogger.EXPERIMENT_ID_FIELD])
+                else:
+                    try:
+                        for log_dir in log_dirs:
+                            log.warning(f"ygong: Logging directory: {log_dir}")
+                            mlflow.log_artifacts(log_dir, log_dir.lstrip('/'))        
+                        mlflow.log_artifact(launcher_log)
+                    except Exception as e:
+                        log.error(f"ygong:Failed to log artifacts to mlflow: {e}")
+            cycle = (cycle + 1) % log_frequency
+                         
             time.sleep(0.1)
+    
     except KeyboardInterrupt:
         print('Ctrl-C received; terminating training processes.')
         pass
@@ -526,12 +563,13 @@ def main():
     """Entrypoint into the Composer CLI."""
     args = _parse_args()
 
-    logging.basicConfig()
-    log.setLevel(logging.INFO if args.verbose else logging.WARNING)
-
-    processes = {}
-
     log_tmpdir = tempfile.TemporaryDirectory()
+    launcher_log = f"{log_tmpdir.name}/launcher{args.node_rank}.log"
+    logging.basicConfig(filename=launcher_log, level=logging.INFO if args.verbose else logging.WARNING)
+    
+    processes = {}
+    log_dirs = set()
+
     if args.stdout is None:
         args.stdout = f'{log_tmpdir.name}/rank{{rank}}.stdout.txt'
     if args.stderr is None:
@@ -542,13 +580,13 @@ def main():
         os.environ.get(MOSAICML_LOG_DIR_ENV_VAR, 'false'),
     ).lower() != 'false' and os.environ.get(MOSAICML_GPU_LOG_FILE_PREFIX_ENV_VAR, 'false').lower() != 'false':
         log.info('Logging all GPU ranks to Mosaic Platform.')
-        log_file_format = f'{os.environ.get(MOSAICML_LOG_DIR_ENV_VAR)}/{os.environ.get(MOSAICML_GPU_LOG_FILE_PREFIX_ENV_VAR)}{{local_rank}}.txt'
         if args.stderr is not None or args.stdout is not None:
             log.info(
                 'Logging to Mosaic Platform. Ignoring provided stdout and stderr args. To use provided stdout and stderr, set MOSAICML_LOG_DIR=false.',
             )
-        args.stdout = log_file_format
-        args.stderr = None
+
+        args.stdout =  f'{os.environ.get(MOSAICML_LOG_DIR_ENV_VAR)}/stdout/{os.environ.get(MOSAICML_GPU_LOG_FILE_PREFIX_ENV_VAR)}{{rank}}.txt'
+        args.stderr =  f'{os.environ.get(MOSAICML_LOG_DIR_ENV_VAR)}/stderr/{os.environ.get(MOSAICML_GPU_LOG_FILE_PREFIX_ENV_VAR)}{{rank}}.txt'
 
     try:
         _launch_processes(
@@ -565,8 +603,9 @@ def main():
             training_script=args.training_script,
             training_script_args=args.training_script_args,
             processes=processes,
+            log_dirs=log_dirs,
         )
-        _monitor_processes(processes)
+        _monitor_processes(processes, log_dirs, launcher_log)
     except:
         # Print the exception first, then kill the training processes, since killing
         # may take up to CLEANUP_TIMEOUT seconds, and the user should know immediately

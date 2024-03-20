@@ -3,6 +3,8 @@ my-copy-c4*/
 my-copy-arxiv*/
 *.jsonl*
 
+ygong/notebook/*
+
 # WandB
 wandb/
 

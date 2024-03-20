@@ -18,7 +18,7 @@ from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
 from composer.core import Algorithm, Callback, Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
-from composer.loggers import (InMemoryLogger, LoggerDestination, MLFlowLogger,
+from composer.loggers import (InMemoryLogger, LoggerDestination,
                               TensorboardLogger, WandBLogger)
 from composer.optim import DecoupledAdamW
 from composer.optim.scheduler import (ComposerScheduler,
@@ -30,6 +30,9 @@ from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from torch.optim.optimizer import Optimizer
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
+
+from llmfoundry.composerpatch import MLFlowLogger
+
 
 from llmfoundry.callbacks import (AsyncEval, CurriculumLearning, EvalGauntlet,
                                   FDiffMetrics, GlobalLRScaling,
@@ -240,7 +243,7 @@ def build_logger(name: str, kwargs: Dict[str, Any]) -> LoggerDestination:
     elif name == 'in_memory_logger':
         return InMemoryLogger(**kwargs)
     elif name == 'mlflow':
-        return MLFlowLogger(**kwargs)
+        return MLFlowLogger.MLFlowLogger(**kwargs)
     elif name == 'inmemory':
         return InMemoryLogger(**kwargs)
     else:

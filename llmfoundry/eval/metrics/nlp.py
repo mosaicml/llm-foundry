@@ -318,23 +318,26 @@ class InContextLearningGenerationAccuracyJSONParsing(InContextLearningMetric):
                 try:
                     data = json.loads(json_part)
                 except json.JSONDecodeError:
-                    clean_answer = json_part.strip('"{}')
-                    key_value_pairs = [kv.strip() for kv in clean_answer.split('",')]
-                    if len(key_value_pairs) == 1:
-                        answer = key_value_pairs[0]
-                    else:
-                        for pair in key_value_pairs:
-                            key, raw_value = pair.split(':', 1)
-                            key = key.strip('" ')
-                            value = raw_value.strip('" ')
-                            if value.startswith('{'):
-                                try:
-                                    value = json.loads(value)
-                                except json.JSONDecodeError:
-                                    pass
-                            data[key] = value
-                            if key == 'short answer':
-                                break
+                    try:
+                        clean_answer = json_part.strip('"{}')
+                        key_value_pairs = [kv.strip() for kv in clean_answer.split('",')]
+                        if len(key_value_pairs) == 1:
+                            answer = key_value_pairs[0]
+                        else:
+                            for pair in key_value_pairs:
+                                key, raw_value = pair.split(':', 1)
+                                key = key.strip('" ')
+                                value = raw_value.strip('" ')
+                                if value.startswith('{'):
+                                    try:
+                                        value = json.loads(value)
+                                    except json.JSONDecodeError:
+                                        pass
+                                data[key] = value
+                                if key == 'short answer':
+                                    break
+                    except:
+                        raise ValueError(f'Invalid JSON could not be parsed: {json_part}')
             self.total += torch.tensor(1.0)
             cleaned_sample_labels = {
                 self.normalize_answer(label) for label in sample_labels

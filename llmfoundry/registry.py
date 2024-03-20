@@ -68,7 +68,7 @@ schedulers = create_registry('llmfoundry',
 
 _dataloaders_description = """The dataloaders registry is used to register functions that create a DataSpec. The function should take
 a DictConfig, a PreTrainedTokenizerBase, and an int as arguments, and return a DataSpec."""
-dataloaders = create(
+dataloaders = create_registry(
     'llmfoundry',
     'dataloaders',
     generic_type=Callable[[DictConfig, PreTrainedTokenizerBase, int], DataSpec],

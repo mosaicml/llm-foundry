@@ -24,7 +24,8 @@ from llmfoundry.eval.metrics import (InContextLearningCodeEvalAccuracy,
                                      InContextLearningLMAccuracy,
                                      InContextLearningMultipleChoiceAccuracy,
                                      InContextLearningGenerationAccuracy,
-                                     InContextLearningLLMAsAJudge)
+                                     InContextLearningLLMAsAJudge,
+                                     InContextLearningGenerationAccuracyJSONParsing)
 from llmfoundry.metrics import TokenAccuracy
 from llmfoundry.models.layers.attention import (is_flash_v1_installed,
                                                 is_flash_v2_installed)
@@ -1059,7 +1060,8 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             InContextLearningMultipleChoiceAccuracy(),
             InContextLearningGenerationAccuracy(),
             InContextLearningCodeEvalAccuracy(),
-            InContextLearningLLMAsAJudge()
+            InContextLearningLLMAsAJudge(),
+            InContextLearningGenerationAccuracyJSONParsing(),
         ]
 
         super().__init__(

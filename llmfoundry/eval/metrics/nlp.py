@@ -16,6 +16,8 @@ from typing import Any, Dict, List, Optional, Callable
 from composer.utils import dist, MissingConditionalImportError
 import numpy as np
 import torch
+import json
+from datetime import datetime
 from copy import deepcopy
 import random
 from composer.utils.eval_client import (EvalClient, LambdaEvalClient,
@@ -32,6 +34,7 @@ __all__ = [
     'InContextLearningLMAccuracy',
     'InContextLearningMultipleChoiceAccuracy',
     'InContextLearningGenerationAccuracy',
+    'InContextLearningGenerationAccuracyJSONParsing',
     'InContextLearningCodeEvalAccuracy',
     'InContextLearningLMExpectedCalibrationError',
     'InContextLearningMCExpectedCalibrationError',
@@ -217,6 +220,165 @@ class InContextLearningGenerationAccuracy(InContextLearningMetric):
         assert isinstance(self.correct, Tensor)
         assert isinstance(self.total, Tensor)
         return self.correct / self.total
+
+class InContextLearningGenerationAccuracyJSONParsing(InContextLearningMetric):
+    r"""Computes accuracy for In-context learning (ICL) question answering (QA)
+    tasks.
+
+    ICL QA tasks consist of some number of example question answering tasks (referred to as the 'context'), followed by a test task where the model must
+    match one of the possible answer aliases (referred to as the 'continuation').
+
+    For example, the model may be provided the context below and evaluated on its ability to correctly predict the continuation.
+
+    Context: `Question: Who was president of the United States in 2012?\nAnswer: Barack Obama\nQuestion: Is water wet?\nAnswer: `
+    Continuation: [`yes`, `no`]
+
+    Both predictions and answers will be normalized before comparison.
+
+    Adds metric state variables:
+        correct (float): The number of instances where the prediction was a prefix for any of the answer aliases.
+        total (float): The number of total instances that were predicted.
+
+    Args:
+        dist_sync_on_step (bool, optional): Synchronize metric state across processes at
+            each forward() before returning the value at the step. Default: ``False``.
+    """
+
+    # Make torchmetrics call update only once
+    full_state_update = False
+
+    def __init__(self, dist_sync_on_step: bool = False):
+        # state from multiple processes
+        super().__init__(dist_sync_on_step=dist_sync_on_step)
+        self.add_state('correct',
+                       default=torch.tensor(0.),
+                       dist_reduce_fx='sum')
+        self.add_state('total', default=torch.tensor(0.), dist_reduce_fx='sum')
+        self.metric_result_dict = {
+            'cleaned_output': [],
+            'original_label': [],
+            'cleaned_label': [],
+            'result': [],
+            'valid_json': []
+        }
+
+    def normalize_answer(self, answer: str):
+        """Lower text and remove punctuation, articles and extra whitespace.
+
+        Copied from https://github.com/mandarjoshi90/triviaqa/blob/master/evaluation/triviaqa_evaluation.py
+        """
+
+        def remove_articles(text: str) -> str:
+            return re.sub(r'\b(a|an|the)\b', ' ', text)
+
+        def white_space_fix(text: str) -> str:
+            return ' '.join(text.split())
+
+        def handle_punc(text: str) -> str:
+            exclude = set(string.punctuation +
+                          ''.join([u'‘', u'’', u'´', u'`']))
+            return ''.join(ch if ch not in exclude else ' ' for ch in text)
+        
+        # Added from Arnav's nb
+        def replace_hyphens(text: str) :
+            return text.replace("-", " ")
+
+        def lower(text: str) -> str:
+            return text.lower()
+
+        def replace_underscore(text: str) -> str:
+            return text.replace('_', ' ')
+
+        return white_space_fix(
+            remove_articles(handle_punc(lower(
+                replace_underscore(replace_hyphens(answer)))))).strip()
+
+    def update(
+        self,
+        batch: Dict[str, Any],
+        outputs: List[str],
+        labels: List[List[str]],
+    ):
+        metric_result_dict = deepcopy(self.metric_result_dict)
+        if not isinstance(labels[0], list):
+            labels = [[label] for label in labels]
+        for sample_output, sample_labels in zip(outputs, labels):
+            match = re.search(r'\{.*?\}', sample_output, re.DOTALL)
+            json_part = match.group(0) if match else None
+            if not json_part:
+                if not sample_output.startswith('{'):
+                    sample_output = '{' +sample_output 
+                if not sample_output.endswith('}'):
+                    sample_output += '}'
+                sample_output = re.sub(r'"\s*(?="long answer")', '",', sample_output)
+                match = re.search(r'\{.*?\}', sample_output, re.DOTALL)
+                json_part = match.group(0) if match else None
+            data = {}
+            if json_part:
+                try:
+                    data = json.loads(json_part)
+                except json.JSONDecodeError:
+                    clean_answer = json_part.strip('"{}')
+                    key_value_pairs = [kv.strip() for kv in clean_answer.split('",')]
+                    if len(key_value_pairs) == 1:
+                        answer = key_value_pairs[0]
+                    else:
+                        for pair in key_value_pairs:
+                            key, raw_value = pair.split(':', 1)
+                            key = key.strip('" ')
+                            value = raw_value.strip('" ')
+                            if value.startswith('{'):
+                                try:
+                                    value = json.loads(value)
+                                except json.JSONDecodeError:
+                                    pass
+                            data[key] = value
+                            if key == 'short answer':
+                                break
+            if 'short answer' in data.keys():
+                answer = str(data['short answer'])
+            answer = self.convert_date_format(answer)
+            answer = "YES" if re.search(r'\byes\b', answer, re.IGNORECASE) else answer
+            answer = "NO" if re.search(r'\bno\b', answer, re.IGNORECASE) else answer
+
+            cleaned_final_answer = self.normalize_answer(answer)
+            cleaned_sample_labels = {
+                self.normalize_answer(label) for label in sample_labels
+            }
+
+            self.total += torch.tensor(1.0)
+            if answer:
+                metric_result_dict['valid_json'].append(1)
+                if any((cleaned_final_answer in label or label in cleaned_final_answer) for label in cleaned_sample_labels):
+                    self.correct += torch.tensor(1.0)
+                    metric_result_dict['result'].append(1)
+                else:
+                    metric_result_dict['result'].append(0)
+            else: 
+                metric_result_dict['valid_json'].append(0)
+                metric_result_dict['result'].append(0)
+
+            metric_result_dict['original_label'].append(sample_labels)
+            metric_result_dict['cleaned_output'].append(cleaned_final_answer)
+            metric_result_dict['cleaned_label'].append(cleaned_sample_labels)
+
+
+        return metric_result_dict
+    
+    def convert_date_format(self, date_str: str):
+        try:
+            date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+            formatted_date = date_obj.strftime('%B %d, %Y')
+            formatted_date = formatted_date.replace(' 0', ' ')
+            return formatted_date
+        except ValueError:
+            return date_str
+
+    def compute(self):
+        assert isinstance(self.correct, Tensor)
+        assert isinstance(self.total, Tensor)
+        return self.correct / self.total
+
 
 
 class InContextLearningLMAccuracy(InContextLearningMetric):

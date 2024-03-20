@@ -1356,7 +1356,7 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
         query_id: int, the query id
         query: string, the question
         answer: string, the correct answer to the query
-        golden_ids: list of ints, indices into the documents for the documents required to answer the query
+        gold_idxs: list of ints, indices into the documents for the documents required to answer the query
         documents: list of strings, one string per document
 
         # TODO: Add shuffle documents option
@@ -1424,7 +1424,7 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
         return example
     
     def _filter_to_total_docs(self, example: Dict[str, Any]):
-        gold_idxes = example['gold_idxs']
+        gold_idxes = example.get('gold_idxs', [])
         documents = example['documents']
         gold_docs = [documents[idx] for idx in gold_idxes]
         total_docs_idxes = list(range(0, self.total_docs))

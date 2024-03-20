@@ -213,6 +213,7 @@ class _DummyModule(nn.Module):
 def test_build_optimizer(name: str, optimizer_config: Dict[str, Any],
                          opt_additional_config: Dict[str, Any]):
     model = _DummyModule()
+    optimizer_config = deepcopy(optimizer_config)
     optimizer_config.update(deepcopy(opt_additional_config))
     optimizer = build_optimizer(model, name, optimizer_config)
 

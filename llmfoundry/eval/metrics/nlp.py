@@ -335,19 +335,18 @@ class InContextLearningGenerationAccuracyJSONParsing(InContextLearningMetric):
                             data[key] = value
                             if key == 'short answer':
                                 break
-            if 'short answer' in data.keys():
-                answer = str(data['short answer'])
-            answer = self.convert_date_format(answer)
-            answer = "YES" if re.search(r'\byes\b', answer, re.IGNORECASE) else answer
-            answer = "NO" if re.search(r'\bno\b', answer, re.IGNORECASE) else answer
-
-            cleaned_final_answer = self.normalize_answer(answer)
+            self.total += torch.tensor(1.0)
             cleaned_sample_labels = {
                 self.normalize_answer(label) for label in sample_labels
             }
+            answer = None
+            if 'short answer' in data.keys():
+                answer = str(data['short answer'])
+                answer = self.convert_date_format(answer)
+                answer = "YES" if re.search(r'\byes\b', answer, re.IGNORECASE) else answer
+                answer = "NO" if re.search(r'\bno\b', answer, re.IGNORECASE) else answer
 
-            self.total += torch.tensor(1.0)
-            if answer:
+                cleaned_final_answer = self.normalize_answer(answer)
                 metric_result_dict['valid_json'].append(1)
                 if any((cleaned_final_answer in label or label in cleaned_final_answer) for label in cleaned_sample_labels):
                     self.correct += torch.tensor(1.0)

@@ -337,7 +337,16 @@ class InContextLearningGenerationAccuracyJSONParsing(InContextLearningMetric):
                                 if key == 'short answer':
                                     break
                     except:
-                        raise ValueError(f'Invalid JSON could not be parsed: """{json_part}"""')
+                        try:
+                            # Searches for text in double quotes after '"short answer": '
+                            regex = r'"short answer"\s*:\s*"([^"]+)"'
+                            match = re.search(regex, json_part)
+                            if match:
+                                data = {'short answer' : match.group(1)}
+                            else:
+                                data = {}
+                        except:
+                            data = {}
             self.total += torch.tensor(1.0)
             cleaned_sample_labels = {
                 self.normalize_answer(label) for label in sample_labels

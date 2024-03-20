@@ -337,7 +337,7 @@ class InContextLearningGenerationAccuracyJSONParsing(InContextLearningMetric):
                                 if key == 'short answer':
                                     break
                     except:
-                        raise ValueError(f'Invalid JSON could not be parsed: {json_part}')
+                        raise ValueError(f'Invalid JSON could not be parsed: """{json_part}"""')
             self.total += torch.tensor(1.0)
             cleaned_sample_labels = {
                 self.normalize_answer(label) for label in sample_labels

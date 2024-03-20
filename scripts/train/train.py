@@ -157,6 +157,7 @@ def main(cfg: DictConfig) -> Trainer:
                             must_exist=False,
                             default_value=[],
                             convert=True)
+    # Import any user provided code
     for code_path in code_paths:
         import_file(code_path)
 
@@ -167,16 +168,6 @@ def main(cfg: DictConfig) -> Trainer:
         message=
         'torch.distributed.*_base is a private function and will be deprecated.*'
     )
-
-    # Run user provided code if specified
-    code_paths = pop_config(cfg,
-                            'code_paths',
-                            must_exist=False,
-                            default_value=[],
-                            convert=True)
-    # Import any user provided code
-    for code_path in code_paths:
-        import_file(code_path)
 
     # Check for incompatibilities between the model and data loaders
     validate_config(cfg)

@@ -161,6 +161,10 @@ def build_callback(
     """Builds a callback from the registry."""
     registry_to_use = registry.callbacks
     if name in registry.callbacks_with_config:
+        if 'config' in kwargs:
+            raise ValueError(
+                f'`config` is a reserved keyword for callbacks with config. Please remove it from the kwargs.'
+            )
         kwargs['config'] = config
         registry_to_use = registry.callbacks_with_config
 
@@ -297,6 +301,12 @@ def build_optimizer(model: torch.nn.Module, name: str,
 
     params = _extract_param_groups(model, optimizer_config)
     kwargs = optimizer_config
+    if 'params' in kwargs:
+        raise ValueError(
+            'The `params` will be automatically extracted from the model and ' +
+            'optimizer config. Please remove it from the optimizer config kwargs.'
+        )
+
     kwargs['params'] = params
     return builder(name=name,
                    registry=registry.optimizers,

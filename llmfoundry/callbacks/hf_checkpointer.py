@@ -142,13 +142,15 @@ class HuggingFaceCheckpointer(Callback):
             }
             mlflow_logging_config.setdefault('task', 'text-generation')
 
+            input_key = 'messages' if mlflow_logging_config['metadata']['task'].endswith('chat') else 'prompt'
+
             # Define a default input/output that is good for standard text generation LMs
             input_schema = Schema([
-                ColSpec('string', 'prompt'),
+                ColSpec('string', input_key),
                 ColSpec('double', 'temperature', optional=True),
                 ColSpec('integer', 'max_tokens', optional=True),
                 ColSpec('string', 'stop', optional=True),
-                ColSpec('integer', 'candidate_count', optional=True)
+                ColSpec('integer', 'n', optional=True)
             ])
 
             output_schema = Schema([ColSpec('string', 'predictions')])

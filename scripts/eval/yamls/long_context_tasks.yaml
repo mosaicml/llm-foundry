@@ -1,5 +1,15 @@
 icl_tasks:
 -
+  label: kv_pairs_end_32k
+  dataset_uri: hf://mosaicml/long_context_eval
+  num_fewshot: [0]
+  icl_task_type: question_answering
+  hf_loading_vars:
+    name: hotpotqa
+    context_length: 32768
+    section: end
+    split: test
+-
   label: kv_pairs_beginning_2k
   dataset_uri: hf://mosaicml/long_context_eval
   num_fewshot: [0]
@@ -316,14 +326,3 @@ icl_tasks:
     context_length: 16384
     section: end
     split: test
--
-  label: kv_pairs_end_32k
-  dataset_uri: hf://mosaicml/long_context_eval
-  num_fewshot: [0]
-  icl_task_type: question_answering
-  hf_loading_vars:
-    name: hotpotqa
-    context_length: 32768
-    section: end
-    split: test
-

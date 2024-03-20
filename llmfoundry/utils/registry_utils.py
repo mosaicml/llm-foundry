@@ -11,10 +11,9 @@ from typing import (Any, Callable, Dict, Generic, Optional, Sequence, Type,
 
 import catalogue
 
-__all__ = ['TypedRegistry', 'create', 'builder']
+__all__ = ['TypedRegistry', 'create_registry', 'construct_from_registry']
 
 T = TypeVar('T')
-S = TypeVar('S')
 
 
 class TypedRegistry(catalogue.Registry, Generic[T]):
@@ -47,7 +46,10 @@ class TypedRegistry(catalogue.Registry, Generic[T]):
         return super().get_entry_points()
 
 
-def create(
+S = TypeVar('S')
+
+
+def create_registry(
     *namespace: str,
     generic_type: Type[S],
     entry_points: bool = False,
@@ -57,8 +59,8 @@ def create(
 
     Args:
         namespace (str): The namespace, e.g. "llmfoundry.loggers"
-        entry_points (bool): Accept registered functions from entry points.
         generic_type (Type[S]): The type of the registry.
+        entry_points (bool): Accept registered functions from entry points.
         description (str): A description of the registry.
 
     Returns:
@@ -72,9 +74,9 @@ def create(
                                        description=description)
 
 
-def builder(
+def construct_from_registry(
     name: str,
-    registry: catalogue.Registry,
+    registry: TypedRegistry,
     partial_function: bool = True,
     pre_validation_function: Optional[Union[Callable[[Any], None],
                                             type]] = None,
@@ -88,9 +90,9 @@ def builder(
         registry (catalogue.Registry): The registry to fetch the item from
         partial_function (bool, optional): Whether to return a partial function for registered callables. Defaults to True.
         pre_validation_function (Optional[Union[Callable[[Any], None], type]], optional): An optional validation function called
-            before constructing the item to return. Defaults to None.
+            before constructing the item to return. This should throw an exception if validation fails. Defaults to None.
         post_validation_function (Optional[Callable[[Any], None]], optional): An optional validation function called after
-            constructing the item to return. Defaults to None.
+            constructing the item to return. This should throw an exception if validation fails. Defaults to None.
 
     Raises:
         ValueError: If the validation functions failed or the registered item is invalid
@@ -101,16 +103,16 @@ def builder(
     if kwargs is None:
         kwargs = {}
 
-    registered_item = registry.get(name)
+    registered_constructor = registry.get(name)
 
     if pre_validation_function is not None:
         if isinstance(pre_validation_function, type):
-            if not issubclass(registered_item, pre_validation_function):
+            if not issubclass(registered_constructor, pre_validation_function):
                 raise ValueError(
-                    f'Expected {name} to be of type {pre_validation_function}, but got {type(registered_item)}'
+                    f'Expected {name} to be of type {pre_validation_function}, but got {type(registered_constructor)}'
                 )
         elif isinstance(pre_validation_function, Callable):
-            pre_validation_function(registered_item)
+            pre_validation_function(registered_constructor)
         else:
             raise ValueError(
                 f'Expected pre_validation_function to be a callable or a type, but got {type(pre_validation_function)}'
@@ -118,18 +120,19 @@ def builder(
 
     # If it is a class, or a builder function, construct the class with kwargs
     # If it is a function, create a partial with kwargs
-    if isinstance(registered_item,
-                  type) or callable(registered_item) and not partial_function:
-        constructed_item = registered_item(**kwargs)
-    elif callable(registered_item):
-        constructed_item = functools.partial(registered_item, **kwargs)
+    if isinstance(
+            registered_constructor,
+            type) or callable(registered_constructor) and not partial_function:
+        constructed_item = registered_constructor(**kwargs)
+    elif callable(registered_constructor):
+        constructed_item = functools.partial(registered_constructor, **kwargs)
     else:
         raise ValueError(
-            f'Expected {name} to be a class or function, but got {type(registered_item)}'
+            f'Expected {name} to be a class or function, but got {type(registered_constructor)}'
         )
 
     if post_validation_function is not None:
-        post_validation_function(registered_item)
+        post_validation_function(registered_constructor)
 
     return constructed_item
 

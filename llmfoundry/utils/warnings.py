@@ -58,6 +58,9 @@ def experimental(feature_name: str) -> Callable[[F], F]:
 
     Args:
         feature_name (str): The name of the experimental feature.
+
+    Returns:
+        The decorated function.
     """
 
     def decorator(func: Callable):

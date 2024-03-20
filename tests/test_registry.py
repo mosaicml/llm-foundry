@@ -31,10 +31,10 @@ def test_expected_registries_exist():
 def test_registry_create(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(catalogue, 'Registry', {})
 
-    new_registry = registry_utils.create('llmfoundry',
-                                         'test_registry',
-                                         generic_type=str,
-                                         entry_points=False)
+    new_registry = registry_utils.create_registry('llmfoundry',
+                                                  'test_registry',
+                                                  generic_type=str,
+                                                  entry_points=False)
 
     assert new_registry.namespace == ('llmfoundry', 'test_registry')
     assert isinstance(new_registry, registry_utils.TypedRegistry)
@@ -42,10 +42,10 @@ def test_registry_create(monkeypatch: pytest.MonkeyPatch):
 
 def test_registry_typing(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(catalogue, 'Registry', {})
-    new_registry = registry_utils.create('llmfoundry',
-                                         'test_registry',
-                                         generic_type=str,
-                                         entry_points=False)
+    new_registry = registry_utils.create_registry('llmfoundry',
+                                                  'test_registry',
+                                                  generic_type=str,
+                                                  entry_points=False)
     new_registry.register('test_name', func='test')
 
     # This would fail type checking without the type ignore
@@ -56,10 +56,10 @@ def test_registry_typing(monkeypatch: pytest.MonkeyPatch):
 
 def test_registry_add(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(catalogue, 'Registry', {})
-    new_registry = registry_utils.create('llmfoundry',
-                                         'test_registry',
-                                         generic_type=str,
-                                         entry_points=False)
+    new_registry = registry_utils.create_registry('llmfoundry',
+                                                  'test_registry',
+                                                  generic_type=str,
+                                                  entry_points=False)
     new_registry.register('test_name', func='test')
 
     assert new_registry.get('test_name') == 'test'
@@ -67,10 +67,10 @@ def test_registry_add(monkeypatch: pytest.MonkeyPatch):
 
 def test_registry_overwrite(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(catalogue, 'Registry', {})
-    new_registry = registry_utils.create('llmfoundry',
-                                         'test_registry',
-                                         generic_type=str,
-                                         entry_points=False)
+    new_registry = registry_utils.create_registry('llmfoundry',
+                                                  'test_registry',
+                                                  generic_type=str,
+                                                  entry_points=False)
     new_registry.register('test_name', func='test')
     new_registry.register('test_name', func='test2')
 
@@ -115,17 +115,17 @@ def test_registry_entrypoint(monkeypatch: pytest.MonkeyPatch):
 
     monkeypatch.setattr(catalogue, 'AVAILABLE_ENTRY_POINTS',
                         importlib.metadata.entry_points())
-    new_registry = registry_utils.create('llmfoundry',
-                                         'test_registry',
-                                         generic_type=str,
-                                         entry_points=True)
+    new_registry = registry_utils.create_registry('llmfoundry',
+                                                  'test_registry',
+                                                  generic_type=str,
+                                                  entry_points=True)
     assert new_registry.get('test_entry') == InMemoryLogger
 
 
 def test_registry_builder(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(catalogue, 'Registry', {})
 
-    new_registry = registry_utils.create(
+    new_registry = registry_utils.create_registry(
         'llmfoundry',
         'test_registry',
         entry_points=False,
@@ -138,7 +138,7 @@ def test_registry_builder(monkeypatch: pytest.MonkeyPatch):
     new_registry.register('test_destination', func=TestLoggerDestination)
 
     # Valid, no validation
-    valid_class = registry_utils.builder(
+    valid_class = registry_utils.construct_from_registry(
         'test_destination',
         new_registry,
         pre_validation_function=TestLoggerDestination)
@@ -147,9 +147,10 @@ def test_registry_builder(monkeypatch: pytest.MonkeyPatch):
     # Invalid, class validation
     with pytest.raises(ValueError,
                        match='Expected test_destination to be of type'):
-        registry_utils.builder('test_destination',
-                               new_registry,
-                               pre_validation_function=InMemoryLogger)
+        registry_utils.construct_from_registry(
+            'test_destination',
+            new_registry,
+            pre_validation_function=InMemoryLogger)
 
     # Invalid, function pre-validation
     with pytest.raises(ValueError, match='Invalid'):
@@ -157,9 +158,10 @@ def test_registry_builder(monkeypatch: pytest.MonkeyPatch):
         def pre_validation_function(x: Any):
             raise ValueError('Invalid')
 
-        registry_utils.builder('test_destination',
-                               new_registry,
-                               pre_validation_function=pre_validation_function)
+        registry_utils.construct_from_registry(
+            'test_destination',
+            new_registry,
+            pre_validation_function=pre_validation_function)
 
     # Invalid, function post-validation
     with pytest.raises(ValueError, match='Invalid'):
@@ -167,7 +169,7 @@ def test_registry_builder(monkeypatch: pytest.MonkeyPatch):
         def post_validation_function(x: Any):
             raise ValueError('Invalid')
 
-        registry_utils.builder(
+        registry_utils.construct_from_registry(
             'test_destination',
             new_registry,
             post_validation_function=post_validation_function)
@@ -176,22 +178,21 @@ def test_registry_builder(monkeypatch: pytest.MonkeyPatch):
     new_registry.register('non_callable', func=1)  # type: ignore
     with pytest.raises(ValueError,
                        match='Expected non_callable to be a class or function'):
-        registry_utils.builder('non_callable', new_registry)
+        registry_utils.construct_from_registry('non_callable', new_registry)
 
     # Valid, partial function
     new_registry.register('partial_func',
                           func=lambda x, y: x * y)  # type: ignore
-    partial_func = registry_utils.builder('partial_func',
-                                          new_registry,
-                                          partial_function=True,
-                                          kwargs={'x': 2})
+    partial_func = registry_utils.construct_from_registry('partial_func',
+                                                          new_registry,
+                                                          partial_function=True,
+                                                          kwargs={'x': 2})
     assert partial_func(y=3) == 6
 
     # Valid, builder function
     new_registry.register('builder_func', func=lambda: TestLoggerDestination())
-    valid_built_class = registry_utils.builder('builder_func',
-                                               new_registry,
-                                               partial_function=False)
+    valid_built_class = registry_utils.construct_from_registry(
+        'builder_func', new_registry, partial_function=False)
     assert isinstance(valid_built_class, TestLoggerDestination)
     assert os.environ['TEST_ENVIRON_REGISTRY_KEY'] == 'test'
 

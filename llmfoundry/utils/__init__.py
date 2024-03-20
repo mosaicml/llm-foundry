@@ -22,7 +22,9 @@ from llmfoundry.utils.logging_utils import SpecificWarningFilter
 from llmfoundry.utils.model_download_utils import (
     download_from_hf_hub, download_from_http_fileserver, download_from_oras)
 from llmfoundry.utils.prompt_files import load_prompts, load_prompts_from_file
-from llmfoundry.utils.registry_utils import TypedRegistry, builder, create
+from llmfoundry.utils.registry_utils import (TypedRegistry,
+                                             construct_from_registry,
+                                             create_registry)
 from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
 __all__ = [
@@ -54,7 +56,7 @@ __all__ = [
     'load_prompts',
     'load_prompts_from_file',
     'VersionedDeprecationWarning',
-    'create',
-    'builder',
+    'create_registry',
+    'construct_from_registry',
     'TypedRegistry',
 ]

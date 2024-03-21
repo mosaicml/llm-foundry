@@ -407,15 +407,15 @@ class InContextLearningDataset(Dataset):
             continuation_indices = get_continuation_span(
                 trimmed_context, tokenized_answer)
             # TODO: horrible hack to remove long context answers
-            log.info(f"{len(trimmed_context)} {len(tokenized_context)}")
-            if len(trimmed_context) != len(tokenized_context):
-                padded_context = [-1]
-            else:
-                padded_context = make_padded_input(trimmed_context,
-                                                tokenized_answer,
-                                                self.padding_size,
-                                                self.pad_tok_id,
-                                                self.padding_side)
+            # log.info(f"{len(trimmed_context)} {len(tokenized_context)}")
+            # if len(trimmed_context) != len(tokenized_context):
+            #     padded_context = [-1]
+            # else:
+            padded_context = make_padded_input(trimmed_context,
+                                            tokenized_answer,
+                                            self.padding_size,
+                                            self.pad_tok_id,
+                                            self.padding_side)
 
             tokenized_example[self.context_key] = padded_context
             tokenized_example[self.answer_key] = tokenized_answer
@@ -428,13 +428,13 @@ class InContextLearningDataset(Dataset):
                 self.padding_size,
             )
             assert isinstance(trimmed_context, list)
-            if len(trimmed_context) != len(tokenized_context):
-                padded_context = [-1]
-            else:
-                padded_context = make_padded_input(trimmed_context, [],
-                                                self.padding_size,
-                                                self.pad_tok_id,
-                                                self.padding_side)
+            # if len(trimmed_context) != len(tokenized_context):
+            #     padded_context = [-1]
+            # else:
+            padded_context = make_padded_input(trimmed_context, [],
+                                            self.padding_size,
+                                            self.pad_tok_id,
+                                            self.padding_side)
 
             tokenized_example[self.context_key] = padded_context
             tokenized_example[self.answer_key] = self.get_answer_from_example(

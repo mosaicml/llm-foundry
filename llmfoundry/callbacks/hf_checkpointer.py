@@ -138,8 +138,8 @@ class HuggingFaceCheckpointer(Callback):
             mlflow_logging_config['metadata'] = passed_metadata
             mlflow_logging_config.setdefault('task', 'llm/v1/completions')
 
-            input_key = 'messages' if mlflow_logging_config['metadata'][
-                'task'].endswith('chat') else 'prompt'
+            input_key = 'messages' if mlflow_logging_config['task'].endswith(
+                'chat') else 'prompt'
 
             # Define a default input/output that is good for standard text generation LMs
             input_schema = Schema([

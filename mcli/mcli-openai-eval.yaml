@@ -16,7 +16,7 @@ command: |
   composer eval/eval.py /mnt/config/parameters.yaml
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
-name: openai-gauntlet-eval
+name: openai-longcontext-gauntlet-eval
 cluster: r1z1  # replace with your cluster here!
 gpu_num: 8 #
 gpu_type: a100_80gb #
@@ -31,64 +31,19 @@ parameters:
   device_eval_batch_size: 4
   models:
   -
-    model_name: openai/gpt-3.5-turbo-instruct
+    model_name: openai/gpt-3.5-turbo
     model:
       name: openai_causal_lm
-      version: gpt-3.5-turbo-instruct
+      version: gpt-3.5-turbo
     tokenizer:
       name: tiktoken
       kwargs:
-        model_name: gpt-3.5-turbo-instruct
+        model_name: gpt-3.5-turbo
 
-  loggers:
-    wandb: {}
-  callbacks:
-    eval_output_logging: {}
-
-  icl_tasks:
-  - label: gsm8k
-    dataset_uri: eval/local_data/api_compatible_gauntlet/symbolic_problem_solving/gsm8k_prepended_8shot.jsonl
-    num_fewshot:
-    - 0
-    icl_task_type: question_answering
-    cot_delimiter: "The answer is "
-    continuation_delimiter: "\n\nA:"
-    question_prelimiter: ""
-    do_normalization: false
-    early_stopping_criteria:
-    - "\n\n"
-    - "Question:"
-  - label: mmlu
-    dataset_uri: eval/local_data/api_compatible_gauntlet/world_knowledge/mmlu.jsonl
-    num_fewshot:
-    - 5
-    icl_task_type: question_answering
-    continuation_delimiter: "\n\nAnswer:"
-    has_categories: true
-    example_delimiter: \n\n
-    early_stopping_criteria:
-    - \n\n
-    - "Question:"
-    - "Q:"
-  - label: arc_challenge
-    dataset_uri: eval/local_data/api_compatible_gauntlet/world_knowledge/arc_challenge.jsonl
-    num_fewshot:
-    - 25
-    icl_task_type: question_answering
-    continuation_delimiter: "\n\nAnswer:"
-    example_delimiter: \n\n
-    early_stopping_criteria:
-    - \n\n
-    - "Question:"
-    - "Q:"
-  - label: hellaswag
-    dataset_uri: eval/local_data/api_compatible_gauntlet/language_understanding/hellaswag.jsonl
-    num_fewshot:
-    - 10
-    icl_task_type: question_answering
-    continuation_delimiter: "\n\nAnswer:"
-    example_delimiter: \n\n
-    early_stopping_criteria:
-    - \n\n
-    - "Question:"
-    - "Q:"
+  # loggers:
+  #   wandb: {}
+  # callbacks:
+  #   eval_output_logging: {}
+  icl_tasks: "eval/yamls/long_context_tasks.yaml"
+  eval_gauntlet: "eval/yamls/eval_gauntlet_long_context.yaml"
+ 

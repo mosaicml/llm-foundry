@@ -42,11 +42,11 @@ parameters:
       kwargs:
         model_name: mistralai/Mixtral-8x7B-Instruct-v0.1
 
-  loggers:
-    wandb: {}
-  callbacks:
-    eval_output_logging: {}
+  # loggers:
+  #   wandb: {}
+  # callbacks:
+  #   eval_output_logging: {}
 
   icl_tasks: "eval/yamls/long_context_tasks.yaml"
-  eval_gautnlet: "eval/yamls/eval_gauntlet_long_context.yaml"
+  eval_gauntlet: "eval/yamls/eval_gauntlet_long_context.yaml"
  

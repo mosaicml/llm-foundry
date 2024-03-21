@@ -12,6 +12,7 @@ from composer.utils import dist, parse_uri
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 
+from uc_volume_dataset_source inport UCVolumeDatasetSource #Not out in MLFlow yet
 from llmfoundry.models.utils import init_empty_weights
 
 log = logging.getLogger(__name__)
@@ -240,7 +241,7 @@ def log_dataset_uri(cfg: DictConfig) -> mlflow.data.meta_dataset.MetaDataset:
         'https': mlflow.data.http_dataset_source.HTTPDatasetSource,
         'hf': mlflow.data.huggingface_dataset_source.HuggingFaceDatasetSource,
         'delta_table': mlflow.data.delta_dataset_source.DeltaDatasetSource,
-        'uc_volume': mlflow.data.uc_volume_dataset_source.UCVolumeDatasetSource,
+        'uc_volume': UCVolumeDatasetSource,
         'local': mlflow.data.http_dataset_source.HTTPDatasetSource,
     }
 
@@ -251,7 +252,7 @@ def log_dataset_uri(cfg: DictConfig) -> mlflow.data.meta_dataset.MetaDataset:
         if source_class:
             if dataset_type == 'delta_table':
                 source = source_class(delta_table_name=path)
-            elif dataset_type == 'delta_table':
+            elif dataset_type == 'uc_volume':
                 source = source_class(path=path)
             else:
                 source = source_class(uri=path) if hasattr(source_class, 'uri') else source_class(path=path)

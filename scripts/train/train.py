@@ -7,6 +7,7 @@ import os
 import sys
 import time
 import warnings
+warnings.simplefilter('default', DeprecationWarning)
 from typing import Any, Dict, List, Optional, Union
 
 import torch

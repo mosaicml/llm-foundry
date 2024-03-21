@@ -21,8 +21,13 @@ def test_expected_registries_exist():
         if isinstance(getattr(registry, name), registry_utils.TypedRegistry)
     }
     expected_registry_names = {
-        'loggers', 'optimizers', 'schedulers', 'callbacks', 'algorithms',
-        'callbacks_with_config'
+        'loggers',
+        'optimizers',
+        'schedulers',
+        'callbacks',
+        'algorithms',
+        'callbacks_with_config',
+        'dataloaders',
     }
 
     assert existing_registries == expected_registry_names
@@ -104,14 +109,6 @@ os.environ['TEST_ENVIRON_REGISTRY_KEY'] = 'test'
 def test_registry_entrypoint(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(catalogue, 'Registry', {})
 
-    # monkeypatch.setattr(
-    #     importlib.metadata, 'entry_points', lambda: SelectableGroups([(
-    #         'llmfoundry_test_registry',
-    #         EntryPoints([
-    #             EntryPoint(name='test_entry',
-    #                        value='composer.loggers:InMemoryLogger',
-    #                        group='llmfoundry_test_registry')
-    #         ]))]))
     monkeypatch.setattr(
         importlib.metadata, 'entry_points', lambda: {
             'llmfoundry_test_registry': [

@@ -1070,6 +1070,5 @@ def test_build_unknown_dataloader():
         'name': 'unknown',
     })
     tokenizer = MagicMock()
-    with pytest.raises(ValueError,
-                       match='Expected dataloader name to be one of'):
+    with pytest.raises(ValueError, match="Can't find"):
         _ = build_dataloader(cfg, tokenizer, 2)

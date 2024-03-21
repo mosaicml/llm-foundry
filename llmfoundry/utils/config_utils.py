@@ -193,17 +193,17 @@ def parse_source_dataset(cfg: DictConfig):
         delta_table_path = source_dataset_path if source_dataset_path and source_dataset_path.split('.') >= 3 else None
         uc_volume_path = source_dataset_path if source_dataset_path and source_dataset_path.startswith('/Volumes') else None
 
-        if hf_path and (hf_path not in paths):
-            data_paths.append(('hf', hf_path))
-            paths.add(hf_path)
-
-        elif delta_table_path and (delta_table_path not in paths):
+        if delta_table_path and (delta_table_path not in paths):
             data_paths.append(('delta_table', delta_table_path))
             paths.add(delta_table_path)
 
-         elif uc_volume_path and (uc_volume_path not in paths):
+        elif uc_volume_path and (uc_volume_path not in paths):
             data_paths.append(('uc_volume', uc_volume_path))
             paths.add(uc_volume_path)
+
+        elif hf_path and (hf_path not in paths):
+            data_paths.append(('hf', hf_path))
+            paths.add(hf_path)
 
         elif remote_path and (remote_path not in paths):
             backend, _, _ = parse_uri(remote_path)

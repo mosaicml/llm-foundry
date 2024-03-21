@@ -142,7 +142,8 @@ class HuggingFaceCheckpointer(Callback):
             }
             mlflow_logging_config.setdefault('task', 'text-generation')
 
-            input_key = 'messages' if mlflow_logging_config['metadata']['task'].endswith('chat') else 'prompt'
+            input_key = 'messages' if mlflow_logging_config['metadata'][
+                'task'].endswith('chat') else 'prompt'
 
             # Define a default input/output that is good for standard text generation LMs
             input_schema = Schema([
@@ -161,6 +162,14 @@ class HuggingFaceCheckpointer(Callback):
             default_input_example = {
                 'prompt': np.array(['What is Machine Learning?'])
             }
+            if mlflow_logging_config['metadata']['task'].endswith('chat'):
+                default_input_example = {
+                    'messages':
+                        np.array([{
+                            'role': 'user',
+                            'content': 'What is Machine Learning?'
+                        }])
+                }
             mlflow_logging_config.setdefault('input_example',
                                              default_input_example)
             mlflow_logging_config.setdefault('signature', default_signature)

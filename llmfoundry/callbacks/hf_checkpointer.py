@@ -134,13 +134,9 @@ class HuggingFaceCheckpointer(Callback):
 
             # Both the metadata and the task are needed in order for mlflow
             # and databricks optimized model serving to work
-            default_metadata = {'task': 'llm/v1/completions'}
             passed_metadata = mlflow_logging_config.get('metadata', {})
-            mlflow_logging_config['metadata'] = {
-                **default_metadata,
-                **passed_metadata
-            }
-            mlflow_logging_config.setdefault('task', 'text-generation')
+            mlflow_logging_config['metadata'] = passed_metadata
+            mlflow_logging_config.setdefault('task', 'llm/v1/completions')
 
             input_key = 'messages' if mlflow_logging_config['metadata'][
                 'task'].endswith('chat') else 'prompt'
@@ -162,7 +158,7 @@ class HuggingFaceCheckpointer(Callback):
             default_input_example = {
                 'prompt': np.array(['What is Machine Learning?'])
             }
-            if mlflow_logging_config['metadata']['task'].endswith('chat'):
+            if mlflow_logging_config['task'].endswith('chat'):
                 default_input_example = {
                     'messages':
                         np.array([{

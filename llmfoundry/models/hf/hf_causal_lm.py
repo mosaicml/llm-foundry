@@ -98,18 +98,13 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         # Resolve "mixed" init device to either "cpu" or "meta"
         resolved_init_device = hf_get_init_device(init_device)
         attention_patch_type = om_model_config.get('attention_patch_type', None)
-        print('-----------')
-        print(attention_patch_type)
-        print('-----------')
         if attention_patch_type is not None:
-            print('WARNING')
             warnings.warn(
                 VersionedDeprecationWarning(
                     'attention_patch_type is deprecated and will automatically use flash attention 2. '
                     +
                     'We recommend `use_flash_attention_2: true` for llama models.',
                     remove_version='0.8.0'))
-            print('AFTER WARNING')
             use_flash_attention_2 = True
 
         requested_attention_implementation = 'flash_attention_2' if use_flash_attention_2 else 'eager'

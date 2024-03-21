@@ -189,7 +189,7 @@ class InContextLearningDataset(Dataset):
             # load_from_cache_file=False,
         )
         start_len = len(self.dataset)
-        self.dataset = self.dataset.filter(lambda example: len(example[self.context_key]) > 0)
+        self.dataset = self.dataset.filter(lambda example: example[self.context_key] == [-1])
         log.info(f"Removed {start_len - len(self.dataset)} examples for being longer than {self.padding_size}")
 
     def __getitem__(self, index: int) -> Dict:
@@ -408,7 +408,7 @@ class InContextLearningDataset(Dataset):
                 trimmed_context, tokenized_answer)
             # TODO: horrible hack to remove long context answers
             if len(trimmed_context) != len(tokenized_context):
-                padded_context = []
+                padded_context = [-1]
             else:
                 padded_context = make_padded_input(trimmed_context,
                                                 tokenized_answer,
@@ -428,7 +428,7 @@ class InContextLearningDataset(Dataset):
             )
             assert isinstance(trimmed_context, list)
             if len(trimmed_context) != len(tokenized_context):
-                padded_context = []
+                padded_context = [-1]
             else:
                 padded_context = make_padded_input(trimmed_context, [],
                                                 self.padding_size,

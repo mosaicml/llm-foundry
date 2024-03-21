@@ -13,7 +13,7 @@ from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 
 from llmfoundry.models.utils.uc_volume_dataset_source import UCVolumeDatasetSource #Not out in MLFlow yet
-from llmfoundry.models.utils import init_empty_weights
+from llmfoundry.utils import init_empty_weights
 
 log = logging.getLogger(__name__)
 

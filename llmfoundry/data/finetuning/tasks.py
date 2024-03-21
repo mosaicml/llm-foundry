@@ -39,7 +39,7 @@ from collections.abc import Mapping
 from functools import partial
 from pathlib import Path
 from typing import (Any, Callable, Dict, List, Literal, Optional, Sequence,
-                    Tuple, Union, cast,)
+                    Tuple, Union, cast)
 
 import datasets as hf_datasets
 import huggingface_hub as hf_hub
@@ -50,7 +50,7 @@ from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.data.finetuning.collator import (_HF_IGNORE_INDEX,
                                                  stitch_turns_decoder_only,
-                                                 stitch_turns_encoder_decoder,)
+                                                 stitch_turns_encoder_decoder)
 from llmfoundry.utils.exceptions import (ConsecutiveRepeatedChatRolesError,
                                          IncorrectMessageKeyQuantityError,
                                          InvalidContentTypeError,
@@ -63,7 +63,7 @@ from llmfoundry.utils.exceptions import (ConsecutiveRepeatedChatRolesError,
                                          NotEnoughChatDataError,
                                          TooManyKeysInExampleError,
                                          UnableToProcessPromptResponseError,
-                                         UnknownExampleTypeError,)
+                                         UnknownExampleTypeError)
 from llmfoundry.utils.logging_utils import SpecificWarningFilter
 
 log = logging.getLogger(__name__)

@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import math
 from typing import Dict, List, Optional, Type, Union
 
 import torch
@@ -111,9 +112,58 @@ class LPRMSNorm(RMSNorm):
                             self.eps).to(dtype=x.dtype)
 
 
+class TritonRMSNorm(torch.nn.Module):
+    def __init__(
+        self,
+        normalized_shape: Union[int, List[int], torch.Size],
+        eps: float = 1e-5,
+        dropout_p: float = 0.0,
+        dtype: Optional[torch.dtype] = None,
+        device: Optional[torch.device] = None,
+    ):
+        if isinstance(normalized_shape, int):
+            hidden_size = normalized_shape
+        elif isinstance(normalized_shape, list):
+            hidden_size = math.prod(normalized_shape)
+        elif isinstance(normalized_shape, torch.Size):
+            hidden_size = math.prod(normalized_shape)
+
+        factory_kwargs = {"device": device, "dtype": dtype}
+        super().__init__()
+        self.eps = eps
+        if dropout_p > 0.0:
+            self.drop = torch.nn.Dropout(dropout_p)
+        else:
+            self.drop = None
+        self.weight = torch.nn.Parameter(torch.empty(hidden_size, **factory_kwargs))
+        self.register_parameter("bias", None)
+        torch.nn.init.ones_(self.weight)
+
+        try:
+            from flash_attn.ops.triton.layer_norm import rms_norm_fn
+            self.rms_norm_fn = rms_norm_fn
+        except ImportError:
+            raise ImportError(
+                'triton_rms_norm requires Flash Attention to be installed. ' +
+                'Please `pip install llm-foundry[gpu-flash2]`.'
+            )
+
+    def forward(self, x, residual=None, prenorm=False, residual_in_fp32=False):
+        return self.rms_norm_fn(
+            x,
+            self.weight,
+            self.bias,
+            residual=residual,
+            eps=self.eps,
+            dropout_p=self.drop.p if self.drop is not None and self.training else 0.0,
+            prenorm=prenorm,
+            residual_in_fp32=residual_in_fp32,
+        )
+
 NORM_CLASS_REGISTRY: Dict[str, Type[torch.nn.Module]] = {
     'layernorm': torch.nn.LayerNorm,
     'low_precision_layernorm': LPLayerNorm,
     'rmsnorm': RMSNorm,
     'low_precision_rmsnorm': LPRMSNorm,
+    'triton_rmsnorm': TritonRMSNorm,
 }

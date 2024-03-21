@@ -90,7 +90,6 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         use_auth_token = om_model_config.get('use_auth_token', False)
         use_flash_attention_2 = om_model_config.get('use_flash_attention_2',
                                                     False)
-        requested_attention_implementation = 'flash_attention_2' if use_flash_attention_2 else 'eager'
         load_in_8bit = om_model_config.get('load_in_8bit', False)
 
         # Set up config args for the model construction and base classes
@@ -107,6 +106,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                     'We recommend `use_flash_attention_2: true` for llama models.',
                     remove_version='0.8.0'))
             use_flash_attention_2 = True
+
+        requested_attention_implementation = 'flash_attention_2' if use_flash_attention_2 else 'eager'
 
         if use_flash_attention_2 and not is_flash_v2_installed():
             raise ValueError(

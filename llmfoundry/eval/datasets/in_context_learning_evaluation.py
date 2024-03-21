@@ -407,6 +407,7 @@ class InContextLearningDataset(Dataset):
             continuation_indices = get_continuation_span(
                 trimmed_context, tokenized_answer)
             # TODO: horrible hack to remove long context answers
+            log.info(f"{len(trimmed_context)} {len(tokenized_context)}")
             if len(trimmed_context) != len(tokenized_context):
                 padded_context = [-1]
             else:

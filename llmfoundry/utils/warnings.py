@@ -9,7 +9,7 @@ __all__ = [
 ]
 
 
-class VersionedDeprecationWarning(DeprecationWarning):
+class VersionedDeprecationWarning(UserWarning):
     """A custom deprecation warning class that includes version information.
 
     Attributes:

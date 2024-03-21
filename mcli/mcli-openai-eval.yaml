@@ -44,6 +44,6 @@ parameters:
   #   wandb: {}
   # callbacks:
   #   eval_output_logging: {}
-  icl_tasks: "eval/yamls/long_context_tasks.yaml"
-  eval_gauntlet: "eval/yamls/eval_gauntlet_long_context.yaml"
+  icl_tasks: "eval/yamls/long_context_tasks_16k.yaml"
+  eval_gauntlet: "eval/yamls/eval_gauntlet_long_context_16k.yaml"
  

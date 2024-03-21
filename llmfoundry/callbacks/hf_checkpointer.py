@@ -129,8 +129,6 @@ class HuggingFaceCheckpointer(Callback):
             mlflow_logging_config = {}
         if self.mlflow_registered_model_name is not None:
             import numpy as np
-            from mlflow.models.signature import ModelSignature
-            from mlflow.types.schema import ColSpec, Schema
 
             # Both the metadata and the task are needed in order for mlflow
             # and databricks optimized model serving to work
@@ -141,7 +139,10 @@ class HuggingFaceCheckpointer(Callback):
             default_input_example = {
                 'prompt': np.array(['What is Machine Learning?'])
             }
-            if mlflow_logging_config['task'].endswith('chat'):
+            is_chat = mlflow_logging_config['task'].endswith(
+                'chat') or mlflow_logging_config['metadata'].get(
+                    'task', '').endswith('chat')
+            if is_chat:
                 default_input_example = {
                     'messages':
                         np.array([{

@@ -6,7 +6,7 @@ icl_tasks:
   icl_task_type: question_answering
   hf_loading_vars:
     name: hotpotqa
-    context_length: 30000
+    context_length: 32768
     section: end
     split: test
 -
@@ -233,7 +233,7 @@ icl_tasks:
   icl_task_type: question_answering
   hf_loading_vars:
     name: hotpotqa
-    context_length: 30000
+    context_length: 32768
     section: beginning
     split: test
 -
@@ -253,7 +253,7 @@ icl_tasks:
   icl_task_type: question_answering
   hf_loading_vars:
     name: hotpotqa
-    context_length: 30000
+    context_length: 32768
     section: middle
     split: test
 -
@@ -273,7 +273,7 @@ icl_tasks:
   icl_task_type: question_answering
   hf_loading_vars:
     name: hotpotqa
-    context_length: 30000
+    context_length: 32768
     section: end
     split: test
 -
@@ -293,7 +293,7 @@ icl_tasks:
   icl_task_type: question_answering
   hf_loading_vars:
     name: hotpotqa
-    context_length: 30000
+    context_length: 32768
     section: beginning
     split: test
 -
@@ -313,7 +313,7 @@ icl_tasks:
   icl_task_type: question_answering
   hf_loading_vars:
     name: hotpotqa
-    context_length: 30000
+    context_length: 32768
     section: middle
     split: test
 -

@@ -39,7 +39,7 @@ from collections.abc import Mapping
 from functools import partial
 from pathlib import Path
 from typing import (Any, Callable, Dict, List, Literal, Optional, Sequence,
-                    Tuple, Union, cast)
+                    Tuple, Union, cast,)
 
 import datasets as hf_datasets
 import huggingface_hub as hf_hub
@@ -50,7 +50,7 @@ from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.data.finetuning.collator import (_HF_IGNORE_INDEX,
                                                  stitch_turns_decoder_only,
-                                                 stitch_turns_encoder_decoder)
+                                                 stitch_turns_encoder_decoder,)
 from llmfoundry.utils.exceptions import (ConsecutiveRepeatedChatRolesError,
                                          IncorrectMessageKeyQuantityError,
                                          InvalidContentTypeError,
@@ -63,7 +63,7 @@ from llmfoundry.utils.exceptions import (ConsecutiveRepeatedChatRolesError,
                                          NotEnoughChatDataError,
                                          TooManyKeysInExampleError,
                                          UnableToProcessPromptResponseError,
-                                         UnknownConversationTypeError)
+                                         UnknownExampleTypeError,)
 from llmfoundry.utils.logging_utils import SpecificWarningFilter
 
 log = logging.getLogger(__name__)
@@ -111,7 +111,7 @@ def _get_example_type(example: Example) -> ExampleType:
             r in example for r in _ALLOWED_RESPONSE_KEYS):
         return 'prompt_response'
     else:
-        raise UnknownConversationTypeError(example)
+        raise UnknownExampleTypeError(example)
 
 
 def _is_empty_or_nonexistent(dirpath: str) -> bool:
@@ -362,7 +362,7 @@ def tokenize_formatted_example(
         return _tokenize_prompt_response_formatted_example(
             prompt_response_example, tokenizer)
     else:
-        raise UnknownConversationTypeError(example)
+        raise UnknownExampleTypeError(example)
 
 
 def is_valid_ift_example(max_seq_len: int, target_prompts: str,

@@ -39,11 +39,11 @@ class NotEnoughDatasetSamplesError(ValueError):
 
 
 ## Tasks exceptions
-class UnknownConversationTypeError(KeyError):
-    """Error thrown when an unknown conversation type is used in a task."""
+class UnknownExampleTypeError(KeyError):
+    """Error thrown when an unknown example type is used in a task."""
 
     def __init__(self, example: Mapping) -> None:
-        message = f'Unknown conversation type {example=}'
+        message = f'Unknown example type {example=}'
         super().__init__(message)
 
 

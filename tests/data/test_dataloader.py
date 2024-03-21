@@ -23,18 +23,18 @@ from omegaconf import OmegaConf as om
 from streaming import MDSWriter
 
 from llmfoundry import (build_finetuning_dataloader,
-                        build_text_denoising_dataloader)
+                        build_text_denoising_dataloader,)
 from llmfoundry.data import build_dataloader
 from llmfoundry.data.finetuning.collator import (_HF_IGNORE_INDEX,
-                                                 validate_target_settings)
+                                                 validate_target_settings,)
 from llmfoundry.data.finetuning.tasks import (DOWNLOADED_FT_DATASETS_DIRPATH,
                                               SUPPORTED_EXTENSIONS,
                                               dataset_constructor,
                                               is_valid_ift_example,
-                                              tokenize_formatted_example)
+                                              tokenize_formatted_example,)
 from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
                                        build_text_dataloader,
-                                       get_tokens_per_batch_func)
+                                       get_tokens_per_batch_func,)
 from llmfoundry.utils.builders import build_tokenizer
 from llmfoundry.utils.exceptions import (ConsecutiveRepeatedChatRolesError,
                                          IncorrectMessageKeyQuantityError,
@@ -45,11 +45,11 @@ from llmfoundry.utils.exceptions import (ConsecutiveRepeatedChatRolesError,
                                          InvalidRoleError,
                                          NotEnoughDatasetSamplesError,
                                          TooManyKeysInExampleError,
-                                         UnknownConversationTypeError)
+                                         UnknownExampleTypeError,)
 from scripts.data_prep.convert_dataset_hf import main as main_hf
 from scripts.data_prep.convert_finetuning_dataset import get_columns_and_format
 from tests.data_utils import (make_tiny_conversation_ft_dataset,
-                              make_tiny_ft_dataset)
+                              make_tiny_ft_dataset,)
 from tests.test_utils import generate_exclusive_test_params
 
 
@@ -821,7 +821,7 @@ def test_malformed_data(
         error_context = pytest.raises(InvalidResponseTypeError,
                                       match='Expected response to be')
     if add_unknown_conversation_type:
-        error_context = pytest.raises(UnknownConversationTypeError,
+        error_context = pytest.raises(UnknownExampleTypeError,
                                       match='Unknown conversation type')
     if add_too_many_example_keys:
         error_context = pytest.raises(TooManyKeysInExampleError,

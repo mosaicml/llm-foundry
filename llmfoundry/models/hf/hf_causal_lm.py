@@ -104,7 +104,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                     'attention_patch_type is deprecated and will automatically use flash attention 2. '
                     +
                     'We recommend `use_flash_attention_2: true` for llama models.',
-                    remove_version='0.8.0'))
+                    remove_version='0.7.0'))
             use_flash_attention_2 = True
 
         requested_attention_implementation = 'flash_attention_2' if use_flash_attention_2 else 'eager'

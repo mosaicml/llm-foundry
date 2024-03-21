@@ -113,6 +113,7 @@ class LPRMSNorm(RMSNorm):
 
 
 class TritonRMSNorm(torch.nn.Module):
+
     def __init__(
         self,
         normalized_shape: Union[int, List[int], torch.Size],
@@ -128,15 +129,16 @@ class TritonRMSNorm(torch.nn.Module):
         elif isinstance(normalized_shape, torch.Size):
             hidden_size = math.prod(normalized_shape)
 
-        factory_kwargs = {"device": device, "dtype": dtype}
+        factory_kwargs = {'device': device, 'dtype': dtype}
         super().__init__()
         self.eps = eps
         if dropout_p > 0.0:
             self.drop = torch.nn.Dropout(dropout_p)
         else:
             self.drop = None
-        self.weight = torch.nn.Parameter(torch.empty(hidden_size, **factory_kwargs))
-        self.register_parameter("bias", None)
+        self.weight = torch.nn.Parameter(
+            torch.empty(hidden_size, **factory_kwargs))
+        self.register_parameter('bias', None)
         torch.nn.init.ones_(self.weight)
 
         try:
@@ -145,20 +147,25 @@ class TritonRMSNorm(torch.nn.Module):
         except ImportError:
             raise ImportError(
                 'triton_rms_norm requires Flash Attention to be installed. ' +
-                'Please `pip install llm-foundry[gpu-flash2]`.'
-            )
+                'Please `pip install llm-foundry[gpu-flash2]`.')
 
-    def forward(self, x, residual=None, prenorm=False, residual_in_fp32=False):
+    def forward(self,
+                x: torch.Tensor,
+                residual: Optional[torch.Tensor] = None,
+                prenorm: bool = False,
+                residual_in_fp32: bool = False):
         return self.rms_norm_fn(
             x,
             self.weight,
             self.bias,
             residual=residual,
             eps=self.eps,
-            dropout_p=self.drop.p if self.drop is not None and self.training else 0.0,
+            dropout_p=self.drop.p
+            if self.drop is not None and self.training else 0.0,
             prenorm=prenorm,
             residual_in_fp32=residual_in_fp32,
         )
+
 
 NORM_CLASS_REGISTRY: Dict[str, Type[torch.nn.Module]] = {
     'layernorm': torch.nn.LayerNorm,

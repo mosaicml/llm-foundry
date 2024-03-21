@@ -5,11 +5,10 @@
 
 from composer import DataSpec
 from omegaconf import DictConfig
-from omegaconf import OmegaConf as om
 from transformers import PreTrainedTokenizerBase
 
-from llmfoundry.utils.registry_utils import builder
 from llmfoundry import registry
+from llmfoundry.utils.registry_utils import construct_from_registry
 
 
 def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
@@ -28,7 +27,7 @@ def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
         'device_batch_size': device_batch_size
     }
 
-    return builder(
+    return construct_from_registry(
         name=cfg.name,
         registry=registry.dataloaders,
         partial_function=False,

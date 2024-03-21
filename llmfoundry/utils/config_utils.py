@@ -190,7 +190,7 @@ def parse_source_dataset(cfg: DictConfig):
         remote_path = cfg.get(f'{data_split}_loader', {}).get('dataset', {}).get('remote')
         hf_path = cfg.get(f'{data_split}_loader', {}).get('dataset', {}).get('hf_name')
         source_dataset_path = cfg.get(f'source_dataset_{data_split}', {})
-        delta_table_path = source_dataset_path if source_dataset_path and source_dataset_path.split('.') >= 3 else None
+        delta_table_path = source_dataset_path if source_dataset_path and len(source_dataset_path.split('.')) >= 3 else None
         uc_volume_path = source_dataset_path if source_dataset_path and source_dataset_path.startswith('/Volumes') else None
 
         if delta_table_path and (delta_table_path not in paths):

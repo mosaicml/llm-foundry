@@ -38,7 +38,8 @@ from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_tokenizer)
 from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device,
-                                           update_batch_size_info)
+                                           update_batch_size_info,
+                                           log_dataset_uri)
 
 log = logging.getLogger(__name__)
 
@@ -467,6 +468,8 @@ def main(cfg: DictConfig) -> Trainer:
         if mosaicml_logger is not None:
             mosaicml_logger.log_metrics(metadata)
             mosaicml_logger._flush_metadata(force_flush=True)
+    print('---- NEW CFG: ----')
+    print(logged_cfg)
 
     # Profiling
     profiler: Optional[Profiler] = None
@@ -616,6 +619,7 @@ def main(cfg: DictConfig) -> Trainer:
         compile_config=compile_config,
     )
 
+    print(f'---- FOUND should_log_config: {should_log_config} ----')
     if should_log_config:
         log.info('Logging config')
         log_config(logged_cfg)

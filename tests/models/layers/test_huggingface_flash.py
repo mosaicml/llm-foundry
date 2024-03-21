@@ -10,7 +10,6 @@ import torch
 import transformers
 from composer.core.precision import get_precision_context
 from composer.utils import reproducibility
-from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from transformers.models.llama.modeling_llama import LlamaAttention
 

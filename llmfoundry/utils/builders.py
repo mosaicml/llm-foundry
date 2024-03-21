@@ -10,8 +10,6 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import torch
 from composer.core import Algorithm, Callback, Evaluator
-from composer.datasets.in_context_learning_evaluation import \
-    get_icl_task_dataloader
 from composer.loggers import LoggerDestination
 from composer.optim.scheduler import ComposerScheduler
 from composer.utils import dist
@@ -23,6 +21,7 @@ from transformers import AutoTokenizer, PreTrainedTokenizerBase
 from llmfoundry import registry
 from llmfoundry.callbacks import EvalGauntlet
 from llmfoundry.data.dataloader import build_dataloader
+from llmfoundry.eval.datasets import get_icl_task_dataloader
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
 from llmfoundry.utils.registry_utils import construct_from_registry
 

@@ -202,7 +202,7 @@ def parse_source_dataset(cfg: DictConfig):
             paths.add(uc_volume_path)
 
         elif hf_path and (hf_path not in paths):
-            backend, _, _ = parse_uri(remote_path)
+            backend, _, _ = parse_uri(hf_path)
             if backend:
                 data_paths.append((backend, hf_path))
                 paths.add(hf_path)

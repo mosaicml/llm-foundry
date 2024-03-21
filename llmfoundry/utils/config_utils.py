@@ -235,13 +235,13 @@ def log_dataset_uri(cfg: DictConfig) -> mlflow.data.meta_dataset.MetaDataset:
     # Figure out which data source to use
     data_paths = parse_source_dataset(cfg)
     dataset_source_mapping = {
-        's3': mlflow.data.filesystem_dataset_source.FileSystemDatasetSource,
-        'oci': mlflow.data.filesystem_dataset_source.FileSystemDatasetSource,
+        's3': mlflow.data.filesystem_dataset_source.HTTPDatasetSource,
+        'oci': mlflow.data.filesystem_dataset_source.HTTPDatasetSource,
         'https': mlflow.data.http_dataset_source.HTTPDatasetSource,
         'hf': mlflow.data.huggingface_dataset_source.HuggingFaceDatasetSource,
         'delta_table': mlflow.data.delta_dataset_source.DeltaDatasetSource,
-        'uc_volume': mlflow.data.filesystem_dataset_source.FileSystemDatasetSource,
-        'local': mlflow.data.filesystem_dataset_source.FileSystemDatasetSource,
+        'uc_volume': mlflow.data.uc_volume_dataset_source.UCVolumeDatasetSource,
+        'local': mlflow.data.http_dataset_source.HTTPDatasetSource,
     }
 
     data_stores = []
@@ -251,6 +251,8 @@ def log_dataset_uri(cfg: DictConfig) -> mlflow.data.meta_dataset.MetaDataset:
         if source_class:
             if dataset_type == 'delta_table':
                 source = source_class(delta_table_name=path)
+            elif dataset_type == 'delta_table':
+                source = source_class(path=path)
             else:
                 source = source_class(uri=path) if hasattr(source_class, 'uri') else source_class(path=path)
         else:

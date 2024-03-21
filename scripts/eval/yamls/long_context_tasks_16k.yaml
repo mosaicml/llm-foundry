@@ -1,5 +1,15 @@
 icl_tasks:
 -
+  label: hotpotqa_beginning_16k
+  dataset_uri: hf://mosaicml/long_context_eval
+  num_fewshot: [0]
+  icl_task_type: question_answering
+  hf_loading_vars:
+    name: hotpotqa
+    context_length: 16384
+    section: beginning
+    split: test
+-
   label: kv_pairs_beginning_2k
   dataset_uri: hf://mosaicml/long_context_eval
   num_fewshot: [0]
@@ -207,16 +217,6 @@ icl_tasks:
     section: end
     split: test
 -
-  label: hotpotqa_beginning_16k
-  dataset_uri: hf://mosaicml/long_context_eval
-  num_fewshot: [0]
-  icl_task_type: question_answering
-  hf_loading_vars:
-    name: hotpotqa
-    context_length: 16384
-    section: beginning
-    split: test
--
   label: hotpotqa_middle_16k
   dataset_uri: hf://mosaicml/long_context_eval
   num_fewshot: [0]
@@ -254,16 +254,6 @@ icl_tasks:
   hf_loading_vars:
     name: hotpotqa
     context_length: 16384
-    section: middle
-    split: test
--
-  label: kv_pairs_middle_32k
-  dataset_uri: hf://mosaicml/long_context_eval
-  num_fewshot: [0]
-  icl_task_type: question_answering
-  hf_loading_vars:
-    name: hotpotqa
-    context_length: 32768
     section: middle
     split: test
 -

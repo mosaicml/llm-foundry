@@ -189,7 +189,7 @@ def parse_source_dataset(cfg: DictConfig):
         local_path = cfg.get(f'{data_split}_loader', {}).get('dataset', {}).get('local')
         remote_path = cfg.get(f'{data_split}_loader', {}).get('dataset', {}).get('remote')
         hf_path = cfg.get(f'{data_split}_loader', {}).get('dataset', {}).get('hf_name')
-        source_dataset_path = cfg.get('metadata', {}).get(f'source_dataset_{data_split}', {})
+        source_dataset_path = cfg.get(f'source_dataset_{data_split}', {})
         delta_table_path = source_dataset_path if source_dataset_path and source_dataset_path.split('.') >= 3 else None
         uc_volume_path = source_dataset_path if source_dataset_path and source_dataset_path.startswith('/Volumes') else None
 
@@ -202,8 +202,13 @@ def parse_source_dataset(cfg: DictConfig):
             paths.add(uc_volume_path)
 
         elif hf_path and (hf_path not in paths):
-            data_paths.append(('hf', hf_path))
-            paths.add(hf_path)
+            backend, _, _ = parse_uri(remote_path)
+            if backend:
+                data_paths.append((backend, hf_path))
+                paths.add(hf_path)
+            else:
+                data_paths.append(('hf', hf_path))
+                paths.add(hf_path)
 
         elif remote_path and (remote_path not in paths):
             backend, _, _ = parse_uri(remote_path)

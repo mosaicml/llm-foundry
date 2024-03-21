@@ -5,44 +5,40 @@ import functools
 import logging
 import os
 import re
-import warnings
 from collections import OrderedDict
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import torch
-from composer import algorithms
-from composer.callbacks import (EarlyStopper, EvalOutputLogging, Generate,
-                                LRMonitor, MemoryMonitor, MemorySnapshot,
-                                OOMObserver, OptimizerMonitor, RuntimeEstimator,
-                                SpeedMonitor)
 from composer.core import Algorithm, Callback, Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
-from composer.loggers import (InMemoryLogger, LoggerDestination, MLFlowLogger,
-                              TensorboardLogger, WandBLogger)
-from composer.optim import DecoupledAdamW
-from composer.optim.scheduler import (ComposerScheduler,
-                                      ConstantWithWarmupScheduler,
-                                      CosineAnnealingWithWarmupScheduler,
-                                      LinearWithWarmupScheduler)
+from composer.loggers import LoggerDestination
+from composer.optim.scheduler import ComposerScheduler
 from composer.utils import dist
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from torch.optim.optimizer import Optimizer
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from llmfoundry.callbacks import (AsyncEval, CurriculumLearning, EvalGauntlet,
-                                  FDiffMetrics, GlobalLRScaling,
-                                  HuggingFaceCheckpointer, LayerFreezing,
-                                  MonolithicCheckpointSaver,
-                                  ScheduledGarbageCollector)
+from llmfoundry import registry
+from llmfoundry.callbacks import EvalGauntlet
 from llmfoundry.data.dataloader import build_dataloader
-from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
-                              DecoupledLionW)
-from llmfoundry.optim.scheduler import InverseSquareRootWithWarmupScheduler
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
+from llmfoundry.utils.registry_utils import construct_from_registry
 
 log = logging.getLogger(__name__)
+
+__all__ = [
+    'build_algorithm',
+    'build_callback',
+    'build_evaluators',
+    'build_icl_data_and_gauntlet',
+    'build_icl_evaluators',
+    'build_logger',
+    'build_optimizer',
+    'build_scheduler',
+    'build_tokenizer',
+]
 
 
 def build_evaluators(
@@ -159,107 +155,45 @@ def build_icl_data_and_gauntlet(
 
 def build_callback(
     name: str,
-    kwargs: Union[DictConfig, Dict[str, Any]],
+    kwargs: Dict[str, Any],
     config: Any = None,
 ) -> Callback:
-    if name == 'lr_monitor':
-        return LRMonitor()
-    elif name == 'memory_monitor':
-        return MemoryMonitor(**kwargs)
-    elif name == 'oom_observer':
-        return OOMObserver(**kwargs)
-    elif name == 'memory_snapshot':
-        return MemorySnapshot(**kwargs)
-    elif name == 'speed_monitor':
-        return SpeedMonitor(window_size=kwargs.get('window_size', 1),
-                            gpu_flops_available=kwargs.get(
-                                'gpu_flops_available', None))
-    elif name == 'fdiff':
-        return FDiffMetrics(**kwargs)
-    elif name == 'runtime_estimator':
-        return RuntimeEstimator()
-    elif name == 'optimizer_monitor':
-        return OptimizerMonitor(log_optimizer_metrics=kwargs.get(
-            'log_optimizer_metrics', True),)
-    elif name == 'generate_callback':
-        prompts = kwargs.pop('prompts')
-        interval = kwargs.pop('interval', None)
-        # Generate callback used to be batch_log_interval, so this is for backwards compatibility
-        if interval is None:
-            batch_log_interval: str = kwargs.pop('batch_log_interval', '')
-            if batch_log_interval:
-                interval = f'{batch_log_interval}ba'
-                warnings.warn(
-                    ('generate_callback.batch_log_interval is deprecated and will be removed in a future release.'
-                     f'Please use interval: {interval}'),
-                    DeprecationWarning,
-                )
-            else:
-                raise KeyError(
-                    '"interval" must be specified with generate callback')
-        return Generate(prompts=list(prompts), interval=interval, **kwargs)
-    elif name == 'global_lr_scaling':
-        return GlobalLRScaling(**kwargs)
-    elif name == 'layer_freezing':
-        return LayerFreezing(**kwargs)
-    elif name == 'mono_ckpt_saver':
-        return MonolithicCheckpointSaver(**kwargs)
-    elif name == 'scheduled_gc':
-        return ScheduledGarbageCollector(**kwargs)
-    elif name == 'early_stopper':
-        return EarlyStopper(**kwargs)
-    elif name == 'hf_checkpointer':
-        if isinstance(kwargs, DictConfig):
-            kwargs = om.to_object(kwargs)  # pyright: ignore
-        return HuggingFaceCheckpointer(**kwargs)
-    elif name == 'eval_output_logging':
-        return EvalOutputLogging(**kwargs)
-    elif name == 'async_eval':
-        if config is None:
+    """Builds a callback from the registry."""
+    registry_to_use = registry.callbacks
+    if name in registry.callbacks_with_config:
+        if 'config' in kwargs:
             raise ValueError(
-                'Parameters config is required for async eval callback')
-        return AsyncEval(**kwargs, training_params=config)
-    elif name == 'curriculum_learning':
-        if config is None:
-            raise ValueError(
-                'Parameters config is required for curriculum learning callback'
+                f'`config` is a reserved keyword for callbacks with config. Please remove it from the kwargs.'
             )
-        if 'train_loader' not in config:
-            raise ValueError(
-                'Curriculum learning callback requires a train_loader key in the run config.'
-            )
-        return CurriculumLearning(**kwargs,
-                                  current_dataset_config=config['train_loader'])
-    else:
-        raise ValueError(f'Not sure how to build callback: {name}')
+        kwargs['config'] = config
+        registry_to_use = registry.callbacks_with_config
+
+    return construct_from_registry(name=name,
+                                   registry=registry_to_use,
+                                   partial_function=True,
+                                   pre_validation_function=Callback,
+                                   post_validation_function=None,
+                                   kwargs=kwargs)
 
 
 def build_logger(name: str, kwargs: Dict[str, Any]) -> LoggerDestination:
-    if name == 'wandb':
-        return WandBLogger(**kwargs)
-    elif name == 'tensorboard':
-        return TensorboardLogger(**kwargs)
-    elif name == 'in_memory_logger':
-        return InMemoryLogger(**kwargs)
-    elif name == 'mlflow':
-        return MLFlowLogger(**kwargs)
-    elif name == 'inmemory':
-        return InMemoryLogger(**kwargs)
-    else:
-        raise ValueError(f'Not sure how to build logger: {name}')
+    """Builds a logger from the registry."""
+    return construct_from_registry(name=name,
+                                   registry=registry.loggers,
+                                   partial_function=True,
+                                   pre_validation_function=LoggerDestination,
+                                   post_validation_function=None,
+                                   kwargs=kwargs)
 
 
 def build_algorithm(name: str, kwargs: Dict[str, Any]) -> Algorithm:
-    if name == 'gradient_clipping':
-        return algorithms.GradientClipping(**kwargs)
-    elif name == 'alibi':
-        return algorithms.Alibi(**kwargs)
-    elif name == 'gated_linear_units':
-        return algorithms.GatedLinearUnits(**kwargs)
-    elif name == 'low_precision_layernorm':
-        return algorithms.LowPrecisionLayerNorm(**kwargs)
-    else:
-        raise ValueError(f'Not sure how to build algorithm: {name}')
+    """Builds an algorithm from the registry."""
+    return construct_from_registry(name=name,
+                                   registry=registry.algorithms,
+                                   partial_function=True,
+                                   pre_validation_function=Algorithm,
+                                   post_validation_function=None,
+                                   kwargs=kwargs)
 
 
 def _extract_param_groups(
@@ -366,31 +300,32 @@ def build_optimizer(model: torch.nn.Module, name: str,
                     optimizer_config: Dict[str, Any]) -> Optimizer:
 
     params = _extract_param_groups(model, optimizer_config)
+    kwargs = optimizer_config
+    if 'params' in kwargs:
+        raise ValueError(
+            'The `params` will be automatically extracted from the model and ' +
+            'optimizer config. Please remove it from the optimizer config kwargs.'
+        )
 
-    if name == 'decoupled_adamw':
-        return DecoupledAdamW(params, **optimizer_config)
-    elif name == 'decoupled_lionw':
-        return DecoupledLionW(params, **optimizer_config)
-    elif name == 'clip_lion':
-        return DecoupledClipLion(params, **optimizer_config)
-    elif name == 'adalr_lion':
-        return DecoupledAdaLRLion(params, **optimizer_config)
-    else:
-        raise ValueError(f'Not sure how to build optimizer: {name}')
+    kwargs['params'] = params
+    return construct_from_registry(name=name,
+                                   registry=registry.optimizers,
+                                   partial_function=True,
+                                   pre_validation_function=Optimizer,
+                                   post_validation_function=None,
+                                   kwargs=kwargs)
 
 
 def build_scheduler(name: str,
                     scheduler_config: Dict[str, Any]) -> ComposerScheduler:
-    if name == 'constant_with_warmup':
-        return ConstantWithWarmupScheduler(**scheduler_config)
-    elif name == 'cosine_with_warmup':
-        return CosineAnnealingWithWarmupScheduler(**scheduler_config)
-    elif name == 'inv_sqrt_with_warmup':
-        return InverseSquareRootWithWarmupScheduler(**scheduler_config)
-    elif name == 'linear_decay_with_warmup':
-        return LinearWithWarmupScheduler(**scheduler_config)
-    else:
-        raise ValueError(f'Not sure how to build scheduler: {name}')
+    return construct_from_registry(
+        name=name,
+        registry=registry.schedulers,
+        partial_function=True,
+        pre_validation_function=ComposerScheduler,
+        post_validation_function=None,
+        kwargs=scheduler_config,
+    )
 
 
 def build_tokenizer(

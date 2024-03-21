@@ -8,6 +8,12 @@ from typing import List, Optional
 
 from composer.utils import ObjectStore
 
+__all__ = [
+    'with_id',
+    'merge_shard_groups',
+    'DownloadingIterable',
+]
+
 
 def with_id(basename: str, shard_id: int) -> str:
     """Get a new basename with the given shard_id.

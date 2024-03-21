@@ -15,6 +15,14 @@ from llmfoundry.models.utils import init_empty_weights
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    'pop_config',
+    'calculate_batch_size_info',
+    'update_batch_size_info',
+    'process_init_device',
+    'log_config',
+]
+
 
 def pop_config(cfg: DictConfig,
                key: str,

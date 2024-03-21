@@ -38,6 +38,7 @@ from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
 from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device,
                                            update_batch_size_info)
+from llmfoundry.utils.registry_utils import import_file
 
 log = logging.getLogger(__name__)
 
@@ -150,6 +151,16 @@ def build_composer_model(model_cfg: DictConfig,
 
 
 def main(cfg: DictConfig) -> Trainer:
+    # Run user provided code if specified
+    code_paths = pop_config(cfg,
+                            'code_paths',
+                            must_exist=False,
+                            default_value=[],
+                            convert=True)
+    # Import any user provided code
+    for code_path in code_paths:
+        import_file(code_path)
+
     # Filter deprecation warning from torch internal usage
     warnings.filterwarnings(
         action='ignore',

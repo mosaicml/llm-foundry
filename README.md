@@ -98,8 +98,8 @@ If you have success/failure using LLM Foundry on other systems, please let us kn
 
 | Device         | Torch Version | Cuda Version | Status                       |
 | -------------- | ------------- | ------------ | ---------------------------- |
-| A100-40GB/80GB | 2.2.0         | 12.1         | :white_check_mark: Supported |
-| H100-80GB      | 2.2.0         | 12.1         | :white_check_mark: Supported |
+| A100-40GB/80GB | 2.2.1         | 12.1         | :white_check_mark: Supported |
+| H100-80GB      | 2.2.1         | 12.1         | :white_check_mark: Supported |
 
 ## MosaicML Docker Images
 We highly recommend using our prebuilt Docker images. You can find them here: https://hub.docker.com/orgs/mosaicml/repositories.
@@ -107,15 +107,15 @@ We highly recommend using our prebuilt Docker images. You can find them here: ht
 The `mosaicml/pytorch` images are pinned to specific PyTorch and CUDA versions, and are stable and rarely updated.
 
 The `mosaicml/llm-foundry` images are built with new tags upon every commit to the `main` branch.
-You can select a specific commit hash such as `mosaicml/llm-foundry:2.2.0_cu121_flash2-2431730` or take the latest one using `mosaicml/llm-foundry:2.2.0_cu121_flash2-latest`.
+You can select a specific commit hash such as `mosaicml/llm-foundry:2.2.1_cu121_flash2-36ab1ba` or take the latest one using `mosaicml/llm-foundry:2.2.1_cu121_flash2-latest`.
 
 **Please Note:** The `mosaicml/llm-foundry` images do not come with the `llm-foundry` package preinstalled, just the dependencies. You will still need to `pip install llm-foundry` either from PyPi or from source.
 
 | Docker Image                                           | Torch Version | Cuda Version      | LLM Foundry dependencies installed? |
 | ------------------------------------------------------ | ------------- | ----------------- | ----------------------------------- |
-| `mosaicml/pytorch:2.2.0_cu121-python3.11-ubuntu20.04`  | 2.2.0         | 12.1 (Infiniband) | No                                  |
-| `mosaicml/llm-foundry:2.2.0_cu121_flash2-latest`       | 2.2.0         | 12.1 (Infiniband) | Yes                                 |
-| `mosaicml/llm-foundry:2.2.0_cu121_flash2_aws-latest`   | 2.2.0         | 12.1 (EFA)        | Yes                                 |
+| `mosaicml/pytorch:2.2.1_cu121-python3.11-ubuntu20.04`  | 2.2.1         | 12.1 (Infiniband) | No                                  |
+| `mosaicml/llm-foundry:2.2.1_cu121_flash2-latest`       | 2.2.1         | 12.1 (Infiniband) | Yes                                 |
+| `mosaicml/llm-foundry:2.2.1_cu121_flash2_aws-latest`   | 2.2.1         | 12.1 (EFA)        | Yes                                 |
 
 
 # Installation
@@ -132,9 +132,7 @@ We *strongly* recommend working with LLM Foundry inside a Docker container (see 
 ```bash
 git clone https://github.com/mosaicml/llm-foundry.git
 cd llm-foundry
-pip install -e ".[gpu-flash2]"  # or `pip install -e .` if no NVIDIA GPU.
-# Note: Currently, `pip install -e ".[gpu-flash2]"` installs Flash Attention v2, and `pip install -e ".[gpu]"` installs Flash Attention v1.
-#       However, once the support for Flash Attention v1 is removed, both of these commands will install Flash Attention v2.
+pip install -e ".[gpu]"  # or `pip install -e .` if no NVIDIA GPU.
 ```
 
 ### Without Docker (not recommended)
@@ -152,9 +150,7 @@ source llmfoundry-venv/bin/activate
 
 pip install cmake packaging torch  # setup.py requires these be installed
 
-pip install -e ".[gpu-flash2]"  # or `pip install -e .` if no NVIDIA GPU.
-# Note: Currently, `pip install -e ".[gpu-flash2]"` installs Flash Attention v2, and `pip install -e ".[gpu]"` installs Flash Attention v1.
-#       However, once the support for Flash Attention v1 is removed, both of these commands will install Flash Attention v2.
+pip install -e ".[gpu]"  # or `pip install -e .` if no NVIDIA GPU.
 ```
 
 ### TransformerEngine and amp_fp8 support
@@ -258,6 +254,10 @@ export HUGGING_FACE_HUB_TOKEN=your-auth-token
 ```
 
 and uncomment the line containing `--hf_repo_for_upload ...` in the above call to `inference/convert_composer_to_hf.py`.
+
+# :construction: UNDER CONSTRUCTION: Registry
+
+We are adopting an extensible registry for LLM Foundry to allow various extensions of the library without forking it. See [./REGISTRY.md] for more information as it develops.
 
 # Learn more about LLM Foundry!
 

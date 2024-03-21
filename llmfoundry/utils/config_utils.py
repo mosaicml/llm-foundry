@@ -5,9 +5,10 @@ import contextlib
 import logging
 import math
 import warnings
+import mlflow
 from typing import Any, Dict, Literal, Mapping, Optional, Tuple, Union
 
-from composer.utils import dist
+from composer.utils import dist, parse_uri
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 
@@ -164,3 +165,93 @@ def log_config(cfg: DictConfig) -> None:
             raise e
         if mlflow.active_run():
             mlflow.log_params(params=om.to_container(cfg, resolve=True))
+            data_stores = log_dataset_uri(cfg)
+            for ds in data_stores:
+                mlflow.log_input(ds)
+
+def parse_source_dataset(cfg: DictConfig):
+    """
+    This function parses a run config for dataset information related to training and evaluation stages. 
+    It supports extracting paths from different sources including local filesystem, remote locations, Hugging Face datasets, 
+    Delta tables, and UC volume paths. The function aggregates unique dataset identifiers and their types from the configuration.
+
+    Args:
+        cfg (DictConfig): run configuration
+
+    Returns:
+        List[Tuple[str, str]]: A set of tuples where each tuple represents a dataset type ('local', 'hf', 'delta_table', 'uc_volume', 
+        remote backend) and the corresponding dataset path or identifier. 
+    """
+    paths = set()
+    data_paths = []
+
+    for data_split in ['train', 'eval']:
+        local_path = cfg.get('parameters', {}).get(f'{data_split}_loader', {}).get('dataset', {}).get('local')
+        remote_path = cfg.get('parameters', {}).get(f'{data_split}_loader', {}).get('dataset', {}).get('remote')
+        hf_path = cfg.get('parameters', {}).get(f'{data_split}_loader', {}).get('dataset', {}).get('hf_name')
+        source_dataset_path = cfg.get('parameters', {}).get('metadata', {}).get(f'source_dataset_{data_split}', {})
+        delta_table_path = source_dataset_path if source_dataset_path.split('.') >= 3 else: None
+        uc_volume_path = source_dataset_path if source_dataset_path.startswith('/Volumes') else: None
+
+        if hf_path and (hf_path not in paths):
+            data_paths.append(('hf', hf_path))
+            paths.add(hf_path)
+
+        elif delta_table_path and (delta_table_path not in paths):
+            data_paths.append(('delta_table', delta_table_path))
+            paths.add(delta_table_path)
+
+         elif uc_volume_path and (uc_volume_path not in paths):
+            data_paths.append(('uc_volume', uc_volume_path))
+            paths.add(uc_volume_path)
+
+        elif remote_path and (remote_path not in paths):
+            backend, _, _ = parse_uri(remote_path)
+            data_paths.append((backend, remote_path))
+            paths.add(remote_path)
+
+        elif local_path and (local_path not in paths):
+            data_paths.append(('local', local_path))
+            paths.add(local_path)
+
+    return data_paths
+
+def log_dataset_uri(cfg: DictConfig) -> mlflow.data.meta_dataset.MetaDataset:
+    """
+    Extracts dataset information from the provided configuration and translates it into 
+    MLFlow-compatible dataset source instances.
+
+    Args:
+        cfg (DictConfig): The run configuration object containing dataset definitions.
+
+    Returns:
+        List[mlflow.data.meta_dataset.MetaDataset]: A list of MetaDataset instances, 
+    """
+    # Figure out which data source to use
+    data_paths = parse_source_dataset(cfg)
+
+    dataset_source_mapping = {
+        's3': mlflow.data.filesystem_dataset_source.FileSystemDatasetSource,
+        'oci': mlflow.data.filesystem_dataset_source.FileSystemDatasetSource,
+        'https': mlflow.data.http_dataset_source.HTTPDatasetSource,
+        'hf': mlflow.data.huggingface_dataset_source.HuggingFaceDatasetSource,
+        'delta_table': mlflow.data.delta_dataset_source.DeltaDatasetSource,
+        'uc_volume': mlflow.data.filesystem_dataset_source.FileSystemDatasetSource,
+        'local': mlflow.data.filesystem_dataset_source.FileSystemDatasetSource,
+    }
+
+    data_stores = []
+    for dataset_type, path in data_paths:
+        source_class = dataset_source_mapping.get(dataset_type)
+        
+        if source_class:
+            if dataset_type == 'delta_table':
+                source = source_class(delta_table_name=path)
+            else:
+                source = source_class(uri=path) if hasattr(source_class, 'uri') else source_class(path=path)
+        else:
+            log.info(f'{dataset_type} unknown, defaulting to filesystem dataset source')
+            source = mlflow.data.filesystem_dataset_source.FileSystemDatasetSource(uri=path)
+
+        data_stores.append(mlflow.data.meta_dataset.MetaDataset(source))
+    return data_stores

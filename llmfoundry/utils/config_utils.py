@@ -149,6 +149,7 @@ def log_config(cfg: DictConfig) -> None:
     This function can be called multiple times to update the wandb and MLflow
     config with different variables.
     """
+    print('--- Logging Config ---')
     print(om.to_yaml(cfg))
     if 'wandb' in cfg.get('loggers', {}):
         try:
@@ -159,6 +160,7 @@ def log_config(cfg: DictConfig) -> None:
             wandb.config.update(om.to_container(cfg, resolve=True))
 
     if 'mlflow' in cfg.get('loggers', {}):
+        print('--- MLFlow Detected ---')
         try:
             import mlflow
         except ImportError as e:
@@ -229,6 +231,7 @@ def log_dataset_uri(cfg: DictConfig) -> mlflow.data.meta_dataset.MetaDataset:
     """
     # Figure out which data source to use
     data_paths = parse_source_dataset(cfg)
+    print(f'--- Data Path Found: {data_paths} ---')
 
     dataset_source_mapping = {
         's3': mlflow.data.filesystem_dataset_source.FileSystemDatasetSource,

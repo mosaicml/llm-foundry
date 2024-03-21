@@ -149,7 +149,6 @@ def log_config(cfg: DictConfig) -> None:
     This function can be called multiple times to update the wandb and MLflow
     config with different variables.
     """
-    print('--- Logging Config ---')
     print(om.to_yaml(cfg))
     if 'wandb' in cfg.get('loggers', {}):
         try:
@@ -160,7 +159,6 @@ def log_config(cfg: DictConfig) -> None:
             wandb.config.update(om.to_container(cfg, resolve=True))
 
     if 'mlflow' in cfg.get('loggers', {}):
-        print('--- MLFlow Detected ---')
         try:
             import mlflow
         except ImportError as e:
@@ -188,10 +186,10 @@ def parse_source_dataset(cfg: DictConfig):
     data_paths = []
 
     for data_split in ['train', 'eval']:
-        local_path = cfg.get('parameters', {}).get(f'{data_split}_loader', {}).get('dataset', {}).get('local')
-        remote_path = cfg.get('parameters', {}).get(f'{data_split}_loader', {}).get('dataset', {}).get('remote')
-        hf_path = cfg.get('parameters', {}).get(f'{data_split}_loader', {}).get('dataset', {}).get('hf_name')
-        source_dataset_path = cfg.get('parameters', {}).get('metadata', {}).get(f'source_dataset_{data_split}', {})
+        local_path = cfg.get(f'{data_split}_loader', {}).get('dataset', {}).get('local')
+        remote_path = cfg.get(f'{data_split}_loader', {}).get('dataset', {}).get('remote')
+        hf_path = cfg.get(f'{data_split}_loader', {}).get('dataset', {}).get('hf_name')
+        source_dataset_path = cfg.get('metadata', {}).get(f'source_dataset_{data_split}', {})
         delta_table_path = source_dataset_path if source_dataset_path and source_dataset_path.split('.') >= 3 else None
         uc_volume_path = source_dataset_path if source_dataset_path and source_dataset_path.startswith('/Volumes') else None
 
@@ -231,8 +229,6 @@ def log_dataset_uri(cfg: DictConfig) -> mlflow.data.meta_dataset.MetaDataset:
     """
     # Figure out which data source to use
     data_paths = parse_source_dataset(cfg)
-    print(f'--- Data Path Found: {data_paths} ---')
-
     dataset_source_mapping = {
         's3': mlflow.data.filesystem_dataset_source.FileSystemDatasetSource,
         'oci': mlflow.data.filesystem_dataset_source.FileSystemDatasetSource,

@@ -460,6 +460,7 @@ def main(cfg: DictConfig) -> Trainer:
             loggers.append(mosaicml_logger)
 
     if metadata is not None:
+        print(f'---- FOUND METADATA: {metadata} ----')
         # Flatten the metadata for logging
         logged_cfg.pop('metadata', None)
         logged_cfg.update(metadata, merge=True)

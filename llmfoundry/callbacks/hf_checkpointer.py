@@ -138,23 +138,6 @@ class HuggingFaceCheckpointer(Callback):
             mlflow_logging_config['metadata'] = passed_metadata
             mlflow_logging_config.setdefault('task', 'llm/v1/completions')
 
-            input_key = 'messages' if mlflow_logging_config['task'].endswith(
-                'chat') else 'prompt'
-
-            # Define a default input/output that is good for standard text generation LMs
-            input_schema = Schema([
-                ColSpec('string', input_key),
-                ColSpec('double', 'temperature', optional=True),
-                ColSpec('integer', 'max_tokens', optional=True),
-                ColSpec('string', 'stop', optional=True),
-                ColSpec('integer', 'n', optional=True)
-            ])
-
-            output_schema = Schema([ColSpec('string', 'predictions')])
-
-            default_signature = ModelSignature(inputs=input_schema,
-                                               outputs=output_schema)
-
             default_input_example = {
                 'prompt': np.array(['What is Machine Learning?'])
             }
@@ -168,7 +151,6 @@ class HuggingFaceCheckpointer(Callback):
                 }
             mlflow_logging_config.setdefault('input_example',
                                              default_input_example)
-            mlflow_logging_config.setdefault('signature', default_signature)
 
         self.mlflow_logging_config = mlflow_logging_config
 

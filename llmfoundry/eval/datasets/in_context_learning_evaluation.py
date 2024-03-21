@@ -188,9 +188,9 @@ class InContextLearningDataset(Dataset):
             },
             # load_from_cache_file=False,
         )
-        start_len = len(self.dataset)
-        self.dataset = self.dataset.filter(lambda example: example[self.context_key] == [-1])
-        log.info(f"Removed {start_len - len(self.dataset)} examples for being longer than {self.padding_size}")
+        # start_len = len(self.dataset)
+        # self.dataset = self.dataset.filter(lambda example: example[self.context_key] == [-1])
+        # log.info(f"Removed {start_len - len(self.dataset)} examples for being longer than {self.padding_size}")
 
     def __getitem__(self, index: int) -> Dict:
         return self.dataset[index]

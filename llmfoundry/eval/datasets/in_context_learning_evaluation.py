@@ -11,6 +11,7 @@ import copy
 import json
 import os
 import random
+import logging
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from composer.core import DataSpec
@@ -43,6 +44,8 @@ __all__ = [
     'InContextLearningRAGGenerationTaskDataset',
     'get_icl_task_dataloader',
 ]
+
+log = logging.getLogger(__name__)
 
 
 class InContextLearningDataset(Dataset):
@@ -185,6 +188,9 @@ class InContextLearningDataset(Dataset):
             },
             # load_from_cache_file=False,
         )
+        start_len = len(self.dataset)
+        self.dataset = self.dataset.filter(lambda example: len(example[self.context_key]) > 0)
+        log.info(f"Removed {start_len - len(self.dataset)} examples for being longer than {self.padding_size}")
 
     def __getitem__(self, index: int) -> Dict:
         return self.dataset[index]
@@ -396,14 +402,19 @@ class InContextLearningDataset(Dataset):
             assert isinstance(tokenized_answer, list)
             trimmed_context = trim_context(tokenized_context, tokenized_answer,
                                            self.padding_size)
+
             assert isinstance(trimmed_context, list)
             continuation_indices = get_continuation_span(
                 trimmed_context, tokenized_answer)
-            padded_context = make_padded_input(trimmed_context,
-                                               tokenized_answer,
-                                               self.padding_size,
-                                               self.pad_tok_id,
-                                               self.padding_side)
+            # TODO: horrible hack to remove long context answers
+            if len(trimmed_context) != len(tokenized_context):
+                padded_context = []
+            else:
+                padded_context = make_padded_input(trimmed_context,
+                                                tokenized_answer,
+                                                self.padding_size,
+                                                self.pad_tok_id,
+                                                self.padding_side)
 
             tokenized_example[self.context_key] = padded_context
             tokenized_example[self.answer_key] = tokenized_answer
@@ -416,10 +427,13 @@ class InContextLearningDataset(Dataset):
                 self.padding_size,
             )
             assert isinstance(trimmed_context, list)
-            padded_context = make_padded_input(trimmed_context, [],
-                                               self.padding_size,
-                                               self.pad_tok_id,
-                                               self.padding_side)
+            if len(trimmed_context) != len(tokenized_context):
+                padded_context = []
+            else:
+                padded_context = make_padded_input(trimmed_context, [],
+                                                self.padding_size,
+                                                self.pad_tok_id,
+                                                self.padding_side)
 
             tokenized_example[self.context_key] = padded_context
             tokenized_example[self.answer_key] = self.get_answer_from_example(

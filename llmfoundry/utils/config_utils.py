@@ -235,8 +235,8 @@ def log_dataset_uri(cfg: DictConfig) -> mlflow.data.meta_dataset.MetaDataset:
     # Figure out which data source to use
     data_paths = parse_source_dataset(cfg)
     dataset_source_mapping = {
-        's3': mlflow.data.filesystem_dataset_source.HTTPDatasetSource,
-        'oci': mlflow.data.filesystem_dataset_source.HTTPDatasetSource,
+        's3': mlflow.data.http_dataset_source.HTTPDatasetSource,
+        'oci': mlflow.data.http_dataset_source.HTTPDatasetSource,
         'https': mlflow.data.http_dataset_source.HTTPDatasetSource,
         'hf': mlflow.data.huggingface_dataset_source.HuggingFaceDatasetSource,
         'delta_table': mlflow.data.delta_dataset_source.DeltaDatasetSource,

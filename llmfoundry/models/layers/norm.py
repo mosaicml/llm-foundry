@@ -124,6 +124,14 @@ class TritonRMSNorm(torch.nn.Module):
         super().__init__()
         self.eps = eps
 
+        try:
+            from flash_attn.ops.triton.layer_norm import rms_norm_fn
+        except ImportError:
+            raise ImportError(
+                'triton_rms_norm requires Flash Attention to be installed. ' +
+                'Please pip install flash-attn.')
+
+        self.rms_norm_fn = rms_norm_fn
         # Flash Attention expect a flat tensor
         if isinstance(normalized_shape, int):
             hidden_size = normalized_shape
@@ -135,19 +143,11 @@ class TritonRMSNorm(torch.nn.Module):
         self.weight = torch.nn.Parameter(
             torch.ones(hidden_size, device=device, dtype=dtype))
 
-        try:
-            from flash_attn.ops.triton.layer_norm import rms_norm_fn
-            self.rms_norm_fn = rms_norm_fn
-        except ImportError:
-            raise ImportError(
-                'triton_rms_norm requires Flash Attention to be installed. ' +
-                'Please pip install flash-attn.')
-
     def forward(self, x: torch.Tensor):
         return self.rms_norm_fn(
             x,
             self.weight,
-            None, # no bias
+            None,  # no bias
             residual=None,
             eps=self.eps,
             dropout_p=0.0,  # no dropout by default

@@ -600,7 +600,9 @@ def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool,
                       expansion_ratio: Union[int, float], ffn_hidden_size: int,
                       ffn_act_fn: dict):
     if norm_type == 'triton_rms_norm' and not is_flash_v2_installed():
-        pytest.skip(f'norm_type=triton_rms_norm requires flash Attention to be installed')
+        pytest.skip(
+            f'norm_type=triton_rms_norm requires flash Attention to be installed'
+        )
 
     # Test that the config constructs the model as expected.
     hf_config = MPTConfig(

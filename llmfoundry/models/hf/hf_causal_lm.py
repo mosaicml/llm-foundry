@@ -65,6 +65,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             cfg.load_in_8bit (bool, optional): Whether to load the model in 8-bit mode. Default: ``False``.
             cfg.init_device (str, optional): Which device to initialize the model on. Default: ``'cpu'``.
             cfg.attention_patch_type (str, optional): Which attention patch to use for llama models. Default: ``None``.
+                Deprecated. Will automatically use flash attention 2.
             cfg.use_flash_attention_2 (bool, optional): Whether to use flash-attention 2. Default: ``False``.
         tokenizer (PreTrainedTokenizer): The tokenizer that the model will use.
     """
@@ -89,12 +90,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         use_auth_token = om_model_config.get('use_auth_token', False)
         use_flash_attention_2 = om_model_config.get('use_flash_attention_2',
                                                     False)
-        requested_attention_implementation = 'flash_attention_2' if use_flash_attention_2 else 'eager'
         load_in_8bit = om_model_config.get('load_in_8bit', False)
-        if use_flash_attention_2 and not is_flash_v2_installed():
-            raise ValueError(
-                'use_flash_attention_2 is set to True, but flash-attention 2 is not installed. '
-                + 'Please `pip install llm-foundry[gpu-flash2]`.')
 
         # Set up config args for the model construction and base classes
         z_loss = om_model_config.get('z_loss', 0.0)
@@ -102,6 +98,22 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         # Resolve "mixed" init device to either "cpu" or "meta"
         resolved_init_device = hf_get_init_device(init_device)
         attention_patch_type = om_model_config.get('attention_patch_type', None)
+        if attention_patch_type is not None:
+            warnings.warn(
+                VersionedDeprecationWarning(
+                    'attention_patch_type is deprecated and will automatically use flash attention 2. '
+                    +
+                    'We recommend `use_flash_attention_2: true` for llama models.',
+                    remove_version='0.7.0'))
+            use_flash_attention_2 = True
+
+        requested_attention_implementation = 'flash_attention_2' if use_flash_attention_2 else 'eager'
+
+        if use_flash_attention_2 and not is_flash_v2_installed():
+            raise ValueError(
+                'use_flash_attention_2 is set to True, but flash-attention 2 is not installed. '
+                + 'Please `pip install llm-foundry[gpu-flash2]`.')
+
         peft_config_dict = pop_config(om_model_config,
                                       'peft_config',
                                       must_exist=False,
@@ -246,9 +258,6 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         if dist.get_local_rank() == 0:
             os.remove(signal_file_path)
 
-        if attention_patch_type is not None:
-            self._patch_attention_type(model, attention_patch_type)
-
         # Hugging Face's weight tying does not succeed if the model is inited on meta device
         # so we manually apply the weight tying here
         if model.config.tie_word_embeddings and resolved_init_device == 'meta':
@@ -277,29 +286,6 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             init_device=init_device,
             peft_config=peft_config,
         )
-
-    @staticmethod
-    def _patch_attention_type(model: PreTrainedModel,
-                              attention_patch_type: str) -> None:
-        if model.config.model_type != 'llama':
-            raise ValueError(
-                f'attention_patch_type is only supported for llama models, but got {model.config.model_type}'
-            )
-
-        warnings.warn(
-            VersionedDeprecationWarning(
-                'Attention patches for Llama models are deprecated. We recommend `use_flash_attention_2: True` for Llama models.',
-                remove_version='0.7.0'))
-
-        log.debug(
-            f'Patching llama attention with {attention_patch_type} attention')
-        from transformers.models.llama.modeling_llama import LlamaAttention
-
-        from llmfoundry.models.layers.llama_attention_monkeypatch import \
-            get_llama_attention_patch_fn
-        LlamaAttention.forward = get_llama_attention_patch_fn(
-            attention_patch_type)
-        model.config.use_cache = False
 
     @staticmethod
     def _get_peft_config(peft_config_dict: Dict[str, Any]) -> 'PeftConfig':

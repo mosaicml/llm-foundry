@@ -372,15 +372,6 @@ model:
 ```
 HuggingFace models currently only support Flash Attention V2.
 
-For Llama specifically, we have another option if you would like to use the Triton implementation of Flash Attention. You can specify this in your YAML like so:
-```yaml
-model:
-    name: hf_causal_lm
-    pretrained_model_name_or_path: meta-llama/Llama-2-7b-hf
-    attention_patch_type: triton
-    ...
-```
-
 # FAQ: How many GPUs do I need to train a LLM? <a name="howmanygpus"></a>
 This is a complicated question in general, but if we assume that you are using FSDP with `FULL_SHARD`,
 activation checkpointing, and `DecoupledLionW`, then a good rule of thumb is:

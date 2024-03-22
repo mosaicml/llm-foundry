@@ -24,12 +24,12 @@ from llmfoundry.utils import find_mosaicml_logger, log_eval_analytics
 
 install()
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
-from llmfoundry.registry import import_file
 from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_evaluators, build_logger,
                                        build_tokenizer)
 from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device)
+from llmfoundry.utils.registry_utils import import_file
 
 log = logging.getLogger(__name__)
 
@@ -184,7 +184,6 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
                             must_exist=False,
                             default_value=[],
                             convert=True)
-    # Import any user provided code
     for code_path in code_paths:
         import_file(code_path)
 

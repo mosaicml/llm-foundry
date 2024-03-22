@@ -22,7 +22,7 @@ models:
     max_seq_len: ${max_seq_len}
     vocab_size: 50368
     attn_config:
-      attn_impl: triton
+      attn_impl: flash
 
   load_path:  # Add your non-optional Composer checkpoint path here! (must not be empty)
 

@@ -45,8 +45,8 @@ class VLLMChatAPIEvalWrapper(VLLMEvalInterface):
 
 class VLLMCausalLMEvalWrapper(VLLMEvalInterface):
 
-    def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer,  api_key: Optional[str] = None) -> None:
-        super().__init__(model_cfg, tokenizer, api_key)
+    def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer) -> None:
+        super().__init__(model_cfg, tokenizer)
         self.model_cfg = model_cfg
 
     def eval_forward(self, batch: Batch, outputs: Optional[Any] = None):

@@ -21,7 +21,8 @@ from llmfoundry.utils.huggingface_hub_utils import \
 from llmfoundry.utils.logging_utils import SpecificWarningFilter
 from llmfoundry.utils.model_download_utils import (
     download_from_hf_hub, download_from_http_fileserver, download_from_oras)
-from llmfoundry.utils.mosaicmllogger_utils import (find_mosaicml_logger,
+from llmfoundry.utils.mosaicmllogger_utils import (create_mosaicml_logger,
+                                                   find_mosaicml_logger,
                                                    log_eval_analytics,
                                                    log_train_analytics)
 from llmfoundry.utils.prompt_files import load_prompts, load_prompts_from_file
@@ -65,4 +66,5 @@ __all__ = [
     'find_mosaicml_logger',
     'log_eval_analytics',
     'log_train_analytics',
+    'create_mosaicml_logger',
 ]

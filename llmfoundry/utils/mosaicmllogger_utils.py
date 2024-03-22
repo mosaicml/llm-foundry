@@ -1,11 +1,25 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 import json
+import os
 from typing import Any, Dict, List, Optional, Union
 
 from composer.loggers import MosaicMLLogger
 from composer.loggers.logger_destination import LoggerDestination
+from composer.loggers.mosaicml_logger import (MOSAICML_ACCESS_TOKEN_ENV_VAR,
+                                              MOSAICML_PLATFORM_ENV_VAR)
 from omegaconf import DictConfig, ListConfig
+
+
+def create_mosaicml_logger(
+        loggers: List[LoggerDestination]) -> Union[MosaicMLLogger, None]:
+    """Creates a MosaicMLLogger and adds it to the list if the run was sent from
+    Mosaic platform."""
+    if os.environ.get(MOSAICML_PLATFORM_ENV_VAR, 'false').lower(
+    ) == 'true' and os.environ.get(MOSAICML_ACCESS_TOKEN_ENV_VAR):
+        # Adds mosaicml logger to composer if the run was sent from Mosaic platform,
+        # access token is set, and mosaic logger wasn't previously added
+        return MosaicMLLogger()
 
 
 def find_mosaicml_logger(

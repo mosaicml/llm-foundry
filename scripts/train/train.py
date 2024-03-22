@@ -12,9 +12,6 @@ from typing import Any, Dict, List, Optional, Union
 import torch
 from composer import Trainer
 from composer.core.callback import Callback
-from composer.loggers import MosaicMLLogger
-from composer.loggers.mosaicml_logger import (MOSAICML_ACCESS_TOKEN_ENV_VAR,
-                                              MOSAICML_PLATFORM_ENV_VAR)
 from composer.metrics.nlp import InContextLearningMetric
 from composer.profiler import (JSONTraceHandler, Profiler, TraceHandler,
                                cyclic_schedule)
@@ -23,7 +20,8 @@ from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from rich.traceback import install
 
-from llmfoundry.utils import find_mosaicml_logger, log_train_analytics
+from llmfoundry.utils import (create_mosaicml_logger, find_mosaicml_logger,
+                              log_train_analytics)
 
 install()
 
@@ -453,11 +451,8 @@ def main(cfg: DictConfig) -> Trainer:
 
     mosaicml_logger = find_mosaicml_logger(loggers)
     if mosaicml_logger is None:
-        if os.environ.get(MOSAICML_PLATFORM_ENV_VAR, 'false').lower(
-        ) == 'true' and os.environ.get(MOSAICML_ACCESS_TOKEN_ENV_VAR):
-            # Adds mosaicml logger to composer if the run was sent from Mosaic platform, access token is set, and mosaic logger wasn't previously added
-            mosaicml_logger = MosaicMLLogger()
-            loggers.append(mosaicml_logger)
+        mosaicml_logger = create_mosaicml_logger()
+        loggers.append(mosaicml_logger)
 
     if metadata is not None:
         # Flatten the metadata for logging

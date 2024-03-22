@@ -116,6 +116,9 @@ class VLLMCausalLMEvalWrapper(VLLMEvalInterface):
                     torch.full((seqlen - cont_idxs[-1] - 1,), padding_tok),
                     num_classes=len(self.tokenizer))
                 
+                output_logits = output_logits.cpu()
+                result_logits = result_logits.cpu()
+                padding = padding.cpu()
                 output_logits = torch.cat([output_logits, result_logits, padding])
                 output_logits_batch.append(output_logits)
 

@@ -288,7 +288,7 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     composite_scores = None
     trainers = []
 
-    loggers: LoggerDestination = [
+    loggers: List[LoggerDestination] = [
         build_logger(name, logger_cfg)
         for name, logger_cfg in loggers_cfg.items()
     ]

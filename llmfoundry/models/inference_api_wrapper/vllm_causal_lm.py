@@ -101,7 +101,7 @@ class VLLMCausalLMEvalWrapper(VLLMEvalInterface):
                                         results):
                 
                 seqlen = tokens.shape[0]
-                vocab_size = result.prompt_all_logprobs[0].shape[1]
+                vocab_size = result.prompt_all_logprobs[0].shape[0]
 
                 output_logits = torch.nn.functional.one_hot(
                     torch.tensor(tokens[1:cont_idxs[0]]),

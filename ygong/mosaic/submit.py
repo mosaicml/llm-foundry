@@ -167,23 +167,25 @@ def submit(model, config: any, scalingConfig: ScalingConfig, sync: bool = False,
     run = create_run(runConfig)
     run_name = run.name
     # Create a button
-    button = widgets.Button(description="cancel the run")
-    def on_button_clicked(b):
-        clear_output(wait=False)
-        run = get_run(run_name)
-        run.stop()
-        logger.debug(f"run {run_name} is cancelled")
-        run = _wait_for_run_status(run, RunStatus.TERMINATING)
-        summary = _get_run_summary(run, mlflow_experiment_name)
-        display(HTML(summary.to_html(escape=False)))
-    button.on_click(on_button_clicked)
-    _display_run_summary(_get_run_summary(run, mlflow_experiment_name), button)
+    # button = widgets.Button(description="cancel the run")
+    # def on_button_clicked(b):
+    #     clear_output(wait=False)
+    #     run = get_run(run_name)
+    #     run.stop()
+    #     logger.debug(f"run {run_name} is cancelled")
+    #     run = _wait_for_run_status(run, RunStatus.TERMINATING)
+    #     summary = _get_run_summary(run, mlflow_experiment_name)
+    #     display(HTML(summary.to_html(escape=False)))
+    # button.on_click(on_button_clicked)
+    # _display_run_summary(_get_run_summary(run, mlflow_experiment_name), button)
+    _display_run_summary(_get_run_summary(run, mlflow_experiment_name), None)
 
     # setting mlflow_experiment_name to be None, since its very likely mlflow run isn't ready yet
     # when the run just starts running
     run = _wait_for_run_status(run, RunStatus.RUNNING)
-    _display_run_summary(_get_run_summary(run, None), button)
-    
+    # _display_run_summary(_get_run_summary(run, None), button)
+    _display_run_summary(_get_run_summary(run, mlflow_experiment_name), None)
+
 
     try_count = 0
     while try_count < 10:
@@ -195,7 +197,8 @@ def submit(model, config: any, scalingConfig: ScalingConfig, sync: bool = False,
                 logger.debug(f"run {run_name} is terminated. Status {run.status}")
                 break
             summary = _get_run_summary(run, mlflow_experiment_name)
-            _display_run_summary(summary, button)
+            # _display_run_summary(summary, button)
+            _display_run_summary(summary, None)
             break
         except ValueError:
              

@@ -30,7 +30,7 @@ image: mosaicml/llm-foundry:2.2.1_cu121_flash2-latest
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:
   seed: 1
-  max_seq_len: 30000
+  max_seq_len: 28000
   device_eval_batch_size: 1
   models:
   - model_name: mistralai/Mistral-large

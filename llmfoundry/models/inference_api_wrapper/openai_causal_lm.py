@@ -27,7 +27,7 @@ __all__ = [
     'OpenAIChatAPIEvalWrapper',
 ]
 
-MAX_RETRIES = 10
+MAX_RETRIES = 100
 
 
 class OpenAIEvalInterface(InferenceAPIEvalWrapper):

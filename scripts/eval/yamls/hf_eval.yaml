@@ -1,47 +1,21 @@
-max_seq_len: 1024
 seed: 1
-precision: fp32
-
-# If you are using one model, put it here:
-model_name_or_path: EleutherAI/gpt-neo-125m
-# otherwise, write a block for each model you want to test in the `models` section
-
+max_seq_len: 16000
+device_eval_batch_size: 1
 models:
--
-  model_name: ${model_name_or_path}
-  model:
-    name: hf_causal_lm
-    pretrained_model_name_or_path: ${model_name_or_path}
-    init_device: mixed
-    pretrained: true
-  tokenizer:
-    name: ${model_name_or_path}
-    kwargs:
-      model_max_length: ${max_seq_len}
-# # if you are evaluating more than one model, list them all as YAML blocks without variable interpolation
-# -
-#   model_name: mosaicml/mpt-7b
-#   model:
-#     name: hf_causal_lm
-#     pretrained_model_name_or_path: mosaicml/mpt-7b
-#     init_device: cpu
-#     pretrained: true
-#     config_overrides:
-#       max_seq_len: ${max_seq_len}
-#   tokenizer:
-#     name: mosaicml/mpt-7b
-#     kwargs:
-#       model_max_length: ${max_seq_len}
+  -
+    model_name: openai/gpt-3.5-turbo
+    model:
+      name: openai_chat
+      version: gpt-3.5-turbo
+    tokenizer:
+      name: tiktoken
+      kwargs:
+        model_name: gpt-3.5-turbo
 
+# loggers:
+#   wandb: {}
+# callbacks:
+#   eval_output_logging: {}
 
-device_eval_batch_size: 4
-
-# FSDP config for model sharding
-fsdp_config:
-  sharding_strategy: FULL_SHARD
-  mixed_precision: FULL
-  forward_prefetch: True
-  limit_all_gathers: True
-
-icl_tasks: "eval/yamls/tasks_v0.3.yaml"
-eval_gauntlet: "eval/yamls/eval_gauntlet_v0.3.yaml"
+icl_tasks: "eval/yamls/long_context_tasks.yaml"
+eval_gauntlet: "eval/yamls/eval_gauntlet_long_context.yaml"

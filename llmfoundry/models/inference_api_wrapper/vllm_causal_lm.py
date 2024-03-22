@@ -13,6 +13,7 @@ import torch
 from composer.core.types import Batch
 from composer.utils.import_helpers import MissingConditionalImportError
 from transformers import AutoTokenizer
+import vllm
 
 log = logging.getLogger(__name__)
 
@@ -29,7 +30,6 @@ class VLLMEvalInterface(InferenceAPIEvalWrapper):
 
     def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer) -> None:
         super().__init__(model_cfg, tokenizer)
-        import vllm
         kwargs = model_cfg.get('kwargs')
         self.vllm_engine = vllm.LLM(**kwargs)
 
@@ -39,7 +39,7 @@ class VLLMChatAPIEvalWrapper(VLLMEvalInterface):
         super().__init__(model_cfg, tokenizer)
         self.model_cfg = model_cfg
 
-     def eval_forward(self, batch: Batch, outputs: Optional[Any] = None):
+    def eval_forward(self, batch: Batch, outputs: Optional[Any] = None):
         raise NotImplementedError()
 
 
@@ -49,9 +49,7 @@ class VLLMCausalLMEvalWrapper(VLLMEvalInterface):
         super().__init__(model_cfg, tokenizer, api_key)
         self.model_cfg = model_cfg
 
-     def eval_forward(self, batch: Batch, outputs: Optional[Any] = None):
-        import vllm
-
+    def eval_forward(self, batch: Batch, outputs: Optional[Any] = None):
         padding_tok = self.tokenizer.pad_token_id if self.tokenizer.pad_token_id else self.tokenizer.eos_token_id
         # If the batch mode is generate, we will generate a requested number of tokens using the underlying
         # model's generate function. Extra generation kwargs can be passed in via the batch. Strings will
@@ -65,7 +63,7 @@ class VLLMCausalLMEvalWrapper(VLLMEvalInterface):
                                      batch['continuation_indices']):
             prompts.append(self.tokenizer.decode(tokens[0:cont_idxs[-1] + 1]))
     
-        sampling_params = vllm.SamplingParams(temperature=1.0, top_p=0.95, max_tokens=1, prompt_logprobs=1, logprobs=1)
+        sampling_params = vllm.SamplingParams(temperature=0.8, top_p=1, max_tokens=1, prompt_logprobs=1, logprobs=1)
 
         results = self.vllm_engine.generate(prompts, sampling_params)
 
@@ -86,7 +84,7 @@ class VLLMCausalLMEvalWrapper(VLLMEvalInterface):
             result_logits = torch.stack(result_logits)
 
             padding = torch.nn.functional.one_hot(
-                torch.full((seqlen - cont_idxs[-1],), padding_tok),
+                torch.full((seqlen - cont_idxs[-1] - 1,), padding_tok),
                 num_classes=len(self.tokenizer))
             
             output_logits = torch.cat([output_logits, result_logits, padding])

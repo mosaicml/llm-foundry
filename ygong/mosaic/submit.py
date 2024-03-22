@@ -71,7 +71,6 @@ def _init_connection():
         s = DatabricksSecretCreator().create(name=databricks_secret_name, host=workspace_url, token=token)
         print(f"successfully created databricks secret: {databricks_secret_name}")
         create_secret(s)
-        os.environ['IS_JOBS'] = False
 
      else:
         logger.debug("init_connection in databricks environment")
@@ -83,12 +82,16 @@ def _init_connection():
         workspace_url = api_url
         os.environ[config.MOSAICML_API_KEY_ENV] = f'Bearer {token}'
         os.environ[config.MOSAICML_API_ENDPOINT_ENV] = endpoint
-        os.environ['IS_JOBS'] = ctx.jobId() is not None
+        try:
+            jobs_id = ctx.jobId().get()
+            os.environ['JOB_ID'] = jobs_id
+        except:
+            pass
 
      # needed to set up the MLFlow query for experiment runs   
      os.environ['WORKSPACE_URL'] = workspace_url
      os.environ['MLFLOW_TRACKING_TOKEN'] = token
-     logger.debug(f"init_connection token: {os.environ['MLFLOW_TRACKING_TOKEN']}, workspace: {os.environ['WORKSPACE_URL']}, is_jobs:{ os.environ['IS_JOBS']}")
+     logger.debug(f"init_connection token: {os.environ['MLFLOW_TRACKING_TOKEN']}, workspace: {os.environ['WORKSPACE_URL']}, is_jobs: {os.environ.get('JOB_ID')}")
         
      
      
@@ -116,7 +119,6 @@ def _get_run_summary(run: Run, experiment_name: Optional[str] = None):
     url = None
     if run.status == RunStatus.RUNNING and experiment_name is not None:
           url = get_experiment_run_url(os.environ.get('WORKSPACE_URL'), experiment_name, run.name)
-    print(f"ygong: url {url}")
     
     df = pd.DataFrame({
          'Run Name': [run.name],
@@ -170,7 +172,8 @@ def submit(model, config: any, scalingConfig: ScalingConfig, sync: bool = False,
     run = create_run(runConfig)
     run_name = run.name
     # Create a button
-    if os.environ['IS_JOBS']:
+    if os.environ.get('JOB_ID') is not None:
+        # running in jobs workflow, no need to cancel the run and doesn't support widgets
         button = None
     else:
         button = widgets.Button(description="cancel the run")

@@ -296,7 +296,7 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     mosaicml_logger = find_mosaicml_logger(loggers)
     if mosaicml_logger is None:
         mosaicml_logger = create_mosaicml_logger()
-        # mosaicml_logger will be `None` if the run isn't on MosaicML platform
+        # mosaicml_logger will be None if run isn't on MosaicML platform
         if mosaicml_logger is not None:
             loggers.append(mosaicml_logger)
 

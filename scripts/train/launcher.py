@@ -390,6 +390,29 @@ def _launch_processes(
                     process.stderr = stderr_file
             processes[global_rank] = process
 
+def _logs_upload_to_mlflow(log_dirs: set[str], launcher_log: str):
+    import mlflow
+    # intialize mlflow experiment. Need to wait for processors to start the experiment
+    if os.environ.get("mlflow_runid") is None and os.path.exists(MLFlowLogger.CONFIG_FILE): 
+        import json
+        with open(MLFlowLogger.CONFIG_FILE, "r") as f:
+            data = json.load(f)
+            log.error(f"ygong:Started mlflow run {data}")
+        os.environ['mlflow_runid'] = data[MLFlowLogger.RUN_ID_FIELD]
+                    
+        mlflow.set_tracking_uri(data[MLFlowLogger.TRACKING_URI_FIELD])
+        mlflow.start_run(run_id=data[MLFlowLogger.RUN_ID_FIELD], experiment_id=data[MLFlowLogger.EXPERIMENT_ID_FIELD])
+    
+    # once the mlflow experiment is started, upload the logs
+    if os.environ.get("mlflow_runid") is not None:
+        try:
+            for log_dir in log_dirs:
+                log.warning(f"ygong: Logging directory: {log_dir}")
+                mlflow.log_artifacts(log_dir, log_dir.lstrip('/'))        
+            mlflow.log_artifact(launcher_log)
+        except Exception as e:
+            log.error(f"ygong:Failed to log artifacts to mlflow: {e}")
+    
 
 def _monitor_processes(
         processes: Dict[int, subprocess.Popen], 
@@ -422,23 +445,7 @@ def _monitor_processes(
                 break
 
             if cycle == 0:
-                if mlflow_runid is None:
-                    if os.path.exists(MLFlowLogger.CONFIG_FILE):
-                        import json
-                        with open(MLFlowLogger.CONFIG_FILE, "r") as f:
-                            data = json.load(f)
-                            log.error(f"ygong:Started mlflow run {data}")
-                        mlflow_runid = data[MLFlowLogger.RUN_ID_FIELD]
-                        mlflow.set_tracking_uri(data[MLFlowLogger.TRACKING_URI_FIELD])
-                        mlflow.start_run(run_id=data[MLFlowLogger.RUN_ID_FIELD], experiment_id=data[MLFlowLogger.EXPERIMENT_ID_FIELD])
-                else:
-                    try:
-                        for log_dir in log_dirs:
-                            log.warning(f"ygong: Logging directory: {log_dir}")
-                            mlflow.log_artifacts(log_dir, log_dir.lstrip('/'))        
-                        mlflow.log_artifact(launcher_log)
-                    except Exception as e:
-                        log.error(f"ygong:Failed to log artifacts to mlflow: {e}")
+                _logs_upload_to_mlflow(log_dirs, launcher_log)
             cycle = (cycle + 1) % log_frequency
                          
             time.sleep(0.1)
@@ -614,6 +621,8 @@ def main():
         traceback.print_exc()
         print('Killing training processes')
     finally:
+        # upload the logs before exit
+        _logs_upload_to_mlflow(log_dirs=log_dirs, launcher_log=launcher_log)
         _cleanup_processes(processes)
         log_tmpdir.cleanup()
         return _aggregate_process_returncode(processes)

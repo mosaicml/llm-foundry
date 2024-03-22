@@ -18,7 +18,8 @@ from databricks.sdk import WorkspaceClient
 from mcli import config
 from mcli.api.runs.api_get_runs import get_run
 import logging
-    
+
+logger = logging.getLogger('ygong.mosaic.submit')
         
 def _set_up_environment(content: str):
     os.environ['CREDENTIALS'] = content
@@ -139,7 +140,7 @@ def _wait_for_run_status(run: Run, status: RunStatus, inclusive: bool = True):
 
 def submit(model, config: any, scalingConfig: ScalingConfig, sync: bool = False, debug: bool = False):
     if debug:
-        logging.basicConfig(level=logging.DEBUG)
+        logger.setLevel(logging.DEBUG)
 
     _init_connection()
     mlflow_experiment_name = None

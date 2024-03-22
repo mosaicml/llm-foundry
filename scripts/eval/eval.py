@@ -70,7 +70,7 @@ def evaluate_model(
     eval_loader_config: Optional[Union[DictConfig, ListConfig]],
     fsdp_config: Optional[Dict],
     num_retries: int,
-    loggers_cfg: Dict[str, Any],
+    loggers: List[LoggerDestination],
     python_log_level: Optional[str],
     precision: str,
     eval_gauntlet_df: Optional[pd.DataFrame],
@@ -104,16 +104,7 @@ def evaluate_model(
     if eval_gauntlet_callback is not None:
         callbacks.append(eval_gauntlet_callback)
 
-    loggers: List[LoggerDestination] = [
-        build_logger(name, logger_cfg)
-        for name, logger_cfg in loggers_cfg.items()
-    ]
-
     if metadata is not None:
-        # Flatten the metadata for logging
-        loggers_cfg.pop('metadata', None)
-        loggers_cfg.update(metadata, merge=True)
-
         # Find the MosaicMLLogger
         mosaicml_logger = find_mosaicml_logger(loggers)
 
@@ -297,10 +288,11 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     composite_scores = None
     trainers = []
 
-    mosaicml_logger = find_mosaicml_logger([
+    loggers: LoggerDestination = [
         build_logger(name, logger_cfg)
         for name, logger_cfg in loggers_cfg.items()
-    ])
+    ]
+    mosaicml_logger = find_mosaicml_logger(loggers)
     if mosaicml_logger is not None:
         log_eval_analytics(mosaicml_logger, model_configs, icl_tasks,
                            eval_gauntlet_config)
@@ -319,7 +311,7 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
              eval_loader_config=eval_loader_config,
              fsdp_config=fsdp_config,
              num_retries=num_retries,
-             loggers_cfg=loggers_cfg,
+             loggers=loggers,
              python_log_level=python_log_level,
              precision=precision,
              eval_gauntlet_df=eval_gauntlet_df,

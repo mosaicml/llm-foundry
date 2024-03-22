@@ -71,27 +71,27 @@ def _init_connection():
         s = DatabricksSecretCreator().create(name=databricks_secret_name, host=workspace_url, token=token)
         print(f"successfully created databricks secret: {databricks_secret_name}")
         create_secret(s)
+        os.environ['IS_JOBS'] = False
 
      else:
         logger.debug("init_connection in databricks environment")
         wc = WorkspaceClient()
-        import mlflow.utils.databricks_utils as databricks_utils
-        workspace_url = databricks_utils.get_workspace_info_from_dbutils()[0]
         ctx = wc.dbutils.entry_point.getDbutils().notebook().getContext()
         token = ctx.apiToken().get()
         api_url = ctx.apiUrl().get()
         endpoint = f'{api_url}/api/2.0/genai-mapi/graphql'
-        logger.debug(f"init_connection token: {token}, api_url: {api_url}, endpoint: {endpoint}, workspace_url: {workspace_url}")
+        workspace_url = api_url
         os.environ[config.MOSAICML_API_KEY_ENV] = f'Bearer {token}'
         os.environ[config.MOSAICML_API_ENDPOINT_ENV] = endpoint
+        os.environ['IS_JOBS'] = ctx.jobId() is not None
 
      # needed to set up the MLFlow query for experiment runs   
      os.environ['WORKSPACE_URL'] = workspace_url
      os.environ['MLFLOW_TRACKING_TOKEN'] = token
+     logger.debug(f"init_connection token: {os.environ['MLFLOW_TRACKING_TOKEN']}, workspace: {os.environ['WORKSPACE_URL']}, is_jobs:{ os.environ['IS_JOBS']}")
+        
      
      
-     
-
 def get_experiment_run_url(tracking_uri: Optional[str], experiment_name: str, run_name: str):
       if tracking_uri is None:
           raise ValueError("tracking_uri must be provided")
@@ -170,25 +170,26 @@ def submit(model, config: any, scalingConfig: ScalingConfig, sync: bool = False,
     run = create_run(runConfig)
     run_name = run.name
     # Create a button
-    # button = widgets.Button(description="cancel the run")
-    # def on_button_clicked(b):
-    #     clear_output(wait=False)
-    #     run = get_run(run_name)
-    #     run.stop()
-    #     logger.debug(f"run {run_name} is cancelled")
-    #     run = _wait_for_run_status(run, RunStatus.TERMINATING)
-    #     summary = _get_run_summary(run, mlflow_experiment_name)
-    #     display(HTML(summary.to_html(escape=False)))
-    # button.on_click(on_button_clicked)
-    # _display_run_summary(_get_run_summary(run, mlflow_experiment_name), button)
-    _display_run_summary(_get_run_summary(run, mlflow_experiment_name), None)
-
+    if os.environ['IS_JOBS']:
+        button = None
+    else:
+        button = widgets.Button(description="cancel the run")
+        def on_button_clicked(b):
+            clear_output(wait=False)
+            run = get_run(run_name)
+            run.stop()
+            logger.debug(f"run {run_name} is cancelled")
+            run = _wait_for_run_status(run, RunStatus.TERMINATING)
+            summary = _get_run_summary(run, mlflow_experiment_name)
+            display(HTML(summary.to_html(escape=False)))
+        button.on_click(on_button_clicked)
+    _display_run_summary(_get_run_summary(run, mlflow_experiment_name), button)
+   
     # setting mlflow_experiment_name to be None, since its very likely mlflow run isn't ready yet
     # when the run just starts running
     run = _wait_for_run_status(run, RunStatus.RUNNING)
-    # _display_run_summary(_get_run_summary(run, None), button)
-    _display_run_summary(_get_run_summary(run, mlflow_experiment_name), None)
-
+    _display_run_summary(_get_run_summary(run, None), button)
+    
 
     try_count = 0
     while try_count < 10:
@@ -200,8 +201,7 @@ def submit(model, config: any, scalingConfig: ScalingConfig, sync: bool = False,
                 logger.debug(f"run {run_name} is terminated. Status {run.status}")
                 break
             summary = _get_run_summary(run, mlflow_experiment_name)
-            # _display_run_summary(summary, button)
-            _display_run_summary(summary, None)
+            _display_run_summary(summary, button)
             break
         except ValueError:
              

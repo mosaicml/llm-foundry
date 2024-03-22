@@ -101,10 +101,11 @@ class VLLMCausalLMEvalWrapper(VLLMEvalInterface):
                                         results):
                 
                 seqlen = tokens.shape[0]
+                vocab_size = result.prompt_all_logprobs[0].shape[1]
 
                 output_logits = torch.nn.functional.one_hot(
                     torch.tensor(tokens[1:cont_idxs[0]]),
-                    num_classes=len(self.tokenizer))
+                    num_classes=vocab_size)
                 
                 result_logits = []
                 for i in range(cont_idxs[0], cont_idxs[-1]):
@@ -114,7 +115,7 @@ class VLLMCausalLMEvalWrapper(VLLMEvalInterface):
 
                 padding = torch.nn.functional.one_hot(
                     torch.full((seqlen - cont_idxs[-1] - 1,), padding_tok),
-                    num_classes=len(self.tokenizer))
+                    num_classes=vocab_size)
                 
                 output_logits = output_logits.cpu()
                 result_logits = result_logits.cpu()

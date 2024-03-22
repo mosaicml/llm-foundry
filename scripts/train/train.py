@@ -9,6 +9,7 @@ import time
 import warnings
 from typing import Any, Dict, List, Optional, Union
 
+import attr
 import torch
 from composer import Trainer
 from composer.core.callback import Callback
@@ -41,6 +42,11 @@ from llmfoundry.utils.config_utils import (log_config, pop_config,
 from llmfoundry.utils.registry_utils import import_file
 
 log = logging.getLogger(__name__)
+
+
+@attr.s(auto_attribs=True)
+class TrainConfig:
+    eval_loader: Optional[Union[DictConfig, ListConfig]] = None
 
 
 def validate_config(cfg: DictConfig):

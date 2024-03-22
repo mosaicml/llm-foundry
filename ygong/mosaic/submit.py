@@ -37,6 +37,7 @@ def _init_connection():
             return True
         
      if _is_local():
+        logger.debug("init_connection in local mode")
         if os.environ.get('CREDENTIALS') is None:
             raise ValueError("_set_up_environment must be manually called to configure credentials for local runs")
         data = json.loads(base64.b64decode(os.environ.get('CREDENTIALS')).decode('utf-8'))
@@ -72,6 +73,7 @@ def _init_connection():
         create_secret(s)
 
      else:
+        logger.debug("init_connection in databricks environment")
         wc = WorkspaceClient()
         import mlflow.utils.databricks_utils as databricks_utils
         workspace_url = databricks_utils.get_workspace_info_from_dbutils()[0]
@@ -79,6 +81,7 @@ def _init_connection():
         token = ctx.apiToken().get()
         api_url = ctx.apiUrl().get()
         endpoint = f'{api_url}/api/2.0/genai-mapi/graphql'
+        logger.debug(f"init_connection token: {token}, api_url: {api_url}, endpoint: {endpoint}, workspace_url: {workspace_url}")
         os.environ[config.MOSAICML_API_KEY_ENV] = f'Bearer {token}'
         os.environ[config.MOSAICML_API_ENDPOINT_ENV] = endpoint
 

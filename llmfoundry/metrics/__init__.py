@@ -1,6 +1,5 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-from typing import Any, Dict
 
 from composer.metrics import (InContextLearningCodeEvalAccuracy,
                               InContextLearningLMAccuracy,
@@ -9,11 +8,9 @@ from composer.metrics import (InContextLearningCodeEvalAccuracy,
                               InContextLearningMultipleChoiceAccuracy,
                               InContextLearningQAAccuracy, MaskedAccuracy)
 from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
-from torchmetrics import Metric
 
 from llmfoundry.metrics.token_acc import TokenAccuracy
 from llmfoundry.registry import metrics
-from llmfoundry.utils.registry_utils import builder
 
 metrics.register('token_accuracy', func=TokenAccuracy)
 metrics.register('lm_accuracy', func=InContextLearningLMAccuracy)
@@ -56,17 +53,6 @@ DEFAULT_ENC_DEC_METRICS = [
     'masked_accuracy',
 ]
 
-
-def build_metric(name: str, kwargs: Dict[str, Any]) -> Metric:
-    """Builds a metric from the registry."""
-    return builder(name=name,
-                   registry=metrics,
-                   partial_function=True,
-                   pre_validation_function=Metric,
-                   post_validation_function=None,
-                   kwargs=kwargs)
-
-
 __all__ = [
     'TokenAccuracy',
     'InContextLearningLMAccuracy',
@@ -77,4 +63,9 @@ __all__ = [
     'InContextLearningCodeEvalAccuracy',
     'LanguageCrossEntropy',
     'LanguagePerplexity',
+    'MaskedAccuracy',
+    'DEFAULT_CAUSAL_LM_TRAIN_METRICS',
+    'DEFAULT_CAUSAL_LM_EVAL_METRICS',
+    'DEFAULT_PREFIX_LM_METRICS',
+    'DEFAULT_ENC_DEC_METRICS',
 ]

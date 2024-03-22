@@ -200,12 +200,12 @@ def build_algorithm(name: str, kwargs: Dict[str, Any]) -> Algorithm:
 
 def build_metric(name: str, kwargs: Dict[str, Any]) -> Metric:
     """Builds a metric from the registry."""
-    return builder(name=name,
-                   registry=registry.metrics,
-                   partial_function=True,
-                   pre_validation_function=Metric,
-                   post_validation_function=None,
-                   kwargs=kwargs)
+    return construct_from_registry(name=name,
+                                   registry=registry.metrics,
+                                   partial_function=True,
+                                   pre_validation_function=Metric,
+                                   post_validation_function=None,
+                                   kwargs=kwargs)
 
 
 def _extract_param_groups(

@@ -66,11 +66,11 @@ schedulers = create_registry('llmfoundry',
                              description=_schedulers_description)
 
 _metrics_description = """The metrics registry is used to register classes that implement the torchmetrics.Metric interface."""
-metrics = create('llmfoundry',
-                 'metrics',
-                 generic_type=Type[Metric],
-                 entry_points=True,
-                 description=_metrics_description)
+metrics = create_registry('llmfoundry',
+                          'metrics',
+                          generic_type=Type[Metric],
+                          entry_points=True,
+                          description=_metrics_description)
 
 __all__ = [
     'loggers',

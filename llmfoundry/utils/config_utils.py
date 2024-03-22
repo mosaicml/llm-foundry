@@ -187,38 +187,33 @@ def parse_source_dataset(cfg: DictConfig):
     data_paths = []
 
     for data_split in ['train', 'eval']:
-        local_path = cfg.get(f'{data_split}_loader', {}).get('dataset', {}).get('local')
-        remote_path = cfg.get(f'{data_split}_loader', {}).get('dataset', {}).get('remote')
-        hf_path = cfg.get(f'{data_split}_loader', {}).get('dataset', {}).get('hf_name')
         source_dataset_path = cfg.get(f'source_dataset_{data_split}', {})
-        delta_table_path = source_dataset_path if source_dataset_path and len(source_dataset_path.split('.')) >= 3 else None
-        uc_volume_path = source_dataset_path if source_dataset_path and source_dataset_path.startswith('/Volumes') else None
+        backend, _, _ = parse_uri(source_dataset_path)
 
-        if delta_table_path and (delta_table_path not in paths):
-            data_paths.append(('delta_table', delta_table_path))
-            paths.add(delta_table_path)
+        if backend:
+            remote_path = source_dataset_path
 
-        elif uc_volume_path and (uc_volume_path not in paths):
-            data_paths.append(('uc_volume', uc_volume_path))
-            paths.add(uc_volume_path)
-
-        elif hf_path and (hf_path not in paths):
-            backend, _, _ = parse_uri(hf_path)
-            if backend:
-                data_paths.append((backend, hf_path))
-                paths.add(hf_path)
+        if source_dataset_path and source_dataset_path not in paths:
+            # check for Delta table
+            if len(source_dataset_path.split('.')) >= 3:
+                data_paths.append(('delta_table', source_dataset_path))
+            # check for UC volume
+            elif source_dataset_path.startswith('/Volumes'):
+                data_paths.append(('uc_volume', source_dataset_path))
+            # check for HF path
+            elif cfg.get(f'{data_split}_loader', {}).get('dataset', {}).get('hf_name'):
+                hf_path = cfg.get(f'{data_split}_loader', {}).get('dataset', {}).get('hf_name')
+                backend, _, _ = parse_uri(hf_path)
+                if backend:
+                    data_paths.append((backend, hf_path))
+                else:
+                    data_paths.append(('hf', hf_path))
+            # check for Remote path
+            elif backend:
+                data_paths.append((backend, source_dataset_path))
             else:
-                data_paths.append(('hf', hf_path))
-                paths.add(hf_path)
-
-        elif remote_path and (remote_path not in paths):
-            backend, _, _ = parse_uri(remote_path)
-            data_paths.append((backend, remote_path))
-            paths.add(remote_path)
-
-        elif local_path and (local_path not in paths):
-            data_paths.append(('local', local_path))
-            paths.add(local_path)
+                data_paths.append(('local', source_dataset_path))
+            paths.add(source_dataset_path)
 
     return data_paths
 

@@ -51,43 +51,68 @@ class VLLMCausalLMEvalWrapper(VLLMEvalInterface):
 
     def eval_forward(self, batch: Batch, outputs: Optional[Any] = None):
         padding_tok = self.tokenizer.pad_token_id if self.tokenizer.pad_token_id else self.tokenizer.eos_token_id
+
         # If the batch mode is generate, we will generate a requested number of tokens using the underlying
         # model's generate function. Extra generation kwargs can be passed in via the batch. Strings will
         # be returned from eval_forward
-        if 'continuation_indices' not in batch:
-            raise NotImplementedError()
+
+        if batch.get('mode', '') == 'generate':
+            if 'generation_length' in batch:
+                num_tokens = batch['generation_length']
+            elif 'generation_kwargs' in batch:
+                num_tokens = batch['generation_kwargs'].get(
+                    'max_new_tokens', 2)
+            num_sequences = batch.get('generation_kwargs', {}).get('num_return_sequences', 1)  
+
+            prompts = []
+            for tokens, _ in zip(batch['input_ids'], batch['labels']):
+                tokens = tokens.tolist()
+                tokens = [t for t in tokens if t != padding_tok]
+                prompts.append(self.tokenizer.decode(tokens))
+            
+            sampling_params = vllm.SamplingParams(temperature=0.8, top_p=1, max_tokens=num_tokens, n=num_sequences)
+
+            results = self.vllm_engine.generate(prompts, sampling_params)
+
+            outputs = []
+            for result in results:
+                for output in result.outputs:
+                    outputs.append(output.text)
+            return outputs
+
+        else:
+            assert 'continuation_indices' in batch
+            output_logits_batch = []
+            prompts = []
+            for tokens, cont_idxs in zip(batch['input_ids'],
+                                         batch['continuation_indices']):
+                prompts.append(self.tokenizer.decode(tokens[0:cont_idxs[-1] + 1]))
         
-        output_logits_batch = []
-        prompts = []
-        for tokens, cont_idxs in zip(batch['input_ids'],
-                                     batch['continuation_indices']):
-            prompts.append(self.tokenizer.decode(tokens[0:cont_idxs[-1] + 1]))
-    
-        sampling_params = vllm.SamplingParams(temperature=0.8, top_p=1, max_tokens=1, prompt_logprobs=1, logprobs=1)
+            sampling_params = vllm.SamplingParams(temperature=0.8, top_p=1, max_tokens=1, prompt_logprobs=1, logprobs=1)
 
-        results = self.vllm_engine.generate(prompts, sampling_params)
+            results = self.vllm_engine.generate(prompts, sampling_params)
 
-        for tokens, cont_idxs, result in zip(batch['input_ids'],
-                                     batch['continuation_indices'],
-                                     results):
-            
-            seqlen = tokens.shape[0]
+            for tokens, cont_idxs, result in zip(batch['input_ids'],
+                                        batch['continuation_indices'],
+                                        results):
+                
+                seqlen = tokens.shape[0]
 
-            output_logits = torch.nn.functional.one_hot(
-                torch.tensor(tokens[1:cont_idxs[0]]),
-                num_classes=len(self.tokenizer))
-            
-            result_logits = []
-            for i in range(cont_idxs[0], cont_idxs[-1]):
-                result_logits.append(torch.exp(result.prompt_all_logprobs[i]))
+                output_logits = torch.nn.functional.one_hot(
+                    torch.tensor(tokens[1:cont_idxs[0]]),
+                    num_classes=len(self.tokenizer))
+                
+                result_logits = []
+                for i in range(cont_idxs[0], cont_idxs[-1]):
+                    result_logits.append(torch.exp(result.prompt_all_logprobs[i]))
 
-            result_logits = torch.stack(result_logits)
+                result_logits = torch.stack(result_logits)
 
-            padding = torch.nn.functional.one_hot(
-                torch.full((seqlen - cont_idxs[-1] - 1,), padding_tok),
-                num_classes=len(self.tokenizer))
-            
-            output_logits = torch.cat([output_logits, result_logits, padding])
-            output_logits_batch.append(output_logits)
+                padding = torch.nn.functional.one_hot(
+                    torch.full((seqlen - cont_idxs[-1] - 1,), padding_tok),
+                    num_classes=len(self.tokenizer))
+                
+                output_logits = torch.cat([output_logits, result_logits, padding])
+                output_logits_batch.append(output_logits)
 
-        return torch.stack(output_logits_batch).to(batch['input_ids'].device) 
+            return torch.stack(output_logits_batch).to(batch['input_ids'].device) 

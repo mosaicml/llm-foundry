@@ -134,7 +134,6 @@ class TritonRMSNorm(torch.nn.Module):
 
         self.weight = torch.nn.Parameter(
             torch.ones(hidden_size, device=device, dtype=dtype))
-        self.register_parameter('bias', None)
 
         try:
             from flash_attn.ops.triton.layer_norm import rms_norm_fn
@@ -148,7 +147,7 @@ class TritonRMSNorm(torch.nn.Module):
         return self.rms_norm_fn(
             x,
             self.weight,
-            self.bias,
+            None, # no bias
             residual=None,
             eps=self.eps,
             dropout_p=0.0,  # no dropout by default

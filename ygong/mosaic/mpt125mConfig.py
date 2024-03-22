@@ -6,14 +6,14 @@ import os
 
 
 class MPT125MConfig:
-    def __init__(self, experimentName: str, data: str):
+    def __init__(self, experimentName: str, data: str, priority: str = 'high'):
         # TODO: validate the inputs and remove the yu.gong hardcode
         self.mlflow_experimentName = f"/Users/yu.gong@databricks.com/{experimentName}"
-        workspace_url = os.environ.get('WORKSPACE_URL')
         self.mlflow_trackingUri = "databricks"
         # self.mlflow_trackingUri = "databricks" if workspace_url is None else workspace_url
 
         self.data = data
+        self.priority = priority
         
         # the run name is pre-configured for all config-driven pretrain runs
         self.name = "mpt125m-config-driven-pretrain"
@@ -23,16 +23,13 @@ class MPT125MConfig:
         ########################################
         self.max_seq_len = 2048
         self.global_seed = 17
-        # TODO: hardcode, need to respect self.data
-        self.data_remote = "s3://aaron-mlflow-demo/ygong-c4-process/"
-        self.data_local = "./my-copy-c4"
+        self.data_remote = self.data
+        self.data_local = ""
         self.commands = [
             "cd llm-foundry/scripts",
-            "train/launcher.py train/train.py /mnt/config/parameters.yaml train_loader.dataset.split=train_small eval_loader.dataset.split=val"
+            "train/launcher.py train/train.py /mnt/config/parameters.yaml train_loader.dataset.split=train eval_loader.dataset.split=val"
         ]
-        # api_token, endpoint = cfg.get_config_from_env()
-        # self.workspace_url = "https://dbc-04ac0685-8857.staging.cloud.databricks.com/"
-
+    
        
     def toRunConfig(self, scalingConfig: ScalingConfig):
         return RunConfig(
@@ -40,7 +37,7 @@ class MPT125MConfig:
             image='mosaicml/llm-foundry:2.2.1_cu121_flash2-latest',
             command="\n".join(self.commands),
             compute=scalingConfig.toCompute,
-            scheduling={},
+            scheduling={'priority': self.priority},
             integrations=[
                 {
                    'integration_type': 'git_repo',
@@ -51,7 +48,7 @@ class MPT125MConfig:
                 },
                 {
                    'integration_type': 'pip_packages',
-                   'packages': ['pynvml'],
+                   'packages': ['pynvml', 'mosaicml-streaming[databricks]'],
                 },
             ],
             parameters=self.parameters(),
@@ -60,8 +57,8 @@ class MPT125MConfig:
     
     def parameters(self):
        return {
-           "data_local": "./my-copy-c4",
-           "data_remote": "s3://aaron-mlflow-demo/ygong-c4-process/",
+           "data_local": self.data_local,
+           "data_remote": self.data,
            "max_seq_len": self.max_seq_len,
            "global_seed": self.global_seed,
            "run_name": None,

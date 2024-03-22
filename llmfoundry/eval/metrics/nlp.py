@@ -259,7 +259,7 @@ class InContextLearningMultipleChoiceAccuracy(InContextLearningMetric):
             # labels have been shifted left by one index, so the cont_idx needs to be shifted as well.
             cont_tok_targ = labels[batch_idx].index_select(dim=0,
                                                            index=cont_idx - 1)
-            cross_entropy = F.nll_loss(cont_tok_logits, cont_tok_targ)
+            cross_entropy = F.cross_entropy(cont_tok_logits, cont_tok_targ)
             perplexity = torch.exp(cross_entropy)
             perplexities.append(perplexity)
 

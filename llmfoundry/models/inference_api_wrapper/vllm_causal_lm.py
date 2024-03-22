@@ -107,8 +107,9 @@ class VLLMCausalLMEvalWrapper(VLLMEvalInterface):
                     num_classes=len(self.tokenizer))
                 
                 result_logits = []
+                all_logits = result.prompt_all_logprobs.cpu()
                 for i in range(cont_idxs[0], cont_idxs[-1]):
-                    result_logits.append(torch.exp(result.prompt_all_logprobs[i]))
+                    result_logits.append(torch.exp(all_logits[i]))
 
                 result_logits = torch.stack(result_logits)
 

@@ -39,7 +39,7 @@ __all__ = [
 class InContextLearningMetric(Metric):
 
     def __init__(self, *args, **kwargs):  # pyright: ignore
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, sync_on_compute=False, **kwargs)
         self.needs_batch = True
 
     def update(

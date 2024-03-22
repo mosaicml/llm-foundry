@@ -68,13 +68,13 @@ class VLLMCausalLMEvalWrapper(VLLMEvalInterface):
             for tokens, _ in zip(batch['input_ids'], batch['labels']):
                 tokens = tokens.tolist()
                 tokens = [t for t in tokens if t != padding_tok]
-                prompts.append(self.tokenizer.decode(tokens))
+                prompts.append(tokens)
             
             sampling_params = vllm.SamplingParams(temperature=0.8, top_p=1, max_tokens=num_tokens, n=num_sequences)
 
             with torch.no_grad():
                 with torch.cuda.amp.autocast(enabled=False):
-                    results = self.vllm_engine.generate(prompts, sampling_params, use_tqdm=False)
+                    results = self.vllm_engine.generate(prompt_token_ids=prompts, sampling_params=sampling_params, use_tqdm=False)
 
             outputs = []
             for result in results:
@@ -88,13 +88,13 @@ class VLLMCausalLMEvalWrapper(VLLMEvalInterface):
             prompts = []
             for tokens, cont_idxs in zip(batch['input_ids'],
                                          batch['continuation_indices']):
-                prompts.append(self.tokenizer.decode(tokens[0:cont_idxs[-1] + 1]))
+                prompts.append(tokens[0:cont_idxs[-1] + 1].tolist())
         
             sampling_params = vllm.SamplingParams(temperature=0.8, top_p=1, max_tokens=1, prompt_logprobs=1, logprobs=1)
 
             with torch.no_grad():
                 with torch.cuda.amp.autocast(enabled=False):
-                    results = self.vllm_engine.generate(prompts, sampling_params, use_tqdm=False)
+                    results = self.vllm_engine.generate(prompt_token_ids=prompts, sampling_params=sampling_params, use_tqdm=False)
 
             for tokens, cont_idxs, result in zip(batch['input_ids'],
                                         batch['continuation_indices'],
@@ -108,7 +108,7 @@ class VLLMCausalLMEvalWrapper(VLLMEvalInterface):
                     num_classes=vocab_size)
                 
                 result_logits = []
-                for i in range(cont_idxs[0], cont_idxs[-1]):
+                for i in range(cont_idxs[0], cont_idxs[-1] + 1):
                     result_logits.append(torch.exp(result.prompt_all_logprobs[i].cpu()))
 
                 result_logits = torch.stack(result_logits)

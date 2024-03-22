@@ -1368,6 +1368,7 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
     questions based on passages.
 
     JSONL:
+        # TODO: id not acutally needed?
         query_id: int, the query id
         query: string, the question
         answer: string, the correct answer to the query
@@ -1397,7 +1398,7 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
         self.total_docs = total_docs
         self.max_prompt_length = 0
         self.max_answer_length = 0
-        batch_mapping = {'input_ids': 'documents', 'labels': 'answer', 'queries':'query'}
+        batch_mapping = {'input_ids': 'documents', 'labels': 'aliases', 'queries':'query'}
         # static_keys = ['mode', 'metric_kwargs', 'generation_length', 'generation_kwargs']
         static_keys = ['mode', 'generation_length', 'generation_kwargs']
         list_keys = ['labels', 'queries']
@@ -1467,6 +1468,8 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
                     ' '.join([self.passage_delimiter + passage for passage in example['documents']]),
                 'answer':
                     example['answer'],
+                'aliases':
+                    set([example['answer']] + example.get('aliases', [])),
                 'query':
                     example['query']
             })
@@ -1525,9 +1528,13 @@ class InContextLearningRAGGenerationTaskDataset(InContextLearningDataset):
             ]
             max_prompt_length = max(max_prompt_length, len(unpadded_example))
 
-            answer = self._get_answer_from_example(example)
-            max_answer_length = max(max_answer_length,
-                                    len(self.tokenizer(answer)['input_ids']))
+            all_answers = [example[self.answer_key]] + list(
+                example.get('aliases', []))
+            for answer in all_answers:
+                tokenized_repsonse = self.tokenizer(answer)['input_ids']
+                assert isinstance(tokenized_repsonse, list)
+                max_answer_length = max(max_answer_length,
+                                        len(tokenized_repsonse))
 
         self.max_prompt_length = max_prompt_length
         self.max_answer_length = max_answer_length + _MAX_ANSWER_BUFFER_LENGTH

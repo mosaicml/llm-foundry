@@ -300,6 +300,7 @@ class InContextLearningGenerationAccuracyJSONParsing(InContextLearningMetric):
         labels: List[List[str]],
     ):
         metric_result_dict = deepcopy(self.metric_result_dict)
+        # TODO: get rid of or fix this check eventually
         if not isinstance(labels[0], list):
             labels = [[label] for label in labels]
         for sample_output, sample_labels in zip(outputs, labels):

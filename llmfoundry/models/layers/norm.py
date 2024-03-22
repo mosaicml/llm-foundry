@@ -118,10 +118,13 @@ class TritonRMSNorm(torch.nn.Module):
         self,
         normalized_shape: Union[int, List[int], torch.Size],
         eps: float = 1e-5,
-        dropout_p: float = 0.0,
-        dtype: Optional[torch.dtype] = None,
         device: Optional[torch.device] = None,
+        dtype: Optional[torch.dtype] = None,
     ):
+        super().__init__()
+        self.eps = eps
+
+        # Flash Attention expect a flat tensor
         if isinstance(normalized_shape, int):
             hidden_size = normalized_shape
         elif isinstance(normalized_shape, list):
@@ -129,17 +132,9 @@ class TritonRMSNorm(torch.nn.Module):
         elif isinstance(normalized_shape, torch.Size):
             hidden_size = math.prod(normalized_shape)
 
-        factory_kwargs = {'device': device, 'dtype': dtype}
-        super().__init__()
-        self.eps = eps
-        if dropout_p > 0.0:
-            self.drop = torch.nn.Dropout(dropout_p)
-        else:
-            self.drop = None
         self.weight = torch.nn.Parameter(
-            torch.empty(hidden_size, **factory_kwargs))
+            torch.ones(hidden_size, device=device, dtype=dtype))
         self.register_parameter('bias', None)
-        torch.nn.init.ones_(self.weight)
 
         try:
             from flash_attn.ops.triton.layer_norm import rms_norm_fn
@@ -147,23 +142,18 @@ class TritonRMSNorm(torch.nn.Module):
         except ImportError:
             raise ImportError(
                 'triton_rms_norm requires Flash Attention to be installed. ' +
-                'Please `pip install llm-foundry[gpu-flash2]`.')
+                'Please pip install flash-attn.')
 
-    def forward(self,
-                x: torch.Tensor,
-                residual: Optional[torch.Tensor] = None,
-                prenorm: bool = False,
-                residual_in_fp32: bool = False):
+    def forward(self, x: torch.Tensor):
         return self.rms_norm_fn(
             x,
             self.weight,
             self.bias,
-            residual=residual,
+            residual=None,
             eps=self.eps,
-            dropout_p=self.drop.p
-            if self.drop is not None and self.training else 0.0,
-            prenorm=prenorm,
-            residual_in_fp32=residual_in_fp32,
+            dropout_p=0.0,  # no dropout by default
+            prenorm=False,
+            residual_in_fp32=False,
         )
 
 

@@ -134,7 +134,7 @@ def _wait_for_run_status(run: Run, status: RunStatus):
 
 
 
-def submit(model, config: any, scalingConfig: ScalingConfig):
+def submit(model, config: any, scalingConfig: ScalingConfig, sync: bool = False):
     _init_connection()
     mlflow_experiment_name = None
     if model == "mpt125m":
@@ -180,3 +180,8 @@ def submit(model, config: any, scalingConfig: ScalingConfig):
         except ValueError:
              print(f"DEBUG: waiting for the MLFLow experiment run to be ready, run status{run.status}")
              pass
+
+    if sync:
+        print(f"DEBUG: synchronously waiting for the run to finish.")
+        run = _wait_for_run_status(run, RunStatus.TERMINATING)
+        _display_run_summary(_get_run_summary(run, mlflow_experiment_name), None)

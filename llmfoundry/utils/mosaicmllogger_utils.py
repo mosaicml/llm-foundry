@@ -11,10 +11,8 @@ from composer.loggers.mosaicml_logger import (MOSAICML_ACCESS_TOKEN_ENV_VAR,
 from omegaconf import DictConfig, ListConfig
 
 
-def create_mosaicml_logger(
-        loggers: List[LoggerDestination]) -> Union[MosaicMLLogger, None]:
-    """Creates a MosaicMLLogger and adds it to the list if the run was sent from
-    Mosaic platform."""
+def create_mosaicml_logger() -> Union[MosaicMLLogger, None]:
+    """Creates a MosaicMLLogger if the run was sent from the Mosaic platform."""
     if os.environ.get(MOSAICML_PLATFORM_ENV_VAR, 'false').lower(
     ) == 'true' and os.environ.get(MOSAICML_ACCESS_TOKEN_ENV_VAR):
         # Adds mosaicml logger to composer if the run was sent from Mosaic platform,

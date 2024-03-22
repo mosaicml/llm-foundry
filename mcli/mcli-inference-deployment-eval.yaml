@@ -16,7 +16,7 @@ command: |
   composer eval/eval.py /mnt/config/parameters.yaml
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
-name: pi-inference-deployment-gauntlet-eval
+name: mistral-large-inference-deployment-gauntlet-eval
 # cluster: r1z1  # replace with your cluster here!
 # gpu_num: 8 #
 # gpu_type: a100_80gb #
@@ -33,10 +33,12 @@ parameters:
   max_seq_len: 30000
   device_eval_batch_size: 1
   models:
-  - model_name: mosaicml/pi
+  - model_name: mistralai/Mistral-large
     model:
       name: fmapi_chat
-      base_url: https://pi-eve6-2mt2bncm-valfull-lb2-32k-mz9p3n.inf.hosted-on.mosaicml.hosting/v2/
+      base_url: https://Mistral-large-zqjvu-serverless.eastus2.inference.ai.azure.com/v1
+      api_key: 8Q9mXqXsOGbIB7CLqA11EuCzg0p6GNI2
+      is_local: False
     tokenizer:
       name: mosaicml/mpt-7b
       kwargs:

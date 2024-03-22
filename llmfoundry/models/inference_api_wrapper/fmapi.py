@@ -47,8 +47,9 @@ class FMAPIEvalInterface(OpenAIEvalInterface):
                     f'Endpoint {ping_url} did not become read after {waited_s:,} seconds, exiting'
                 )
 
-    def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer, api_key: Optional[str] = None):
+    def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer):
         is_local = model_cfg.pop('local', False)
+        api_key = model_cfg.pop('api_key', None)
         if is_local:
             base_url = os.environ.get('MOSAICML_MODEL_ENDPOINT',
                                       'http://0.0.0.0:8080/v2')

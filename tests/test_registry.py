@@ -109,14 +109,6 @@ os.environ['TEST_ENVIRON_REGISTRY_KEY'] = 'test'
 def test_registry_entrypoint(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(catalogue, 'Registry', {})
 
-    # monkeypatch.setattr(
-    #     importlib.metadata, 'entry_points', lambda: SelectableGroups([(
-    #         'llmfoundry_test_registry',
-    #         EntryPoints([
-    #             EntryPoint(name='test_entry',
-    #                        value='composer.loggers:InMemoryLogger',
-    #                        group='llmfoundry_test_registry')
-    #         ]))]))
     monkeypatch.setattr(
         importlib.metadata, 'entry_points', lambda: {
             'llmfoundry_test_registry': [

@@ -72,7 +72,7 @@ class VLLMCausalLMEvalWrapper(VLLMEvalInterface):
             
             sampling_params = vllm.SamplingParams(temperature=0.8, top_p=1, max_tokens=num_tokens, n=num_sequences)
 
-            results = self.vllm_engine.generate(prompts, sampling_params)
+            results = self.vllm_engine.generate(prompts, sampling_params, use_tqdm=False)
 
             outputs = []
             for result in results:
@@ -90,7 +90,7 @@ class VLLMCausalLMEvalWrapper(VLLMEvalInterface):
         
             sampling_params = vllm.SamplingParams(temperature=0.8, top_p=1, max_tokens=1, prompt_logprobs=1, logprobs=1)
 
-            results = self.vllm_engine.generate(prompts, sampling_params)
+            results = self.vllm_engine.generate(prompts, sampling_params, use_tqdm=False)
 
             for tokens, cont_idxs, result in zip(batch['input_ids'],
                                         batch['continuation_indices'],

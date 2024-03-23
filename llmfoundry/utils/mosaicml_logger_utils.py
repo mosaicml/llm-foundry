@@ -49,15 +49,21 @@ def log_eval_analytics(mosaicml_logger: MosaicMLLogger,
     metrics['llmfoundry/icl_configured'] = isinstance(icl_tasks, str) or len(icl_tasks) > 0
 
     metrics['llmfoundry/model_configs'] = []
+    print('-'*50)
+    print(len(model_configs))
     for model_config in model_configs:
         model_config_data = {}
         for key in _MODEL_KEYS_TO_LOG:
             if model_config.get(key, None) is not None:
-                model_config_data[f'llmfoundry/{key}'] = model_config.get(key)
+                model_config_data[key] = model_config.get(key)
+
+        print(model_config_data)
 
         if len(model_config_data) > 0:
+            print('appending')
             metrics['llmfoundry/model_configs'].append(
                 json.dumps(model_config_data, sort_keys=True))
+    print(metrics)
     mosaicml_logger.log_metrics(metrics)
     mosaicml_logger._flush_metadata(force_flush=True)
 

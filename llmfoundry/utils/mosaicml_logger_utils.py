@@ -59,7 +59,6 @@ def log_eval_analytics(mosaicml_logger: MosaicMLLogger,
                 model_config_data[key] = nested_model_config.get(key)
 
         if len(model_config_data) > 0:
-            print('appending')
             metrics['llmfoundry/model_configs'].append(
                 json.dumps(model_config_data, sort_keys=True))
 

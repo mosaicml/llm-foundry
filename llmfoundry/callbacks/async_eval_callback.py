@@ -397,7 +397,7 @@ class AsyncEval(Callback):
             log.debug('No saved checkpoints found yet on remote. Skipping eval')
             return
 
-        if state.fsdp_elastic_sharded_enabled:
+        if state.fsdp_sharded_state_dict_enabled:
             checkpoints_to_eval = self._get_ready_sharded_checkpoints(
                 checkpointer.all_saved_checkpoints_to_timestamp,
                 remote_checkpoints)

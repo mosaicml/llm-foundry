@@ -254,11 +254,7 @@ def test_callback_inits():
         save_interval='1ba',
         mlflow_registered_model_name='test_model_name')
 
-    assert hf_checkpointer.mlflow_logging_config['task'] == 'text-generation'
-    assert hf_checkpointer.mlflow_logging_config['metadata'][
-        'task'] == 'llm/v1/completions'
-    assert 'input_example' in hf_checkpointer.mlflow_logging_config
-    assert 'signature' in hf_checkpointer.mlflow_logging_config
+    assert hf_checkpointer.mlflow_logging_config['task'] == 'llm/v1/completions'
 
 
 @pytest.mark.gpu

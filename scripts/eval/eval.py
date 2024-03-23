@@ -367,6 +367,8 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
         assert models_df is not None
         print(models_df.to_markdown(index=False))
 
+        trainer.close()
+
     return trainers, eval_gauntlet_df
 
 

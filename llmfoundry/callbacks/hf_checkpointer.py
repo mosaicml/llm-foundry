@@ -153,7 +153,6 @@ class HuggingFaceCheckpointer(Callback):
                 mlflow_logging_config.setdefault('example_no_conversion', True)
             mlflow_logging_config.setdefault('input_example',
                                              default_input_example)
-            
 
         self.mlflow_logging_config = mlflow_logging_config
 

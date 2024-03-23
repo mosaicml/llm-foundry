@@ -136,22 +136,24 @@ class HuggingFaceCheckpointer(Callback):
             mlflow_logging_config['metadata'] = passed_metadata
             mlflow_logging_config.setdefault('task', 'llm/v1/completions')
 
-            # default_input_example = {
-            #     'prompt': np.array(['What is Machine Learning?'])
-            # }
-            # is_chat = mlflow_logging_config['task'].endswith(
-            #     'chat') or mlflow_logging_config['metadata'].get(
-            #         'task', '').endswith('chat')
-            # if is_chat:
-            #     default_input_example = {
-            #         'messages':
-            #             np.array([{
-            #                 'role': 'user',
-            #                 'content': 'What is Machine Learning?'
-            #             }])
-            #     }
-            # mlflow_logging_config.setdefault('input_example',
-            #                                  default_input_example)
+            default_input_example = {
+                'prompt': np.array(['What is Machine Learning?'])
+            }
+            is_chat = mlflow_logging_config['task'].endswith(
+                'chat') or mlflow_logging_config['metadata'].get(
+                    'task', '').endswith('chat')
+            if is_chat:
+                default_input_example = {
+                    'messages':
+                        np.array([{
+                            'role': 'user',
+                            'content': 'What is Machine Learning?'
+                        }])
+                }
+                mlflow_logging_config.setdefault('example_no_conversion', True)
+            mlflow_logging_config.setdefault('input_example',
+                                             default_input_example)
+            
 
         self.mlflow_logging_config = mlflow_logging_config
 

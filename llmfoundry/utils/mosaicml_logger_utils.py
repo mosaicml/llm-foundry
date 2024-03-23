@@ -52,8 +52,11 @@ def log_eval_analytics(mosaicml_logger: MosaicMLLogger,
     print('-'*50)
     print(len(model_configs))
     for model_config in model_configs:
+        print(model_config)
         model_config_data = {}
         for key in _MODEL_KEYS_TO_LOG:
+            print(key)
+            print(model_config.get(key, 'Not found'))
             if model_config.get(key, None) is not None:
                 model_config_data[key] = model_config.get(key)
 

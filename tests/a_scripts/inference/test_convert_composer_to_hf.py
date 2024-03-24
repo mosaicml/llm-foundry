@@ -592,21 +592,6 @@ def test_huggingface_conversion_callback(
             }
         else:
             import numpy as np
-            from mlflow.models.signature import ModelSignature
-            from mlflow.types.schema import ColSpec, Schema
-
-            input_schema = Schema([
-                ColSpec('string', 'prompt'),
-                ColSpec('double', 'temperature', optional=True),
-                ColSpec('integer', 'max_tokens', optional=True),
-                ColSpec('string', 'stop', optional=True),
-                ColSpec('integer', 'candidate_count', optional=True)
-            ])
-
-            output_schema = Schema([ColSpec('string', 'predictions')])
-
-            default_signature = ModelSignature(inputs=input_schema,
-                                               outputs=output_schema)
 
             default_input_example = {
                 'prompt': np.array(['What is Machine Learning?'])
@@ -617,7 +602,6 @@ def test_huggingface_conversion_callback(
                 'transformers_model': ANY,
                 'path': ANY,
                 'task': 'llm/v1/completions',
-                'signature': default_signature,
                 'input_example': default_input_example,
                 'metadata': {}
             }

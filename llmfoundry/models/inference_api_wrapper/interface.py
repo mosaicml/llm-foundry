@@ -16,7 +16,7 @@ from llmfoundry.metrics import DEFAULT_CAUSAL_LM_EVAL_METRICS
 
 class InferenceAPIEvalWrapper(ComposerModel):
 
-    def __init__(self, om_model_cfg: DictConfig, tokenizer: AutoTokenizer):
+    def __init__(self, om_model_config: DictConfig, tokenizer: AutoTokenizer):
         from llmfoundry.utils.builders import build_metric
 
         self.tokenizer = tokenizer

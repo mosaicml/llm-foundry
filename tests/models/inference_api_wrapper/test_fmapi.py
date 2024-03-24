@@ -95,7 +95,7 @@ def test_casual_fmapi_wrapper(tmp_path: str):
 
         tokenizer = transformers.AutoTokenizer.from_pretrained(
             'mosaicml/mpt-7b-8k-instruct')
-        model = FMAPICasualLMEvalWrapper(om_model_cfg=DictConfig({
+        model = FMAPICasualLMEvalWrapper(om_model_config=DictConfig({
             'local': True,
             'name': 'mosaicml/mpt-7b-8k-instruct'
         }),
@@ -129,7 +129,7 @@ def test_chat_fmapi_wrapper(tmp_path: str):
 
         tokenizer = transformers.AutoTokenizer.from_pretrained(
             'mosaicml/mpt-7b-8k-instruct')
-        chatmodel = FMAPIChatAPIEvalWrapper(om_model_cfg=DictConfig({
+        chatmodel = FMAPIChatAPIEvalWrapper(om_model_config=DictConfig({
             'local': True,
             'name': 'mosaicml/mpt-7b-8k-instruct'
         }),

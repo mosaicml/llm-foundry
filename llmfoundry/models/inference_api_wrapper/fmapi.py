@@ -47,20 +47,20 @@ class FMAPIEvalInterface(OpenAIEvalInterface):
                     f'Endpoint {ping_url} did not become read after {waited_s:,} seconds, exiting'
                 )
 
-    def __init__(self, om_model_cfg: DictConfig, tokenizer: AutoTokenizer):
-        is_local = om_model_cfg.pop('local', False)
+    def __init__(self, om_model_config: DictConfig, tokenizer: AutoTokenizer):
+        is_local = om_model_config.pop('local', False)
         if is_local:
             base_url = os.environ.get('MOSAICML_MODEL_ENDPOINT',
                                       'http://0.0.0.0:8080/v2')
-            om_model_cfg['base_url'] = base_url
+            om_model_config['base_url'] = base_url
             self.block_until_ready(base_url)
 
-        if 'base_url' not in om_model_cfg:
+        if 'base_url' not in om_model_config:
             raise ValueError(
                 'Must specify base_url or use local=True in model_cfg for FMAPIsEvalWrapper'
             )
 
-        super().__init__(om_model_cfg, tokenizer)
+        super().__init__(om_model_config, tokenizer)
 
 
 class FMAPICasualLMEvalWrapper(FMAPIEvalInterface, OpenAICausalLMEvalWrapper):

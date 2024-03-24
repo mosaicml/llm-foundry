@@ -35,9 +35,9 @@ MAX_RETRIES = 10
 
 class OpenAIEvalInterface(InferenceAPIEvalWrapper):
 
-    def __init__(self, om_model_cfg: DictConfig,
+    def __init__(self, om_model_config: DictConfig,
                  tokenizer: AutoTokenizer) -> None:
-        super().__init__(om_model_cfg, tokenizer)
+        super().__init__(om_model_config, tokenizer)
         try:
             import openai
         except ImportError as e:
@@ -47,7 +47,7 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
                 conda_channel='conda-forge') from e
 
         api_key = os.environ.get('OPENAI_API_KEY')
-        base_url = om_model_cfg.get('base_url')
+        base_url = om_model_config.get('base_url')
         if base_url is None:
             # Using OpenAI default, where the API key is required
             if api_key is None:
@@ -63,10 +63,10 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
             api_key = 'placeholder'  # This cannot be None
 
         self.client = openai.OpenAI(base_url=base_url, api_key=api_key)
-        if 'version' in om_model_cfg:
-            self.model_name = om_model_cfg['version']
+        if 'version' in om_model_config:
+            self.model_name = om_model_config['version']
         else:
-            self.model_name = om_model_cfg['name']
+            self.model_name = om_model_config['name']
 
     def generate_completion(self, prompt: str, num_tokens: int):
         raise NotImplementedError()
@@ -111,9 +111,9 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
 
 class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
 
-    def __init__(self, om_model_cfg: DictConfig,
+    def __init__(self, om_model_config: DictConfig,
                  tokenizer: AutoTokenizer) -> None:
-        super().__init__(om_model_cfg, tokenizer)
+        super().__init__(om_model_config, tokenizer)
 
         self.generate_completion = lambda prompt, num_tokens: self.client.chat.completions.create(
             model=self.model_name,
@@ -121,8 +121,8 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
                 'role':
                     'system',
                 'content':
-                    om_model_cfg.get('system_role_prompt',
-                                     'Please complete the following text: ')
+                    om_model_config.get('system_role_prompt',
+                                        'Please complete the following text: ')
             }, {
                 'role': 'user',
                 'content': prompt
@@ -247,9 +247,9 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
 
 class OpenAICausalLMEvalWrapper(OpenAIEvalInterface):
 
-    def __init__(self, om_model_cfg: DictConfig,
+    def __init__(self, om_model_config: DictConfig,
                  tokenizer: AutoTokenizer) -> None:
-        super().__init__(om_model_cfg, tokenizer)
+        super().__init__(om_model_config, tokenizer)
         self.generate_completion = lambda prompt, num_tokens: self.client.completions.create(
             model=self.model_name,
             prompt=prompt,

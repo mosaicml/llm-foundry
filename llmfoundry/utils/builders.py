@@ -175,7 +175,7 @@ def build_composer_model(
             pre_validation_function=ComposerModel,
             post_validation_function=None,
             kwargs={
-                'om_model_cfg': cfg,
+                'om_model_config': cfg,
                 'tokenizer': tokenizer
             },
         )

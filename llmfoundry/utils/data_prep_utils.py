@@ -3,10 +3,15 @@
 
 import json
 import os
+from functools import partial
 from glob import glob
-from typing import List, Optional
+from typing import Dict, Iterable, List, Optional
 
+import numpy as np
 from composer.utils import ObjectStore
+from transformers import PreTrainedTokenizerBase
+
+from llmfoundry.data.data import AbstractConcatTokensDataset
 
 __all__ = [
     'with_id',
@@ -113,6 +118,49 @@ class DownloadingIterable:
                                                   filename=output_filename,
                                                   overwrite=True)
 
-            with open(output_filename) as _txt_file:
-                txt = _txt_file.read()
-            yield {'text': txt}
+            yield output_filename
+
+
+class ConcatTokensFromFilesDataset(AbstractConcatTokensDataset):
+    """An IterableDataset that returns token samples for MDSWriter from files.
+
+    Returns dicts of {'tokens': bytes}
+
+    Each file is considered a sequence.
+    """
+
+    def __init__(
+        self,
+        files: Iterable[str],
+        tokenizer: PreTrainedTokenizerBase,
+        max_length: int,
+        bos_text: str,
+        eos_text: str,
+        no_wrap: bool,
+    ):
+        self.files = files
+        super().__init__(tokenizer, max_length, bos_text, eos_text, no_wrap)
+
+    def __iter__(self) -> Iterable[Dict[str, bytes]]:
+
+        buffer = []
+        for file in self.files:
+            with open(file, 'r') as f:
+                buffer += self.bos_tokens
+                for chunk in iter(partial(f.read, 1000), ''):
+                    encoded = self.tokenizer(chunk,
+                                             truncation=False,
+                                             padding=False)
+                    iids = encoded['input_ids']
+                    buffer += iids
+                    while len(buffer) >= self.max_length:
+                        concat_sample = buffer[:self.max_length]
+                        buffer = buffer[
+                            self.max_length:] if self.should_wrap else []
+                        yield {'tokens': np.asarray(concat_sample).tobytes()}
+                buffer += self.eos_tokens
+        # Finish up the last of the tokens.
+        while len(buffer) >= self.max_length:
+            concat_sample = buffer[:self.max_length]
+            buffer = buffer[self.max_length:] if self.should_wrap else []
+            yield {'tokens': np.asarray(concat_sample).tobytes()}

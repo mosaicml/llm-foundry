@@ -3,6 +3,7 @@
 
 """MosaicML LLM Foundry package setup."""
 
+import copy
 import os
 import re
 
@@ -53,9 +54,9 @@ install_requires = [
     'mosaicml[libcloud,wandb,oci,gcs]>=0.21.1,<0.22',
     'mlflow>=2.10,<3',
     'accelerate>=0.25,<0.26',  # for HF inference `device_map`
-    'transformers>=4.37,<4.38',
+    'transformers>=4.38.2,<4.39',
     'mosaicml-streaming>=0.7.4,<0.8',
-    'torch>=2.2,<2.3',
+    'torch>=2.2.1,<2.3',
     'datasets>=2.16,<2.17',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
     'sentencepiece==0.1.97',
@@ -72,6 +73,7 @@ install_requires = [
     'huggingface-hub>=0.17.0,<1.0',
     'beautifulsoup4>=4.12.2,<5',  # required for model download utils
     'tenacity>=8.2.3,<9',
+    'catalogue>=2,<3',
 ]
 
 extra_deps = {}
@@ -98,18 +100,19 @@ extra_deps['tensorboard'] = [
     'mosaicml[tensorboard]>=0.21.1,<0.22',
 ]
 
-extra_deps['gpu'] = [
-    'flash-attn==1.0.9',
-    # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
-    'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v1.0.9#subdirectory=csrc/xentropy',
-]
-
+# Flash 2 group kept for backwards compatibility
 extra_deps['gpu-flash2'] = [
     'flash-attn==2.5.0',
 ]
 
+extra_deps['gpu'] = copy.deepcopy(extra_deps['gpu-flash2'])
+
 extra_deps['peft'] = [
     'mosaicml[peft]>=0.21.1,<0.22',
+]
+
+extra_deps['olmo'] = [
+    'ai2-olmo>0.2.4',
 ]
 
 extra_deps['openai'] = [

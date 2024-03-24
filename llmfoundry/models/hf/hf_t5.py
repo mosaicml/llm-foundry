@@ -17,6 +17,7 @@ from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.utils import (adapt_tokenizer_for_denoising,
                                      init_empty_weights)
+from llmfoundry.utils.warnings import experimental
 
 __all__ = ['ComposerHFT5']
 
@@ -24,6 +25,7 @@ __all__ = ['ComposerHFT5']
 _HF_IGNORE_INDEX = -100
 
 
+@experimental('ComposerHFT5')
 class ComposerHFT5(HuggingFaceModelWithZLoss):
     """Configures a :class:`.HuggingFaceModel` around a T5.
 

@@ -1,25 +1,24 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+from typing import Optional
+
 import typer
 from rich.console import Console
 from rich.table import Table
 
-console = Console()
-from typing import Optional
-
 from llmfoundry import registry
-from llmfoundry.utils import registry_utils
+from llmfoundry.utils.registry_utils import TypedRegistry
 
+console = Console()
 app = typer.Typer(pretty_exceptions_show_locals=False)
 
 
-def _get_registries(
-        group: Optional[str] = None) -> list[registry_utils.TypedRegistry]:
+def _get_registries(group: Optional[str] = None) -> list[TypedRegistry]:
     registry_attr_names = dir(registry)
     registry_attrs = [getattr(registry, name) for name in registry_attr_names]
     available_registries = [
-        r for r in registry_attrs if isinstance(r, registry_utils.TypedRegistry)
+        r for r in registry_attrs if isinstance(r, TypedRegistry)
     ]
 
     if group is not None and group not in registry_attr_names:

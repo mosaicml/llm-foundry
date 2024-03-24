@@ -7,8 +7,8 @@ from composer.loggers import LoggerDestination
 from composer.optim import ComposerScheduler
 from omegaconf import DictConfig
 from torch.optim import Optimizer
-from transformers import PreTrainedTokenizerBase
 from torchmetrics import Metric
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.interfaces import CallbackWithConfig
 from llmfoundry.utils.registry_utils import create_registry

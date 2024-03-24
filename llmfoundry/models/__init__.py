@@ -3,8 +3,22 @@
 
 from llmfoundry.models.hf import (ComposerHFCausalLM, ComposerHFPrefixLM,
                                   ComposerHFT5)
+from llmfoundry.models.inference_api_wrapper import (FMAPICasualLMEvalWrapper,
+                                                     FMAPIChatAPIEvalWrapper,
+                                                     OpenAICausalLMEvalWrapper,
+                                                     OpenAIChatAPIEvalWrapper)
 from llmfoundry.models.mpt import (ComposerMPTCausalLM, MPTConfig,
                                    MPTForCausalLM, MPTModel, MPTPreTrainedModel)
+from llmfoundry.registry import models
+
+models.register('mpt_causal_lm', func=ComposerMPTCausalLM)
+models.register('hf_causal_lm', func=ComposerHFCausalLM)
+models.register('hf_prefix_lm', func=ComposerHFPrefixLM)
+models.register('hf_t5', func=ComposerHFT5)
+models.register('openai_causal_lm', func=OpenAICausalLMEvalWrapper)
+models.register('fmapi_causal_lm', func=FMAPICasualLMEvalWrapper)
+models.register('openai_chat', func=OpenAIChatAPIEvalWrapper)
+models.register('fmapi_chat', func=FMAPIChatAPIEvalWrapper)
 
 __all__ = [
     'ComposerHFCausalLM',
@@ -15,4 +29,8 @@ __all__ = [
     'MPTModel',
     'MPTForCausalLM',
     'ComposerMPTCausalLM',
+    'OpenAICausalLMEvalWrapper',
+    'FMAPICasualLMEvalWrapper',
+    'OpenAIChatAPIEvalWrapper',
+    'FMAPIChatAPIEvalWrapper',
 ]

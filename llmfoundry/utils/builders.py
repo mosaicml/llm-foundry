@@ -1,18 +1,21 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import contextlib
 import functools
 import logging
 import os
 import re
 from collections import OrderedDict
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import (Any, ContextManager, Dict, Iterable, List, Optional, Tuple,
+                    Union)
 
 import torch
 from composer.core import Algorithm, Callback, Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
 from composer.loggers import LoggerDestination
+from composer.models import ComposerModel
 from composer.optim.scheduler import ComposerScheduler
 from composer.utils import dist
 from omegaconf import DictConfig, ListConfig
@@ -38,6 +41,7 @@ __all__ = [
     'build_optimizer',
     'build_scheduler',
     'build_tokenizer',
+    'build_composer_model',
 ]
 
 
@@ -151,6 +155,35 @@ def build_icl_data_and_gauntlet(
         }
         eval_gauntlet_cb = EvalGauntlet(**eval_gauntlet)
     return icl_evaluators, logger_keys, eval_gauntlet_cb
+
+
+def build_composer_model(
+    name: str,
+    cfg: DictConfig,
+    tokenizer: PreTrainedTokenizerBase,
+    init_context: Optional[ContextManager] = None,
+) -> ComposerModel:
+    if init_context is None:
+        init_context = contextlib.nullcontext()
+
+    with init_context:
+        model = construct_from_registry(
+            name=name,
+            registry=registry.models,
+            pre_validation_function=ComposerModel,
+            post_validation_function=None,
+            kwargs={
+                'om_model_cfg': cfg,
+                'tokenizer': tokenizer
+            },
+        )
+
+    if cfg.get('master_weights_dtype') in ('bf16', 'bfloat16'):
+        model = model.to(dtype=torch.bfloat16)
+    elif cfg.get('master_weights_dtype') in ('f16', 'float16'):
+        model = model.to(dtype=torch.float16)
+
+    return model
 
 
 def build_callback(

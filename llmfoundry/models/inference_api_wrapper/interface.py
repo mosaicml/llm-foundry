@@ -1,7 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import torch
 from composer.core.types import Batch
@@ -13,13 +13,14 @@ from composer.metrics.nlp import (InContextLearningLMAccuracy,
                                   InContextLearningQAAccuracy,
                                   LanguageCrossEntropy, LanguagePerplexity)
 from composer.models import ComposerModel
+from omegaconf import DictConfig
 from torchmetrics import Metric
 from transformers import AutoTokenizer
 
 
 class InferenceAPIEvalWrapper(ComposerModel):
 
-    def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer):
+    def __init__(self, om_model_cfg: DictConfig, tokenizer: AutoTokenizer):
         self.tokenizer = tokenizer
         self.labels = None
         # set up training and eval metrics

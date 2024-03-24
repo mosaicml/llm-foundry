@@ -21,12 +21,12 @@ from omegaconf import OmegaConf as om
 from torch.utils.data import DataLoader
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
-from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.callbacks import HuggingFaceCheckpointer
 from llmfoundry.callbacks.hf_checkpointer import _maybe_get_license_filename
 from llmfoundry.data.finetuning import build_finetuning_dataloader
 from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
-from llmfoundry.utils.builders import build_optimizer, build_tokenizer
+from llmfoundry.utils.builders import (build_composer_model, build_optimizer,
+                                       build_tokenizer)
 from scripts.inference.convert_composer_to_hf import convert_composer_to_hf
 from tests.data_utils import make_tiny_ft_dataset
 
@@ -547,8 +547,11 @@ def test_huggingface_conversion_callback(
         device_batch_size,
     )
 
-    original_model = COMPOSER_MODEL_REGISTRY[model_cfg['name']](model_cfg,
-                                                                tokenizer)
+    original_model = build_composer_model(
+        name=model_cfg['name'],
+        cfg=model_cfg,
+        tokenizer=tokenizer,
+    )
 
     optimizer_config = {
         'name': 'decoupled_adamw',
@@ -766,8 +769,11 @@ def test_convert_and_generate(model: str, tie_word_embeddings: bool,
     om_cfg['model']['init_device'] = 'cpu'
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         om_cfg.tokenizer.name, use_auth_token=model == 'llama2')
-    original_model = COMPOSER_MODEL_REGISTRY[om_cfg['model'].name](
-        om_cfg['model'], tokenizer)
+    original_model = build_composer_model(
+        name=om_cfg['model'].name,
+        cfg=om_cfg['model'],
+        tokenizer=tokenizer,
+    )
     trainer = Trainer(model=original_model, device='cpu')
     trainer.save_checkpoint(os.path.join(tmp_path, 'checkpoint.pt'))
 
@@ -866,8 +872,11 @@ def test_convert_and_generate_meta(tie_word_embeddings: str,
     om_cfg['tie_word_embeddings'] = tie_word_embeddings
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         om_cfg.tokenizer.name)
-    original_model = COMPOSER_MODEL_REGISTRY[om_cfg['model'].name](
-        om_cfg['model'], tokenizer)
+    original_model = build_composer_model(
+        name=om_cfg['model'].name,
+        cfg=om_cfg['model'],
+        tokenizer=tokenizer,
+    )
     trainer = Trainer(model=original_model, device='cpu')
     trainer.save_checkpoint(os.path.join(tmp_path_gathered, 'checkpoint.pt'))
 

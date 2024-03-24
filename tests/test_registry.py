@@ -27,6 +27,7 @@ def test_expected_registries_exist():
         'callbacks',
         'algorithms',
         'callbacks_with_config',
+        'dataloaders',
         'metrics',
     }
 

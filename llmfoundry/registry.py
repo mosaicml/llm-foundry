@@ -6,6 +6,7 @@ from composer.core import Algorithm, Callback
 from composer.loggers import LoggerDestination
 from composer.optim import ComposerScheduler
 from torch.optim import Optimizer
+from torchmetrics import Metric
 
 from llmfoundry.interfaces import CallbackWithConfig
 from llmfoundry.utils.registry_utils import create_registry
@@ -64,6 +65,13 @@ schedulers = create_registry('llmfoundry',
                              entry_points=True,
                              description=_schedulers_description)
 
+_metrics_description = """The metrics registry is used to register classes that implement the torchmetrics.Metric interface."""
+metrics = create_registry('llmfoundry',
+                          'metrics',
+                          generic_type=Type[Metric],
+                          entry_points=True,
+                          description=_metrics_description)
+
 __all__ = [
     'loggers',
     'callbacks',
@@ -71,4 +79,5 @@ __all__ = [
     'optimizers',
     'algorithms',
     'schedulers',
+    'metrics',
 ]

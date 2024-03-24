@@ -328,6 +328,7 @@ def test_huggingface_conversion_callback_interval(
             path=ANY,
             task='llm/v1/completions',
             input_example=ANY,
+            metadata={},
         )
         assert mlflow_logger_mock.register_model_with_run_id.call_count == 1
     else:
@@ -615,12 +616,10 @@ def test_huggingface_conversion_callback(
                 'flavor': 'transformers',
                 'transformers_model': ANY,
                 'path': ANY,
-                'task': 'text-generation',
+                'task': 'llm/v1/completions',
                 'signature': default_signature,
                 'input_example': default_input_example,
-                'metadata': {
-                    'task': 'llm/v1/completions'
-                }
+                'metadata': {}
             }
         mlflow_logger_mock.save_model.assert_called_with(**expectation)
         assert mlflow_logger_mock.register_model_with_run_id.call_count == 1

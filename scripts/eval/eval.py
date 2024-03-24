@@ -21,15 +21,15 @@ from rich.traceback import install
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.utils import (find_mosaicml_logger, log_eval_analytics,
-                              maybe_create_mosaicml_logger)
+                              maybe_create_mosaicml_logger,)
 
 install()
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_evaluators, build_logger,
-                                       build_tokenizer)
+                                       build_tokenizer,)
 from llmfoundry.utils.config_utils import (log_config, pop_config,
-                                           process_init_device)
+                                           process_init_device,)
 from llmfoundry.utils.registry_utils import import_file
 
 log = logging.getLogger(__name__)

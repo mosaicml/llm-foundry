@@ -12,17 +12,17 @@ from typing import Iterable, List, Tuple, cast
 
 import psutil
 from composer.utils import (ObjectStore, maybe_create_object_store_from_uri,
-                            parse_uri)
+                            parse_uri,)
 from streaming import MDSWriter
 from tqdm import tqdm
 from transformers import AutoTokenizer
 
 from llmfoundry.data import ConcatTokensDataset
+from llmfoundry.utils import maybe_create_mosaicml_logger
 from llmfoundry.utils.data_prep_utils import (DownloadingIterable,
-                                              merge_shard_groups)
+                                              merge_shard_groups,)
 from llmfoundry.utils.exceptions import (InputFolderMissingDataError,
-                                         OutputFolderNotEmptyError)
-from llmfoundry.utils.logging_utils import get_mosaicml_logger
+                                         OutputFolderNotEmptyError,)
 
 log = logging.getLogger(__name__)
 
@@ -449,7 +449,7 @@ def _args_str(original_args: Namespace) -> str:
 
 if __name__ == '__main__':
     args = parse_args()
-    mosaicml_logger = get_mosaicml_logger()
+    mosaicml_logger = maybe_create_mosaicml_logger()
 
     try:
         convert_text_to_mds(tokenizer_name=args.tokenizer,

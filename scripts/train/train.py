@@ -12,7 +12,6 @@ from typing import Any, Dict, List, Optional, Union
 import torch
 from composer import Trainer
 from composer.core.callback import Callback
-from composer.metrics.nlp import InContextLearningMetric
 from composer.profiler import (JSONTraceHandler, Profiler, TraceHandler,
                                cyclic_schedule,)
 from composer.utils import dist, get_device, reproducibility
@@ -549,7 +548,6 @@ def main(cfg: DictConfig) -> Trainer:
                             eval_loader_config, callback_configs,
                             tokenizer_name, load_path, icl_tasks_config,
                             eval_gauntlet_config)
-
     # Build Model
     log.info('Initializing model...')
     with init_context:

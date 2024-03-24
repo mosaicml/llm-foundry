@@ -27,16 +27,16 @@ from databricks.sql.client import Cursor as Cursor
 from packaging import version
 from pyspark.sql import SparkSession
 from pyspark.sql.connect.client.core import SparkConnectClient
-from pyspark.sql.connect.client.reattach import \
-    ExecutePlanResponseReattachableIterator
+from pyspark.sql.connect.client.reattach import (
+    ExecutePlanResponseReattachableIterator,)
 from pyspark.sql.connect.dataframe import DataFrame
 from pyspark.sql.dataframe import DataFrame as SparkDataFrame
 from pyspark.sql.types import Row
 
+from llmfoundry.utils import maybe_create_mosaicml_logger
 from llmfoundry.utils.exceptions import (ClusterDoesNotExistError,
                                          FailedToConnectToDatabricksError,
-                                         FailedToCreateSQLConnectionError)
-from llmfoundry.utils.logging_utils import get_mosaicml_logger
+                                         FailedToCreateSQLConnectionError,)
 
 MINIMUM_DB_CONNECT_DBR_VERSION = '14.1'
 MINIMUM_SQ_CONNECT_DBR_VERSION = '12.2'
@@ -547,7 +547,7 @@ if __name__ == '__main__':
         'The name of the combined final jsonl that combines all partitioned jsonl'
     )
     args = parser.parse_args()
-    mosaicml_logger = get_mosaicml_logger()
+    mosaicml_logger = maybe_create_mosaicml_logger()
 
     try:
         w = WorkspaceClient()

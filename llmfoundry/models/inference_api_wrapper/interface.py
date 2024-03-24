@@ -6,15 +6,12 @@ from typing import Any, Dict, Optional
 import torch
 from composer.core.types import Batch
 from composer.metrics import InContextLearningMetric
-from composer.metrics.nlp import (InContextLearningLMAccuracy,
-                                  InContextLearningLMExpectedCalibrationError,
-                                  InContextLearningMCExpectedCalibrationError,
-                                  InContextLearningMultipleChoiceAccuracy,
-                                  InContextLearningQAAccuracy,
-                                  LanguageCrossEntropy, LanguagePerplexity)
 from composer.models import ComposerModel
 from torchmetrics import Metric
 from transformers import AutoTokenizer
+
+from llmfoundry.metrics import DEFAULT_CAUSAL_LM_EVAL_METRICS
+from llmfoundry.utils.builders import build_metric
 
 
 class InferenceAPIEvalWrapper(ComposerModel):
@@ -22,15 +19,9 @@ class InferenceAPIEvalWrapper(ComposerModel):
     def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer):
         self.tokenizer = tokenizer
         self.labels = None
-        # set up training and eval metrics
         eval_metrics = [
-            LanguageCrossEntropy(),
-            LanguagePerplexity(),
-            InContextLearningLMAccuracy(),
-            InContextLearningMultipleChoiceAccuracy(),
-            InContextLearningQAAccuracy(),
-            InContextLearningLMExpectedCalibrationError(),
-            InContextLearningMCExpectedCalibrationError()
+            build_metric(metric, {})
+            for metric in DEFAULT_CAUSAL_LM_EVAL_METRICS
         ]
         self.eval_metrics = {
             metric.__class__.__name__: metric for metric in eval_metrics

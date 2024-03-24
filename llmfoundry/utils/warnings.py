@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import functools
 import warnings
-from typing import Any, Callable, TypeVar, cast, Type
+from typing import Any, Callable, Type, TypeVar, cast
 
 __all__ = [
     'VersionedDeprecationWarning',
@@ -74,16 +74,18 @@ def experimental_function(feature_name: str) -> Callable[[F], F]:
 
     return decorator
 
+
 def experimental_class(feature_name: str):
     """Class decorator to mark a class as experimental."""
+
     def class_decorator(cls: Type):
         original_init = cls.__init__
-        
+
         def new_init(self: Any, *args: Any, **kwargs: Any):
             warnings.warn(ExperimentalWarning(feature_name))
             original_init(self, *args, **kwargs)
-        
+
         cls.__init__ = new_init
         return cls
-    
+
     return class_decorator

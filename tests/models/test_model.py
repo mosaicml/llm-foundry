@@ -164,6 +164,7 @@ def test_full_forward_and_backward(batch_size: int = 2):
     original_params = next(model.parameters()).clone().data
     outputs = model(batch)
     loss = model.loss(outputs, batch)
+    assert isinstance(loss, torch.Tensor)
     loss.backward()
     optimizer.step()
     updated_params = next(model.parameters()).clone().data
@@ -180,6 +181,7 @@ def test_full_forward_and_backward_with_inputs_embeds(batch_size: int = 2):
     original_params = next(model.parameters()).clone().data
     outputs = model(batch)
     loss = model.loss(outputs, batch)
+    assert isinstance(loss, torch.Tensor)
     loss.backward()
     optimizer.step()
     updated_params = next(model.parameters()).clone().data
@@ -304,6 +306,7 @@ def test_full_forward_and_backward_gpt2_small(prefixlm: bool,
     original_params = next(model.parameters()).clone().data
     outputs = model(batch)
     loss = model.loss(outputs, batch)
+    assert isinstance(loss, torch.Tensor)
     loss.backward()
     optimizer.step()
     updated_params = next(model.parameters()).clone().data
@@ -351,6 +354,7 @@ def test_full_forward_and_backward_t5_small(batch_size: int = 2):
     original_params = next(model.parameters()).clone().data
     outputs = model(batch)
     loss = model.loss(outputs, batch)
+    assert isinstance(loss, torch.Tensor)
     loss.backward()
     optimizer.step()
     updated_params = next(model.parameters()).clone().data
@@ -430,6 +434,8 @@ def test_determinism(attn_impl: str, precision: torch.dtype, ffn_type: str,
 
             loss_1 = model_1.loss(output_1, batch)
             loss_2 = model_2.loss(output_2, batch)
+            assert isinstance(loss_1, torch.Tensor)
+            assert isinstance(loss_2, torch.Tensor)
             assert loss_1 == loss_2
             loss_1.backward()
             loss_2.backward()
@@ -504,6 +510,8 @@ def test_loss_fn():
 
         loss_1 = model_1.loss(output_1, batch)
         loss_2 = model_2.loss(output_2, batch)
+        assert isinstance(loss_1, torch.Tensor)
+        assert isinstance(loss_2, torch.Tensor)
         assert loss_1.allclose(loss_2, rtol=1e-3,
                                atol=1e-3), f'differed at step {i}'
         loss_1.backward()
@@ -2040,6 +2048,7 @@ def test_hf_init(tmp_path: pathlib.Path,
     with torch.autocast('cuda', dtype=torch.bfloat16, enabled=True):
         outputs = model(batch)
     loss = model.loss(outputs, batch)
+    assert isinstance(loss, torch.Tensor)
     loss.backward()
     optimizer.step()
 

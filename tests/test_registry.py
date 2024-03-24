@@ -21,8 +21,13 @@ def test_expected_registries_exist():
         if isinstance(getattr(registry, name), registry_utils.TypedRegistry)
     }
     expected_registry_names = {
-        'loggers', 'optimizers', 'schedulers', 'callbacks', 'algorithms',
-        'callbacks_with_config'
+        'loggers',
+        'optimizers',
+        'schedulers',
+        'callbacks',
+        'algorithms',
+        'callbacks_with_config',
+        'metrics',
     }
 
     assert existing_registries == expected_registry_names

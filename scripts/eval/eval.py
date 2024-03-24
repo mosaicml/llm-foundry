@@ -18,8 +18,8 @@ from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from rich.traceback import install
 
-from llmfoundry.utils import (create_mosaicml_logger, find_mosaicml_logger,
-                              log_eval_analytics)
+from llmfoundry.utils import (find_mosaicml_logger, log_eval_analytics,
+                              maybe_create_mosaicml_logger)
 
 install()
 from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
@@ -269,7 +269,7 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
 
     mosaicml_logger = find_mosaicml_logger(loggers)
     if mosaicml_logger is None:
-        mosaicml_logger = create_mosaicml_logger()
+        mosaicml_logger = maybe_create_mosaicml_logger()
         # mosaicml_logger will be None if run isn't on MosaicML platform
         if mosaicml_logger is not None:
             loggers.append(mosaicml_logger)
@@ -339,6 +339,8 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
         print(f'Printing complete results for all models')
         assert models_df is not None
         print(models_df.to_markdown(index=False))
+
+        trainer.close()
 
     return trainers, eval_gauntlet_df
 

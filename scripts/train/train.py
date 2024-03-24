@@ -20,8 +20,8 @@ from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from rich.traceback import install
 
-from llmfoundry.utils import (create_mosaicml_logger, find_mosaicml_logger,
-                              log_train_analytics)
+from llmfoundry.utils import (find_mosaicml_logger, log_train_analytics,
+                              maybe_create_mosaicml_logger)
 
 install()
 
@@ -437,7 +437,7 @@ def main(cfg: DictConfig) -> Trainer:
 
     mosaicml_logger = find_mosaicml_logger(loggers)
     if mosaicml_logger is None:
-        mosaicml_logger = create_mosaicml_logger()
+        mosaicml_logger = maybe_create_mosaicml_logger()
         if mosaicml_logger is not None:
             # mosaicml_logger will be None if run isn't on MosaicML platform
             loggers.append(mosaicml_logger)

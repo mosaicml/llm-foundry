@@ -1038,15 +1038,15 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         model = MPTForCausalLM(hf_config)
 
         use_train_metrics = om_model_config.get('use_train_metrics', True)
+        train_metric_names = DEFAULT_CAUSAL_LM_TRAIN_METRICS + resolved_om_model_config.get(
+            'additional_train_metrics', [])
         train_metrics = [
-            build_metric(metric, {})
-            for metric in DEFAULT_CAUSAL_LM_TRAIN_METRICS +
-            resolved_om_model_config.get('additional_train_metrics', [])
+            build_metric(metric, {}) for metric in train_metric_names
         ] if use_train_metrics else []
+        eval_metric_names = DEFAULT_CAUSAL_LM_EVAL_METRICS + resolved_om_model_config.get(
+            'additional_eval_metrics', [])
         eval_metrics = [
-            build_metric(metric, {})
-            for metric in DEFAULT_CAUSAL_LM_EVAL_METRICS +
-            resolved_om_model_config.get('additional_eval_metrics', [])
+            build_metric(metric, {}) for metric in eval_metric_names
         ]
 
         super().__init__(

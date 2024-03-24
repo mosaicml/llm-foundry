@@ -12,9 +12,6 @@ from typing import Any, Dict, List, Optional, Union
 import torch
 from composer import Trainer
 from composer.core.callback import Callback
-from composer.loggers import MosaicMLLogger
-from composer.loggers.mosaicml_logger import (MOSAICML_ACCESS_TOKEN_ENV_VAR,
-                                              MOSAICML_PLATFORM_ENV_VAR)
 from composer.metrics.nlp import InContextLearningMetric
 from composer.profiler import (JSONTraceHandler, Profiler, TraceHandler,
                                cyclic_schedule)
@@ -22,6 +19,9 @@ from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from rich.traceback import install
+
+from llmfoundry.utils import (create_mosaicml_logger, find_mosaicml_logger,
+                              log_train_analytics)
 
 install()
 
@@ -449,14 +449,11 @@ def main(cfg: DictConfig) -> Trainer:
         for name, logger_cfg in logger_configs.items()
     ] if logger_configs else []
 
-    mosaicml_logger = next(
-        (logger for logger in loggers if isinstance(logger, MosaicMLLogger)),
-        None)
+    mosaicml_logger = find_mosaicml_logger(loggers)
     if mosaicml_logger is None:
-        if os.environ.get(MOSAICML_PLATFORM_ENV_VAR, 'false').lower(
-        ) == 'true' and os.environ.get(MOSAICML_ACCESS_TOKEN_ENV_VAR):
-            # Adds mosaicml logger to composer if the run was sent from Mosaic platform, access token is set, and mosaic logger wasn't previously added
-            mosaicml_logger = MosaicMLLogger()
+        mosaicml_logger = create_mosaicml_logger()
+        if mosaicml_logger is not None:
+            # mosaicml_logger will be None if run isn't on MosaicML platform
             loggers.append(mosaicml_logger)
 
     if metadata is not None:
@@ -542,6 +539,12 @@ def main(cfg: DictConfig) -> Trainer:
         )
         if eval_gauntlet_callback is not None:
             callbacks.append(eval_gauntlet_callback)
+
+    if mosaicml_logger is not None:
+        log_train_analytics(mosaicml_logger, model_config, train_loader_config,
+                            eval_loader_config, callback_configs,
+                            tokenizer_name, load_path, icl_tasks_config,
+                            eval_gauntlet_config)
 
     # Build Model
     log.info('Initializing model...')

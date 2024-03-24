@@ -17,7 +17,10 @@ T = TypeVar('T')
 
 
 class TypedRegistry(catalogue.Registry, Generic[T]):
-    """A thin wrapper around catalogue.Registry to add static typing."""
+    """A thin wrapper around catalogue.Registry to add static typing and.
+
+    descriptions.
+    """
 
     def __init__(self,
                  namespace: Sequence[str],

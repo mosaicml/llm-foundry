@@ -7,12 +7,12 @@ from __future__ import annotations
 
 from typing import Mapping
 
-from composer.metrics.nlp import LanguageCrossEntropy, MaskedAccuracy
 from composer.utils import dist
 from omegaconf import DictConfig
 from transformers import (AutoConfig, PreTrainedTokenizerBase,
                           T5ForConditionalGeneration)
 
+from llmfoundry.metrics import DEFAULT_ENC_DEC_METRICS
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.utils import (adapt_tokenizer_for_denoising,
@@ -20,9 +20,6 @@ from llmfoundry.models.utils import (adapt_tokenizer_for_denoising,
 from llmfoundry.utils.warnings import experimental
 
 __all__ = ['ComposerHFT5']
-
-# HuggingFace hardcodes the ignore index to -100
-_HF_IGNORE_INDEX = -100
 
 
 @experimental('ComposerHFT5')
@@ -59,6 +56,8 @@ class ComposerHFT5(HuggingFaceModelWithZLoss):
 
     def __init__(self, om_model_config: DictConfig,
                  tokenizer: PreTrainedTokenizerBase):
+        from llmfoundry.utils.builders import build_metric
+
         config = AutoConfig.from_pretrained(
             om_model_config.pretrained_model_name_or_path,
             trust_remote_code=om_model_config.get('trust_remote_code', True),
@@ -122,8 +121,8 @@ class ComposerHFT5(HuggingFaceModelWithZLoss):
                 f'init_device="{init_device}" must be either "cpu" or "meta".')
 
         metrics = [
-            LanguageCrossEntropy(ignore_index=_HF_IGNORE_INDEX),
-            MaskedAccuracy(ignore_index=_HF_IGNORE_INDEX)
+            build_metric(metric, {}) for metric in DEFAULT_ENC_DEC_METRICS +
+            om_model_config.get('additional_train_metrics', [])
         ]
 
         composer_model = super().__init__(model=model,

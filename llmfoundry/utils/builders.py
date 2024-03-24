@@ -18,6 +18,7 @@ from composer.utils import dist
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from torch.optim.optimizer import Optimizer
+from torchmetrics import Metric
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from llmfoundry import registry
@@ -38,6 +39,7 @@ __all__ = [
     'build_optimizer',
     'build_scheduler',
     'build_tokenizer',
+    'build_metric',
 ]
 
 
@@ -155,12 +157,14 @@ def build_icl_data_and_gauntlet(
 
 def build_callback(
     name: str,
-    kwargs: Dict[str, Any],
+    kwargs: Optional[Dict[str, Any]] = None,
     config: Any = None,
 ) -> Callback:
     """Builds a callback from the registry."""
     registry_to_use = registry.callbacks
     if name in registry.callbacks_with_config:
+        if kwargs is None:
+            kwargs = {}
         if 'config' in kwargs:
             raise ValueError(
                 f'`config` is a reserved keyword for callbacks with config. Please remove it from the kwargs.'
@@ -176,7 +180,8 @@ def build_callback(
                                    kwargs=kwargs)
 
 
-def build_logger(name: str, kwargs: Dict[str, Any]) -> LoggerDestination:
+def build_logger(name: str,
+                 kwargs: Optional[Dict[str, Any]] = None) -> LoggerDestination:
     """Builds a logger from the registry."""
     return construct_from_registry(name=name,
                                    registry=registry.loggers,
@@ -186,7 +191,8 @@ def build_logger(name: str, kwargs: Dict[str, Any]) -> LoggerDestination:
                                    kwargs=kwargs)
 
 
-def build_algorithm(name: str, kwargs: Dict[str, Any]) -> Algorithm:
+def build_algorithm(name: str,
+                    kwargs: Optional[Dict[str, Any]] = None) -> Algorithm:
     """Builds an algorithm from the registry."""
     return construct_from_registry(name=name,
                                    registry=registry.algorithms,
@@ -196,9 +202,19 @@ def build_algorithm(name: str, kwargs: Dict[str, Any]) -> Algorithm:
                                    kwargs=kwargs)
 
 
+def build_metric(name: str, kwargs: Optional[Dict[str, Any]] = None) -> Metric:
+    """Builds a metric from the registry."""
+    return construct_from_registry(name=name,
+                                   registry=registry.metrics,
+                                   partial_function=True,
+                                   pre_validation_function=Metric,
+                                   post_validation_function=None,
+                                   kwargs=kwargs)
+
+
 def _extract_param_groups(
     model: torch.nn.Module,
-    optimizer_config: Dict[str, Any],
+    optimizer_config: Optional[Dict[str, Any]] = None,
 ) -> Union[Iterable[torch.Tensor], Iterable[Dict[str, Any]]]:
     """Extracts parameter groups defined in the optimizer config.
 
@@ -260,6 +276,9 @@ def _extract_param_groups(
             torch.Tensor's or dict's. Specifies what Tensors should be optimized
             and their param groupings.
     """
+    if optimizer_config is None:
+        return model.parameters()
+
     if 'disable_grad' in optimizer_config.keys():
         str_matches = optimizer_config.pop('disable_grad')
         if isinstance(str_matches, str):
@@ -296,11 +315,16 @@ def _extract_param_groups(
     return model.parameters()
 
 
-def build_optimizer(model: torch.nn.Module, name: str,
-                    optimizer_config: Dict[str, Any]) -> Optimizer:
+def build_optimizer(
+        model: torch.nn.Module,
+        name: str,
+        optimizer_config: Optional[Dict[str, Any]] = None) -> Optimizer:
 
     params = _extract_param_groups(model, optimizer_config)
     kwargs = optimizer_config
+
+    if kwargs is None:
+        kwargs = {}
     if 'params' in kwargs:
         raise ValueError(
             'The `params` will be automatically extracted from the model and ' +
@@ -316,8 +340,9 @@ def build_optimizer(model: torch.nn.Module, name: str,
                                    kwargs=kwargs)
 
 
-def build_scheduler(name: str,
-                    scheduler_config: Dict[str, Any]) -> ComposerScheduler:
+def build_scheduler(
+        name: str,
+        scheduler_config: Optional[Dict[str, Any]] = None) -> ComposerScheduler:
     return construct_from_registry(
         name=name,
         registry=registry.schedulers,

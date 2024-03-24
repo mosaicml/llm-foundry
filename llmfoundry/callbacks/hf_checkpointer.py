@@ -129,39 +129,30 @@ class HuggingFaceCheckpointer(Callback):
             mlflow_logging_config = {}
         if self.mlflow_registered_model_name is not None:
             import numpy as np
-            from mlflow.models.signature import ModelSignature
-            from mlflow.types.schema import ColSpec, Schema
 
             # Both the metadata and the task are needed in order for mlflow
             # and databricks optimized model serving to work
-            default_metadata = {'task': 'llm/v1/completions'}
             passed_metadata = mlflow_logging_config.get('metadata', {})
-            mlflow_logging_config['metadata'] = {
-                **default_metadata,
-                **passed_metadata
-            }
-            mlflow_logging_config.setdefault('task', 'text-generation')
-
-            # Define a default input/output that is good for standard text generation LMs
-            input_schema = Schema([
-                ColSpec('string', 'prompt'),
-                ColSpec('double', 'temperature', optional=True),
-                ColSpec('integer', 'max_tokens', optional=True),
-                ColSpec('string', 'stop', optional=True),
-                ColSpec('integer', 'candidate_count', optional=True)
-            ])
-
-            output_schema = Schema([ColSpec('string', 'predictions')])
-
-            default_signature = ModelSignature(inputs=input_schema,
-                                               outputs=output_schema)
+            mlflow_logging_config['metadata'] = passed_metadata
+            mlflow_logging_config.setdefault('task', 'llm/v1/completions')
 
             default_input_example = {
                 'prompt': np.array(['What is Machine Learning?'])
             }
+            is_chat = mlflow_logging_config['task'].endswith(
+                'chat') or mlflow_logging_config['metadata'].get(
+                    'task', '').endswith('chat')
+            if is_chat:
+                default_input_example = {
+                    'messages':
+                        np.array([{
+                            'role': 'user',
+                            'content': 'What is Machine Learning?'
+                        }])
+                }
+                mlflow_logging_config.setdefault('example_no_conversion', True)
             mlflow_logging_config.setdefault('input_example',
                                              default_input_example)
-            mlflow_logging_config.setdefault('signature', default_signature)
 
         self.mlflow_logging_config = mlflow_logging_config
 

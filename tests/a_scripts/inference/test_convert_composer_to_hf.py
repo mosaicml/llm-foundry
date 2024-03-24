@@ -254,11 +254,7 @@ def test_callback_inits():
         save_interval='1ba',
         mlflow_registered_model_name='test_model_name')
 
-    assert hf_checkpointer.mlflow_logging_config['task'] == 'text-generation'
-    assert hf_checkpointer.mlflow_logging_config['metadata'][
-        'task'] == 'llm/v1/completions'
-    assert 'input_example' in hf_checkpointer.mlflow_logging_config
-    assert 'signature' in hf_checkpointer.mlflow_logging_config
+    assert hf_checkpointer.mlflow_logging_config['task'] == 'llm/v1/completions'
 
 
 @pytest.mark.gpu
@@ -330,10 +326,10 @@ def test_huggingface_conversion_callback_interval(
             flavor='transformers',
             transformers_model=ANY,
             path=ANY,
-            task='text-generation',
+            task='llm/v1/completions',
             input_example=ANY,
-            signature=ANY,
-            metadata={'task': 'llm/v1/completions'})
+            metadata={},
+        )
         assert mlflow_logger_mock.register_model_with_run_id.call_count == 1
     else:
         assert mlflow_logger_mock.save_model.call_count == 0
@@ -599,21 +595,6 @@ def test_huggingface_conversion_callback(
             }
         else:
             import numpy as np
-            from mlflow.models.signature import ModelSignature
-            from mlflow.types.schema import ColSpec, Schema
-
-            input_schema = Schema([
-                ColSpec('string', 'prompt'),
-                ColSpec('double', 'temperature', optional=True),
-                ColSpec('integer', 'max_tokens', optional=True),
-                ColSpec('string', 'stop', optional=True),
-                ColSpec('integer', 'candidate_count', optional=True)
-            ])
-
-            output_schema = Schema([ColSpec('string', 'predictions')])
-
-            default_signature = ModelSignature(inputs=input_schema,
-                                               outputs=output_schema)
 
             default_input_example = {
                 'prompt': np.array(['What is Machine Learning?'])
@@ -623,12 +604,9 @@ def test_huggingface_conversion_callback(
                 'flavor': 'transformers',
                 'transformers_model': ANY,
                 'path': ANY,
-                'task': 'text-generation',
-                'signature': default_signature,
+                'task': 'llm/v1/completions',
                 'input_example': default_input_example,
-                'metadata': {
-                    'task': 'llm/v1/completions'
-                }
+                'metadata': {}
             }
         mlflow_logger_mock.save_model.assert_called_with(**expectation)
         assert mlflow_logger_mock.register_model_with_run_id.call_count == 1

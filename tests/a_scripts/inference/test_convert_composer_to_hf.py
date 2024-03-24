@@ -586,9 +586,7 @@ def test_huggingface_conversion_callback(
                 'flavor': 'peft',
                 'path': ANY,
                 'save_pretrained_dir': ANY,
-                'metadata': {
-                    'task': 'llm/v1/completions'
-                }
+                'task': 'llm/v1/completions',
             }
         else:
             import numpy as np

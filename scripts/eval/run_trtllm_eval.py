@@ -102,7 +102,7 @@ def engine_dir_str(model_type, model_dir, variant, ngpus=8):
 
 
 LLAMA_TOK_DIR = '/mnt/workdisk/nikhil/llama-70b-chat-hf/'
-DBRX_TOK_DIR = '/mnt/workdisk/nikhil/dbrx/03_23_hf_ckpt/'
+DBRX_TOK_DIR = '/workspace/dbrx/03_23_hf_ckpt/'
 
 LLAMA_7B_DIR = '7B-chat-quality-eval'
 LLAMA_70B_DIR = '70B-chat-quality-eval'
@@ -116,7 +116,9 @@ LLAMA_70B_DIR = '70B-chat-quality-eval'
 # llama70b_fp16_config = get_llama_config(engine_dir_str('llama', LLAMA_70B_DIR, 'fp16'), LLAMA_TOK_DIR)
 
 dbrx_bf16_engine_dir = '/mnt/workdisk/nikhil/dbrx/03_23_tllm_engine_bf16'
+dbrx_int8_engine_dir = '/workspace/dbrx/03_23_tllm_engine_int8'
 dbrx_bf16_config = get_dbrx_config(dbrx_bf16_engine_dir, DBRX_TOK_DIR)
+dbrx_int8_config = get_dbrx_config(dbrx_int8_engine_dir, DBRX_TOK_DIR)
 
 def run_eval(config):
     print("RUNNING EVAL")
@@ -129,5 +131,6 @@ def run_eval(config):
 # run_eval(llama70b_fp16_config)
 # run_eval(llama70b_fp8_config)
 # run_eval(llama70b_smoothquant_config)
-run_eval(dbrx_bf16_config)
+# run_eval(dbrx_bf16_config)
+run_eval(dbrx_int8_config)
 

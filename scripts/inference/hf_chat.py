@@ -12,10 +12,11 @@ from transformers import (AutoConfig, AutoModelForCausalLM, AutoTokenizer,
                           PreTrainedModel, PreTrainedTokenizerBase,
                           StoppingCriteria, StoppingCriteriaList, TextStreamer)
 
+DEFAULT_SYSTEM_PROMPT = 'You are a friendly chatbot who aims to be helpful and honest.'
 
-DEFAULT_SYSTEM_PROMPT = "You are a friendly chatbot who aims to be helpful and honest."
+
 class ChatMessage:
-    """ A class that holds a chat message.
+    """A class that contains a chat message.
 
     Please see ChatML format for more information:
     https://huggingface.co/docs/transformers/main/en/chat_templating#how-do-i-use-chat-templates
@@ -110,14 +111,22 @@ class Conversation:
 
     def _history_as_formatted_str(self) -> str:
         chat_conversation = self._history_to_chat()
-        tokenized_chat = self.tokenizer.apply_chat_template(chat_conversation, tokenize=True, add_generation_prompt=True, return_tensors="pt")
+        tokenized_chat = self.tokenizer.apply_chat_template(
+            chat_conversation,
+            tokenize=True,
+            add_generation_prompt=True,
+            return_tensors='pt')
         tokenized_chat = tokenized_chat.to(self.model.device)
         return self.tokenizer.decode(tokenized_chat[0])
 
     def turn(self, user_inp: str) -> None:
         self.history.append(ChatMessage('user', user_inp))
         chat_conversation = self._history_to_chat()
-        tokenized_chat = self.tokenizer.apply_chat_template(chat_conversation, tokenize=True, add_generation_prompt=True, return_tensors="pt")
+        tokenized_chat = self.tokenizer.apply_chat_template(
+            chat_conversation,
+            tokenize=True,
+            add_generation_prompt=True,
+            return_tensors='pt')
         tokenized_chat = tokenized_chat.to(self.model.device)
         # also stream to stdout
         maybe_synchronize()
@@ -247,7 +256,9 @@ def parse_args() -> Namespace:
     parser.add_argument('--device_map', type=str, default=None)
     parser.add_argument('--attn_impl', type=str, default=None)
     parser.add_argument('--seed', type=int, default=42)
-    parser.add_argument('--system_prompt', type=str, default=DEFAULT_SYSTEM_PROMPT)
+    parser.add_argument('--system_prompt',
+                        type=str,
+                        default=DEFAULT_SYSTEM_PROMPT)
     parser.add_argument('--user_msg_fmt', type=str, default=None)
     parser.add_argument('--assistant_msg_fmt', type=str, default=None)
     parser.add_argument(
@@ -372,7 +383,8 @@ def main(args: Namespace) -> None:
         print('Warming up...')
         with autocast_context:
             conversation.turn('Write a welcome message to the user.')
-            conversation.history = conversation.history[:1]  # keep system prompt
+            conversation.history = conversation.history[:
+                                                        1]  # keep system prompt
 
     print('Starting conversation...')
     with autocast_context:

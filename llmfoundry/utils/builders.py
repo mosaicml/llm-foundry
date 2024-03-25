@@ -1,18 +1,21 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import contextlib
 import functools
 import logging
 import os
 import re
 from collections import OrderedDict
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import (Any, ContextManager, Dict, Iterable, List, Optional, Tuple,
+                    Union)
 
 import torch
 from composer.core import Algorithm, Callback, Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
 from composer.loggers import LoggerDestination
+from composer.models import ComposerModel
 from composer.optim.scheduler import ComposerScheduler
 from composer.utils import dist
 from omegaconf import DictConfig, ListConfig
@@ -39,6 +42,7 @@ __all__ = [
     'build_optimizer',
     'build_scheduler',
     'build_tokenizer',
+    'build_composer_model',
     'build_metric',
 ]
 
@@ -153,6 +157,58 @@ def build_icl_data_and_gauntlet(
         }
         eval_gauntlet_cb = EvalGauntlet(**eval_gauntlet)
     return icl_evaluators, logger_keys, eval_gauntlet_cb
+
+
+def build_composer_model(
+    name: str,
+    cfg: DictConfig,
+    tokenizer: PreTrainedTokenizerBase,
+    init_context: Optional[ContextManager] = None,
+    master_weights_dtype: Optional[str] = None,
+) -> ComposerModel:
+    """Builds a ComposerModel from the registry.
+
+    Args:
+        name (str): Name of the model to build.
+        cfg (DictConfig): Configuration for the model.
+        tokenizer (PreTrainedTokenizerBase): Tokenizer to use.
+        init_context (Optional[ContextManager], optional): Context manager to use for initialization. Defaults to None.
+        master_weights_dtype (Optional[str], optional): Master weights dtype. Defaults to None.
+
+    Returns:
+        ComposerModel: _description_
+    """
+    if init_context is None:
+        init_context = contextlib.nullcontext()
+
+    with init_context:
+        model = construct_from_registry(
+            name=name,
+            registry=registry.models,
+            pre_validation_function=ComposerModel,
+            post_validation_function=None,
+            kwargs={
+                'om_model_config': cfg,
+                'tokenizer': tokenizer
+            },
+        )
+
+    str_dtype_to_torch_dtype = {
+        'f16': torch.float16,
+        'float16': torch.float16,
+        'bf16': torch.bfloat16,
+        'bfloat16': torch.bfloat16,
+    }
+
+    if master_weights_dtype is not None:
+        if master_weights_dtype not in str_dtype_to_torch_dtype:
+            raise ValueError(
+                f'Invalid master_weights_dtype: {master_weights_dtype}. ' +
+                f'Valid options are: {list(str_dtype_to_torch_dtype.keys())}.')
+        dtype = str_dtype_to_torch_dtype[master_weights_dtype]
+        model = model.to(dtype=dtype)
+
+    return model
 
 
 def build_callback(

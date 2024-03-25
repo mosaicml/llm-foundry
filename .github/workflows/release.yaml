@@ -32,12 +32,11 @@ jobs:
           PYPI_PACKAGE_NAME="llm-foundry-test-$(date +%Y%m%d%H%M%S)"
         fi
 
-        # Remove the peft, xentropy-cuda-lib and triton-pre-mlir dependencies as PyPI does not
-        # support direct installs. The error message for importing PEFT, FusedCrossEntropy,
-        # and flash_attn_triton gives instructions on how to install if a user tries to use it
+        # Remove the peft and xentropy-cuda-lib dependencies as PyPI does not
+        # support direct installs. The error message for importing PEFT and 
+        # FusedCrossEntropy gives instructions on how to install if a user tries to use it
         # without this dependency.
         sed '/xentropy-cuda-lib@git+https:\/\/github.com\/HazyResearch\/flash-attention.git@.*/d' -i setup.py
-        sed '/triton-pre-mlir@git+https:\/\/github.com\/vchiley\/triton.git@.*/d' -i setup.py
         sed '/peft@git+https:\/\/github.com\/huggingface\/peft.git.*/d' -i setup.py
 
         python -m pip install --upgrade build twine

@@ -37,6 +37,7 @@ from llmfoundry.utils import maybe_create_mosaicml_logger
 from llmfoundry.utils.exceptions import (ClusterDoesNotExistError,
                                          FailedToConnectToDatabricksError,
                                          FailedToCreateSQLConnectionError,)
+from llmfoundry.utils.logging_utils import get_mosaicml_logger
 
 MINIMUM_DB_CONNECT_DBR_VERSION = '14.1'
 MINIMUM_SQ_CONNECT_DBR_VERSION = '12.2'

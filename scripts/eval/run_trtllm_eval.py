@@ -5,8 +5,8 @@
 # All this can be written in YAML form.
 
 
-#from eval import main as run_evaluation
-from eval_trt_multigpu import main as run_evaluation
+from eval import main as run_evaluation
+#from eval_trt_multigpu import main as run_evaluation
 from omegaconf import OmegaConf as om
 from omegaconf import DictConfig
 
@@ -17,7 +17,7 @@ MINI_TASKS = './eval/yamls/mini_tasks_v0.2.yaml'
 QA_MC_TASKS = './eval/yamls/qa_mc_tasks_v0.3.yaml'
 ALL_TASKS = './eval/yamls/tasks_v0.3.yaml'
 LM_TASKS = './eval/yamls/lm_tasks_v0.3.yaml'
-GAUNTLET = './eval/yamls/eval_gauntlet_v0.3.yaml'
+EVAL_GAUNTLET = './eval/yamls/eval_gauntlet_v0.3.yaml'
 
 def get_dbrx_config(engine_dir, tokenizer_name, icl_tasks=ALL_TASKS):
     return {
@@ -43,6 +43,10 @@ def get_dbrx_config(engine_dir, tokenizer_name, icl_tasks=ALL_TASKS):
                 'tokenizer':
                 {
                     'name': tokenizer_name,
+                    'kwargs':
+                    {
+                        'trust_remote_code': 'True'
+                    }
                 }
             }
         ],

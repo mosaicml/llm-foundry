@@ -102,6 +102,8 @@ class InferenceAPIEvalWrapper(ComposerModel):
             return
         
         self.labels[:, :-1] = self.labels[:, 1:].clone()
+        #print("**** Labels:",self.tokenizer.decode(self.labels[0]))
+        #print("*******")
         self.labels[:, -1] = -100
         if isinstance(metric, InContextLearningMetric) and batch.get(
                 'mode', None) == 'icl_task':
@@ -111,7 +113,7 @@ class InferenceAPIEvalWrapper(ComposerModel):
             raise NotImplementedError(
                 'Inference API wrapper only supports InContextLearningMetrics and mode=icl_task'
             )
-
+        
     def forward(self):
         raise NotImplementedError(
             "Inference API wrapper doesn't support forward")

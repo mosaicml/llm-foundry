@@ -28,6 +28,16 @@ from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_tokenizer)
 from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device)
+try:
+    import tensorrt_llm
+    TRTLLM = True
+    if tensorrt_llm.mpi_world_size() > 1:
+        TRTLLM_MULTIGPU = True
+    else:
+        TRTLLM_MULTIGPU = False
+except:
+    TRTLLM = False
+    TRTLLM_MULTIGPU = False
 
 log = logging.getLogger(__name__)
 
@@ -97,7 +107,7 @@ def evaluate_model(
         icl_seq_len=max_seq_len,
         icl_subset_num_batches=icl_subset_num_batches,
     )
-
+    
     callbacks = []
     if eval_gauntlet_callback is not None:
         callbacks.append(eval_gauntlet_callback)
@@ -152,6 +162,9 @@ def evaluate_model(
     assert composer_model is not None
 
     log.info(f'Building trainer for {model_cfg.model_name}...')
+
+    #if TRTLLM_MULTIGPU and tensorrt_llm.mpi_rank() > 0:
+    #    loggers = None
 
     trainer = Trainer(
         run_name=run_name,
@@ -272,7 +285,9 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
         )
 
     reproducibility.seed_all(seed)
-    dist.initialize_dist(get_device(None), timeout=dist_timeout)
+    
+    if not TRTLLM_MULTIGPU:
+        dist.initialize_dist(get_device(None), timeout=dist_timeout)
 
     if python_log_level is not None:
         logging.basicConfig(

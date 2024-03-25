@@ -132,8 +132,8 @@ def evaluate_model(
 
     assert composer_model is not None
 
-    if tensorrt_llm.mpi_rank() > 0:
-        loggers = None
+    # if tensorrt_llm.mpi_rank() > 0:
+    #    loggers = None
 
     trainer = Trainer(
         run_name=run_name,

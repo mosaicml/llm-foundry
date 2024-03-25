@@ -262,7 +262,7 @@ Some components of LLM Foundry are registrable. This means that you can register
 ## Discovering registrable components
 To help find and understand registrable components, you can use the `llmfoundry registry` cli command.
 
-We provide two commands:
+We provide two commands currently:
 - `llmfoundry registry get [--group]`: List all registries, and their components, optionally specifying a specific registry. Example usage: `llmfoundry registry get --group loggers` or `llmfoundry registry get`
 - `llmfoundry registry find <group> <name>`: Get information about a specific registered component. Example usage: `llmfoundry registry find loggers wandb`
 

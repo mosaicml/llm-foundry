@@ -25,7 +25,7 @@ from transformers import (AutoModelForCausalLM, AutoTokenizer, PreTrainedModel,
 from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.models.bloom.modeling_bloom import build_alibi_tensor
 
-from llmfoundry import COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM
+from llmfoundry import ComposerHFCausalLM
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.layers import NORM_CLASS_REGISTRY, build_alibi_bias
 from llmfoundry.models.layers.attention import (check_alibi_support,
@@ -33,6 +33,7 @@ from llmfoundry.models.layers.attention import (check_alibi_support,
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils import build_tokenizer
+from llmfoundry.utils.builders import build_composer_model
 
 
 def get_config(
@@ -83,8 +84,12 @@ def get_objs(conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml'):
     tokenizer = build_tokenizer(test_cfg.tokenizer.name,
                                 tokenizer_cfg.get('kwargs', {}))
 
-    model = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
-                                                         tokenizer)
+    model = build_composer_model(
+        name=test_cfg.model.name,
+        cfg=test_cfg.model,
+        tokenizer=tokenizer,
+    )
+
     # Optimizer
     assert test_cfg.optimizer.name == 'decoupled_adamw'
     optimizer = DecoupledAdamW(model.parameters(),
@@ -159,6 +164,7 @@ def test_full_forward_and_backward(batch_size: int = 2):
     original_params = next(model.parameters()).clone().data
     outputs = model(batch)
     loss = model.loss(outputs, batch)
+    assert isinstance(loss, torch.Tensor)
     loss.backward()
     optimizer.step()
     updated_params = next(model.parameters()).clone().data
@@ -175,6 +181,7 @@ def test_full_forward_and_backward_with_inputs_embeds(batch_size: int = 2):
     original_params = next(model.parameters()).clone().data
     outputs = model(batch)
     loss = model.loss(outputs, batch)
+    assert isinstance(loss, torch.Tensor)
     loss.backward()
     optimizer.step()
     updated_params = next(model.parameters()).clone().data
@@ -273,8 +280,11 @@ def test_full_forward_and_backward_gpt2_small(prefixlm: bool,
     tokenizer = build_tokenizer(neo_cfg.tokenizer.name,
                                 tokenizer_cfg.get('kwargs', {}))
 
-    model = COMPOSER_MODEL_REGISTRY[neo_cfg.model.name](neo_cfg.model,
-                                                        tokenizer).to(device)
+    model = build_composer_model(
+        name=neo_cfg.model.name,
+        cfg=neo_cfg.model,
+        tokenizer=tokenizer,
+    ).to(device)
 
     assert isinstance(model.tokenizer,
                       (PreTrainedTokenizer, PreTrainedTokenizerFast))
@@ -296,6 +306,7 @@ def test_full_forward_and_backward_gpt2_small(prefixlm: bool,
     original_params = next(model.parameters()).clone().data
     outputs = model(batch)
     loss = model.loss(outputs, batch)
+    assert isinstance(loss, torch.Tensor)
     loss.backward()
     optimizer.step()
     updated_params = next(model.parameters()).clone().data
@@ -318,8 +329,11 @@ def test_full_forward_and_backward_t5_small(batch_size: int = 2):
     tokenizer = build_tokenizer(t5_cfg.tokenizer.name,
                                 tokenizer_cfg.get('kwargs', {}))
 
-    model = COMPOSER_MODEL_REGISTRY[t5_cfg.model.name](t5_cfg.model,
-                                                       tokenizer).to(device)
+    model = build_composer_model(
+        name=t5_cfg.model.name,
+        cfg=t5_cfg.model,
+        tokenizer=tokenizer,
+    ).to(device)
 
     assert isinstance(model.tokenizer,
                       (PreTrainedTokenizer, PreTrainedTokenizerFast))
@@ -340,6 +354,7 @@ def test_full_forward_and_backward_t5_small(batch_size: int = 2):
     original_params = next(model.parameters()).clone().data
     outputs = model(batch)
     loss = model.loss(outputs, batch)
+    assert isinstance(loss, torch.Tensor)
     loss.backward()
     optimizer.step()
     updated_params = next(model.parameters()).clone().data
@@ -391,8 +406,11 @@ def test_determinism(attn_impl: str, precision: torch.dtype, ffn_type: str,
     tokenizer = build_tokenizer(test_cfg.tokenizer.name,
                                 tokenizer_cfg.get('kwargs', {}))
 
-    model_1 = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
-                                                           tokenizer)
+    model_1 = build_composer_model(
+        name=test_cfg.model.name,
+        cfg=test_cfg.model,
+        tokenizer=tokenizer,
+    )
     model_2 = copy.deepcopy(model_1)
 
     optimizer_1 = DecoupledAdamW(model_1.parameters(),
@@ -416,6 +434,8 @@ def test_determinism(attn_impl: str, precision: torch.dtype, ffn_type: str,
 
             loss_1 = model_1.loss(output_1, batch)
             loss_2 = model_2.loss(output_2, batch)
+            assert isinstance(loss_1, torch.Tensor)
+            assert isinstance(loss_2, torch.Tensor)
             assert loss_1 == loss_2
             loss_1.backward()
             loss_2.backward()
@@ -457,8 +477,11 @@ def test_loss_fn():
     tokenizer = build_tokenizer(test_cfg.tokenizer.name,
                                 tokenizer_cfg.get('kwargs', {}))
 
-    model_1 = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
-                                                           tokenizer)
+    model_1 = build_composer_model(
+        name=test_cfg.model.name,
+        cfg=test_cfg.model,
+        tokenizer=tokenizer,
+    )
     model_2 = copy.deepcopy(model_1)
 
     model_1.to(test_cfg.device)
@@ -487,6 +510,8 @@ def test_loss_fn():
 
         loss_1 = model_1.loss(output_1, batch)
         loss_2 = model_2.loss(output_2, batch)
+        assert isinstance(loss_1, torch.Tensor)
+        assert isinstance(loss_2, torch.Tensor)
         assert loss_1.allclose(loss_2, rtol=1e-3,
                                atol=1e-3), f'differed at step {i}'
         loss_1.backward()
@@ -2023,6 +2048,7 @@ def test_hf_init(tmp_path: pathlib.Path,
     with torch.autocast('cuda', dtype=torch.bfloat16, enabled=True):
         outputs = model(batch)
     loss = model.loss(outputs, batch)
+    assert isinstance(loss, torch.Tensor)
     loss.backward()
     optimizer.step()
 

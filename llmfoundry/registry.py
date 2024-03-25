@@ -4,6 +4,7 @@ from typing import Callable, Type
 
 from composer.core import Algorithm, Callback, DataSpec
 from composer.loggers import LoggerDestination
+from composer.models import ComposerModel
 from composer.optim import ComposerScheduler
 from omegaconf import DictConfig
 from torch.optim import Optimizer
@@ -83,6 +84,15 @@ schedulers = create_registry('llmfoundry',
                              entry_points=True,
                              description=_schedulers_description)
 
+_models_description = """The models registry is used to register classes that implement the ComposerModel interface. The model
+constructor should accept two arguments: an omegaconf DictConfig named `om_model_config` and a PreTrainedTokenizerBase named `tokenizer`.
+Note: This will soon be updated to take in named kwargs instead of a config directly."""
+models = create_registry('llmfoundry',
+                         'models',
+                         generic_type=Type[ComposerModel],
+                         entry_points=True,
+                         description=_models_description)
+
 _dataloaders_description = """The dataloaders registry is used to register functions that create a DataSpec. The function should take
 a DictConfig, a PreTrainedTokenizerBase, and an int as arguments, and return a DataSpec."""
 dataloaders = create_registry(
@@ -106,5 +116,7 @@ __all__ = [
     'optimizers',
     'algorithms',
     'schedulers',
+    'models',
     'metrics',
+    'dataloaders',
 ]

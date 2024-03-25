@@ -9,7 +9,7 @@ import torch
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
-from llmfoundry import COMPOSER_MODEL_REGISTRY
+from llmfoundry.utils.builders import build_composer_model, build_tokenizer
 
 
 def get_dtype(dtype: str):
@@ -58,8 +58,17 @@ def main(config: DictConfig):
         },
     }
 
-    composer_model = COMPOSER_MODEL_REGISTRY[config.model.name](
-        config.model, config.tokenizer)
+    tokenizer_name = config.tokenizer['name']
+    tokenizer_kwargs = config.tokenizer.get('kwargs', {})
+    tokenizer = build_tokenizer(
+        tokenizer_name=tokenizer_name,
+        tokenizer_kwargs=tokenizer_kwargs,
+    )
+    composer_model = build_composer_model(
+        name=config.model.name,
+        cfg=config.model,
+        tokenizer=tokenizer,
+    )
     model = composer_model.model
     model.eval()
 

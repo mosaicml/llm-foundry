@@ -741,7 +741,7 @@ def test_finetuning_dataloader_is_valid_ift_example(
 
 invalid_prompt_response_params = [
     'add_bad_data_dropped', 'add_invalid_prompt_type',
-    'add_invalid_response_type', 'add_unknown_conversation_type',
+    'add_invalid_response_type', 'add_unknown_example_type',
     'add_too_many_example_keys'
 ]
 
@@ -754,7 +754,7 @@ def test_malformed_data(
     add_invalid_prompt_type: bool,
     add_invalid_response_type: bool,
     add_too_many_example_keys: bool,
-    add_unknown_conversation_type: bool,
+    add_unknown_example_type: bool,
     tmp_path: pathlib.Path,
 ):
     tokenizer_name = 'mosaicml/mpt-7b'
@@ -781,7 +781,7 @@ def test_malformed_data(
             add_bad_data_dropped=add_bad_data_dropped,
             add_invalid_prompt_type=add_invalid_prompt_type,
             add_invalid_response_type=add_invalid_response_type,
-            add_unknown_conversation_type=add_unknown_conversation_type,
+            add_unknown_example_type=add_unknown_example_type,
             add_too_many_example_keys=add_too_many_example_keys,
             add_just_bos_eos_pad=True,
             pad_token=tokenizer.pad_token,
@@ -820,9 +820,9 @@ def test_malformed_data(
     if add_invalid_response_type:
         error_context = pytest.raises(InvalidResponseTypeError,
                                       match='Expected response to be')
-    if add_unknown_conversation_type:
+    if add_unknown_example_type:
         error_context = pytest.raises(UnknownExampleTypeError,
-                                      match='Unknown conversation type')
+                                      match='Unknown example type')
     if add_too_many_example_keys:
         error_context = pytest.raises(TooManyKeysInExampleError,
                                       match='Please specify exactly one.')

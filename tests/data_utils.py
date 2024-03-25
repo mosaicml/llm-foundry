@@ -22,7 +22,7 @@ def make_tiny_ft_dataset(
     add_bad_data_dropped: bool = False,
     add_invalid_prompt_type: bool = False,
     add_invalid_response_type: bool = False,
-    add_unknown_conversation_type: bool = False,
+    add_unknown_example_type: bool = False,
     add_just_bos_eos_pad: bool = False,
     add_too_many_example_keys: bool = False,
     pad_token: Optional[str] = None,
@@ -80,8 +80,8 @@ def make_tiny_ft_dataset(
         samples.append({'prompt': 'hello', 'response': end_token})
         # prompt just pad
         samples.append({'prompt': pad_token, 'response': 'goodbye'})
-    if add_unknown_conversation_type:
-        # unknown conversation type
+    if add_unknown_example_type:
+        # unknown example type
         samples = [{'foo': 'yee', 'bar': 'haw'}]
 
     os.makedirs(os.path.dirname(path), exist_ok=True)

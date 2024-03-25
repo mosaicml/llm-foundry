@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import torch
+from composer.core import Callback
 from composer.loggers.logger_destination import LoggerDestination
 from composer.models.base import ComposerModel
 from composer.trainer import Trainer

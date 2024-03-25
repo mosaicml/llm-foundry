@@ -16,12 +16,12 @@ from streaming import StreamingDataset
 from torch.utils.data import DataLoader
 
 from llmfoundry.interfaces import CallbackWithConfig
-from llmfoundry.utils.warnings import experimental
+from llmfoundry.utils.warnings import experimental_class
 
 log = logging.getLogger(__name__)
 
 
-@experimental('CurriculumLearning callback')
+@experimental_class('CurriculumLearning callback')
 class CurriculumLearning(CallbackWithConfig):
     """Starts an epoch with a different dataset when resuming from a checkpoint.
 

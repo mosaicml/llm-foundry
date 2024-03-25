@@ -54,6 +54,13 @@ class GeminiChatAPIEvalrapper(InferenceAPIEvalWrapper):
             google_genai.types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
             google_genai.types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
             google_genai.types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+            google_genai.types.HarmCategory.HARM_CATEGORY_UNSPECIFIED,
+            google_genai.types.HarmCategory.HARM_CATEGORY_DEROGATORY,
+            google_genai.types.HarmCategory.HARM_CATEGORY_TOXICITY,
+            google_genai.types.HarmCategory.HARM_CATEGORY_VIOLENCE,
+            google_genai.types.HarmCategory.HARM_CATEGORY_SEXUAL,
+            google_genai.types.HarmCategory.HARM_CATEGORY_MEDICAL,
+            google_genai.types.HarmCategory.HARM_CATEGORY_DANGEROUS,
         ]
         self.safety_settings = {
             category: google_genai.types.HarmBlockThreshold.BLOCK_NONE
@@ -81,7 +88,11 @@ class GeminiChatAPIEvalrapper(InferenceAPIEvalWrapper):
             raise ValueError(f"Prompt must be str: {prompt}")
 
     def completion_to_string(self, completion: ChatCompletion):
-        return [completion.text]
+        try:
+            # sometimes gemini will block outputs due to content filters
+            return [completion.text]
+        except:
+            return [""]
 
     def eval_forward(self, batch: Batch, outputs: Optional[Any] = None):
         # Override the base class because Chat's API always strips spacing from model outputs resulting in different tokens

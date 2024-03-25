@@ -28,7 +28,7 @@ image: mosaicml/llm-foundry:2.2.1_cu121_flash2-latest
 parameters:
   seed: 1
   max_seq_len: 30000
-  device_eval_batch_size: 4
+  device_eval_batch_size: 1
   models:
   -
     model_name: models/gemini-1.0-pro-latest

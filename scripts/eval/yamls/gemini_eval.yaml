@@ -1,0 +1,34 @@
+seed: 1
+max_seq_len: 2048
+device_eval_batch_size: 4
+models:
+# -
+#   model_name: openai/gpt-3.5-turbo
+#   model:
+#     name: openai_chat
+#     version: gpt-3.5-turbo
+#   tokenizer:
+#     name: tiktoken
+#     kwargs:
+#       model_name: gpt-3.5-turbo
+-
+  model_name: models/gemini-1.0-pro-latest
+  model:
+    name: gemini_chat
+    version: models/gemini-1.0-pro-latest
+  tokenizer:
+    name: tiktoken
+    kwargs:
+      model_name: gpt-3.5-turbo-instruct
+
+icl_tasks:
+-
+  label: kv_pairs_end_32k
+  dataset_uri: hf://mosaicml/long_context_eval
+  num_fewshot: [0]
+  icl_task_type: question_answering
+  hf_loading_vars:
+    name: hotpotqa
+    context_length: 32768
+    section: end
+    split: test

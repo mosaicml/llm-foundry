@@ -6,7 +6,8 @@ from llmfoundry.models.hf import (ComposerHFCausalLM, ComposerHFPrefixLM,
 from llmfoundry.models.inference_api_wrapper import (FMAPICasualLMEvalWrapper,
                                                      FMAPIChatAPIEvalWrapper,
                                                      OpenAICausalLMEvalWrapper,
-                                                     OpenAIChatAPIEvalWrapper)
+                                                     OpenAIChatAPIEvalWrapper,
+                                                     GeminiChatAPIEvalrapper)
 from llmfoundry.models.mpt import ComposerMPTCausalLM
 
 COMPOSER_MODEL_REGISTRY = {
@@ -18,4 +19,5 @@ COMPOSER_MODEL_REGISTRY = {
     'fmapi_causal_lm': FMAPICasualLMEvalWrapper,
     'openai_chat': OpenAIChatAPIEvalWrapper,
     'fmapi_chat': FMAPIChatAPIEvalWrapper,
+    'gemini_chat': GeminiChatAPIEvalrapper
 }

@@ -16,7 +16,7 @@ command: |
   composer eval/eval.py /mnt/config/parameters.yaml
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
-name: openai-longcontext-gauntlet-eval
+name: openai4-longcontext-gauntlet-eval
 cluster: r1z1  # replace with your cluster here!
 gpu_num: 8 #
 gpu_type: a100_80gb #
@@ -27,23 +27,23 @@ image: mosaicml/llm-foundry:2.2.1_cu121_flash2-latest
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:
   seed: 1
-  max_seq_len: 16000
+  max_seq_len: 30000
   device_eval_batch_size: 4
   models:
   -
-    model_name: openai/gpt-3.5-turbo
+    model_name: gpt-4-turbo-preview
     model:
       name: openai_chat
-      version: gpt-3.5-turbo
+      version: gpt-4-turbo-preview
     tokenizer:
       name: tiktoken
       kwargs:
-        model_name: gpt-3.5-turbo
+        model_name: gpt-4-turbo-preview
 
   # loggers:
   #   wandb: {}
   # callbacks:
   #   eval_output_logging: {}
-  icl_tasks: "eval/yamls/long_context_tasks_16k.yaml"
-  eval_gauntlet: "eval/yamls/eval_gauntlet_long_context_16k.yaml"
+  icl_tasks: "eval/yamls/long_context_tasks.yaml"
+  eval_gauntlet: "eval/yamls/eval_gauntlet_long_context.yaml"
  

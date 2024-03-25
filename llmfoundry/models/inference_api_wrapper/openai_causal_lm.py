@@ -344,3 +344,5 @@ class OpenAICausalLMEvalWrapper(OpenAIEvalInterface):
                 encoding = self.tokenizer(k)['input_ids']
                 tensor[encoding[0]] = tokenizer_logprobs[k]
             return tensor
+
+

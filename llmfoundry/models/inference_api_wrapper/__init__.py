@@ -7,9 +7,11 @@ from llmfoundry.models.inference_api_wrapper.interface import \
     InferenceAPIEvalWrapper
 from llmfoundry.models.inference_api_wrapper.openai_causal_lm import (
     OpenAICausalLMEvalWrapper, OpenAIChatAPIEvalWrapper)
+from llmfoundry.models.inference_api_wrapper.gemini_chat import GeminiChatAPIEvalrapper
 
 __all__ = [
     'OpenAICausalLMEvalWrapper',
+    'GeminiChatAPIEvalrapper',
     'OpenAIChatAPIEvalWrapper',
     'InferenceAPIEvalWrapper',
     'FMAPICasualLMEvalWrapper',

@@ -5,9 +5,6 @@ integrations:
   # git_commit:  # OR use your commit hash
   pip_install: -e ".[gpu-flash2,openai]"
   ssh_clone: false  # Should be true if using a private repo
-- integration_type: wandb
-  entity: mosaic-ml
-  project: dependent_deployment_eval_jeremy
 
 command: |
   pip uninstall mosaicml -y
@@ -22,8 +19,8 @@ name: mistral-large-inference-deployment-gauntlet-eval
 # gpu_type: a100_80gb #
 
 compute:
-  gpus: 8
-  cluster: r1z1
+  gpus: 1
+  cluster: r1z2
 
 image: mosaicml/llm-foundry:2.2.1_cu121_flash2-latest
 

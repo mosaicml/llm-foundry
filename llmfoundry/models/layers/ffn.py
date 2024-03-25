@@ -144,6 +144,7 @@ class MPTGLU(MPTMLP):
             **self.fc_kwargs,
         )
 
+    @torch.compile
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.down_proj(self.act(self.gate_proj(x)) * self.up_proj(x))
 

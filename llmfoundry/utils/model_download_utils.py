@@ -42,6 +42,12 @@ ORAS_CLI = 'oras'
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    'download_from_hf_hub',
+    'download_from_http_fileserver',
+    'download_from_oras',
+]
+
 
 @tenacity.retry(retry=tenacity.retry_if_not_exception_type(
     (ValueError, hf_hub.utils.RepositoryNotFoundError)),

@@ -12,9 +12,6 @@ from typing import Any, Dict, List, Optional, Union
 import torch
 from composer import Trainer
 from composer.core.callback import Callback
-from composer.loggers import MosaicMLLogger
-from composer.loggers.mosaicml_logger import (MOSAICML_ACCESS_TOKEN_ENV_VAR,
-                                              MOSAICML_PLATFORM_ENV_VAR)
 from composer.metrics.nlp import InContextLearningMetric
 from composer.profiler import (JSONTraceHandler, Profiler, TraceHandler,
                                cyclic_schedule)
@@ -23,6 +20,9 @@ from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from rich.traceback import install
 
+from llmfoundry.utils import (find_mosaicml_logger, log_train_analytics,
+                              maybe_create_mosaicml_logger)
+
 install()
 
 from transformers import PreTrainedTokenizerBase
@@ -30,7 +30,6 @@ from transformers import PreTrainedTokenizerBase
 from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.callbacks import AsyncEval
 from llmfoundry.data.dataloader import build_dataloader
-from llmfoundry.registry import import_file
 from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_algorithm, build_callback,
                                        build_evaluators, build_logger,
@@ -39,6 +38,7 @@ from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
 from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device,
                                            update_batch_size_info)
+from llmfoundry.utils.registry_utils import import_file
 
 log = logging.getLogger(__name__)
 
@@ -151,14 +151,6 @@ def build_composer_model(model_cfg: DictConfig,
 
 
 def main(cfg: DictConfig) -> Trainer:
-    # Filter deprecation warning from torch internal usage
-    warnings.filterwarnings(
-        action='ignore',
-        category=UserWarning,
-        message=
-        'torch.distributed.*_base is a private function and will be deprecated.*'
-    )
-
     # Run user provided code if specified
     code_paths = pop_config(cfg,
                             'code_paths',
@@ -168,6 +160,14 @@ def main(cfg: DictConfig) -> Trainer:
     # Import any user provided code
     for code_path in code_paths:
         import_file(code_path)
+
+    # Filter deprecation warning from torch internal usage
+    warnings.filterwarnings(
+        action='ignore',
+        category=UserWarning,
+        message=
+        'torch.distributed.*_base is a private function and will be deprecated.*'
+    )
 
     # Check for incompatibilities between the model and data loaders
     validate_config(cfg)
@@ -449,14 +449,11 @@ def main(cfg: DictConfig) -> Trainer:
         for name, logger_cfg in logger_configs.items()
     ] if logger_configs else []
 
-    mosaicml_logger = next(
-        (logger for logger in loggers if isinstance(logger, MosaicMLLogger)),
-        None)
+    mosaicml_logger = find_mosaicml_logger(loggers)
     if mosaicml_logger is None:
-        if os.environ.get(MOSAICML_PLATFORM_ENV_VAR, 'false').lower(
-        ) == 'true' and os.environ.get(MOSAICML_ACCESS_TOKEN_ENV_VAR):
-            # Adds mosaicml logger to composer if the run was sent from Mosaic platform, access token is set, and mosaic logger wasn't previously added
-            mosaicml_logger = MosaicMLLogger()
+        mosaicml_logger = maybe_create_mosaicml_logger()
+        if mosaicml_logger is not None:
+            # mosaicml_logger will be None if run isn't on MosaicML platform
             loggers.append(mosaicml_logger)
 
     if metadata is not None:
@@ -542,6 +539,12 @@ def main(cfg: DictConfig) -> Trainer:
         )
         if eval_gauntlet_callback is not None:
             callbacks.append(eval_gauntlet_callback)
+
+    if mosaicml_logger is not None:
+        log_train_analytics(mosaicml_logger, model_config, train_loader_config,
+                            eval_loader_config, callback_configs,
+                            tokenizer_name, load_path, icl_tasks_config,
+                            eval_gauntlet_config)
 
     # Build Model
     log.info('Initializing model...')

@@ -51,7 +51,7 @@ classifiers = [
 ]
 
 install_requires = [
-    'mosaicml[libcloud,wandb,oci,gcs]>=0.20.1,<0.21',
+    'mosaicml[libcloud,wandb,oci,gcs]>=0.21.1,<0.22',
     'mlflow>=2.10,<3',
     'accelerate>=0.25,<0.26',  # for HF inference `device_map`
     'transformers>=4.38.2,<4.39',
@@ -73,6 +73,8 @@ install_requires = [
     'huggingface-hub>=0.17.0,<1.0',
     'beautifulsoup4>=4.12.2,<5',  # required for model download utils
     'tenacity>=8.2.3,<9',
+    'catalogue>=2,<3',
+    'typer[all]<1',
 ]
 
 extra_deps = {}
@@ -89,14 +91,14 @@ extra_deps['dev'] = [
 ]
 
 extra_deps['databricks'] = [
-    'mosaicml[databricks]>=0.20.1,<0.21',
+    'mosaicml[databricks]>=0.21.1,<0.22',
     'databricks-sql-connector>=3,<4',
     'databricks-connect==14.1.0',
     'lz4>=4,<5',
 ]
 
 extra_deps['tensorboard'] = [
-    'mosaicml[tensorboard]>=0.20.1,<0.21',
+    'mosaicml[tensorboard]>=0.21.1,<0.22',
 ]
 
 # Flash 2 group kept for backwards compatibility
@@ -107,7 +109,7 @@ extra_deps['gpu-flash2'] = [
 extra_deps['gpu'] = copy.deepcopy(extra_deps['gpu-flash2'])
 
 extra_deps['peft'] = [
-    'mosaicml[peft]>=0.20.1,<0.21',
+    'mosaicml[peft]>=0.21.1,<0.22',
 ]
 
 extra_deps['olmo'] = [
@@ -144,4 +146,7 @@ setup(
     install_requires=install_requires,
     extras_require=extra_deps,
     python_requires='>=3.9',
+    entry_points={
+        'console_scripts': ['llmfoundry = llmfoundry.cli.cli:app'],
+    },
 )

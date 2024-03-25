@@ -22,7 +22,7 @@ model:
   max_seq_len: ${max_seq_len}
   vocab_size: 50368
   attn_config:
-    attn_impl: triton
+    attn_impl: flash
     # Set this to `true` if using `train_loader.dataset.packing_ratio` below
     attn_uses_sequence_id: false
 

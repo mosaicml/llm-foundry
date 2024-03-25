@@ -13,14 +13,14 @@ import torch
 from composer import Trainer
 from composer.core.callback import Callback
 from composer.profiler import (JSONTraceHandler, Profiler, TraceHandler,
-                               cyclic_schedule,)
+                               cyclic_schedule)
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from rich.traceback import install
 
 from llmfoundry.utils import (find_mosaicml_logger, log_train_analytics,
-                              maybe_create_mosaicml_logger,)
+                              maybe_create_mosaicml_logger)
 
 install()
 
@@ -33,10 +33,10 @@ from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_algorithm, build_callback,
                                        build_evaluators, build_logger,
                                        build_optimizer, build_scheduler,
-                                       build_tokenizer,)
+                                       build_tokenizer)
 from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device,
-                                           update_batch_size_info,)
+                                           update_batch_size_info)
 
 log = logging.getLogger(__name__)
 

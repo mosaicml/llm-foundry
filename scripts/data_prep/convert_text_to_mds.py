@@ -12,7 +12,7 @@ from typing import Iterable, List, Tuple, cast
 
 import psutil
 from composer.utils import (ObjectStore, maybe_create_object_store_from_uri,
-                            parse_uri,)
+                            parse_uri)
 from streaming import MDSWriter
 from tqdm import tqdm
 from transformers import AutoTokenizer
@@ -20,9 +20,9 @@ from transformers import AutoTokenizer
 from llmfoundry.data import ConcatTokensDataset
 from llmfoundry.utils import maybe_create_mosaicml_logger
 from llmfoundry.utils.data_prep_utils import (DownloadingIterable,
-                                              merge_shard_groups,)
+                                              merge_shard_groups)
 from llmfoundry.utils.exceptions import (InputFolderMissingDataError,
-                                         OutputFolderNotEmptyError,)
+                                         OutputFolderNotEmptyError)
 
 log = logging.getLogger(__name__)
 

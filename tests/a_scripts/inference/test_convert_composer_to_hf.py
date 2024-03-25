@@ -527,7 +527,7 @@ def _get_dataloader_cfg(tiny_dataset_folder_path: str, max_seq_len: int):
     return dataloader_cfg
 
 
-_OPTIMIZER_CFG = {
+_OPTIMIZER_CFG = lambda: {
     'name': 'decoupled_adamw',
     'lr': 6e-4,
     'betas': [0.9, 0.95],
@@ -706,8 +706,6 @@ def test_huggingface_conversion_callback(
         mlflow_registered_model_name='dummy-registered-name')
 
     # get small version of each model
-    model_cfg = None
-    tokenizer_name = None
     model_cfg, tokenizer_name = _get_model_and_tokenizer(
         model, max_seq_len, tie_word_embeddings)
     assert model_cfg is not None
@@ -740,7 +738,7 @@ def test_huggingface_conversion_callback(
 
     original_model = COMPOSER_MODEL_REGISTRY[model_cfg['name']](model_cfg,
                                                                 tokenizer)
-    optimizer_config = _OPTIMIZER_CFG.copy()
+    optimizer_config = _OPTIMIZER_CFG()
     optimizer_name = optimizer_config.pop('name')
     optimizer = build_optimizer(original_model, optimizer_name,
                                 optimizer_config)

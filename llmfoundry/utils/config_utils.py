@@ -6,7 +6,9 @@ import logging
 import math
 import warnings
 import mlflow
+import os
 from typing import Any, Dict, Literal, Mapping, Optional, Tuple, Union
+from databricks.connect import DatabricksSession
 
 from composer.utils import dist, parse_uri
 from omegaconf import DictConfig, ListConfig
@@ -166,9 +168,7 @@ def log_config(cfg: DictConfig) -> None:
             raise e
         if mlflow.active_run():
             mlflow.log_params(params=om.to_container(cfg, resolve=True))
-            data_stores = log_dataset_uri(cfg)
-            for ds in data_stores:
-                mlflow.log_input(ds)
+            log_dataset_uri(cfg)
 
 def parse_source_dataset(cfg: DictConfig):
     """
@@ -186,38 +186,36 @@ def parse_source_dataset(cfg: DictConfig):
     data_paths = set()
 
     for data_split in ['train', 'eval']:
+        split = cfg.get(f'{data_split}_loader', {}).get('dataset', {}).get('split', None)
         source_dataset_path = cfg.get(f'source_dataset_{data_split}', {})
 
         # check for Delta table
         if source_dataset_path and len(source_dataset_path.split('.')) >= 3:
-            data_paths.add(('delta_table', source_dataset_path))
+            data_paths.add(('delta_table', source_dataset_path, data_split))
         # check for UC volume
         elif source_dataset_path and source_dataset_path.startswith('/Volumes'):
-            data_paths.add(('uc_volume', source_dataset_path))
+            data_paths.add(('uc_volume', source_dataset_path, data_split))
         # check for HF path
         elif cfg.get(f'{data_split}_loader', {}).get('dataset', {}).get('hf_name'):
             hf_path = cfg.get(f'{data_split}_loader', {}).get('dataset', {}).get('hf_name')
             backend, _, _ = parse_uri(hf_path)
             if backend:
-                data_paths.add((backend, hf_path))
+                hf_path = f'{hf_path.rstrip("/")}/{split}/' if split else hf_path
+                data_paths.add((backend, hf_path, data_split))
             else:
-                data_paths.add(('hf', hf_path))
+                data_paths.add(('hf', hf_path, data_split))
         # check for remote path
-        elif config.get(f'{data_split}_loader', {}).get('dataset', {}).get('remote', None):
-            remote_path = config.get(f'{data_split}_loader', {}).get('dataset', {}).get('remote', None)
+        elif cfg.get(f'{data_split}_loader', {}).get('dataset', {}).get('remote', None):
+            remote_path = cfg.get(f'{data_split}_loader', {}).get('dataset', {}).get('remote', None)
             backend, _, _ = parse_uri(remote_path)
-            split = config.get(f'{data_split}_loader', {}).get('dataset', {}).get('split', None)
-            remote_path = f'{remote_path}/{split}' if split
-            data_paths.add((backend, remote_path))
+            remote_path = f'{remote_path.rstrip("/")}/{split}/' if split else remote_path
+            data_paths.add((backend, remote_path, data_split))
         # check for local path
-        elif config.get(f'{data_split}_loader', {}).get('dataset', {}).get('local', None):
-            local_path = config.get(f'{data_split}_loader', {}).get('dataset', {}).get('local', None)
-            split = config.get(f'{data_split}_loader', {}).get('dataset', {}).get('split', None)
-            remote_path = f'{remote_path}/{split}' if split
-            data_paths.add(('local', local_path))
-
-        paths.add(source_dataset_path)
-    print(f'---- PATHS {data_paths} ----')
+        elif cfg.get(f'{data_split}_loader', {}).get('dataset', {}).get('local', None):
+            local_path = cfg.get(f'{data_split}_loader', {}).get('dataset', {}).get('local', None)
+            split = cfg.get(f'{data_split}_loader', {}).get('dataset', {}).get('split', None)
+            remote_path = f'{remote_path.rstrip("/")}/{split}/' if split else remote_path
+            data_paths.add(('local', local_path, data_split))
 
     return data_paths
 
@@ -234,30 +232,39 @@ def log_dataset_uri(cfg: DictConfig) -> mlflow.data.meta_dataset.MetaDataset:
     """
     # Figure out which data source to use
     data_paths = parse_source_dataset(cfg)
+
+    # To be used when MLFlow implements fixes + 2.11.4
+    # dataset_source_mapping = {
+    #     's3': mlflow.data.http_dataset_source.HTTPDatasetSource,
+    #     'oci': mlflow.data.http_dataset_source.HTTPDatasetSource,
+    #     'https': mlflow.data.http_dataset_source.HTTPDatasetSource,
+    #     'hf': mlflow.data.huggingface_dataset_source.HuggingFaceDatasetSource,
+    #     'delta_table': mlflow.data.delta_dataset_source.DeltaDatasetSource,
+    #     'uc_volume': mlflow.data.delta_dataset_source.UCVolumeDatasetSource,
+    #     'local': mlflow.data.http_dataset_source.HTTPDatasetSource,
+    # }
+
     dataset_source_mapping = {
         's3': mlflow.data.http_dataset_source.HTTPDatasetSource,
         'oci': mlflow.data.http_dataset_source.HTTPDatasetSource,
         'https': mlflow.data.http_dataset_source.HTTPDatasetSource,
         'hf': mlflow.data.huggingface_dataset_source.HuggingFaceDatasetSource,
-        'delta_table': mlflow.data.delta_dataset_source.DeltaDatasetSource,
-        'uc_volume': UCVolumeDatasetSource,
+        'delta_table': mlflow.data.http_dataset_source.HTTPDatasetSource,
+        'uc_volume': mlflow.data.http_dataset_source.HTTPDatasetSource,
         'local': mlflow.data.http_dataset_source.HTTPDatasetSource,
     }
 
     data_stores = []
-    for dataset_type, path in data_paths:
+    for dataset_type, path, split in data_paths:
         source_class = dataset_source_mapping.get(dataset_type)
         
         if source_class:
-            if dataset_type == 'delta_table':
-                source = source_class(delta_table_name=path)
-            elif dataset_type == 'uc_volume' or dataset_type == 'hf':
+            if dataset_type == 'hf':
                 source = source_class(path=path)
             else:
                 source = source_class(url=path)
         else:
-            log.info(f'{dataset_type} unknown, defaulting to filesystem dataset source')
-            source = mlflow.data.filesystem_dataset_source.FileSystemDatasetSource(uri=path)
+            log.info(f'{dataset_type} unknown, defaulting to http dataset source')
+            source =mlflow.data.http_dataset_source.HTTPDatasetSource(uri=path)
 
-        data_stores.append(mlflow.data.meta_dataset.MetaDataset(source))
-    return data_stores
+        mlflow.log_input(mlflow.data.meta_dataset.MetaDataset(source, name=f'{dataset_type} | {split}'))

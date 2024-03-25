@@ -192,7 +192,60 @@ c4constants.splits['val_xxsmall'] = DataSplitConstants(
     raw_samples=100,
     truncated_samples=100)
 
-CONSTS = {'c4': c4constants, 'the_pile': pileconstants}
+slimpajamaconstants = DatasetConstants(
+    chars_per_sample=2163,
+    chars_per_token=4
+)
+slimpajamaconstants.splits['train'] = DataSplitConstants(hf_split='train',
+                                                         folder_split='train',
+                                                         raw_samples=1150000,
+                                                         truncated_samples=None)
+slimpajamaconstants.splits['train_small'] = DataSplitConstants(hf_split='train',
+                                                              folder_split='train_small',
+                                                              raw_samples=100000,
+                                                              truncated_samples=100000)
+slimpajamaconstants.splits['train_xsmall'] = DataSplitConstants(hf_split='train',
+                                                              folder_split='train_xsmall',
+                                                              raw_samples=10000,
+                                                              truncated_samples=10000)
+slimpajamaconstants.splits['train_xxsmall'] = DataSplitConstants(hf_split='train',
+                                                              folder_split='train_xxsmall',
+                                                              raw_samples=1000,
+                                                              truncated_samples=1000)
+slimpajamaconstants.splits['val'] = DataSplitConstants(hf_split='validation',
+                                                       folder_split='val',
+                                                       raw_samples=503000,
+                                                       truncated_samples=None)
+slimpajamaconstants.splits['val_small'] = DataSplitConstants(hf_split='validation',
+                                                             folder_split='val_small',
+                                                             raw_samples=10000,
+                                                             truncated_samples=10000)
+slimpajamaconstants.splits['val_xsmall'] = DataSplitConstants(hf_split='validation',
+                                                              folder_split='val_xsmall',
+                                                              raw_samples=3000,
+                                                              truncated_samples=3000)
+slimpajamaconstants.splits['val_xxsmall'] = DataSplitConstants(hf_split='validation',
+                                                               folder_split='val_xxsmall',
+                                                               raw_samples=100,
+                                                               truncated_samples=100)
+slimpajamaconstants.splits['test'] = DataSplitConstants(hf_split='test',
+                                                        folder_split='test',
+                                                        raw_samples=502000,
+                                                        truncated_samples=None)
+slimpajamaconstants.splits['test_small'] = DataSplitConstants(hf_split='test',
+                                                              folder_split='test_small',
+                                                              raw_samples=10000,
+                                                              truncated_samples=10000)
+slimpajamaconstants.splits['test_xsmall'] = DataSplitConstants(hf_split='test',
+                                                               folder_split='test_xsmall',
+                                                               raw_samples=3000,
+                                                               truncated_samples=3000)
+slimpajamaconstants.splits['test_xxsmall'] = DataSplitConstants(hf_split='test',
+                                                                folder_split='test_xxsmall',
+                                                                raw_samples=100,
+                                                                truncated_samples=100)
+
+CONSTS = {'c4': c4constants, 'the_pile': pileconstants, 'cerebras/SlimPajama-627B': slimpajamaconstants}
 
 
 def build_hf_dataset(

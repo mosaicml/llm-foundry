@@ -217,10 +217,10 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
             max_prompt_len = 0
             for tokens in batch['input_ids']:
                 prompt = tokens.tolist()
-                eos_occurence = (tokens == self.END_ID).nonzero(as_tuple=True)[0]
+                pad_start = (tokens == self.PAD_ID).nonzero(as_tuple=True)[0]
                 end_prompt_idx = len(prompt)
-                if eos_occurence.shape[0] >= 1:
-                    end_prompt_idx = eos_occurence[0]
+                if pad_start.shape[0] >= 1:
+                    end_prompt_idx = pad_start[0]
                 prompt_lens.append(end_prompt_idx)
                 if end_prompt_idx > max_prompt_len:
                     max_prompt_len = end_prompt_idx
@@ -228,7 +228,8 @@ class TRTLLMEvalWrapper(InferenceAPIEvalWrapper):
             input_ids = torch.narrow(batch['input_ids'], 1, 0, max_prompt_len).to(dtype=torch.int, device=self.device) 
             input_lengths = torch.tensor(prompt_lens, dtype=torch.int, device=self.device)
            
-            print("Prompt:", input_ids)
+            torch.set_printoptions(threshold=10_000)
+            print("Prompt0:", input_ids[0])
             #print("Input shape:", input_ids.shape)
             #print("Input lengths:", input_lengths)
             max_generation_length = 256

@@ -54,13 +54,13 @@ class GeminiChatAPIEvalrapper(InferenceAPIEvalWrapper):
             google_genai.types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
             google_genai.types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
             google_genai.types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-            google_genai.types.HarmCategory.HARM_CATEGORY_UNSPECIFIED,
-            google_genai.types.HarmCategory.HARM_CATEGORY_DEROGATORY,
-            google_genai.types.HarmCategory.HARM_CATEGORY_TOXICITY,
-            google_genai.types.HarmCategory.HARM_CATEGORY_VIOLENCE,
-            google_genai.types.HarmCategory.HARM_CATEGORY_SEXUAL,
-            google_genai.types.HarmCategory.HARM_CATEGORY_MEDICAL,
-            google_genai.types.HarmCategory.HARM_CATEGORY_DANGEROUS,
+            # google_genai.types.HarmCategory.HARM_CATEGORY_UNSPECIFIED,
+            # google_genai.types.HarmCategory.HARM_CATEGORY_DEROGATORY,
+            # google_genai.types.HarmCategory.HARM_CATEGORY_TOXICITY,
+            # google_genai.types.HarmCategory.HARM_CATEGORY_VIOLENCE,
+            # google_genai.types.HarmCategory.HARM_CATEGORY_SEXUAL,
+            # google_genai.types.HarmCategory.HARM_CATEGORY_MEDICAL,
+            # google_genai.types.HarmCategory.HARM_CATEGORY_DANGEROUS,
         ]
         self.safety_settings = {
             category: google_genai.types.HarmBlockThreshold.BLOCK_NONE
@@ -152,7 +152,6 @@ class GeminiChatAPIEvalrapper(InferenceAPIEvalWrapper):
                                                       generation_kwargs)                                     
                 break
             except Exception as e:
-                breakpoint()
                 delay *= 2 * (1 + random.random())
                 sleep(delay)
                 continue

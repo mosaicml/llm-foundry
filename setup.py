@@ -117,6 +117,7 @@ extra_deps['olmo'] = [
 extra_deps['openai'] = [
     'openai==1.3.8',
     'tiktoken==0.4.0',
+    'google-generativeai'
 ]
 extra_deps['all-cpu'] = set(
     dep for key, deps in extra_deps.items() for dep in deps if 'gpu' not in key)

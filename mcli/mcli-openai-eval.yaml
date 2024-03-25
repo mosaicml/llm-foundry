@@ -16,7 +16,7 @@ command: |
   composer eval/eval.py /mnt/config/parameters.yaml
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
-name: openai4-longcontext-gauntlet-eval
+name: gemini-longcontext-gauntlet-eval
 cluster: r1z1  # replace with your cluster here!
 gpu_num: 8 #
 gpu_type: a100_80gb #
@@ -31,14 +31,15 @@ parameters:
   device_eval_batch_size: 4
   models:
   -
-    model_name: gpt-4-turbo-preview
+    model_name: models/gemini-1.0-pro-latest
     model:
-      name: openai_chat
-      version: gpt-4-turbo-preview
+      name: gemini_chat
+      version: models/gemini-1.0-pro-latest
     tokenizer:
       name: tiktoken
       kwargs:
-        model_name: gpt-4-turbo-preview
+        model_name: gpt-3.5-turbo-instruct
+
 
   # loggers:
   #   wandb: {}

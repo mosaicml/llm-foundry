@@ -13,9 +13,9 @@ from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from transformers import AutoModelForCausalLM
 
-from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils import build_tokenizer
+from llmfoundry.utils.builders import build_composer_model
 
 
 def test_remote_code_false_mpt(
@@ -45,8 +45,11 @@ def test_remote_code_false_mpt(
     with pytest.raises(
             ValueError,
             match='trust_remote_code must be set to True for MPT models.'):
-        _ = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
-                                                         tokenizer)
+        _ = build_composer_model(
+            name=test_cfg.model.name,
+            cfg=test_cfg.model,
+            tokenizer=tokenizer,
+        )
 
 
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
@@ -132,8 +135,11 @@ def test_hf_config_override(
     tokenizer_name = tokenizer_cfg['name']
     tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
-    model = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
-                                                         tokenizer)
+    model = build_composer_model(
+        name=test_cfg.model.name,
+        cfg=test_cfg.model,
+        tokenizer=tokenizer,
+    )
 
     # save model
     tmp_dir = tempfile.TemporaryDirectory()
@@ -153,8 +159,11 @@ def test_hf_config_override(
     })
     hf_model_config.model = model_cfg
 
-    hf_model = COMPOSER_MODEL_REGISTRY[hf_model_config.model.name](
-        hf_model_config.model, tokenizer=tokenizer)
+    hf_model = build_composer_model(
+        name=hf_model_config.model.name,
+        cfg=hf_model_config.model,
+        tokenizer=tokenizer,
+    )
 
     for k, v in hf_model_config.model.config_overrides.items():
         if isinstance(v, Mapping):
@@ -185,7 +194,11 @@ def test_rope_scaling_override():
     }
     model_cfg = om.create(model_cfg)
 
-    model = COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg, tokenizer=None)
+    model = build_composer_model(
+        name=model_cfg.name,
+        cfg=model_cfg,
+        tokenizer=None,  # type: ignore
+    )
     # This would error if the config isn't parsed into a proper dictionary
     model.get_metadata()
     assert model.config.rope_scaling == {'type': 'dynamic', 'factor': 0.5}

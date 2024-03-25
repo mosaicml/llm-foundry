@@ -11,7 +11,7 @@ from composer.core import State, Time, TimeUnit
 from composer.optim import ComposerScheduler, LinearScheduler
 from composer.optim.scheduler import _convert_time
 
-from llmfoundry.utils.warnings import experimental
+from llmfoundry.utils.warnings import experimental_class
 
 __all__ = ['InverseSquareRootWithWarmupScheduler']
 
@@ -34,7 +34,7 @@ def _raise_if_units_dur(time: Union[str, Time], name: str) -> None:
         raise ValueError(f'{name} cannot be in units of "dur".')
 
 
-@experimental('InverseSquareRootWithWarmupScheduler')
+@experimental_class('InverseSquareRootWithWarmupScheduler')
 class InverseSquareRootWithWarmupScheduler(ComposerScheduler):
     r"""Inverse square root LR decay with warmup and optional linear cooldown.
 

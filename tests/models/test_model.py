@@ -687,7 +687,7 @@ def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool,
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('attention_impl', ['flash', 'triton', 'torch'])
+@pytest.mark.parametrize('attention_impl', ['flash', 'torch'])
 @pytest.mark.parametrize('pos_emb_config', [{
     'alibi': True,
     'rope': False
@@ -799,7 +799,6 @@ def test_sequence_id_based_masking(attention_impl: str, pos_emb_config: dict):
 @pytest.mark.parametrize('attention_impl', [
     'torch',
     pytest.param('flash', marks=pytest.mark.gpu),
-    pytest.param('triton', marks=pytest.mark.gpu),
     pytest.param('torch', marks=pytest.mark.gpu)
 ])
 @pytest.mark.parametrize('pos_emb_config', [{
@@ -1002,7 +1001,7 @@ def test_forward_with_padding(attention_impl: str, pos_emb_config: dict,
                                   atol=pad_vs_unpad_atol)
 
 
-@pytest.mark.parametrize('attention_impl', ['torch', 'triton'])
+@pytest.mark.parametrize('attention_impl', ['torch'])
 def test_advanced_mask_building(attention_impl: str):
     # Test that the correct attention mask is created when both
     # prefix_mask and sequence_id are used
@@ -1060,7 +1059,6 @@ def test_advanced_mask_building(attention_impl: str):
 @pytest.mark.parametrize('attention_impl,precision', [
     ('torch', 'fp32'),
     pytest.param('flash', 'amp_bf16', marks=pytest.mark.gpu),
-    pytest.param('triton', 'amp_bf16', marks=pytest.mark.gpu),
     pytest.param('torch', 'amp_bf16', marks=pytest.mark.gpu),
     pytest.param('torch', 'fp32', marks=pytest.mark.gpu),
 ])
@@ -1313,7 +1311,6 @@ def test_save_from_pretrained(tmp_path: pathlib.Path):
 @pytest.mark.parametrize('attn_impl', [
     'torch',
     pytest.param('flash', marks=pytest.mark.gpu),
-    pytest.param('triton', marks=pytest.mark.gpu),
 ])
 @pytest.mark.parametrize('pos_emb_config', [{
     'alibi': False,
@@ -1447,7 +1444,6 @@ def test_forward_with_cache_and_padding(attn_impl: str, pos_emb_config: dict):
 @pytest.mark.parametrize('attn_impl', [
     'torch',
     pytest.param('flash', marks=pytest.mark.gpu),
-    pytest.param('triton', marks=pytest.mark.gpu),
 ])
 @pytest.mark.parametrize('pos_emb_config', [{
     'alibi': False,
@@ -1586,7 +1582,6 @@ def test_forward_with_cache(attn_impl: str, pos_emb_config: dict,
 @pytest.mark.parametrize('attn_impl', [
     'torch',
     pytest.param('flash', marks=pytest.mark.gpu),
-    pytest.param('triton', marks=pytest.mark.gpu),
 ])
 @pytest.mark.parametrize('pos_emb_config', [{
     'alibi': False,
@@ -1685,7 +1680,6 @@ def test_generate_with_past_kv(attn_impl: str, pos_emb_config: dict,
 @pytest.mark.parametrize('attn_impl', [
     'torch',
     pytest.param('flash', marks=pytest.mark.gpu),
-    pytest.param('triton', marks=pytest.mark.gpu),
 ])
 @pytest.mark.parametrize('generation_kwargs', [{
     'max_new_tokens': 2,
@@ -1882,7 +1876,6 @@ def test_alibi_vs_hf():
 @pytest.mark.parametrize('attn_impl', [
     'torch',
     pytest.param('flash', marks=pytest.mark.gpu),
-    pytest.param('triton', marks=pytest.mark.gpu),
     pytest.param('torch', marks=pytest.mark.gpu),
 ])
 @pytest.mark.parametrize('pos_emb_config', [{
@@ -1915,7 +1908,7 @@ def test_forward_with_output_attentions_and_output_hidden_states(
         attn_impl: str, pos_emb_config: dict):
     if pos_emb_config['alibi'] and not check_alibi_support(attn_impl):
         pytest.skip(f'flash attention below v2.4.2 does not support alibi.')
-    if attn_impl in ['flash', 'triton']:
+    if attn_impl == 'flash':
         pytest.skip(f'output_attentions only implemented with torch attention.')
     if pos_emb_config['rope'] and pos_emb_config[
             'rope_impl'] == 'dail' and not is_flash_v2_installed():
@@ -2058,7 +2051,7 @@ def test_hf_init(tmp_path: pathlib.Path,
 
 
 @pytest.mark.gpu
-def test_head_dim_8_triton_mqa_attn(batch_size: int = 2):
+def test_head_dim_8_flash_mqa_attn(batch_size: int = 2):
     test_cfg = get_config(conf_path='scripts/train/yamls/pretrain/testing.yaml')
     test_cfg.device = torch.cuda.current_device()
 
@@ -2074,7 +2067,7 @@ def test_head_dim_8_triton_mqa_attn(batch_size: int = 2):
         emb_pdrop=0.1,
         resid_pdrop=0.2,
         attn_config={
-            'attn_impl': 'triton',
+            'attn_impl': 'flash',
             'attn_type': 'multiquery_attention'
         },
     )

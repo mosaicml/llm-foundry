@@ -53,7 +53,7 @@ class MockMPTForCausalLM(MPTForCausalLM):
 
 @pytest.mark.world_size(2)
 @pytest.mark.gpu
-@pytest.mark.parametrize('attn_impl', ['triton', 'torch'])
+@pytest.mark.parametrize('attn_impl', ['flash', 'torch'])
 @pytest.mark.parametrize('use_alibi', [True, False])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
 @patch('llmfoundry.models.mpt.modeling_mpt.MPTForCausalLM',
@@ -93,7 +93,7 @@ def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool,
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('attn_impl', ['triton', 'torch'])
+@pytest.mark.parametrize('attn_impl', ['flash', 'torch'])
 @pytest.mark.parametrize('use_alibi', [True, False])
 def test_mpt_generate_callback(attn_impl: str, use_alibi: bool,
                                build_tiny_mpt: Callable[...,
@@ -144,7 +144,7 @@ def test_mpt_generate_callback(attn_impl: str, use_alibi: bool,
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('attn_impl', ['triton', 'torch'])
+@pytest.mark.parametrize('attn_impl', ['flash', 'torch'])
 @pytest.mark.parametrize('use_alibi', [True, False])
 def test_mpt_generate_callback_not_tied(
         use_alibi: bool, attn_impl: str,

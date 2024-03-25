@@ -15,12 +15,11 @@ from transformers.models.llama.modeling_llama import LlamaAttention
 
 from llmfoundry.models.hf.hf_fsdp import rgetattr
 from llmfoundry.models.layers.attention import is_flash_v2_installed
-from llmfoundry.models.layers.llama_attention_monkeypatch import (
-    llama_attention_patch_torch, llama_attention_patch_triton)
+from llmfoundry.models.layers.llama_attention_monkeypatch import llama_attention_patch_torch
 from llmfoundry.utils.builders import build_composer_model, build_tokenizer
 
 
-@pytest.mark.parametrize('patch_fn_name', ['torch', 'triton'])
+@pytest.mark.parametrize('patch_fn_name', ['torch'])
 @pytest.mark.parametrize('explicit_mask', [True, False])
 @pytest.mark.parametrize(
     'model_name', ['meta-llama/Llama-2-7b-hf', 'meta-llama/Llama-2-70b-hf'])
@@ -41,15 +40,6 @@ def test_patch_equivalence(patch_fn_name: str, explicit_mask: bool,
         dtype = torch.float32
         atol = 0.0
         rtol = 0.0
-    elif patch_fn_name == 'triton':
-        # the huggingface implementation of llama performs the softmax in fp32
-        # this can result in fairly large differences for the triton implementation
-        # but the torch implementation produces the exact same output so we can confirm
-        # the implementation is correct
-        patch_fn = llama_attention_patch_triton
-        dtype = torch.bfloat16
-        atol = 1e-2
-        rtol = 1e-2
     else:
         raise ValueError(f'Unknown patch_fn_name: {patch_fn_name}')
 

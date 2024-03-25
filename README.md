@@ -257,7 +257,7 @@ and uncomment the line containing `--hf_repo_for_upload ...` in the above call t
 
 # Registry
 
-Some components of LLM Foundry are registrable. This means that you can register options for these components, and then use them in your yaml config, without forking the library.
+You can use the registry to customize your workflows without forking the library. Some components of LLM Foundry are registrable, such as models, loggers, and callbacks. This means that you can register new options for these components, and then use them in your yaml config.
 
 ## Discovering registrable components
 To help find and understand registrable components, you can use the `llmfoundry registry` cli command.

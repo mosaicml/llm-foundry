@@ -3,6 +3,7 @@
 
 """Build a StreamingTextDataset dataset and dataloader for training."""
 
+import logging
 import os
 from itertools import islice
 from typing import (Any, Callable, Dict, List, Mapping, Optional, Sequence,
@@ -18,6 +19,8 @@ from omegaconf import OmegaConf as om
 from streaming import Stream, StreamingDataset
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
+
+log = logging.getLogger(__name__)
 
 
 class StreamingTextDataset(StreamingDataset):
@@ -256,9 +259,29 @@ def build_text_dataloader(
     mlm_probability = cfg.dataset.pop('mlm_probability', None)
     eos_token_id = cfg.dataset.pop('eos_token_id', None)
     bos_token_id = cfg.dataset.pop('bos_token_id', None)
-    if eos_token_id is None and bos_token_id is None and hasattr(
-            tokenizer, 'eos_token_id'):
-        eos_token_id = tokenizer.eos_token_id
+    if eos_token_id is not None and hasattr(
+            tokenizer,
+            'eos_token_id') and eos_token_id != tokenizer.eos_token_id:
+        if cfg.dataset.pop('override_eos_token_id_mismatch_error', False):
+            log.warning(
+                f'Provided eos_token_id={eos_token_id} does not match tokenizer.eos_token_id={tokenizer.eos_token_id}'
+            )
+        else:
+            raise ValueError(
+                f'Provided eos_token_id={eos_token_id} does not match tokenizer.eos_token_id={tokenizer.eos_token_id}'
+            )
+
+    if bos_token_id is not None and hasattr(
+            tokenizer,
+            'bos_token_id') and bos_token_id != tokenizer.bos_token_id:
+        if cfg.dataset.pop('override_bos_token_id_mismatch_error', False):
+            log.warning(
+                f'Provided bos_token_id={bos_token_id} does not match tokenizer.bos_token_id={tokenizer.bos_token_id}'
+            )
+        else:
+            raise ValueError(
+                f'Provided bos_token_id={bos_token_id} does not match tokenizer.bos_token_id={tokenizer.bos_token_id}'
+            )
 
     streams = build_streams(cfg.dataset)
 

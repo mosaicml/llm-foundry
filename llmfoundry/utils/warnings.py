@@ -75,7 +75,7 @@ def experimental_function(feature_name: str) -> Callable[[F], F]:
     return decorator
 
 
-def experimental_class(feature_name: str):
+def experimental_class(feature_name: str) -> Callable[[Type], Type]:
     """Class decorator to mark a class as experimental."""
 
     def class_decorator(cls: Type):

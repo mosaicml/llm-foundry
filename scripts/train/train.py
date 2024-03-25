@@ -539,6 +539,7 @@ def main(cfg: DictConfig) -> Trainer:
         cfg=model_config,
         tokenizer=tokenizer,
         init_context=init_context,
+        master_weights_dtype=model_config.get('master_weights_dtype', None),
     )
 
     # Log number of parameters

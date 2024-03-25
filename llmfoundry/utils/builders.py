@@ -164,7 +164,20 @@ def build_composer_model(
     cfg: DictConfig,
     tokenizer: PreTrainedTokenizerBase,
     init_context: Optional[ContextManager] = None,
+    master_weights_dtype: Optional[str] = None,
 ) -> ComposerModel:
+    """Builds a ComposerModel from the registry.
+
+    Args:
+        name (str): Name of the model to build.
+        cfg (DictConfig): Configuration for the model.
+        tokenizer (PreTrainedTokenizerBase): Tokenizer to use.
+        init_context (Optional[ContextManager], optional): Context manager to use for initialization. Defaults to None.
+        master_weights_dtype (Optional[str], optional): Master weights dtype. Defaults to None.
+
+    Returns:
+        ComposerModel: _description_
+    """
     if init_context is None:
         init_context = contextlib.nullcontext()
 
@@ -180,10 +193,20 @@ def build_composer_model(
             },
         )
 
-    if cfg.get('master_weights_dtype') in ('bf16', 'bfloat16'):
-        model = model.to(dtype=torch.bfloat16)
-    elif cfg.get('master_weights_dtype') in ('f16', 'float16'):
-        model = model.to(dtype=torch.float16)
+    str_dtype_to_torch_dtype = {
+        'f16': torch.float16,
+        'float16': torch.float16,
+        'bf16': torch.bfloat16,
+        'bfloat16': torch.bfloat16,
+    }
+
+    if master_weights_dtype is not None:
+        if master_weights_dtype not in str_dtype_to_torch_dtype:
+            raise ValueError(
+                f'Invalid master_weights_dtype: {master_weights_dtype}. ' +
+                f'Valid options are: {list(str_dtype_to_torch_dtype.keys())}.')
+        dtype = str_dtype_to_torch_dtype[master_weights_dtype]
+        model = model.to(dtype=dtype)
 
     return model
 

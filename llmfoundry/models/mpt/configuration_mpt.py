@@ -81,7 +81,7 @@ class MPTConfig(PretrainedConfig):
             attn_config (Dict): A dictionary used to configure the model's attention module:
                 attn_type (str): type of attention to use. Options: multihead_attention, multiquery_attention, grouped_query_attention
                 attn_pdrop (float): The dropout probability for the attention layers.
-                attn_impl (str): The attention implementation to use. One of 'torch', 'flash', or 'triton'.
+                attn_impl (str): The attention implementation to use. One of 'torch' or 'flash'.
                 qk_ln (bool): Whether to apply layer normalization to the queries and keys in the attention layer.
                 qk_gn (bool): Whether to apply group normalization to the queries and keys in the attention layer.
                 clip_qkv (Optional[float]): If not None, clip the queries, keys, and values in the attention layer to
@@ -210,7 +210,7 @@ class MPTConfig(PretrainedConfig):
             raise ValueError(
                 "self.attn_config['attn_pdrop'], resid_pdrop, emb_pdrop are probabilities and must be between 0 and 1"
             )
-        if self.attn_config['attn_impl'] not in ['torch', 'flash', 'triton']:
+        if self.attn_config['attn_impl'] not in ['torch', 'flash']:
             raise ValueError(
                 f"Unknown attn_impl={self.attn_config['attn_impl']}")
         if self.attn_config['prefix_lm']:
@@ -218,35 +218,30 @@ class MPTConfig(PretrainedConfig):
                 VersionedDeprecationWarning(
                     'Support for Prefix Language Models is deprecated.',
                     remove_version='0.7.0'))
-        if self.attn_config['attn_impl'] == 'triton':
-            warnings.warn(
-                VersionedDeprecationWarning(
-                    'Support for triton attention is deprecated. Please use torch or flash attention.',
-                    remove_version='0.7.0'))
 
         if self.attn_config['prefix_lm'] and self.attn_config[
-                'attn_impl'] not in ['torch', 'triton']:
+                'attn_impl'] != 'torch':
             raise NotImplementedError(
-                'prefix_lm only implemented with torch and triton attention.')
+                'prefix_lm only implemented with torch attention.')
 
         if self.attn_config[
-                'attn_impl'] == 'triton' and not self.attn_config['prefix_lm']:
+                'attn_impl'] != 'flash' and not self.attn_config['prefix_lm']:
             warnings.warn(
                 UserWarning(
-                    'If not using a Prefix Language Model, we recommend setting "attn_impl" to "flash" instead of "triton".'
+                    'If not using a Prefix Language Model, we recommend setting "attn_impl" to "flash".'
                 ))
 
         if self.attn_config['alibi'] and not check_alibi_support(
                 self.attn_config['attn_impl']):
             raise NotImplementedError(
-                'alibi only implemented with torch, triton, and flash (v2.4.2 or higher) attention.'
+                'alibi only implemented with torch and flash (v2.4.2 or higher) attention.'
             )
         if self.attn_config['attn_uses_sequence_id'] and not (
-                self.attn_config['attn_impl'] in ['torch', 'triton'] or
+                self.attn_config['attn_impl'] == 'torch' or
             (self.attn_config['attn_impl'] == 'flash' and
              is_flash_v2_installed(v2_version='v2.1.2'))):
             raise NotImplementedError(
-                'attn_uses_sequence_id only implemented with torch, triton, and flash (v2.1.2 or higher) attention.'
+                'attn_uses_sequence_id only implemented with torch and flash (v2.1.2 or higher) attention.'
             )
         if self.attn_config['rope'] and (self.attn_config['rope_impl']
                                          not in ['dail', 'hf']):

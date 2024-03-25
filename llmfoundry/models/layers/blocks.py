@@ -20,7 +20,7 @@ except:
 attn_config_defaults: Dict = {
     'attn_type': 'multihead_attention',
     'attn_pdrop': 0.0,
-    'attn_impl': 'triton',
+    'attn_impl': 'flash',
     'qk_ln': False,
     'qk_gn': False,
     'clip_qkv': None,

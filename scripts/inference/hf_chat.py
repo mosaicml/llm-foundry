@@ -47,9 +47,9 @@ class Conversation:
     Attributes:
         model: The model to use for inference.
         tokenizer: The tokenizer to use for inference.
-        chat_format: The chat format to use for the conversation.
         streamer: The streamer to use for inference.
         generate_kwargs: The keyword arguments to pass to `model.generate`.
+        system_prompt: The system prompt used in the conversation chat.
         history: The conversation history.
         cli_instructions: The instructions to display to the user.
     """
@@ -100,28 +100,26 @@ class Conversation:
             +
             "- Type 'clear' to restart the conversation\n- Type 'history' to see the conversation\n"
             +
-            "- Type 'quit' to end\n- Type 'system' to change the system prompt\n"
+            "- Type 'history_fmt' to see the conversation\n- Type 'quit' to end\n- Type 'system' to change the system prompt\n"
         )
 
-    def _history_to_chat(self) -> List[Dict[str, str]]:
+    def _history_to_chat_conversation(self) -> List[Dict[str, str]]:
         msg_history = []
         for chat_msg in self.history:
             msg_history.append(chat_msg.to_dict())
         return msg_history
 
     def _history_as_formatted_str(self) -> str:
-        chat_conversation = self._history_to_chat()
-        tokenized_chat = self.tokenizer.apply_chat_template(
+        chat_conversation = self._history_to_chat_conversation()
+        return self.tokenizer.apply_chat_template(
             chat_conversation,
-            tokenize=True,
-            add_generation_prompt=True,
-            return_tensors='pt')
-        tokenized_chat = tokenized_chat.to(self.model.device)
-        return self.tokenizer.decode(tokenized_chat[0])
+            tokenize=False,
+            add_generation_prompt=False,
+        )
 
     def turn(self, user_inp: str) -> None:
         self.history.append(ChatMessage('user', user_inp))
-        chat_conversation = self._history_to_chat()
+        chat_conversation = self._history_to_chat_conversation()
         tokenized_chat = self.tokenizer.apply_chat_template(
             chat_conversation,
             tokenize=True,
@@ -131,7 +129,7 @@ class Conversation:
         # also stream to stdout
         maybe_synchronize()
         start = time.time()
-        print(f'Assistant {self.model.name_or_path}:')
+        print(f'Assistant:')
         output_ids = self.model.generate(tokenized_chat, **self.generate_kwargs)
         maybe_synchronize()
         end = time.time()

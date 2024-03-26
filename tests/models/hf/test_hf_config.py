@@ -6,6 +6,7 @@ import tempfile
 from copy import deepcopy
 from pathlib import Path
 from typing import Any, Dict, Mapping
+from unittest.mock import Mock, patch
 
 import pytest
 import torch
@@ -83,7 +84,7 @@ def test_tie_weights(tie_word_embeddings: bool):
     },
     {
         'attn_config': {
-            'attn_impl': 'triton'
+            'attn_impl': 'flash',
         }
     },
     {
@@ -94,7 +95,7 @@ def test_tie_weights(tie_word_embeddings: bool):
     {
         'max_seq_len': 1024,
         'attn_config': {
-            'attn_impl': 'triton'
+            'attn_impl': 'flash',
         },
         'init_config': {
             'emb_init_std': 5
@@ -104,11 +105,13 @@ def test_tie_weights(tie_word_embeddings: bool):
                  marks=pytest.mark.xfail(reason='"msl" is a ValueError',
                                          strict=True)),
     pytest.param({'attn_config': {
-        'attn_iml': 'triton'
+        'attn_iml': 'flash'
     }},
                  marks=pytest.mark.xfail(reason='"attn_impl" mispelled',
                                          strict=True)),
 ])
+@patch('llmfoundry.models.layers.attention.is_flash_v2_installed',
+       new=Mock(return_value=True))
 def test_hf_config_override(
     model_cfg_overrides: Dict[str, Any],
     conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml',

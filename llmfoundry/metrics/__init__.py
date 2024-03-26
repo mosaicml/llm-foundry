@@ -43,11 +43,6 @@ DEFAULT_CAUSAL_LM_EVAL_METRICS = [
     'code_eval_accuracy',
 ]
 
-DEFAULT_PREFIX_LM_METRICS = [
-    'language_cross_entropy',
-    'masked_accuracy',
-]
-
 DEFAULT_ENC_DEC_METRICS = [
     'language_cross_entropy',
     'masked_accuracy',
@@ -66,6 +61,5 @@ __all__ = [
     'MaskedAccuracy',
     'DEFAULT_CAUSAL_LM_TRAIN_METRICS',
     'DEFAULT_CAUSAL_LM_EVAL_METRICS',
-    'DEFAULT_PREFIX_LM_METRICS',
     'DEFAULT_ENC_DEC_METRICS',
 ]

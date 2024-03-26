@@ -249,8 +249,8 @@ def log_dataset_uri(cfg: DictConfig) -> mlflow.data.meta_dataset.MetaDataset:
         'oci': mlflow.data.http_dataset_source.HTTPDatasetSource,
         'https': mlflow.data.http_dataset_source.HTTPDatasetSource,
         'hf': mlflow.data.huggingface_dataset_source.HuggingFaceDatasetSource,
-        'delta_table': mlflow.data.http_dataset_source.HTTPDatasetSource,
-        'uc_volume': mlflow.data.http_dataset_source.HTTPDatasetSource,
+        'delta_table': mlflow.data.delta_dataset_source.DeltaDatasetSource,
+        'uc_volume': mlflow.data.delta_dataset_source.UCVolumeDatasetSource,
         'local': mlflow.data.http_dataset_source.HTTPDatasetSource,
     }
 
@@ -259,7 +259,9 @@ def log_dataset_uri(cfg: DictConfig) -> mlflow.data.meta_dataset.MetaDataset:
         source_class = dataset_source_mapping.get(dataset_type)
         
         if source_class:
-            if dataset_type == 'hf':
+            if dataset_type == 'delta_table':
+                source = source_class(delta_table_path=path)
+            if dataset_type == 'hf' or dataset_type == 'uc_volume':
                 source = source_class(path=path)
             else:
                 source = source_class(url=path)

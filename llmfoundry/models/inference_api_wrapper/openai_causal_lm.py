@@ -42,7 +42,8 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
                 conda_package='openai',
                 conda_channel='conda-forge') from e
         if api_key is None:
-            api_key = os.environ.get('OPENAI_API_KEY')
+            api_key = os.environ.get(model_cfg.get('api_env_key', 'OPENAI_API_KEY'))
+            # api_key = os.environ.get('OPENAI_API_KEY')
 
         base_url = model_cfg.get('base_url')
         if base_url is None:

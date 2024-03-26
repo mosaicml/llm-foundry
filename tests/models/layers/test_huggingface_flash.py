@@ -15,7 +15,8 @@ from transformers.models.llama.modeling_llama import LlamaAttention
 
 from llmfoundry.models.hf.hf_fsdp import rgetattr
 from llmfoundry.models.layers.attention import is_flash_v2_installed
-from llmfoundry.models.layers.llama_attention_monkeypatch import llama_attention_patch_torch
+from llmfoundry.models.layers.llama_attention_monkeypatch import \
+    llama_attention_patch_torch
 from llmfoundry.utils.builders import build_composer_model, build_tokenizer
 
 

@@ -33,7 +33,7 @@ jobs:
         fi
 
         # Remove the peft and xentropy-cuda-lib dependencies as PyPI does not
-        # support direct installs. The error message for importing PEFT and 
+        # support direct installs. The error message for importing PEFT and
         # FusedCrossEntropy gives instructions on how to install if a user tries to use it
         # without this dependency.
         sed '/xentropy-cuda-lib@git+https:\/\/github.com\/HazyResearch\/flash-attention.git@.*/d' -i setup.py

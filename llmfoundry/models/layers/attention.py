@@ -567,8 +567,7 @@ class GroupedQueryAttention(nn.Module):
 class MultiheadAttention(GroupedQueryAttention):
     """Multi-head self attention.
 
-    Using torch attention implementation enables user to also use
-    additive bias.
+    Using torch attention implementation enables user to also use additive bias.
     """
 
     def __init__(
@@ -608,8 +607,7 @@ class MultiheadAttention(GroupedQueryAttention):
 class MultiQueryAttention(GroupedQueryAttention):
     """Multi-Query self attention.
 
-    Using torch attention implementation enables user to also use
-    additive bias.
+    Using torch attention implementation enables user to also use additive bias.
     """
 
     def __init__(

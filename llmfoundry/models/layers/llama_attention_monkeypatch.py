@@ -12,8 +12,8 @@ import torch
 import torch.nn.functional as F
 from transformers.models.llama.modeling_llama import LlamaAttention
 
-from llmfoundry.models.layers.attention import (
-    scaled_multihead_dot_product_attention)
+from llmfoundry.models.layers.attention import \
+    scaled_multihead_dot_product_attention
 
 log = logging.getLogger(__name__)
 

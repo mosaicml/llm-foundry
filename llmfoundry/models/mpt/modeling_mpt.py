@@ -72,7 +72,6 @@ from llmfoundry.models.utils.act_ckpt import (pass_on_block_idx,
                                               build_act_ckpt_mod_to_blocks,
                                               check_mapping_blocks_overlap)
 
-
 import logging
 
 log = logging.getLogger(__name__)

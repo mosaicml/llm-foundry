@@ -219,13 +219,13 @@ class MPTConfig(PretrainedConfig):
                     'Support for Prefix Language Models is deprecated.',
                     remove_version='0.7.0'))
 
-        if self.attn_config['prefix_lm'] and self.attn_config[
-                'attn_impl'] != 'torch':
+        if self.attn_config[
+                'prefix_lm'] and self.attn_config['attn_impl'] != 'torch':
             raise NotImplementedError(
                 'prefix_lm only implemented with torch attention.')
 
-        if self.attn_config[
-                'attn_impl'] != 'flash' and not self.attn_config['prefix_lm']:
+        if self.attn_config['attn_impl'] != 'flash' and not self.attn_config[
+                'prefix_lm']:
             warnings.warn(
                 UserWarning(
                     'If not using a Prefix Language Model, we recommend setting "attn_impl" to "flash".'

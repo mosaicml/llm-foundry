@@ -20,8 +20,6 @@ from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY  # type: ignore (see n
 from llmfoundry.models.layers.norm import LPLayerNorm  # type: ignore (see note)
 from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY  # type: ignore (see note)
 
-from llmfoundry.utils.warnings import VersionedDeprecationWarning
-
 ffn_config_defaults: Dict = {
     'ffn_type': 'mptmlp',
 }
@@ -88,9 +86,6 @@ class MPTConfig(PretrainedConfig):
                     this value.
                 softmax_scale (Optional[float]): If not None, scale the softmax in the attention layer by this value. If None,
                     use the default scale of ``1/sqrt(d_keys)``.
-                prefix_lm (Optional[bool]): Whether the model should operate as a Prefix LM. This requires passing an
-                    extra `prefix_mask` argument which indicates which tokens belong to the prefix. Tokens in the prefix
-                    can attend to one another bi-directionally. Tokens outside the prefix use causal attention.
                 attn_uses_sequence_id (Optional[bool]): Whether to restrict attention to tokens that have the same sequence_id.
                     When the model is in `train` mode, this requires passing an extra `sequence_id` argument which indicates
                     which sub-sequence each token belongs to.
@@ -213,24 +208,6 @@ class MPTConfig(PretrainedConfig):
         if self.attn_config['attn_impl'] not in ['torch', 'flash']:
             raise ValueError(
                 f"Unknown attn_impl={self.attn_config['attn_impl']}")
-        if self.attn_config['prefix_lm']:
-            warnings.warn(
-                VersionedDeprecationWarning(
-                    'Support for Prefix Language Models is deprecated.',
-                    remove_version='0.7.0'))
-
-        if self.attn_config[
-                'prefix_lm'] and self.attn_config['attn_impl'] != 'torch':
-            raise NotImplementedError(
-                'prefix_lm only implemented with torch attention.')
-
-        if self.attn_config['attn_impl'] != 'flash' and not self.attn_config[
-                'prefix_lm']:
-            warnings.warn(
-                UserWarning(
-                    'If not using a Prefix Language Model, we recommend setting "attn_impl" to "flash".'
-                ))
-
         if self.attn_config['alibi'] and not check_alibi_support(
                 self.attn_config['attn_impl']):
             raise NotImplementedError(

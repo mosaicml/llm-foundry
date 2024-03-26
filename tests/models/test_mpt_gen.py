@@ -28,7 +28,6 @@ class MockMPTForCausalLM(MPTForCausalLM):
         input_ids: torch.LongTensor,
         past_key_values: Optional[List[Tuple[torch.FloatTensor]]] = None,
         attention_mask: Optional[torch.ByteTensor] = None,
-        prefix_mask: Optional[torch.ByteTensor] = None,
         sequence_id: Optional[torch.LongTensor] = None,
         labels: Optional[torch.LongTensor] = None,
         return_dict: Optional[bool] = None,
@@ -38,7 +37,7 @@ class MockMPTForCausalLM(MPTForCausalLM):
         inputs_embeds: Optional[torch.FloatTensor] = None,
     ):
         result = super().forward(input_ids, past_key_values, attention_mask,
-                                 prefix_mask, sequence_id, labels, return_dict,
+                                 sequence_id, labels, return_dict,
                                  output_attentions, output_hidden_states,
                                  use_cache, inputs_embeds)
         # Modify the logits to select the next token.

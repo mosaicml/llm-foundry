@@ -325,7 +325,6 @@ def test_alibi_bias(n_heads: int):
                              n_heads,
                              seqlen_1,
                              True,
-                             prefix_lm=False,
                              use_sequence_id=False,
                              causal=causal)
 

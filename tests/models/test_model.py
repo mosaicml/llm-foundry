@@ -108,7 +108,7 @@ def gen_random_batch(batch_size: int,
     # default to only input ids
     if inputs == None:
         inputs = ['input_ids']
-    # generate input batch of random data, suitable for a Causal or Prefix LM
+    # generate input batch of random data, suitable for a Causal LM
     batch = {}
     for inp in inputs:
         if inp == 'input_ids':
@@ -257,9 +257,7 @@ def test_attention_mechanism(batch_size: int = 2):
         x = x + block.resid_ffn_dropout(n)
 
 
-@pytest.mark.parametrize('prefixlm', [False, True])
-def test_full_forward_and_backward_gpt2_small(prefixlm: bool,
-                                              batch_size: int = 2):
+def test_full_forward_and_backward_gpt2_small(batch_size: int = 2):
     warnings.filterwarnings(
         action='ignore',
         message='Torchmetrics v0.9 introduced a new argument class property')
@@ -270,11 +268,7 @@ def test_full_forward_and_backward_gpt2_small(prefixlm: bool,
     device = 'cpu'
     neo_cfg.device = device
     neo_cfg.max_seq_len = 256
-
-    if prefixlm:
-        neo_cfg.model.name = 'hf_prefix_lm'
-    else:
-        neo_cfg.model.name = 'hf_causal_lm'
+    neo_cfg.model.name = 'hf_causal_lm'
 
     tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(neo_cfg.tokenizer)
     tokenizer = build_tokenizer(neo_cfg.tokenizer.name,
@@ -999,61 +993,6 @@ def test_forward_with_padding(attention_impl: str, pos_emb_config: dict,
                                   left_padding_output_pad_flipped[0, 3:],
                                   rtol=pad_vs_unpad_rtol,
                                   atol=pad_vs_unpad_atol)
-
-
-@pytest.mark.parametrize('attention_impl', ['torch'])
-def test_advanced_mask_building(attention_impl: str):
-    # Test that the correct attention mask is created when both
-    # prefix_mask and sequence_id are used
-    hf_config = MPTConfig(
-        init_device='cpu',
-        d_model=16,
-        n_heads=1,
-        n_layers=1,
-        expansion_ratio=1,
-        max_seq_len=256,
-        emb_pdrop=0.0,
-        resid_pdrop=0.0,
-        attn_config={
-            'attn_impl': attention_impl,
-            'prefix_lm': True,
-            'attn_uses_sequence_id': True,
-            'alibi': False,
-        },
-    )
-    mpt = MPTForCausalLM(hf_config)
-    mpt.eval()
-
-    prefix_mask = torch.ByteTensor([[1, 1, 0, 0, 1, 1, 1, 0]])
-    sequence_id = torch.LongTensor([[0, 0, 0, 0, 1, 1, 1, 1]])
-
-    attn_bias, _ = mpt.transformer._attn_bias(device=mpt.device,
-                                              dtype=torch.float32,
-                                              attention_mask=None,
-                                              prefix_mask=prefix_mask,
-                                              sequence_id=sequence_id)
-
-    assert isinstance(attn_bias, torch.Tensor)
-    assert attn_bias.shape == torch.Size([1, 1, 8, 8])
-
-    # We'll construct the expected value of attn_bias and then compare.
-    can_attend = torch.tensor([
-        [1, 1, 0, 0, 0, 0, 0, 0],
-        [1, 1, 0, 0, 0, 0, 0, 0],
-        [1, 1, 1, 0, 0, 0, 0, 0],
-        [1, 1, 1, 1, 0, 0, 0, 0],
-        [0, 0, 0, 0, 1, 1, 1, 0],
-        [0, 0, 0, 0, 1, 1, 1, 0],
-        [0, 0, 0, 0, 1, 1, 1, 0],
-        [0, 0, 0, 0, 1, 1, 1, 1],
-    ])
-    can_attend = can_attend.bool().view(1, 1, 8, 8)
-    expected_attn_bias = torch.zeros_like(attn_bias)
-    expected_attn_bias = expected_attn_bias.masked_fill(
-        torch.logical_not(can_attend),
-        torch.finfo(attn_bias.dtype).min)
-
-    assert torch.equal(attn_bias, expected_attn_bias)
 
 
 @pytest.mark.parametrize('attention_impl,precision', [

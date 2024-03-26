@@ -12,9 +12,6 @@ from typing import Any, Dict, List, Optional, Union
 import torch
 from composer import Trainer
 from composer.core.callback import Callback
-from composer.loggers import MosaicMLLogger
-from composer.loggers.mosaicml_logger import (MOSAICML_ACCESS_TOKEN_ENV_VAR,
-                                              MOSAICML_PLATFORM_ENV_VAR)
 from composer.metrics.nlp import InContextLearningMetric
 from composer.profiler import (JSONTraceHandler, Profiler, TraceHandler,
                                cyclic_schedule)
@@ -23,18 +20,18 @@ from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from rich.traceback import install
 
+from llmfoundry.utils import (find_mosaicml_logger, log_train_analytics,
+                              maybe_create_mosaicml_logger)
+
 install()
 
-from transformers import PreTrainedTokenizerBase
-
-from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.callbacks import AsyncEval
 from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_algorithm, build_callback,
-                                       build_evaluators, build_logger,
-                                       build_optimizer, build_scheduler,
-                                       build_tokenizer)
+                                       build_composer_model, build_evaluators,
+                                       build_logger, build_optimizer,
+                                       build_scheduler, build_tokenizer)
 from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device,
                                            update_batch_size_info)
@@ -137,17 +134,6 @@ def validate_config(cfg: DictConfig):
         raise ValueError(
             '`load_in_8bit` is only supported for evaluation rather than training.'
         )
-
-
-def build_composer_model(model_cfg: DictConfig,
-                         tokenizer: PreTrainedTokenizerBase):
-    warnings.filterwarnings(
-        action='ignore',
-        message='Torchmetrics v0.9 introduced a new argument class property')
-    if model_cfg.name not in COMPOSER_MODEL_REGISTRY:
-        raise ValueError(
-            f'Not sure how to build model with name={model_cfg.name}')
-    return COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg, tokenizer)
 
 
 def main(cfg: DictConfig) -> Trainer:
@@ -449,14 +435,11 @@ def main(cfg: DictConfig) -> Trainer:
         for name, logger_cfg in logger_configs.items()
     ] if logger_configs else []
 
-    mosaicml_logger = next(
-        (logger for logger in loggers if isinstance(logger, MosaicMLLogger)),
-        None)
+    mosaicml_logger = find_mosaicml_logger(loggers)
     if mosaicml_logger is None:
-        if os.environ.get(MOSAICML_PLATFORM_ENV_VAR, 'false').lower(
-        ) == 'true' and os.environ.get(MOSAICML_ACCESS_TOKEN_ENV_VAR):
-            # Adds mosaicml logger to composer if the run was sent from Mosaic platform, access token is set, and mosaic logger wasn't previously added
-            mosaicml_logger = MosaicMLLogger()
+        mosaicml_logger = maybe_create_mosaicml_logger()
+        if mosaicml_logger is not None:
+            # mosaicml_logger will be None if run isn't on MosaicML platform
             loggers.append(mosaicml_logger)
 
     if metadata is not None:
@@ -543,15 +526,21 @@ def main(cfg: DictConfig) -> Trainer:
         if eval_gauntlet_callback is not None:
             callbacks.append(eval_gauntlet_callback)
 
+    if mosaicml_logger is not None:
+        log_train_analytics(mosaicml_logger, model_config, train_loader_config,
+                            eval_loader_config, callback_configs,
+                            tokenizer_name, load_path, icl_tasks_config,
+                            eval_gauntlet_config)
+
     # Build Model
     log.info('Initializing model...')
-    with init_context:
-        model = build_composer_model(model_config, tokenizer)
-
-        if model_config.get('master_weights_dtype') in ('bf16', 'bfloat16'):
-            model = model.to(dtype=torch.bfloat16)
-        elif model_config.get('master_weights_dtype') in ('f16', 'float16'):
-            model = model.to(dtype=torch.float16)
+    model = build_composer_model(
+        name=model_config.name,
+        cfg=model_config,
+        tokenizer=tokenizer,
+        init_context=init_context,
+        master_weights_dtype=model_config.get('master_weights_dtype', None),
+    )
 
     # Log number of parameters
     n_params = sum(p.numel() for p in model.parameters())

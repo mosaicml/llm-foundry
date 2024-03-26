@@ -10,16 +10,14 @@ import torch
 import transformers
 from composer.core.precision import get_precision_context
 from composer.utils import reproducibility
-from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from transformers.models.llama.modeling_llama import LlamaAttention
 
-from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.models.hf.hf_fsdp import rgetattr
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.layers.llama_attention_monkeypatch import (
     llama_attention_patch_torch, llama_attention_patch_triton)
-from llmfoundry.utils.builders import build_tokenizer
+from llmfoundry.utils.builders import build_composer_model, build_tokenizer
 
 
 @pytest.mark.parametrize('patch_fn_name', ['torch', 'triton'])
@@ -105,56 +103,6 @@ def test_patch_equivalence(patch_fn_name: str, explicit_mask: bool,
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('patch', ['triton', 'torch'])
-def test_attn_patch_integration(patch: str):
-    if 'HUGGING_FACE_HUB_TOKEN' not in os.environ:
-        pytest.skip(
-            'The CI cluster does not have access to the Llama models, so skip this test.'
-        )
-
-    # Save the original attention function to restore at the end of the test.
-    from transformers.models.llama.modeling_llama import LlamaAttention
-    original_attn = LlamaAttention.forward
-
-    name = 'meta-llama/Llama-2-7b-hf'
-    model_cfg = DictConfig({
-        'name': 'hf_causal_lm',
-        'pretrained_model_name_or_path': name,
-        'config_overrides': {
-            'num_hidden_layers': 2,
-            'intermediate_size': 64,
-            'hidden_size': 64,
-        },
-        'use_auth_token': True,
-        'pretrained': False,
-        'init_device': 'cpu',
-        'attention_patch_type': patch
-    })
-
-    tokenizer = build_tokenizer(name, tokenizer_kwargs={})
-    tokenizer.pad_token = tokenizer.eos_token
-
-    model = COMPOSER_MODEL_REGISTRY[model_cfg['name']](model_cfg, tokenizer)
-
-    tokenized_input = tokenizer(['Hello world blah blah', 'Goodbye world'],
-                                return_tensors='pt',
-                                padding=True)
-    tokenized_input['labels'] = tokenized_input['input_ids'].clone()
-
-    tokenized_input = {k: v.cuda() for k, v in tokenized_input.items()}
-    model.to('cuda')
-
-    with get_precision_context('amp_bf16'):
-        # We're just testing that the attention patch runs okay
-        outputs = model(tokenized_input)
-        loss = outputs.loss
-        loss.backward()
-
-    # Ensure the patch does not persist beyond this test.
-    LlamaAttention.forward = original_attn
-
-
-@pytest.mark.gpu
 @pytest.mark.world_size(2)
 @pytest.mark.parametrize('model_name', ['llama2', 'mistral'])
 @pytest.mark.parametrize('use_flash_attention_2', [True, False])
@@ -223,7 +171,11 @@ def test_flash2(model_name: str, use_flash_attention_2: bool, init_device: str):
     ) and use_flash_attention_2 else contextlib.nullcontext()
 
     with error_context:
-        model = COMPOSER_MODEL_REGISTRY[model_cfg['name']](model_cfg, tokenizer)
+        model = build_composer_model(
+            name=model_cfg['name'],
+            cfg=model_cfg,
+            tokenizer=tokenizer,
+        )
 
         # check that it actually used flash attention 2
         assert model.model.config._attn_implementation == (

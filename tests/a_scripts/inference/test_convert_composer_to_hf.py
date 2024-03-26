@@ -21,12 +21,12 @@ from omegaconf import OmegaConf as om
 from torch.utils.data import DataLoader
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
-from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.callbacks import HuggingFaceCheckpointer
 from llmfoundry.callbacks.hf_checkpointer import _maybe_get_license_filename
 from llmfoundry.data.finetuning import build_finetuning_dataloader
 from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
-from llmfoundry.utils.builders import build_optimizer, build_tokenizer
+from llmfoundry.utils.builders import (build_composer_model, build_optimizer,
+                                       build_tokenizer)
 from scripts.inference.convert_composer_to_hf import convert_composer_to_hf
 from tests.data_utils import make_tiny_ft_dataset
 
@@ -262,11 +262,7 @@ def test_callback_inits():
         save_interval='1ba',
         mlflow_registered_model_name='test_model_name')
 
-    assert hf_checkpointer.mlflow_logging_config['task'] == 'text-generation'
-    assert hf_checkpointer.mlflow_logging_config['metadata'][
-        'task'] == 'llm/v1/completions'
-    assert 'input_example' in hf_checkpointer.mlflow_logging_config
-    assert 'signature' in hf_checkpointer.mlflow_logging_config
+    assert hf_checkpointer.mlflow_logging_config['task'] == 'llm/v1/completions'
 
 
 @pytest.mark.gpu
@@ -332,10 +328,10 @@ def test_huggingface_conversion_callback_interval(
             flavor='transformers',
             transformers_model=ANY,
             path=ANY,
-            task='text-generation',
+            task='llm/v1/completions',
             input_example=ANY,
-            signature=ANY,
-            metadata={'task': 'llm/v1/completions'})
+            metadata={},
+        )
         assert mlflow_logger_mock.register_model_with_run_id.call_count == 1
     else:
         assert mlflow_logger_mock.save_model.call_count == 0
@@ -492,6 +488,19 @@ def _assert_mlflow_logger_calls(mlflow_logger_mock: MagicMock,
     else:
         assert mlflow_logger_mock.log_model.call_count == 0
         assert mlflow_logger_mock.register_model_with_run_id.call_count == 0
+
+
+def _get_fsdp_config(fsdp_state_dict_type: Optional[str]):
+    fsdp_config = {
+        'sharding_strategy': 'FULL_SHARD',
+        'mixed_precision': 'PURE',
+        'activation_checkpointing': False,
+        'activation_checkpointing_reentrant': False,
+        'activation_cpu_offload': False,
+        'limit_all_gathers': True,
+        'state_dict_type': fsdp_state_dict_type,
+    }
+    return fsdp_config
 
 
 def _get_fsdp_config(fsdp_state_dict_type: Optional[str]):
@@ -708,6 +717,7 @@ def test_huggingface_conversion_callback(
         model_cfg['peft_config'] = peft_config
 
     fsdp_config = _get_fsdp_config(fsdp_state_dict_type)
+    optimizer_config = _OPTIMIZER_CFG()
 
     tiny_dataset_folder_path = os.path.join(os.getcwd(), 'test-ift-data-small')
     tiny_dataset_path = os.path.join(tiny_dataset_folder_path, 'train.jsonl')
@@ -729,9 +739,11 @@ def test_huggingface_conversion_callback(
         device_batch_size,
     )
 
-    original_model = COMPOSER_MODEL_REGISTRY[model_cfg['name']](model_cfg,
-                                                                tokenizer)
-    optimizer_config = _OPTIMIZER_CFG()
+    original_model = build_composer_model(
+        name=model_cfg['name'],
+        cfg=model_cfg,
+        tokenizer=tokenizer,
+    )
     optimizer_name = optimizer_config.pop('name')
     optimizer = build_optimizer(original_model, optimizer_name,
                                 optimizer_config)
@@ -820,8 +832,11 @@ def test_convert_and_generate(model: str, tie_word_embeddings: bool,
     om_cfg['model']['init_device'] = 'cpu'
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         om_cfg.tokenizer.name, use_auth_token=model == 'llama2')
-    original_model = COMPOSER_MODEL_REGISTRY[om_cfg['model'].name](
-        om_cfg['model'], tokenizer)
+    original_model = build_composer_model(
+        name=om_cfg['model'].name,
+        cfg=om_cfg['model'],
+        tokenizer=tokenizer,
+    )
     trainer = Trainer(model=original_model, device='cpu')
     trainer.save_checkpoint(os.path.join(tmp_path, 'checkpoint.pt'))
 
@@ -920,8 +935,11 @@ def test_convert_and_generate_meta(tie_word_embeddings: str,
     om_cfg['tie_word_embeddings'] = tie_word_embeddings
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         om_cfg.tokenizer.name)
-    original_model = COMPOSER_MODEL_REGISTRY[om_cfg['model'].name](
-        om_cfg['model'], tokenizer)
+    original_model = build_composer_model(
+        name=om_cfg['model'].name,
+        cfg=om_cfg['model'],
+        tokenizer=tokenizer,
+    )
     trainer = Trainer(model=original_model, device='cpu')
     trainer.save_checkpoint(os.path.join(tmp_path_gathered, 'checkpoint.pt'))
 

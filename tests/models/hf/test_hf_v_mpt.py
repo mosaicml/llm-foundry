@@ -16,14 +16,9 @@ from llmfoundry.utils.builders import build_composer_model, build_tokenizer
     ('flash', 0.0, False, 1, False),
     ('flash', 0.1, False, 1, False),
     ('torch', 0.0, False, 1, False),
-    ('triton', 0.0, False, 1, False),
-    ('triton', 0.1, False, 1, False),
     ('torch', 0.0, False, 0, False),
-    ('triton', 0.0, False, 0, False),
-    ('triton', 0.1, False, 0, False),
     ('flash', 0.0, False, None, True),
     ('torch', 0.0, False, None, True),
-    ('triton', 0.0, False, None, True),
 ])
 def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
                           mask_val: Optional[int], no_attn_mask: bool):
@@ -93,7 +88,7 @@ def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
 
     # extract model cfg
     model_cfg = cfg.model
-    # use triton attn implementation
+    # use given attn implementation
     model_cfg.attn_impl = attn_impl
     model_cfg.alibi = alibi
     # modify cfg for HF GPT2 compatibility

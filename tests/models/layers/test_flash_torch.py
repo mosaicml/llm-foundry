@@ -23,9 +23,7 @@ def allclose_helper(t0: torch.Tensor,
 
 @pytest.mark.gpu
 @pytest.mark.parametrize('attn_impl_0, attn_impl_1', [
-    ('flash', 'triton'),
     ('flash', 'torch'),
-    ('triton', 'torch'),
 ])
 @pytest.mark.parametrize('clip_qkv', [True, False])
 @pytest.mark.parametrize('qk_ln, qk_gn', [
@@ -291,7 +289,7 @@ def test_attn_impl(attn_impl_0: str,
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('attn_impl', ['flash', 'triton', 'torch'])
+@pytest.mark.parametrize('attn_impl', ['flash', 'torch'])
 def test_vs_mha(attn_impl: str, device: str = 'cuda'):
     """Compare diff attn_impl to torch.nn.MultiheadAttention."""
     from llmfoundry.models.layers import attention
@@ -388,7 +386,7 @@ def test_vs_mha(attn_impl: str, device: str = 'cuda'):
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('attn_impl', ['flash', 'triton', 'torch'])
+@pytest.mark.parametrize('attn_impl', ['flash', 'torch'])
 @pytest.mark.parametrize('n_heads', [16, 8])
 @pytest.mark.parametrize('kv_n_heads', [4, 2, 1])
 def test_grouped_attention_heads(attn_impl: str,

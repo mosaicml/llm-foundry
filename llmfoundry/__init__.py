@@ -28,7 +28,7 @@ from llmfoundry.models.hf import (ComposerHFCausalLM, ComposerHFPrefixLM,
                                   ComposerHFT5)
 from llmfoundry.models.layers.attention import (
     MultiheadAttention, attn_bias_shape, build_alibi_bias, build_attn_bias,
-    flash_attn_fn, scaled_multihead_dot_product_attention, triton_flash_attn_fn)
+    flash_attn_fn, scaled_multihead_dot_product_attention)
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY, MPTMLP, build_ffn
 from llmfoundry.models.mpt import (ComposerMPTCausalLM, MPTConfig,
@@ -54,7 +54,6 @@ __all__ = [
     'ComposerHFT5',
     'scaled_multihead_dot_product_attention',
     'flash_attn_fn',
-    'triton_flash_attn_fn',
     'MultiheadAttention',
     'NoConcatDataset',
     'ConcatTokensDataset',

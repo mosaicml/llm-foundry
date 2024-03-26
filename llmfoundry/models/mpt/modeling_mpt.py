@@ -72,12 +72,6 @@ from llmfoundry.models.utils.act_ckpt import (pass_on_block_idx,
                                               build_act_ckpt_mod_to_blocks,
                                               check_mapping_blocks_overlap)
 
-try:
-    from llmfoundry.models.layers.flash_attn_triton import flash_attn_func as flash_attn_func
-except:
-    pass
-# isort: on
-
 import logging
 
 log = logging.getLogger(__name__)
@@ -438,19 +432,19 @@ class MPTModel(MPTPreTrainedModel):
 
         attn_bias = self.attn_bias
 
-        # If using torch or triton, we incorporate the prefix_mask (if appropriate)
+        # If using torch, we incorporate the prefix_mask (if appropriate)
         if self.prefix_lm:
             assert isinstance(attn_bias, torch.Tensor)  # pyright
             assert isinstance(prefix_mask, torch.Tensor)  # pyright
             attn_bias = self._apply_prefix_mask(attn_bias, prefix_mask)
 
-        # If using torch or triton, we incorporate sequence_id (if appropriate)
+        # If using torch, we incorporate sequence_id (if appropriate)
         if self.attn_uses_sequence_id and sequence_id is not None:
             assert isinstance(attn_bias, torch.Tensor)  # pyright
             attn_bias = apply_sequence_id(attn_bias, sequence_id,
                                           self.config.max_seq_len)
 
-        # If using torch or triton, we incorporate attention_mask. This will output
+        # If using torch, we incorporate attention_mask. This will output
         # None in place of attention_mask since it will not be further needed in the
         # attention modules.
         if attention_mask is not None:
@@ -538,7 +532,7 @@ class MPTModel(MPTPreTrainedModel):
         if output_attentions:
             if self.attn_impl != 'torch':
                 raise NotImplementedError(
-                    'output_attentions is not implemented for MPT when using attn_impl `flash` or `triton`.'
+                    'output_attentions is not implemented for MPT when using attn_impl `flash`.'
                 )
 
         if (self.training and attention_mask is not None and
@@ -594,8 +588,8 @@ class MPTModel(MPTPreTrainedModel):
                     +
                     f'layer in the network ({len(past_key_values)=}; {self.config.n_layers=}).'
                 )
-            # For attn_impl: triton and flash the past key tensor spec is (batch, seq, dim).
-            # For attn_impl: torch the past key tensor spec is (batch, heads, head_dim, seq).
+            # For attn_impl: flash, the past key tensor spec is (batch, seq, dim).
+            # For attn_impl: torch, the past key tensor spec is (batch, heads, head_dim, seq).
             # Here we shift position embedding using the `seq` dim of the past key
             past_position = past_key_values[0][0].size(1)
             if self.attn_impl == 'torch':

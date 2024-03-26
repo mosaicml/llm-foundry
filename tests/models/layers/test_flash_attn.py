@@ -6,12 +6,9 @@ import math
 import pytest
 import torch
 
-from llmfoundry.models.layers.attention import (attn_bias_shape,
-                                                build_attn_bias,
-                                                check_alibi_support,
-                                                flash_attn_fn, gen_slopes,
-                                                is_flash_v2_installed,
-                                                triton_flash_attn_fn)
+from llmfoundry.models.layers.attention import (
+    attn_bias_shape, build_attn_bias, check_alibi_support, flash_attn_fn,
+    gen_slopes, is_flash_v2_installed, scaled_multihead_dot_product_attention)
 from llmfoundry.models.mpt.modeling_mpt import gen_flash_attn_padding_info
 
 
@@ -239,7 +236,7 @@ def test_sliding_window(sliding_window_size: int):
         torch.ones(seqlen_1, seqlen_1), diagonal=-(sliding_window_size + 1)).to(
             dtype=dtype, device=device) * torch.finfo(attn_bias_2.dtype).min
     attn_bias_2 = attn_bias_2 + window_mask_2
-    output_2, _, _ = triton_flash_attn_fn(
+    output_2, _, _ = scaled_multihead_dot_product_attention(
         query=query_2,
         key=key_2,
         value=value_2,
@@ -322,7 +319,7 @@ def test_alibi_bias(n_heads: int):
 
     def gen_bias():
         causal = True
-        bs = attn_bias_shape('triton',
+        bs = attn_bias_shape('torch',
                              n_heads,
                              seqlen_1,
                              True,
@@ -332,7 +329,7 @@ def test_alibi_bias(n_heads: int):
 
         attn_bias = torch.zeros(*bs, device=device)
         attn_bias = build_attn_bias(
-            'triton',
+            'torch',
             attn_bias,
             n_heads,
             seqlen_1,
@@ -344,7 +341,7 @@ def test_alibi_bias(n_heads: int):
 
     attn_bias_2 = gen_bias()
 
-    output_2, _, _ = triton_flash_attn_fn(
+    output_2, _, _ = scaled_multihead_dot_product_attention(
         query=query_2,
         key=key_2,
         value=value_2,

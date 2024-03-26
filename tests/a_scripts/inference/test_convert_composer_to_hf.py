@@ -30,6 +30,14 @@ from llmfoundry.utils.builders import build_optimizer, build_tokenizer
 from scripts.inference.convert_composer_to_hf import convert_composer_to_hf
 from tests.data_utils import make_tiny_ft_dataset
 
+_OPTIMIZER_CFG = lambda: {
+    'name': 'decoupled_adamw',
+    'lr': 6e-4,
+    'betas': [0.9, 0.95],
+    'eps': 1e-8,
+    'weight_decay': 0.0,
+}
+
 
 def _save_model_mock(*args: Any, path: str, **kwargs: Any):
     os.makedirs(path, exist_ok=True)
@@ -292,13 +300,7 @@ def test_huggingface_conversion_callback_interval(
 
     original_model = build_tiny_mpt()
 
-    optimizer_config = {
-        'name': 'decoupled_adamw',
-        'lr': 6e-4,
-        'betas': [0.9, 0.95],
-        'eps': 1e-8,
-        'weight_decay': 0.0,
-    }
+    optimizer_config = _OPTIMIZER_CFG()
     optimizer_name = optimizer_config.pop('name')
     optimizer = build_optimizer(original_model, optimizer_name,
                                 optimizer_config)
@@ -525,15 +527,6 @@ def _get_dataloader_cfg(tiny_dataset_folder_path: str, max_seq_len: int):
         'timeout': 0
     }
     return dataloader_cfg
-
-
-_OPTIMIZER_CFG = lambda: {
-    'name': 'decoupled_adamw',
-    'lr': 6e-4,
-    'betas': [0.9, 0.95],
-    'eps': 1e-8,
-    'weight_decay': 0.0,
-}
 
 
 def _assert_checkpoint_equivalence(tmp_path: pathlib.Path,

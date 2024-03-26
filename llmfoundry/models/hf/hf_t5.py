@@ -15,8 +15,7 @@ from transformers import (AutoConfig, PreTrainedTokenizerBase,
 from llmfoundry.metrics import DEFAULT_ENC_DEC_METRICS
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithFSDP
-from llmfoundry.models.utils import (adapt_tokenizer_for_denoising,
-                                     init_empty_weights)
+from llmfoundry.models.utils import init_empty_weights
 from llmfoundry.utils.warnings import experimental_class
 
 __all__ = ['ComposerHFT5']
@@ -42,12 +41,6 @@ class ComposerHFT5(HuggingFaceModelWithFSDP):
             cfg.init_device ('cpu' | 'meta'): Which device, 'cpu' or 'meta', to
                 initialize the model on. Currently, `meta` is only supported when
                 cfg.pretrained is ``False``. Default: ``'cpu'``.
-            cfg.adapt_vocab_for_denoising (bool, optional):  Whether to adapt the vocab
-                of the model/tokenizer to include sentinel tokens that are used in denoising
-                tasks like Span Corruption. If you intend to load from an existing Composer
-                checkpoint that was trained on such a task, set this to ``True`` to ensure
-                that the model vocab size matches your checkpoint's vocab size when loading
-                the weights. Default: ``False``.
         tokenizer (PreTrainedTokenizer): The tokenizer that the model will use.
     """
 
@@ -83,10 +76,6 @@ class ComposerHFT5(HuggingFaceModelWithFSDP):
         if not config.is_encoder_decoder:
             raise ValueError(f'Model type "hf_t5" currently only supports T5 models ' +\
                              f'using configs where `is_encoder_decoder` is ``True``.')
-
-        # Set up the tokenizer (add tokens for denoising sentinels if needed)
-        if om_model_config.get('adapt_vocab_for_denoising', False):
-            adapt_tokenizer_for_denoising(tokenizer)
 
         init_device = om_model_config.get('init_device', 'cpu')
 

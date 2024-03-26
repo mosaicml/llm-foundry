@@ -53,10 +53,6 @@ from llmfoundry.models.mpt.configuration_mpt import MPTConfig
 # HuggingFace can detect all the needed files to copy into its modules folder.
 # Otherwise, certain modules are missing.
 # isort: off
-from llmfoundry.models.utils.adapt_tokenizer import (
-    AutoTokenizerForMOD,  # type: ignore (see note)
-    adapt_tokenizer_for_denoising,  # type: ignore (see note)
-)
 from llmfoundry.models.utils.meta_init_context import \
     init_empty_weights  # type: ignore (see note)
 from llmfoundry.models.utils.param_init_fns import (

@@ -24,7 +24,6 @@ from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from llmfoundry.callbacks import HuggingFaceCheckpointer
 from llmfoundry.callbacks.hf_checkpointer import _maybe_get_license_filename
 from llmfoundry.data.finetuning import build_finetuning_dataloader
-from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
 from llmfoundry.utils.builders import (build_composer_model, build_optimizer,
                                        build_tokenizer)
 from scripts.inference.convert_composer_to_hf import convert_composer_to_hf

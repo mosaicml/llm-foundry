@@ -14,7 +14,7 @@ from scripts.data_prep.convert_delta_to_json import (download, fetch_DT,
                                                      run_query)
 
 
-class TestConverDeltaToJsonl(unittest.TestCase):
+class TestConvertDeltaToJsonl(unittest.TestCase):
 
     @patch('scripts.data_prep.convert_delta_to_json.sql.connect')
     @patch('scripts.data_prep.convert_delta_to_json.os.makedirs')

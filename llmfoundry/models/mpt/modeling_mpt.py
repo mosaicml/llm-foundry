@@ -57,10 +57,6 @@ from llmfoundry.models.utils.adapt_tokenizer import (
     AutoTokenizerForMOD,  # type: ignore (see note)
     adapt_tokenizer_for_denoising,  # type: ignore (see note)
 )
-from llmfoundry.models.utils.hf_prefixlm_converter import (
-    add_bidirectional_mask_if_missing,  # type: ignore (see note)
-    convert_hf_causal_lm_to_prefix_lm,  # type: ignore (see note)
-)
 from llmfoundry.models.utils.meta_init_context import \
     init_empty_weights  # type: ignore (see note)
 from llmfoundry.models.utils.param_init_fns import (
@@ -1083,8 +1079,6 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         return targets
 
     def forward(self, batch: MutableMapping) -> CausalLMOutputWithPast:
-        if self.model.transformer.prefix_lm:
-            add_bidirectional_mask_if_missing(batch)
         # Note: prefix_mask is only used if model.prefix_lm is True
         return self.model(
             input_ids=batch.get('input_ids', None),

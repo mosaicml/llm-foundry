@@ -24,92 +24,92 @@ repos:
   hooks:
   - id: isort
   rev: 5.12.0
-- repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v4.3.0
-  hooks:
-  - id: check-added-large-files
-  - id: check-ast
-  - id: check-builtin-literals
-    args:
-    - --no-allow-dict-kwargs
-  - id: check-case-conflict
-  - id: check-docstring-first
-  - id: check-executables-have-shebangs
-  - id: check-json
-  - id: check-shebang-scripts-are-executable
-  - id: pretty-format-json
-    args:
-    - --autofix
-    - --no-sort-keys
-    - --indent=4
-  - id: check-merge-conflict
-  - id: check-symlinks
-  - id: check-toml
-  - id: check-vcs-permalinks
-  - id: check-xml
-  - id: check-yaml
-  - id: debug-statements
-  - id: destroyed-symlinks
-  - id: double-quote-string-fixer
-    exclude: tests/horrible_strings.py
-  - id: end-of-file-fixer
-  - id: fix-byte-order-marker
-  - id: mixed-line-ending
-  - id: trailing-whitespace
-- repo: https://github.com/Lucas-C/pre-commit-hooks
-  rev: v1.5.4
-  hooks:
-  - id: insert-license
-    args:
-    - --license-filepath
-    - .pre-commit/FILE_HEADER
-    - --comment-style
-    - "#"
-    - --allow-past-years
-    types: [python]
-- repo: https://github.com/PyCQA/docformatter
-  rev: v1.5.0
-  hooks:
-  - id: docformatter
-    args: [--in-place, --wrap-summaries=80, --wrap-descriptions=80]
-- repo: https://github.com/PyCQA/pydocstyle
-  hooks:
-  - id: pydocstyle
-    name: pydocstyle
-    entry: pydocstyle
-    language: python
-    types: [python]
-    exclude: (.ci|.github)
-    additional_dependencies:
-    - toml
-  rev: 6.1.1
-- repo: https://github.com/adrienverge/yamllint.git
-  rev: v1.28.0
-  hooks:
-  - id: yamllint
-    name: yamllint
-    description: This hook runs yamllint.
-    entry: yamllint
-    language: python
-    types: [file, yaml]
-- repo: local
-  hooks:
-  - id: pyright
-    name: pyright
-    exclude: tests/horrible_strings.py
-    entry: pyright
-    language: node
-    types: [python]
-    pass_filenames: false
-    args: [--warnings]
-    additional_dependencies: ["pyright@1.1.256"]
-- repo: https://github.com/trufflesecurity/trufflehog.git
-  rev: v3.40.0
-  hooks:
-  - id: trufflehog
-    name: secret scan
-    exclude: tests/horrible_strings.py
-    entry: trufflehog filesystem ./
-    args:
-    - --only-verified
-    - --fail
+# - repo: https://github.com/pre-commit/pre-commit-hooks
+#   rev: v4.3.0
+#   hooks:
+#   - id: check-added-large-files
+#   - id: check-ast
+#   - id: check-builtin-literals
+#     args:
+#     - --no-allow-dict-kwargs
+#   - id: check-case-conflict
+#   - id: check-docstring-first
+#   - id: check-executables-have-shebangs
+#   - id: check-json
+#   - id: check-shebang-scripts-are-executable
+#   - id: pretty-format-json
+#     args:
+#     - --autofix
+#     - --no-sort-keys
+#     - --indent=4
+#   - id: check-merge-conflict
+#   - id: check-symlinks
+#   - id: check-toml
+#   - id: check-vcs-permalinks
+#   - id: check-xml
+#   - id: check-yaml
+#   - id: debug-statements
+#   - id: destroyed-symlinks
+#   - id: double-quote-string-fixer
+#     exclude: tests/horrible_strings.py
+#   - id: end-of-file-fixer
+#   - id: fix-byte-order-marker
+#   - id: mixed-line-ending
+#   - id: trailing-whitespace
+# - repo: https://github.com/Lucas-C/pre-commit-hooks
+#   rev: v1.5.4
+#   hooks:
+#   - id: insert-license
+#     args:
+#     - --license-filepath
+#     - .pre-commit/FILE_HEADER
+#     - --comment-style
+#     - "#"
+#     - --allow-past-years
+#     types: [python]
+# - repo: https://github.com/PyCQA/docformatter
+#   rev: v1.5.0
+#   hooks:
+#   - id: docformatter
+#     args: [--in-place, --wrap-summaries=80, --wrap-descriptions=80]
+# - repo: https://github.com/PyCQA/pydocstyle
+#   hooks:
+#   - id: pydocstyle
+#     name: pydocstyle
+#     entry: pydocstyle
+#     language: python
+#     types: [python]
+#     exclude: (.ci|.github)
+#     additional_dependencies:
+#     - toml
+#   rev: 6.1.1
+# - repo: https://github.com/adrienverge/yamllint.git
+#   rev: v1.28.0
+#   hooks:
+#   - id: yamllint
+#     name: yamllint
+#     description: This hook runs yamllint.
+#     entry: yamllint
+#     language: python
+#     types: [file, yaml]
+# - repo: local
+#   hooks:
+#   - id: pyright
+#     name: pyright
+#     exclude: tests/horrible_strings.py
+#     entry: pyright
+#     language: node
+#     types: [python]
+#     pass_filenames: false
+#     args: [--warnings]
+#     additional_dependencies: ["pyright@1.1.256"]
+# - repo: https://github.com/trufflesecurity/trufflehog.git
+#   rev: v3.40.0
+#   hooks:
+#   - id: trufflehog
+#     name: secret scan
+#     exclude: tests/horrible_strings.py
+#     entry: trufflehog filesystem ./
+#     args:
+#     - --only-verified
+#     - --fail

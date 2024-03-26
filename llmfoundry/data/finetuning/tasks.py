@@ -51,13 +51,19 @@ from transformers import PreTrainedTokenizerBase
 from llmfoundry.data.finetuning.collator import (_HF_IGNORE_INDEX,
                                                  stitch_turns_decoder_only,
                                                  stitch_turns_encoder_decoder)
-from llmfoundry.utils.exceptions import (
-    ConsecutiveRepeatedChatRolesError, IncorrectMessageKeyQuantityError,
-    InvalidContentTypeError, InvalidFileExtensionError,
-    InvalidLastChatMessageRoleError, InvalidPromptResponseKeysError,
-    InvalidPromptTypeError, InvalidResponseTypeError, InvalidRoleError,
-    NotEnoughChatDataError, TooManyKeysInExampleError,
-    UnableToProcessPromptResponseError, UnknownExampleTypeError)
+from llmfoundry.utils.exceptions import (ConsecutiveRepeatedChatRolesError,
+                                         IncorrectMessageKeyQuantityError,
+                                         InvalidContentTypeError,
+                                         InvalidFileExtensionError,
+                                         InvalidLastChatMessageRoleError,
+                                         InvalidPromptResponseKeysError,
+                                         InvalidPromptTypeError,
+                                         InvalidResponseTypeError,
+                                         InvalidRoleError,
+                                         NotEnoughChatDataError,
+                                         TooManyKeysInExampleError,
+                                         UnableToProcessPromptResponseError,
+                                         UnknownExampleTypeError)
 from llmfoundry.utils.logging_utils import SpecificWarningFilter
 
 log = logging.getLogger(__name__)

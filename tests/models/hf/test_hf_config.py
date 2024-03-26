@@ -83,7 +83,8 @@ def test_tie_weights(tie_word_embeddings: bool):
     },
     {
         'attn_config': {
-            'attn_impl': 'flash'
+            'attn_impl': 'flash',
+            'alibi': False,
         }
     },
     {
@@ -94,7 +95,8 @@ def test_tie_weights(tie_word_embeddings: bool):
     {
         'max_seq_len': 1024,
         'attn_config': {
-            'attn_impl': 'flash'
+            'attn_impl': 'flash',
+            'alibi': False,
         },
         'init_config': {
             'emb_init_std': 5

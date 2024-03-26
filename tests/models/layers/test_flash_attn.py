@@ -256,13 +256,13 @@ def test_sliding_window(sliding_window_size: int):
 
     print(torch.max(output_1 - output_2))
 
-    assert torch.allclose(output_1, output_2, 1e-2, 1e-2)
-    assert torch.norm(query_2.grad - query_1.grad  # type: ignore
-                     ) <= 1e-2 + 1e-2 * torch.norm(query_2.grad)
-    assert torch.norm(key_2.grad - key_1.grad  # type: ignore
-                     ) <= 1e-2 + 1e-2 * torch.norm(key_2.grad)
-    assert torch.norm(value_2.grad - value_1.grad  # type: ignore
-                     ) <= 1e-2 + 1e-2 * torch.norm(value_2.grad)
+    _assert_approx_equal(output_1, output_2)
+    assert (query_2.grad is not None) and (query_1.grad is not None)
+    _assert_approx_equal(query_1.grad, query_2.grad)
+    assert (key_2.grad is not None) and (key_1.grad is not None)
+    _assert_approx_equal(key_1.grad, key_2.grad)
+    assert (value_2.grad is not None) and (value_1.grad is not None)
+    _assert_approx_equal(value_1.grad, value_2.grad)
 
 
 @pytest.mark.gpu
@@ -361,13 +361,14 @@ def test_alibi_bias(n_heads: int):
 
     output_2.sum().backward()
 
-    assert torch.allclose(output_1, output_2, 1e-2, 1e-2)
+    _assert_approx_equal(output_1, output_2)
     assert (query_2.grad is not None) and (query_1.grad is not None)
-    assert torch.norm(query_2.grad -
-                      query_1.grad) <= 1e-2 + 1e-2 * torch.norm(query_2.grad)
+    _assert_approx_equal(query_1.grad, query_2.grad)
     assert (key_2.grad is not None) and (key_1.grad is not None)
-    assert torch.norm(key_2.grad -
-                      key_1.grad) <= 1e-2 + 1e-2 * torch.norm(key_2.grad)
+    _assert_approx_equal(key_1.grad, key_2.grad)
     assert (value_2.grad is not None) and (value_1.grad is not None)
-    assert torch.norm(value_2.grad -
-                      value_1.grad) <= 1e-2 + 1e-2 * torch.norm(value_2.grad)
+    _assert_approx_equal(value_1.grad, value_2.grad)
+
+
+def _assert_approx_equal(value1: torch.Tensor, value2: torch.Tensor):
+    assert torch.norm(value2 - value1) <= 1e-2 + 1e-2 * torch.norm(value2)

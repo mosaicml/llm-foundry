@@ -3,94 +3,14 @@
 
 import contextlib
 import os
-from unittest.mock import patch
 
 import pytest
-import torch
-import transformers
 from composer.core.precision import get_precision_context
-from composer.utils import reproducibility
 from omegaconf import OmegaConf as om
-from transformers.models.llama.modeling_llama import LlamaAttention
 
 from llmfoundry.models.hf.hf_fsdp import rgetattr
 from llmfoundry.models.layers.attention import is_flash_v2_installed
-from llmfoundry.models.layers.llama_attention_monkeypatch import \
-    llama_attention_patch_torch
 from llmfoundry.utils.builders import build_composer_model, build_tokenizer
-
-
-@pytest.mark.parametrize('patch_fn_name', ['torch'])
-@pytest.mark.parametrize('explicit_mask', [True, False])
-@pytest.mark.parametrize(
-    'model_name', ['meta-llama/Llama-2-7b-hf', 'meta-llama/Llama-2-70b-hf'])
-@pytest.mark.gpu
-def test_patch_equivalence(patch_fn_name: str, explicit_mask: bool,
-                           model_name: str):
-    if 'HUGGING_FACE_HUB_TOKEN' not in os.environ:
-        pytest.skip(
-            'The CI cluster does not have access to the Llama models, so skip this test.'
-        )
-
-    device = 'cuda:0'
-    sequence_length = 64
-    model_dim = 128 if '7b' in model_name else 256
-    batch_size = 2
-    if patch_fn_name == 'torch':
-        patch_fn = llama_attention_patch_torch
-        dtype = torch.float32
-        atol = 0.0
-        rtol = 0.0
-    else:
-        raise ValueError(f'Unknown patch_fn_name: {patch_fn_name}')
-
-    llama_config = transformers.AutoConfig.from_pretrained(
-        model_name, use_auth_token=True, hidden_size=model_dim)
-
-    reproducibility.seed_all(42)
-    attention = LlamaAttention(config=llama_config,)
-    attention.to(dtype=dtype, device=device)
-
-    rng = torch.Generator(device=device).manual_seed(42)
-    hidden_states = torch.randn(batch_size,
-                                sequence_length,
-                                model_dim,
-                                generator=rng,
-                                dtype=dtype,
-                                device=device)
-    causal_mask = torch.full((sequence_length, sequence_length),
-                             torch.finfo(torch.float32).min,
-                             device=device)
-    causal_mask = causal_mask.triu(diagonal=1)
-    causal_mask = causal_mask[None,
-                              None, :, :].expand(batch_size, 1, sequence_length,
-                                                 sequence_length)
-    position_ids = torch.arange(sequence_length,
-                                dtype=torch.long,
-                                device=device)
-    position_ids = position_ids[None, :].expand(batch_size, sequence_length)
-
-    attn_output, _, _ = attention(
-        hidden_states=hidden_states,
-        attention_mask=causal_mask if explicit_mask else None,
-        position_ids=position_ids,
-        past_key_value=None,
-        use_cache=False,
-    )
-
-    reproducibility.seed_all(42)
-    with patch.object(LlamaAttention, 'forward', new=patch_fn):
-        attention = LlamaAttention(config=llama_config,)
-        attention.to(dtype=dtype, device=device)
-        new_output, _, _ = attention(
-            hidden_states=hidden_states,
-            attention_mask=causal_mask if explicit_mask else None,
-            position_ids=position_ids,
-            past_key_value=None,
-            use_cache=False,
-        )
-
-    assert torch.allclose(attn_output, new_output, atol=atol, rtol=rtol)
 
 
 @pytest.mark.gpu

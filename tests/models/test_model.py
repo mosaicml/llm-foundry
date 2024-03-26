@@ -128,8 +128,6 @@ def gen_random_batch(batch_size: int,
     batch['attention_mask'] = torch.ones(size=(batch_size,
                                                test_cfg.max_seq_len),
                                          dtype=torch.int64).to(test_cfg.device)
-    batch['bidirectional_mask'] = batch['attention_mask'].clone()
-    batch['bidirectional_mask'][:, (test_cfg.max_seq_len // 2):] = 0
     return batch
 
 

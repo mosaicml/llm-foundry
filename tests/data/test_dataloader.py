@@ -305,9 +305,7 @@ def test_finetuning_dataloader(use_chat_formatting: bool,
     device_batch_size = 2
 
     expected_keys = ['input_ids', 'attention_mask', 'labels']
-    if decoder_only_format:
-        expected_keys += ['bidirectional_mask']
-    else:
+    if not decoder_only_format:
         expected_keys += ['decoder_attention_mask', 'decoder_input_ids']
 
     loader = build_finetuning_dataloader(cfg, tokenizer,
@@ -414,9 +412,6 @@ def test_finetuning_dataloader_small_data(dataset_size: int,
         tokenizer_name=tokenizer_name,
         tokenizer_kwargs={'model_max_length': max_seq_len},
     )
-
-    expected_keys = ['input_ids', 'attention_mask', 'labels']
-    expected_keys += ['bidirectional_mask']
 
     error_context = contextlib.nullcontext()
     if (dist.get_world_size() * device_batch_size > dataset_size) and drop_last:
@@ -718,9 +713,6 @@ def test_malformed_data(
     }
 
     cfg = om.create(cfg)
-
-    expected_keys = ['input_ids', 'attention_mask', 'labels']
-    expected_keys += ['bidirectional_mask']
 
     error_context = contextlib.nullcontext()
     if add_bad_data_error:

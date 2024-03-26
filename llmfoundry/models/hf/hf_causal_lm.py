@@ -107,7 +107,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         if use_flash_attention_2 and not is_flash_v2_installed():
             raise ValueError(
                 'use_flash_attention_2 is set to True, but flash-attention 2 is not installed. '
-                + 'Please `pip install llm-foundry[gpu-flash2]`.')
+                + 'Please `pip install llm-foundry[gpu]`.')
 
         peft_config_dict = pop_config(om_model_config,
                                       'peft_config',

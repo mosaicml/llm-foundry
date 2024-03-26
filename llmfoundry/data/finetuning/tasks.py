@@ -51,6 +51,7 @@ from transformers import PreTrainedTokenizerBase
 from llmfoundry.data.finetuning.collator import (_HF_IGNORE_INDEX,
                                                  stitch_turns_decoder_only,
                                                  stitch_turns_encoder_decoder)
+# yapf: disable
 from llmfoundry.utils.exceptions import (ConsecutiveRepeatedChatRolesError,
                                          IncorrectMessageKeyQuantityError,
                                          InvalidContentTypeError,
@@ -64,6 +65,7 @@ from llmfoundry.utils.exceptions import (ConsecutiveRepeatedChatRolesError,
                                          TooManyKeysInExampleError,
                                          UnableToProcessPromptResponseError,
                                          UnknownExampleTypeError)
+#  yapf: enable
 from llmfoundry.utils.logging_utils import SpecificWarningFilter
 
 log = logging.getLogger(__name__)

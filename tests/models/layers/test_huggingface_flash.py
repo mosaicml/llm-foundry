@@ -13,12 +13,11 @@ from composer.utils import reproducibility
 from omegaconf import OmegaConf as om
 from transformers.models.llama.modeling_llama import LlamaAttention
 
-from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.models.hf.hf_fsdp import rgetattr
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.layers.llama_attention_monkeypatch import (
     llama_attention_patch_torch, llama_attention_patch_triton)
-from llmfoundry.utils.builders import build_tokenizer
+from llmfoundry.utils.builders import build_composer_model, build_tokenizer
 
 
 @pytest.mark.parametrize('patch_fn_name', ['torch', 'triton'])
@@ -172,7 +171,11 @@ def test_flash2(model_name: str, use_flash_attention_2: bool, init_device: str):
     ) and use_flash_attention_2 else contextlib.nullcontext()
 
     with error_context:
-        model = COMPOSER_MODEL_REGISTRY[model_cfg['name']](model_cfg, tokenizer)
+        model = build_composer_model(
+            name=model_cfg['name'],
+            cfg=model_cfg,
+            tokenizer=tokenizer,
+        )
 
         # check that it actually used flash attention 2
         assert model.model.config._attn_implementation == (

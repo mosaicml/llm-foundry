@@ -31,7 +31,6 @@ from llmfoundry.models.layers.attention import (
     flash_attn_fn, scaled_multihead_dot_product_attention, triton_flash_attn_fn)
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY, MPTMLP, build_ffn
-from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.models.mpt import (ComposerMPTCausalLM, MPTConfig,
                                    MPTForCausalLM, MPTModel, MPTPreTrainedModel)
 from llmfoundry.tokenizers import TiktokenTokenizerWrapper
@@ -53,7 +52,6 @@ __all__ = [
     'ComposerHFCausalLM',
     'ComposerHFPrefixLM',
     'ComposerHFT5',
-    'COMPOSER_MODEL_REGISTRY',
     'scaled_multihead_dot_product_attention',
     'flash_attn_fn',
     'triton_flash_attn_fn',

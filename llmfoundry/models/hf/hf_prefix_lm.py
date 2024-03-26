@@ -14,7 +14,7 @@ from transformers import (AutoConfig, AutoModelForCausalLM,
 
 from llmfoundry.metrics import DEFAULT_PREFIX_LM_METRICS
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
-from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
+from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithFSDP
 from llmfoundry.models.utils import (adapt_tokenizer_for_denoising,
                                      add_bidirectional_mask_if_missing,
                                      convert_hf_causal_lm_to_prefix_lm,
@@ -23,7 +23,7 @@ from llmfoundry.models.utils import (adapt_tokenizer_for_denoising,
 __all__ = ['ComposerHFPrefixLM']
 
 
-class ComposerHFPrefixLM(HuggingFaceModelWithZLoss):
+class ComposerHFPrefixLM(HuggingFaceModelWithFSDP):
     """Configures a :class:`.HuggingFaceModel` around a Prefix LM.
 
     Note: HuggingFace does not natively support Prefix LM-style models. This function uses
@@ -51,9 +51,6 @@ class ComposerHFPrefixLM(HuggingFaceModelWithZLoss):
             cfg.init_device ('cpu' | 'meta'): Which device, 'cpu' or 'meta', to
                 initialize the model on. Currently, `meta` is only supported when
                 cfg.pretrained is ``False``. Default: ``'cpu'``.
-            cfg.z_loss (float, optional): The coefficient of the z-loss. If >0.0, this
-                the z-loss will be multiplied by this value before being added to the
-                standard loss term. Default: ``0.0``.
             cfg.adapt_vocab_for_denoising (bool, optional):  Whether to adapt the vocab
                 of the model/tokenizer to include sentinel tokens that are used in denoising
                 tasks like Span Corruption. If you intend to load from an existing Composer
@@ -137,8 +134,6 @@ class ComposerHFPrefixLM(HuggingFaceModelWithZLoss):
                                           shift_labels=True,
                                           tokenizer=tokenizer,
                                           metrics=metrics,
-                                          z_loss=om_model_config.get(
-                                              'z_loss', 0.0),
                                           init_device=init_device)
 
         return composer_model

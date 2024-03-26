@@ -26,7 +26,7 @@ from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.models.bloom.modeling_bloom import build_alibi_tensor
 
 from llmfoundry import ComposerHFCausalLM
-from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
+from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithFSDP
 from llmfoundry.models.layers import NORM_CLASS_REGISTRY, build_alibi_bias
 from llmfoundry.models.layers.attention import (check_alibi_support,
                                                 is_flash_v2_installed)
@@ -2039,7 +2039,7 @@ def test_hf_init(tmp_path: pathlib.Path,
 
     prepare_fsdp_module(model, optimizer, fsdp_config, precision, device, False)
 
-    model = HuggingFaceModelWithZLoss(model, tokenizer)
+    model = HuggingFaceModelWithFSDP(model, tokenizer)
 
     batch = gen_random_batch(batch_size, test_cfg)
 
@@ -2086,7 +2086,7 @@ def test_head_dim_8_triton_mqa_attn(batch_size: int = 2):
 
     mpt = MPTForCausalLM(hf_config)
 
-    model = HuggingFaceModelWithZLoss(mpt, tokenizer, shift_labels=True)
+    model = HuggingFaceModelWithFSDP(mpt, tokenizer, shift_labels=True)
 
     model = model.to(test_cfg.device)
     batch = gen_random_batch(batch_size, test_cfg)

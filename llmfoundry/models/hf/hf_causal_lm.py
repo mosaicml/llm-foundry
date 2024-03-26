@@ -17,7 +17,7 @@ from transformers import (AutoConfig, AutoModelForCausalLM, PreTrainedModel,
 from llmfoundry.metrics import (DEFAULT_CAUSAL_LM_EVAL_METRICS,
                                 DEFAULT_CAUSAL_LM_TRAIN_METRICS)
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
-from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
+from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithFSDP
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.utils import init_empty_weights
 from llmfoundry.utils.config_utils import pop_config
@@ -31,7 +31,7 @@ __all__ = ['ComposerHFCausalLM']
 log = logging.getLogger(__name__)
 
 
-class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
+class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
     """Configures a :class:`.HuggingFaceModel` around a Causal LM.
 
     Args:
@@ -54,7 +54,6 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             cfg.use_auth_token (bool, optional): Whether to use the Hugging Face authentication token when
                 loading from Hugging Face Hub. Default: ``False``.
             cfg.use_train_metrics (bool, optional): Whether to use training metrics. Default: ``True``.
-            cfg.z_loss (float, optional): The z-loss coefficient. Default: ``0.0``.
             cfg.load_in_8bit (bool, optional): Whether to load the model in 8-bit mode. Default: ``False``.
             cfg.init_device (str, optional): Which device to initialize the model on. Default: ``'cpu'``.
             cfg.attention_patch_type (str, optional): Which attention patch to use for llama models. Default: ``None``.
@@ -88,7 +87,6 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         load_in_8bit = om_model_config.get('load_in_8bit', False)
 
         # Set up config args for the model construction and base classes
-        z_loss = om_model_config.get('z_loss', 0.0)
         init_device = om_model_config.get('init_device', 'cpu')
         # Resolve "mixed" init device to either "cpu" or "meta"
         resolved_init_device = hf_get_init_device(init_device)
@@ -269,7 +267,6 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             tokenizer=tokenizer,
             metrics=train_metrics,
             eval_metrics=eval_metrics,
-            z_loss=z_loss,
             init_device=init_device,
             peft_config=peft_config,
         )

@@ -14,7 +14,7 @@ from transformers import (AutoConfig, PreTrainedTokenizerBase,
 
 from llmfoundry.metrics import DEFAULT_ENC_DEC_METRICS
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
-from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
+from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithFSDP
 from llmfoundry.models.utils import (adapt_tokenizer_for_denoising,
                                      init_empty_weights)
 from llmfoundry.utils.warnings import experimental_class
@@ -23,7 +23,7 @@ __all__ = ['ComposerHFT5']
 
 
 @experimental_class('ComposerHFT5')
-class ComposerHFT5(HuggingFaceModelWithZLoss):
+class ComposerHFT5(HuggingFaceModelWithFSDP):
     """Configures a :class:`.HuggingFaceModel` around a T5.
 
     Note: This function uses `transformers.T5ForConditionalGeneration`. Future releases
@@ -42,9 +42,6 @@ class ComposerHFT5(HuggingFaceModelWithZLoss):
             cfg.init_device ('cpu' | 'meta'): Which device, 'cpu' or 'meta', to
                 initialize the model on. Currently, `meta` is only supported when
                 cfg.pretrained is ``False``. Default: ``'cpu'``.
-            cfg.z_loss (float, optional): The coefficient of the z-loss. If >0.0, this
-                the z-loss will be multiplied by this value before being added to the
-                standard loss term. Default: ``0.0``.
             cfg.adapt_vocab_for_denoising (bool, optional):  Whether to adapt the vocab
                 of the model/tokenizer to include sentinel tokens that are used in denoising
                 tasks like Span Corruption. If you intend to load from an existing Composer
@@ -128,8 +125,6 @@ class ComposerHFT5(HuggingFaceModelWithZLoss):
         composer_model = super().__init__(model=model,
                                           tokenizer=tokenizer,
                                           metrics=metrics,
-                                          z_loss=om_model_config.get(
-                                              'z_loss', 0.0),
                                           init_device=init_device)
 
         return composer_model

@@ -144,7 +144,6 @@ def test_attn_impl(attn_impl_0: str,
                                        cfg.n_heads,
                                        s,
                                        alibi,
-                                       prefix_lm=False,
                                        use_sequence_id=attn_uses_sequence_id,
                                        causal=causal)
         if bs is not None:

@@ -5,7 +5,6 @@ import os
 import pathlib
 import random
 import shutil
-import tempfile
 from argparse import Namespace
 from contextlib import nullcontext as does_not_raise
 from pathlib import Path
@@ -22,8 +21,7 @@ from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from streaming import MDSWriter
 
-from llmfoundry import (build_finetuning_dataloader,
-                        build_text_denoising_dataloader)
+from llmfoundry import build_finetuning_dataloader
 from llmfoundry.data import build_dataloader
 from llmfoundry.data.finetuning.collator import (_HF_IGNORE_INDEX,
                                                  validate_target_settings)
@@ -254,72 +252,6 @@ def test_sequence_id_wrapper(eos_token_id: Optional[int],
                            torch.Tensor([[0, 0, 0, 1, 1, 1, 2, 2, 2]]))
     else:
         raise NotImplementedError()
-
-
-@pytest.mark.parametrize('decoder_only_format', [True, False])
-@pytest.mark.parametrize('pretokenize', [True, False])
-@pytest.mark.parametrize('packing_ratio', [None, 5.5])
-def test_denoising_dataloader(decoder_only_format: bool, pretokenize: bool,
-                              packing_ratio: Optional[float]):
-    # Use the datasets just built in the last test
-    tokenizer_name = 'facebook/opt-125m'
-    data_local = get_data_local(tokenizer_name, pretokenize)
-    path = get_abs_data_path(data_local)
-    max_seq_len = 256 if decoder_only_format else 128
-
-    if (decoder_only_format is False) and (packing_ratio is not None):
-        pytest.xfail('packing_ratio only supported for decoder-only format.')
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        cfg = {
-            'name': 'text_denoising',
-            'dataset': {
-                'local': tmpdir,
-                'remote': path,
-                'split': 'val_xsmall',
-                'shuffle': False,
-                'max_seq_len': max_seq_len,
-                'packing_ratio': packing_ratio,
-                'predownload': 1000,
-                'keep_zip': False,
-                'num_workers': None
-            },
-            'mixture_of_denoisers': {
-                'decoder_only_format': decoder_only_format,
-                'span_mean_lengths_and_ratios': [[3, .15], [8, .5]],
-                'sequence_mask_ratios': 0.25,
-            },
-            'drop_last': False,
-            'num_workers': 4,
-        }
-        cfg = om.create(cfg)
-        device_batch_size = 2
-
-        expected_keys = ['input_ids', 'attention_mask', 'labels']
-        if decoder_only_format:
-            expected_keys += ['bidirectional_mask']
-        else:
-            expected_keys += ['decoder_attention_mask', 'decoder_input_ids']
-
-        if packing_ratio is not None:
-            expected_keys += ['sequence_id']
-
-        tokenizer = build_tokenizer(
-            tokenizer_name=tokenizer_name,
-            tokenizer_kwargs={'model_max_length': max_seq_len})
-
-        loader = build_text_denoising_dataloader(cfg, tokenizer,
-                                                 device_batch_size).dataloader
-        batch_ix = 0
-        for batch in loader:
-            for k in expected_keys:
-                assert k in batch
-                t = batch[k]
-                assert t.shape[0] == device_batch_size
-                assert t.shape[1] <= max_seq_len
-            batch_ix += 1
-            if batch_ix >= 5:
-                break
 
 
 @pytest.mark.parametrize('use_chat_formatting', [True, False])
@@ -920,8 +852,8 @@ def test_token_counting_func(pad_token_id: int, batch_size: int,
 
 @pytest.mark.parametrize('dataloader_type,tensor_input',
                          [('finetuning-hf', False),
-                          ('finetuning-streaming', False), ('denoising', False),
-                          ('text', True), ('text', False)])
+                          ('finetuning-streaming', False), ('text', True),
+                          ('text', False)])
 @pytest.mark.parametrize('pad_token_id', [100, None])
 @pytest.mark.parametrize('batch_size', [1, 8])
 @pytest.mark.parametrize('model_max_length', [1024])
@@ -955,10 +887,6 @@ def test_token_counting_func_dataloader_setting(
         batch_tokenized = [
             torch.tensor(b['input_ids']) for b in batch_tokenized
         ]
-
-    if dataloader_type == 'denoising':
-        expected_token_count += 2 * batch_size  # for the two eos tokens
-        expected_token_count += 5 * batch_size  # for the corruption prefix tokens
 
     if dataloader_type in {'finetuning-hf', 'finetuning-streaming'}:
         for b in batch_tokenized:
@@ -1031,30 +959,6 @@ def test_token_counting_func_dataloader_setting(
         monkeypatch.setattr('llmfoundry.data.text_data.StreamingTextDataset',
                             lambda *args, **kwargs: ds_mock)
         dl = build_text_dataloader(cfg, gptt, batch_size)
-    elif dataloader_type == 'denoising':
-        cfg = DictConfig({
-            'name': 'text_denoising',
-            'dataset': {
-                'local': 'dummy-path',
-                'remote': 'dummy-path',
-                'split': 'val_xsmall',
-                'shuffle': False,
-                'max_seq_len': model_max_length,
-                'packing_ratio': None,
-                'predownload': 1000,
-                'keep_zip': False,
-                'num_workers': None
-            },
-            'mixture_of_denoisers': {
-                'decoder_only_format': False,
-                'span_mean_lengths_and_ratios': None,
-                'sequence_mask_ratios': 0.25,
-            },
-            **common_args
-        })
-        monkeypatch.setattr('llmfoundry.data.denoising.StreamingTextDataset',
-                            lambda *args, **kwargs: MagicMock())
-        dl = build_text_denoising_dataloader(cfg, gptt, batch_size)
     else:
         raise NotImplementedError()
 

@@ -20,12 +20,10 @@ new_files_warning_filter = SpecificWarningFilter(
 hf_dynamic_modules_logger.addFilter(new_files_warning_filter)
 
 from llmfoundry import algorithms, callbacks, loggers, optim, registry, utils
-from llmfoundry.data import (ConcatTokensDataset, MixtureOfDenoisersCollator,
-                             NoConcatDataset, Seq2SeqFinetuningCollator,
-                             build_finetuning_dataloader,
-                             build_text_denoising_dataloader)
-from llmfoundry.models.hf import (ComposerHFCausalLM, ComposerHFPrefixLM,
-                                  ComposerHFT5)
+from llmfoundry.data import (ConcatTokensDataset, NoConcatDataset,
+                             Seq2SeqFinetuningCollator,
+                             build_finetuning_dataloader)
+from llmfoundry.models.hf import ComposerHFCausalLM, ComposerHFT5
 from llmfoundry.models.layers.attention import (
     MultiheadAttention, attn_bias_shape, build_alibi_bias, build_attn_bias,
     flash_attn_fn, scaled_multihead_dot_product_attention)
@@ -36,9 +34,7 @@ from llmfoundry.models.mpt import (ComposerMPTCausalLM, MPTConfig,
 from llmfoundry.tokenizers import TiktokenTokenizerWrapper
 
 __all__ = [
-    'build_text_denoising_dataloader',
     'build_finetuning_dataloader',
-    'MixtureOfDenoisersCollator',
     'Seq2SeqFinetuningCollator',
     'MPTBlock',
     'FFN_CLASS_REGISTRY',
@@ -50,7 +46,6 @@ __all__ = [
     'MPTForCausalLM',
     'ComposerMPTCausalLM',
     'ComposerHFCausalLM',
-    'ComposerHFPrefixLM',
     'ComposerHFT5',
     'scaled_multihead_dot_product_attention',
     'flash_attn_fn',

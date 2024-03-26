@@ -645,17 +645,16 @@ class MultiQueryAttention(GroupedQueryAttention):
 
 
 def attn_bias_shape(
-        attn_impl: str, n_heads: int, seq_len: int, alibi: bool,
-        prefix_lm: bool, causal: bool,
+        attn_impl: str, n_heads: int, seq_len: int, alibi: bool, causal: bool,
         use_sequence_id: bool) -> Optional[tuple[int, int, int, int]]:
     if attn_impl == 'flash':
         return None
     elif attn_impl == 'torch':
         if alibi:
-            if (prefix_lm or not causal) or use_sequence_id:
+            if (not causal) or use_sequence_id:
                 return (1, n_heads, seq_len, seq_len)
             return (1, n_heads, 1, seq_len)
-        elif prefix_lm or use_sequence_id:
+        elif use_sequence_id:
             return (1, 1, seq_len, seq_len)
         return None
     else:

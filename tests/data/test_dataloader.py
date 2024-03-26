@@ -36,9 +36,23 @@ from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
                                        build_text_dataloader,
                                        get_tokens_per_batch_func)
 from llmfoundry.utils.builders import build_tokenizer
+# yapf: disable
+from llmfoundry.utils.exceptions import (ConsecutiveRepeatedChatRolesError,
+                                         IncorrectMessageKeyQuantityError,
+                                         InvalidContentTypeError,
+                                         InvalidLastChatMessageRoleError,
+                                         InvalidPromptTypeError,
+                                         InvalidResponseTypeError,
+                                         InvalidRoleError,
+                                         NotEnoughDatasetSamplesError,
+                                         TooManyKeysInExampleError,
+                                         UnknownExampleTypeError)
+# yapf: enable
 from scripts.data_prep.convert_dataset_hf import main as main_hf
 from scripts.data_prep.convert_finetuning_dataset import get_columns_and_format
-from tests.data_utils import make_tiny_ft_dataset
+from tests.data_utils import (make_tiny_conversation_ft_dataset,
+                              make_tiny_ft_dataset)
+from tests.test_utils import generate_exclusive_test_params
 
 
 def get_config(conf_path: str = 'yamls/mpt/125m.yaml'):
@@ -443,19 +457,18 @@ def test_finetuning_dataloader_safe_load(hf_name: str,
 @pytest.mark.parametrize('dataset_size', [4, 8])
 @pytest.mark.parametrize('device_batch_size', [2, 4])
 @pytest.mark.parametrize('drop_last', [True, False])
-@pytest.mark.parametrize('invalid_dataset', [True, False])
 def test_finetuning_dataloader_small_data(dataset_size: int,
                                           device_batch_size: int,
-                                          drop_last: bool,
-                                          invalid_dataset: bool):
+                                          drop_last: bool):
     tokenizer_name = 'gpt2'
     max_seq_len = 2048
     tiny_dataset_folder_path = os.path.join(os.getcwd(), 'test-ift-data-small')
     tiny_dataset_path = os.path.join(tiny_dataset_folder_path, 'train.jsonl')
     if dist.get_global_rank() == 0:
-        make_tiny_ft_dataset(path=tiny_dataset_path,
-                             size=dataset_size,
-                             add_bad_data_error=invalid_dataset)
+        make_tiny_ft_dataset(
+            path=tiny_dataset_path,
+            size=dataset_size,
+        )
 
     cfg = {
         'name': 'finetuning',
@@ -488,10 +501,8 @@ def test_finetuning_dataloader_small_data(dataset_size: int,
 
     error_context = contextlib.nullcontext()
     if (dist.get_world_size() * device_batch_size > dataset_size) and drop_last:
-        error_context = pytest.raises(ValueError, match='Your dataset')
-    if invalid_dataset:
-        error_context = pytest.raises(TypeError,
-                                      match='Unable to tokenize example')
+        error_context = pytest.raises(NotEnoughDatasetSamplesError,
+                                      match='Your dataset')
 
     with error_context:
         _ = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
@@ -730,11 +741,22 @@ def test_finetuning_dataloader_is_valid_ift_example(
                                     empty_labels_example)
 
 
-@pytest.mark.parametrize('add_bad_data_dropped', [True, False])
-@pytest.mark.parametrize('add_bad_data_error', [True, False])
+invalid_prompt_response_params = [
+    'add_bad_data_dropped', 'add_invalid_prompt_type',
+    'add_invalid_response_type', 'add_unknown_example_type',
+    'add_too_many_example_keys'
+]
+
+
+@pytest.mark.parametrize(
+    ','.join(invalid_prompt_response_params),
+    generate_exclusive_test_params(invalid_prompt_response_params))
 def test_malformed_data(
     add_bad_data_dropped: bool,
-    add_bad_data_error: bool,
+    add_invalid_prompt_type: bool,
+    add_invalid_response_type: bool,
+    add_too_many_example_keys: bool,
+    add_unknown_example_type: bool,
     tmp_path: pathlib.Path,
 ):
     tokenizer_name = 'mosaicml/mpt-7b'
@@ -759,7 +781,10 @@ def test_malformed_data(
             path=tiny_dataset_path,
             size=dataset_size,
             add_bad_data_dropped=add_bad_data_dropped,
-            add_bad_data_error=add_bad_data_error,
+            add_invalid_prompt_type=add_invalid_prompt_type,
+            add_invalid_response_type=add_invalid_response_type,
+            add_unknown_example_type=add_unknown_example_type,
+            add_too_many_example_keys=add_too_many_example_keys,
             add_just_bos_eos_pad=True,
             pad_token=tokenizer.pad_token,
             start_token=tokenizer.bos_token,
@@ -791,15 +816,24 @@ def test_malformed_data(
     expected_keys += ['bidirectional_mask']
 
     error_context = contextlib.nullcontext()
-    if add_bad_data_error:
-        error_context = pytest.raises(TypeError,
-                                      match='Unable to tokenize example')
+    if add_invalid_prompt_type:
+        error_context = pytest.raises(InvalidPromptTypeError,
+                                      match='Expected prompt to be')
+    if add_invalid_response_type:
+        error_context = pytest.raises(InvalidResponseTypeError,
+                                      match='Expected response to be')
+    if add_unknown_example_type:
+        error_context = pytest.raises(UnknownExampleTypeError,
+                                      match='Unknown example type')
+    if add_too_many_example_keys:
+        error_context = pytest.raises(TooManyKeysInExampleError,
+                                      match='Please specify exactly one.')
 
     with error_context:
         dl = build_finetuning_dataloader(cfg, tokenizer,
                                          device_batch_size).dataloader
 
-    if not add_bad_data_error:
+    if not any(invalid_prompt_response_params):
         # +5 because we added samples with just bos/eos in each of prompt/response
         expected_num_batches = (dataset_size + 5) // device_batch_size
 
@@ -808,6 +842,96 @@ def test_malformed_data(
             actual_num_batches += 1
 
         assert actual_num_batches == expected_num_batches
+
+
+invalid_conversation_params = [
+    'add_invalid_last_chat_message', 'add_invalid_message_key_quantity',
+    'add_invalid_content_type', 'add_invalid_role', 'add_not_alternating_roles'
+]
+
+
+@pytest.mark.parametrize(
+    ','.join(invalid_conversation_params),
+    generate_exclusive_test_params(invalid_conversation_params))
+def test_malformed_conversation_data(tmp_path: pathlib.Path,
+                                     add_invalid_last_chat_message: bool,
+                                     add_invalid_message_key_quantity: bool,
+                                     add_invalid_content_type: bool,
+                                     add_invalid_role: bool,
+                                     add_not_alternating_roles: bool):
+    tokenizer_name = 'mosaicml/mpt-7b'
+    max_seq_len = 2048
+    dataset_size = 5
+    device_batch_size = 5
+    tiny_dataset_folder_path = tmp_path
+    tiny_dataset_path = str(tiny_dataset_folder_path / 'train.jsonl')
+
+    tokenizer = build_tokenizer(
+        tokenizer_name=tokenizer_name,
+        tokenizer_kwargs={'model_max_length': max_seq_len},
+    )
+    tokenizer.add_special_tokens({
+        'pad_token': '<pad>',
+        'bos_token': '<bos>',
+        'eos_token': '<eos>',
+    })
+
+    if dist.get_global_rank() == 0:
+        make_tiny_conversation_ft_dataset(
+            path=tiny_dataset_path,
+            size=dataset_size,
+            add_invalid_last_chat_message=add_invalid_last_chat_message,
+            add_invalid_message_key_quantity=add_invalid_message_key_quantity,
+            add_invalid_content_type=add_invalid_content_type,
+            add_invalid_role=add_invalid_role,
+            add_not_alternating_roles=add_not_alternating_roles,
+        )
+
+    cfg = {
+        'name': 'finetuning',
+        'dataset': {
+            'hf_name': str(tiny_dataset_folder_path),
+            'split': 'train',
+            'max_seq_len': max_seq_len,
+            'decoder_only_format': True,
+            'allow_pad_trimming': False,
+            'packing_ratio': None,
+            'shuffle': True,
+        },
+        'drop_last': False,
+        'num_workers': 0,
+        'prefetch_factor': None,
+        'pin_memory': False,
+        'persistent_workers': False,
+        'timeout': 0
+    }
+
+    cfg = om.create(cfg)
+
+    expected_keys = ['input_ids', 'attention_mask', 'labels']
+    expected_keys += ['bidirectional_mask']
+
+    error_context = contextlib.nullcontext()
+    if add_invalid_last_chat_message:
+        error_context = pytest.raises(InvalidLastChatMessageRoleError,
+                                      match='Invalid last message role:')
+    if add_invalid_message_key_quantity:
+        error_context = pytest.raises(IncorrectMessageKeyQuantityError,
+                                      match='Expected 2 keys in message')
+    if add_invalid_content_type:
+        error_context = pytest.raises(InvalidContentTypeError,
+                                      match='Expected content to be')
+    if add_invalid_role:
+        error_context = pytest.raises(InvalidRoleError,
+                                      match='Expected role to be one of')
+
+    if add_not_alternating_roles:
+        error_context = pytest.raises(ConsecutiveRepeatedChatRolesError,
+                                      match='Conversation roles must alternate')
+
+    with error_context:
+        build_finetuning_dataloader(cfg, tokenizer,
+                                    device_batch_size).dataloader
 
 
 def test_finetune_dataloader_pure_pad_responses():

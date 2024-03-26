@@ -36,16 +36,12 @@ from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
                                        build_text_dataloader,
                                        get_tokens_per_batch_func)
 from llmfoundry.utils.builders import build_tokenizer
-from llmfoundry.utils.exceptions import (ConsecutiveRepeatedChatRolesError,
-                                         IncorrectMessageKeyQuantityError,
-                                         InvalidContentTypeError,
-                                         InvalidLastChatMessageRoleError,
-                                         InvalidPromptTypeError,
-                                         InvalidResponseTypeError,
-                                         InvalidRoleError,
-                                         NotEnoughDatasetSamplesError,
-                                         TooManyKeysInExampleError,
-                                         UnknownExampleTypeError)
+from llmfoundry.utils.exceptions import (
+    ConsecutiveRepeatedChatRolesError, IncorrectMessageKeyQuantityError,
+    InvalidContentTypeError, InvalidLastChatMessageRoleError,
+    InvalidPromptTypeError, InvalidResponseTypeError, InvalidRoleError,
+    NotEnoughDatasetSamplesError, TooManyKeysInExampleError,
+    UnknownExampleTypeError)
 from scripts.data_prep.convert_dataset_hf import main as main_hf
 from scripts.data_prep.convert_finetuning_dataset import get_columns_and_format
 from tests.data_utils import (make_tiny_conversation_ft_dataset,

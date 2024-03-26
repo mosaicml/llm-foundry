@@ -21,7 +21,6 @@ from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithFSDP
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.utils import init_empty_weights
 from llmfoundry.utils.config_utils import pop_config
-from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
 if TYPE_CHECKING:
     from peft import PeftConfig
@@ -56,8 +55,6 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             cfg.use_train_metrics (bool, optional): Whether to use training metrics. Default: ``True``.
             cfg.load_in_8bit (bool, optional): Whether to load the model in 8-bit mode. Default: ``False``.
             cfg.init_device (str, optional): Which device to initialize the model on. Default: ``'cpu'``.
-            cfg.attention_patch_type (str, optional): Which attention patch to use for llama models. Default: ``None``.
-                Deprecated. Will automatically use flash attention 2.
             cfg.use_flash_attention_2 (bool, optional): Whether to use flash-attention 2. Default: ``False``.
         tokenizer (PreTrainedTokenizer): The tokenizer that the model will use.
     """
@@ -90,16 +87,6 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         init_device = om_model_config.get('init_device', 'cpu')
         # Resolve "mixed" init device to either "cpu" or "meta"
         resolved_init_device = hf_get_init_device(init_device)
-        attention_patch_type = om_model_config.get('attention_patch_type', None)
-        if attention_patch_type is not None:
-            warnings.warn(
-                VersionedDeprecationWarning(
-                    'attention_patch_type is deprecated and will automatically use flash attention 2. '
-                    +
-                    'We recommend `use_flash_attention_2: true` for llama models.',
-                    remove_version='0.7.0'))
-            use_flash_attention_2 = True
-
         requested_attention_implementation = 'flash_attention_2' if use_flash_attention_2 else 'eager'
 
         if use_flash_attention_2 and not is_flash_v2_installed():

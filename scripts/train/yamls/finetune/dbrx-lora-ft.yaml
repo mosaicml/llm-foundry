@@ -3,7 +3,7 @@ max_seq_len: 4096
 icl_seq_len: 1024
 
 # Run Name
-run_name:  # If left blank, will be read from env var $RUN_NAME
+run_name: # If left blank, will be read from env var $RUN_NAME
 
 # Model
 model:
@@ -17,7 +17,7 @@ model:
     lora_alpha: 128
     lora_dropout: 0.05
     target_modules:
-    - Wqkv
+      - Wqkv
   use_auth_token: true
   config_overrides: {}
   use_flash_attention_2: true
@@ -69,8 +69,8 @@ optimizer:
   lr: 0.0001
   name: decoupled_lionw
   betas:
-  - 0.9
-  - 0.95
+    - 0.9
+    - 0.95
   weight_decay: 1.0e-06
 
 scheduler:
@@ -124,7 +124,6 @@ callbacks:
     save_folder: ./{run_name}/checkpoints
     save_interval: 1dur
   runtime_estimator: {}
-
 # Checkpoint to local filesystem or remote object store
 # save_interval: 5000ba
 # save_num_checkpoints_to_keep: 1  # Important, this cleans up checkpoints saved to DISK

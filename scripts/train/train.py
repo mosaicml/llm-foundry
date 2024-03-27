@@ -56,7 +56,7 @@ def validate_config(cfg: DictConfig):
             loaders.append(eval_loader)
     for loader in loaders:
         if loader.name == 'text':
-            if cfg.model.name in ['hf_t5']:
+            if cfg.model.name == 'hf_t5':
                 raise ValueError(
                     f'Model type "{cfg.model.name}" is not supported when using the "text " ' +\
                     f'dataloader. Only finetuning is supported.')

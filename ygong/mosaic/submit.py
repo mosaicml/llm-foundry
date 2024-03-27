@@ -41,34 +41,9 @@ def _init_connection():
         data = json.loads(base64.b64decode(os.environ.get('CREDENTIALS')).decode('utf-8'))
         workspace_url = data.get("workspace_url", None)
         token = data.get("token", None)
-        mosaic_token = data.get("mosaic_token", None)
         # set up the mosaic token
-        conf = MCLIConfig.load_config()
-        conf.api_key = mosaic_token
-        conf.save_config()
-        MAPIConnection.reset_connection()
-
-
-        hash = hashlib.sha256(f"{workspace_url}-{token}-{mosaic_token}".encode()).hexdigest()[:8]
-        databricks_secret_name = f"databricks-{hash}"
-
-        # clean up the old secret. MosaicML doesn't support multiple databricks secrets
-        # would have to clean up the old secret if it exists
-        from mcli.api.secrets.api_get_secrets import get_secrets
-        from mcli.api.secrets.api_delete_secrets import delete_secrets
-        from mcli.models.mcli_secret import SecretType
-        s = get_secrets(secret_types=[SecretType.databricks])
-        if len(s) == 1:
-            if s[0].name != databricks_secret_name:
-                delete_secrets(s)
-            else:
-                print("databricks secret already exists")
-                return
-        from mcli.objects.secrets.create.databricks import DatabricksSecretCreator
-        from mcli.api.secrets.api_create_secret import create_secret
-        s = DatabricksSecretCreator().create(name=databricks_secret_name, host=workspace_url, token=token)
-        print(f"successfully created databricks secret: {databricks_secret_name}")
-        create_secret(s)
+        os.environ[config.MCLI_MODE_ENV] = config.MCLIMode.DBX_AWS_STAGING.value
+        os.environ[config.MOSAICML_ACCESS_TOKEN_FILE_ENV] = "/home/shitao.li/e2_token"
      else:
         logger.debug("init_connection in databricks environment")
         wc = WorkspaceClient()

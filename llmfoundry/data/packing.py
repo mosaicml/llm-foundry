@@ -455,9 +455,9 @@ def profile_packing(
         return padding_percent, waste_percent
 
     with logging_redirect_tqdm(loggers=[log]):
-        for packing_ratio, raw_batch_size in tqdm(
+        for packing_ratio, raw_batch_size in (pbar := tqdm(
                 zip(packing_ratios, raw_batch_sizes),
-                desc='Profiling packing ratios'):
-            tqdm.set_description_str(f'Profiling packing ratio {packing_ratio}')
+                desc='Profiling packing ratios')):
+            pbar.set_description_str(f'Profiling packing ratio {packing_ratio}')
             padding, waste = profile(raw_batch_size)
             yield (packing_ratio, padding, waste)

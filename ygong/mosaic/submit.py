@@ -19,16 +19,19 @@ import os
 import sys
 from mcli import RunConfig
 import hashlib
+from mcli.config import MCLIConfig
+from mcli.api.engine.engine import MAPIConnection
 
 logger = logging.getLogger('ygong.mosaic.submit')
 
-        
 def _set_up_environment(content: str):
     os.environ['CREDENTIALS'] = content
 
      
 def _init_connection():
      def _is_local():
+        if os.environ.get('CREDENTIALS') is not None:
+            return True 
         try:
             wc = WorkspaceClient()
             wc.dbutils.entry_point.getDbutils().notebook().getContext()
@@ -157,7 +160,8 @@ def submit(config: any, scalingConfig: ScalingConfig, sync: bool = False, debug:
         logger.setLevel(logging.DEBUG)
         
         logger.info("set the logger to debug mode")
-
+        
+    # MTC + AWS Dogfood
     _init_connection()
     mlflow_experiment_name = None
     if isinstance(config, MPT125MConfig):
@@ -178,6 +182,7 @@ def submit(config: any, scalingConfig: ScalingConfig, sync: bool = False, debug:
     else:
         button = widgets.Button(description="cancel the run")
         def on_button_clicked(b):
+            logger.debug(f"cancel button clicked")
             clear_output(wait=False)
             run = get_run(run_name)
             run.stop()

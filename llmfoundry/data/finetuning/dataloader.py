@@ -552,6 +552,15 @@ if __name__ == '__main__':
                                     1)],
                                              skip_special_tokens=False,
                                              clean_up_tokenization_spaces=True))
+                        context = torch.logical_and(
+                            batch['attention_mask'][j] == 1,
+                            batch['labels'][j] == _HF_IGNORE_INDEX)
+                        print(
+                            '\033[92m{}\033[00m\n'.format('CONTEXT:  '),
+                            tokenizer.decode(batch['input_ids'][
+                                j, torch.logical_and(is_subseq, context)],
+                                             skip_special_tokens=False,
+                                             clean_up_tokenization_spaces=True))
                         print(
                             '\033[91m{}\033[00m\n'.format('TARGET:   '),
                             tokenizer.decode(batch['input_ids'][
@@ -569,6 +578,14 @@ if __name__ == '__main__':
                                                batch['attention_mask'][j] == 1],
                             skip_special_tokens=False,
                             clean_up_tokenization_spaces=True))
+                    context = torch.logical_and(
+                        batch['attention_mask'][j] == 1,
+                        batch['labels'][j] == _HF_IGNORE_INDEX)
+                    print(
+                        '\033[92m{}\033[00m\n'.format('CONTEXT:  '),
+                        tokenizer.decode(batch['input_ids'][j, context],
+                                         skip_special_tokens=False,
+                                         clean_up_tokenization_spaces=True))
                     print(
                         '\033[91m{}\033[00m\n'.format('TARGET:   '),
                         tokenizer.decode(batch['input_ids'][

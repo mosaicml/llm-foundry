@@ -4,7 +4,7 @@
 from llmfoundry.models.layers.attention import (
     ATTN_CLASS_REGISTRY, GroupedQueryAttention, MultiheadAttention,
     MultiQueryAttention, attn_bias_shape, build_alibi_bias, build_attn_bias,
-    flash_attn_fn, scaled_multihead_dot_product_attention, triton_flash_attn_fn)
+    flash_attn_fn, scaled_multihead_dot_product_attention)
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.layers.custom_embedding import SharedEmbedding
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
@@ -14,7 +14,6 @@ from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY, LPLayerNorm
 __all__ = [
     'scaled_multihead_dot_product_attention',
     'flash_attn_fn',
-    'triton_flash_attn_fn',
     'MultiheadAttention',
     'MultiQueryAttention',
     'GroupedQueryAttention',

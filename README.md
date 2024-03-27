@@ -40,6 +40,20 @@ You'll find in this repo:
 * `mcli/` - launch any of these workloads using [MCLI](https://docs.mosaicml.com/projects/mcli/en/latest/) and the [MosaicML platform](https://www.mosaicml.com/platform)
 * `TUTORIAL.md` - a deeper dive into the repo, example workflows, and FAQs
 
+# DBRX
+
+DBRX is a state-of-the-art open source LLM trained by Databricks Mosaic team. It uses the Mixture-of-Experts (MoE) architecture and was trained with optimized versions of [Composer](https://github.com/mosaicml/composer), LLM Foundry, and [MegaBlocks](https://github.com/databricks/megablocks). The model has 132B total parameters and 36B active parameters. We have released two DBRX models:
+
+
+| Model              | Context Length | Download                                           |
+| ------------------ | -------------- | -------------------------------------------------- |
+| DBRX Base          | 32768          | https://huggingface.co/databricks/dbrx-base        |
+| DBRX Instruct      | 32768          | https://huggingface.co/databricks/dbrx-instruct    |
+
+Our model weights and code are licensed for both researchers and commercial entities. The Databricks Open Source License can be found at [LICENSE](https://github.com/databricks/dbrx/LICENSE), and our Acceptable Use Policy can be found [here](https://www.databricks.com/legal/acceptable-use-policy-open-model).
+
+For more information about the DBRX models, see https://github.com/databricks/dbrx.
+
 # MPT
 
 Mosaic Pretrained Transformers (MPT) are GPT-style models with some special features -- Flash Attention for efficiency, ALiBi for context length extrapolation, and stability improvements to mitigate loss spikes. As part of MosaicML's Foundation series, we have open-sourced several MPT models:
@@ -184,7 +198,6 @@ pip3 install torch torchvision torchaudio --index-url https://download.pytorch.o
 **Lastly**, install the ROCm enabled flash attention (instructions [here](https://github.com/ROCmSoftwarePlatform/flash-attention/tree/flash_attention_for_rocm2#amd-gpurocm-support)).
 
 Notes:
-1. `attn_impl: triton` does not work.
 1. We don't yet have a Docker image where everything works perfectly. You might need to up/downgrade some packages (in our case, we needed to downgrade to `numpy==1.23.5`) before everything works without issue.
 
 ### Intel Gaudi
@@ -255,9 +268,96 @@ export HUGGING_FACE_HUB_TOKEN=your-auth-token
 
 and uncomment the line containing `--hf_repo_for_upload ...` in the above call to `inference/convert_composer_to_hf.py`.
 
-# :construction: UNDER CONSTRUCTION: Registry
+# Registry
 
-We are adopting an extensible registry for LLM Foundry to allow various extensions of the library without forking it. See [./REGISTRY.md] for more information as it develops.
+You can use the registry to customize your workflows without forking the library. Some components of LLM Foundry are registrable, such as models, loggers, and callbacks. This means that you can register new options for these components, and then use them in your yaml config.
+
+## Discovering registrable components
+To help find and understand registrable components, you can use the `llmfoundry registry` cli command.
+
+We provide two commands currently:
+- `llmfoundry registry get [--group]`: List all registries, and their components, optionally specifying a specific registry. Example usage: `llmfoundry registry get --group loggers` or `llmfoundry registry get`
+- `llmfoundry registry find <group> <name>`: Get information about a specific registered component. Example usage: `llmfoundry registry find loggers wandb`
+
+Use `--help` on any of these commands for more information.
+
+## How to register
+
+There are a few ways to register a new component:
+
+### Python entrypoints
+
+You can specify registered components via a Python entrypoint if you are building your own package with registered components.
+
+For example, the following would register the `WandBLogger` class, under the key `wandb`, in the `llm_foundry.loggers` registry:
+
+<!--pytest.mark.skip-->
+```yaml
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "foundry_registry"
+version = "0.1.0"
+dependencies = [
+    "mosaicml",
+    "llm-foundry",
+]
+
+[project.entry-points."llm_foundry.loggers"]
+my_logger = "foundry_registry.loggers:MyLogger"
+```
+
+### Direct call to register
+
+You can also register a component directly in your code:
+
+<!--pytest.mark.skip-->
+```python
+from composer.loggers import LoggerDestination
+from llmfoundry.registry import loggers
+
+class MyLogger(LoggerDestination):
+    pass
+
+loggers.register("my_logger", func=MyLogger)
+```
+
+### Decorators
+
+You can also use decorators to register components directly from your code:
+
+<!--pytest.mark.skip-->
+```python
+from composer.loggers import LoggerDestination
+from llmfoundry.registry import loggers
+
+@loggers.register("my_logger")
+class MyLogger(LoggerDestination):
+    pass
+```
+
+For both the direct call and decorator approaches, if using the LLM Foundry train/eval scripts, you will need to provide the `code_paths` argument, which is a list of files need to execute in order to register your components. For example, you may have a file called `foundry_imports.py` that contains the following:
+
+<!--pytest.mark.skip-->
+```python
+from foundry_registry.loggers import MyLogger
+from llmfoundry.registry import loggers
+
+loggers.register("my_logger", func=MyLogger)
+```
+
+You would then provide `code_paths` to the train/eval scripts in your yaml config:
+
+<!--pytest.mark.skip-->
+```yaml
+...
+code_paths:
+  - foundry_imports.py
+...
+```
+
 
 # Learn more about LLM Foundry!
 

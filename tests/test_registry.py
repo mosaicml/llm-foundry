@@ -29,6 +29,7 @@ def test_expected_registries_exist():
         'callbacks_with_config',
         'dataloaders',
         'metrics',
+        'models',
     }
 
     assert existing_registries == expected_registry_names

@@ -33,6 +33,11 @@ from pyspark.sql.connect.dataframe import DataFrame
 from pyspark.sql.dataframe import DataFrame as SparkDataFrame
 from pyspark.sql.types import Row
 
+from llmfoundry.utils import maybe_create_mosaicml_logger
+from llmfoundry.utils.exceptions import (ClusterDoesNotExistError,
+                                         FailedToConnectToDatabricksError,
+                                         FailedToCreateSQLConnectionError)
+
 MINIMUM_DB_CONNECT_DBR_VERSION = '14.1'
 MINIMUM_SQ_CONNECT_DBR_VERSION = '12.2'
 
@@ -401,9 +406,8 @@ def validate_and_get_cluster_info(cluster_id: str,
         w = WorkspaceClient()
         res = w.clusters.get(cluster_id=cluster_id)
         if res is None:
-            raise ValueError(
-                f'Cluster id {cluster_id} does not exist. Check cluster id and try again!'
-            )
+            raise ClusterDoesNotExistError(cluster_id)
+
         stripped_runtime = re.sub(
             r'[a-zA-Z]',
             '',
@@ -436,9 +440,7 @@ def validate_and_get_cluster_info(cluster_id: str,
                     cluster_id=cluster_id).getOrCreate()
 
         except Exception as e:
-            raise RuntimeError(
-                'Failed to create databricks connection. Check hostname and access token!'
-            ) from e
+            raise FailedToConnectToDatabricksError() from e
     else:
         try:
             dbsql = sql.connect(
@@ -449,9 +451,7 @@ def validate_and_get_cluster_info(cluster_id: str,
                 access_token=databricks_token,
             )
         except Exception as e:
-            raise RuntimeError(
-                'Failed to create sql connection to db workspace. To use sql connect, you need to provide http_path and cluster_id!'
-            ) from e
+            raise FailedToCreateSQLConnectionError() from e
     return method, dbsql, sparkSession
 
 
@@ -462,13 +462,13 @@ def fetch_DT(args: Namespace) -> None:
     obj = urllib.parse.urlparse(args.json_output_folder)
     if obj.scheme != '':
         raise ValueError(
-            f'Check the json_output_folder and verify it is a local path!')
+            'Check the json_output_folder and verify it is a local path!')
 
     if os.path.exists(args.json_output_folder):
         if not os.path.isdir(args.json_output_folder) or os.listdir(
                 args.json_output_folder):
             raise RuntimeError(
-                f'A file or a folder {args.json_output_folder} already exists and is not empty. Remove it and retry!'
+                f'Output folder {args.json_output_folder} already exists and is not empty. Please remove it and retry.'
             )
 
     os.makedirs(args.json_output_folder, exist_ok=True)
@@ -547,12 +547,18 @@ if __name__ == '__main__':
         'The name of the combined final jsonl that combines all partitioned jsonl'
     )
     args = parser.parse_args()
+    mosaicml_logger = maybe_create_mosaicml_logger()
 
-    from databricks.sdk import WorkspaceClient
-    w = WorkspaceClient()
-    args.DATABRICKS_HOST = w.config.host
-    args.DATABRICKS_TOKEN = w.config.token
+    try:
+        w = WorkspaceClient()
+        args.DATABRICKS_HOST = w.config.host
+        args.DATABRICKS_TOKEN = w.config.token
 
-    tik = time.time()
-    fetch_DT(args)
-    log.info('Elapsed time', time.time() - tik)
+        tik = time.time()
+        fetch_DT(args)
+        log.info('Elapsed time', time.time() - tik)
+
+    except Exception as e:
+        if mosaicml_logger is not None:
+            mosaicml_logger.log_exception(e)
+        raise e

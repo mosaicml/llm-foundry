@@ -28,7 +28,6 @@ class MockMPTForCausalLM(MPTForCausalLM):
         input_ids: torch.LongTensor,
         past_key_values: Optional[List[Tuple[torch.FloatTensor]]] = None,
         attention_mask: Optional[torch.ByteTensor] = None,
-        prefix_mask: Optional[torch.ByteTensor] = None,
         sequence_id: Optional[torch.LongTensor] = None,
         labels: Optional[torch.LongTensor] = None,
         return_dict: Optional[bool] = None,
@@ -38,7 +37,7 @@ class MockMPTForCausalLM(MPTForCausalLM):
         inputs_embeds: Optional[torch.FloatTensor] = None,
     ):
         result = super().forward(input_ids, past_key_values, attention_mask,
-                                 prefix_mask, sequence_id, labels, return_dict,
+                                 sequence_id, labels, return_dict,
                                  output_attentions, output_hidden_states,
                                  use_cache, inputs_embeds)
         # Modify the logits to select the next token.
@@ -53,7 +52,7 @@ class MockMPTForCausalLM(MPTForCausalLM):
 
 @pytest.mark.world_size(2)
 @pytest.mark.gpu
-@pytest.mark.parametrize('attn_impl', ['triton', 'torch'])
+@pytest.mark.parametrize('attn_impl', ['flash', 'torch'])
 @pytest.mark.parametrize('use_alibi', [True, False])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
 @patch('llmfoundry.models.mpt.modeling_mpt.MPTForCausalLM',
@@ -93,7 +92,7 @@ def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool,
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('attn_impl', ['triton', 'torch'])
+@pytest.mark.parametrize('attn_impl', ['flash', 'torch'])
 @pytest.mark.parametrize('use_alibi', [True, False])
 def test_mpt_generate_callback(attn_impl: str, use_alibi: bool,
                                build_tiny_mpt: Callable[...,
@@ -144,7 +143,7 @@ def test_mpt_generate_callback(attn_impl: str, use_alibi: bool,
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('attn_impl', ['triton', 'torch'])
+@pytest.mark.parametrize('attn_impl', ['flash', 'torch'])
 @pytest.mark.parametrize('use_alibi', [True, False])
 def test_mpt_generate_callback_not_tied(
         use_alibi: bool, attn_impl: str,

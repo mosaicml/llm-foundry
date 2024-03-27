@@ -12,9 +12,8 @@ from composer import Trainer
 from omegaconf import OmegaConf as om
 from peft import LoraConfig, get_peft_model
 
-from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.models.hf.hf_fsdp import prepare_hf_model_for_fsdp
-from llmfoundry.utils.builders import build_tokenizer
+from llmfoundry.utils.builders import build_composer_model, build_tokenizer
 
 
 def test_peft_wraps():
@@ -84,8 +83,11 @@ def test_lora_mixed_init(peft_config: Optional[dict], tmp_path: pathlib.Path,
         tokenizer_kwargs={'model_max_length': 32},
     )
 
-    original_model = COMPOSER_MODEL_REGISTRY[model_cfg['name']](model_cfg,
-                                                                tokenizer)
+    original_model = build_composer_model(
+        name=model_cfg['name'],
+        cfg=model_cfg,
+        tokenizer=tokenizer,
+    )
 
     trainer = Trainer(
         model=original_model,

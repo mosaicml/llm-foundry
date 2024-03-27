@@ -4,7 +4,7 @@
 import logging
 import os
 import time
-from typing import Dict, Optional
+from typing import Dict
 
 import requests
 from transformers import AutoTokenizer
@@ -25,7 +25,7 @@ class FMAPIEvalInterface(OpenAIEvalInterface):
     def block_until_ready(self, base_url: str):
         """Block until the endpoint is ready."""
         sleep_s = 5
-        timout_s = 5 * 60  # At max, wait 5 minutes
+        timeout_s = 5 * 60  # At max, wait 5 minutes
 
         ping_url = f'{base_url}/ping'
 
@@ -42,7 +42,7 @@ class FMAPIEvalInterface(OpenAIEvalInterface):
                 time.sleep(sleep_s)
                 waited_s += sleep_s
 
-            if waited_s >= timout_s:
+            if waited_s >= timeout_s:
                 raise TimeoutError(
                     f'Endpoint {ping_url} did not become read after {waited_s:,} seconds, exiting'
                 )

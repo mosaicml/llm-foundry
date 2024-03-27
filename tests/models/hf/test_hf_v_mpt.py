@@ -8,7 +8,7 @@ import torch
 from composer.utils import reproducibility
 from omegaconf import OmegaConf as om
 
-from llmfoundry import COMPOSER_MODEL_REGISTRY
+from llmfoundry.utils.builders import build_composer_model, build_tokenizer
 
 
 @pytest.mark.gpu
@@ -16,14 +16,9 @@ from llmfoundry import COMPOSER_MODEL_REGISTRY
     ('flash', 0.0, False, 1, False),
     ('flash', 0.1, False, 1, False),
     ('torch', 0.0, False, 1, False),
-    ('triton', 0.0, False, 1, False),
-    ('triton', 0.1, False, 1, False),
     ('torch', 0.0, False, 0, False),
-    ('triton', 0.0, False, 0, False),
-    ('triton', 0.1, False, 0, False),
     ('flash', 0.0, False, None, True),
     ('torch', 0.0, False, None, True),
-    ('triton', 0.0, False, None, True),
 ])
 def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
                           mask_val: Optional[int], no_attn_mask: bool):
@@ -35,7 +30,7 @@ def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
 
     conf_path = 'scripts/train/yamls/pretrain/mpt-125m.yaml'  # set cfg path
     batch_size = 2  # set batch size
-    device = 'cuda'  # set decive
+    device = 'cuda'  # set device
 
     # get hf gpt2 cfg
     hf_cfg = om.create({
@@ -57,8 +52,17 @@ def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
 
     # get hf gpt2 model
     print(hf_cfg)
-    hf_model = COMPOSER_MODEL_REGISTRY[hf_cfg.model.name](
-        hf_cfg.model, hf_cfg.tokenizer).to(device)
+    tokenizer_name = hf_cfg.tokenizer['name']
+    tokenizer_kwargs = hf_cfg.tokenizer.get('kwargs', {})
+    tokenizer = build_tokenizer(
+        tokenizer_name=tokenizer_name,
+        tokenizer_kwargs=tokenizer_kwargs,
+    )
+    hf_model = build_composer_model(
+        name=hf_cfg.model.name,
+        cfg=hf_cfg.model,
+        tokenizer=tokenizer,
+    ).to(device)
     hf_n_params = sum(p.numel() for p in hf_model.parameters())
 
     hf_model.model.config.embd_pdrop = dropout
@@ -72,7 +76,7 @@ def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
 
     # in mosaic gpt, attn_dropout is integrated into the FlashMHA kernel
     # and will therefore generate different drop idx when compared to nn.Dropout
-    # reguradless of if rng is seeded
+    # regardless of if rng is seeded
     # attn_dropout must be set to 0 for numerical comparisons.
     hf_model.model.config.attn_pdrop = 0.0
     for b in hf_model.model.transformer.h:
@@ -84,7 +88,7 @@ def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
 
     # extract model cfg
     model_cfg = cfg.model
-    # use triton attn implementation
+    # use given attn implementation
     model_cfg.attn_impl = attn_impl
     model_cfg.alibi = alibi
     # modify cfg for HF GPT2 compatibility
@@ -96,7 +100,7 @@ def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
     model_cfg.emb_pdrop = hf_model.model.config.embd_pdrop
     # attn_dropout is integrated into the FlashMHA kernel
     # given this, it will generate different drop idx when compared to nn.Dropout
-    # reguradless of if rng is seeded.
+    # regardless of if rng is seeded.
     model_cfg.attn_pdrop = hf_model.model.config.attn_pdrop
     model_cfg.n_layers = hf_model.model.config.n_layer
     model_cfg.d_model = hf_model.model.config.n_embd
@@ -106,8 +110,11 @@ def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
     print('Initializing model...')
 
     print(model_cfg)
-    model = COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg,
-                                                    cfg.tokenizer).to(device)
+    model = build_composer_model(
+        name=model_cfg.name,
+        cfg=model_cfg,
+        tokenizer=tokenizer,
+    ).to(device)
     n_params = sum(p.numel() for p in model.parameters())
 
     if alibi:

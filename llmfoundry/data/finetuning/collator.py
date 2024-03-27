@@ -331,31 +331,21 @@ class Seq2SeqFinetuningCollator:
                     self._warned_truncated = True
 
             attention_mask = [1] * len(input_ids)
-            # bidirectional_mask is used by our prefix lm model variants
-            # Note: this will be malformed if any loss-generating tokens are followed by non-loss-generating tokens
-            # (such as in the case of multi-turn chat examples)
-            bidirectional_mask = [
-                1 if label == _HF_IGNORE_INDEX else 0 for label in labels
-            ]
 
             # Annoyingly, we need to pad everything but input_ids
             # and attention_mask ourselves
             n_total = len(input_ids)
             i_pad = [_HF_IGNORE_INDEX] * (self.max_seq_len - n_total)
-            z_pad = [0] * (self.max_seq_len - n_total)
             if self.tokenizer.padding_side == 'left':
                 labels = i_pad + labels
-                bidirectional_mask = z_pad + bidirectional_mask
             else:
                 labels = labels + i_pad
-                bidirectional_mask = bidirectional_mask + z_pad
 
             # Update the example
             processed_example = {
                 'input_ids': input_ids,
                 'labels': labels,
                 'attention_mask': attention_mask,
-                'bidirectional_mask': bidirectional_mask,
             }
 
             processed_examples.append(processed_example)

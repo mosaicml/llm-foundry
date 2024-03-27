@@ -14,6 +14,8 @@ import pytest
 from streaming import StreamingDataset
 from transformers import AutoTokenizer
 
+from llmfoundry.utils.exceptions import (InputFolderMissingDataError,
+                                         OutputFolderNotEmptyError)
 from scripts.data_prep.convert_text_to_mds import (DONE_FILENAME,
                                                    convert_text_to_mds,
                                                    download_and_convert,
@@ -209,12 +211,30 @@ def test_local_path(tmp_path: pathlib.Path):
     assert os.path.exists(output_folder / 'shard.00000.mds.zstd')
 
     # Test reprocessing.
-    with pytest.raises(FileExistsError):
+    with pytest.raises(OutputFolderNotEmptyError):
         call_convert_text_to_mds(reprocess=True)
 
     shutil.rmtree(output_folder)
 
     call_convert_text_to_mds(reprocess=True)
+
+
+def test_input_folder_not_exist(tmp_path: pathlib.Path):
+    with pytest.raises(InputFolderMissingDataError,
+                       match='No text files were found'):
+        convert_text_to_mds(
+            tokenizer_name='mosaicml/mpt-7b',
+            output_folder=str(tmp_path / 'output'),
+            input_folder=str(tmp_path / 'input'),
+            concat_tokens=1,
+            eos_text='',
+            bos_text='',
+            no_wrap=False,
+            compression='zstd',
+            processes=1,
+            args_str='Namespace()',
+            reprocess=False,
+        )
 
 
 def test_is_already_processed(tmp_path: pathlib.Path):

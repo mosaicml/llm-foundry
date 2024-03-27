@@ -1,22 +1,24 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import torch
 from composer.core.types import Batch
 from composer.metrics import InContextLearningMetric
 from composer.models import ComposerModel
+from omegaconf import DictConfig
 from torchmetrics import Metric
 from transformers import AutoTokenizer
 
 from llmfoundry.metrics import DEFAULT_CAUSAL_LM_EVAL_METRICS
-from llmfoundry.utils.builders import build_metric
 
 
 class InferenceAPIEvalWrapper(ComposerModel):
 
-    def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer):
+    def __init__(self, om_model_config: DictConfig, tokenizer: AutoTokenizer):
+        from llmfoundry.utils.builders import build_metric
+
         self.tokenizer = tokenizer
         self.labels = None
         eval_metrics = [

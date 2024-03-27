@@ -61,10 +61,10 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
             # api_key = 'placeholder'  # This cannot be None
 
         self.client = openai.OpenAI(base_url=base_url, api_key=api_key)
-        if 'version' in model_cfg:
-            self.model_name = model_cfg['version']
+        if 'version' in om_model_config:
+            self.model_name = om_model_config['version']
         else:
-            self.model_name = model_cfg['name']
+            self.model_name = om_model_config['name']
 
     def completion_to_string(self, completion: Completion):
         return [choice.text for choice in completion.choices]

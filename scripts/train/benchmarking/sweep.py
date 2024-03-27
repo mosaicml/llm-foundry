@@ -64,14 +64,14 @@ model_args_list = [
         '--fsdp_config_activation_checkpointing true',
         '--fsdp_config_shard_strategy FULL_SHARD',
         '--microbatch_size 16',
-        '--attn_impl triton',
+        '--attn_impl flash',
     ],
     [
         '--model_yamls 30b.yaml',
         '--fsdp_config_activation_checkpointing true',
         '--fsdp_config_shard_strategy FULL_SHARD',
         '--microbatch_size 8',
-        '--attn_impl triton',
+        '--attn_impl flash',
     ],
     [
         '--model_yamls 70b.yaml',

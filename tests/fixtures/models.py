@@ -10,13 +10,16 @@ from pytest import fixture
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.models.hf.hf_causal_lm import ComposerHFCausalLM
-from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
-from llmfoundry.utils.builders import build_tokenizer
+from llmfoundry.utils.builders import build_composer_model, build_tokenizer
 
 
 def _build_model(config: DictConfig, tokenizer: PreTrainedTokenizerBase):
-    model = COMPOSER_MODEL_REGISTRY[config.name](config, tokenizer)
+    model = build_composer_model(
+        name=config.name,
+        cfg=config,
+        tokenizer=tokenizer,
+    )
     return model
 
 

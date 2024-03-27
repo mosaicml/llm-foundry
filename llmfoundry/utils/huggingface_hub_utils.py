@@ -131,7 +131,8 @@ def edit_files_for_hf_compatibility(
     folder: str,
     flatten_imports_prefix: Sequence[str] = ('llmfoundry',),
     remove_imports_prefix: Sequence[str] = ('composer', 'omegaconf',
-                                            'llmfoundry.metrics'),
+                                            'llmfoundry.metrics',
+                                            'llmfoundry.utils.builders'),
 ) -> None:
     """Edit files to be compatible with Hugging Face Hub.
 
@@ -139,7 +140,7 @@ def edit_files_for_hf_compatibility(
         folder (str): The folder to process.
         flatten_imports_prefix (Sequence[str], optional): Sequence of prefixes to flatten. Defaults to ('llmfoundry',).
         remove_imports_prefix (Sequence[str], optional): Sequence of prefixes to remove. Takes precedence over flattening.
-            Defaults to ('composer', 'omegaconf', 'llmfoundry.metrics').
+            Defaults to ('composer', 'omegaconf', 'llmfoundry.metrics', 'llmfoundry.utils.builders').
     """
     files_to_process = [
         os.path.join(folder, filename)

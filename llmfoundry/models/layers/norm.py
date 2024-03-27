@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import math
 from typing import Dict, List, Optional, Type, Union
 
 import torch
@@ -111,9 +112,54 @@ class LPRMSNorm(RMSNorm):
                             self.eps).to(dtype=x.dtype)
 
 
+class TritonRMSNorm(torch.nn.Module):
+
+    def __init__(
+        self,
+        normalized_shape: Union[int, List[int], torch.Size],
+        eps: float = 1e-5,
+        device: Optional[torch.device] = None,
+        dtype: Optional[torch.dtype] = None,
+    ):
+        super().__init__()
+        self.eps = eps
+
+        # Flash Attention expect a flat tensor
+        if isinstance(normalized_shape, int):
+            hidden_size = normalized_shape
+        elif isinstance(normalized_shape, list):
+            hidden_size = math.prod(normalized_shape)
+        elif isinstance(normalized_shape, torch.Size):
+            hidden_size = math.prod(normalized_shape)
+
+        self.weight = torch.nn.Parameter(
+            torch.ones(hidden_size, device=device, dtype=dtype))
+
+        try:
+            from flash_attn.ops.triton.layer_norm import rms_norm_fn
+            self.rms_norm_fn = rms_norm_fn
+        except ImportError:
+            raise ImportError(
+                'triton_rms_norm requires Flash Attention to be installed. ' +
+                'Please pip install flash-attn.')
+
+    def forward(self, x: torch.Tensor):
+        return self.rms_norm_fn(
+            x,
+            self.weight,
+            None, # no bias
+            residual=None,
+            eps=self.eps,
+            dropout_p=0.0,  # no dropout by default
+            prenorm=False,
+            residual_in_fp32=False,
+        )
+
+
 NORM_CLASS_REGISTRY: Dict[str, Type[torch.nn.Module]] = {
     'layernorm': torch.nn.LayerNorm,
     'low_precision_layernorm': LPLayerNorm,
     'rmsnorm': RMSNorm,
     'low_precision_rmsnorm': LPRMSNorm,
+    'triton_rmsnorm': TritonRMSNorm,
 }

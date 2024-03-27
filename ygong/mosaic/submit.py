@@ -1,23 +1,21 @@
 from ygong.mosaic.scaling_config import ScalingConfig
 from ygong.mosaic.mpt125mConfig import MPT125MConfig
-from mcli import wait_for_run_status, Run, RunConfig, RunStatus, create_run
-import pandas as pd
-import ipywidgets as widgets
-from IPython.display import display, clear_output, HTML
-import mlflow
-import os
-from typing import Optional
-import time
-import base64
-import json
-import hashlib
-from mcli.api.engine.engine import MAPIConnection
-from mcli.config import MCLIConfig
+
 from databricks.sdk import WorkspaceClient
-# from databricks_genai.api.config import configure_request
-from mcli import config
+from mcli import config, Run, RunStatus, create_run
 from mcli.api.runs.api_get_runs import get_run
+from mcli.cli.m_get.runs import RunDisplayItem
+from IPython.display import display, clear_output, HTML
+import ipywidgets as widgets
+import mlflow
+import pandas as pd
+
+from typing import Optional
+import base64
+import time
+import json
 import logging
+import os
 import sys
 
 logger = logging.getLogger('ygong.mosaic.submit')
@@ -50,10 +48,10 @@ def _init_connection():
         conf.save_config()
         MAPIConnection.reset_connection()
 
-        
+
         hash = hashlib.sha256(f"{workspace_url}-{token}-{mosaic_token}".encode()).hexdigest()[:8]
         databricks_secret_name = f"databricks-{hash}"
-        
+
         # clean up the old secret. MosaicML doesn't support multiple databricks secrets
         # would have to clean up the old secret if it exists
         from mcli.api.secrets.api_get_secrets import get_secrets
@@ -71,7 +69,6 @@ def _init_connection():
         s = DatabricksSecretCreator().create(name=databricks_secret_name, host=workspace_url, token=token)
         print(f"successfully created databricks secret: {databricks_secret_name}")
         create_secret(s)
-
      else:
         logger.debug("init_connection in databricks environment")
         wc = WorkspaceClient()
@@ -93,8 +90,7 @@ def _init_connection():
      os.environ['MLFLOW_TRACKING_TOKEN'] = token
      logger.debug(f"init_connection token: {os.environ['MLFLOW_TRACKING_TOKEN']}, workspace: {os.environ['WORKSPACE_URL']}, is_jobs: {os.environ.get('JOB_ID')}")
         
-     
-     
+
 def get_experiment_run_url(tracking_uri: Optional[str], experiment_name: str, run_name: str):
       if tracking_uri is None:
           raise ValueError("tracking_uri must be provided")
@@ -114,18 +110,22 @@ def get_experiment_run_url(tracking_uri: Optional[str], experiment_name: str, ru
       else:
             run_id = runs[0].info.run_id
             return f"{tracking_uri}/ml/experiments/{experiment_id}/runs/{run_id}"
-      
+
+
 def _get_run_summary(run: Run, experiment_name: Optional[str] = None):
     url = None
-    if run.status == RunStatus.RUNNING and experiment_name is not None:
-          url = get_experiment_run_url(os.environ.get('WORKSPACE_URL'), experiment_name, run.name)
+        
+    run_rows = []
+
+    # Copy pasted from mcli to display the the resumption status of the run.
+    for row_raw in RunDisplayItem.from_run(run, [], True):
+        row = row_raw.to_dict()
+        if row['Status'].startswith('Running') and experiment_name is not None:
+            url = get_experiment_run_url(os.environ.get('WORKSPACE_URL'), experiment_name, run.name)
+        row['Experiment Run'] =f'<a href="{url}">Link</a>' if url is not None else ""
+        run_rows.append(row)
     
-    df = pd.DataFrame({
-         'Run Name': [run.name],
-         'Run ID': [run.run_uid],
-         "Status": [str(run.status)],
-         'Experiment Run': [f'<a href="{url}">Link</a>' if url is not None else ""],
-    })
+    df = pd.DataFrame(run_rows)
     return df
 
 def _display_run_summary(summary: pd.DataFrame, cancel_button: Optional[widgets.Button]):
@@ -133,17 +133,6 @@ def _display_run_summary(summary: pd.DataFrame, cancel_button: Optional[widgets.
     if cancel_button is not None:
         display(cancel_button)
     display(HTML(summary.to_html(escape=False)))
-
-def _wait_for_run_status(run: Run, status: RunStatus, inclusive: bool = True):
-    run_name = run.name
-    while not run.status.after(status, inclusive=inclusive):
-        time.sleep(5)
-        run =  get_run(run_name)
-        logger.debug(f"run status {run.status}, expected status {status}")
-    logger.debug(f"finish waiting run reached expected status {status}")
-    return run
-
-
 
 def submit(model, config: any, scalingConfig: ScalingConfig, sync: bool = False, debug: bool = False):
     if debug:
@@ -168,7 +157,6 @@ def submit(model, config: any, scalingConfig: ScalingConfig, sync: bool = False,
     else:
         raise ValueError(f"model {model} is not supported")
     
-    
     run = create_run(runConfig)
     run_name = run.name
     # Create a button
@@ -187,12 +175,28 @@ def submit(model, config: any, scalingConfig: ScalingConfig, sync: bool = False,
             display(HTML(summary.to_html(escape=False)))
         button.on_click(on_button_clicked)
     _display_run_summary(_get_run_summary(run, mlflow_experiment_name), button)
-   
-    # setting mlflow_experiment_name to be None, since its very likely mlflow run isn't ready yet
-    # when the run just starts running
+
+    def _wait_for_run_status(run: Run, status: RunStatus, inclusive: bool = True):
+        run_name = run.name
+        while not run.status.after(status, inclusive=inclusive) and not run.status.is_terminal():
+            run =  get_run(run_name)
+            # setting mlflow_experiment_name to be None, since its very likely mlflow run isn't ready yet
+            # when the run just starts running
+            _display_run_summary(_get_run_summary(run, None), button)
+            time.sleep(5)
+        logger.debug(f"finish waiting run reached expected status {status}")
+        return run
+
+    def _wait_for_run_finish(run: Run):
+        run_name = run.name
+        while not run.status.is_terminal():
+            run =  get_run(run_name)
+            _display_run_summary(_get_run_summary(run, mlflow_experiment_name), button)
+            time.sleep(5)
+        logger.debug(f"finish waiting run reached terminal")
+        return run
+
     run = _wait_for_run_status(run, RunStatus.RUNNING)
-    _display_run_summary(_get_run_summary(run, None), button)
-    
 
     try_count = 0
     while try_count < 10:
@@ -200,20 +204,19 @@ def submit(model, config: any, scalingConfig: ScalingConfig, sync: bool = False,
         time.sleep(20)
         try:
             run = get_run(run)
-            if run.status.after(RunStatus.TERMINATING, inclusive=True):
-                logger.debug(f"run {run_name} is terminated. Status {run.status}")
+            if run.status.is_terminal():
+                logger.debug(f"run {run_name} is in terminal state. Status {run.status}")
                 break
             summary = _get_run_summary(run, mlflow_experiment_name)
             _display_run_summary(summary, button)
             break
         except ValueError:
-             
              logger.debug(f"waiting for the MLFLow experiment run to be ready, run status{run.status}")
              pass
 
     if sync:
         logger.debug(f"synchronously waiting for the run to finish.")
-        run = _wait_for_run_status(run, RunStatus.TERMINATING, inclusive=False)
+        run = _wait_for_run_finish(run)
         _display_run_summary(_get_run_summary(run, mlflow_experiment_name), None)
     
     return run

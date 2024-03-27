@@ -3,7 +3,7 @@ max_seq_len: 4096
 icl_seq_len: 1024
 
 # Run Name
-run_name: # If left blank, will be read from env var $RUN_NAME
+run_name:  # If left blank, will be read from env var $RUN_NAME
 
 # Model
 model:
@@ -61,8 +61,8 @@ optimizer:
   lr: 0.000001
   name: decoupled_lionw
   betas:
-    - 0.9
-    - 0.95
+  - 0.9
+  - 0.95
   weight_decay: 1.0e-06
 
 scheduler:

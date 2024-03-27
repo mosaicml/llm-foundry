@@ -71,9 +71,6 @@ def evaluate_model(
             'The FSDP config block is not supported when loading ' +
             'Hugging Face models in 8bit.')
 
-    composer_model = load_model(model_cfg.model, tokenizer, fsdp_config,
-                                num_retries)
-    
     evaluators, logger_keys, eval_gauntlet_callback = build_evaluators(
         eval_loader_config,
         icl_tasks,

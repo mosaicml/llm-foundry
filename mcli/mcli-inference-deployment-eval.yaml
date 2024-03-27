@@ -1,0 +1,51 @@
+integrations:
+- integration_type: git_repo
+  git_repo: mosaicml/llm-foundry
+  git_branch: openai_compatible_gauntlet
+  # git_commit:  # OR use your commit hash
+  pip_install: -e ".[gpu-flash2,openai]"
+  ssh_clone: false  # Should be true if using a private repo
+
+command: |
+  pip uninstall mosaicml -y
+  pip install git+https://github.com/mosaicml/composer.git@dev
+  cd llm-foundry/scripts
+  composer eval/eval.py /mnt/config/parameters.yaml
+
+# Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
+name: mistral-large-inference-deployment-gauntlet-eval
+# cluster: r1z1  # replace with your cluster here!
+# gpu_num: 8 #
+# gpu_type: a100_80gb #
+
+compute:
+  gpus: 1
+  cluster: r1z2
+
+image: mosaicml/llm-foundry:2.2.1_cu121_flash2-latest
+
+# The below is injected as a YAML file: /mnt/config/parameters.yaml
+parameters:
+  seed: 1
+  max_seq_len: 28000
+  device_eval_batch_size: 1
+  models:
+  - model_name: mistralai/Mistral-large
+    model:
+      name: fmapi_chat
+      base_url: https://Mistral-large-zqjvu-serverless.eastus2.inference.ai.azure.com/v1
+      api_key: 8Q9mXqXsOGbIB7CLqA11EuCzg0p6GNI2
+      is_local: False
+    tokenizer:
+      name: mosaicml/mpt-7b
+      kwargs:
+        model_name: mosaicml/mpt-7b
+
+  # loggers:
+  #   wandb: {}
+  # callbacks:
+  #   eval_output_logging: {}
+
+  icl_tasks: "eval/yamls/long_context_tasks.yaml"
+  eval_gauntlet: "eval/yamls/eval_gauntlet_long_context.yaml"
+ 

@@ -4,9 +4,9 @@
 import logging
 import os
 import time
+from typing import Dict
 
 import requests
-from omegaconf import DictConfig
 from transformers import AutoTokenizer
 
 from llmfoundry.models.inference_api_wrapper.openai_causal_lm import (
@@ -47,20 +47,21 @@ class FMAPIEvalInterface(OpenAIEvalInterface):
                     f'Endpoint {ping_url} did not become read after {waited_s:,} seconds, exiting'
                 )
 
-    def __init__(self, om_model_config: DictConfig, tokenizer: AutoTokenizer):
-        is_local = om_model_config.pop('local', False)
+    def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer):
+        is_local = model_cfg.pop('local', False)
+        api_key = model_cfg.pop('api_key', None)
         if is_local:
             base_url = os.environ.get('MOSAICML_MODEL_ENDPOINT',
                                       'http://0.0.0.0:8080/v2')
-            om_model_config['base_url'] = base_url
+            model_cfg['base_url'] = base_url
             self.block_until_ready(base_url)
 
-        if 'base_url' not in om_model_config:
+        if 'base_url' not in model_cfg:
             raise ValueError(
                 'Must specify base_url or use local=True in model_cfg for FMAPIsEvalWrapper'
             )
 
-        super().__init__(om_model_config, tokenizer)
+        super().__init__(model_cfg, tokenizer, api_key)
 
 
 class FMAPICasualLMEvalWrapper(FMAPIEvalInterface, OpenAICausalLMEvalWrapper):

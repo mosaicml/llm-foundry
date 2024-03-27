@@ -524,7 +524,6 @@ def main(cfg: DictConfig) -> Trainer:
     # Optimizer
     optimizer_name: str = optimizer_config.pop('name')
     optimizer = build_optimizer(model, optimizer_name, optimizer_config)
-
     # Now add the eval metrics
     try:
         if eval_loader_config is not None and not use_async_eval:

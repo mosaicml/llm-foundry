@@ -9,9 +9,9 @@ import pytest
 import torch
 from composer.core import State
 from composer.loggers import InMemoryLogger, Logger
-from composer.metrics import InContextLearningLMAccuracy
 from transformers import AutoTokenizer
 
+from llmfoundry.eval.metrics.nlp import InContextLearningLMAccuracy
 from llmfoundry.utils.builders import build_icl_data_and_gauntlet
 
 

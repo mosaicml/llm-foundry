@@ -12,7 +12,9 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 import torch
 from composer.core.types import Batch
 from composer.utils.import_helpers import MissingConditionalImportError
-from omegaconf import DictConfig
+from openai.types.chat.chat_completion import ChatCompletion
+from openai.types.completion import Completion
+from openai.types.completion_choice import Logprobs
 from transformers import AutoTokenizer
 
 log = logging.getLogger(__name__)
@@ -25,19 +27,13 @@ __all__ = [
     'OpenAIChatAPIEvalWrapper',
 ]
 
-if TYPE_CHECKING:
-    from openai.types.chat.chat_completion import ChatCompletion
-    from openai.types.completion import Completion
-    from openai.types.completion_choice import Logprobs
-
-MAX_RETRIES = 10
+MAX_RETRIES = 100
 
 
 class OpenAIEvalInterface(InferenceAPIEvalWrapper):
 
-    def __init__(self, om_model_config: DictConfig,
-                 tokenizer: AutoTokenizer) -> None:
-        super().__init__(om_model_config, tokenizer)
+    def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer, api_key: Optional[str] = None) -> None:
+        super().__init__(model_cfg, tokenizer)
         try:
             import openai
         except ImportError as e:
@@ -45,9 +41,11 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
                 extra_deps_group='openai',
                 conda_package='openai',
                 conda_channel='conda-forge') from e
+        if api_key is None:
+            api_key = os.environ.get(model_cfg.get('api_env_key', 'OPENAI_API_KEY'))
+            # api_key = os.environ.get('OPENAI_API_KEY')
 
-        api_key = os.environ.get('OPENAI_API_KEY')
-        base_url = om_model_config.get('base_url')
+        base_url = model_cfg.get('base_url')
         if base_url is None:
             # Using OpenAI default, where the API key is required
             if api_key is None:
@@ -60,7 +58,7 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
             log.info(
                 f'Making request to custom base URL: {base_url}{"" if api_key is not None else " (no API key set)"}'
             )
-            api_key = 'placeholder'  # This cannot be None
+            # api_key = 'placeholder'  # This cannot be None
 
         self.client = openai.OpenAI(base_url=base_url, api_key=api_key)
         if 'version' in om_model_config:
@@ -68,7 +66,13 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
         else:
             self.model_name = om_model_config['name']
 
-    def generate_completion(self, prompt: str, num_tokens: int):
+    def completion_to_string(self, completion: Completion):
+        return [choice.text for choice in completion.choices]
+
+    def generate_completion(self,
+                            prompt: str,
+                            num_tokens: int,
+                            generation_kwargs: Optional[dict] = None):
         raise NotImplementedError()
 
     def process_result(self, completion):  # pyright: ignore
@@ -78,9 +82,17 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
         completion = self.try_generate_completion(prompt, num_tokens)
         return self.process_result(completion)
 
-    def try_generate_completion(self, prompt: str, num_tokens: int):
+    def try_generate_completion(
+        self,
+        prompt: Union[str, List],
+        num_tokens: int,
+        generation_kwargs: Optional[dict] = None
+    ) -> Optional[Union[Completion, ChatCompletion]]:
+        if generation_kwargs is None:
+            generation_kwargs = {}
         try:
-            from openai import APITimeoutError, RateLimitError
+            from openai import (APITimeoutError, InternalServerError,
+                                RateLimitError)
         except ImportError as e:
             raise MissingConditionalImportError(
                 extra_deps_group='openai',
@@ -92,16 +104,18 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
         while tries < MAX_RETRIES:
             tries += 1
             try:
-                completion = self.generate_completion(prompt, num_tokens)
+                completion = self.generate_completion(prompt, num_tokens,
+                                                      generation_kwargs)
                 break
             except RateLimitError as e:
-                if 'You exceeded your current quota' in str(
-                        e._message):  # pyright: ignore
-                    raise e
                 delay *= 2 * (1 + random.random())
                 sleep(delay)
                 continue
             except APITimeoutError as e:
+                delay *= 2 * (1 + random.random())
+                sleep(delay)
+                continue
+            except InternalServerError as e:
                 delay *= 2 * (1 + random.random())
                 sleep(delay)
                 continue
@@ -111,24 +125,41 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
 
 class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
 
-    def __init__(self, om_model_config: DictConfig,
-                 tokenizer: AutoTokenizer) -> None:
-        super().__init__(om_model_config, tokenizer)
+    def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer,  api_key: Optional[str] = None) -> None:
+        super().__init__(model_cfg, tokenizer, api_key)
+        self.model_cfg = model_cfg
 
-        self.generate_completion = lambda prompt, num_tokens: self.client.chat.completions.create(
-            model=self.model_name,
-            messages=[{
-                'role':
-                    'system',
-                'content':
-                    om_model_config.get('system_role_prompt',
+    def generate_completion(
+            self,
+            prompt: Union[str, List[dict]], #
+            num_tokens: int,
+            generation_kwargs: Optional[dict] = None) -> ChatCompletion:
+        if generation_kwargs is None:
+            generation_kwargs = {}
+        if isinstance(prompt, str):
+            messages = [{
+                    'role':
+                        'system',
+                    'content':
+                        self.model_cfg.get('system_role_prompt',
                                         'Please complete the following text: ')
-            }, {
-                'role': 'user',
-                'content': prompt
-            }],
-            max_tokens=num_tokens,
-            temperature=0.0)
+                }, {
+                    'role': 'user',
+                    'content': prompt
+                }]
+        elif isinstance(prompt, list):
+            messages = prompt
+        else:
+            raise ValueError(f"Prompt must be str or list: {prompt}")
+        return self.client.chat.completions.create(
+                model=self.model_name,
+                messages=messages,
+                max_tokens=num_tokens,
+                temperature=generation_kwargs.get('temperature', 1.0))
+
+
+    def completion_to_string(self, completion: ChatCompletion):
+        return [choice.message.content for choice in completion.choices]
 
     def retokenize(self, tokens: List[int], cont_idxs: List[int]):
         """Chat API will never respond with a word-initial space.
@@ -196,32 +227,65 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
         # Get around this issue by retokenizing the batch to remove spacing from the continuation as well as
         # decoding the whole continuation at once.
         padding_tok = self.tokenizer.pad_token_id if self.tokenizer.pad_token_id else self.tokenizer.eos_token_id
-        output_logits_batch = []
-        batch = self.rebatch(batch)
-        for tokens, cont_idxs in zip(batch['input_ids'],
-                                     batch['continuation_indices']):
+        if batch.get('mode', '') == 'generate':
+            outputs = []
+            # generate-based implementation
+            for tokens, _ in zip(batch['input_ids'], batch['labels']):
 
-            seqlen = tokens.shape[0]
-            tokens = tokens.tolist()
-            cont_idxs = cont_idxs.tolist()
-            expected_cont_tokens = tokens[cont_idxs[0]:cont_idxs[-1] + 1]
-            output_logits = torch.nn.functional.one_hot(
-                torch.tensor(tokens[1:cont_idxs[0]]),
-                num_classes=len(self.tokenizer))
+                tokens = tokens.tolist()
+                tokens = [t for t in tokens if t != padding_tok]
+                prompt = self.tokenizer.decode(tokens)
 
-            prompt = self.tokenizer.decode(tokens[:cont_idxs[0]])
-            next_logit_tensor = self.get_next_token_logit_tensor(
-                prompt, num_tokens=len(expected_cont_tokens))
+                if 'generation_length' in batch:
+                    num_tokens = batch['generation_length']
+                elif 'generation_kwargs' in batch:
+                    num_tokens = batch['generation_kwargs'].get(
+                        'max_new_tokens', 2)
 
-            if next_logit_tensor is not None:
-                output_logits = torch.cat([output_logits, next_logit_tensor])
-            padding = torch.nn.functional.one_hot(
-                torch.full((seqlen - output_logits.shape[0],), padding_tok),
-                num_classes=len(self.tokenizer))
-            output_logits = torch.cat([output_logits, padding])
-            output_logits_batch.append(output_logits)
+                for _ in range(
+                        0,
+                        batch.get('generation_kwargs',
+                                  {}).get('num_return_sequences', 1)):
+                    api_output = self.try_generate_completion(  #
+                        prompt,
+                        num_tokens=num_tokens,
+                        generation_kwargs=batch.get('generation_kwargs', {}))
 
-        return torch.stack(output_logits_batch).to(batch['input_ids'].device)
+                    assert api_output is not None
+                    sample_output = self.completion_to_string(
+                        api_output)[  # pyright: ignore
+                            0]
+                    outputs.append(sample_output)
+            return outputs
+        else:
+            output_logits_batch = []
+            batch = self.rebatch(batch)
+            for tokens, cont_idxs in zip(batch['input_ids'],
+                                         batch['continuation_indices']):
+
+                seqlen = tokens.shape[0]
+                tokens = tokens.tolist()
+                cont_idxs = cont_idxs.tolist()
+                expected_cont_tokens = tokens[cont_idxs[0]:cont_idxs[-1] + 1]
+                output_logits = torch.nn.functional.one_hot(
+                    torch.tensor(tokens[1:cont_idxs[0]]),
+                    num_classes=len(self.tokenizer))
+
+                prompt = self.tokenizer.decode(tokens[:cont_idxs[0]])
+                next_logit_tensor = self.get_next_token_logit_tensor(
+                    prompt, num_tokens=len(expected_cont_tokens))
+
+                if next_logit_tensor is not None:
+                    output_logits = torch.cat(
+                        [output_logits, next_logit_tensor])
+                padding = torch.nn.functional.one_hot(
+                    torch.full((seqlen - output_logits.shape[0],), padding_tok),
+                    num_classes=len(self.tokenizer))
+                output_logits = torch.cat([output_logits, padding])
+                output_logits_batch.append(output_logits)
+
+            return torch.stack(output_logits_batch).to(
+                batch['input_ids'].device)
 
     def process_result(self, completion: Optional['ChatCompletion']):
         if completion is None:
@@ -247,15 +311,14 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
 
 class OpenAICausalLMEvalWrapper(OpenAIEvalInterface):
 
-    def __init__(self, om_model_config: DictConfig,
-                 tokenizer: AutoTokenizer) -> None:
-        super().__init__(om_model_config, tokenizer)
-        self.generate_completion = lambda prompt, num_tokens: self.client.completions.create(
+    def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer,  api_key: Optional[str] = None) -> None:
+        super().__init__(model_cfg, tokenizer, api_key)
+        self.generate_completion = lambda prompt, num_tokens, generation_kwargs: self.client.completions.create(  # pyright: ignore
             model=self.model_name,
             prompt=prompt,
             max_tokens=num_tokens,
             logprobs=5,
-            temperature=0.0)
+            temperature=generation_kwargs.get('temperature', 1.0))
 
     def process_result(self, completion: Optional['Completion']):
         if completion is None:
@@ -266,7 +329,13 @@ class OpenAICausalLMEvalWrapper(OpenAIEvalInterface):
             assert isinstance(completion.choices[0].logprobs, Logprobs)
             assert isinstance(completion.choices[0].logprobs.top_logprobs, list)
 
-        if len(completion.choices[0].logprobs.top_logprobs[0]) > 0:
+        if len(completion.choices) == 0 \
+            or len(completion.choices[0].logprobs.top_logprobs) == 0 \
+            or  len(completion.choices[0].logprobs.top_logprobs[0]) == 0:
+            # the model sometimes stops early even though we are still requesting tokens!
+            # not sure if there's a fix
+            return None
+        else:
             # Construct tensor of shape (vocab_size,) with logprobs for each token
             tokenizer_logprobs = dict(
                 completion.choices[0].logprobs.top_logprobs[0])
@@ -276,7 +345,5 @@ class OpenAICausalLMEvalWrapper(OpenAIEvalInterface):
                 encoding = self.tokenizer(k)['input_ids']
                 tensor[encoding[0]] = tokenizer_logprobs[k]
             return tensor
-        else:
-            # the model sometimes stops early even though we are still requesting tokens!
-            # not sure if there's a fix
-            return None
+
+

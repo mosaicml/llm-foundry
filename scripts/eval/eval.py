@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import torch
+from composer.core.callback import Callback
 from composer.loggers.logger_destination import LoggerDestination
 from composer.trainer import Trainer
 from composer.utils import dist, get_device, reproducibility
@@ -23,8 +24,9 @@ from llmfoundry.utils import (find_mosaicml_logger, log_eval_analytics,
 
 install()
 from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
-                                       build_composer_model, build_evaluators,
-                                       build_logger, build_tokenizer)
+                                       build_composer_model, build_callback, 
+                                       build_evaluators, build_logger, 
+                                       build_tokenizer)
 from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device)
 from llmfoundry.utils.registry_utils import import_file
@@ -49,6 +51,7 @@ def evaluate_model(
     eval_gauntlet_df: Optional[pd.DataFrame],
     eval_subset_num_batches: int,
     icl_subset_num_batches: Optional[int],
+    callback_configs: Optional[Dict],
     metadata: Optional[Dict[str, str]],
     logged_config: DictConfig,
     should_log_config: bool = True,
@@ -63,6 +66,11 @@ def evaluate_model(
     tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
+    if fsdp_config and model_cfg.model.get('load_in_8bit', False):
+        raise ValueError(
+            'The FSDP config block is not supported when loading ' +
+            'Hugging Face models in 8bit.')
+
     evaluators, logger_keys, eval_gauntlet_callback = build_evaluators(
         eval_loader_config,
         icl_tasks,
@@ -73,7 +81,12 @@ def evaluate_model(
         icl_subset_num_batches=icl_subset_num_batches,
     )
 
-    callbacks = []
+    # Callbacks
+    callbacks: List[Callback] = [
+        build_callback(str(name), callback_cfg)
+        for name, callback_cfg in callback_configs.items()
+    ] if callback_configs else []
+
     if eval_gauntlet_callback is not None:
         callbacks.append(eval_gauntlet_callback)
 
@@ -238,7 +251,10 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
 
     # Pop out interpolation variables.
     pop_config(cfg, 'model_name_or_path', must_exist=False, default_value=None)
-
+    callback_configs: Optional[DictConfig] = pop_config(cfg,
+                                                        'callbacks',
+                                                        must_exist=False,
+                                                        default_value=None)
     # Warn for unused parameters
     for key in cfg:
         warnings.warn(
@@ -294,6 +310,7 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
              fsdp_config=fsdp_config,
              loggers=loggers,
              python_log_level=python_log_level,
+             callback_configs=callback_configs,
              precision=precision,
              eval_gauntlet_df=eval_gauntlet_df,
              eval_subset_num_batches=eval_subset_num_batches,

@@ -1,0 +1,31 @@
+
+# -
+#   model_name: openai/gpt-3.5-turbo
+#   model:
+#     name: openai_chat
+#     version: gpt-3.5-turbo
+#   tokenizer:
+#     name: tiktoken
+#     kwargs:
+#       model_name: gpt-3.5-turbo
+seed: 1
+max_seq_len: 30000
+device_eval_batch_size: 1
+models:
+-
+  model_name: models/gemini-1.0-pro-latest
+  model:
+    name: gemini_chat
+    version: models/gemini-1.0-pro-latest
+  tokenizer:
+    name: tiktoken
+    kwargs:
+      model_name: gpt-3.5-turbo-instruct
+
+
+# loggers:
+#   wandb: {}
+# callbacks:
+#   eval_output_logging: {}
+icl_tasks: "eval/yamls/long_context_tasks.yaml"
+eval_gauntlet: "eval/yamls/eval_gauntlet_long_context.yaml"

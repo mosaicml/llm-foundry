@@ -5,42 +5,46 @@ integrations:
   # git_commit:  # OR use your commit hash
   pip_install: -e ".[gpu-flash2,openai]"
   ssh_clone: false  # Should be true if using a private repo
+- integration_type: wandb
+  entity: mosaic-ml
+  project: openai_eval_jeremy
 
 command: |
+  pip uninstall mosaicml -y
+  pip install git+https://github.com/mosaicml/composer.git@dev
   cd llm-foundry/scripts
   composer eval/eval.py /mnt/config/parameters.yaml
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
-run_name: openai-eval
-gpu_num:  #
-gpu_type:  #
-cluster:  # replace with your cluster here!
+name: gemini-longcontext-gauntlet-eval
+cluster: r1z1  # replace with your cluster here!
+gpu_num: 8 #
+gpu_type: a100_80gb #
 
-image: mosaicml/llm-foundry:2.1.0_cu121_flash2-latest
+
+image: mosaicml/llm-foundry:2.2.1_cu121_flash2-latest
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:
   seed: 1
-  max_seq_len: 1024
-  device_eval_batch_size: 4
+  max_seq_len: 30000
+  device_eval_batch_size: 1
   models:
   -
-    model_name: openai/gpt-3.5-turbo
+    model_name: models/gemini-1.0-pro-latest
     model:
-      name: openai_chat
-      version: gpt-3.5-turbo
+      name: gemini_chat
+      version: models/gemini-1.0-pro-latest
     tokenizer:
       name: tiktoken
       kwargs:
-        model_name: gpt-3.5-turbo
-  -
-    model_name: openai/davinci
-    model:
-      name: openai_causal_lm
-      version: davinci
-    tokenizer:
-      name: tiktoken
-      kwargs:
-        model_name: davinci
+        model_name: gpt-3.5-turbo-instruct
 
-  icl_tasks: "eval/yamls/lm_tasks_v0.2.yaml"
+
+  # loggers:
+  #   wandb: {}
+  # callbacks:
+  #   eval_output_logging: {}
+  icl_tasks: "eval/yamls/long_context_tasks.yaml"
+  eval_gauntlet: "eval/yamls/eval_gauntlet_long_context.yaml"
+ 

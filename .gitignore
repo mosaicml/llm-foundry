@@ -158,3 +158,5 @@ notebooks/
 **/mlruns/*
 **/tokenizer-save-dir-*/**
 **/.downloaded_finetuning/
+
+.databricks

@@ -24,7 +24,6 @@ from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from llmfoundry.callbacks import HuggingFaceCheckpointer
 from llmfoundry.callbacks.hf_checkpointer import _maybe_get_license_filename
 from llmfoundry.data.finetuning import build_finetuning_dataloader
-from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
 from llmfoundry.utils.builders import (build_composer_model, build_optimizer,
                                        build_tokenizer)
 from scripts.inference.convert_composer_to_hf import convert_composer_to_hf
@@ -785,50 +784,6 @@ def test_convert_and_generate(model: str, tie_word_embeddings: bool,
     for p1, p2 in zip(original_model.model.parameters(),
                       loaded_model.parameters()):
         assert torch.allclose(p1, p2)
-
-    delete_transformers_cache()
-
-
-@pytest.mark.gpu
-@pytest.mark.parametrize('tie_word_embeddings', [True, False])
-def test_convert_and_generate_triton(tie_word_embeddings: str,
-                                     tmp_path: pathlib.Path):
-    delete_transformers_cache()
-
-    cfg = get_config()
-    cfg['model']['init_device'] = 'cpu'
-    cfg['tie_word_embeddings'] = tie_word_embeddings
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'EleutherAI/gpt-neox-20b')
-    model = ComposerMPTCausalLM(cfg['model'], tokenizer)
-    trainer = Trainer(model=model)
-    trainer.save_checkpoint(os.path.join(tmp_path, 'checkpoint.pt'))
-
-    args = Namespace(composer_path=os.path.join(tmp_path, 'checkpoint.pt'),
-                     hf_output_path=os.path.join(tmp_path, 'hf-output-folder'),
-                     output_precision='fp32',
-                     local_checkpoint_save_location=None,
-                     hf_repo_for_upload=None,
-                     trust_remote_code=False,
-                     test_uploaded_model=False)
-    convert_composer_to_hf(args)
-
-    config = transformers.AutoConfig.from_pretrained(os.path.join(
-        tmp_path, 'hf-output-folder'),
-                                                     trust_remote_code=True)
-    config.attn_config['attn_impl'] = 'triton'
-    model = transformers.AutoModelForCausalLM.from_pretrained(
-        os.path.join(tmp_path, 'hf-output-folder'),
-        config=config,
-        trust_remote_code=True)
-    model.to(device='cuda', dtype=torch.bfloat16)
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        os.path.join(tmp_path, 'hf-output-folder'), trust_remote_code=True)
-
-    output = model.generate(tokenizer(
-        'hello', return_tensors='pt')['input_ids'].to(device='cuda'),
-                            max_new_tokens=1)
-    assert output.shape == (1, 2)
 
     delete_transformers_cache()
 

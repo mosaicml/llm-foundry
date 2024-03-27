@@ -73,7 +73,6 @@ class BinPackCollator:
                 'input_ids',
                 'labels',
                 'attention_mask',
-                'bidirectional_mask',
                 'sequence_id',
             ]
         # Cut everything down to size
@@ -280,7 +279,6 @@ def _repad(packed_examples: List[Dict[str, torch.Tensor]], max_seq_len: int,
         'input_ids': pad_token_id,
         'labels': -100,
         'attention_mask': 0,
-        'bidirectional_mask': 0,
         'sequence_id': -1,
     }
     keys = packed_examples[0].keys()

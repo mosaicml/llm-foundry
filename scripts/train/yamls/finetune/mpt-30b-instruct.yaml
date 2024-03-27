@@ -14,7 +14,7 @@ model:
   config_overrides:
     max_seq_len: ${max_seq_len}
     attn_config:
-      attn_impl: triton
+      attn_impl: flash
       # Note: we still use packing, but turn this off for memory.
       # Initial tests suggest this does not hurt performance too much.
       attn_uses_sequence_id: false

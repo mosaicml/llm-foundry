@@ -6,6 +6,11 @@ from typing import List, Optional
 
 PROMPTFILE_PREFIX = 'file::'
 
+__all__ = [
+    'load_prompts',
+    'load_prompts_from_file',
+]
+
 
 def load_prompts(prompts: List[str],
                  prompt_delimiter: Optional[str] = None) -> List[str]:

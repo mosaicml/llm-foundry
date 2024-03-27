@@ -58,8 +58,8 @@ class TestTrainingYAMLInputs:
         assert isinstance(test_cfg, DictConfig)
         return test_cfg
 
-    def test_mispelled_mandatory_params_fail(self, cfg: DictConfig) -> None:
-        """Check that mandatory mispelled inputs fail to train."""
+    def test_misspelled_mandatory_params_fail(self, cfg: DictConfig) -> None:
+        """Check that mandatory misspelled inputs fail to train."""
         cfg.trai_loader = cfg.pop('train_loader')
         with pytest.raises(omegaconf.errors.ConfigAttributeError):
             main(cfg)
@@ -84,9 +84,9 @@ class TestTrainingYAMLInputs:
                 main(cfg)
             cfg[param] = orig_param
 
-    def test_optional_mispelled_params_raise_warning(self,
-                                                     cfg: DictConfig) -> None:
-        """Check that warnings are raised for optional mispelled parameters."""
+    def test_optional_misspelled_params_raise_warning(self,
+                                                      cfg: DictConfig) -> None:
+        """Check that warnings are raised for optional misspelled parameters."""
         optional_params = [
             'save_weights_only',
             'save_filename',
@@ -104,7 +104,7 @@ class TestTrainingYAMLInputs:
         old_cfg = copy.deepcopy(cfg)
         for param in optional_params:
             orig_value = cfg.pop(param, None)
-            updated_param = param + '-mispelling'
+            updated_param = param + '-misspelling'
             cfg[updated_param] = orig_value
             with warnings.catch_warnings(record=True) as warning_list:
                 try:
@@ -137,8 +137,9 @@ class TestTrainingYAMLInputs:
         cfg.eval_loader.dataset.local = data_local
         with pytest.raises(ValueError) as exception_info:
             main(cfg)
-        assert str(exception_info.value
-                  ) == 'Not sure how to build optimizer: invalid-optimizer'
+        assert str(exception_info.value).startswith(
+            "Cant't find 'invalid-optimizer' in registry llmfoundry -> optimizers."
+        )
 
     def test_extra_params_in_scheduler_cfg_errors(self,
                                                   cfg: DictConfig) -> None:
@@ -151,8 +152,9 @@ class TestTrainingYAMLInputs:
         cfg.scheduler.name = 'invalid-scheduler'
         with pytest.raises(ValueError) as exception_info:
             main(cfg)
-        assert str(exception_info.value
-                  ) == 'Not sure how to build scheduler: invalid-scheduler'
+        assert str(exception_info.value).startswith(
+            "Cant't find 'invalid-scheduler' in registry llmfoundry -> schedulers."
+        )
 
     def test_no_label_multiple_eval_datasets(self, cfg: DictConfig) -> None:
         data_local = './my-copy-c4-multi-eval'

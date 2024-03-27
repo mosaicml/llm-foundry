@@ -19,7 +19,7 @@ new_files_warning_filter = SpecificWarningFilter(
 
 hf_dynamic_modules_logger.addFilter(new_files_warning_filter)
 
-from llmfoundry import optim, utils
+from llmfoundry import algorithms, callbacks, loggers, optim, registry, utils
 from llmfoundry.data import (ConcatTokensDataset, MixtureOfDenoisersCollator,
                              NoConcatDataset, Seq2SeqFinetuningCollator,
                              build_finetuning_dataloader,
@@ -82,27 +82,11 @@ __all__ = [
     'build_alibi_bias',
     'optim',
     'utils',
+    'loggers',
+    'algorithms',
+    'callbacks',
     'TiktokenTokenizerWrapper',
-    'InContextLearningLMAccuracy',
-    'InContextLearningMultipleChoiceAccuracy',
-    'InContextLearningGenerationExactMatchAccuracy',
-    'InContextLearningMCExpectedCalibrationError',
-    'InContextLearningLMExpectedCalibrationError',
-    'InContextLearningMetric',
-    'InContextLearningCodeEvalAccuracy',
-    'InContextLearningDataset',
-    'InContextLearningGenerationTaskWithAnswersDataset',
-    'InContextLearningLMTaskDataset',
-    'InContextLearningCodeEvalDataset',
-    'InContextLearningMultipleChoiceTaskDataset',
-    'InContextLearningSchemaTaskDataset',
-    'get_icl_task_dataloader',
-    'strip_data',
-    'tokenizer_needs_prefix_space',
-    'trim_context',
-    'get_continuation_span',
-    'get_fewshot_sample_idxs',
-    'make_padded_input',
+    'registry',
 ]
 
 __version__ = '0.6.0'

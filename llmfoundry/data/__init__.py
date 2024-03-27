@@ -9,6 +9,11 @@ from llmfoundry.data.finetuning import (Seq2SeqFinetuningCollator,
                                         build_finetuning_dataloader)
 from llmfoundry.data.text_data import (StreamingTextDataset,
                                        build_text_dataloader)
+from llmfoundry.registry import dataloaders
+
+dataloaders.register('text', func=build_text_dataloader)
+dataloaders.register('text_denoising', func=build_text_denoising_dataloader)
+dataloaders.register('finetuning', func=build_finetuning_dataloader)
 
 __all__ = [
     'MixtureOfDenoisersCollator',

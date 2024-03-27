@@ -24,6 +24,12 @@ from transformers import (AutoTokenizer, PreTrainedTokenizer,
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    'get_hf_tokenizer_from_composer_state_dict',
+    'load_tokenizer',
+    'convert_and_save_ft_weights',
+]
+
 
 def _get_weight_data_type(data_type: str):
     if data_type == 'fp32':

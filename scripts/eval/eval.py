@@ -12,7 +12,6 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import pandas as pd
 import torch
 from composer.core.callback import Callback
-from composer.loggers import MosaicMLLogger
 from composer.loggers.logger_destination import LoggerDestination
 from composer.models.base import ComposerModel
 from composer.trainer import Trainer
@@ -22,14 +21,17 @@ from omegaconf import OmegaConf as om
 from rich.traceback import install
 from transformers import PreTrainedTokenizerBase
 
+from llmfoundry.utils import (find_mosaicml_logger, log_eval_analytics,
+                              maybe_create_mosaicml_logger)
+
 install()
 from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
-from llmfoundry.registry import import_file
 from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_callback, build_evaluators,
                                        build_logger, build_tokenizer)
 from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device)
+from llmfoundry.utils.registry_utils import import_file
 
 log = logging.getLogger(__name__)
 
@@ -70,7 +72,7 @@ def evaluate_model(
     eval_loader_config: Optional[Union[DictConfig, ListConfig]],
     fsdp_config: Optional[Dict],
     num_retries: int,
-    loggers_cfg: Dict[str, Any],
+    loggers: List[LoggerDestination],
     python_log_level: Optional[str],
     precision: str,
     eval_gauntlet_df: Optional[pd.DataFrame],
@@ -118,20 +120,9 @@ def evaluate_model(
     if eval_gauntlet_callback is not None:
         callbacks.append(eval_gauntlet_callback)
 
-    loggers: List[LoggerDestination] = [
-        build_logger(name, logger_cfg)
-        for name, logger_cfg in loggers_cfg.items()
-    ]
-
     if metadata is not None:
-        # Flatten the metadata for logging
-        loggers_cfg.pop('metadata', None)
-        loggers_cfg.update(metadata, merge=True)
-
         # Find the MosaicMLLogger
-        mosaicml_logger = next((
-            logger for logger in loggers if isinstance(logger, MosaicMLLogger)),
-                               None)
+        mosaicml_logger = find_mosaicml_logger(loggers)
 
         if mosaicml_logger is not None:
             mosaicml_logger.log_metrics(metadata)
@@ -162,7 +153,6 @@ def evaluate_model(
     assert composer_model is not None
 
     log.info(f'Building trainer for {model_cfg.model_name}...')
-
     trainer = Trainer(
         run_name=run_name,
         seed=seed,
@@ -204,7 +194,6 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
                             must_exist=False,
                             default_value=[],
                             convert=True)
-    # Import any user provided code
     for code_path in code_paths:
         import_file(code_path)
 
@@ -310,6 +299,24 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     models_df = None
     composite_scores = None
     trainers = []
+
+    loggers: List[LoggerDestination] = [
+        build_logger(name, logger_cfg)
+        for name, logger_cfg in loggers_cfg.items()
+    ]
+
+    mosaicml_logger = find_mosaicml_logger(loggers)
+    if mosaicml_logger is None:
+        mosaicml_logger = maybe_create_mosaicml_logger()
+        # mosaicml_logger will be None if run isn't on MosaicML platform
+        if mosaicml_logger is not None:
+            loggers.append(mosaicml_logger)
+
+    # mosaicml_logger will be None if the run isn't from the MosaicML platform
+    if mosaicml_logger is not None:
+        log_eval_analytics(mosaicml_logger, model_configs, icl_tasks,
+                           eval_gauntlet_config)
+
     for model_cfg in model_configs:
         (trainer, logger_keys, eval_gauntlet_callback,
          eval_gauntlet_df) = evaluate_model(
@@ -324,7 +331,7 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
              eval_loader_config=eval_loader_config,
              fsdp_config=fsdp_config,
              num_retries=num_retries,
-             loggers_cfg=loggers_cfg,
+             loggers=loggers,
              python_log_level=python_log_level,
              callback_configs=callback_configs,
              precision=precision,
@@ -372,6 +379,8 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
         print(f'Printing complete results for all models')
         assert models_df is not None
         print(models_df.to_markdown(index=False))
+
+        trainer.close()
 
     return trainers, eval_gauntlet_df
 

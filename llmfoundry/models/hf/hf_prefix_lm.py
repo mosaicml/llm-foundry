@@ -7,12 +7,12 @@ from __future__ import annotations
 
 from typing import Mapping, MutableMapping
 
-from composer.metrics.nlp import LanguageCrossEntropy, MaskedAccuracy
 from composer.utils import dist
 from omegaconf import DictConfig
 from transformers import (AutoConfig, AutoModelForCausalLM,
                           PreTrainedTokenizerBase)
 
+from llmfoundry.metrics import DEFAULT_PREFIX_LM_METRICS
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
 from llmfoundry.models.utils import (adapt_tokenizer_for_denoising,
@@ -21,9 +21,6 @@ from llmfoundry.models.utils import (adapt_tokenizer_for_denoising,
                                      init_empty_weights)
 
 __all__ = ['ComposerHFPrefixLM']
-
-# HuggingFace hardcodes the ignore index to -100
-_HF_IGNORE_INDEX = -100
 
 
 class ComposerHFPrefixLM(HuggingFaceModelWithZLoss):
@@ -68,6 +65,8 @@ class ComposerHFPrefixLM(HuggingFaceModelWithZLoss):
 
     def __init__(self, om_model_config: DictConfig,
                  tokenizer: PreTrainedTokenizerBase):
+        from llmfoundry.utils.builders import build_metric
+
         config = AutoConfig.from_pretrained(
             om_model_config.pretrained_model_name_or_path,
             trust_remote_code=om_model_config.get('trust_remote_code', True),
@@ -130,8 +129,8 @@ class ComposerHFPrefixLM(HuggingFaceModelWithZLoss):
         model = convert_hf_causal_lm_to_prefix_lm(model)
 
         metrics = [
-            LanguageCrossEntropy(ignore_index=_HF_IGNORE_INDEX),
-            MaskedAccuracy(ignore_index=_HF_IGNORE_INDEX)
+            build_metric(metric, {}) for metric in DEFAULT_PREFIX_LM_METRICS +
+            om_model_config.get('additional_train_metrics', [])
         ]
 
         composer_model = super().__init__(model=model,

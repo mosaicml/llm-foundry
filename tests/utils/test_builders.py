@@ -14,7 +14,6 @@ from composer.callbacks import Generate
 from composer.core import Evaluator
 from composer.loggers import WandBLogger
 from omegaconf import DictConfig, ListConfig
-from omegaconf import OmegaConf as om
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.callbacks import HuggingFaceCheckpointer
@@ -62,7 +61,7 @@ def test_build_callback_fails():
 
 @pytest.mark.parametrize(
     'interval_key,interval_value',
-    [('interval', '10ba'), ('batch_log_interval', 10)],
+    [('interval', '10ba')],
 )
 def test_build_generate_callback(
     interval_key: str,
@@ -92,7 +91,7 @@ def test_build_generate_callback(
 
 
 def test_build_generate_callback_unspecified_interval():
-    with pytest.raises(KeyError):
+    with pytest.raises(TypeError):
         with mock.patch.object(Generate, '__init__',
                                autospec=True) as mock_generate:
             mock_generate.return_value = None
@@ -122,11 +121,11 @@ def test_build_hf_checkpointer_callback():
             }
         }
         build_callback(name='hf_checkpointer',
-                       kwargs=om.create({
+                       kwargs={
                            'save_folder': save_folder,
                            'save_interval': save_interval,
                            'mlflow_logging_config': mlflow_logging_config_dict
-                       }),
+                       },
                        config={})
 
         assert mock_hf_checkpointer.call_count == 1
@@ -214,6 +213,7 @@ class _DummyModule(nn.Module):
 def test_build_optimizer(name: str, optimizer_config: Dict[str, Any],
                          opt_additional_config: Dict[str, Any]):
     model = _DummyModule()
+    optimizer_config = deepcopy(optimizer_config)
     optimizer_config.update(deepcopy(opt_additional_config))
     optimizer = build_optimizer(model, name, optimizer_config)
 

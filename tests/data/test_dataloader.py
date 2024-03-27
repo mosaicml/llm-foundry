@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import ContextManager, Literal, Optional, Union
 from unittest.mock import MagicMock, patch
 
+import catalogue
 import numpy as np
 import pytest
 import torch
@@ -1070,6 +1071,5 @@ def test_build_unknown_dataloader():
         'name': 'unknown',
     })
     tokenizer = MagicMock()
-    with pytest.raises(ValueError,
-                       match='Expected dataloader name to be one of'):
+    with pytest.raises(catalogue.RegistryError):
         _ = build_dataloader(cfg, tokenizer, 2)

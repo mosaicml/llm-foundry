@@ -3,6 +3,10 @@
 
 import logging
 
+__all__ = [
+    'SpecificWarningFilter',
+]
+
 
 class SpecificWarningFilter(logging.Filter):
 

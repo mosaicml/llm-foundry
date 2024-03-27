@@ -17,16 +17,21 @@ import json
 import logging
 import os
 import sys
+from mcli import RunConfig
+import hashlib
+from mcli.config import MCLIConfig
+from mcli.api.engine.engine import MAPIConnection
 
 logger = logging.getLogger('ygong.mosaic.submit')
 
-        
 def _set_up_environment(content: str):
     os.environ['CREDENTIALS'] = content
 
      
 def _init_connection():
      def _is_local():
+        if os.environ.get('CREDENTIALS') is not None:
+            return True 
         try:
             wc = WorkspaceClient()
             wc.dbutils.entry_point.getDbutils().notebook().getContext()
@@ -109,7 +114,16 @@ def _display_run_summary(summary: pd.DataFrame, cancel_button: Optional[widgets.
         display(cancel_button)
     display(HTML(summary.to_html(escape=False)))
 
-def submit(model, config: any, scalingConfig: ScalingConfig, sync: bool = False, debug: bool = False):
+def _wait_for_run_status(run: Run, status: RunStatus, inclusive: bool = True):
+    run_name = run.name
+    while not run.status.after(status, inclusive=inclusive):
+        time.sleep(5)
+        run =  get_run(run_name)
+        logger.debug(f"run status {run.status}, expected status {status}")
+    logger.debug(f"finish waiting run reached expected status {status}")
+    return run
+
+def submit(config: any, scalingConfig: ScalingConfig, sync: bool = False, debug: bool = False):
     if debug:
         stdout_handler = logging.StreamHandler(sys.stdout)
         stdout_handler.setLevel(logging.DEBUG)  # Set minimum log level for the handler
@@ -121,16 +135,18 @@ def submit(model, config: any, scalingConfig: ScalingConfig, sync: bool = False,
         logger.setLevel(logging.DEBUG)
         
         logger.info("set the logger to debug mode")
-
+        
+    # MTC + AWS Dogfood
     _init_connection()
     mlflow_experiment_name = None
-    if model == "mpt125m":
-        if not isinstance(config, MPT125MConfig):
-            raise ValueError("config must be an instance of MPT125MConfig")
+    if isinstance(config, MPT125MConfig):
         mlflow_experiment_name = config.mlflow_experimentName
         runConfig = config.toRunConfig(scalingConfig)
+    elif isinstance(config, RunConfig):
+        runConfig = config
+        mlflow_experiment_name = runConfig.name
     else:
-        raise ValueError(f"model {model} is not supported")
+        raise ValueError(f"config type {type(config)} is not supported")
     
     run = create_run(runConfig)
     run_name = run.name
@@ -141,6 +157,7 @@ def submit(model, config: any, scalingConfig: ScalingConfig, sync: bool = False,
     else:
         button = widgets.Button(description="cancel the run")
         def on_button_clicked(b):
+            logger.debug(f"cancel button clicked")
             clear_output(wait=False)
             run = get_run(run_name)
             run.stop()
@@ -150,27 +167,6 @@ def submit(model, config: any, scalingConfig: ScalingConfig, sync: bool = False,
             display(HTML(summary.to_html(escape=False)))
         button.on_click(on_button_clicked)
     _display_run_summary(_get_run_summary(run, mlflow_experiment_name), button)
-
-    def _wait_for_run_status(run: Run, status: RunStatus, inclusive: bool = True):
-        run_name = run.name
-        while not run.status.after(status, inclusive=inclusive) and not run.status.is_terminal():
-            run =  get_run(run_name)
-            # setting mlflow_experiment_name to be None, since its very likely mlflow run isn't ready yet
-            # when the run just starts running
-            _display_run_summary(_get_run_summary(run, None), button)
-            time.sleep(5)
-        logger.debug(f"finish waiting run reached expected status {status}")
-        return run
-
-    def _wait_for_run_finish(run: Run):
-        run_name = run.name
-        while not run.status.is_terminal():
-            run =  get_run(run_name)
-            _display_run_summary(_get_run_summary(run, mlflow_experiment_name), button)
-            time.sleep(5)
-        logger.debug(f"finish waiting run reached terminal")
-        return run
-
     run = _wait_for_run_status(run, RunStatus.RUNNING)
 
     try_count = 0
@@ -191,7 +187,7 @@ def submit(model, config: any, scalingConfig: ScalingConfig, sync: bool = False,
 
     if sync:
         logger.debug(f"synchronously waiting for the run to finish.")
-        run = _wait_for_run_finish(run)
+        run = _wait_for_run_status(run, RunStatus.TERMINATING, inclusive=False)
         _display_run_summary(_get_run_summary(run, mlflow_experiment_name), None)
     
     return run

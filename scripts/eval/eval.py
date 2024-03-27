@@ -24,9 +24,9 @@ from llmfoundry.utils import (find_mosaicml_logger, log_eval_analytics,
 
 install()
 from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
-                                       build_callback, build_evaluators,
-                                       build_composer_model, 
-                                       build_logger, build_tokenizer)
+                                       build_callback, build_composer_model,
+                                       build_evaluators, build_logger,
+                                       build_tokenizer)
 from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device)
 from llmfoundry.utils.registry_utils import import_file
@@ -51,7 +51,7 @@ def evaluate_model(
     eval_gauntlet_df: Optional[pd.DataFrame],
     eval_subset_num_batches: int,
     icl_subset_num_batches: Optional[int],
-    callback_configs: Optional[Dict],
+    callback_configs: Optional[DictConfig],
     metadata: Optional[Dict[str, str]],
     logged_config: DictConfig,
     should_log_config: bool = True,

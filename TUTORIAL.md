@@ -32,10 +32,8 @@ This tutorial will provide a brief intro to the repo’s structure and underlyin
     - [What hardware can I run eval on?](#what-hardware-can-i-run-eval-on)
     - [What hardware can I run inference on?](#what-hardware-can-i-run-inference-on)
     - [What is FSDP?](#what-is-fsdp)
-    - [What are the different attention options `torch` / `flash` / `triton`  for MPT and which one should I use?](#what-are-the-different-attention-options-torch--flash--triton--for-mpt-and-which-one-should-i-use)
+    - [What are the different attention options `torch` / `flash`  for MPT and which one should I use?](#what-are-the-different-attention-options-torch--flash--for-mpt-and-which-one-should-i-use)
       - [Limitations](#limitations)
-      - [What is `triton-pre-mlir`?](#what-is-triton-pre-mlir)
-      - [Known issue with sm86+ GPUs](#known-issue-with-sm86-gpus)
       - [Support for FlashAttention-2](#support-for-flashattention-2)
     - [What kinds of positional embeddings does LLM Foundry support?](#what-kinds-of-positional-embeddings-does-llm-foundry-support)
     - [Can I finetune using PEFT / LoRA?](#can-i-finetune-using-peft--lora)
@@ -144,7 +142,7 @@ name = 'mosaicml/mpt-7b'
 
 # Download config
 config = AutoConfig.from_pretrained(name, trust_remote_code=True)
-# (Optional) Use `flash` (preferred) or `triton` backend for fast attention. Defaults to `torch`.
+# (Optional) Use `flash` (preferred) backend for fast attention. Defaults to `torch`.
 # config.attn_config['attn_impl'] = 'flash'
 # (Optional) Change the `max_seq_len` allowed for inference
 # config.max_seq_len = 4096
@@ -291,7 +289,7 @@ The purpose of this section is probably pretty self-evident. You’ve got questi
 - If OOMs persist with `device_train_microbatch_size: 1` and `device_eval_batch_size: 1`, you may need to use activation checkpointing `fsdp_config.activation_checkpointing: true` (if you are not already) and, as a last resort, activation CPU offloading `fsdp_config.activation_cpu_offload: true`.
 
 ### What hardware can I train on?
-- In general, this repo should work on any system with NVIDIA GPUs. Checkout the `scripts/train/README.md` for more [details on GPU memory requirements]([https://github.com/mosaicml/llm-foundry/tree/main/scripts/train#how-many-gpus-do-i-need-to-train-a-llm](https://github.com/mosaicml/llm-foundry/tree/main/scripts/train#how-many-gpus-do-i-need-to-train-a-llm)). We recommend using `Flash` attention instead of `Triton` attention, unless you're training Prefix Language Models (in which case use `Triton`). Keep in mind you may run into issues with `Flash` or `Triton` support on some GPU types. In that situation, you can fall back to `attn_impl: torch`, or raise an issue in the [Flash Attention github repo](https://github.com/Dao-AILab/flash-attention).
+- In general, this repo should work on any system with NVIDIA GPUs. Checkout the `scripts/train/README.md` for more [details on GPU memory requirements]([https://github.com/mosaicml/llm-foundry/tree/main/scripts/train#how-many-gpus-do-i-need-to-train-a-llm](https://github.com/mosaicml/llm-foundry/tree/main/scripts/train#how-many-gpus-do-i-need-to-train-a-llm)). We recommend using `Flash` attention. Keep in mind you may run into issues with `Flash` support on some GPU types. In that situation, you can fall back to `attn_impl: torch`, or raise an issue in the [Flash Attention github repo](https://github.com/Dao-AILab/flash-attention).
 
 ### What hardware can I run eval on?
 - Similar to above…
@@ -302,8 +300,8 @@ The purpose of this section is probably pretty self-evident. You’ve got questi
 ### What is FSDP?
 - [Fully Sharded Data Parallel (FSDP)](https://pytorch.org/blog/introducing-pytorch-fully-sharded-data-parallel-api/) is a PyTorch implementation of the [Zero Redundancy Optimizer (ZeRO)](https://arxiv.org/abs/1910.02054). FSDP shards networks parameters and the optimizer state across all GPUs. This enables users to train models with large parameter counts which do not fit into a single GPUs memory.
 
-### What are the different attention options `torch` / `flash` / `triton`  for MPT and which one should I use?
-- **Short answer:** `torch` is the native pytorch attention implementation, and `flash` and `triton` are different implementations of the much more optimized [Flash Attention](https://arxiv.org/abs/2205.14135) method. `triton` and `flash` will be faster (and use less GPU memory) than `torch`, but they might not work with all hardware and environment setups.
+### What are the different attention options `torch` / `flash`  for MPT and which one should I use?
+- **Short answer:** `torch` is the native pytorch attention implementation, and `flash` is an implementation of the much more optimized [Flash Attention](https://arxiv.org/abs/2205.14135) method. `flash` will be faster (and use less GPU memory) than `torch`, but they might not work with all hardware and environment setups.
 
   Our training setups typically use `flash`.
 
@@ -313,7 +311,6 @@ Furthermore, integrating a recomputation schema decreases the sequence length me
 
   - Setting `attn_config.attn_impl=torch` enables a naive Softmax Attention written using base torch operations.
   - Setting `attn_config.attn_impl=flash` enables Flash Attention [implemented by Dao et al in the Dao-AILab repo using CUDA](https://github.com/Dao-AILab/flash-attention). This will have linear memory complexity (enabling larger batch sizes) and will run much faster.
-  - Setting `attn_config.attn_impl=triton` enables a Flash Attention [implemented using Triton](https://github.com/mosaicml/llm-foundry/blob/main/llmfoundry/models/layers/flash_attn_triton.py). We recommend using `flash` attention instead of `triton` attention, unless you're training Prefix Language Models (in which case use `Triton`).
 
 <!-- In NLP, Softmax Attention operates on a sequence. It is an all to all graph operation where, during training, the memory complexity is quadratic with respect to the length of the sequence. Furthermore, on GPUs, naive implementations of Softmax Attention are BW limited.
 [Rabe et al. (2021)](https://arxiv.org/abs/2112.05682) and [Dao et al. (2022)](https://arxiv.org/abs/2205.14135) noted that fusing all operations in Softmax Attention can make the operation much less BW limited.
@@ -321,27 +318,12 @@ Furthermore, integrating a recomputation schema decreases the sequence length me
 
 Setting `attn_config.attn_impl=torch` enables a naive Softmax Attention written using base torch operations.
 Setting `attn_config.attn_impl=flash` enables flash attention [implemented by Dao et al in the HazyResearch repo using CUDA](https://github.com/HazyResearch/flash-attention). This will have linear memory complexity (enabling larger batch sizes) and will run much faster.
-Setting `attn_config.attn_impl=triton` enables a flash attention [implemented using Triton](https://github.com/mosaicml/llm-foundry/blob/main/llmfoundry/models/layers/flash_attn_triton.py). In our experience, `triton` is slightly faster than `flash`.
-The majority of our training setups use `triton`. -->
+The majority of our training setups use `flash`. -->
 
 #### Limitations
 - For training, `torch` uses a lot of memory and is slow.
-- `flash` and `triton` cannot return attention weights and therefore cannot be used with methods that require it.
+- `flash` cannot return attention weights and therefore cannot be used with methods that require it.
 - `flash` cannot accept an attention bias. However, it still allows the use of ALiBi positional bias.
-
-#### What is `triton-pre-mlir`?
-- Torch2 installs and requires a specific version of [Triton](https://openai.com/research/triton).
-  `attn_config.attn_impl=triton` requires a different version of triton.
-  As a result, you can either use torch2 or `attn_impl=triton`.
-  To enable both, we fork triton and make it pip installable as `triton-pre-mlir`.
-  `attn_impl=triton` can then use `triton-pre-mlir` leaving the version of triton required for torch2 intact.
-
-#### Known issue with sm86+ GPUs
-- Under the hood, part of `triton-pre-mlir` compile path uses LLVM11.
-  H100 GPUs (sm90 GPUs) are not formally supported until LLVM15 (technically it doesn't support anything sm86+).
-  Updating the LLVM version used by `triton-pre-mlir` to LLVM13 seems to be relatively easy.
-  Updating to LLVM14 (or LLVM15) cannot be done because there are breaking changes.
-  What is the result of this? Although sm89+ is not **formally** supported until LLVM15, our testing on H100 GPUs shows that `attn_impl=triton` still works well and still runs fast. The only issue is that when the network is starting to run, LLVM might throw a warning like: `'sm_90' is not a recognized processor for this target (ignoring processor)`. This warning does not seem to affect performance.
 
 #### Support for FlashAttention-2
 - [FlashAttention-2](https://arxiv.org/pdf/2307.08691.pdf) improves upon FlashAttention to get even faster attention computation. LLM Foundry supports FlashAttention-2. Please follow the instructions [here](https://github.com/mosaicml/llm-foundry/tree/main/scripts/train#flashattention).
@@ -352,8 +334,8 @@ Currently we support [Learned Positional Embeddings](https://arxiv.org/pdf/1706.
 | Name                               | YAML Config                                                       | Training MFU on MPT-7B trained on 8 A100 80GB GPUs | Notes                                                                                                                                                                       |
 |:-----------------------------------|:------------------------------------------------------------------|:---------------------------------------------------:|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Learned Positional Embeddings      | <pre>model:<br>     learned_pos_emb:&nbsp;True</pre>| 65.7                                                |                                                                                                                                                                             |
-| ALiBi                              | <pre>model:<br>     attn_config:<br>         alibi:&nbsp;True</pre>| 64.5                                                |  Requires Flash (v2.4.2 or higher) or Triton or Torch attention.                                                                                                                                        |
-| RoPE (Dao-AILab Implementation)    | <pre>model:<br>     attn_config:<br>         rope:&nbsp;True<br>         rope_impl:&nbsp;dail</pre>| 64.5                                                | Requires a CUDA GPU and the [flash-attn library](https://github.com/Dao-AILab/flash-attention) v2.0.1 or higher to be installed. Please see the instructions in the [paragraph above](#support-for-flashattention-2) on how to install flash-attn v2. Note that the attention implementation can still be `torch`, `triton`, or `flash`. |
+| ALiBi                              | <pre>model:<br>     attn_config:<br>         alibi:&nbsp;True</pre>| 64.5                                                |  Requires Flash (v2.4.2 or higher) or Torch attention.                                                                                                                                        |
+| RoPE (Dao-AILab Implementation)    | <pre>model:<br>     attn_config:<br>         rope:&nbsp;True<br>         rope_impl:&nbsp;dail</pre>| 64.5                                                | Requires a CUDA GPU and the [flash-attn library](https://github.com/Dao-AILab/flash-attention) v2.0.1 or higher to be installed. Please see the instructions in the [paragraph above](#support-for-flashattention-2) on how to install flash-attn v2. Note that the attention implementation can still be `torch` or `flash`. |
 | RoPE (Hugging<code>&nbsp;</code>Face Implementation)  | <pre>model:<br>     attn_config:<br>         rope:&nbsp;True<br>         rope_impl:&nbsp;hf</pre>| 62.3                                                |                                                                                                                                                                             |
 
 ### Can I finetune using PEFT / LoRA?

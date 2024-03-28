@@ -154,7 +154,7 @@ class MPT125MConfig:
                 "max_seq_len": self.max_seq_len,
                 "vocab_size": 50368,
                 "attn_config": {
-                    "attn_impl": "triton"
+                    "attn_impl": "flash"
                 }
             },
             "tokenizer": {

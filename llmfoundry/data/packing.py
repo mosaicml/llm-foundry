@@ -8,6 +8,8 @@ from typing import Callable, Dict, Iterable, List, Literal, Optional, Tuple
 import numpy as np
 import torch
 from omegaconf import DictConfig
+from tqdm import tqdm
+from tqdm.contrib.logging import logging_redirect_tqdm
 from transformers import PreTrainedTokenizerBase
 
 log = logging.getLogger(__name__)
@@ -315,6 +317,8 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
     """
     from composer.utils import dist, get_device, reproducibility
 
+    log.debug('Searching for optimal packing ratio.')
+
     # Stash the rng state to restore later.
     rng_state = reproducibility.get_rng_state()
     # Set the seed so that auto packing is deterministic.
@@ -447,6 +451,10 @@ def profile_packing(
         waste_percent = 100 * packer.waste
         return padding_percent, waste_percent
 
-    for packing_ratio, raw_batch_size in zip(packing_ratios, raw_batch_sizes):
-        padding, waste = profile(raw_batch_size)
-        yield (packing_ratio, padding, waste)
+    with logging_redirect_tqdm(loggers=[log]):
+        for packing_ratio, raw_batch_size in (pbar := tqdm(
+                zip(packing_ratios, raw_batch_sizes),
+                desc='Profiling packing ratios')):
+            pbar.set_description_str(f'Profiling packing ratio {packing_ratio}')
+            padding, waste = profile(raw_batch_size)
+            yield (packing_ratio, padding, waste)

@@ -124,7 +124,7 @@ class MPT125MConfig:
                 {
                    'integration_type': 'git_repo',
                    'git_repo': 'shitaoli-db/llm-foundry',
-                   'git_branch': 'prototype-shitao',
+                   'git_branch': 'shitao.li@databricks.com/prototype-shitao',
                    'pip_install': '-e .[gpu]',
                    'ssh_clone': False
                 },

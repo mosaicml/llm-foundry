@@ -43,6 +43,7 @@ class UnknownExampleTypeError(KeyError):
     """Error thrown when an unknown example type is used in a task."""
 
     def __init__(self, example: Mapping) -> None:
+        self.example = example
         message = f'Unknown example type {example=}'
         super().__init__(message)
 
@@ -51,6 +52,8 @@ class TooManyKeysInExampleError(ValueError):
     """Error thrown when a data sample has too many keys."""
 
     def __init__(self, desired_keys: set[str], keys: set[str]) -> None:
+        self.desired_keys = desired_keys
+        self.keys = keys
         message = f'Data sample has {len(keys)} keys in `allowed_keys`: {desired_keys} Please specify exactly one. Provided keys: {keys}'
         super().__init__(message)
 
@@ -76,6 +79,8 @@ class InvalidLastChatMessageRoleError(ValueError):
     """Error thrown when the last message role in a chat example is invalid."""
 
     def __init__(self, last_role: str, expected_roles: set[str]) -> None:
+        self.last_role = last_role
+        self.expected_roles = expected_roles
         message = f'Invalid last message role: {last_role}. Expected one of: {expected_roles}'
         super().__init__(message)
 
@@ -151,6 +156,7 @@ class UnableToProcessPromptResponseError(ValueError):
     """Error thrown when a prompt and response cannot be processed."""
 
     def __init__(self, input: Dict) -> None:
+        self.input = input
         message = f'Unable to extract prompt/response from {input}'
         super().__init__(message)
 

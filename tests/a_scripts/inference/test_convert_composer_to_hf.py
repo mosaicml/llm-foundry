@@ -13,7 +13,7 @@ from unittest.mock import ANY, MagicMock, patch
 import pytest
 import torch
 import transformers
-from composer import Trainer
+from composer import ComposerModel, Trainer
 from composer.loggers import MLFlowLogger
 from composer.utils import dist, get_device
 from omegaconf import DictConfig
@@ -24,7 +24,6 @@ from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from llmfoundry.callbacks import HuggingFaceCheckpointer
 from llmfoundry.callbacks.hf_checkpointer import _maybe_get_license_filename
 from llmfoundry.data.finetuning import build_finetuning_dataloader
-from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
 from llmfoundry.utils.builders import (build_composer_model, build_optimizer,
                                        build_tokenizer)
 from scripts.inference.convert_composer_to_hf import convert_composer_to_hf
@@ -533,7 +532,7 @@ def _assert_checkpoint_equivalence(tmp_path: pathlib.Path,
                                    precision: torch.dtype,
                                    model: str,
                                    tokenizer: PreTrainedTokenizerBase,
-                                   original_model: ComposerMPTCausalLM,
+                                   original_model: ComposerModel,
                                    fsdp_state_dict_type: Optional[str] = None,
                                    peft_config: Optional[dict] = None):
     """Asserts the equivalence of checkpoints.
@@ -549,7 +548,7 @@ def _assert_checkpoint_equivalence(tmp_path: pathlib.Path,
         precision (torch.dtype): The precision of the model.
         model (str): The type of model ('mpt', 'neo', or 'llama2').
         tokenizer (PreTrainedTokenizerBase): The model tokenizer.
-        original_model (ComposerMPTCausalLM): The original model object.
+        original_model (ComposerModel): The original model object.
         fsdp_state_dict_type (Optional[str], optional): The type of FSDP state dict. Defaults to None.
         peft_config (Optional[dict], optional): The PEFT configuration. Defaults to None.
     """

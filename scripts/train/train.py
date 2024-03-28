@@ -23,22 +23,21 @@ from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from rich.traceback import install
 
+from llmfoundry.utils import (find_mosaicml_logger, log_train_analytics,
+                              maybe_create_mosaicml_logger)
+
 install()
-
-from transformers import PreTrainedTokenizerBase
-
-from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.callbacks import AsyncEval
 from llmfoundry.data.dataloader import build_dataloader
-from llmfoundry.registry import import_file
 from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_algorithm, build_callback,
-                                       build_evaluators, build_logger,
-                                       build_optimizer, build_scheduler,
-                                       build_tokenizer)
+                                       build_composer_model, build_evaluators,
+                                       build_logger, build_optimizer,
+                                       build_scheduler, build_tokenizer)
 from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device,
                                            update_batch_size_info)
+from llmfoundry.utils.registry_utils import import_file
 
 log = logging.getLogger(__name__)
 
@@ -59,43 +58,10 @@ def validate_config(cfg: DictConfig):
             loaders.append(eval_loader)
     for loader in loaders:
         if loader.name == 'text':
-            if cfg.model.name in ['hf_prefix_lm', 'hf_t5']:
+            if cfg.model.name == 'hf_t5':
                 raise ValueError(
                     f'Model type "{cfg.model.name}" is not supported when using the "text " ' +\
-                    f'dataloader. Please use the "text_denoising" dataloader to pre-train that model type.')
-        elif loader.name == 'text_denoising':
-            if cfg.model.name == 'hf_causal_lm':
-                raise ValueError(
-                    f'Model type "{cfg.model.name}" is not supported when using the "text_denoising" ' +\
-                    f'dataloader. Please use the "text" dataloader to pre-train that model type.')
-            if loader.mixture_of_denoisers.decoder_only_format and cfg.model.name == 'hf_t5':
-                warnings.warn(
-                    'Model type "hf_t5" requires `decoder_only_format` to be ``False``. ' +\
-                    'Overriding `decoder_only_format` from ``True`` to ``False``.')
-                loader.mixture_of_denoisers.decoder_only_format = False
-            if (not loader.mixture_of_denoisers.decoder_only_format
-               ) and cfg.model.name == 'hf_prefix_lm':
-                warnings.warn(
-                    'Model type "hf_prefix_lm" requires `decoder_only_format` to be ``True``. ' +\
-                    'Overriding `decoder_only_format` from ``False`` to ``True``.')
-                loader.mixture_of_denoisers.decoder_only_format = True
-        elif loader.name == 'finetuning':
-            if cfg.model.name == 'hf_prefix_lm':
-                is_prefix_lm = True
-            elif cfg.model.name == 'mpt_causal_lm':
-                is_prefix_lm = cfg.model.get('attn_config',
-                                             {}).get('prefix_lm', False)
-            else:
-                # Note: This only covers the two prefix-lms introduced in this repo
-                is_prefix_lm = False
-            target_responses = loader.dataset.get('target_responses', 'last')
-            target_prompts = loader.dataset.get('target_prompts', 'none')
-            prefix_lm_safe = target_responses == 'last' and target_prompts == 'none'
-            if is_prefix_lm and not prefix_lm_safe:
-                raise ValueError(
-                    'The model configuration is building a Prefix-LM, which requires that the finetuning ' +\
-                    'dataloader uses `target_responses`="last" and `target_prompts`="none".'
-                )
+                    f'dataloader. Only finetuning is supported.')
 
     if 'icl_tasks' in cfg:
         if cfg.model.name == 'hf_t5':
@@ -139,26 +105,7 @@ def validate_config(cfg: DictConfig):
         )
 
 
-def build_composer_model(model_cfg: DictConfig,
-                         tokenizer: PreTrainedTokenizerBase):
-    warnings.filterwarnings(
-        action='ignore',
-        message='Torchmetrics v0.9 introduced a new argument class property')
-    if model_cfg.name not in COMPOSER_MODEL_REGISTRY:
-        raise ValueError(
-            f'Not sure how to build model with name={model_cfg.name}')
-    return COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg, tokenizer)
-
-
 def main(cfg: DictConfig) -> Trainer:
-    # Filter deprecation warning from torch internal usage
-    warnings.filterwarnings(
-        action='ignore',
-        category=UserWarning,
-        message=
-        'torch.distributed.*_base is a private function and will be deprecated.*'
-    )
-
     # Run user provided code if specified
     code_paths = pop_config(cfg,
                             'code_paths',
@@ -168,6 +115,14 @@ def main(cfg: DictConfig) -> Trainer:
     # Import any user provided code
     for code_path in code_paths:
         import_file(code_path)
+
+    # Filter deprecation warning from torch internal usage
+    warnings.filterwarnings(
+        action='ignore',
+        category=UserWarning,
+        message=
+        'torch.distributed.*_base is a private function and will be deprecated.*'
+    )
 
     # Check for incompatibilities between the model and data loaders
     validate_config(cfg)
@@ -449,14 +404,11 @@ def main(cfg: DictConfig) -> Trainer:
         for name, logger_cfg in logger_configs.items()
     ] if logger_configs else []
 
-    mosaicml_logger = next(
-        (logger for logger in loggers if isinstance(logger, MosaicMLLogger)),
-        None)
+    mosaicml_logger = find_mosaicml_logger(loggers)
     if mosaicml_logger is None:
-        if os.environ.get(MOSAICML_PLATFORM_ENV_VAR, 'false').lower(
-        ) == 'true' and os.environ.get(MOSAICML_ACCESS_TOKEN_ENV_VAR):
-            # Adds mosaicml logger to composer if the run was sent from Mosaic platform, access token is set, and mosaic logger wasn't previously added
-            mosaicml_logger = MosaicMLLogger()
+        mosaicml_logger = maybe_create_mosaicml_logger()
+        if mosaicml_logger is not None:
+            # mosaicml_logger will be None if run isn't on MosaicML platform
             loggers.append(mosaicml_logger)
 
 
@@ -511,11 +463,16 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Dataloaders
     log.info('Building train loader...')
-    train_loader = build_dataloader(
-        train_loader_config,
-        tokenizer,
-        device_train_batch_size,
-    )
+    try:
+        train_loader = build_dataloader(
+            train_loader_config,
+            tokenizer,
+            device_train_batch_size,
+        )
+    except Exception as e:
+        if mosaicml_logger is not None:
+            mosaicml_logger.log_exception(e)
+        raise e
 
     if mosaicml_logger is not None:
         mosaicml_logger.log_metrics({'data_validated': time.time()})
@@ -544,15 +501,20 @@ def main(cfg: DictConfig) -> Trainer:
         if eval_gauntlet_callback is not None:
             callbacks.append(eval_gauntlet_callback)
 
+    if mosaicml_logger is not None:
+        log_train_analytics(mosaicml_logger, model_config, train_loader_config,
+                            eval_loader_config, callback_configs,
+                            tokenizer_name, load_path, icl_tasks_config,
+                            eval_gauntlet_config)
     # Build Model
     log.info('Initializing model...')
-    with init_context:
-        model = build_composer_model(model_config, tokenizer)
-
-        if model_config.get('master_weights_dtype') in ('bf16', 'bfloat16'):
-            model = model.to(dtype=torch.bfloat16)
-        elif model_config.get('master_weights_dtype') in ('f16', 'float16'):
-            model = model.to(dtype=torch.float16)
+    model = build_composer_model(
+        name=model_config.name,
+        cfg=model_config,
+        tokenizer=tokenizer,
+        init_context=init_context,
+        master_weights_dtype=model_config.get('master_weights_dtype', None),
+    )
 
     # Log number of parameters
     n_params = sum(p.numel() for p in model.parameters())
@@ -568,13 +530,19 @@ def main(cfg: DictConfig) -> Trainer:
     optimizer = build_optimizer(model, optimizer_name, optimizer_config)
 
     # Now add the eval metrics
-    if eval_loader_config is not None and not use_async_eval:
-        eval_metrics = model.get_metrics(is_train=False)
-        non_icl_metrics = [
-            metric_name for metric_name, metric in eval_metrics.items()
-            if not isinstance(metric, InContextLearningMetric)
-        ]
-        evaluators = add_metrics_to_eval_loaders(evaluators, non_icl_metrics)
+    try:
+        if eval_loader_config is not None and not use_async_eval:
+            eval_metrics = model.get_metrics(is_train=False)
+            non_icl_metrics = [
+                metric_name for metric_name, metric in eval_metrics.items()
+                if not isinstance(metric, InContextLearningMetric)
+            ]
+            evaluators = add_metrics_to_eval_loaders(evaluators,
+                                                     non_icl_metrics)
+    except Exception as e:
+        if mosaicml_logger is not None:
+            mosaicml_logger.log_exception(e)
+        raise e
 
     # Build the Trainer
     log.info('Building trainer...')

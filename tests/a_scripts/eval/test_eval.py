@@ -11,8 +11,8 @@ import pytest
 from composer import Trainer
 from composer.loggers import InMemoryLogger
 
-from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.utils import build_tokenizer
+from llmfoundry.utils.builders import build_composer_model
 from scripts.eval.eval import main  # noqa: E402
 from tests.data_utils import (create_arxiv_dataset, create_c4_dataset_xxsmall,
                               gpt_tiny_cfg)
@@ -47,8 +47,12 @@ def mock_saved_model_path(eval_cfg: Union[om.ListConfig, om.DictConfig]):
     tokenizer = build_tokenizer(model_cfg.tokenizer.name,
                                 model_cfg.tokenizer.get('kwargs', {}))
     # build model
-    model = COMPOSER_MODEL_REGISTRY[model_cfg.model.name](model_cfg.model,
-                                                          tokenizer)
+    model = build_composer_model(
+        name=model_cfg.model.name,
+        cfg=model_cfg.model,
+        tokenizer=tokenizer,
+    )
+
     # create mocked save checkpoint
     trainer = Trainer(model=model, device=device)
     saved_model_path = os.path.join(os.getcwd(), 'test_model.pt')

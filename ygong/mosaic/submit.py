@@ -72,24 +72,24 @@ def _init_connection():
         
 
 def get_experiment_run_url(tracking_uri: Optional[str], experiment_name: str, run_name: str):
-      if tracking_uri is None:
-          raise ValueError("tracking_uri must be provided")
-      mlflow.set_tracking_uri(tracking_uri)
-      tracking_uri = tracking_uri.rstrip("/")
-      experiment = mlflow.get_experiment_by_name(name=experiment_name)
-      if experiment is None:
-          raise ValueError(f"experiment {experiment_name} does not exist")
-      experiment_id = experiment.experiment_id
-      runs = mlflow.search_runs(experiment_ids=[experiment_id],
-                                                   filter_string=f'tags.composer_run_name = "{run_name}"',
-                                                   output_format='list')
-      if len(runs) == 0:
-            raise ValueError(f"run {run_name} does not exist in experiment {experiment_name}")
-      elif len(runs) > 1:
-            raise ValueError(f"multiple runs {run_name} exist in experiment {experiment_name}")
-      else:
-            run_id = runs[0].info.run_id
-            return f"{tracking_uri}/ml/experiments/{experiment_id}/runs/{run_id}"
+    if tracking_uri is None:
+        raise ValueError("tracking_uri must be provided")
+    mlflow.set_tracking_uri(tracking_uri)
+    tracking_uri = tracking_uri.rstrip("/")
+    experiment = mlflow.get_experiment_by_name(name=experiment_name)
+    if experiment is None:
+        raise ValueError(f"experiment {experiment_name} does not exist")
+    experiment_id = experiment.experiment_id
+    runs = mlflow.search_runs(experiment_ids=[experiment_id],
+                                                filter_string=f'tags.composer_run_name = "{run_name}"',
+                                                output_format='list')
+    if len(runs) == 0:
+        return None
+    elif len(runs) > 1:
+        raise ValueError(f"multiple runs {run_name} exist in experiment {experiment_name}")
+    else:
+        run_id = runs[0].info.run_id
+        return f"{tracking_uri}/ml/experiments/{experiment_id}/runs/{run_id}"
 
 
 def _get_run_summary(run: Run, experiment_name: Optional[str] = None):
@@ -169,6 +169,15 @@ def submit(config: any, scalingConfig: ScalingConfig, sync: bool = False, debug:
     _display_run_summary(_get_run_summary(run, mlflow_experiment_name), button)
     run = _wait_for_run_status(run, RunStatus.RUNNING)
 
+    def _wait_for_run_finish(run: Run):
+        run_name = run.name
+        while not run.status.is_terminal():
+            run =  get_run(run_name)
+            _display_run_summary(_get_run_summary(run, mlflow_experiment_name), button)
+            time.sleep(5)
+        logger.debug(f"finish waiting run reached terminal")
+        return run
+
     try_count = 0
     while try_count < 10:
         try_count += 1
@@ -187,7 +196,7 @@ def submit(config: any, scalingConfig: ScalingConfig, sync: bool = False, debug:
 
     if sync:
         logger.debug(f"synchronously waiting for the run to finish.")
-        run = _wait_for_run_status(run, RunStatus.TERMINATING, inclusive=False)
+        run = _wait_for_run_finish(run)
         _display_run_summary(_get_run_summary(run, mlflow_experiment_name), None)
     
     return run

@@ -408,6 +408,7 @@ def main(cfg: DictConfig) -> Trainer:
             # mosaicml_logger will be None if run isn't on MosaicML platform
             loggers.append(mosaicml_logger)
 
+
     if metadata is not None:
         # Flatten the metadata for logging
         logged_cfg.pop('metadata', None)

@@ -14,6 +14,8 @@ import torch
 from composer.core import Algorithm, Callback, Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
+from composer.loggers import (InMemoryLogger, LoggerDestination,
+                              TensorboardLogger, WandBLogger)
 from composer.loggers import LoggerDestination
 from composer.models import ComposerModel
 from composer.optim.scheduler import ComposerScheduler
@@ -23,6 +25,8 @@ from omegaconf import OmegaConf as om
 from torch.optim.optimizer import Optimizer
 from torchmetrics import Metric
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
+
+from llmfoundry.composerpatch import MLFlowLogger
 
 from llmfoundry import registry
 from llmfoundry.callbacks import EvalGauntlet
@@ -236,15 +240,19 @@ def build_callback(
                                    kwargs=kwargs)
 
 
-def build_logger(name: str,
-                 kwargs: Optional[Dict[str, Any]] = None) -> LoggerDestination:
-    """Builds a logger from the registry."""
-    return construct_from_registry(name=name,
-                                   registry=registry.loggers,
-                                   partial_function=True,
-                                   pre_validation_function=LoggerDestination,
-                                   post_validation_function=None,
-                                   kwargs=kwargs)
+def build_logger(name: str, kwargs: Dict[str, Any]) -> LoggerDestination:
+    if name == 'wandb':
+        return WandBLogger(**kwargs)
+    elif name == 'tensorboard':
+        return TensorboardLogger(**kwargs)
+    elif name == 'in_memory_logger':
+        return InMemoryLogger(**kwargs)
+    elif name == 'mlflow':
+        return MLFlowLogger.MLFlowLogger(**kwargs)
+    elif name == 'inmemory':
+        return InMemoryLogger(**kwargs)
+    else:
+        raise ValueError(f'Not sure how to build logger: {name}')
 
 
 def build_algorithm(name: str,

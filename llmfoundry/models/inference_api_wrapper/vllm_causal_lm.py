@@ -86,11 +86,13 @@ class VLLMCausalLMEvalWrapper(VLLMEvalInterface):
             assert 'continuation_indices' in batch
             output_logits_batch = []
             prompts = []
+            max_length = 0
             for tokens, cont_idxs in zip(batch['input_ids'],
                                          batch['continuation_indices']):
                 prompts.append(tokens[0:cont_idxs[-1] + 1].tolist())
+                max_length = max(max_length, cont_idxs[-1])
         
-            sampling_params = vllm.SamplingParams(temperature=0.8, top_p=1, max_tokens=1, prompt_logprobs=1, logprobs=1)
+            sampling_params = vllm.SamplingParams(top_k=1, max_tokens=1)
 
             with torch.no_grad():
                 with torch.cuda.amp.autocast(enabled=False):
@@ -99,28 +101,15 @@ class VLLMCausalLMEvalWrapper(VLLMEvalInterface):
             for tokens, cont_idxs, result in zip(batch['input_ids'],
                                         batch['continuation_indices'],
                                         results):
-                
-                seqlen = tokens.shape[0]
-                vocab_size = result.prompt_all_logprobs[0].shape[0]
-
-                output_logits = torch.nn.functional.one_hot(
-                    torch.tensor(tokens[1:cont_idxs[0]]),
-                    num_classes=vocab_size)
-                
-                result_logits = []
-                for i in range(cont_idxs[0], cont_idxs[-1] + 1):
-                    result_logits.append(result.prompt_all_logprobs[i-1].cpu())
-
-                result_logits = torch.stack(result_logits)
+                result_seqlen, vocab_size = result.prompt_logits.shape
+                assert result_seqlen == cont_idxs[-1] + 1
+ 
+                result_logits = torch.narrow(result.prompt_logits, 0, 0, cont_idxs[-1])
 
                 padding = torch.nn.functional.one_hot(
-                    torch.full((seqlen - cont_idxs[-1] - 1,), padding_tok),
-                    num_classes=vocab_size)
-                
-                output_logits = output_logits.cpu()
-                result_logits = result_logits.cpu()
-                padding = padding.cpu()
-                output_logits = torch.cat([output_logits, result_logits, padding])
+                    torch.full((max_length - cont_idxs[-1],), padding_tok),
+                    num_classes=vocab_size, ).to(result_logits.device)
+                output_logits = torch.cat([result_logits, padding])
                 output_logits_batch.append(output_logits)
 
             return torch.stack(output_logits_batch).to(batch['input_ids'].device) 

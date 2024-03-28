@@ -141,7 +141,7 @@ def parse_args():
                         nargs='+',
                         help='model sizes to test')
 
-    parser.add_argument('--attn_impl', type=str, default='triton')
+    parser.add_argument('--attn_impl', type=str, default='flash')
 
     parser.add_argument('-c',
                         '--clusters',

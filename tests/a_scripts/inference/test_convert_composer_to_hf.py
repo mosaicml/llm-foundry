@@ -503,19 +503,6 @@ def _get_fsdp_config(fsdp_state_dict_type: Optional[str]):
     return fsdp_config
 
 
-def _get_fsdp_config(fsdp_state_dict_type: Optional[str]):
-    fsdp_config = {
-        'sharding_strategy': 'FULL_SHARD',
-        'mixed_precision': 'PURE',
-        'activation_checkpointing': False,
-        'activation_checkpointing_reentrant': False,
-        'activation_cpu_offload': False,
-        'limit_all_gathers': True,
-        'state_dict_type': fsdp_state_dict_type,
-    }
-    return fsdp_config
-
-
 def _get_dataloader_cfg(tiny_dataset_folder_path: str, max_seq_len: int):
     dataloader_cfg = {
         'name': 'finetuning',

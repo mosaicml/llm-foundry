@@ -123,8 +123,8 @@ class MPT125MConfig:
             integrations=[
                 {
                    'integration_type': 'git_repo',
-                   'git_repo': 'ygong1/llm-foundry',
-                   'git_branch': 'prototype',
+                   'git_repo': 'shitaoli-db/llm-foundry',
+                   'git_branch': 'prototype-shitao',
                    'pip_install': '-e .[gpu]',
                    'ssh_clone': False
                 },

@@ -141,7 +141,8 @@ def main(cfg: DictConfig) -> Trainer:
     if expandeable_segments:
         cuda_alloc_conf.append('expandeable_segments:True')
 
-    os.environ['PYTORCH_CUDA_ALLOC_CONF'] = ','.join(cuda_alloc_conf)
+    if len(cuda_alloc_conf) > 0:
+        os.environ['PYTORCH_CUDA_ALLOC_CONF'] = ','.join(cuda_alloc_conf)
 
     # Set CUDA lazy loading
     # This can save a bit of memory if not all modules are needed

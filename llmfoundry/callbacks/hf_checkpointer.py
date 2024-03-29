@@ -9,8 +9,10 @@ import os
 import re
 import tempfile
 from pathlib import Path
+import time
 from typing import Any, Dict, List, Optional, Sequence, Union
 
+from mlflow import MlflowException
 import torch
 from composer.core import Callback, Event, State, Time, TimeUnit
 from composer.core.state import fsdp_state_dict_type_context
@@ -171,7 +173,7 @@ def _save_hf_checkpoint(save_path: str, model: PreTrainedModel,
         )
 
 
-def _register_hf_checkpoint_to_mlflow(
+def _register_mlflow_model(
         mlflow_loggers: List[MLFlowLogger], logging_config: dict,
         registered_model_name: str, model: PreTrainedModel,
         tokenizer: Optional[PreTrainedTokenizerBase], local_save_path: str,
@@ -190,6 +192,7 @@ def _register_hf_checkpoint_to_mlflow(
         # TODO: Remove after mlflow fixes the bug that makes this necessary
         import mlflow
         mlflow.store._unity_catalog.registry.rest_store.get_feature_dependencies = lambda *args, **kwargs: ''
+
         model_saving_kwargs: Dict[str, Any] = {'path': local_save_path}
         if using_peft:
             model_saving_kwargs['flavor'] = 'peft'
@@ -425,10 +428,21 @@ class HuggingFaceCheckpointer(Callback):
                         )
 
             dist.barrier()
+
             if self.mlflow_registered_model_name and self._is_last_batch(
                 state):
+                # def get_last_updated_timestamp(logger: MLFlowLogger) -> Optional[int]:
+                #     from mlflow.protos.databricks_pb2 import RESOURCE_ALREADY_EXISTS, ErrorCode
+                #     try:
+                #         return logger._mlflow_client.get_registered_model(f'{logger.model_registry_prefix}.{self.mlflow_registered_model_name}').last_updated_timestamp
+                #     except MlflowException as e:
+                #         print('error code', e.error_code)
+                #         return None
+                # # TODO: Make timestamp helper on mlflow logger
+                # get_last_updated = lambda: [get_last_updated_timestamp(mlflow_logger) for mlflow_logger in self.mlflow_loggers]
+                # last_updated = get_last_updated()
                 if dist.get_global_rank() == 0:
-                    _register_hf_checkpoint_to_mlflow(
+                    _register_mlflow_model(
                         mlflow_loggers=self.mlflow_loggers,
                         logging_config=self.mlflow_logging_config,
                         registered_model_name=self.mlflow_registered_model_name,
@@ -437,3 +451,8 @@ class HuggingFaceCheckpointer(Callback):
                         local_save_path=temp_save_dir,
                         using_peft=using_peft,
                     )
+                # else:
+                #     while any([last_updated[i] == timestamp for i, timestamp in enumerate(get_last_updated())]):
+                #         time.sleep(60)
+
+            dist.barrier()

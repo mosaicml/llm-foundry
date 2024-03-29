@@ -445,27 +445,10 @@ def _assert_mlflow_logger_calls(mlflow_logger_mock: MagicMock,
                 'flavor': 'peft',
                 'path': ANY,
                 'save_pretrained_dir': ANY,
-                'metadata': {
-                    'task': 'llm/v1/completions'
-                }
+                'metadata': {},
             }
         else:
             import numpy as np
-            from mlflow.models.signature import ModelSignature
-            from mlflow.types.schema import ColSpec, Schema
-
-            input_schema = Schema([
-                ColSpec('string', 'prompt'),
-                ColSpec('double', 'temperature', optional=True),
-                ColSpec('integer', 'max_tokens', optional=True),
-                ColSpec('string', 'stop', optional=True),
-                ColSpec('integer', 'candidate_count', optional=True)
-            ])
-
-            output_schema = Schema([ColSpec('string', 'predictions')])
-
-            default_signature = ModelSignature(inputs=input_schema,
-                                               outputs=output_schema)
 
             default_input_example = {
                 'prompt': np.array(['What is Machine Learning?'])
@@ -475,12 +458,9 @@ def _assert_mlflow_logger_calls(mlflow_logger_mock: MagicMock,
                 'flavor': 'transformers',
                 'transformers_model': ANY,
                 'path': ANY,
-                'task': 'text-generation',
-                'signature': default_signature,
+                'task': 'llm/v1/completions',
                 'input_example': default_input_example,
-                'metadata': {
-                    'task': 'llm/v1/completions'
-                }
+                'metadata': {}
             }
         mlflow_logger_mock.save_model.assert_called_with(**expectation)
         assert mlflow_logger_mock.register_model_with_run_id.call_count == 1

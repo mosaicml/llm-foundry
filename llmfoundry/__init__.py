@@ -20,26 +20,21 @@ new_files_warning_filter = SpecificWarningFilter(
 hf_dynamic_modules_logger.addFilter(new_files_warning_filter)
 
 from llmfoundry import algorithms, callbacks, loggers, optim, registry, utils
-from llmfoundry.data import (ConcatTokensDataset, MixtureOfDenoisersCollator,
-                             NoConcatDataset, Seq2SeqFinetuningCollator,
-                             build_finetuning_dataloader,
-                             build_text_denoising_dataloader)
-from llmfoundry.models.hf import (ComposerHFCausalLM, ComposerHFPrefixLM,
-                                  ComposerHFT5)
+from llmfoundry.data import (ConcatTokensDataset, NoConcatDataset,
+                             Seq2SeqFinetuningCollator,
+                             build_finetuning_dataloader)
+from llmfoundry.models.hf import ComposerHFCausalLM, ComposerHFT5
 from llmfoundry.models.layers.attention import (
     MultiheadAttention, attn_bias_shape, build_alibi_bias, build_attn_bias,
-    flash_attn_fn, scaled_multihead_dot_product_attention, triton_flash_attn_fn)
+    flash_attn_fn, scaled_multihead_dot_product_attention)
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY, MPTMLP, build_ffn
-from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.models.mpt import (ComposerMPTCausalLM, MPTConfig,
                                    MPTForCausalLM, MPTModel, MPTPreTrainedModel)
 from llmfoundry.tokenizers import TiktokenTokenizerWrapper
 
 __all__ = [
-    'build_text_denoising_dataloader',
     'build_finetuning_dataloader',
-    'MixtureOfDenoisersCollator',
     'Seq2SeqFinetuningCollator',
     'MPTBlock',
     'FFN_CLASS_REGISTRY',
@@ -51,12 +46,9 @@ __all__ = [
     'MPTForCausalLM',
     'ComposerMPTCausalLM',
     'ComposerHFCausalLM',
-    'ComposerHFPrefixLM',
     'ComposerHFT5',
-    'COMPOSER_MODEL_REGISTRY',
     'scaled_multihead_dot_product_attention',
     'flash_attn_fn',
-    'triton_flash_attn_fn',
     'MultiheadAttention',
     'NoConcatDataset',
     'ConcatTokensDataset',
@@ -72,4 +64,4 @@ __all__ = [
     'registry',
 ]
 
-__version__ = '0.6.0'
+__version__ = '0.7.0'

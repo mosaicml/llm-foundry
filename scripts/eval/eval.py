@@ -11,21 +11,20 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import torch
+from composer.core import Callback
 from composer.loggers.logger_destination import LoggerDestination
-from composer.models.base import ComposerModel
 from composer.trainer import Trainer
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from rich.traceback import install
-from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.utils import (find_mosaicml_logger, log_eval_analytics,
                               maybe_create_mosaicml_logger)
 
 install()
-from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
+                                       build_callback, build_composer_model,
                                        build_evaluators, build_logger,
                                        build_tokenizer)
 from llmfoundry.utils.config_utils import (log_config, pop_config,
@@ -33,30 +32,6 @@ from llmfoundry.utils.config_utils import (log_config, pop_config,
 from llmfoundry.utils.registry_utils import import_file
 
 log = logging.getLogger(__name__)
-
-
-def load_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
-               fsdp_config: Optional[Dict], num_retries: int) -> ComposerModel:
-    init_context = process_init_device(model_cfg, fsdp_config)
-
-    retries = 0
-    composer_model = None
-    with init_context:
-        while retries < num_retries and composer_model is None:
-            try:
-                composer_model = COMPOSER_MODEL_REGISTRY[model_cfg.name](
-                    model_cfg, tokenizer)
-            except Exception as e:
-                retries += 1
-                if retries >= num_retries:
-                    raise e
-                else:
-                    log.info(
-                        f'Got exception {str(e)} while loading model {model_cfg.name}. {num_retries-retries} retries remaining'
-                    )
-
-    assert composer_model is not None
-    return composer_model
 
 
 def evaluate_model(
@@ -70,13 +45,13 @@ def evaluate_model(
     eval_gauntlet_config: Optional[Union[str, DictConfig]],
     eval_loader_config: Optional[Union[DictConfig, ListConfig]],
     fsdp_config: Optional[Dict],
-    num_retries: int,
     loggers: List[LoggerDestination],
     python_log_level: Optional[str],
     precision: str,
     eval_gauntlet_df: Optional[pd.DataFrame],
     eval_subset_num_batches: int,
     icl_subset_num_batches: Optional[int],
+    callback_configs: Optional[DictConfig],
     metadata: Optional[Dict[str, str]],
     logged_config: DictConfig,
     should_log_config: bool = True,
@@ -101,7 +76,12 @@ def evaluate_model(
         icl_subset_num_batches=icl_subset_num_batches,
     )
 
-    callbacks = []
+    # Callbacks
+    callbacks: List[Callback] = [
+        build_callback(str(name), callback_cfg)
+        for name, callback_cfg in callback_configs.items()
+    ] if callback_configs else []
+
     if eval_gauntlet_callback is not None:
         callbacks.append(eval_gauntlet_callback)
 
@@ -118,8 +98,14 @@ def evaluate_model(
             'The FSDP config block is not supported when loading ' +
             'Hugging Face models in 8bit.')
 
-    composer_model = load_model(model_cfg.model, tokenizer, fsdp_config,
-                                num_retries)
+    init_context = process_init_device(model_cfg.model, fsdp_config)
+
+    composer_model = build_composer_model(
+        name=model_cfg.model.name,
+        cfg=model_cfg.model,
+        tokenizer=tokenizer,
+        init_context=init_context,
+    )
 
     # Now add the eval metrics
     if eval_loader_config is not None:
@@ -236,10 +222,6 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
                                'run_name',
                                must_exist=False,
                                default_value=default_run_name)
-    num_retries: int = pop_config(cfg,
-                                  'num_retries',
-                                  must_exist=False,
-                                  default_value=3)
     loggers_cfg: Dict[str, Any] = pop_config(cfg,
                                              'loggers',
                                              must_exist=False,
@@ -264,6 +246,10 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
 
     # Pop out interpolation variables.
     pop_config(cfg, 'model_name_or_path', must_exist=False, default_value=None)
+    callback_configs: Optional[DictConfig] = pop_config(cfg,
+                                                        'callbacks',
+                                                        must_exist=False,
+                                                        default_value=None)
 
     # Warn for unused parameters
     for key in cfg:
@@ -318,11 +304,11 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
              eval_gauntlet_config=eval_gauntlet_config,
              eval_loader_config=eval_loader_config,
              fsdp_config=fsdp_config,
-             num_retries=num_retries,
              loggers=loggers,
              python_log_level=python_log_level,
              precision=precision,
              eval_gauntlet_df=eval_gauntlet_df,
+             callback_configs=callback_configs,
              eval_subset_num_batches=eval_subset_num_batches,
              icl_subset_num_batches=icl_subset_num_batches,
              metadata=metadata,

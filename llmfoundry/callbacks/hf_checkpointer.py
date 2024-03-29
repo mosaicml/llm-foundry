@@ -9,7 +9,7 @@ import os
 import re
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 import torch
 from composer.core import Callback, Event, State, Time, TimeUnit
@@ -21,6 +21,7 @@ from composer.utils import (dist, format_name_with_dist_and_time,
                             parse_uri)
 from composer.utils.misc import create_interval_scheduler
 from mlflow.transformers import _fetch_model_card, _write_license_information
+from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
@@ -70,6 +71,152 @@ def _maybe_get_license_filename(
 
     except StopIteration:
         return None
+
+
+def _using_peft(state: State) -> bool:
+    if state.is_model_ddp:
+        return state.model.module.using_peft
+    elif isinstance(state.model.model, FSDP):
+        return state.model.using_peft
+    return state.model.using_peft
+
+
+def _get_original_model(state: State) -> PreTrainedModel:
+    if state.is_model_ddp:
+        return state.model.module.model
+    elif isinstance(state.model.model, FSDP):
+        return state.model.model.module
+    else:
+        return state.model.model
+
+
+def _get_original_tokenizer(state: State) -> Optional[PreTrainedTokenizerBase]:
+    if state.is_model_ddp:
+        return state.model.module.tokenizer
+    elif isinstance(state.model.model, FSDP):
+        return state.model.tokenizer
+    else:
+        return state.model.tokenizer
+
+
+def _get_state_dict(state: State,
+                    original_model: PreTrainedModel) -> Dict[str, Any]:
+    if state.is_model_ddp:
+        state_dict_model = state.model.module.model
+    elif isinstance(state.model.model, FSDP):
+        state_dict_model = state.model.model
+    else:
+        state_dict_model = state.model.model
+
+    state_dict_context = fsdp_state_dict_type_context(
+        original_model, state_dict_type='full') if (
+            (not state.is_model_ddp) and
+            isinstance(state_dict_model, FSDP)) else contextlib.nullcontext()
+
+    with state_dict_context:
+        state_dict = state_dict_model.state_dict()
+    return state_dict
+
+
+def _new_model_instance(original_model: PreTrainedModel, using_peft: bool,
+                        state_dict: Dict[str, Any],
+                        dtype: torch.dtype) -> PreTrainedModel:
+    copied_config = copy.deepcopy(original_model.config)
+    if copied_config.model_type == 'mpt':
+        copied_config.attn_config['attn_impl'] = 'torch'
+        copied_config.init_device = 'cpu'
+
+    log.debug(f'Creating new model instance')
+
+    if using_peft:
+        # We don't use meta here because the state dict does not contain the full
+        # model, only the adapter weights.
+        active_adapter = original_model.active_adapter
+        base_model = original_model.get_base_model()
+        new_base_model_instance = type(base_model)(copied_config)
+
+        new_model_instance = type(original_model)(
+            new_base_model_instance, original_model.peft_config[active_adapter])
+        new_model_instance.to(dtype=dtype)
+    else:
+        # First create the model instance on meta device to avoid the
+        # initialization cost.
+        with init_empty_weights():
+            new_model_instance = type(original_model)(copied_config)
+
+    # convert the state dict to the requested precision
+    for k, v in state_dict.items():
+        if isinstance(v, torch.Tensor):
+            state_dict[k] = v.to(dtype=dtype)
+
+    # Then load the state dict in with "assign" so that the state dict
+    # is loaded properly even though the model is initially on meta device.
+    new_model_instance.load_state_dict(state_dict, assign=True)
+    return new_model_instance
+
+
+def _save_hf_checkpoint(save_path: str, model: PreTrainedModel,
+                        tokenizer: Optional[PreTrainedTokenizerBase],
+                        flatten_imports: Sequence[str]):
+    model.save_pretrained(save_path)
+    if tokenizer is not None:
+        tokenizer.save_pretrained(save_path)
+
+    # Only need to edit files for MPT because it has custom code
+    if model.config.model_type == 'mpt':
+        log.debug('Editing MPT files for HuggingFace compatibility')
+        edit_files_for_hf_compatibility(
+            save_path,
+            flatten_imports,
+        )
+
+
+def _register_hf_checkpoint_to_mlflow(
+        mlflow_loggers: List[MLFlowLogger], logging_config: dict,
+        registered_model_name: str, model: PreTrainedModel,
+        tokenizer: Optional[PreTrainedTokenizerBase], local_save_path: str,
+        using_peft: bool):
+    components = {'model': model}
+    if tokenizer is not None:
+        components['tokenizer'] = tokenizer
+
+    log.debug('Logging Hugging Face model to MLFlow')
+    for i, mlflow_logger in enumerate(mlflow_loggers):
+        log.debug(
+            f'Registering model to UC at {mlflow_logger.model_registry_prefix}.{registered_model_name}'
+        )
+        local_save_path = str(Path(local_save_path) / f'mlflow_save_{i}')
+
+        # TODO: Remove after mlflow fixes the bug that makes this necessary
+        import mlflow
+        mlflow.store._unity_catalog.registry.rest_store.get_feature_dependencies = lambda *args, **kwargs: ''
+        model_saving_kwargs: Dict[str, Any] = {'path': local_save_path}
+        if using_peft:
+            model_saving_kwargs['flavor'] = 'peft'
+            model_saving_kwargs['save_pretrained_dir'] = local_save_path
+            model_saving_kwargs['metadata'] = logging_config['metadata']
+        else:
+            model_saving_kwargs['flavor'] = 'transformers'
+            model_saving_kwargs['transformers_model'] = components
+            model_saving_kwargs.update(logging_config)
+
+        mlflow_logger.save_model(**model_saving_kwargs)
+
+        # Upload the license file generated by mlflow during the model saving.
+        license_filename = _maybe_get_license_filename(
+            local_save_path,
+            logging_config['metadata'].get('pretrained_model_name', None))
+        if license_filename is not None:
+            mlflow_logger._mlflow_client.log_artifact(
+                mlflow_logger._run_id,
+                os.path.join(local_save_path, license_filename),
+            )
+
+        mlflow_logger.register_model_with_run_id(
+            model_uri=local_save_path,
+            name=registered_model_name,
+            await_creation_for=3600,
+        )
 
 
 class HuggingFaceCheckpointer(Callback):
@@ -244,84 +391,23 @@ class HuggingFaceCheckpointer(Callback):
                               str)  # pyright doesn't know about enter_result
 
             log.debug('Gathering state dict')
-            from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 
-            if state.is_model_ddp:
-                composer_model = state.model.module
-                original_model: PreTrainedModel = state.model.module.model
-                state_dict_model = state.model.module.model
-                original_tokenizer = state.model.module.tokenizer
-            elif isinstance(state.model.model, FSDP):
-                composer_model = state.model
-                original_model: PreTrainedModel = state.model.model.module
-                state_dict_model = state.model.model
-                original_tokenizer = state.model.tokenizer
-            else:
-                composer_model = state.model
-                original_model: PreTrainedModel = state.model.model
-                state_dict_model = state.model.model
-                original_tokenizer = state.model.tokenizer
-
-            state_dict_context = fsdp_state_dict_type_context(
-                original_model, state_dict_type='full') if (
-                    (not state.is_model_ddp) and isinstance(
-                        state_dict_model, FSDP)) else contextlib.nullcontext()
-
-            with state_dict_context:
-                state_dict = state_dict_model.state_dict()
-
-                # convert the state dict to the requested precision
-                for k, v in state_dict.items():
-                    if isinstance(v, torch.Tensor):
-                        state_dict[k] = v.to(dtype=self.dtype)
+            original_model = _get_original_model(state)
+            original_tokenizer = _get_original_tokenizer(state)
+            state_dict = _get_state_dict(state, original_model)
+            using_peft = _using_peft(state)
 
             if dist.get_global_rank() == 0:
                 log.debug('Saving Hugging Face checkpoint in global rank 0')
 
-                copied_config = copy.deepcopy(original_model.config)
-                if copied_config.model_type == 'mpt':
-                    copied_config.attn_config['attn_impl'] = 'torch'
-                    copied_config.init_device = 'cpu'
-
-                log.debug(f'Creating new model instance')
-
-                if composer_model.using_peft:
-                    # We don't use meta here because the state dict does not contain the full
-                    # model, only the adapter weights.
-                    active_adapter = original_model.active_adapter
-                    base_model = original_model.get_base_model()
-                    new_base_model_instance = type(base_model)(copied_config)
-
-                    new_model_instance = type(original_model)(
-                        new_base_model_instance,
-                        original_model.peft_config[active_adapter])
-                    new_model_instance.to(dtype=self.dtype)
-                else:
-                    # First create the model instance on meta device to avoid the
-                    # initialization cost.
-                    with init_empty_weights():
-                        new_model_instance = type(original_model)(copied_config)
-
-                # Then load the state dict in with "assign" so that the state dict
-                # is loaded properly even though the model is initially on meta device.
-                new_model_instance.load_state_dict(state_dict, assign=True)
+                new_model_instance = _new_model_instance(
+                    original_model, using_peft, state_dict, self.dtype)
                 del state_dict
 
                 log.debug('Saving Hugging Face checkpoint to disk')
-                new_model_instance.save_pretrained(temp_save_dir)
-                if original_tokenizer is not None:
-                    assert isinstance(original_tokenizer,
-                                      PreTrainedTokenizerBase)
-                    original_tokenizer.save_pretrained(temp_save_dir)
-
-                # Only need to edit files for MPT because it has custom code
-                if original_model.config.model_type == 'mpt':
-                    log.debug('Editing MPT files for HuggingFace compatibility')
-                    edit_files_for_hf_compatibility(
-                        temp_save_dir,
-                        self.flatten_imports,
-                    )
-
+                _save_hf_checkpoint(temp_save_dir, new_model_instance,
+                                    original_tokenizer, self.flatten_imports)
+                
                 if self.remote_ud is not None:
                     for filename in os.listdir(temp_save_dir):
                         remote_file_name = os.path.join(save_dir, filename)
@@ -338,55 +424,16 @@ class HuggingFaceCheckpointer(Callback):
                             overwrite=self.overwrite,
                         )
 
-                if self.mlflow_registered_model_name and self._is_last_batch(
-                        state):
-                    components = {'model': new_model_instance}
-                    if original_tokenizer is not None:
-                        components['tokenizer'] = original_tokenizer
-
-                    log.debug('Logging Hugging Face model to MLFlow')
-                    for i, mlflow_logger in enumerate(self.mlflow_loggers):
-                        log.debug(
-                            f'Registering model to UC at {mlflow_logger.model_registry_prefix}.{self.mlflow_registered_model_name}'
-                        )
-                        local_save_path = str(
-                            Path(temp_save_dir) / f'mlflow_save_{i}')
-
-                        # TODO: Remove after mlflow fixes the bug that makes this necessary
-                        import mlflow
-                        mlflow.store._unity_catalog.registry.rest_store.get_feature_dependencies = lambda *args, **kwargs: ''
-                        model_saving_kwargs: Dict[str, Any] = {
-                            'path': local_save_path
-                        }
-                        if composer_model.using_peft:
-                            model_saving_kwargs['flavor'] = 'peft'
-                            model_saving_kwargs[
-                                'save_pretrained_dir'] = temp_save_dir
-                            model_saving_kwargs[
-                                'metadata'] = self.mlflow_logging_config[
-                                    'metadata']
-                        else:
-                            model_saving_kwargs['flavor'] = 'transformers'
-                            model_saving_kwargs[
-                                'transformers_model'] = components
-                            model_saving_kwargs.update(
-                                self.mlflow_logging_config)
-
-                        mlflow_logger.save_model(**model_saving_kwargs)
-
-                        # Upload the license file generated by mlflow during the model saving.
-                        license_filename = _maybe_get_license_filename(
-                            local_save_path,
-                            self.mlflow_logging_config['metadata'].get(
-                                'pretrained_model_name', None))
-                        if license_filename is not None:
-                            mlflow_logger._mlflow_client.log_artifact(
-                                mlflow_logger._run_id,
-                                os.path.join(local_save_path, license_filename),
-                            )
-
-                        mlflow_logger.register_model_with_run_id(
-                            model_uri=local_save_path,
-                            name=self.mlflow_registered_model_name,
-                            await_creation_for=3600,
-                        )
+            dist.barrier()
+            if self.mlflow_registered_model_name and self._is_last_batch(
+                state):
+                if dist.get_global_rank() == 0:
+                    _register_hf_checkpoint_to_mlflow(
+                        mlflow_loggers=self.mlflow_loggers,
+                        logging_config=self.mlflow_logging_config,
+                        registered_model_name=self.mlflow_registered_model_name,
+                        model=new_model_instance,
+                        tokenizer=original_tokenizer,
+                        local_save_path=temp_save_dir,
+                        using_peft=using_peft,
+                    )

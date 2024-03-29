@@ -725,8 +725,7 @@ def test_huggingface_conversion_callback(
         device_batch_size,
     )
 
-    original_model = COMPOSER_MODEL_REGISTRY[model_cfg['name']](model_cfg,
-                                                                tokenizer)
+    original_model = build_composer_model(model, model_cfg, tokenizer)
     optimizer_name = optimizer_config.pop('name')
     optimizer = build_optimizer(original_model, optimizer_name,
                                 optimizer_config)

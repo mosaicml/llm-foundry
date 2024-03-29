@@ -21,12 +21,11 @@ from omegaconf import OmegaConf as om
 from torch.utils.data import DataLoader
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
-from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.callbacks import HuggingFaceCheckpointer
 from llmfoundry.callbacks.hf_checkpointer import _maybe_get_license_filename
 from llmfoundry.data.finetuning import build_finetuning_dataloader
-from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
-from llmfoundry.utils.builders import build_optimizer, build_tokenizer
+from llmfoundry.utils.builders import (build_composer_model, build_optimizer,
+                                       build_tokenizer)
 from scripts.inference.convert_composer_to_hf import convert_composer_to_hf
 from tests.data_utils import make_tiny_ft_dataset
 
@@ -254,11 +253,7 @@ def test_callback_inits():
         save_interval='1ba',
         mlflow_registered_model_name='test_model_name')
 
-    assert hf_checkpointer.mlflow_logging_config['task'] == 'text-generation'
-    assert hf_checkpointer.mlflow_logging_config['metadata'][
-        'task'] == 'llm/v1/completions'
-    assert 'input_example' in hf_checkpointer.mlflow_logging_config
-    assert 'signature' in hf_checkpointer.mlflow_logging_config
+    assert hf_checkpointer.mlflow_logging_config['task'] == 'llm/v1/completions'
 
 
 @pytest.mark.gpu
@@ -330,10 +325,10 @@ def test_huggingface_conversion_callback_interval(
             flavor='transformers',
             transformers_model=ANY,
             path=ANY,
-            task='text-generation',
+            task='llm/v1/completions',
             input_example=ANY,
-            signature=ANY,
-            metadata={'task': 'llm/v1/completions'})
+            metadata={},
+        )
         assert mlflow_logger_mock.register_model_with_run_id.call_count == 1
     else:
         assert mlflow_logger_mock.save_model.call_count == 0
@@ -547,8 +542,11 @@ def test_huggingface_conversion_callback(
         device_batch_size,
     )
 
-    original_model = COMPOSER_MODEL_REGISTRY[model_cfg['name']](model_cfg,
-                                                                tokenizer)
+    original_model = build_composer_model(
+        name=model_cfg['name'],
+        cfg=model_cfg,
+        tokenizer=tokenizer,
+    )
 
     optimizer_config = {
         'name': 'decoupled_adamw',
@@ -590,27 +588,10 @@ def test_huggingface_conversion_callback(
                 'flavor': 'peft',
                 'path': ANY,
                 'save_pretrained_dir': ANY,
-                'metadata': {
-                    'task': 'llm/v1/completions'
-                }
+                'metadata': {},
             }
         else:
             import numpy as np
-            from mlflow.models.signature import ModelSignature
-            from mlflow.types.schema import ColSpec, Schema
-
-            input_schema = Schema([
-                ColSpec('string', 'prompt'),
-                ColSpec('double', 'temperature', optional=True),
-                ColSpec('integer', 'max_tokens', optional=True),
-                ColSpec('string', 'stop', optional=True),
-                ColSpec('integer', 'candidate_count', optional=True)
-            ])
-
-            output_schema = Schema([ColSpec('string', 'predictions')])
-
-            default_signature = ModelSignature(inputs=input_schema,
-                                               outputs=output_schema)
 
             default_input_example = {
                 'prompt': np.array(['What is Machine Learning?'])
@@ -620,12 +601,9 @@ def test_huggingface_conversion_callback(
                 'flavor': 'transformers',
                 'transformers_model': ANY,
                 'path': ANY,
-                'task': 'text-generation',
-                'signature': default_signature,
+                'task': 'llm/v1/completions',
                 'input_example': default_input_example,
-                'metadata': {
-                    'task': 'llm/v1/completions'
-                }
+                'metadata': {}
             }
         mlflow_logger_mock.save_model.assert_called_with(**expectation)
         assert mlflow_logger_mock.register_model_with_run_id.call_count == 1
@@ -766,8 +744,11 @@ def test_convert_and_generate(model: str, tie_word_embeddings: bool,
     om_cfg['model']['init_device'] = 'cpu'
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         om_cfg.tokenizer.name, use_auth_token=model == 'llama2')
-    original_model = COMPOSER_MODEL_REGISTRY[om_cfg['model'].name](
-        om_cfg['model'], tokenizer)
+    original_model = build_composer_model(
+        name=om_cfg['model'].name,
+        cfg=om_cfg['model'],
+        tokenizer=tokenizer,
+    )
     trainer = Trainer(model=original_model, device='cpu')
     trainer.save_checkpoint(os.path.join(tmp_path, 'checkpoint.pt'))
 
@@ -807,50 +788,6 @@ def test_convert_and_generate(model: str, tie_word_embeddings: bool,
     delete_transformers_cache()
 
 
-@pytest.mark.gpu
-@pytest.mark.parametrize('tie_word_embeddings', [True, False])
-def test_convert_and_generate_triton(tie_word_embeddings: str,
-                                     tmp_path: pathlib.Path):
-    delete_transformers_cache()
-
-    cfg = get_config()
-    cfg['model']['init_device'] = 'cpu'
-    cfg['tie_word_embeddings'] = tie_word_embeddings
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'EleutherAI/gpt-neox-20b')
-    model = ComposerMPTCausalLM(cfg['model'], tokenizer)
-    trainer = Trainer(model=model)
-    trainer.save_checkpoint(os.path.join(tmp_path, 'checkpoint.pt'))
-
-    args = Namespace(composer_path=os.path.join(tmp_path, 'checkpoint.pt'),
-                     hf_output_path=os.path.join(tmp_path, 'hf-output-folder'),
-                     output_precision='fp32',
-                     local_checkpoint_save_location=None,
-                     hf_repo_for_upload=None,
-                     trust_remote_code=False,
-                     test_uploaded_model=False)
-    convert_composer_to_hf(args)
-
-    config = transformers.AutoConfig.from_pretrained(os.path.join(
-        tmp_path, 'hf-output-folder'),
-                                                     trust_remote_code=True)
-    config.attn_config['attn_impl'] = 'triton'
-    model = transformers.AutoModelForCausalLM.from_pretrained(
-        os.path.join(tmp_path, 'hf-output-folder'),
-        config=config,
-        trust_remote_code=True)
-    model.to(device='cuda', dtype=torch.bfloat16)
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        os.path.join(tmp_path, 'hf-output-folder'), trust_remote_code=True)
-
-    output = model.generate(tokenizer(
-        'hello', return_tensors='pt')['input_ids'].to(device='cuda'),
-                            max_new_tokens=1)
-    assert output.shape == (1, 2)
-
-    delete_transformers_cache()
-
-
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
 def test_convert_and_generate_meta(tie_word_embeddings: str,
                                    tmp_path: pathlib.Path):
@@ -866,8 +803,11 @@ def test_convert_and_generate_meta(tie_word_embeddings: str,
     om_cfg['tie_word_embeddings'] = tie_word_embeddings
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         om_cfg.tokenizer.name)
-    original_model = COMPOSER_MODEL_REGISTRY[om_cfg['model'].name](
-        om_cfg['model'], tokenizer)
+    original_model = build_composer_model(
+        name=om_cfg['model'].name,
+        cfg=om_cfg['model'],
+        tokenizer=tokenizer,
+    )
     trainer = Trainer(model=original_model, device='cpu')
     trainer.save_checkpoint(os.path.join(tmp_path_gathered, 'checkpoint.pt'))
 

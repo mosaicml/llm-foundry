@@ -198,54 +198,62 @@ slimpajamaconstants = DatasetConstants(
 )
 slimpajamaconstants.splits['train'] = DataSplitConstants(hf_split='train',
                                                          folder_split='train',
-                                                         raw_samples=1150000,
+                                                         raw_samples=306152343,  # 306M raw_samples = 627B tokens
                                                          truncated_samples=None)
 slimpajamaconstants.splits['train_small'] = DataSplitConstants(hf_split='train',
-                                                              folder_split='train_small',
-                                                              raw_samples=100000,
-                                                              truncated_samples=100000)
+                                                               folder_split='train_small',
+                                                               raw_samples=10000000,  # n*2048//(2163//4) = 38M raw_samples = 78B tokens
+                                                               truncated_samples=10000000)
 slimpajamaconstants.splits['train_xsmall'] = DataSplitConstants(hf_split='train',
-                                                              folder_split='train_xsmall',
-                                                              raw_samples=10000,
-                                                              truncated_samples=10000)
+                                                                folder_split='train_xsmall',
+                                                                raw_samples=1000000,  # n*2048//(2163//4) = 3.8M raw_samples = 7.8B tokens
+                                                                truncated_samples=1000000)
 slimpajamaconstants.splits['train_xxsmall'] = DataSplitConstants(hf_split='train',
-                                                              folder_split='train_xxsmall',
-                                                              raw_samples=1000,
-                                                              truncated_samples=1000)
+                                                                 folder_split='train_xxsmall',
+                                                                 raw_samples=100000,  # n*2048//(2163//4) = 380k raw_samples = 780M tokens
+                                                                 truncated_samples=100000)
+slimpajamaconstants.splits['train_slim'] = DataSplitConstants(hf_split='train',
+                                                               folder_split='train_slim',
+                                                               raw_samples=2060000,  # n*2048//(2163//4) = 7.81M raw_samples = 16.0B tokens
+                                                               truncated_samples=2060000)
 slimpajamaconstants.splits['val'] = DataSplitConstants(hf_split='validation',
                                                        folder_split='val',
-                                                       raw_samples=503000,
+                                                       raw_samples=1085245,  # 1.1M raw_samples = 2.2B tokens
                                                        truncated_samples=None)
 slimpajamaconstants.splits['val_small'] = DataSplitConstants(hf_split='validation',
                                                              folder_split='val_small',
-                                                             raw_samples=10000,
-                                                             truncated_samples=10000)
+                                                             raw_samples=100000,  # n*2048//(2163//4) = 380k raw_samples = 780M tokens
+                                                             truncated_samples=100000)
 slimpajamaconstants.splits['val_xsmall'] = DataSplitConstants(hf_split='validation',
                                                               folder_split='val_xsmall',
-                                                              raw_samples=3000,
-                                                              truncated_samples=3000)
+                                                              raw_samples=10000,  # n*2048//(2163//4) = 38k raw_samples = 78M tokens
+                                                              truncated_samples=10000)
 slimpajamaconstants.splits['val_xxsmall'] = DataSplitConstants(hf_split='validation',
                                                                folder_split='val_xxsmall',
-                                                               raw_samples=100,
-                                                               truncated_samples=100)
+                                                               raw_samples=1000,  # n*2048//(2163//4) = 3.8k raw_samples = 7.8M tokens
+                                                               truncated_samples=1000)
 slimpajamaconstants.splits['test'] = DataSplitConstants(hf_split='test',
                                                         folder_split='test',
-                                                        raw_samples=502000,
+                                                        raw_samples=1088145,  # 1.1M raw_samples = 2.2B tokens
                                                         truncated_samples=None)
 slimpajamaconstants.splits['test_small'] = DataSplitConstants(hf_split='test',
                                                               folder_split='test_small',
-                                                              raw_samples=10000,
-                                                              truncated_samples=10000)
+                                                              raw_samples=100000,  # n*2048//(2163//4) = 380k raw_samples = 780M tokens
+                                                              truncated_samples=100000)
 slimpajamaconstants.splits['test_xsmall'] = DataSplitConstants(hf_split='test',
                                                                folder_split='test_xsmall',
-                                                               raw_samples=3000,
-                                                               truncated_samples=3000)
+                                                               raw_samples=10000,  # n*2048//(2163//4) = 38k raw_samples = 78M tokens
+                                                               truncated_samples=10000)
 slimpajamaconstants.splits['test_xxsmall'] = DataSplitConstants(hf_split='test',
                                                                 folder_split='test_xxsmall',
-                                                                raw_samples=100,
-                                                                truncated_samples=100)
+                                                                raw_samples=1000,  # n*2048//(2163//4) = 3.8k raw_samples = 7.8M tokens
+                                                                truncated_samples=1000)
 
-CONSTS = {'c4': c4constants, 'the_pile': pileconstants, 'cerebras/SlimPajama-627B': slimpajamaconstants}
+CONSTS = {
+    'c4': c4constants,
+    'the_pile': pileconstants,
+    'cerebras/SlimPajama-627B': slimpajamaconstants,
+    }
 
 
 def build_hf_dataset(

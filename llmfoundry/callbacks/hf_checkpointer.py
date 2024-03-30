@@ -8,8 +8,10 @@ import math
 import os
 import re
 import tempfile
+import time
+from multiprocessing.context import SpawnProcess
 from pathlib import Path
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 import torch
 from composer.core import Callback, Event, State, Time, TimeUnit
@@ -70,6 +72,19 @@ def _maybe_get_license_filename(
 
     except StopIteration:
         return None
+
+
+def _register_model_with_run_id_multiprocess(mlflow_logger: MLFlowLogger,
+                                             logging_level: int, model_uri: str,
+                                             name: str,
+                                             await_creation_for: int):
+    logging.basicConfig(
+        format=
+        f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
+    )
+    logging.getLogger('composer').setLevel(logging_level)
+    mlflow_logger.register_model_with_run_id(
+        model_uri=model_uri, name=name, await_creation_for=await_creation_for)
 
 
 class HuggingFaceCheckpointer(Callback):
@@ -170,6 +185,7 @@ class HuggingFaceCheckpointer(Callback):
 
         self.last_checkpoint_batch: Optional[Time] = None
         self.mlflow_loggers = []
+        self.child_processes: List[SpawnProcess] = []
 
     def run_event(self, event: Event, state: State, logger: Logger) -> None:
         # The interval scheduler handles only returning True for the appropriate events
@@ -202,6 +218,10 @@ class HuggingFaceCheckpointer(Callback):
                 import mlflow
                 mlflow.environment_variables.MLFLOW_HUGGINGFACE_MODEL_MAX_SHARD_SIZE.set(
                     '5GB')
+        elif event == Event.FIT_END:
+            # Wait for all child processes spawned by the callback to finish.
+            while not self._all_child_processes_done():
+                time.sleep(30)
 
     def _is_last_batch(self, state: State):
         elapsed_duration = state.get_elapsed_duration()
@@ -217,6 +237,12 @@ class HuggingFaceCheckpointer(Callback):
                 state.max_duration.value * state.dataloader_len) == 0
 
         return False
+
+    def _all_child_processes_done(self) -> bool:
+        not_done = any(process.is_alive() for process in self.child_processes)
+        x = torch.tensor(1 if not_done else 0).to(device='cuda')
+        dist.all_reduce(x, reduce_operation='MAX')
+        return x.item() == 0
 
     def _save_checkpoint(self, state: State, logger: Logger):
         del logger  # unused
@@ -385,8 +411,20 @@ class HuggingFaceCheckpointer(Callback):
                                 os.path.join(local_save_path, license_filename),
                             )
 
-                        mlflow_logger.register_model_with_run_id(
-                            model_uri=local_save_path,
-                            name=self.mlflow_registered_model_name,
-                            await_creation_for=3600,
-                        )
+                        # Register the model to mlflow in a child process.
+                        process = SpawnProcess(
+                            target=_register_model_with_run_id_multiprocess,
+                            kwargs={
+                                'mlflow_logger':
+                                    mlflow_logger,
+                                'logging_level':
+                                    logging.getLogger('composer').level,
+                                'model_uri':
+                                    local_save_path,
+                                'name':
+                                    self.mlflow_registered_model_name,
+                                'await_creation_for':
+                                    3600,
+                            })
+                        process.start()
+                        self.child_processes.append(process)

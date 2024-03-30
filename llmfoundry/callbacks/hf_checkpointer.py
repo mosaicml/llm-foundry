@@ -78,11 +78,18 @@ def _register_model_with_run_id_multiprocess(mlflow_logger: MLFlowLogger,
                                              logging_level: int, model_uri: str,
                                              name: str,
                                              await_creation_for: int):
+    """Function for calling MLFlowLogger.register_model_with_run_id from a.
+
+    spawned child process.
+    """
+    # Setup logging for child process. This ensures that any logs from composer are surfaced.
     logging.basicConfig(
         format=
         f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
     )
     logging.getLogger('composer').setLevel(logging_level)
+
+    # Register model.
     mlflow_logger.register_model_with_run_id(
         model_uri=model_uri, name=name, await_creation_for=await_creation_for)
 
@@ -411,7 +418,7 @@ class HuggingFaceCheckpointer(Callback):
                                 os.path.join(local_save_path, license_filename),
                             )
 
-                        # Register the model to mlflow in a child process.
+                        # Spawn a new process to register the model.
                         process = SpawnProcess(
                             target=_register_model_with_run_id_multiprocess,
                             kwargs={

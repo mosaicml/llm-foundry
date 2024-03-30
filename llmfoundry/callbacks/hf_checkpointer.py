@@ -173,6 +173,23 @@ def _save_hf_checkpoint(save_path: str, model: PreTrainedModel,
             flatten_imports,
         )
 
+def register_model_with_run_id_multiprocess(
+        mlflow_logger: MLFlowLogger,
+        logging_level: int,
+        model_uri: str,
+        name: str,
+        await_creation_for: int = 300,
+        tags: Optional[Dict[str, Any]] = None,):
+    logging.basicConfig(
+        format=
+        f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
+    )
+    logging.getLogger('composer').setLevel(logging_level)
+    # composer_logger.level
+    mlflow_logger.register_model_with_run_id(
+        model_uri, name, await_creation_for, tags
+    )
+
 
 class HuggingFaceCheckpointer(Callback):
     """Save a huggingface formatted checkpoint during training.
@@ -275,7 +292,6 @@ class HuggingFaceCheckpointer(Callback):
         self.mlflow_register_processes: List[multiprocessing.Process] = []
 
     def run_event(self, event: Event, state: State, logger: Logger) -> None:
-        
         # The interval scheduler handles only returning True for the appropriate events
         if state.get_elapsed_duration() is not None and self.check_interval(
                 state,
@@ -377,9 +393,9 @@ class HuggingFaceCheckpointer(Callback):
                     os.path.join(local_save_path, license_filename),
                 )
 
-            register_method = getattr(mlflow_logger, 'register_model_with_run_id')
-
-            process = multiprocessing.get_context('spawn').Process(target=register_method, kwargs={
+            process = multiprocessing.get_context('spawn').Process(target=register_model_with_run_id_multiprocess, kwargs={
+                'mlflow_logger': mlflow_logger,
+                'logging_level': logging.getLogger('composer').level,
                 'model_uri': local_save_path,
                 'name': registered_model_name,
                 'await_creation_for': 3600,

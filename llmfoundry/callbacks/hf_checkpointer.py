@@ -305,6 +305,11 @@ class HuggingFaceCheckpointer(Callback):
                 import mlflow
                 mlflow.environment_variables.MLFLOW_HUGGINGFACE_MODEL_MAX_SHARD_SIZE.set(
                     '5GB')
+        elif event == Event.FIT_END:
+            while not self._all_processes_done():
+                print('waiting!!!')
+                time.sleep(20)
+
 
     def _is_last_batch(self, state: State):
         elapsed_duration = state.get_elapsed_duration()
@@ -323,19 +328,10 @@ class HuggingFaceCheckpointer(Callback):
     
     def _all_processes_done(self) -> bool:
         in_progress = any(process.is_alive() for process in self.mlflow_register_processes)
-        x = torch.tensor(1 if in_progress else 0)
+        print('in progress!!!!', in_progress)
+        x = torch.tensor(1 if in_progress else 0).to(device='cuda')
         dist.all_reduce(x, reduce_operation='MAX')
-        return x.item() != 0
-
-    def fit_end(self, state: State, logger: Logger) -> None:
-        del state, logger
-
-        # Wait for all processes to finish.
-        print('FIT END!!!', self._all_processes_done())
-        raise Exception()
-        while not self._all_processes_done():
-            print('waiting!!!')
-            time.sleep(20)
+        return x.item() == 0
             
     
     def _register_mlflow_model(self, mlflow_loggers: List[MLFlowLogger],

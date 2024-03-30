@@ -228,7 +228,7 @@ class HuggingFaceCheckpointer(Callback):
         elif event == Event.FIT_END:
             # Wait for all child processes spawned by the callback to finish.
             while not self._all_child_processes_done():
-                time.sleep(30)
+                time.sleep(2)
 
     def _is_last_batch(self, state: State):
         elapsed_duration = state.get_elapsed_duration()

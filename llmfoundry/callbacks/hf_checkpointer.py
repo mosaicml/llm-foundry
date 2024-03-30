@@ -275,6 +275,7 @@ class HuggingFaceCheckpointer(Callback):
         self.mlflow_register_processes: List[multiprocessing.Process] = []
 
     def run_event(self, event: Event, state: State, logger: Logger) -> None:
+        
         # The interval scheduler handles only returning True for the appropriate events
         if state.get_elapsed_duration() is not None and self.check_interval(
                 state,
@@ -378,7 +379,7 @@ class HuggingFaceCheckpointer(Callback):
 
             register_method = getattr(mlflow_logger, 'register_model_with_run_id')
 
-            process = multiprocessing.Process(target=register_method, kwargs={
+            process = multiprocessing.get_context('spawn').Process(target=register_method, kwargs={
                 'model_uri': local_save_path,
                 'name': registered_model_name,
                 'await_creation_for': 3600,

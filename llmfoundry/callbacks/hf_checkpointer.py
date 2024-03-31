@@ -254,8 +254,6 @@ class HuggingFaceCheckpointer(Callback):
         return False
 
     def _all_child_processes_done(self) -> bool:
-        if len(self.child_processes) == 0:
-            return True
         not_done = any(process.is_alive() for process in self.child_processes)
         x = torch.tensor(1 if not_done else 0).to(device='cuda')
         dist.all_reduce(x, reduce_operation='MAX')
@@ -279,8 +277,10 @@ class HuggingFaceCheckpointer(Callback):
                 self.huggingface_folder_name_fstr), state.run_name,
             state.timestamp)
 
+        # Use a temporary directory if save_dir is remote. 
+        use_temp_dir = self.remote_ud is not None
         temp_save_dir = tempfile.mkdtemp(
-        ) if self.remote_ud is not None else save_dir
+        ) if use_temp_dir else save_dir
 
         log.debug('Gathering state dict')
         from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
@@ -442,8 +442,10 @@ class HuggingFaceCheckpointer(Callback):
                     self.child_processes.append(process)
 
                     # Save the temporary directory to be cleaned up later.
-                    self.temp_save_dir = temp_save_dir
+                    if use_temp_dir:
+                        self.temp_save_dir = temp_save_dir
             else:
                 # Clean up the temporary directory if we don't need to register to mlflow.
-                shutil.rmtree(temp_save_dir)
+                if use_temp_dir:
+                    shutil.rmtree(temp_save_dir)
         dist.barrier()

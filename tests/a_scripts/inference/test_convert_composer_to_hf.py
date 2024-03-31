@@ -428,6 +428,8 @@ def test_huggingface_conversion_callback_interval(
     'hf_save_interval,save_interval,max_duration,expected_hf_checkpoints,expected_normal_checkpoints',
     [('1ba', '1ba', '1ba', 1, 1)])
 @patch('os.cpu_count', MagicMock(return_value=1))
+@patch('llmfoundry.callbacks.hf_checkpointer.SpawnProcess',
+       new=MockSpawnProcess)
 def test_huggingface_conversion_callback(
     model: str,
     tmp_path: pathlib.Path,

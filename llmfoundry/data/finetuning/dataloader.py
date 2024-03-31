@@ -18,6 +18,8 @@ from llmfoundry.data.finetuning.tasks import (DOWNLOADED_FT_DATASETS_DIRPATH,
                                               dataset_constructor)
 from llmfoundry.data.packing import BinPackCollator, auto_packing_ratio
 from llmfoundry.data.text_data import build_streams, get_tokens_per_batch_func
+from llmfoundry.utils.exceptions import (MissingHuggingFaceURLSplitError,
+                                         NotEnoughDatasetSamplesError)
 
 log = logging.getLogger(__name__)
 
@@ -174,15 +176,12 @@ def build_finetuning_dataloader(cfg: DictConfig,
         # Build HF dataloader
         dataset_name_or_path = cfg.dataset.hf_name
         split = cfg.dataset.get('split')
+        if split is None:
+            raise MissingHuggingFaceURLSplitError()
 
         # If dataset is a remote path, download it first.
         backend, _, _ = parse_uri(dataset_name_or_path)
         if backend not in ['', None]:
-            if split is None:
-                raise ValueError(
-                    'When using a HuggingFace dataset from a URL, you must set the ' + \
-                    '`split` key in the dataset config.'
-                )
             dataset_name_or_path = _download_remote_hf_dataset(
                 remote_path=dataset_name_or_path, split=split)
             split = split.replace('-', '_')
@@ -218,17 +217,13 @@ def build_finetuning_dataloader(cfg: DictConfig,
             if hasattr(dataset, '__len__'):
                 full_dataset_size = len(dataset)
                 if full_dataset_size < minimum_dataset_size:
-                    raise ValueError(
-                        f'Your dataset (name={cfg.dataset.hf_name}, split={split}) '
-                        +
-                        f'has {full_dataset_size} samples, but your minimum batch size '
-                        +
-                        f'is {minimum_dataset_size} because you are running on {world_size} gpus and '
-                        +
-                        f'your per device batch size is {dataloader_batch_size}. Please increase the number '
-                        +
-                        f'of samples in your dataset to at least {minimum_dataset_size}.'
-                    )
+                    raise NotEnoughDatasetSamplesError(
+                        dataset_name=cfg.dataset.hf_name,
+                        split=split,
+                        dataloader_batch_size=dataloader_batch_size,
+                        world_size=world_size,
+                        full_dataset_size=full_dataset_size,
+                        minimum_dataset_size=minimum_dataset_size)
         # Initialize sampler.
         sampler = dist.get_sampler(dataset,
                                    drop_last=cfg.drop_last,
@@ -557,13 +552,13 @@ if __name__ == '__main__':
                                     1)],
                                              skip_special_tokens=False,
                                              clean_up_tokenization_spaces=True))
+                        context = torch.logical_and(
+                            batch['attention_mask'][j] == 1,
+                            batch['labels'][j] == _HF_IGNORE_INDEX)
                         print(
                             '\033[92m{}\033[00m\n'.format('CONTEXT:  '),
                             tokenizer.decode(batch['input_ids'][
-                                j,
-                                torch.logical_and(
-                                    is_subseq, batch['bidirectional_mask'][j] ==
-                                    1)],
+                                j, torch.logical_and(is_subseq, context)],
                                              skip_special_tokens=False,
                                              clean_up_tokenization_spaces=True))
                         print(
@@ -583,10 +578,12 @@ if __name__ == '__main__':
                                                batch['attention_mask'][j] == 1],
                             skip_special_tokens=False,
                             clean_up_tokenization_spaces=True))
+                    context = torch.logical_and(
+                        batch['attention_mask'][j] == 1,
+                        batch['labels'][j] == _HF_IGNORE_INDEX)
                     print(
                         '\033[92m{}\033[00m\n'.format('CONTEXT:  '),
-                        tokenizer.decode(batch['input_ids'][
-                            j, batch['bidirectional_mask'][j] == 1],
+                        tokenizer.decode(batch['input_ids'][j, context],
                                          skip_special_tokens=False,
                                          clean_up_tokenization_spaces=True))
                     print(

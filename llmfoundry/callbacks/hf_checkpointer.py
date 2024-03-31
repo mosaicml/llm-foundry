@@ -277,10 +277,9 @@ class HuggingFaceCheckpointer(Callback):
                 self.huggingface_folder_name_fstr), state.run_name,
             state.timestamp)
 
-        # Use a temporary directory if save_dir is remote. 
+        # Use a temporary directory if save_dir is remote.
         use_temp_dir = self.remote_ud is not None
-        temp_save_dir = tempfile.mkdtemp(
-        ) if use_temp_dir else save_dir
+        temp_save_dir = tempfile.mkdtemp() if use_temp_dir else save_dir
 
         log.debug('Gathering state dict')
         from torch.distributed.fsdp import FullyShardedDataParallel as FSDP

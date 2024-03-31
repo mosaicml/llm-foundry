@@ -268,7 +268,7 @@ def build_text_dataloader(
             )
         else:
             raise ValueError(
-                f'Provided eos_token_id={eos_token_id} does not match tokenizer.eos_token_id={tokenizer.eos_token_id}'
+                f'Provided eos_token_id={eos_token_id} does not match tokenizer.eos_token_id={tokenizer.eos_token_id}.  To override this error, set the override_eos_token_id_mismatch_error flag to True in the dataset config section of the YAML.'
             )
 
     if bos_token_id is not None and hasattr(
@@ -280,7 +280,7 @@ def build_text_dataloader(
             )
         else:
             raise ValueError(
-                f'Provided bos_token_id={bos_token_id} does not match tokenizer.bos_token_id={tokenizer.bos_token_id}'
+                f'Provided bos_token_id={bos_token_id} does not match tokenizer.bos_token_id={tokenizer.bos_token_id}. To override this error, set the override_bos_token_id_mismatch_error flag to True in the dataset config section of the YAML.'
             )
 
     streams = build_streams(cfg.dataset)

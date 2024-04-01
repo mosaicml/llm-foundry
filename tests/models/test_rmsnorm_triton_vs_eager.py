@@ -73,4 +73,3 @@ def test_rmsnorm_triton_vs_eager(normalized_shape: Union[int, List[int]],
     assert x1.grad is not None
     # Relaxed to a l2-norm based check.
     assert torch.norm(x0.grad - x1.grad) <= atol + rtol * torch.norm(x0.grad)
-

@@ -214,7 +214,7 @@ class InContextLearningGenerationAccuracy(InContextLearningMetric):
                 metric_result_dict['result'].append(0)
             self.total += torch.tensor(1.0)
 
-            return metric_result_dict
+        return metric_result_dict
 
     def compute(self):
         assert isinstance(self.correct, Tensor)

@@ -11,7 +11,7 @@ from llmfoundry.models.layers.attention import is_flash_v2_installed
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('normalized_shape', [32, 128])
+@pytest.mark.parametrize('normalized_shape', [32, 128, 4096])
 def test_rmsnorm_triton_vs_eager(normalized_shape: Union[int, List[int]],
                                  device: str = 'cuda'):
     # Compare Triton and PyTorch Eager implementations of RMSNorm
@@ -53,20 +53,24 @@ def test_rmsnorm_triton_vs_eager(normalized_shape: Union[int, List[int]],
     loss0.backward()
     loss1.backward()
 
-    torch.testing.assert_close(y0, y1, rtol=1e-2, atol=1e-2)
+    rtol = 1e-6
+    atol = 1e-6
+
+    torch.testing.assert_close(y0, y1, rtol=rtol, atol=atol)
 
     p0 = eager_rmsnorm.weight
     p1 = triton_rmsnorm.weight
 
     # weight check
-    torch.testing.assert_close(p0, p1, rtol=1e-2, atol=1e-2)
+    torch.testing.assert_close(p0, p1, rtol=rtol, atol=atol)
     # weight gradient check
     assert p0.grad is not None
     assert p1.grad is not None
-    assert torch.norm(p0.grad - p1.grad) <= 1e-2 + 1e-2 * torch.norm(p0.grad)
+    assert torch.norm(p0.grad - p1.grad) <= atol + rtol * torch.norm(p0.grad)
 
     # input gradient check
     assert x0.grad is not None
     assert x1.grad is not None
     # Relaxed to a l2-norm based check.
-    assert torch.norm(x0.grad - x1.grad) <= 1e-2 + 1e-2 * torch.norm(x0.grad)
+    assert torch.norm(x0.grad - x1.grad) <= atol + rtol * torch.norm(x0.grad)
+

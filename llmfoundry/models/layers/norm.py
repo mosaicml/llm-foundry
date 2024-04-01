@@ -130,6 +130,9 @@ class TritonRMSNorm(torch.nn.Module):
                 'triton_rms_norm requires Flash Attention to be installed. ' +
                 'Please pip install flash-attn.')
 
+        if not isinstance(normalized_shape, int):
+            raise ValueError('TritonRMSNorm only supports 1D tensors')
+
         self.rms_norm_fn = rms_norm_fn
 
         self.weight = torch.nn.Parameter(
@@ -137,10 +140,9 @@ class TritonRMSNorm(torch.nn.Module):
 
     def forward(self, x: torch.Tensor):
         # Flash Attention expect a flat tensor
-        weight = self.weight.flatten()
         return self.rms_norm_fn(
             x,
-            weight,
+            self.weight,
             None,  # no bias
             residual=None,
             eps=self.eps,

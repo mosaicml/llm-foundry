@@ -7,6 +7,7 @@ import time
 from typing import Dict, Optional
 
 import requests
+from omegaconf import DictConfig
 from transformers import AutoTokenizer
 
 from llmfoundry.models.inference_api_wrapper.openai_causal_lm import (
@@ -25,7 +26,7 @@ class FMAPIEvalInterface(OpenAIEvalInterface):
     def block_until_ready(self, base_url: str):
         """Block until the endpoint is ready."""
         sleep_s = 5
-        timout_s = 5 * 60  # At max, wait 5 minutes
+        timeout_s = 5 * 60  # At max, wait 5 minutes
 
         ping_url = f'{base_url}/ping'
 
@@ -42,7 +43,7 @@ class FMAPIEvalInterface(OpenAIEvalInterface):
                 time.sleep(sleep_s)
                 waited_s += sleep_s
 
-            if waited_s >= timout_s:
+            if waited_s >= timeout_s:
                 raise TimeoutError(
                     f'Endpoint {ping_url} did not become read after {waited_s:,} seconds, exiting'
                 )
@@ -53,10 +54,10 @@ class FMAPIEvalInterface(OpenAIEvalInterface):
         if is_local:
             base_url = os.environ.get('MOSAICML_MODEL_ENDPOINT',
                                       'http://0.0.0.0:8080/v2')
-            model_cfg['base_url'] = base_url
+            om_model_config['base_url'] = base_url
             self.block_until_ready(base_url)
 
-        if 'base_url' not in model_cfg:
+        if 'base_url' not in om_model_config:
             raise ValueError(
                 'Must specify base_url or use local=True in model_cfg for FMAPIsEvalWrapper'
             )

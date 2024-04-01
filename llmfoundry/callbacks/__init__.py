@@ -1,6 +1,11 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+from composer.callbacks import (EarlyStopper, EvalOutputLogging, Generate,
+                                LRMonitor, MemoryMonitor, MemorySnapshot,
+                                OOMObserver, OptimizerMonitor, RuntimeEstimator,
+                                SpeedMonitor)
+
 from llmfoundry.callbacks.async_eval_callback import AsyncEval
 from llmfoundry.callbacks.curriculum_learning_callback import CurriculumLearning
 from llmfoundry.callbacks.eval_gauntlet_callback import EvalGauntlet
@@ -11,6 +16,27 @@ from llmfoundry.callbacks.monolithic_ckpt_callback import \
 from llmfoundry.callbacks.resumption_callbacks import (GlobalLRScaling,
                                                        LayerFreezing)
 from llmfoundry.callbacks.scheduled_gc_callback import ScheduledGarbageCollector
+from llmfoundry.registry import callbacks, callbacks_with_config
+
+callbacks.register('lr_monitor', func=LRMonitor)
+callbacks.register('memory_monitor', func=MemoryMonitor)
+callbacks.register('memory_snapshot', func=MemorySnapshot)
+callbacks.register('speed_monitor', func=SpeedMonitor)
+callbacks.register('runtime_estimator', func=RuntimeEstimator)
+callbacks.register('optimizer_monitor', func=OptimizerMonitor)
+callbacks.register('generate_callback', func=Generate)
+callbacks.register('early_stopper', func=EarlyStopper)
+callbacks.register('fdiff_metrics', func=FDiffMetrics)
+callbacks.register('hf_checkpointer', func=HuggingFaceCheckpointer)
+callbacks.register('global_lr_scaling', func=GlobalLRScaling)
+callbacks.register('layer_freezing', func=LayerFreezing)
+callbacks.register('mono_checkpoint_saver', func=MonolithicCheckpointSaver)
+callbacks.register('scheduled_gc', func=ScheduledGarbageCollector)
+callbacks.register('oom_observer', func=OOMObserver)
+callbacks.register('eval_output_logging', func=EvalOutputLogging)
+
+callbacks_with_config.register('async_eval', func=AsyncEval)
+callbacks_with_config.register('curriculum_learning', func=CurriculumLearning)
 
 __all__ = [
     'FDiffMetrics',

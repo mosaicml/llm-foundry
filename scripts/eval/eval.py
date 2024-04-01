@@ -11,51 +11,32 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import torch
+<<<<<<< HEAD
 from composer.core.callback import Callback
 from composer.loggers import MosaicMLLogger
+=======
+from composer.core import Callback
+>>>>>>> main
 from composer.loggers.logger_destination import LoggerDestination
-from composer.models.base import ComposerModel
 from composer.trainer import Trainer
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from rich.traceback import install
-from transformers import PreTrainedTokenizerBase
+
+from llmfoundry.utils import (find_mosaicml_logger, log_eval_analytics,
+                              maybe_create_mosaicml_logger)
 
 install()
-from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
-from llmfoundry.registry import import_file
 from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
-                                       build_callback, build_evaluators,
-                                       build_logger, build_tokenizer)
+                                       build_callback, build_composer_model,
+                                       build_evaluators, build_logger,
+                                       build_tokenizer)
 from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device)
+from llmfoundry.utils.registry_utils import import_file
 
 log = logging.getLogger(__name__)
-
-
-def load_model(model_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
-               fsdp_config: Optional[Dict], num_retries: int) -> ComposerModel:
-    init_context = process_init_device(model_cfg, fsdp_config)
-
-    retries = 0
-    composer_model = None
-    with init_context:
-        while retries < num_retries and composer_model is None:
-            try:
-                composer_model = COMPOSER_MODEL_REGISTRY[model_cfg.name](
-                    model_cfg, tokenizer)
-            except Exception as e:
-                retries += 1
-                if retries >= num_retries:
-                    raise e
-                else:
-                    log.info(
-                        f'Got exception {str(e)} while loading model {model_cfg.name}. {num_retries-retries} retries remaining'
-                    )
-
-    assert composer_model is not None
-    return composer_model
 
 
 def evaluate_model(
@@ -69,14 +50,17 @@ def evaluate_model(
     eval_gauntlet_config: Optional[Union[str, DictConfig]],
     eval_loader_config: Optional[Union[DictConfig, ListConfig]],
     fsdp_config: Optional[Dict],
-    num_retries: int,
-    loggers_cfg: Dict[str, Any],
+    loggers: List[LoggerDestination],
     python_log_level: Optional[str],
     precision: str,
     eval_gauntlet_df: Optional[pd.DataFrame],
     eval_subset_num_batches: int,
     icl_subset_num_batches: Optional[int],
+<<<<<<< HEAD
     callback_configs: Optional[Dict],
+=======
+    callback_configs: Optional[DictConfig],
+>>>>>>> main
     metadata: Optional[Dict[str, str]],
     logged_config: DictConfig,
     should_log_config: bool = True,
@@ -118,26 +102,31 @@ def evaluate_model(
     if eval_gauntlet_callback is not None:
         callbacks.append(eval_gauntlet_callback)
 
-    loggers: List[LoggerDestination] = [
-        build_logger(name, logger_cfg)
-        for name, logger_cfg in loggers_cfg.items()
-    ]
-
     if metadata is not None:
-        # Flatten the metadata for logging
-        loggers_cfg.pop('metadata', None)
-        loggers_cfg.update(metadata, merge=True)
-
         # Find the MosaicMLLogger
-        mosaicml_logger = next((
-            logger for logger in loggers if isinstance(logger, MosaicMLLogger)),
-                               None)
+        mosaicml_logger = find_mosaicml_logger(loggers)
 
         if mosaicml_logger is not None:
             mosaicml_logger.log_metrics(metadata)
             mosaicml_logger._flush_metadata(force_flush=True)
 
+<<<<<<< HEAD
     
+=======
+    if fsdp_config and model_cfg.model.get('load_in_8bit', False):
+        raise ValueError(
+            'The FSDP config block is not supported when loading ' +
+            'Hugging Face models in 8bit.')
+
+    init_context = process_init_device(model_cfg.model, fsdp_config)
+
+    composer_model = build_composer_model(
+        name=model_cfg.model.name,
+        cfg=model_cfg.model,
+        tokenizer=tokenizer,
+        init_context=init_context,
+    )
+>>>>>>> main
 
     # Now add the eval metrics
     if eval_loader_config is not None:
@@ -162,7 +151,6 @@ def evaluate_model(
     assert composer_model is not None
 
     log.info(f'Building trainer for {model_cfg.model_name}...')
-
     trainer = Trainer(
         run_name=run_name,
         seed=seed,
@@ -204,7 +192,6 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
                             must_exist=False,
                             default_value=[],
                             convert=True)
-    # Import any user provided code
     for code_path in code_paths:
         import_file(code_path)
 
@@ -256,10 +243,6 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
                                'run_name',
                                must_exist=False,
                                default_value=default_run_name)
-    num_retries: int = pop_config(cfg,
-                                  'num_retries',
-                                  must_exist=False,
-                                  default_value=3)
     loggers_cfg: Dict[str, Any] = pop_config(cfg,
                                              'loggers',
                                              must_exist=False,
@@ -288,6 +271,10 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
                                                         'callbacks',
                                                         must_exist=False,
                                                         default_value=None)
+<<<<<<< HEAD
+=======
+
+>>>>>>> main
     # Warn for unused parameters
     for key in cfg:
         warnings.warn(
@@ -310,6 +297,24 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     models_df = None
     composite_scores = None
     trainers = []
+
+    loggers: List[LoggerDestination] = [
+        build_logger(name, logger_cfg)
+        for name, logger_cfg in loggers_cfg.items()
+    ]
+
+    mosaicml_logger = find_mosaicml_logger(loggers)
+    if mosaicml_logger is None:
+        mosaicml_logger = maybe_create_mosaicml_logger()
+        # mosaicml_logger will be None if run isn't on MosaicML platform
+        if mosaicml_logger is not None:
+            loggers.append(mosaicml_logger)
+
+    # mosaicml_logger will be None if the run isn't from the MosaicML platform
+    if mosaicml_logger is not None:
+        log_eval_analytics(mosaicml_logger, model_configs, icl_tasks,
+                           eval_gauntlet_config)
+
     for model_cfg in model_configs:
         (trainer, logger_keys, eval_gauntlet_callback,
          eval_gauntlet_df) = evaluate_model(
@@ -323,12 +328,12 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
              eval_gauntlet_config=eval_gauntlet_config,
              eval_loader_config=eval_loader_config,
              fsdp_config=fsdp_config,
-             num_retries=num_retries,
-             loggers_cfg=loggers_cfg,
+             loggers=loggers,
              python_log_level=python_log_level,
              callback_configs=callback_configs,
              precision=precision,
              eval_gauntlet_df=eval_gauntlet_df,
+             callback_configs=callback_configs,
              eval_subset_num_batches=eval_subset_num_batches,
              icl_subset_num_batches=icl_subset_num_batches,
              metadata=metadata,
@@ -372,6 +377,8 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
         print(f'Printing complete results for all models')
         assert models_df is not None
         print(models_df.to_markdown(index=False))
+
+        trainer.close()
 
     return trainers, eval_gauntlet_df
 

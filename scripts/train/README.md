@@ -335,7 +335,7 @@ train_loader:
 
 # Using Flash Attention <a name="flashattention"></a>
 
-Flash Attention is an optimized implementation of the attention mechanism, first introduced by [Dao et al.](https://github.com/Dao-AILab/flash-attention). There are three versions of Flash Attention that can be used with LLM Foundry: Flash Attention V1, Flash Attention V2, and a Triton implementation of Flash Attention. The support for Flash Attention V1 has been deprecated, and we recommend using Flash Attention V2. We also recommend using `Flash` attention instead of `Triton` attention, unless you're training Prefix Language Models (in which case we recommend using `Triton`). To start, we recommend using one of our [provided Docker images](../../README.md#mosaicml-docker-images) corresponding to the Flash Attention version you would like to use. The Triton implementation can be used with either Flash Attention V1 or V2. Next, how you specify to use Flash Attention depends on which model you are using.
+Flash Attention is an optimized implementation of the attention mechanism, first introduced by [Dao et al.](https://github.com/Dao-AILab/flash-attention). LLM Foundry supports Flash Attention V2.  To start, we recommend using one of our [provided Docker images](../../README.md#mosaicml-docker-images) corresponding to the Flash Attention version you would like to use. Next, how you specify to use Flash Attention depends on which model you are using.
 
 For MPT, you can specify Flash Attention in your YAML like so:
 ```yaml
@@ -343,8 +343,6 @@ model:
     name: mpt_causal_lm
     ...
     attn_config:
-        # Will use either V1 or V2 depending on what is installed
-        # "triton" will use the Triton implementation
         attn_impl: flash
         ...
 ```
@@ -356,8 +354,6 @@ model:
     pretrained_model_name_or_path: mosaicml/mpt-7b
     ...
     config_overrides:
-        # Will use either V1 or V2 depending on what is installed
-        # "triton" will use the Triton implementation
         attn_config:
             attn_impl: flash
         ...
@@ -371,15 +367,6 @@ model:
     ...
 ```
 HuggingFace models currently only support Flash Attention V2.
-
-For Llama specifically, we have another option if you would like to use the Triton implementation of Flash Attention. You can specify this in your YAML like so:
-```yaml
-model:
-    name: hf_causal_lm
-    pretrained_model_name_or_path: meta-llama/Llama-2-7b-hf
-    attention_patch_type: triton
-    ...
-```
 
 # FAQ: How many GPUs do I need to train a LLM? <a name="howmanygpus"></a>
 This is a complicated question in general, but if we assume that you are using FSDP with `FULL_SHARD`,

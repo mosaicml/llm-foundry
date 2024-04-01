@@ -576,10 +576,8 @@ class InContextLearningGenerationTaskWithAnswersDataset(InContextLearningDataset
                 'pad_token_id': self.pad_tok_id,
                 'use_cache': True,
                 'eos_token_id': self.tokenizer.eos_token_id,
+                'max_new_tokens': max(self.max_answer_length, 1)
             },
-            'generation_length': max(
-                self.max_answer_length,
-                1),  # TODO: deprecate with next composer udpate
         }
         self.batch_mapping = {
             'input_ids': self.context_key,
@@ -1286,6 +1284,7 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
                 'temperature': 0.2,  # good default for code
                 'use_cache': True,
                 'eos_token_id': self.tokenizer.eos_token_id,
+                'max_new_tokens': max(generation_length, 1)
             },
             'sample_id': [],
             'pass_at_k':
@@ -1294,8 +1293,7 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
                 generations_per_sample,
             'dataset_size':
                 dataset_size,
-            'generation_length':  # TODO: deprecate with next composer release
-                max(generation_length, 1)
+            
         }
         if 'generation_kwargs' in kwargs:
             self.update_generation_kwargs(kwargs['generation_kwargs'])

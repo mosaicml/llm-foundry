@@ -137,8 +137,7 @@ def main(cfg: DictConfig) -> Trainer:
         cuda_alloc_conf.append(f'max_split_size_mb:{max_split_size_mb}')
 
     # Expandeable segments
-    expandeable_segments: bool = cfg.pop('expandeable_segments', False)
-    if expandeable_segments:
+    if cfg.pop('expandeable_segments', False):
         cuda_alloc_conf.append('expandeable_segments:True')
 
     if len(cuda_alloc_conf) > 0:

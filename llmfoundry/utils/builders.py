@@ -12,14 +12,6 @@ from typing import (Any, ContextManager, Dict, Iterable, List, Optional, Tuple,
 
 import torch
 from composer.core import Algorithm, Callback, Evaluator
-from composer.loggers import (InMemoryLogger, LoggerDestination, MLFlowLogger,
-                              TensorboardLogger, WandBLogger)
-from composer.optim import DecoupledAdamW
-from composer.optim.scheduler import (ComposerScheduler,
-                                      ConstantWithWarmupScheduler,
-                                      CosineAnnealingWithWarmupScheduler,
-                                      LinearWithWarmupScheduler)
-
 from composer.loggers import LoggerDestination
 from composer.models import ComposerModel
 from composer.optim.scheduler import ComposerScheduler
@@ -33,11 +25,8 @@ from transformers import AutoTokenizer, PreTrainedTokenizerBase
 from llmfoundry import registry
 from llmfoundry.callbacks import EvalGauntlet
 from llmfoundry.data.dataloader import build_dataloader
-from llmfoundry.eval.datasets import get_icl_task_dataloader
-from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
-                              DecoupledLionW)
-from llmfoundry.optim.scheduler import InverseSquareRootWithWarmupScheduler
-
+from llmfoundry.eval.datasets.in_context_learning_evaluation import \
+    get_icl_task_dataloader
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
 from llmfoundry.utils.registry_utils import construct_from_registry
 
@@ -506,10 +495,8 @@ def build_icl_evaluators(
                 icl_cfg.metric_names = [
                     'InContextLearningMultipleChoiceAccuracy'
                 ]
-            elif icl_cfg.icl_task_type == 'generation_task_with_answers' or icl_cfg.icl_task_type == 'question_answering':
-                icl_cfg.metric_names = [
-                    'InContextLearningGenerationExactMatchAccuracy'
-                ]
+            elif icl_cfg.icl_task_type == 'question_answering':
+                icl_cfg.metric_names = ['InContextLearningQAAccuracy']
             elif icl_cfg.icl_task_type == 'code_evaluation':
                 icl_cfg.metric_names = ['InContextLearningCodeEvalAccuracy']
             else:

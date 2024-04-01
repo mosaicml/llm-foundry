@@ -16,15 +16,6 @@ from typing import (Any, Dict, List, Mapping, MutableMapping, Optional, Tuple,
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
-from composer.models import HuggingFaceModel
-from composer.utils import dist
-
-from llmfoundry.eval.metrics import (
-    InContextLearningCodeEvalAccuracy,
-    InContextLearningGenerationExactMatchAccuracy, InContextLearningLMAccuracy,
-    InContextLearningMultipleChoiceAccuracy)
-from llmfoundry.metrics import TokenAccuracy
 from composer.models import HuggingFaceModel
 from composer.utils import dist
 

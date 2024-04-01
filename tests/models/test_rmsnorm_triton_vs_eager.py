@@ -1,26 +1,27 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+from typing import List, Union
+
 import pytest
 import torch
 from composer.core.precision import get_precision_context
-from omegaconf import OmegaConf as om
-from typing import List, Union
 
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 
 
 @pytest.mark.gpu
 @pytest.mark.parametrize('normalized_shape', [32, 128])
-def test_rmsnorm_triton_vs_eager(normalized_shape: Union[int, List[int]], device: str = 'cuda'):
+def test_rmsnorm_triton_vs_eager(normalized_shape: Union[int, List[int]],
+                                 device: str = 'cuda'):
     # Compare Triton and PyTorch Eager implementations of RMSNorm
     if not is_flash_v2_installed():
-        pytest.skip('triton implementation of rmsnorm requires flash attention 2.')
+        pytest.skip(
+            'triton implementation of rmsnorm requires flash attention 2.')
 
     from llmfoundry.models.layers import norm
 
     batch_size = 2
-
 
     cfg = {
         'normalized_shape': normalized_shape,
@@ -29,7 +30,6 @@ def test_rmsnorm_triton_vs_eager(normalized_shape: Union[int, List[int]], device
 
     eager_rmsnorm = norm.NORM_CLASS_REGISTRY['rmsnorm'](**cfg)
     triton_rmsnorm = norm.NORM_CLASS_REGISTRY['triton_rmsnorm'](**cfg)
-
 
     triton_rmsnorm.load_state_dict(eager_rmsnorm.state_dict())
 

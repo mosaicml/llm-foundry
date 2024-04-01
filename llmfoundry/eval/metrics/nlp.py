@@ -10,7 +10,7 @@ import os
 import re
 import string
 import warnings
-from typing import Callable, Any, Dict, List
+from typing import Any, Callable, Dict, List
 
 import numpy as np
 import torch
@@ -40,13 +40,14 @@ class InContextLearningMetric(Metric):
     def __init__(self, *args, **kwargs):  # pyright: ignore
         super().__init__(*args, **kwargs)
         self.needs_batch = True
-    
+
     def _wrap_update(self, update: Callable) -> Callable:
         """Overwrite default _wrap_update to return result of update().
 
-        Torch metrics wraps update with following wrapped_func but explicitly does not return the value.
-        In general, torchmetrics update() does not return a value, but we want to in order to pass it on
-        to state.metric_outputs.
+        Torch metrics wraps update with following wrapped_func but explicitly
+        does not return the value. In general, torchmetrics update() does not
+        return a value, but we want to in order to pass it on to
+        state.metric_outputs.
         """
 
         @functools.wraps(update)
@@ -59,10 +60,10 @@ class InContextLearningMetric(Metric):
                 except RuntimeError as err:
                     if 'Expected all tensors to be on' in str(err):
                         raise RuntimeError(
-                            'Encountered different devices in metric calculation (see stacktrace for details).'
-                            ' This could be due to the metric class not being on the same device as input.'
-                            f' Instead of `metric={self.__class__.__name__}(...)` try to do'
-                            f' `metric={self.__class__.__name__}(...).to(device)` where'
+                            'Encountered different devices in metric calculation (see stacktrace for details).' + \
+                            ' This could be due to the metric class not being on the same device as input.' + \
+                            f' Instead of `metric={self.__class__.__name__}(...)` try to do' + \
+                            f' `metric={self.__class__.__name__}(...).to(device)` where' + \
                             ' device corresponds to the device of the input.',
                         ) from err
                     raise err
@@ -209,7 +210,6 @@ class InContextLearningGenerationExactMatchAccuracy(InContextLearningMetric):
 
             return metric_result_dict
 
-
     def compute(self):
         assert isinstance(self.correct, Tensor)
         assert isinstance(self.total, Tensor)
@@ -247,8 +247,12 @@ class InContextLearningLMAccuracy(InContextLearningMetric):
                        default=torch.tensor(0.),
                        dist_reduce_fx='sum')
         self.add_state('total', default=torch.tensor(0.), dist_reduce_fx='sum')
-        self.metric_result_dict = {'context': [], 'label': [], 'output': [], 'result': []}
-
+        self.metric_result_dict = {
+            'context': [],
+            'label': [],
+            'output': [],
+            'result': []
+        }
 
     def update(self, batch: dict, outputs: torch.Tensor, labels: torch.Tensor):
 
@@ -260,7 +264,8 @@ class InContextLearningLMAccuracy(InContextLearningMetric):
             cont_tok_targ = labels[batch_idx].index_select(dim=0,
                                                            index=cont_idx - 1)
 
-            metric_result_dict['context'].append(batch['input_ids'][batch_idx][:cont_idx[0]])
+            metric_result_dict['context'].append(
+                batch['input_ids'][batch_idx][:cont_idx[0]])
             metric_result_dict['label'].append(cont_tok_targ)
             metric_result_dict['output'].append(cont_tok_pred)
 
@@ -344,12 +349,15 @@ class InContextLearningMultipleChoiceAccuracy(InContextLearningMetric):
             else:
                 metric_result_dict['result'].append(0)
 
-            question = batch['input_ids'][start][:batch['continuation_indices'][start][0]]
+            question = batch['input_ids'][
+                start][:batch['continuation_indices'][start][0]]
 
-            correct_choice = batch['input_ids'][start:end][gold_idx][batch['continuation_indices'][start:end][gold_idx][
-                0]:batch['continuation_indices'][start:end][gold_idx][-1] + 1]
-            selected_choice = batch['input_ids'][start:end][idx_min][batch['continuation_indices'][start:end][idx_min][
-                0]:batch['continuation_indices'][start:end][idx_min][-1] + 1]
+            correct_choice = batch['input_ids'][start:end][gold_idx][
+                batch['continuation_indices'][start:end][gold_idx][0]:
+                batch['continuation_indices'][start:end][gold_idx][-1] + 1]
+            selected_choice = batch['input_ids'][start:end][idx_min][
+                batch['continuation_indices'][start:end][idx_min][0]:
+                batch['continuation_indices'][start:end][idx_min][-1] + 1]
             metric_result_dict['context'].append(question)
             metric_result_dict['correct_choice'].append(correct_choice)
             metric_result_dict['correct_choice_idx'].append(gold_idx)
@@ -358,7 +366,10 @@ class InContextLearningMultipleChoiceAccuracy(InContextLearningMetric):
             all_choices = batch['input_ids'][start:end]
             # Unpads the choices. Necessary in case different choices have different token lengths.
             if 'attention_mask' in batch:
-                all_choices_list = [choice[batch['attention_mask'][i]] for i, choice in enumerate(all_choices)]
+                all_choices_list = [
+                    choice[batch['attention_mask'][i]]
+                    for i, choice in enumerate(all_choices)
+                ]
                 metric_result_dict['all_choices'].append(all_choices_list)
 
             self.total += torch.tensor(1.0)
@@ -368,7 +379,6 @@ class InContextLearningMultipleChoiceAccuracy(InContextLearningMetric):
             metric_result_dict.pop('all_choices')
 
         return metric_result_dict
-
 
     def compute(self):
         assert isinstance(self.correct, Tensor)
@@ -410,8 +420,12 @@ class InContextLearningCodeEvalAccuracy(InContextLearningMetric):
         self.eval_device = os.environ.get('CODE_EVAL_DEVICE', None)
         if self.eval_device is not None:
             self.eval_device = self.eval_device.upper()
-        self.metric_result_dict = {'context': [], 'output': [], 'result': [], 'sample_id': []}
-        
+        self.metric_result_dict = {
+            'context': [],
+            'output': [],
+            'result': [],
+            'sample_id': []
+        }
 
     def get_client(self) -> EvalClient:
         """Returns a client for the appropriate remote platform."""

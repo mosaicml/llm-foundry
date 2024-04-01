@@ -257,8 +257,6 @@ def parse_args() -> Namespace:
     parser.add_argument('--system_prompt',
                         type=str,
                         default=DEFAULT_SYSTEM_PROMPT)
-    parser.add_argument('--user_msg_fmt', type=str, default=None)
-    parser.add_argument('--assistant_msg_fmt', type=str, default=None)
     parser.add_argument(
         '--stop_tokens',
         type=str,

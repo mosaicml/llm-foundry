@@ -20,12 +20,11 @@ except:
 attn_config_defaults: Dict = {
     'attn_type': 'multihead_attention',
     'attn_pdrop': 0.0,
-    'attn_impl': 'triton',
+    'attn_impl': 'flash',
     'qk_ln': False,
     'qk_gn': False,
     'clip_qkv': None,
     'softmax_scale': None,
-    'prefix_lm': False,
     'attn_uses_sequence_id': False,
     'sliding_window_size': -1,
     'alibi': False,
@@ -79,9 +78,9 @@ class MPTBlock(nn.Module):
 
         # necessary to avoid passing extraneous args into attn_class while allowing the use of **kwargs
         args_to_exclude_in_attn_class = {
-            'attn_type', 'prefix_lm', 'alibi', 'attn_uses_sequence_id',
-            'alibi_bias_max', 'rope', 'rope_theta', 'rope_impl',
-            'rope_dail_config', 'rope_hf_config'
+            'attn_type', 'alibi', 'attn_uses_sequence_id', 'alibi_bias_max',
+            'rope', 'rope_theta', 'rope_impl', 'rope_dail_config',
+            'rope_hf_config'
         }
         attn_config_subset_for_attn_class = {
             k: v

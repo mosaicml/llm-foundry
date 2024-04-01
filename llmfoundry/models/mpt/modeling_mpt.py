@@ -1022,14 +1022,9 @@ class ComposerMPTCausalLM(HuggingFaceModel):
                               targets)
 
         if torch.all(targets == -100):
-            if torch.any(losses != 0.0):
-                raise ValueError(
-                    f'Losses are non-zero even though all the targets are -100.'
-                )
-            warnings.warn(
-                'All targets are -100. This is likely due to padding tokens. Better sequence packing may reduce the number of padding tokens.'
+            raise ValueError(
+                'All targets are -100. This might be due to all tokens in a sequence being padding tokens.'
             )
-            loss = losses.sum()
         else:
             loss = losses.sum() / (targets != self.loss_fn.ignore_index).sum()
 

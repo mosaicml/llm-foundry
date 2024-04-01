@@ -273,13 +273,12 @@ def build_text_dataloader(
     if bos_token_id is not None and hasattr(
             tokenizer,
             'bos_token_id') and bos_token_id != tokenizer.bos_token_id:
+        bos_mismatch_str = f'Provided bos_token_id={bos_token_id} does not match tokenizer.bos_token_id={tokenizer.bos_token_id}.'
         if cfg.dataset.pop('override_bos_token_id_mismatch_error', False):
-            log.warning(
-                f'Provided bos_token_id={bos_token_id} does not match tokenizer.bos_token_id={tokenizer.bos_token_id}'
-            )
+            log.warning(bos_mismatch_str)
         else:
             raise ValueError(
-                f'Provided bos_token_id={bos_token_id} does not match tokenizer.bos_token_id={tokenizer.bos_token_id}. To override this error, set the override_bos_token_id_mismatch_error flag to True in the dataset config section of the YAML.'
+                bos_mismatch_str + ' To override this error, set the override_bos_token_id_mismatch_error flag to True in the dataset config section of the YAML.'
             )
 
     streams = build_streams(cfg.dataset)

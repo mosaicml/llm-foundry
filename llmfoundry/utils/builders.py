@@ -6,6 +6,7 @@ import functools
 import logging
 import os
 import re
+import warnings
 from collections import OrderedDict
 from typing import (Any, ContextManager, Dict, Iterable, List, Optional, Tuple,
                     Union)
@@ -28,6 +29,7 @@ from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.eval.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
+from llmfoundry.utils import VersionedDeprecationWarning
 from llmfoundry.utils.registry_utils import construct_from_registry
 
 log = logging.getLogger(__name__)
@@ -497,10 +499,13 @@ def build_icl_evaluators(
                 ]
             elif icl_cfg.icl_task_type == 'generation_task_with_answers' or icl_cfg.icl_task_type == 'question_answering':
                 if icl_cfg.icl_task_type == 'question_answering':
-                    log.warning(
-                        ""
-                    )
-                icl_cfg.metric_names = ['InContextLearningGenerationExactMatchAccuracy']
+                    warnings.warn(
+                        VersionedDeprecationWarning(
+                            "ICL task type 'question_answering' is now deprecated. Use identifier 'generation_task_with_answers'",
+                            'v0.7.0'))
+                icl_cfg.metric_names = [
+                    'InContextLearningGenerationExactMatchAccuracy'
+                ]
             elif icl_cfg.icl_task_type == 'code_evaluation':
                 icl_cfg.metric_names = ['InContextLearningCodeEvalAccuracy']
             else:

@@ -31,7 +31,7 @@ from llmfoundry.eval.datasets.utils import (convert_tokens_to_tensors,
                                             make_padded_input, strip_data,
                                             tokenizer_needs_prefix_space,
                                             trim_context)
-from llmfoundry.utils import VersionedDeprecationWarning
+from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
 log = logging.getLogger(__name__)
 

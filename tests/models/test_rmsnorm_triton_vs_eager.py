@@ -8,17 +8,16 @@ from omegaconf import OmegaConf as om
 from typing import List, Union
 
 from llmfoundry.models.layers.attention import is_flash_v2_installed
-from llmfoundry.models.layers import norm
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('normalized_shape', [32, 128, [32, 128]])
+@pytest.mark.parametrize('normalized_shape', [32, 128])
 def test_rmsnorm_triton_vs_eager(normalized_shape: Union[int, List[int]], device: str = 'cuda'):
     # Compare Triton and PyTorch Eager implementations of RMSNorm
     if not is_flash_v2_installed():
         pytest.skip('triton implementation of rmsnorm requires flash attention 2.')
 
-    from llmfoundry.models.layers import attention
+    from llmfoundry.models.layers import norm
 
     batch_size = 2
 

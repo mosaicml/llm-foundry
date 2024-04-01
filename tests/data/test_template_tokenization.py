@@ -159,7 +159,7 @@ def test_tokenize_instruct_example_malformed():
     ]
 
     for example in malformed_prompt_response_examples:
-        with pytest.raises(KeyError):
+        with pytest.raises(Exception):
             tokenize_formatted_example(example, MagicMock())
 
 

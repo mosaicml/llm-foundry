@@ -1,23 +1,27 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import contextlib
 import functools
 import logging
 import os
 import re
 from collections import OrderedDict
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import (Any, ContextManager, Dict, Iterable, List, Optional, Tuple,
+                    Union)
 
 import torch
 from composer.core import Algorithm, Callback, Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
 from composer.loggers import LoggerDestination
+from composer.models import ComposerModel
 from composer.optim.scheduler import ComposerScheduler
 from composer.utils import dist
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from torch.optim.optimizer import Optimizer
+from torchmetrics import Metric
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from llmfoundry import registry
@@ -38,6 +42,8 @@ __all__ = [
     'build_optimizer',
     'build_scheduler',
     'build_tokenizer',
+    'build_composer_model',
+    'build_metric',
 ]
 
 
@@ -153,14 +159,68 @@ def build_icl_data_and_gauntlet(
     return icl_evaluators, logger_keys, eval_gauntlet_cb
 
 
+def build_composer_model(
+    name: str,
+    cfg: DictConfig,
+    tokenizer: PreTrainedTokenizerBase,
+    init_context: Optional[ContextManager] = None,
+    master_weights_dtype: Optional[str] = None,
+) -> ComposerModel:
+    """Builds a ComposerModel from the registry.
+
+    Args:
+        name (str): Name of the model to build.
+        cfg (DictConfig): Configuration for the model.
+        tokenizer (PreTrainedTokenizerBase): Tokenizer to use.
+        init_context (Optional[ContextManager], optional): Context manager to use for initialization. Defaults to None.
+        master_weights_dtype (Optional[str], optional): Master weights dtype. Defaults to None.
+
+    Returns:
+        ComposerModel: _description_
+    """
+    if init_context is None:
+        init_context = contextlib.nullcontext()
+
+    with init_context:
+        model = construct_from_registry(
+            name=name,
+            registry=registry.models,
+            pre_validation_function=ComposerModel,
+            post_validation_function=None,
+            kwargs={
+                'om_model_config': cfg,
+                'tokenizer': tokenizer
+            },
+        )
+
+    str_dtype_to_torch_dtype = {
+        'f16': torch.float16,
+        'float16': torch.float16,
+        'bf16': torch.bfloat16,
+        'bfloat16': torch.bfloat16,
+    }
+
+    if master_weights_dtype is not None:
+        if master_weights_dtype not in str_dtype_to_torch_dtype:
+            raise ValueError(
+                f'Invalid master_weights_dtype: {master_weights_dtype}. ' +
+                f'Valid options are: {list(str_dtype_to_torch_dtype.keys())}.')
+        dtype = str_dtype_to_torch_dtype[master_weights_dtype]
+        model = model.to(dtype=dtype)
+
+    return model
+
+
 def build_callback(
     name: str,
-    kwargs: Dict[str, Any],
+    kwargs: Optional[Dict[str, Any]] = None,
     config: Any = None,
 ) -> Callback:
     """Builds a callback from the registry."""
     registry_to_use = registry.callbacks
     if name in registry.callbacks_with_config:
+        if kwargs is None:
+            kwargs = {}
         if 'config' in kwargs:
             raise ValueError(
                 f'`config` is a reserved keyword for callbacks with config. Please remove it from the kwargs.'
@@ -176,7 +236,8 @@ def build_callback(
                                    kwargs=kwargs)
 
 
-def build_logger(name: str, kwargs: Dict[str, Any]) -> LoggerDestination:
+def build_logger(name: str,
+                 kwargs: Optional[Dict[str, Any]] = None) -> LoggerDestination:
     """Builds a logger from the registry."""
     return construct_from_registry(name=name,
                                    registry=registry.loggers,
@@ -186,7 +247,8 @@ def build_logger(name: str, kwargs: Dict[str, Any]) -> LoggerDestination:
                                    kwargs=kwargs)
 
 
-def build_algorithm(name: str, kwargs: Dict[str, Any]) -> Algorithm:
+def build_algorithm(name: str,
+                    kwargs: Optional[Dict[str, Any]] = None) -> Algorithm:
     """Builds an algorithm from the registry."""
     return construct_from_registry(name=name,
                                    registry=registry.algorithms,
@@ -196,9 +258,19 @@ def build_algorithm(name: str, kwargs: Dict[str, Any]) -> Algorithm:
                                    kwargs=kwargs)
 
 
+def build_metric(name: str, kwargs: Optional[Dict[str, Any]] = None) -> Metric:
+    """Builds a metric from the registry."""
+    return construct_from_registry(name=name,
+                                   registry=registry.metrics,
+                                   partial_function=True,
+                                   pre_validation_function=Metric,
+                                   post_validation_function=None,
+                                   kwargs=kwargs)
+
+
 def _extract_param_groups(
     model: torch.nn.Module,
-    optimizer_config: Dict[str, Any],
+    optimizer_config: Optional[Dict[str, Any]] = None,
 ) -> Union[Iterable[torch.Tensor], Iterable[Dict[str, Any]]]:
     """Extracts parameter groups defined in the optimizer config.
 
@@ -260,6 +332,9 @@ def _extract_param_groups(
             torch.Tensor's or dict's. Specifies what Tensors should be optimized
             and their param groupings.
     """
+    if optimizer_config is None:
+        return model.parameters()
+
     if 'disable_grad' in optimizer_config.keys():
         str_matches = optimizer_config.pop('disable_grad')
         if isinstance(str_matches, str):
@@ -296,11 +371,16 @@ def _extract_param_groups(
     return model.parameters()
 
 
-def build_optimizer(model: torch.nn.Module, name: str,
-                    optimizer_config: Dict[str, Any]) -> Optimizer:
+def build_optimizer(
+        model: torch.nn.Module,
+        name: str,
+        optimizer_config: Optional[Dict[str, Any]] = None) -> Optimizer:
 
     params = _extract_param_groups(model, optimizer_config)
     kwargs = optimizer_config
+
+    if kwargs is None:
+        kwargs = {}
     if 'params' in kwargs:
         raise ValueError(
             'The `params` will be automatically extracted from the model and ' +
@@ -316,8 +396,9 @@ def build_optimizer(model: torch.nn.Module, name: str,
                                    kwargs=kwargs)
 
 
-def build_scheduler(name: str,
-                    scheduler_config: Dict[str, Any]) -> ComposerScheduler:
+def build_scheduler(
+        name: str,
+        scheduler_config: Optional[Dict[str, Any]] = None) -> ComposerScheduler:
     return construct_from_registry(
         name=name,
         registry=registry.schedulers,

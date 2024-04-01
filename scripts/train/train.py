@@ -136,11 +136,18 @@ def main(cfg: DictConfig) -> Trainer:
     # Create copy of config for logging
     logged_cfg: DictConfig = copy.deepcopy(cfg)
 
+    cuda_alloc_conf = []
     # Get max split size mb
     max_split_size_mb: Optional[int] = cfg.pop('max_split_size_mb', None)
     if max_split_size_mb is not None:
-        os.environ[
-            'PYTORCH_CUDA_ALLOC_CONF'] = f'max_split_size_mb:{max_split_size_mb}'
+        cuda_alloc_conf.append(f'max_split_size_mb:{max_split_size_mb}')
+
+    # Expandeable segments
+    if cfg.pop('expandeable_segments', False):
+        cuda_alloc_conf.append('expandeable_segments:True')
+
+    if len(cuda_alloc_conf) > 0:
+        os.environ['PYTORCH_CUDA_ALLOC_CONF'] = ','.join(cuda_alloc_conf)
 
     # Set CUDA lazy loading
     # This can save a bit of memory if not all modules are needed

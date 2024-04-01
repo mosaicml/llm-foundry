@@ -268,7 +268,7 @@ def build_text_dataloader(
 
     tokenizer_eos_token_id = getattr(tokenizer, 'eos_token_id', None)
     if eos_token_id is not None and eos_token_id != tokenizer_eos_token_id:
-        eos_mismatch_str = f'Provided {eos_token_id=} does not match the eos_token_id of the tokenizer = {tokenizer_eos_token_id}.'
+        eos_mismatch_str = f'Provided {eos_token_id=} does not match the eos_token_id of the tokenizer={tokenizer_eos_token_id}.'
         if cfg.dataset.pop('override_eos_token_id_mismatch_error', False):
             log.warning(eos_mismatch_str)
         else:
@@ -279,7 +279,7 @@ def build_text_dataloader(
 
     tokenizer_bos_token_id = getattr(tokenizer, 'bos_token_id', None)
     if bos_token_id is not None and bos_token_id != tokenizer_bos_token_id:
-        bos_mismatch_str = f'Provided {bos_token_id=} does not match the bos_token_id of the tokenizer = {tokenizer_bos_token_id}.'
+        bos_mismatch_str = f'Provided {bos_token_id=} does not match the bos_token_id of the tokenizer={tokenizer_bos_token_id}.'
         if cfg.dataset.pop('override_bos_token_id_mismatch_error', False):
             log.warning(bos_mismatch_str)
         else:

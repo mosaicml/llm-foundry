@@ -262,13 +262,12 @@ def build_text_dataloader(
     if eos_token_id is not None and hasattr(
             tokenizer,
             'eos_token_id') and eos_token_id != tokenizer.eos_token_id:
+        eos_mismatch_str = f'Provided {eos_token_id=} does not match {tokenizer.eos_token_id=}.'
         if cfg.dataset.pop('override_eos_token_id_mismatch_error', False):
-            log.warning(
-                f'Provided eos_token_id={eos_token_id} does not match tokenizer.eos_token_id={tokenizer.eos_token_id}'
-            )
+            log.warning(eos_mismatch_str)
         else:
             raise ValueError(
-                f'Provided eos_token_id={eos_token_id} does not match tokenizer.eos_token_id={tokenizer.eos_token_id}.  To override this error, set the override_eos_token_id_mismatch_error flag to True in the dataset config section of the YAML.'
+                eos_mismatch_str + ' To override this error, set the override_eos_token_id_mismatch_error flag to True in the dataset config section of the YAML.'
             )
 
     if bos_token_id is not None and hasattr(

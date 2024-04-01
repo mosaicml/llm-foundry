@@ -984,7 +984,8 @@ class ComposerMPTCausalLM(HuggingFaceModel):
                 from flash_attn.losses.cross_entropy import \
                     CrossEntropyLoss as FusedCrossEntropyLoss
 
-                self.loss_fn = FusedCrossEntropyLoss(ignore_index=-100)
+                self.loss_fn = FusedCrossEntropyLoss(ignore_index=-100,
+                                                     reduction='none')
             except:
                 raise ValueError(
                     'Fused Cross Entropy is not installed. Either (1) have a CUDA-compatible GPU '
@@ -994,7 +995,8 @@ class ComposerMPTCausalLM(HuggingFaceModel):
                     'if installing from pypi, or (2) set your config model.loss_fn=torch_crossentropy.'
                 )
         elif loss_fn_config == 'torch_crossentropy':
-            self.loss_fn = nn.CrossEntropyLoss(ignore_index=-100)
+            self.loss_fn = nn.CrossEntropyLoss(ignore_index=-100,
+                                               reduction='none')
         else:
             raise ValueError(
                 f'Specified loss_fn={self.loss_fn} not recognized. `loss_fn` must be one of [`fused_crossentropy`, `torch_crossentropy`].'
@@ -1015,9 +1017,23 @@ class ComposerMPTCausalLM(HuggingFaceModel):
 
     def loss(self, outputs: CausalLMOutputWithPast,
              batch: Mapping) -> torch.Tensor:
-        targets = self.get_targets(batch)
-        return self.loss_fn(outputs.logits.view(-1, outputs.logits.size(-1)),
-                            targets.view(-1))
+        targets = self.get_targets(batch).view(-1)
+        losses = self.loss_fn(outputs.logits.view(-1, outputs.logits.size(-1)),
+                              targets)
+
+        if torch.all(targets == -100):
+            if torch.any(losses != 0.0):
+                raise ValueError(
+                    f'Losses are non-zero even though all the targets are -100.'
+                )
+            warnings.warn(
+                'All targets are -100. This is likely due to padding tokens. Better sequence packing may reduce the number of padding tokens.'
+            )
+            loss = losses.sum()
+        else:
+            loss = losses.sum() / (targets != self.loss_fn.ignore_index).sum()
+
+        return loss
 
     def flops_per_batch(self, batch: Mapping) -> int:
         # Note: this computation does not take into account padding, and assumes

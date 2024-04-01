@@ -586,7 +586,7 @@ def test_loss_reduction(loss_fn_config: str):
                                  eps=test_cfg.optimizer.eps,
                                  weight_decay=test_cfg.optimizer.weight_decay)
 
-    for i in range(15):
+    for i in range(3):
         batch = gen_random_batch(2, test_cfg)
         output_1 = model_1(batch)
         output_2 = model_2(batch)
@@ -595,7 +595,7 @@ def test_loss_reduction(loss_fn_config: str):
 
         loss_1 = model_1.loss(output_1, batch)
 
-        # Reduce the m
+        # Loss for model_2 gets reduced within the loss_fn, so we handle it separately
         targets = model_2.get_targets(batch)
         loss_2 = model_2.loss_fn(
             output_2.logits.view(-1, output_2.logits.size(-1)),

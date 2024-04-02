@@ -75,10 +75,13 @@ def _maybe_get_license_filename(
         return None
 
 
-def _register_model_with_run_id_multiprocess(mlflow_logger: MLFlowLogger,
-                                             composer_logging_level: int,
-                                             model_uri: str, name: str,
-                                             await_creation_for: int):
+def _register_model_with_run_id_multiprocess(
+    mlflow_logger: MLFlowLogger,
+    composer_logging_level: int,
+    model_uri: str,
+    name: str,
+    await_creation_for: int,
+):
     """Function for calling MLFlowLogger.register_model_with_run_id from a.
 
     spawned child process.
@@ -233,7 +236,14 @@ class HuggingFaceCheckpointer(Callback):
                     '5GB')
         elif event == Event.FIT_END:
             # Wait for all child processes spawned by the callback to finish.
+            timeout = 3600
+            wait_start = time.time()
             while not self._all_child_processes_done():
+                wait_time = time.time() - wait_start
+                if wait_time > timeout:
+                    raise TimeoutError(
+                        f'Waited {wait_time} seconds for child processes to complete. Exceed timeout of {timeout} seconds.'
+                    )
                 time.sleep(2)
 
             # Clean up temporary save directory; all processes are done with it.

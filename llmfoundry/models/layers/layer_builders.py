@@ -1,10 +1,13 @@
-from typing import Optional, Union, List
+# Copyright 2024 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
+from typing import List, Optional, Union
 
 import torch
 
+from llmfoundry.layers_registry import norms
 from llmfoundry.utils.registry_utils import construct_from_registry
 
-from llmfoundry.layers_registry import norms
 
 def build_norm(
     name: str,
@@ -16,5 +19,7 @@ def build_norm(
         'device': device,
     }
 
-    return construct_from_registry(name=name, registry=norms, pre_validation_function=torch.nn.Module, kwargs=kwargs)
-    
+    return construct_from_registry(name=name,
+                                   registry=norms,
+                                   pre_validation_function=torch.nn.Module,
+                                   kwargs=kwargs)

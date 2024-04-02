@@ -1,6 +1,9 @@
-import torch
+# Copyright 2024 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
 
 from typing import Type
+
+import torch
 
 from llmfoundry.utils.registry_utils import create_registry
 

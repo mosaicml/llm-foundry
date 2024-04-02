@@ -22,7 +22,7 @@ def _cast_if_autocast_enabled(tensor: torch.Tensor) -> torch.Tensor:
     return tensor
 
 
-@norms.register('low_precision_layernorm')
+@norms.register_class('low_precision_layernorm')
 class LPLayerNorm(torch.nn.LayerNorm):
 
     def __init__(
@@ -90,7 +90,7 @@ class RMSNorm(torch.nn.Module):
         return rms_norm(x.float(), self.weight, self.eps).to(dtype=x.dtype)
 
 
-@norms.register('low_precision_rmsnorm')
+@norms.register_class('low_precision_rmsnorm')
 class LPRMSNorm(RMSNorm):
 
     def __init__(
@@ -118,7 +118,7 @@ class LPRMSNorm(RMSNorm):
                             self.eps).to(dtype=x.dtype)
 
 
-@norms.register('triton_rmsnorm')
+@norms.register_class('triton_rmsnorm')
 class TritonRMSNorm(torch.nn.Module):
 
     def __init__(

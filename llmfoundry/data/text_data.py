@@ -3,6 +3,7 @@
 
 """Build a StreamingTextDataset dataset and dataloader for training."""
 
+import logging
 import os
 from itertools import islice
 from typing import (Any, Callable, Dict, List, Mapping, Optional, Sequence,
@@ -18,6 +19,8 @@ from omegaconf import OmegaConf as om
 from streaming import Stream, StreamingDataset
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
+
+log = logging.getLogger(__name__)
 
 
 class StreamingTextDataset(StreamingDataset):
@@ -256,6 +259,34 @@ def build_text_dataloader(
     mlm_probability = cfg.dataset.pop('mlm_probability', None)
     eos_token_id = cfg.dataset.pop('eos_token_id', None)
     bos_token_id = cfg.dataset.pop('bos_token_id', None)
+
+    if eos_token_id is None and bos_token_id is None and (hasattr(
+            tokenizer, 'eos_token_id') or hasattr(tokenizer, 'bos_token_id')):
+        log.warning(
+            'The user has not provided an eos_token_id or bos_token_id, but the tokenizer has an eos_token_id or a bos_token_id.'
+        )
+
+    tokenizer_eos_token_id = getattr(tokenizer, 'eos_token_id', None)
+    if eos_token_id is not None and eos_token_id != tokenizer_eos_token_id:
+        eos_mismatch_str = f'Provided {eos_token_id=} does not match the eos_token_id of the tokenizer={tokenizer_eos_token_id}.'
+        if cfg.dataset.pop('override_eos_token_id_mismatch_error', False):
+            log.warning(eos_mismatch_str)
+        else:
+            raise ValueError(
+                eos_mismatch_str +
+                ' To override this error, set the override_eos_token_id_mismatch_error flag to True in the dataset config section of the YAML.'
+            )
+
+    tokenizer_bos_token_id = getattr(tokenizer, 'bos_token_id', None)
+    if bos_token_id is not None and bos_token_id != tokenizer_bos_token_id:
+        bos_mismatch_str = f'Provided {bos_token_id=} does not match the bos_token_id of the tokenizer={tokenizer_bos_token_id}.'
+        if cfg.dataset.pop('override_bos_token_id_mismatch_error', False):
+            log.warning(bos_mismatch_str)
+        else:
+            raise ValueError(
+                bos_mismatch_str +
+                ' To override this error, set the override_bos_token_id_mismatch_error flag to True in the dataset config section of the YAML.'
+            )
 
     streams = build_streams(cfg.dataset)
 

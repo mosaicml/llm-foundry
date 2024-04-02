@@ -229,7 +229,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             # Get an index to add and add the item
             vocab_clone[candidate_extra_id] = index_to_add
 
-        return vocab_clone
+        return dict(vocab_clone, **self.added_tokens_encoder)
 
     def _tokenize(self, text: str) -> List[str]:
         """Returns a tokenized string."""

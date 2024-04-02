@@ -1021,7 +1021,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         losses = self.loss_fn(outputs.logits.view(-1, outputs.logits.size(-1)),
                               targets.view(-1))
 
-        if torch.all(targets == -100):
+        if torch.all(targets == self.loss_fn.ignore_index):
             loss = losses.sum()
         else:
             loss = losses.sum() / (targets != self.loss_fn.ignore_index).sum()

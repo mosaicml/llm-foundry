@@ -1017,9 +1017,9 @@ class ComposerMPTCausalLM(HuggingFaceModel):
 
     def loss(self, outputs: CausalLMOutputWithPast,
              batch: Mapping) -> torch.Tensor:
-        targets = self.get_targets(batch).view(-1)
+        targets = self.get_targets(batch)
         losses = self.loss_fn(outputs.logits.view(-1, outputs.logits.size(-1)),
-                              targets)
+                              targets.view(-1))
 
         if torch.all(targets == -100):
             raise ValueError(

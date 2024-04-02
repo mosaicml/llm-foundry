@@ -21,6 +21,7 @@ from llmfoundry.models.layers.norm import LPLayerNorm  # type: ignore (see note)
 from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY  # type: ignore (see note)
 from llmfoundry.models.layers.layer_builders import build_norm  # type: ignore (see note)
 from llmfoundry.layers_registry import norms  # type: ignore (see note)
+from llmfoundry.utils.registry_utils import construct_from_registry  # type: ignore (see note)
 
 ffn_config_defaults: Dict = {
     'ffn_type': 'mptmlp',

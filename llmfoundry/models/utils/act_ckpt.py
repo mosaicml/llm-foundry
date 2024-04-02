@@ -5,8 +5,7 @@ from typing import Any
 
 import torch
 
-from llmfoundry.layers_registry import norms
-from llmfoundry.models.layers.attention import ATTN_CLASS_REGISTRY
+from llmfoundry.layers_registry import attention_class, norms
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY
 
@@ -25,15 +24,15 @@ def get_act_ckpt_module(mod_name: str) -> Any:
     """Get the module type from the module name."""
     if mod_name.lower() == 'mptblock':
         mod_type = MPTBlock
-    elif mod_name in ATTN_CLASS_REGISTRY:
-        mod_type = ATTN_CLASS_REGISTRY[mod_name]
+    elif mod_name in attention_class.get_all():
+        mod_type = attention_class.get(mod_name)
     elif mod_name in FFN_CLASS_REGISTRY:
         mod_type = FFN_CLASS_REGISTRY[mod_name]
     elif mod_name in norms:
         mod_type = norms.get(mod_name)
     else:
         msg = ', '.join(
-            list(ATTN_CLASS_REGISTRY.keys()) + list(FFN_CLASS_REGISTRY.keys()) +
+            list(attention_class.get_all()) + list(FFN_CLASS_REGISTRY.keys()) +
             list(norms.get_all()) + ['MPTBlock'])
         raise ValueError(
             f'{mod_name} (specified in activation_checkpointing_target) is not a recognized option out of available options {msg}.'

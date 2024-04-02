@@ -7,6 +7,7 @@ from composer.core.precision import get_precision_context
 from omegaconf import OmegaConf as om
 
 from llmfoundry.models.layers.attention import is_flash_v2_installed
+from llmfoundry.models.layers.layer_builders import build_attention_layer
 from llmfoundry.models.mpt.modeling_mpt import (gen_flash_attn_padding_info,
                                                 gen_rotary_embedding)
 
@@ -20,8 +21,6 @@ def test_rope_dail_vs_hf(attn_type: str, seq_len: int, device: str = 'cuda'):
     # compare rope rotations for the dail vs hf implementations
     if not is_flash_v2_installed():
         pytest.skip('dail implementation of rope requires flash attention 2.')
-
-    from llmfoundry.models.layers import attention
 
     cfg = om.create({
         'attn_impl': 'flash',
@@ -37,8 +36,14 @@ def test_rope_dail_vs_hf(attn_type: str, seq_len: int, device: str = 'cuda'):
     if attn_type == 'grouped_query_attention':
         cfg.kv_n_heads = 2
 
-    attn0 = attention.ATTN_CLASS_REGISTRY[attn_type](**cfg).to(device)
-    attn1 = attention.ATTN_CLASS_REGISTRY[attn_type](**cfg).to(device)
+    attn0 = build_attention_layer(
+        name=attn_type,
+        attn_kwargs=om.to_container(cfg),  # type: ignore
+    ).to(device)
+    attn1 = build_attention_layer(
+        name=attn_type,
+        attn_kwargs=om.to_container(cfg),  # type: ignore
+    ).to(device)
 
     attn1.load_state_dict(attn0.state_dict())
     x0 = torch.randn(batch_size, seq_len, cfg.d_model).to(device)

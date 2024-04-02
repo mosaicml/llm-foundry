@@ -311,7 +311,6 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
              fsdp_config=fsdp_config,
              loggers=loggers,
              python_log_level=python_log_level,
-             callback_configs=callback_configs,
              precision=precision,
              eval_gauntlet_df=eval_gauntlet_df,
              callback_configs=callback_configs,

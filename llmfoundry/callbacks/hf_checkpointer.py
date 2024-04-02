@@ -82,7 +82,7 @@ def _register_model_with_run_id_multiprocess(
     name: str,
     await_creation_for: int,
 ):
-    """Call MLFlowLogger.register_model_with_run_id.
+    """Call MLFlowLogger.register_model_with_run_id
 
     Used mainly to register from a child process.
     """
@@ -440,7 +440,7 @@ class HuggingFaceCheckpointer(Callback):
                         kwargs={
                             'mlflow_logger':
                                 mlflow_logger,
-                            'logging_level':
+                            'composer_logging_level':
                                 logging.getLogger('composer').level,
                             'model_uri':
                                 local_save_path,

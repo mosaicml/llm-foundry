@@ -82,9 +82,9 @@ def _register_model_with_run_id_multiprocess(
     name: str,
     await_creation_for: int,
 ):
-    """Function for calling MLFlowLogger.register_model_with_run_id from a.
+    """Call MLFlowLogger.register_model_with_run_id.
 
-    spawned child process.
+    Used mainly to register from a child process.
     """
     # Setup logging for child process. This ensures that any logs from composer are surfaced.
     if composer_logging_level > 0:

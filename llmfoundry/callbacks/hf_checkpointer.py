@@ -242,7 +242,7 @@ class HuggingFaceCheckpointer(Callback):
                 wait_time = time.time() - wait_start
                 if wait_time > timeout:
                     raise TimeoutError(
-                        f'Waited {wait_time} seconds for child processes to complete. Exceed timeout of {timeout} seconds.'
+                        f'Waited {wait_time} seconds for child processes to complete. Exceeded timeout of {timeout} seconds.'
                     )
                 time.sleep(2)
 

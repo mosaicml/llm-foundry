@@ -11,12 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import torch
-<<<<<<< HEAD
-from composer.core.callback import Callback
-from composer.loggers import MosaicMLLogger
-=======
 from composer.core import Callback
->>>>>>> main
 from composer.loggers.logger_destination import LoggerDestination
 from composer.trainer import Trainer
 from composer.utils import dist, get_device, reproducibility
@@ -56,11 +51,7 @@ def evaluate_model(
     eval_gauntlet_df: Optional[pd.DataFrame],
     eval_subset_num_batches: int,
     icl_subset_num_batches: Optional[int],
-<<<<<<< HEAD
-    callback_configs: Optional[Dict],
-=======
     callback_configs: Optional[DictConfig],
->>>>>>> main
     metadata: Optional[Dict[str, str]],
     logged_config: DictConfig,
     should_log_config: bool = True,
@@ -80,9 +71,6 @@ def evaluate_model(
             'The FSDP config block is not supported when loading ' +
             'Hugging Face models in 8bit.')
 
-    composer_model = load_model(model_cfg.model, tokenizer, fsdp_config,
-                                num_retries)
-    
     evaluators, logger_keys, eval_gauntlet_callback = build_evaluators(
         eval_loader_config,
         icl_tasks,
@@ -110,9 +98,6 @@ def evaluate_model(
             mosaicml_logger.log_metrics(metadata)
             mosaicml_logger._flush_metadata(force_flush=True)
 
-<<<<<<< HEAD
-    
-=======
     if fsdp_config and model_cfg.model.get('load_in_8bit', False):
         raise ValueError(
             'The FSDP config block is not supported when loading ' +
@@ -126,7 +111,6 @@ def evaluate_model(
         tokenizer=tokenizer,
         init_context=init_context,
     )
->>>>>>> main
 
     # Now add the eval metrics
     if eval_loader_config is not None:
@@ -271,10 +255,7 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
                                                         'callbacks',
                                                         must_exist=False,
                                                         default_value=None)
-<<<<<<< HEAD
-=======
 
->>>>>>> main
     # Warn for unused parameters
     for key in cfg:
         warnings.warn(

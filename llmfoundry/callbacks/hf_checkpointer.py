@@ -76,19 +76,21 @@ def _maybe_get_license_filename(
 
 
 def _register_model_with_run_id_multiprocess(mlflow_logger: MLFlowLogger,
-                                             logging_level: int, model_uri: str,
-                                             name: str,
+                                             composer_logging_level: int,
+                                             model_uri: str, name: str,
                                              await_creation_for: int):
     """Function for calling MLFlowLogger.register_model_with_run_id from a.
 
     spawned child process.
     """
     # Setup logging for child process. This ensures that any logs from composer are surfaced.
-    logging.basicConfig(
-        format=
-        f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
-    )
-    logging.getLogger('composer').setLevel(logging_level)
+    if composer_logging_level > 0:
+        # If logging_level is 0, then the composer logger was unset.
+        logging.basicConfig(
+            format=
+            f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
+        )
+        logging.getLogger('composer').setLevel(composer_logging_level)
 
     # Register model.
     mlflow_logger.register_model_with_run_id(

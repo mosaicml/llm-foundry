@@ -7,6 +7,7 @@ from typing import Callable, Dict, Iterable, List, Literal, Optional, Tuple
 
 import numpy as np
 import torch
+from composer.utils import dist
 from omegaconf import DictConfig
 from transformers import PreTrainedTokenizerBase
 
@@ -389,11 +390,17 @@ def profile_packing(
 
     # If streaming dataset, use a temporary local folder for profiling
     if dataloader_cfg.dataset.get('remote') is not None:
-        dataloader_cfg.dataset.local = '/tmp/blah'
+        tmp_path_to_broadcast = tempfile.TemporaryDirectory().name
+        gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
+        tmp_path = gathered_paths[0]
+        dataloader_cfg.dataset.local = tmp_path
 
     if dataloader_cfg.dataset.get('streams') is not None:
-        for stream_name, stream_config in dataloader_cfg.dataset.streams.items():
-            stream_config.local = f'/tmp/blah/{stream_name}'
+        for stream_config in dataloader_cfg.dataset.streams.values():
+            tmp_path_to_broadcast = tempfile.TemporaryDirectory().name
+            gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
+            tmp_path = gathered_paths[0]
+            stream_config.local = tmp_path
 
     # Determine the packing_ratio values we'll try
     packing_ratios, raw_batch_sizes = [], []

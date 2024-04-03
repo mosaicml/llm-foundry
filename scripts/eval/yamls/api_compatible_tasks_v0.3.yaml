@@ -1,9 +1,9 @@
 icl_tasks:
 - label: gsm8k
-  dataset_uri: eval/local_data/api_compatible_gauntlet/symbolic_problem_solving/gsm8k_prepended_8shot.jsonl
+  dataset_uri: eval/local_data/symbolic_problem_solving/gsm8k_prepended_8shot.jsonl
   num_fewshot:
   - 0
-  icl_task_type: question_answering
+  icl_task_type: generation_task_with_answers
   cot_delimiter: "The answer is "
   continuation_delimiter: "\n\nA:"
   question_prelimiter: ""
@@ -12,17 +12,17 @@ icl_tasks:
   - "\n\n"
   - "Question:"
 - label: triviaqa_sm_sub
-  dataset_uri: eval/local_data/api_compatible_gauntlet/world_knowledge/triviaqa_sm_sub.jsonl
+  dataset_uri: eval/local_data/world_knowledge/triviaqa_sm_sub.jsonl
   num_fewshot:
   - 3
-  icl_task_type: question_answering
+  icl_task_type: generation_task_with_answers
   do_normalization: true
 - label: svamp
-  dataset_uri: eval/local_data/api_compatible_gauntlet/symbolic_problem_solving/svamp.jsonl
+  dataset_uri: eval/local_data/symbolic_problem_solving/svamp.jsonl
   num_fewshot:
   - 5
-  icl_task_type: question_answering
-  cot_delimiter: "The answer is "
+  icl_task_type: generation_task_with_answers
+  cot_delimiter: 'The answer is '
   continuation_delimiter: "\n\nA:"
   question_prelimiter: "Question: "
   do_normalization: false
@@ -34,9 +34,7 @@ icl_tasks:
   num_fewshot:
   - 3
   icl_task_type: language_modeling
-  continuation_delimiter: "
-
-    Answer: "
+  continuation_delimiter: "\n\nAnswer:"
   has_categories: true
 - label: bigbench_qa_wikidata
   dataset_uri: eval/local_data/api_compatible_gauntlet/world_knowledge/bigbench_qa_wikidata.jsonl
@@ -49,9 +47,9 @@ icl_tasks:
   - 3
   icl_task_type: question_answering
   continuation_delimiter: "\n\nAnswer:"
-  example_delimiter: \n\n
+  example_delimiter: "\n\n"
   early_stopping_criteria:
-  - \n\n
+  - "\n\n"
   - "Question:"
   - "Q:"
 - label: arc_challenge
@@ -61,9 +59,9 @@ icl_tasks:
   - 25
   icl_task_type: question_answering
   continuation_delimiter: "\n\nAnswer:"
-  example_delimiter: \n\n
+  example_delimiter: "\n\n"
   early_stopping_criteria:
-  - \n\n
+  - "\n\n"
   - "Question:"
   - "Q:"
 - label: mmlu
@@ -73,9 +71,9 @@ icl_tasks:
   icl_task_type: question_answering
   continuation_delimiter: "\n\nAnswer:"
   has_categories: true
-  example_delimiter: \n\n
+  example_delimiter: "\n\n"
   early_stopping_criteria:
-  - \n\n
+  - "\n\n"
   - "Question:"
   - "Q:"
 - label: copa
@@ -84,9 +82,9 @@ icl_tasks:
   - 0
   icl_task_type: question_answering
   continuation_delimiter: "\n\nAnswer:"
-  example_delimiter: \n\n
+  example_delimiter: "\n\n"
   early_stopping_criteria:
-  - \n\n
+  - "\n\n"
   - "Question:"
   - "Q:"
 - label: siqa
@@ -95,9 +93,9 @@ icl_tasks:
   - 3
   icl_task_type: question_answering
   continuation_delimiter: "\n\nAnswer:"
-  example_delimiter: \n\n
+  example_delimiter: "\n\n"
   early_stopping_criteria:
-  - \n\n
+  - "\n\n"
   - "Question:"
   - "Q:"
 - label: commonsense_qa
@@ -106,9 +104,9 @@ icl_tasks:
   - 0
   icl_task_type: question_answering
   continuation_delimiter: "\n\nAnswer:"
-  example_delimiter: \n\n
+  example_delimiter: "\n\n"
   early_stopping_criteria:
-  - \n\n
+  - "\n\n"
   - "Question:"
   - "Q:"
 - label: piqa
@@ -117,9 +115,9 @@ icl_tasks:
   - 0
   icl_task_type: question_answering
   continuation_delimiter: "\n\nAnswer:"
-  example_delimiter: \n\n
+  example_delimiter: "\n\n"
   early_stopping_criteria:
-  - \n\n
+  - "\n\n"
   - "Question:"
   - "Q:"
 - label: openbook_qa
@@ -128,9 +126,9 @@ icl_tasks:
   - 10
   icl_task_type: question_answering
   continuation_delimiter: "\n\nAnswer:"
-  example_delimiter: \n\n
+  example_delimiter: "\n\n"
   early_stopping_criteria:
-  - \n\n
+  - "\n\n"
   - "Question:"
   - "Q:"
 - label: bigbench_strange_stories
@@ -139,9 +137,9 @@ icl_tasks:
   - 0
   icl_task_type: question_answering
   continuation_delimiter: "\n\nAnswer:"
-  example_delimiter: \n\n
+  example_delimiter: "\n\n"
   early_stopping_criteria:
-  - \n\n
+  - "\n\n"
   - "Question:"
   - "Q:"
 - label: bigbench_strategy_qa
@@ -150,9 +148,9 @@ icl_tasks:
   - 0
   icl_task_type: question_answering
   continuation_delimiter: "\n\nAnswer:"
-  example_delimiter: \n\n
+  example_delimiter: "\n\n"
   early_stopping_criteria:
-  - \n\n
+  - "\n\n"
   - "Question:"
   - "Q:"
 - label: bigbench_dyck_languages
@@ -172,9 +170,9 @@ icl_tasks:
   - 10
   icl_task_type: question_answering
   continuation_delimiter: "\n\nAnswer:"
-  example_delimiter: \n\n
+  example_delimiter: "\n\n"
   early_stopping_criteria:
-  - \n\n
+  - "\n\n"
   - "Question:"
   - "Q:"
 - label: winograd
@@ -183,9 +181,9 @@ icl_tasks:
   - 3
   icl_task_type: question_answering
   continuation_delimiter: "\n\nAnswer:"
-  example_delimiter: \n\n
+  example_delimiter: "\n\n"
   early_stopping_criteria:
-  - \n\n
+  - "\n\n"
   - "Question:"
   - "Q:"
 - label: winogrande
@@ -194,9 +192,9 @@ icl_tasks:
   - 5
   icl_task_type: question_answering
   continuation_delimiter: "\n\nAnswer:"
-  example_delimiter: \n\n
+  example_delimiter: "\n\n"
   early_stopping_criteria:
-  - \n\n
+  - "\n\n"
   - "Question:"
   - "Q:"
 - label: bigbench_elementary_math_qa
@@ -205,9 +203,9 @@ icl_tasks:
   - 1
   icl_task_type: question_answering
   continuation_delimiter: "\n\nAnswer:"
-  example_delimiter: \n\n
+  example_delimiter: "\n\n"
   early_stopping_criteria:
-  - \n\n
+  - "\n\n"
   - "Question:"
   - "Q:"
 - label: agi_eval_lsat_ar
@@ -216,9 +214,9 @@ icl_tasks:
   - 5
   icl_task_type: question_answering
   continuation_delimiter: "\n\nAnswer:"
-  example_delimiter: \n\n
+  example_delimiter: "\n\n"
   early_stopping_criteria:
-  - \n\n
+  - "\n\n"
   - "Question:"
   - "Q:"
 - label: bigbench_cs_algorithms
@@ -252,9 +250,9 @@ icl_tasks:
   - 5
   icl_task_type: question_answering
   continuation_delimiter: "\n\nAnswer:"
-  example_delimiter: \n\n
+  example_delimiter: "\n\n"
   early_stopping_criteria:
-  - \n\n
+  - "\n\n"
   - "Question:"
   - "Q:"
 - label: agi_eval_lsat_lr
@@ -263,9 +261,9 @@ icl_tasks:
   - 5
   icl_task_type: question_answering
   continuation_delimiter: "\n\nAnswer:"
-  example_delimiter: \n\n
+  example_delimiter: "\n\n"
   early_stopping_criteria:
-  - \n\n
+  - "\n\n"
   - "Question:"
   - "Q:"
 - label: coqa
@@ -279,9 +277,9 @@ icl_tasks:
   - 0
   icl_task_type: question_answering
   continuation_delimiter: "\n\nAnswer:"
-  example_delimiter: \n\n
+  example_delimiter: "\n\n"
   early_stopping_criteria:
-  - \n\n
+  - "\n\n"
   - "Question:"
   - "Q:"
 - label: agi_eval_sat_en
@@ -290,8 +288,8 @@ icl_tasks:
   - 5
   icl_task_type: question_answering
   continuation_delimiter: "\n\nAnswer:"
-  example_delimiter: \n\n
+  example_delimiter: "\n\n"
   early_stopping_criteria:
-  - \n\n
+  - "\n\n"
   - "Question:"
   - "Q:"

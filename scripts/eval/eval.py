@@ -104,7 +104,6 @@ def evaluate_model(
             'Hugging Face models in 8bit.')
 
     init_context = process_init_device(model_cfg.model, fsdp_config)
-
     composer_model = build_composer_model(
         name=model_cfg.model.name,
         cfg=model_cfg.model,

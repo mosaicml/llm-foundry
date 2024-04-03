@@ -244,10 +244,7 @@ class InContextLearningDataset(Dataset):
             with dist.local_rank_zero_download_and_wait(destination_path):
                 if dist.get_local_rank() == 0:
                     get_file(dataset_uri, destination_path, overwrite=True)
-            dataset = load_dataset('json',
-                                   data_files=destination_path,
-                                   split='train',
-                                   streaming=False)
+            dataset = load_dataset('json', data_files=destination_path, split='train', streaming=False)
         assert isinstance(dataset, HFDataset)
         return dataset
 

@@ -19,7 +19,7 @@ CANONICAL_SOLN = """    result = []\n    current_string = []\n    current_depth 
 
 @pytest.fixture(scope='module')
 def openai_api_key_env_var() -> str:
-    # os.environ['OPENAI_API_KEY'] = 'dummy'
+    os.environ['OPENAI_API_KEY'] = 'dummy'
     return os.environ['OPENAI_API_KEY']
 
 
@@ -198,9 +198,9 @@ def test_openai_completions_api_eval_wrapper(tmp_path: str,
                     batch,
                     result,
                     metric=model.get_metrics()
-                    ['InContextLearningQAAccuracy'])  # pyright: ignore
+                    ['InContextLearningGenerationExactMatchAccuracy'])  # pyright: ignore
                 acc = model.get_metrics(
-                )['InContextLearningQAAccuracy'].compute(  # pyright: ignore
+                )['InContextLearningGenerationExactMatchAccuracy'].compute(  # pyright: ignore
                 )  # pyright: ignore
                 assert acc == 0.5
             elif evaluator.label == 'human_eval/0-shot':
@@ -265,9 +265,9 @@ def test_chat_api_eval_wrapper(tmp_path: str, openai_api_key_env_var: str):
                     batch,
                     result,
                     metric=chatmodel.get_metrics()
-                    ['InContextLearningQAAccuracy'])  # pyright: ignore
+                    ['InContextLearningGenerationExactMatchAccuracy'])  # pyright: ignore
                 acc = chatmodel.get_metrics(
-                )['InContextLearningQAAccuracy'].compute(  # pyright: ignore
+                )['InContextLearningGenerationExactMatchAccuracy'].compute(  # pyright: ignore
                 )  # pyright: ignore
                 assert acc == 0.5
             elif evaluator.label == 'human_eval/0-shot':

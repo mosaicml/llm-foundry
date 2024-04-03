@@ -5,17 +5,13 @@ import logging
 import os
 import google.generativeai as google_genai
 
-from typing import Dict, List, Optional, Union
-# Copyright 2022 MosaicML LLM Foundry authors
-# SPDX-License-Identifier: Apache-2.0
-
-"""Implements a OpenAI chat and causal LM inference API wrappers."""
-
+from typing import List, Optional, Union
+from omegaconf import DictConfig
 import logging
 import os
 import random
 from time import sleep
-from typing import  Any, Dict , Optional
+from typing import  Any, Optional
 
 from composer.core.types import Batch
 from openai.types.chat.chat_completion import ChatCompletion
@@ -41,26 +37,19 @@ log = logging.getLogger(__name__)
 class GeminiChatAPIEvalrapper(InferenceAPIEvalWrapper):
     """Databricks Foundational Model API wrapper for causal LM models."""
 
-    def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer) -> None:
-        api_key = model_cfg.pop('api_key', None)
+    def __init__(self, om_model_config: DictConfig, tokenizer: AutoTokenizer) -> None:
+        api_key = om_model_config.pop('api_key', None)
         if api_key is None:
             api_key = os.environ.get('GEMINI_API_KEY')
         google_genai.configure(api_key=api_key)
-        super().__init__(model_cfg, tokenizer)
-        self.model_cfg = model_cfg
-        self.model = google_genai.GenerativeModel(model_cfg.get('version', ''))
+        super().__init__(om_model_config, tokenizer)
+        self.model_cfg = om_model_config
+        self.model = google_genai.GenerativeModel(om_model_config.get('version', ''))
         ignore = [
             google_genai.types.HarmCategory.HARM_CATEGORY_HARASSMENT,
             google_genai.types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
             google_genai.types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
             google_genai.types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-            # google_genai.types.HarmCategory.HARM_CATEGORY_UNSPECIFIED,
-            # google_genai.types.HarmCategory.HARM_CATEGORY_DEROGATORY,
-            # google_genai.types.HarmCategory.HARM_CATEGORY_TOXICITY,
-            # google_genai.types.HarmCategory.HARM_CATEGORY_VIOLENCE,
-            # google_genai.types.HarmCategory.HARM_CATEGORY_SEXUAL,
-            # google_genai.types.HarmCategory.HARM_CATEGORY_MEDICAL,
-            # google_genai.types.HarmCategory.HARM_CATEGORY_DANGEROUS,
         ]
         self.safety_settings = {
             category: google_genai.types.HarmBlockThreshold.BLOCK_NONE

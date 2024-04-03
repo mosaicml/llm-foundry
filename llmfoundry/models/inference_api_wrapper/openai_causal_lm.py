@@ -53,13 +53,12 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
                 raise ValueError(
                     'No OpenAI API Key found. Ensure it is saved as an environmental variable called OPENAI_API_KEY.'
                 )
-
         else:
             # Using a custom base URL, where the API key may not be required
             log.info(
                 f'Making request to custom base URL: {base_url}{"" if api_key is not None else " (no API key set)"}'
             )
-            # api_key = 'placeholder'  # This cannot be None
+            api_key = 'placeholder'  # This cannot be None
 
         self.client = openai.OpenAI(base_url=base_url, api_key=api_key)
         if 'version' in om_model_config:
@@ -128,7 +127,7 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
 
     def __init__(self, om_model_config: DictConfig, tokenizer: AutoTokenizer,  api_key: Optional[str] = None) -> None:
         super().__init__(om_model_config, tokenizer, api_key)
-        self.model_cfg = om_model_config
+        self.om_model_config = om_model_config
 
     def generate_completion(
             self,

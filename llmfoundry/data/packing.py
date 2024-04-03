@@ -392,8 +392,8 @@ def profile_packing(
         dataloader_cfg.dataset.local = '/tmp/blah'
 
     if dataloader_cfg.dataset.get('streams') is not None:
-        for stream in dataloader_cfg.dataset.streams:
-            stream.local = tempfile.TemporaryDirectory().name
+        for stream_name, stream_config in dataloader_cfg.dataset.streams.items():
+            stream_config.local = f'/tmp/blah/{stream_name}'
 
     # Determine the packing_ratio values we'll try
     packing_ratios, raw_batch_sizes = [], []

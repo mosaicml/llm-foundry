@@ -391,6 +391,10 @@ def profile_packing(
     if dataloader_cfg.dataset.get('remote') is not None:
         dataloader_cfg.dataset.local = tempfile.TemporaryDirectory().name
 
+    if dataloader_cfg.dataset.get('streams') is not None:
+        for stream in dataloader_cfg.dataset.streams:
+            stream.local = tempfile.TemporaryDirectory().name
+
     # Determine the packing_ratio values we'll try
     packing_ratios, raw_batch_sizes = [], []
     for packing_ratio in np.linspace(min_ratio,

@@ -46,7 +46,7 @@ from llmfoundry.models.layers.attention import (attn_bias_shape,
                                                 build_attn_bias, gen_slopes)
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.layers.custom_embedding import SharedEmbedding
-from llmfoundry.models.layers.ffn import build_ffn as build_ffn
+from llmfoundry.models.layers.layer_builders import build_ffn as build_ffn
 from llmfoundry.models.layers.layer_builders import build_norm
 from llmfoundry.models.mpt.configuration_mpt import MPTConfig
 

@@ -11,6 +11,7 @@ from typing import Any, Callable, Optional, Union
 import torch
 import torch.nn as nn
 
+from llmfoundry.layers_registry import ffns, ffns_with_norm
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 
 try:
@@ -149,17 +150,47 @@ class MPTGLU(MPTMLP):
         return self.down_proj(self.act(self.gate_proj(x)) * self.up_proj(x))
 
 
-FFN_CLASS_REGISTRY = {
-    'mptmlp': MPTMLP,
-    'mptglu': MPTGLU,
-}
+def build_mptglu(
+    d_model: int,
+    expansion_ratio: Union[int, float],
+    fc_type: str = 'torch',
+    ffn_hidden_size: Optional[int] = None,
+    ffn_act_fn: Optional[dict] = None,
+    device: Optional[str] = None,
+    bias: bool = True,
+) -> nn.Module:
+    return MPTGLU(
+        d_model=d_model,
+        expansion_ratio=expansion_ratio,
+        fc_type=fc_type,
+        act_fn=resolve_ffn_act_fn(ffn_act_fn),
+        ffn_hidden_size=ffn_hidden_size,
+        device=device,
+        bias=bias,
+    )
 
-if te is not None:
-    te.LayerNormMLP._has_norm = True
-    FFN_CLASS_REGISTRY['te_ln_mlp'] = te.LayerNormMLP
+
+def build_mptmlp(
+    d_model: int,
+    expansion_ratio: Union[int, float],
+    fc_type: str = 'torch',
+    ffn_hidden_size: Optional[int] = None,
+    ffn_act_fn: Optional[dict] = None,
+    device: Optional[str] = None,
+    bias: bool = True,
+) -> nn.Module:
+    return MPTMLP(
+        d_model=d_model,
+        expansion_ratio=expansion_ratio,
+        fc_type=fc_type,
+        act_fn=resolve_ffn_act_fn(ffn_act_fn),
+        ffn_hidden_size=ffn_hidden_size,
+        device=device,
+        bias=bias,
+    )
 
 
-def build_ffn(
+def build_te_ln_mlp(
     d_model: int,
     expansion_ratio: Union[int, float],
     fc_type: str = 'torch',
@@ -169,34 +200,23 @@ def build_ffn(
     bias: bool = True,
     **kwargs: Any,
 ) -> nn.Module:
-    ffn_type = kwargs.pop('ffn_type')
-    if ffn_type in ['mptmlp', 'mptglu']:
-        if len(kwargs) > 0:
-            raise ValueError(
-                f'MPTMLP (or MPTGLU) got an unexpected keyword argument: {kwargs}'
-            )
-        return FFN_CLASS_REGISTRY[ffn_type](
-            d_model=d_model,
-            expansion_ratio=expansion_ratio,
-            fc_type=fc_type,
-            act_fn=resolve_ffn_act_fn(ffn_act_fn),
-            ffn_hidden_size=ffn_hidden_size,
-            device=device,
-            bias=bias,
+    assert te is not None
+    ffn_hidden_size = resolve_ffn_hidden_size(d_model, expansion_ratio,
+                                              ffn_hidden_size)
+    if ffn_act_fn is not None:
+        raise ValueError(
+            f'Transformer Engine block does not support custom activation functions.'
         )
-    elif ffn_type == 'te_ln_mlp':
-        assert te is not None
-        ffn_hidden_size = resolve_ffn_hidden_size(d_model, expansion_ratio,
-                                                  ffn_hidden_size)
-        if ffn_act_fn is not None:
-            raise ValueError(
-                f'Transformer Engine block does not support custom activation functions.'
-            )
-        return te.LayerNormMLP(
-            hidden_size=d_model,
-            ffn_hidden_size=ffn_hidden_size,
-            bias=bias,
-            **kwargs,
-        )
+    return te.LayerNormMLP(
+        hidden_size=d_model,
+        ffn_hidden_size=ffn_hidden_size,
+        bias=bias,
+        **kwargs,
+    )
 
-    raise ValueError(f'{ffn_type=} not recognized.')
+
+ffns.register('mptglu', func=build_mptglu)
+ffns.register('mptmlp', func=build_mptmlp)
+
+if te is not None:
+    ffns_with_norm.register('te_ln_mlp', func=build_te_ln_mlp)

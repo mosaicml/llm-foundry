@@ -1,7 +1,7 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Type
+from typing import Callable, Type
 
 import torch
 
@@ -15,6 +15,22 @@ norms = create_registry('llmfoundry',
                         entry_points=True,
                         description=_norm_description)
 
+_ffns_description = """The ffns registry is used to register functions that build ffn layers."""
+ffns = create_registry('llmfoundry',
+                       'ffns',
+                       generic_type=Callable,
+                       entry_points=True,
+                       description=_ffns_description)
+
+_ffns_with_norm_description = """The ffns_with_norm registry is used to register functions that build ffn layers that apply a normalization layer."""
+ffns_with_norm = create_registry('llmfoundry',
+                                 'ffns_with_norm',
+                                 generic_type=Callable,
+                                 entry_points=True,
+                                 description=_ffns_with_norm_description)
+
 __all__ = [
     'norms',
+    'ffns',
+    'ffns_with_norm',
 ]

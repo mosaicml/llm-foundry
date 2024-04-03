@@ -9,8 +9,7 @@ import torch
 import torch.nn as nn
 
 from llmfoundry.models.layers.attention import ATTN_CLASS_REGISTRY
-from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY, build_ffn
-from llmfoundry.models.layers.layer_builders import build_norm
+from llmfoundry.models.layers.layer_builders import build_ffn, build_norm
 
 try:
     from flash_attn.bert_padding import unpad_input, pad_input  # type: ignore # yapf: disable # isort: skip
@@ -100,21 +99,25 @@ class MPTBlock(nn.Module):
             **attn_config_subset_for_attn_class,
             bias=not no_bias,
         )
-        self.norm_2 = None
-        if not getattr(FFN_CLASS_REGISTRY[ffn_config['ffn_type']], '_has_norm',
-                       False):
-            self.norm_2 = build_norm(
-                name=norm_type.lower(),
-                normalized_shape=d_model,
-                device=device,
-            )
+
+        ffn_type = ffn_config.pop('ffn_type')
         self.ffn = build_ffn(
+            name=ffn_type,
             d_model=d_model,
             expansion_ratio=expansion_ratio,
             device=device,
             bias=not no_bias,
             **ffn_config,
         )
+
+        self.norm_2 = None
+        if not getattr(self.ffn, '_has_norm', False):
+            self.norm_2 = build_norm(
+                name=norm_type.lower(),
+                normalized_shape=d_model,
+                device=device,
+            )
+
         self.resid_attn_dropout = nn.Dropout(resid_pdrop)
         self.resid_ffn_dropout = nn.Dropout(resid_pdrop)
 

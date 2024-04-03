@@ -43,9 +43,7 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
                 conda_package='openai',
                 conda_channel='conda-forge') from e
         if api_key is None:
-            api_key = os.environ.get('OPENAI_API_KEY')
-
-        api_key = os.environ.get('OPENAI_API_KEY')
+            api_key = os.environ.get(om_model_config.get('api_env_key', 'OPENAI_API_KEY'))
         base_url = om_model_config.get('base_url')
         if base_url is None:
             # Using OpenAI default, where the API key is required
@@ -53,12 +51,6 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
                 raise ValueError(
                     'No OpenAI API Key found. Ensure it is saved as an environmental variable called OPENAI_API_KEY.'
                 )
-        else:
-            # Using a custom base URL, where the API key may not be required
-            log.info(
-                f'Making request to custom base URL: {base_url}{"" if api_key is not None else " (no API key set)"}'
-            )
-            api_key = 'placeholder'  # This cannot be None
 
         self.client = openai.OpenAI(base_url=base_url, api_key=api_key)
         if 'version' in om_model_config:

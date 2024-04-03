@@ -389,7 +389,7 @@ def profile_packing(
 
     # If streaming dataset, use a temporary local folder for profiling
     if dataloader_cfg.dataset.get('remote') is not None:
-        dataloader_cfg.dataset.local = tempfile.TemporaryDirectory().name
+        dataloader_cfg.dataset.local = '/tmp/blah'
 
     if dataloader_cfg.dataset.get('streams') is not None:
         for stream in dataloader_cfg.dataset.streams:

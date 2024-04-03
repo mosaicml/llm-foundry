@@ -111,9 +111,51 @@ class LPRMSNorm(RMSNorm):
                             self.eps).to(dtype=x.dtype)
 
 
+class TritonRMSNorm(torch.nn.Module):
+
+    def __init__(
+        self,
+        normalized_shape: Union[int, List[int], torch.Size],
+        eps: float = 1e-5,
+        device: Optional[torch.device] = None,
+        dtype: Optional[torch.dtype] = None,
+    ):
+        super().__init__()
+        self.eps = eps
+
+        try:
+            from flash_attn.ops.triton.layer_norm import rms_norm_fn
+        except ImportError:
+            raise ImportError(
+                'triton_rms_norm requires Flash Attention to be installed. ' +
+                'Please pip install flash-attn.')
+
+        if not isinstance(normalized_shape, int):
+            raise ValueError('TritonRMSNorm only supports 1D tensors')
+
+        self.rms_norm_fn = rms_norm_fn
+
+        self.weight = torch.nn.Parameter(
+            torch.ones(normalized_shape, device=device, dtype=dtype))
+
+    def forward(self, x: torch.Tensor):
+        # Flash Attention expect a flat tensor
+        return self.rms_norm_fn(
+            x,
+            self.weight,
+            None,  # no bias
+            residual=None,
+            eps=self.eps,
+            dropout_p=0.0,  # no dropout by default
+            prenorm=False,
+            residual_in_fp32=False,
+        )
+
+
 NORM_CLASS_REGISTRY: Dict[str, Type[torch.nn.Module]] = {
     'layernorm': torch.nn.LayerNorm,
     'low_precision_layernorm': LPLayerNorm,
     'rmsnorm': RMSNorm,
     'low_precision_rmsnorm': LPRMSNorm,
+    'triton_rmsnorm': TritonRMSNorm,
 }

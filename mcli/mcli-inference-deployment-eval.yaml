@@ -45,7 +45,71 @@ parameters:
   #   wandb: {}
   # callbacks:
   #   eval_output_logging: {}
+  icl_tasks:
+  - label: gsm8k
+    dataset_uri: eval/local_data/api_compatible_gauntlet/symbolic_problem_solving/gsm8k_prepended_8shot.jsonl
+    num_fewshot:
+    - 0
+    icl_task_type: question_answering
+    cot_delimiter: "The answer is "
+    continuation_delimiter: "\n\nA:"
+    question_prelimiter: ""
+    do_normalization: false
+    early_stopping_criteria:
+    - "\n\n"
+    - "Question:"
+  - label: triviaqa_sm_sub
+    dataset_uri: eval/local_data/api_compatible_gauntlet/world_knowledge/triviaqa_sm_sub.jsonl
+    num_fewshot:
+    - 3
+    icl_task_type: question_answering
+    do_normalization: true
+  - label: jeopardy
+    dataset_uri: eval/local_data/api_compatible_gauntlet/world_knowledge/jeopardy_all.jsonl
+    num_fewshot:
+    - 3
+    icl_task_type: language_modeling
+    continuation_delimiter: "
 
-  icl_tasks: "eval/yamls/long_context_tasks.yaml"
-  eval_gauntlet: "eval/yamls/eval_gauntlet_long_context.yaml"
+      Answer: "
+    has_categories: true
+  - label: arc_challenge
+    dataset_uri: eval/local_data/api_compatible_gauntlet/world_knowledge/arc_challenge.jsonl
+    num_fewshot:
+    - 25
+    icl_task_type: question_answering
+    continuation_delimiter: "\n\nAnswer:"
+    example_delimiter: \n\n
+    early_stopping_criteria:
+    - \n\n
+    - "Question:"
+    - "Q:"
+  - label: mmlu
+    dataset_uri: eval/local_data/api_compatible_gauntlet/world_knowledge/mmlu.jsonl
+    num_fewshot:
+    - 5
+    icl_task_type: question_answering
+    continuation_delimiter: "\n\nAnswer:"
+    has_categories: true
+    example_delimiter: \n\n
+    early_stopping_criteria:
+    - \n\n
+    - "Question:"
+    - "Q:"
+  - label: lambada_openai
+    dataset_uri: eval/local_data/api_compatible_gauntlet/language_understanding/lambada_openai.jsonl
+    num_fewshot:
+    - 0
+    icl_task_type: language_modeling
+  - label: hellaswag
+    dataset_uri: eval/local_data/api_compatible_gauntlet/language_understanding/hellaswag.jsonl
+    num_fewshot:
+    - 10
+    icl_task_type: question_answering
+    continuation_delimiter: "\n\nAnswer:"
+    example_delimiter: \n\n
+    early_stopping_criteria:
+    - \n\n
+    - "Question:"
+    - "Q:"
  

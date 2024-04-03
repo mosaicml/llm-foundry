@@ -5,18 +5,13 @@ integrations:
   # git_commit:  # OR use your commit hash
   pip_install: -e ".[gpu-flash2,openai]"
   ssh_clone: false  # Should be true if using a private repo
-- integration_type: wandb
-  entity: mosaic-ml
-  project: openai_eval_jeremy
 
 command: |
-  pip uninstall mosaicml -y
-  pip install git+https://github.com/mosaicml/composer.git@dev
   cd llm-foundry/scripts
   composer eval/eval.py /mnt/config/parameters.yaml
 
 # Mosaic Cloud will use run_name (with a unique suffix) to populate the env var $RUN_NAME
-name: gemini-longcontext-gauntlet-eval
+name: api-eval
 cluster: r1z1  # replace with your cluster here!
 gpu_num: 8 #
 gpu_type: a100_80gb #
@@ -27,24 +22,98 @@ image: mosaicml/llm-foundry:2.2.1_cu121_flash2-latest
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:
   seed: 1
-  max_seq_len: 30000
+  max_seq_len: 2048
   device_eval_batch_size: 1
   models:
   -
-    model_name: models/gemini-1.0-pro-latest
+    model_name: openai/gpt-3.5-turbo-instruct
     model:
-      name: gemini_chat
-      version: models/gemini-1.0-pro-latest
+      name: openai_causal_lm
+      version: gpt-3.5-turbo-instruct
     tokenizer:
       name: tiktoken
       kwargs:
         model_name: gpt-3.5-turbo-instruct
+  # -
+  #   model_name: models/gemini-1.0-pro-latest
+  #   model:
+  #     name: gemini_chat
+  #     version: models/gemini-1.0-pro-latest
+  #   tokenizer:
+  #     name: tiktoken
+  #     kwargs:
+  #       model_name: gpt-3.5-turbo-instruct
 
 
   # loggers:
   #   wandb: {}
   # callbacks:
   #   eval_output_logging: {}
-  icl_tasks: "eval/yamls/long_context_tasks.yaml"
-  eval_gauntlet: "eval/yamls/eval_gauntlet_long_context.yaml"
+  icl_tasks:
+  - label: gsm8k
+    dataset_uri: eval/local_data/api_compatible_gauntlet/symbolic_problem_solving/gsm8k_prepended_8shot.jsonl
+    num_fewshot:
+    - 0
+    icl_task_type: question_answering
+    cot_delimiter: "The answer is "
+    continuation_delimiter: "\n\nA:"
+    question_prelimiter: ""
+    do_normalization: false
+    early_stopping_criteria:
+    - "\n\n"
+    - "Question:"
+  - label: triviaqa_sm_sub
+    dataset_uri: eval/local_data/api_compatible_gauntlet/world_knowledge/triviaqa_sm_sub.jsonl
+    num_fewshot:
+    - 3
+    icl_task_type: question_answering
+    do_normalization: true
+  - label: jeopardy
+    dataset_uri: eval/local_data/api_compatible_gauntlet/world_knowledge/jeopardy_all.jsonl
+    num_fewshot:
+    - 3
+    icl_task_type: language_modeling
+    continuation_delimiter: "
+
+      Answer: "
+    has_categories: true
+  - label: arc_challenge
+    dataset_uri: eval/local_data/api_compatible_gauntlet/world_knowledge/arc_challenge.jsonl
+    num_fewshot:
+    - 25
+    icl_task_type: question_answering
+    continuation_delimiter: "\n\nAnswer:"
+    example_delimiter: \n\n
+    early_stopping_criteria:
+    - \n\n
+    - "Question:"
+    - "Q:"
+  - label: mmlu
+    dataset_uri: eval/local_data/api_compatible_gauntlet/world_knowledge/mmlu.jsonl
+    num_fewshot:
+    - 5
+    icl_task_type: question_answering
+    continuation_delimiter: "\n\nAnswer:"
+    has_categories: true
+    example_delimiter: \n\n
+    early_stopping_criteria:
+    - \n\n
+    - "Question:"
+    - "Q:"
+  - label: lambada_openai
+    dataset_uri: eval/local_data/api_compatible_gauntlet/language_understanding/lambada_openai.jsonl
+    num_fewshot:
+    - 0
+    icl_task_type: language_modeling
+  - label: hellaswag
+    dataset_uri: eval/local_data/api_compatible_gauntlet/language_understanding/hellaswag.jsonl
+    num_fewshot:
+    - 10
+    icl_task_type: question_answering
+    continuation_delimiter: "\n\nAnswer:"
+    example_delimiter: \n\n
+    early_stopping_criteria:
+    - \n\n
+    - "Question:"
+    - "Q:"
  

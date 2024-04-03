@@ -12,7 +12,6 @@ from typing import Any, Dict, List, Optional, Union
 import torch
 from composer import Trainer
 from composer.core.callback import Callback
-from composer.metrics.nlp import InContextLearningMetric
 from composer.profiler import (JSONTraceHandler, Profiler, TraceHandler,
                                cyclic_schedule)
 from composer.utils import dist, get_device, reproducibility
@@ -20,6 +19,7 @@ from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from rich.traceback import install
 
+from llmfoundry.eval.metrics.nlp import InContextLearningMetric
 from llmfoundry.utils import (find_mosaicml_logger, log_train_analytics,
                               maybe_create_mosaicml_logger)
 
@@ -531,6 +531,7 @@ def main(cfg: DictConfig) -> Trainer:
     # Optimizer
     optimizer_name: str = optimizer_config.pop('name')
     optimizer = build_optimizer(model, optimizer_name, optimizer_config)
+
     # Now add the eval metrics
     try:
         if eval_loader_config is not None and not use_async_eval:

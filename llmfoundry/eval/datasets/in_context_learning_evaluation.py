@@ -12,6 +12,7 @@ import json
 import logging
 import os
 import random
+import warnings
 from typing import Any, Dict, Iterable, List, Optional, Union
 
 import torch
@@ -30,6 +31,7 @@ from llmfoundry.eval.datasets.utils import (convert_tokens_to_tensors,
                                             make_padded_input, strip_data,
                                             tokenizer_needs_prefix_space,
                                             trim_context)
+from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
 log = logging.getLogger(__name__)
 
@@ -550,7 +552,7 @@ class InContextLearningGenerationTaskWithAnswersDataset(InContextLearningDataset
         self.max_answer_length = 0
         static_keys = [
             'mode', 'cot_delimiter', 'generation_kwargs', 'do_normalization',
-            'generation_length', 'stopping_criteria'
+            'stopping_criteria'
         ]
         tensor_keys = ['input_ids', 'attention_mask']
         list_keys = ['labels']
@@ -574,10 +576,8 @@ class InContextLearningGenerationTaskWithAnswersDataset(InContextLearningDataset
                 'pad_token_id': self.pad_tok_id,
                 'use_cache': True,
                 'eos_token_id': self.tokenizer.eos_token_id,
+                'max_new_tokens': max(self.max_answer_length, 1)
             },
-            'generation_length': max(
-                self.max_answer_length,
-                1),  # TODO: deprecate with next composer udpate
         }
         self.batch_mapping = {
             'input_ids': self.context_key,
@@ -1223,7 +1223,6 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
             'pass_at_k',
             'generation_kwargs',
             'generations_per_sample',
-            'generation_length',
             'dataset_size',
         ]
         list_keys = [
@@ -1260,14 +1259,13 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
         self.dataset = self.repeat_dataset(self.dataset, generations_per_sample)
 
         if self.max_answer_length < self.max_seq_len - self.max_prompt_length:
-            generation_length = self.max_answer_length
+            max_new_tokens = self.max_answer_length
         else:
-            generation_length = self.max_seq_len - self.max_prompt_length
+            max_new_tokens = self.max_seq_len - self.max_prompt_length
 
         self.base_batch = {
             'input_ids': [],
-            'mode':
-                'generate',
+            'mode': 'generate',
             'labels': [],
             'prompts': [],
             'tests': [],
@@ -1275,8 +1273,7 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
             'test_inputs': [],
             'test_outputs': [],
             'languages': [],
-            'pass_at_k':
-                pass_at_k,
+            'pass_at_k': pass_at_k,
             'generation_kwargs': {
                 'pad_token_id': self.pad_tok_id,
                 'num_beams': 1,  # single beam
@@ -1284,16 +1281,12 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
                 'temperature': 0.2,  # good default for code
                 'use_cache': True,
                 'eos_token_id': self.tokenizer.eos_token_id,
+                'max_new_tokens': max(max_new_tokens, 1)
             },
             'sample_id': [],
-            'pass_at_k':
-                list(pass_at_k),
-            'generations_per_sample':
-                generations_per_sample,
-            'dataset_size':
-                dataset_size,
-            'generation_length':  # TODO: deprecate with next composer release
-                max(generation_length, 1)
+            'pass_at_k': list(pass_at_k),
+            'generations_per_sample': generations_per_sample,
+            'dataset_size': dataset_size,
         }
         if 'generation_kwargs' in kwargs:
             self.update_generation_kwargs(kwargs['generation_kwargs'])
@@ -1474,9 +1467,10 @@ def build_icl_dataloader(
         effective_batchsize = batch_size
     elif icl_task_type == 'generation_task_with_answers' or icl_task_type == 'question_answering':
         if icl_task_type == 'question_answering':
-            log.warning(
-                f'ICL task type `question_answering` has been deprecated, please use `generation_task_with_answers`.'
-            )
+            warnings.warn(
+                VersionedDeprecationWarning(
+                    "ICL task type 'question_answering' is now deprecated. Use identifier 'generation_task_with_answers'",
+                    'v0.7.0'))
         dataset = InContextLearningGenerationTaskWithAnswersDataset(
             dataset_uri=dataset_uri,
             tokenizer=tokenizer,

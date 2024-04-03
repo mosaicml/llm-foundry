@@ -15,7 +15,8 @@ from omegaconf import DictConfig
 from transformers import (AutoConfig, AutoModelForCausalLM, PreTrainedModel,
                           PreTrainedTokenizerBase)
 
-
+from llmfoundry.metrics import (DEFAULT_CAUSAL_LM_EVAL_METRICS,
+                                DEFAULT_CAUSAL_LM_TRAIN_METRICS)
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithFSDP
 from llmfoundry.models.layers.attention import is_flash_v2_installed

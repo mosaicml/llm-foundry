@@ -480,7 +480,7 @@ def test_loss_fn():
     model_2.to(test_cfg.device)
 
     assert isinstance(model_1.loss_fn, torch.nn.CrossEntropyLoss)
-    model_2.loss_fn = FusedCrossEntropyLoss(ignore_index=-100)
+    model_2.loss_fn = FusedCrossEntropyLoss(ignore_index=-100, reduction='none')
 
     optimizer_1 = DecoupledAdamW(model_1.parameters(),
                                  lr=test_cfg.optimizer.lr,
@@ -502,6 +502,105 @@ def test_loss_fn():
 
         loss_1 = model_1.loss(output_1, batch)
         loss_2 = model_2.loss(output_2, batch)
+        assert isinstance(loss_1, torch.Tensor)
+        assert isinstance(loss_2, torch.Tensor)
+        assert loss_1.allclose(loss_2, rtol=1e-3,
+                               atol=1e-3), f'differed at step {i}'
+        loss_1.backward()
+        loss_2.backward()
+        optimizer_1.step()
+        optimizer_2.step()
+
+        for p1, p2 in zip(model_1.parameters(), model_2.parameters()):
+            assert p1.data.shape == p2.data.shape
+            assert p1.data.allclose(p2.data, rtol=1e-5,
+                                    atol=1e-4), f'differed at step {i}'
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize('loss_fn_config',
+                         ['torch_crossentropy', 'fused_crossentropy'])
+def test_loss_reduction(loss_fn_config: str):
+    """Tests the Fused CrossEntropy vs torch.nn.CrossEntropy loss function.
+
+    We provide non-zero tolerances to account for small numerics differences
+    between the two loss implementations.
+    """
+    try:
+        from flash_attn.losses.cross_entropy import CrossEntropyLoss as FusedCrossEntropyLoss  # type: ignore # isort: skip
+    except:
+        pytest.skip('Fused cross entropy was not installed')
+
+    # run numerical test in pure fp32
+    from torch.backends import cuda, cudnn
+    cuda.matmul.allow_tf32 = False
+    cudnn.allow_tf32 = False
+
+    conf_path = 'scripts/train/yamls/pretrain/testing.yaml'
+    with open(conf_path) as f:
+        test_cfg = om.load(f)
+
+    assert isinstance(test_cfg, DictConfig)
+
+    test_cfg.model.loss_fn = loss_fn_config
+
+    test_cfg.device = 'cuda:0'
+    test_cfg.model.init_device = 'cpu'
+    test_cfg.model.init_config = {
+        'name': 'baseline_',
+        'init_std': 0.02,
+    }
+
+    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
+    tokenizer = build_tokenizer(test_cfg.tokenizer.name,
+                                tokenizer_cfg.get('kwargs', {}))
+
+    model_1 = build_composer_model(
+        name=test_cfg.model.name,
+        cfg=test_cfg.model,
+        tokenizer=tokenizer,
+    )
+    model_2 = copy.deepcopy(model_1)
+
+    model_1.to(test_cfg.device)
+    model_2.to(test_cfg.device)
+
+    # Reduce the loss in FusedCrossEntropyLoss
+    if loss_fn_config == 'fused_crossentropy':
+        assert isinstance(model_1.loss_fn, FusedCrossEntropyLoss)
+        model_2.loss_fn = FusedCrossEntropyLoss(ignore_index=-100,
+                                                reduction='mean')
+    else:
+        assert isinstance(model_1.loss_fn, torch.nn.CrossEntropyLoss)
+        model_2.loss_fn = torch.nn.CrossEntropyLoss(ignore_index=-100,
+                                                    reduction='mean')
+
+    optimizer_1 = DecoupledAdamW(model_1.parameters(),
+                                 lr=test_cfg.optimizer.lr,
+                                 betas=test_cfg.optimizer.betas,
+                                 eps=test_cfg.optimizer.eps,
+                                 weight_decay=test_cfg.optimizer.weight_decay)
+    optimizer_2 = DecoupledAdamW(model_2.parameters(),
+                                 lr=test_cfg.optimizer.lr,
+                                 betas=test_cfg.optimizer.betas,
+                                 eps=test_cfg.optimizer.eps,
+                                 weight_decay=test_cfg.optimizer.weight_decay)
+
+    for i in range(3):
+        batch = gen_random_batch(2, test_cfg)
+        output_1 = model_1(batch)
+        output_2 = model_2(batch)
+        assert output_1.logits.allclose(output_2.logits, rtol=1e-4,
+                                        atol=1e-4), f'differed at step {i}'
+
+        loss_1 = model_1.loss(output_1, batch)
+
+        # Loss for model_2 gets reduced within the loss_fn, so we handle it separately
+        targets = model_2.get_targets(batch)
+        loss_2 = model_2.loss_fn(
+            output_2.logits.view(-1, output_2.logits.size(-1)),
+            targets.view(-1))
+
         assert isinstance(loss_1, torch.Tensor)
         assert isinstance(loss_2, torch.Tensor)
         assert loss_1.allclose(loss_2, rtol=1e-3,
@@ -616,6 +715,11 @@ def test_lora_id():
 def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool,
                       expansion_ratio: Union[int, float], ffn_hidden_size: int,
                       ffn_act_fn: dict):
+    if norm_type == 'triton_rmsnorm' and not is_flash_v2_installed():
+        pytest.skip(
+            f'norm_type=triton_rmsnorm requires flash Attention to be installed'
+        )
+
     # Test that the config constructs the model as expected.
     hf_config = MPTConfig(
         init_device='cpu',

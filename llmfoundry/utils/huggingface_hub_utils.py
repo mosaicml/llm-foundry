@@ -133,7 +133,7 @@ def edit_files_for_hf_compatibility(
     remove_imports_prefix: Sequence[str] = ('composer', 'omegaconf',
                                             'llmfoundry.metrics',
                                             'llmfoundry.eval',
-                                            'llmfoundry.utils.builders'),
+                                            'llmfoundry.utils.builders')
 ) -> None:
     """Edit files to be compatible with Hugging Face Hub.
 

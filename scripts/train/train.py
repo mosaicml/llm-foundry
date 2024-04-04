@@ -18,6 +18,7 @@ from composer.profiler import (JSONTraceHandler, Profiler, TraceHandler,
                                cyclic_schedule)
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
+from omegaconf import OmegaConf
 from omegaconf import OmegaConf as om
 from rich.traceback import install
 
@@ -43,6 +44,63 @@ log = logging.getLogger(__name__)
 @attr.s(auto_attribs=True)
 class TrainConfig:
     eval_loader: Optional[Union[DictConfig, ListConfig]] = None
+    icl_tasks: Optional[Union[ListConfig, str]] = None
+    code_paths: List[str] = []
+    seed: int = 42
+    dist_timeout: Union[int, float] = 600.0
+    model: DictConfig
+    tokenizer: Dict[str, Any]
+    optimizer: Dict[str, Any]
+    scheduler: Dict[str, Any]
+    train_loader: DictConfig
+    fsdp_config: Optional[Dict[str, Any]] = None
+    eval_loader: Optional[Union[DictConfig, ListConfig]] = None
+    icl_tasks: Optional[Union[ListConfig, str]] = None
+    eval_gauntlet: Optional[Union[DictConfig, str]] = None
+    icl_subset_num_batches: Optional[int] = None
+    icl_seq_len: Optional[int] = None
+    loggers: Optional[DictConfig] = None
+    callbacks: Optional[DictConfig] = None
+    algorithms: Optional[DictConfig] = None
+    device_train_batch_size: int
+    device_eval_batch_size: int
+    max_duration: Union[int, str]
+    eval_interval: Union[int, str]
+    precision: str
+    max_seq_len: int
+    run_name: Optional[str] = None
+    save_folder: Optional[str] = None
+    save_latest_filename: Optional[str] = None
+    save_overwrite: bool = False
+    save_weights_only: bool = False
+    save_filename: Optional[str] = None
+    save_interval: Union[str, int] = '1000ba'
+
+    save_num_checkpoints_to_keep: int = -1
+    progress_bar: bool = False
+    log_to_console: bool = True
+    python_log_level: Optional[str] = 'debug'
+    console_log_interval: Union[int, str] = '1ba'
+    device_train_microbatch_size: Union[str, int] = 'auto'
+    eval_subset_num_batches: int = -1
+    eval_first: bool = False
+    load_path: Optional[str] = None
+    load_weights_only: bool = False
+    load_strict_model_weights: bool = True
+    load_ignore_keys: Optional[List[str]] = None
+    compile_config: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, str]] = None
+    log_config: bool = True
+    autoresume: bool = False
+
+    data_local: Optional[Dict[str, Any]] = None
+    data_remote: Optional[Dict[str, Any]] = None
+    global_seed: Optional[int] = None
+    global_train_batch_size: Optional[int] = None
+    n_gpus: Optional[int] = None
+    device_train_grad_accum: Optional[int] = None
+
+    profiler: Optional[Dict[str, Any]] = None
 
 
 def validate_config(cfg: DictConfig):
@@ -109,12 +167,9 @@ def validate_config(cfg: DictConfig):
 
 
 def main(cfg: DictConfig) -> Trainer:
-    # Run user provided code if specified
-    code_paths = pop_config(cfg,
-                            'code_paths',
-                            must_exist=False,
-                            default_value=[],
-                            convert=True)
+    scfg: TrainConfig = OmegaConf.structured(TrainConfig(**cfg))
+
+    code_paths = scfg.code_paths
     # Import any user provided code
     for code_path in code_paths:
         import_file(code_path)

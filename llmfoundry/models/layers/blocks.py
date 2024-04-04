@@ -107,7 +107,7 @@ class MPTBlock(nn.Module):
             expansion_ratio=expansion_ratio,
             device=device,
             bias=not no_bias,
-            **ffn_config,
+            ffn_kwargs=ffn_config,
         )
 
         self.norm_2 = None

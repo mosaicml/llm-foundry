@@ -7,7 +7,7 @@ import os
 import pathlib
 import shutil
 from argparse import Namespace
-from typing import Any, Callable, Optional, cast
+from typing import Any, Callable, Dict, Optional, cast
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
@@ -264,12 +264,34 @@ def test_callback_inits():
     assert hf_checkpointer.mlflow_logging_config['task'] == 'llm/v1/completions'
 
 
+class MockSpawnProcess:
+    """Class for mocking `multiprocessing.context.SpawnProcess`.
+
+    Runs `target(**kwargs)` on the main process.
+
+    Mock classes are not picklable and therefore cannot be used with
+    multiprocessing, so we need to patch SpawnProcess for tests.
+    """
+
+    def __init__(self, target: Callable, kwargs: Dict[str, Any]):
+        self.target = target
+        self.kwargs = kwargs
+
+    def start(self):
+        self.target(**self.kwargs)
+
+    def is_alive(self) -> bool:
+        return False
+
+
 @pytest.mark.gpu
 @pytest.mark.parametrize('log_to_mlflow', [True, False])
 @pytest.mark.parametrize(
     'hf_save_interval,save_interval,max_duration,expected_hf_checkpoints,expected_normal_checkpoints',
     [('3ba', '2ba', '4ba', 2, 2), ('1dur', '2ba', '1ep', 1, 2)])
 @patch('os.cpu_count', MagicMock(return_value=1))
+@patch('llmfoundry.callbacks.hf_checkpointer.SpawnProcess',
+       new=MockSpawnProcess)
 def test_huggingface_conversion_callback_interval(
         tmp_path: pathlib.Path, log_to_mlflow: bool, hf_save_interval: str,
         save_interval: str, max_duration: str, expected_hf_checkpoints: int,
@@ -644,6 +666,8 @@ def _assert_checkpoint_equivalence(tmp_path: pathlib.Path,
     'hf_save_interval,save_interval,max_duration,expected_hf_checkpoints,expected_normal_checkpoints',
     [('1ba', '1ba', '1ba', 1, 1)])
 @patch('os.cpu_count', MagicMock(return_value=1))
+@patch('llmfoundry.callbacks.hf_checkpointer.SpawnProcess',
+       new=MockSpawnProcess)
 def test_huggingface_conversion_callback(
     model: str,
     tmp_path: pathlib.Path,

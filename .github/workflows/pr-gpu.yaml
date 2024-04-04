@@ -15,29 +15,25 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 jobs:
   pytest-gpu:
-    uses: ./.github/workflows/pytest-gpu.yaml
+    uses: mosaicml/ci-testing/.github/workflows/pytest-gpu.yaml@v0.0.3
     strategy:
       matrix:
         include:
-        - name: "gpu-2.1.0"
-          container: mosaicml/pytorch:2.1.0_cu121-python3.10-ubuntu20.04
+        - name: "gpu-2.2.1"
+          container: mosaicml/pytorch:2.2.1_cu121-python3.11-ubuntu20.04
           markers: "gpu"
+          pip_deps: "[all]"
           pytest_command: "coverage run -m pytest"
-          deps_group: "all"
-        - name: "gpu-2.1.0-flash2"
-          container: mosaicml/llm-foundry:2.1.0_cu121_flash2-latest
-          markers: "gpu"
-          pytest_command: "coverage run -m pytest"
-          deps_group: "all-flash2"
     name: ${{ matrix.name }}
     if: github.repository_owner == 'mosaicml'
     with:
       container: ${{ matrix.container }}
+      git_repo: mosaicml/llm-foundry
       mcloud-timeout: 1800
       name: ${{ matrix.name }}
+      pip_deps: ${{ matrix.pip_deps }}
       pytest-command: ${{ matrix.pytest_command }}
       pytest-markers: ${{ matrix.markers }}
       python-version: 3.9
-      deps-group: ${{ matrix.deps_group }}
     secrets:
       mcloud-api-key: ${{ secrets.MCLOUD_API_KEY }}

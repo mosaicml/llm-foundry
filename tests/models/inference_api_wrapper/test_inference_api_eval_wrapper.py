@@ -99,7 +99,8 @@ def test_openai_api_eval_wrapper(tmp_path: str, openai_api_key_env_var: str):
     model_name = 'davinci'
     tokenizer = TiktokenTokenizerWrapper(model_name=model_name,
                                          pad_token='<|endoftext|>')
-    model = OpenAICausalLMEvalWrapper(model_cfg={'version': model_name},
+    model = OpenAICausalLMEvalWrapper(om_model_config=DictConfig(
+        {'version': model_name}),
                                       tokenizer=tokenizer)
     with patch.object(model, 'client') as mock:
         mock.completions.create = mock_create
@@ -129,7 +130,8 @@ def test_chat_api_eval_wrapper(tmp_path: str, openai_api_key_env_var: str):
     model_name = 'gpt-3.5-turbo'
     tokenizer = TiktokenTokenizerWrapper(model_name=model_name,
                                          pad_token='<|endoftext|>')
-    chatmodel = OpenAIChatAPIEvalWrapper(model_cfg={'version': model_name},
+    chatmodel = OpenAIChatAPIEvalWrapper(om_model_config=DictConfig(
+        {'version': model_name}),
                                          tokenizer=tokenizer)
     with patch.object(chatmodel, 'client') as mock:
         mock.chat.completions.create.return_value = MockChatCompletion(

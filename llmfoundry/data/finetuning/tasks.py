@@ -35,16 +35,37 @@ import importlib
 import logging
 import os
 import warnings
+from collections.abc import Mapping
+from functools import partial
 from pathlib import Path
-from typing import (Any, Callable, Dict, List, Literal, Optional, Tuple, Union,
-                    cast)
+from typing import (Any, Callable, Dict, List, Literal, Optional, Sequence,
+                    Tuple, Union, cast)
 
 import datasets as hf_datasets
 import huggingface_hub as hf_hub
+import numpy as np
 from composer.utils import dist
-from streaming import StreamingDataset
+from streaming import Stream, StreamingDataset
 from transformers import PreTrainedTokenizerBase
 
+from llmfoundry.data.finetuning.collator import (_HF_IGNORE_INDEX,
+                                                 stitch_turns_decoder_only,
+                                                 stitch_turns_encoder_decoder)
+# yapf: disable
+from llmfoundry.utils.exceptions import (ConsecutiveRepeatedChatRolesError,
+                                         IncorrectMessageKeyQuantityError,
+                                         InvalidContentTypeError,
+                                         InvalidFileExtensionError,
+                                         InvalidLastChatMessageRoleError,
+                                         InvalidPromptResponseKeysError,
+                                         InvalidPromptTypeError,
+                                         InvalidResponseTypeError,
+                                         InvalidRoleError,
+                                         NotEnoughChatDataError,
+                                         TooManyKeysInExampleError,
+                                         UnableToProcessPromptResponseError,
+                                         UnknownExampleTypeError)
+#  yapf: enable
 from llmfoundry.utils.logging_utils import SpecificWarningFilter
 
 log = logging.getLogger(__name__)
@@ -53,16 +74,21 @@ __all__ = ['dataset_constructor']
 
 _ALLOWED_RESPONSE_KEYS = {'response', 'completion'}
 _ALLOWED_PROMPT_KEYS = {'prompt'}
+_ALLOWED_MESSAGES_KEYS = {'messages'}
+_ALLOWED_ROLE_KEYS = {'role'}
+_ALLOWED_CONTENT_KEYS = {'content'}
+_ALLOWED_ROLES = {'user', 'assistant', 'system'}
+_ALLOWED_LAST_MESSAGE_ROLES = {'assistant'}
 DOWNLOADED_FT_DATASETS_DIRPATH = os.path.abspath(
     os.path.join(os.path.realpath(__file__), os.pardir, os.pardir, os.pardir,
                  '.downloaded_finetuning'))
 SUPPORTED_EXTENSIONS = ['.csv', '.jsonl', '.parquet']
 
-PromptResponseDict = Dict[str, str]
-ChatFormattedDict = Dict[str, List[Dict[str, str]]]
+PromptResponseDict = Mapping[str, str]
+ChatFormattedDict = Mapping[str, List[Dict[str, str]]]
 Example = Union[PromptResponseDict, ChatFormattedDict]
 ExampleType = Literal['prompt_response', 'chat']
-TokenizedExample = Dict[str, List[int]]
+TokenizedExample = Dict[str, List[Dict[str, List[int]]]]
 
 
 def _get_example_type(example: Example) -> ExampleType:
@@ -77,15 +103,17 @@ def _get_example_type(example: Example) -> ExampleType:
     Raises:
         KeyError: If the example type is unknown.
     """
-    if 'messages' in example:
+    if not isinstance(example, Mapping):
+        raise TypeError(
+            f'Expected example to be a Mapping, but found {type(example)}')
+    if any(allowed_message_key in example
+           for allowed_message_key in _ALLOWED_MESSAGES_KEYS):
         return 'chat'
-    elif any([
-            pr in example
-            for pr in _ALLOWED_PROMPT_KEYS.union(_ALLOWED_RESPONSE_KEYS)
-    ]):
+    elif any(p in example for p in _ALLOWED_PROMPT_KEYS) and any(
+            r in example for r in _ALLOWED_RESPONSE_KEYS):
         return 'prompt_response'
     else:
-        raise KeyError(f'Unknown conversation type {example=}')
+        raise UnknownExampleTypeError(example)
 
 
 def _is_empty_or_nonexistent(dirpath: str) -> bool:
@@ -100,49 +128,142 @@ def _is_empty_or_nonexistent(dirpath: str) -> bool:
     return not os.path.isdir(dirpath) or len(os.listdir(dirpath)) == 0
 
 
+def _get_key(dictionary: Mapping[str, Any], allowed_keys: set[str]):
+    if not isinstance(dictionary, Mapping):
+        raise TypeError(
+            f'Expected dictionary to be a mapping, but found {type(dictionary)}'
+        )
+    desired_keys = allowed_keys.intersection(dictionary.keys())
+    if len(desired_keys) != 1:
+        raise TooManyKeysInExampleError(allowed_keys, desired_keys)
+    return list(desired_keys)[0]
+
+
+def _validate_chat_formatted_example(example: ChatFormattedDict):
+    if not isinstance(example, Mapping):
+        raise TypeError(
+            f'Expected example to be a mapping, but found {type(example)}')
+    messages = example[_get_key(example, _ALLOWED_MESSAGES_KEYS)]
+    if not isinstance(messages, List):
+        raise TypeError(
+            f'Expected messages to be an iterable, but found {type(messages)}')
+    if len(messages) <= 1:
+        raise NotEnoughChatDataError()
+
+    last_message = messages[-1]
+    role_key = _get_key(last_message, _ALLOWED_ROLE_KEYS)
+    last_role = last_message[role_key]
+    if last_role not in _ALLOWED_LAST_MESSAGE_ROLES:
+        raise InvalidLastChatMessageRoleError(last_role,
+                                              _ALLOWED_LAST_MESSAGE_ROLES)
+
+    last_message_role = None
+    for message in messages:
+        role_key, content_key = _get_key(message, _ALLOWED_ROLE_KEYS), _get_key(
+            message, _ALLOWED_CONTENT_KEYS)
+        if len(message.keys()) != 2:
+            raise IncorrectMessageKeyQuantityError(list(message.keys()))
+        if message[role_key] not in _ALLOWED_ROLES:
+            raise InvalidRoleError(message[role_key], _ALLOWED_ROLES)
+        if not isinstance(message[content_key], str):
+            raise InvalidContentTypeError(type(message[content_key]))
+        if last_message_role is not None and last_message_role == message[
+                role_key]:
+            raise ConsecutiveRepeatedChatRolesError(last_message_role)
+        last_message_role = message[role_key]
+
+
 def _slice_chat_formatted_example(
         example: ChatFormattedDict,
-        tokenizer: PreTrainedTokenizerBase) -> Tuple[str, str]:
-    """Slices the chat example into a formatted prompt and response.
+        tokenizer: PreTrainedTokenizerBase) -> List[Tuple[str, str]]:
+    """Slices chat example into a list of templated prompt, response turns.
+
+    Note: Assistant messages mark the end of chat turns. So there are as many turns as there are
+        assistant messages in the chat example.
 
     Args:
         example (ChatFormattedDict): The chat example containing the messages.
         tokenizer (PreTrainedTokenizerBase): The tokenizer to apply the chat template.
 
     Returns:
-        Tuple[str, str]: The prompt and response as separate strings.
+        List[Tuple[str, str]]: A list of templated prompt and response string pairs, one pair per chat turn.
 
     Raises:
-        ValueError: If the chat example has less than two messages or if the last message is not from the assistant.
+        ValueError: If any chat turn in the example has less than two messages or if the last message is not from the assistant.
         KeyError: If a message does not have a role or content.
     """
-    messages = example['messages']
+    _validate_chat_formatted_example(example)
+    messages = example[_get_key(example, _ALLOWED_MESSAGES_KEYS)]
 
-    if len(messages) < 2:
-        raise ValueError(
-            f'chat example must have at least two messages. {messages=}')
     last_message = messages[-1]
     if last_message['role'] != 'assistant':
-        raise ValueError(
-            f'last message must be from assistant. {last_message=}')
-    for message in messages:
-        if 'role' not in message or 'content' not in message:
-            raise KeyError(f'message must have role and content. {message=}')
+        raise InvalidLastChatMessageRoleError(last_message['role'],
+                                              set(['assistant']))
 
-    full_conversation = tokenizer.apply_chat_template(messages, tokenize=False)
-    prompt = tokenizer.apply_chat_template(messages[:-1],
-                                           tokenize=False,
-                                           add_generation_prompt=True)
-    if prompt != full_conversation[:len(prompt)]:
-        raise ValueError(
-            f'prompt must be the first part of the full conversation. {prompt=}, {full_conversation=}'
-        )
-    response = full_conversation[len(prompt):]
-    if len(response) == 0:
-        raise ValueError(
-            f'chat example must have at least one assistant message. {messages=}'
-        )
-    return prompt, response
+    def slice_out_last_turn(
+            messages_through_current_turn: List[Dict[str, str]],
+            conversation_through_previous_turn: str) -> Tuple[str, str]:
+        full_conversation = tokenizer.apply_chat_template(
+            messages_through_current_turn, tokenize=False)
+        prompt_with_history = tokenizer.apply_chat_template(
+            messages_through_current_turn[:-1],
+            tokenize=False,
+            add_generation_prompt=True)
+        if conversation_through_previous_turn != full_conversation[:len(
+                conversation_through_previous_turn)]:
+            raise ValueError(
+                f'The full conversation must start with the conversation through the previous turn. {conversation_through_previous_turn=}, {full_conversation=}'
+            )
+        if conversation_through_previous_turn != prompt_with_history[:len(
+                conversation_through_previous_turn)]:
+            raise ValueError(
+                f'The prompt_with_histry must start with the conversation through the previous turn. {conversation_through_previous_turn=}, {prompt_with_history=}'
+            )
+        if prompt_with_history != full_conversation[:len(prompt_with_history)]:
+            raise ValueError(
+                f'prompt_with_history must be the first part of the full conversation. {prompt_with_history=}, {full_conversation=}'
+            )
+        prompt = prompt_with_history[len(conversation_through_previous_turn):]
+        response = full_conversation[len(prompt_with_history):]
+        return prompt, response
+
+    templated_prompt_response_turns: List[Tuple[str, str]] = []
+    conversation_through_previous_turn = ''
+    for idx, message in enumerate(messages):
+        if message['role'] == 'assistant':
+            prompt, response = slice_out_last_turn(
+                messages[:idx + 1], conversation_through_previous_turn)
+            templated_prompt_response_turns.append((prompt, response))
+            conversation_through_previous_turn += prompt
+            conversation_through_previous_turn += response
+
+    return templated_prompt_response_turns
+
+
+def _tokenize_with_bos_removal(tokenizer: PreTrainedTokenizerBase, text: str,
+                               text_target: str) -> Dict[str, List[int]]:
+    """Tokenizes the prompt and response using the provided tokenizer.
+
+    Args:
+        tokenizer (PreTrainedTokenizerBase): The tokenizer to use for tokenization.
+        text (str): The prompt to tokenize.
+        text_target (str): The response to tokenize.
+
+    Returns:
+        Dict[str, List[int]]: The tokenized text and text_target.
+    """
+    tokenized_sample = tokenizer(text=text,
+                                 text_target=text_target,
+                                 padding=False,
+                                 truncation=False)
+
+    # Remove the BOS token from the start of the labels if it was automatically added
+    if hasattr(tokenizer, 'add_bos_token') and tokenizer.add_bos_token:
+        if tokenizer.bos_token_id is not None and tokenized_sample['labels'][
+                0] == tokenizer.bos_token_id:
+            tokenized_sample['labels'] = tokenized_sample['labels'][1:]
+
+    return tokenized_sample
 
 
 def _tokenize_chat_formatted_example(
@@ -157,8 +278,23 @@ def _tokenize_chat_formatted_example(
     Returns:
         TokenizedExample: The tokenized example.
     """
-    prompt, response = _slice_chat_formatted_example(example, tokenizer)
-    return tokenizer(text=prompt, text_target=response)
+    # Note: We do not add special tokens when tokenizing chat-formatted examples because
+    # special tokens are expected to be added via the tokenizer's chat template. So,
+    # we instead expect the prompt/response outputs of `_slice_chat_formatted_example`
+    # (which calls `apply_chat_template`) to have the correct special tokens already.
+    # We disable padding and truncation because those are handled in the collator, which needs to
+    # be able to assume that none of the tokens are pad tokens.
+    return {
+        'turns': [
+            tokenizer(text=prompt,
+                      text_target=response,
+                      add_special_tokens=False,
+                      padding=False,
+                      truncation=False)
+            for prompt, response in _slice_chat_formatted_example(
+                example, tokenizer)
+        ]
+    }
 
 
 def _tokenize_prompt_response_formatted_example(
@@ -170,36 +306,39 @@ def _tokenize_prompt_response_formatted_example(
     response_keys = example_keys.intersection(_ALLOWED_RESPONSE_KEYS)
 
     if len(prompt_keys) != 1:
-        raise KeyError(
-            f'Unable to tokenize example because {len(prompt_keys)} of the allowed prompt keys ' +\
-            f'were present in {example_keys=}. Please specify exactly one. {_ALLOWED_PROMPT_KEYS=}'
-        )
+        raise TooManyKeysInExampleError(_ALLOWED_PROMPT_KEYS, prompt_keys)
 
     if len(response_keys) != 1:
-        raise KeyError(
-            f'Unable to tokenize example because {len(response_keys)} of the allowed response keys ' +\
-            f'were present in {example_keys=}. Please specify exactly one. {_ALLOWED_RESPONSE_KEYS=}'
-        )
+        raise TooManyKeysInExampleError(_ALLOWED_RESPONSE_KEYS, response_keys)
 
     prompt_key = prompt_keys.pop()
     response_key = response_keys.pop()
     prompt = example[prompt_key]
     response = example[response_key]
-
     if not isinstance(prompt, str):
-        raise TypeError(
-            f'Unable to tokenize example because {prompt_key} was not a string. {example=}'
-        )
+        raise InvalidPromptTypeError(type(prompt))
 
     if not isinstance(response, str):
-        raise TypeError(
-            f'Unable to tokenize example because {response_key} was not a string. {example=}'
-        )
+        raise InvalidResponseTypeError(type(response))
 
-    return tokenizer(text=prompt, text_target=response)
+    # Note: We default to the tokenizer's add_bos_token and add_eos_token behavior here
+    # (which we do not do for chat-formatted examples). This is because chat examples specifically
+    # go through the tokenizer's `apply_chat_template` method, which handles special tokens,
+    # and these prompt-response-formatted examples do not.
+    # We disable padding and truncation because those are handled in the collator, which needs to
+    # be able to assume that none of the tokens are pad tokens.
+    return {
+        'turns': [
+            _tokenize_with_bos_removal(
+                tokenizer=tokenizer,
+                text=prompt,
+                text_target=response,
+            )
+        ]
+    }
 
 
-def _tokenize_formatted_example(
+def tokenize_formatted_example(
         example: Example,
         tokenizer: PreTrainedTokenizerBase) -> TokenizedExample:
     """Tokenizes a formatted example using the provided tokenizer.
@@ -225,7 +364,75 @@ def _tokenize_formatted_example(
         return _tokenize_prompt_response_formatted_example(
             prompt_response_example, tokenizer)
     else:
-        raise ValueError(f'Unknown conversation type {example_format=}')
+        raise UnknownExampleTypeError(example)
+
+
+def is_valid_ift_example(max_seq_len: int, target_prompts: str,
+                         target_responses: str, decoder_only_format: bool,
+                         example: TokenizedExample) -> bool:
+    """Check if the example is a valid ift example.
+
+    This function confirms that none of the ``input_ids`` and ``labels`` fields
+    are empty in any of the turns within the example.
+
+    This function also prepares the final input_ids and labels
+    of the (potentially multi-turn) example, using the target settings
+    and format, and checks whether they are suitable for training at max_seq_len.
+    The example is not valid if (1) after truncation (if necessary),
+    the training targets contain no loss-generating tokens, or (2) either the
+    input_ids and labels are empty.
+
+    The token sequences in ``example`` are assumed to not have had
+    any padding or truncation applied already.
+
+    Args:
+        max_seq_len (int): Maximum sequence length.
+        target_prompts (str): The prompts that are used as targets.
+        target_responses (str): The responses that are used as targets.
+        decoder_only_format (bool): Whether the data will be formatted
+            for a decoder-only model.
+        example (Dict): The input example after tokenization, which has
+            a list of dicts, each with ``input_ids`` and ``labels`` fields.
+
+    Returns:
+        bool: Indicator of whether the input example is valid
+    """
+    for turn in example['turns']:
+        if len(turn['input_ids']) == 0:
+            return False
+        if len(turn['labels']) == 0:
+            return False
+
+    if decoder_only_format:
+        input_ids, labels = stitch_turns_decoder_only(
+            example_turns=example['turns'],
+            target_prompts=target_prompts,
+            target_responses=target_responses,
+        )
+
+    else:
+        input_ids, labels = stitch_turns_encoder_decoder(
+            example_turns=example['turns'],)
+    input_ids = input_ids[:max_seq_len]
+    labels = labels[:max_seq_len]
+
+    if len(input_ids) == 0:
+        return False
+
+    if len([label for label in labels if label != _HF_IGNORE_INDEX]) == 0:
+        return False
+
+    return True
+
+
+def _stream_remote_local_validate(remote: Optional[str], local: Optional[str],
+                                  split: Optional[str]):
+    if remote is None or (local == remote):
+        if local is not None and os.path.isdir(local):
+            contents = set(os.listdir(local))
+            if split is not None and split not in contents:
+                raise ValueError(
+                    f'Local directory {local} does not contain split {split}')
 
 
 class StreamingFinetuningDataset(StreamingDataset):
@@ -234,6 +441,9 @@ class StreamingFinetuningDataset(StreamingDataset):
     Args:
         tokenizer (Tokenizer): The name of the HuggingFace tokenizer to use to
             tokenize samples.
+        streams (Sequence[Stream], optional): One or more Streams to stream/cache samples from,
+            which may be upsampled or downsampled. StreamingDataset uses either ``streams`` or
+            ``remote``/``local``. Defaults to ``None``.
         local (str): Local dataset directory where shards are cached by split.
         remote (str, optional): Remote path or directory to download the dataset from. If ``None``,
             its data must exist locally. StreamingDataset uses either ``streams`` or
@@ -284,7 +494,8 @@ class StreamingFinetuningDataset(StreamingDataset):
 
     def __init__(self,
                  tokenizer: PreTrainedTokenizerBase,
-                 local: str,
+                 streams: Optional[Sequence[Stream]] = None,
+                 local: Optional[str] = None,
                  remote: Optional[str] = None,
                  split: Optional[str] = None,
                  download_retry: int = 2,
@@ -304,6 +515,7 @@ class StreamingFinetuningDataset(StreamingDataset):
                  sampling_method: str = 'balanced',
                  sampling_granularity: int = 1,
                  batching_method: str = 'random',
+                 max_seq_len: int = 2048,
                  **kwargs: Any):
 
         if len(kwargs) > 0:
@@ -311,15 +523,15 @@ class StreamingFinetuningDataset(StreamingDataset):
                 f'StreamingFinetuningDataset() got an unexpected keyword argument: {kwargs}'
             )
 
-        if remote is None or (local == remote):
-            if os.path.isdir(local):
-                contents = set(os.listdir(local))
-                if split not in contents:
-                    raise ValueError(
-                        f'local directory {local} does not contain split {split}'
-                    )
+        if streams is None:
+            _stream_remote_local_validate(remote, local, split)
+        else:
+            for stream in streams:
+                _stream_remote_local_validate(stream.remote, stream.local,
+                                              split)
 
         super().__init__(
+            streams=streams,
             local=local,
             remote=remote,
             split=split,
@@ -343,11 +555,35 @@ class StreamingFinetuningDataset(StreamingDataset):
         )
 
         self.tokenizer = tokenizer
+        self.max_seq_len = max_seq_len
 
     # How to process a sample
     def __getitem__(self, idx: int) -> Dict[str, Any]:
         sample = super().__getitem__(idx)
-        return _tokenize_formatted_example(sample, tokenizer=self.tokenizer)
+        if 'turns' in sample:
+            # Already tokenized in latest format
+            return sample
+        if 'input_ids' in sample:
+            # Already tokenized data (old format)
+            if isinstance(sample['input_ids'], bytes):
+                sample['input_ids'] = np.frombuffer(
+                    sample['input_ids'],
+                    dtype=np.int64)[:self.max_seq_len].tolist().copy()
+                sample['labels'] = np.frombuffer(
+                    sample['labels'],
+                    dtype=np.int64)[:self.max_seq_len].tolist().copy()
+            elif isinstance(sample['input_ids'], np.ndarray):
+                sample['input_ids'] = sample[
+                    'input_ids'][:self.max_seq_len].tolist().copy()
+                sample['labels'] = sample['labels'][:self.max_seq_len].tolist(
+                ).copy()
+            else:
+                raise ValueError(
+                    f'Expect input_ids to be bytes or numpy.ndarray type, but got {type(sample["input_ids"])}'
+                )
+            # Convert to latest format by wrapping sample as a "turn"
+            return {'turns': [sample]}
+        return tokenize_formatted_example(sample, tokenizer=self.tokenizer)
 
 
 class DatasetConstructor:
@@ -404,9 +640,7 @@ class DatasetConstructor:
 
         def _preprocessor(example: Dict[str, Any]) -> Dict[str, str]:
             if list(mapping.keys()) != ['prompt', 'response']:
-                raise ValueError(
-                    f'Expected {mapping=} to have keys "prompt" and "response".'
-                )
+                raise InvalidPromptResponseKeysError(mapping, example)
             return {
                 'prompt': example[mapping['prompt']],
                 'response': example[mapping['response']]
@@ -465,10 +699,11 @@ class DatasetConstructor:
         return preprocessing_fn
 
     def build_from_hf(
-        self, dataset_name: str, split: Optional[str], safe_load: bool,
-        max_seq_len: int, preprocessing_fn: Optional[Callable[[dict[str, Any]],
-                                                              dict[str, str]]],
-        tokenizer: PreTrainedTokenizerBase, hf_kwargs: Dict[str, Any]
+        self, dataset_name: str, split: str, safe_load: bool, max_seq_len: int,
+        preprocessing_fn: Optional[Callable[[dict[str, Any]], dict[str, str]]],
+        tokenizer: PreTrainedTokenizerBase, target_prompts: str,
+        target_responses: str, decoder_only_format: bool, hf_kwargs: Dict[str,
+                                                                          Any]
     ) -> Union[hf_datasets.DatasetDict, hf_datasets.Dataset,
                hf_datasets.IterableDatasetDict, hf_datasets.IterableDataset]:
         """Load a HuggingFace Datasets, preprocess, and tokenize.
@@ -524,9 +759,8 @@ class DatasetConstructor:
                             local_dir_use_symlinks=False,
                             local_dir=local_dataset_dir)
                         if _is_empty_or_nonexistent(dirpath=local_dataset_dir):
-                            raise FileNotFoundError(
-                                f'safe_load is set to True. No data files with safe extensions {SUPPORTED_EXTENSIONS} '
-                                + f'found for dataset {dataset_name}. ')
+                            raise InvalidFileExtensionError(
+                                dataset_name, SUPPORTED_EXTENSIONS)
                     # Set dataset_name to the downloaded location.
                     dataset_name = local_dataset_dir
 
@@ -540,9 +774,9 @@ class DatasetConstructor:
                 if not all(
                         Path(f).suffix in SUPPORTED_EXTENSIONS
                         for f in dataset_files):
-                    raise ValueError(
-                        f'Dataset at local path {dataset_name} contains invalid file types. '
-                        + f'Allowed file types are: {SUPPORTED_EXTENSIONS}')
+                    raise InvalidFileExtensionError(dataset_name,
+                                                    SUPPORTED_EXTENSIONS)
+
             dataset = hf_datasets.load_dataset(dataset_name,
                                                split=split,
                                                **hf_kwargs)
@@ -550,7 +784,7 @@ class DatasetConstructor:
             def dataset_mapper(example: Dict):
                 if preprocessing_fn is not None:
                     example = preprocessing_fn(example)
-                return _tokenize_formatted_example(example, tokenizer)
+                return tokenize_formatted_example(example, tokenizer)
 
             detected_cpu_count = os.cpu_count() or 1
             detected_cpus_with_margin = detected_cpu_count - 8
@@ -565,19 +799,9 @@ class DatasetConstructor:
                 desc='Tokenizing dataset',
             )
 
-            pad_token_id = tokenizer.pad_token_id
-
-            def filter_long_or_empty_examples(example: Dict) -> bool:
-                less_than_max_seq_len = len(example['input_ids']) < max_seq_len
-                non_empty_input = len(example['input_ids']) > 0
-                non_empty_labels = len(example['labels']) > 0
-                non_padding_response = any(
-                    token_id != pad_token_id for token_id in example['labels'])
-                return (less_than_max_seq_len and non_empty_input and
-                        non_empty_labels and non_padding_response)
-
             filtered_dataset = tokenized_dataset.filter(
-                filter_long_or_empty_examples,
+                partial(is_valid_ift_example, max_seq_len, target_prompts,
+                        target_responses, decoder_only_format),
                 num_proc=num_cpus_to_use,
                 desc='Filtering out long prompts',
             )
@@ -629,9 +853,8 @@ def alpaca_preprocessing_function(inp: Dict) -> Dict[str, str]:
         prompt, response = inp['text'].split('### Response:')
         prompt += '### Response:'
     except Exception as e:
-        raise ValueError(
-            f"Unable to extract prompt/response from 'text'={inp['text']}"
-        ) from e
+        raise UnableToProcessPromptResponseError(inp) from e
+
     return {'prompt': prompt, 'response': response}
 
 
@@ -647,8 +870,7 @@ def dolly_preprocessing_function(inp: Dict) -> Dict[str, str]:
         prompt = PROMPT_FORMAT.format(instruction=instruction)
         response = inp['output']
     except Exception as e:
-        raise ValueError(
-            f'Unable to extract prompt/response from {inp=}') from e
+        raise UnableToProcessPromptResponseError(inp) from e
     return {'prompt': prompt, 'response': response}
 
 
@@ -674,6 +896,5 @@ def muennighoff_tokenize_function(inp: Dict) -> Dict[str, str]:
                 response.startswith(transitions)):
             response = ' ' + response
     except Exception as e:
-        raise ValueError(
-            f'Unable to process prompt/response from {inp=}') from e
+        raise UnableToProcessPromptResponseError(inp) from e
     return {'prompt': prompt, 'response': response}

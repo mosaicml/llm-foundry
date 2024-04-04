@@ -1,9 +1,9 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: v0.4.0
+  git_branch: v0.6.0
   # git_commit:  # OR use your commit hash
-  pip_install: -e ".[gpu]"
+  pip_install: -e ".[gpu-flash2]"
   ssh_clone: false  # Should be true if using a private repo
 
 command: |
@@ -50,5 +50,5 @@ parameters:
     limit_all_gathers: True
 
 
-  icl_tasks: "eval/yamls/tasks_v0.2.yaml"
-  eval_gauntlet: "eval/yamls/eval_gauntlet_v0.2.yaml"
+  icl_tasks: "eval/yamls/tasks_v0.3.yaml"
+  eval_gauntlet: "eval/yamls/eval_gauntlet_v0.3.yaml"

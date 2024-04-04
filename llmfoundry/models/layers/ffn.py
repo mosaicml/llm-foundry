@@ -97,8 +97,8 @@ class MPTMLP(nn.Module):
         self.fc_kwargs: dict[str, Any] = {
             'bias': bias,
         }
-        if fc_type != 'te':
-            self.fc_kwargs['device'] = device
+
+        self.fc_kwargs['device'] = device
 
         self.up_proj = FC_CLASS_REGISTRY[fc_type](
             d_model,
@@ -144,6 +144,7 @@ class MPTGLU(MPTMLP):
             **self.fc_kwargs,
         )
 
+    @torch.compile
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.down_proj(self.act(self.gate_proj(x)) * self.up_proj(x))
 

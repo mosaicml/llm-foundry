@@ -20,8 +20,11 @@ def make_tiny_ft_dataset(
     path: str,
     size: int = 4,
     add_bad_data_dropped: bool = False,
-    add_bad_data_error: bool = False,
+    add_invalid_prompt_type: bool = False,
+    add_invalid_response_type: bool = False,
+    add_unknown_example_type: bool = False,
     add_just_bos_eos_pad: bool = False,
+    add_too_many_example_keys: bool = False,
     pad_token: Optional[str] = None,
     start_token: Optional[str] = None,
     end_token: Optional[str] = None,
@@ -39,22 +42,28 @@ def make_tiny_ft_dataset(
         samples.append({'prompt': '', 'response': 'goodbye'})
         # empty response
         samples.append({'prompt': 'hello', 'response': ''})
-        # response just pad
-        samples.append({'prompt': 'hello', 'response': pad_token})
-        # response just pad multiple times
-        samples.append({'prompt': 'hello', 'response': pad_token * 3})
 
-    if add_bad_data_error:
+    if add_invalid_prompt_type:
         # prompt just None
         samples.append({
             'prompt': None,
             'response': 'goodbye'
         })  # type: ignore (intentional test)
+
+    if add_invalid_response_type:
         # response just None
         samples.append({
             'prompt': 'hello',
             'response': None
         })  # type: ignore (intentional test)
+
+    if add_too_many_example_keys:
+        # too many keys
+        samples.append({
+            'prompt': 'hello',
+            'response': 'goodbye',
+            'completion': 'bar'
+        })
 
     if add_just_bos_eos_pad:
         if pad_token is None or start_token is None or end_token is None:
@@ -71,6 +80,123 @@ def make_tiny_ft_dataset(
         samples.append({'prompt': 'hello', 'response': end_token})
         # prompt just pad
         samples.append({'prompt': pad_token, 'response': 'goodbye'})
+    if add_unknown_example_type:
+        # unknown example type
+        samples = [{'foo': 'yee', 'bar': 'haw'}]
+
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'w') as _f:
+        for sample in samples:
+            _f.write(json.dumps(sample))
+            _f.write('\n')
+
+
+def make_tiny_conversation_ft_dataset(
+    size: int,
+    path: str,
+    add_invalid_last_chat_message: bool = False,
+    add_invalid_message_key_quantity: bool = False,
+    add_invalid_content_type: bool = False,
+    add_invalid_role: bool = False,
+    add_not_alternating_roles: bool = False,
+):
+    if Path(path).suffix != '.jsonl':
+        raise ValueError(f'Path {path} must be a jsonl file.')
+    good_sample = {
+        'messages': [{
+            'role': 'system',
+            'content': 'A conversation between a user and a helpful assistant.'
+        }, {
+            'role': 'user',
+            'content': "Hi there. What's the capital of the moon?"
+        }, {
+            'role': 'assistant',
+            'content': "This question doesn't make sense."
+        }]
+    }
+
+    samples = [good_sample] * size
+
+    if add_invalid_last_chat_message:
+        # invalid last chat message
+        samples.append({
+            'messages': [{
+                'role':
+                    'system',
+                'content':
+                    'A conversation between a user and a helpful assistant.'
+            }, {
+                'role': 'user',
+                'content': "Hi there. What's the capital of the moon?"
+            }, {
+                'role': 'system',
+                'content': "This question doesn't make sense."
+            }]
+        })
+
+    if add_invalid_message_key_quantity:
+        # invalid message key quantity
+        samples.append({
+            'messages': [{
+                'role':
+                    'system',
+                'content':
+                    'A conversation between a user and a helpful assistant.',
+                'extra_key':
+                    'extra value'
+            }]
+        })
+
+    if add_invalid_role:
+        # invalid role
+        samples.append({
+            'messages': [{
+                'role':
+                    'system',
+                'content':
+                    'A conversation between a user and a helpful assistant.'
+            }, {
+                'role': 'foo',
+                'content': "Hi there. What's the capital of the moon?"
+            }, {
+                'role': 'assistant',
+                'content': "This question doesn't make sense."
+            }]
+        })
+
+    if add_invalid_content_type:
+        # invalid conversation type
+        samples.append({
+            'messages': [{
+                'role':
+                    'system',
+                'content':
+                    'A conversation between a user and a helpful assistant.'
+            }, {
+                'role': 'user',
+                'content': "Hi there. What's the capital of the moon?"
+            }, {
+                'role': 'assistant',
+                'content': None
+            }]
+        })  # type: ignore (intentional test)
+
+    if add_not_alternating_roles:
+        # not alternating roles
+        samples.append({
+            'messages': [{
+                'role':
+                    'system',
+                'content':
+                    'A conversation between a user and a helpful assistant.'
+            }, {
+                'role': 'assistant',
+                'content': "Hi there. What's the capital of the moon?"
+            }, {
+                'role': 'assistant',
+                'content': "This question doesn't make sense."
+            }]
+        })
 
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'w') as _f:

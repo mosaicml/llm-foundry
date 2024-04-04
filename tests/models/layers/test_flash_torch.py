@@ -23,9 +23,7 @@ def allclose_helper(t0: torch.Tensor,
 
 @pytest.mark.gpu
 @pytest.mark.parametrize('attn_impl_0, attn_impl_1', [
-    ('flash', 'triton'),
     ('flash', 'torch'),
-    ('triton', 'torch'),
 ])
 @pytest.mark.parametrize('clip_qkv', [True, False])
 @pytest.mark.parametrize('qk_ln, qk_gn', [
@@ -134,6 +132,10 @@ def test_attn_impl(attn_impl_0: str,
         # zero out the last third of the attention mask
         # to simulate padding
         attention_mask[:, -s // 3:] = 0
+        if sequence_id is not None:
+            sequence_id = sequence_id.masked_fill(
+                ~attention_mask, -1
+            )  # Similar to how we set sequence id for padded tokens: https://github.com/mosaicml/llm-foundry/blob/706ea7dd40ba60a98dea5f37695d143d91c98b6c/llmfoundry/data/packing.py#L249
 
     def gen_bias(attn_impl: str):
         causal = True
@@ -142,7 +144,6 @@ def test_attn_impl(attn_impl_0: str,
                                        cfg.n_heads,
                                        s,
                                        alibi,
-                                       prefix_lm=False,
                                        use_sequence_id=attn_uses_sequence_id,
                                        causal=causal)
         if bs is not None:
@@ -287,7 +288,7 @@ def test_attn_impl(attn_impl_0: str,
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('attn_impl', ['flash', 'triton', 'torch'])
+@pytest.mark.parametrize('attn_impl', ['flash', 'torch'])
 def test_vs_mha(attn_impl: str, device: str = 'cuda'):
     """Compare diff attn_impl to torch.nn.MultiheadAttention."""
     from llmfoundry.models.layers import attention
@@ -384,7 +385,7 @@ def test_vs_mha(attn_impl: str, device: str = 'cuda'):
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('attn_impl', ['flash', 'triton', 'torch'])
+@pytest.mark.parametrize('attn_impl', ['flash', 'torch'])
 @pytest.mark.parametrize('n_heads', [16, 8])
 @pytest.mark.parametrize('kv_n_heads', [4, 2, 1])
 def test_grouped_attention_heads(attn_impl: str,

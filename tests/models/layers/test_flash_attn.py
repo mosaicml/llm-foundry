@@ -6,12 +6,9 @@ import math
 import pytest
 import torch
 
-from llmfoundry.models.layers.attention import (attn_bias_shape,
-                                                build_attn_bias,
-                                                check_alibi_support,
-                                                flash_attn_fn, gen_slopes,
-                                                is_flash_v2_installed,
-                                                triton_flash_attn_fn)
+from llmfoundry.models.layers.attention import (
+    attn_bias_shape, build_attn_bias, check_alibi_support, flash_attn_fn,
+    gen_slopes, is_flash_v2_installed, scaled_multihead_dot_product_attention)
 from llmfoundry.models.mpt.modeling_mpt import gen_flash_attn_padding_info
 
 
@@ -50,7 +47,6 @@ def test_gqa_kv_repetition(kv_n_heads: int):
         dropout_p=0.0,
         training=False,
         needs_weights=False,
-        multiquery=False,
         flash_attn_padding_info=gen_flash_attn_padding_info(
             bsz, seqlen_1, 0, query_1.device, None, None),
         should_repeat_kv_for_gqa=True)
@@ -78,7 +74,6 @@ def test_gqa_kv_repetition(kv_n_heads: int):
         dropout_p=0.0,
         training=False,
         needs_weights=False,
-        multiquery=False,
         flash_attn_padding_info=gen_flash_attn_padding_info(
             bsz, seqlen_1, 0, query_2.device, None, None),
         should_repeat_kv_for_gqa=False)
@@ -136,7 +131,6 @@ def test_seq_id_masking_FA_v2():
         dropout_p=0.0,
         training=False,
         needs_weights=False,
-        multiquery=False,
         flash_attn_padding_info=flash_attn_padding_info_1)
 
     output_1.sum().backward()
@@ -166,7 +160,6 @@ def test_seq_id_masking_FA_v2():
             dropout_p=0.0,
             training=False,
             needs_weights=False,
-            multiquery=False,
             flash_attn_padding_info=flash_attn_padding_info_2)
 
         output_2.sum().backward()
@@ -222,7 +215,6 @@ def test_sliding_window(sliding_window_size: int):
         dropout_p=0.0,
         training=False,
         needs_weights=False,
-        multiquery=False,
         flash_attn_padding_info=gen_flash_attn_padding_info(
             bsz, seqlen_1, 0, query_1.device, None, None),
         should_repeat_kv_for_gqa=True,
@@ -244,7 +236,7 @@ def test_sliding_window(sliding_window_size: int):
         torch.ones(seqlen_1, seqlen_1), diagonal=-(sliding_window_size + 1)).to(
             dtype=dtype, device=device) * torch.finfo(attn_bias_2.dtype).min
     attn_bias_2 = attn_bias_2 + window_mask_2
-    output_2, _, _ = triton_flash_attn_fn(
+    output_2, _, _ = scaled_multihead_dot_product_attention(
         query=query_2,
         key=key_2,
         value=value_2,
@@ -258,18 +250,19 @@ def test_sliding_window(sliding_window_size: int):
         dropout_p=0.0,
         training=False,
         needs_weights=False,
-        multiquery=False,
     )
 
     output_2.sum().backward()
 
-    assert torch.allclose(output_1, output_2)
-    assert torch.norm(query_2.grad - query_1.grad  # type: ignore
-                     ) <= 1e-2 + 1e-2 * torch.norm(query_2.grad)
-    assert torch.norm(key_2.grad - key_1.grad  # type: ignore
-                     ) <= 1e-2 + 1e-2 * torch.norm(key_2.grad)
-    assert torch.norm(value_2.grad - value_1.grad  # type: ignore
-                     ) <= 1e-2 + 1e-2 * torch.norm(value_2.grad)
+    print(torch.max(output_1 - output_2))
+
+    _assert_approx_equal(output_1, output_2)
+    assert (query_2.grad is not None) and (query_1.grad is not None)
+    _assert_approx_equal(query_1.grad, query_2.grad)
+    assert (key_2.grad is not None) and (key_1.grad is not None)
+    _assert_approx_equal(key_1.grad, key_2.grad)
+    assert (value_2.grad is not None) and (value_1.grad is not None)
+    _assert_approx_equal(value_1.grad, value_2.grad)
 
 
 @pytest.mark.gpu
@@ -312,7 +305,6 @@ def test_alibi_bias(n_heads: int):
         dropout_p=0.0,
         training=False,
         needs_weights=False,
-        multiquery=False,
         flash_attn_padding_info=gen_flash_attn_padding_info(
             bsz, seqlen_1, 0, query_1.device, None, None),
         should_repeat_kv_for_gqa=True,
@@ -329,17 +321,16 @@ def test_alibi_bias(n_heads: int):
 
     def gen_bias():
         causal = True
-        bs = attn_bias_shape('triton',
+        bs = attn_bias_shape('torch',
                              n_heads,
                              seqlen_1,
                              True,
-                             prefix_lm=False,
                              use_sequence_id=False,
                              causal=causal)
 
         attn_bias = torch.zeros(*bs, device=device)
         attn_bias = build_attn_bias(
-            'triton',
+            'torch',
             attn_bias,
             n_heads,
             seqlen_1,
@@ -351,7 +342,7 @@ def test_alibi_bias(n_heads: int):
 
     attn_bias_2 = gen_bias()
 
-    output_2, _, _ = triton_flash_attn_fn(
+    output_2, _, _ = scaled_multihead_dot_product_attention(
         query=query_2,
         key=key_2,
         value=value_2,
@@ -365,18 +356,18 @@ def test_alibi_bias(n_heads: int):
         dropout_p=0.0,
         training=False,
         needs_weights=False,
-        multiquery=False,
     )
 
     output_2.sum().backward()
 
-    assert torch.allclose(output_1, output_2)
+    _assert_approx_equal(output_1, output_2)
     assert (query_2.grad is not None) and (query_1.grad is not None)
-    assert torch.norm(query_2.grad -
-                      query_1.grad) <= 1e-2 + 1e-2 * torch.norm(query_2.grad)
+    _assert_approx_equal(query_1.grad, query_2.grad)
     assert (key_2.grad is not None) and (key_1.grad is not None)
-    assert torch.norm(key_2.grad -
-                      key_1.grad) <= 1e-2 + 1e-2 * torch.norm(key_2.grad)
+    _assert_approx_equal(key_1.grad, key_2.grad)
     assert (value_2.grad is not None) and (value_1.grad is not None)
-    assert torch.norm(value_2.grad -
-                      value_1.grad) <= 1e-2 + 1e-2 * torch.norm(value_2.grad)
+    _assert_approx_equal(value_1.grad, value_2.grad)
+
+
+def _assert_approx_equal(value1: torch.Tensor, value2: torch.Tensor):
+    assert torch.norm(value2 - value1) <= 1e-2 + 1e-2 * torch.norm(value2)

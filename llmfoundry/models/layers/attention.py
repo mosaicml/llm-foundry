@@ -44,20 +44,13 @@ def check_alibi_support(attention_impl: str) -> bool:
         v2_version='v2.4.2')
 
 
-# Before importing any transformers models, we need to disable transformers flash attention if
-# we are in an environment with flash attention version <2. Transformers hard errors on a not properly
-# gated import otherwise.
-if is_flash_v1_installed():
-    import transformers
-    transformers.utils.is_flash_attn_available = lambda: False
-
 from transformers.models.llama.modeling_llama import apply_rotary_pos_emb
 
 
 def _reset_is_causal(num_query_tokens: int, num_key_tokens: int,
                      original_is_causal: bool) -> bool:
     # disable causal when it is not needed
-    # necessary for flash & triton for generation with kv_cache
+    # necessary for flash for generation with kv_cache
     if original_is_causal and num_query_tokens != num_key_tokens:
         if num_query_tokens != 1:
             raise NotImplementedError(
@@ -90,7 +83,7 @@ def scaled_multihead_dot_product_attention(
     key: torch.Tensor,
     value: torch.Tensor,
     n_heads: int,
-    kv_n_heads: Optional[int] = None,
+    kv_n_heads: int,
     past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
     softmax_scale: Optional[float] = None,
     attn_bias: Optional[torch.Tensor] = None,
@@ -99,28 +92,15 @@ def scaled_multihead_dot_product_attention(
     dropout_p: float = 0.0,
     training: bool = False,
     needs_weights: bool = False,
-    multiquery: bool = False,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
-    if multiquery:
-        warnings.warn(
-            DeprecationWarning(
-                'The direct use of the multiquery arg is deprecated. Setting kv_n_heads=1 automatically. Please set kv_n_heads=1 explicitly to remove this warning.'
-            ))
-        kv_n_heads = 1
-    elif kv_n_heads is None:
-        warnings.warn(
-            DeprecationWarning(
-                'Not specifying a value for the kv_n_heads arg is deprecated. Setting kv_n_heads=n_heads automatically. Please set kv_n_heads=n_heads explicitly to remove this warning.'
-            ))
-        kv_n_heads = n_heads
 
     q = rearrange(query, 'b s (h d) -> b h s d', h=n_heads)
     k = rearrange(key, 'b s (h d) -> b h d s', h=kv_n_heads)
     v = rearrange(value, 'b s (h d) -> b h s d', h=kv_n_heads)
 
     if past_key_value is not None:
-        # attn_impl: flash & triton use kernels which expect input shape [b, s, h, d_head].
+        # attn_impl: flash attn uses kernels which expect input shape [b, s, h, d_head].
         # kv_cache is therefore stored using that shape.
         # attn_impl: torch stores the kv_cache in the ordering which is most advantageous
         # for its attn computation ie
@@ -218,7 +198,7 @@ def flash_attn_fn(
     key: torch.Tensor,
     value: torch.Tensor,
     n_heads: int,
-    kv_n_heads: Optional[int] = None,
+    kv_n_heads: int,
     past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
     softmax_scale: Optional[float] = None,
     attn_bias: Optional[torch.Tensor] = None,
@@ -246,19 +226,6 @@ def flash_attn_fn(
             'Please install flash-attn==1.0.9 or flash-attn==2.3.6')
 
     check_valid_inputs(query, key, value)
-
-    if multiquery:
-        warnings.warn(
-            DeprecationWarning(
-                'The direct use of the multiquery arg is deprecated. Setting kv_n_heads=1 automatically. Please set kv_n_heads=1 explicitly to remove this warning.'
-            ))
-        kv_n_heads = 1
-    elif kv_n_heads is None:
-        warnings.warn(
-            DeprecationWarning(
-                'Not specifying a value for the kv_n_heads arg is deprecated. Setting kv_n_heads=n_heads automatically. Please set kv_n_heads=n_heads explicitly to remove this warning.'
-            ))
-        kv_n_heads = n_heads
 
     if past_key_value is not None:
         if len(past_key_value) != 0:
@@ -374,137 +341,13 @@ def flash_attn_fn(
     return output, None, past_key_value
 
 
-def triton_flash_attn_fn(
-    query: torch.Tensor,
-    key: torch.Tensor,
-    value: torch.Tensor,
-    n_heads: int,
-    kv_n_heads: Optional[int] = None,
-    past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
-    softmax_scale: Optional[float] = None,
-    attn_bias: Optional[torch.Tensor] = None,
-    key_padding_mask: Optional[torch.Tensor] = None,
-    is_causal: bool = False,
-    dropout_p: float = 0.0,
-    training: bool = False,
-    needs_weights: bool = False,
-    multiquery: bool = False,
-) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
-                                                                torch.Tensor]]]:
-    try:
-        from llmfoundry.models.layers.flash_attn_triton import flash_attn_func
-    except:
-        _installed = False
-        if version.parse(torch.__version__) < version.parse('2.0.0'):
-            _installed = True
-            # if torch1.13.1 revert to using triton flash attn from HazyResearch
-            # with flash-attn==1.0.9 and triton==2.0.0.dev20221202
-            try:
-                from flash_attn.flash_attn_triton import flash_attn_func
-            except:
-                _installed = False
-        if not _installed:
-            # installing triton-pre-mlir works for both torch1.13.1 and torch2.0+
-            # default recommendation is to install this variant
-            raise RuntimeError(
-                'Requirements for `attn_impl: triton` not installed. Either (1) have a CUDA-compatible GPU '
-                +
-                'and `pip install .[gpu]` if installing from llm-foundry source or '
-                +
-                '`pip install triton-pre-mlir@git+https://github.com/vchiley/triton.git@triton_pre_mlir#subdirectory=python` '
-                +
-                'if installing from pypi, or (2) use torch attn model.attn_config.attn_impl=torch (torch attn_impl will be slow). '
-                +
-                'Note: (1) requires you have CMake and PyTorch already installed.'
-            )
-
-    check_valid_inputs(query, key, value)
-
-    if multiquery:
-        warnings.warn(
-            DeprecationWarning(
-                'The direct use of the multiquery arg is deprecated. Setting kv_n_heads=1 automatically. Please set kv_n_heads=1 explicitly to remove this warning.'
-            ))
-        kv_n_heads = 1
-    elif kv_n_heads is None:
-        warnings.warn(
-            DeprecationWarning(
-                'Not specifying a value for the kv_n_heads arg is deprecated. Setting kv_n_heads=n_heads automatically. Please set kv_n_heads=n_heads explicitly to remove this warning.'
-            ))
-        kv_n_heads = n_heads
-
-    if past_key_value is not None:
-        if len(past_key_value) != 0:
-            key = torch.cat([past_key_value[0], key], dim=1)
-            value = torch.cat([past_key_value[1], value], dim=1)
-
-        past_key_value = (key, value)
-
-    if attn_bias is not None:
-        # clamp to 0 necessary for torch 2.0 compile()
-        _s_q = max(0, attn_bias.size(2) - query.size(1))
-        _s_k = max(0, attn_bias.size(3) - key.size(1))
-        attn_bias = attn_bias[:, :, _s_q:, _s_k:]
-
-    if dropout_p:
-        raise NotImplementedError(
-            f'Dropout not implemented for attn_impl: triton.')
-    dropout_p = dropout_p if training else 0.0
-
-    if needs_weights:
-        raise NotImplementedError(
-            f'attn_impl: triton cannot return attn weights.')
-
-    if key_padding_mask is not None:
-        warnings.warn(
-            'Propagating key_padding_mask to the attention module ' +\
-            'and applying it within the attention module can cause ' +\
-            'unnecessary computation/memory usage. Consider integrating ' +\
-            'into attn_bias once and passing that to each attention ' +\
-            'module instead.'
-        )
-        b_size, s_k = key_padding_mask.shape[:2]
-
-        if attn_bias is None:
-            attn_bias = query.new_zeros(b_size, 1, 1, s_k)
-
-        attn_bias = attn_bias.masked_fill(
-            ~key_padding_mask.view((b_size, 1, 1, s_k)),
-            torch.finfo(query.dtype).min)
-
-    query = rearrange(query, 'b s (h d) -> b s h d', h=n_heads)
-    key = rearrange(key, 'b s (h d) -> b s h d', h=kv_n_heads)
-    value = rearrange(value, 'b s (h d) -> b s h d', h=kv_n_heads)
-
-    # multi-query case
-    if kv_n_heads == 1:
-        # necessary to repeat instead of expand tensor because
-        # output contains NaN in edge cases such as with head dimension = 8
-        key = key.repeat(1, 1, n_heads, 1)
-        value = value.repeat(1, 1, n_heads, 1)
-    # grouped query case
-    elif kv_n_heads < n_heads:
-        # Each query belong to a group of kv heads of group size n_heads // kv_n_heads
-        # We repeat each kv head by the group size number to use the underlying MHA kernels
-        key = repeat_kv_for_gqa(key, n_heads // kv_n_heads)
-        value = repeat_kv_for_gqa(value, n_heads // kv_n_heads)
-
-    reset_is_causal = _reset_is_causal(query.size(1), key.size(1), is_causal)
-    attn_output = flash_attn_func(  # type: ignore
-        query, key, value, attn_bias, reset_is_causal, softmax_scale)
-
-    output = attn_output.view(*attn_output.shape[:2], -1)  # type: ignore
-
-    return output, None, past_key_value
-
-
 class GroupedQueryAttention(nn.Module):
     """Grouped Query Attention (GQA) is a generalization of Multi-head (MHA).
 
     and Multi-query attention (MQA).
 
     This allows the user to set a variable of number of kv_n_heads, rather than
-    just n_heads or 1, as in MHA and MQA. Using torch or triton attention
+    just n_heads or 1, as in MHA and MQA. Using torch attention
     implementation enables user to also use additive bias.
     """
 
@@ -513,7 +356,7 @@ class GroupedQueryAttention(nn.Module):
         d_model: int,
         n_heads: int,
         kv_n_heads: int,
-        attn_impl: str = 'triton',
+        attn_impl: str = 'flash',
         clip_qkv: Optional[float] = None,
         qk_ln: bool = False,
         qk_gn: bool = False,
@@ -562,8 +405,7 @@ class GroupedQueryAttention(nn.Module):
         fc_kwargs: dict[str, Any] = {
             'bias': bias,
         }
-        if fc_type != 'te':
-            fc_kwargs['device'] = device
+        fc_kwargs['device'] = device
         self.Wqkv = FC_CLASS_REGISTRY[fc_type](
             self.d_model,
             self.d_model + 2 * self.kv_n_heads * self.head_dim,
@@ -586,8 +428,6 @@ class GroupedQueryAttention(nn.Module):
 
         if self.attn_impl == 'flash':
             self.attn_fn = flash_attn_fn
-        elif self.attn_impl == 'triton':
-            self.attn_fn = triton_flash_attn_fn
         elif self.attn_impl == 'torch':
             self.attn_fn = scaled_multihead_dot_product_attention
         else:
@@ -660,19 +500,35 @@ class GroupedQueryAttention(nn.Module):
 
                 value = value.view(bsz, seqlen, self.kv_n_heads * self.head_dim)
             elif rotary_emb_w_meta_info['impl'] == 'hf':
-                (cos, sin) = rotary_emb(value, seq_len)
-                if is_transformers_version_gte('4.36'):
-                    query, key = apply_rotary_pos_emb(query,
-                                                      key,
-                                                      cos,
-                                                      sin,
-                                                      offset_info,
+                if is_transformers_version_gte('4.38'):
+                    (cos, sin) = rotary_emb(
+                        x=value,
+                        position_ids=offset_info,
+                    )
+                else:
+                    (cos, sin) = rotary_emb(x=value, seq_len=seq_len)
+                if is_transformers_version_gte('4.38'):
+                    query, key = apply_rotary_pos_emb(q=query,
+                                                      k=key,
+                                                      cos=cos,
+                                                      sin=sin,
+                                                      position_ids=None,
+                                                      unsqueeze_dim=2)
+                elif is_transformers_version_gte('4.36'):
+                    query, key = apply_rotary_pos_emb(q=query,
+                                                      k=key,
+                                                      cos=cos,
+                                                      sin=sin,
+                                                      position_ids=offset_info,
                                                       unsqueeze_dim=2)
                 else:
                     query = query.transpose(1, 2)
                     key = key.transpose(1, 2)
-                    query, key = apply_rotary_pos_emb(query, key, cos, sin,
-                                                      offset_info)
+                    query, key = apply_rotary_pos_emb(q=query,
+                                                      k=key,
+                                                      cos=cos,
+                                                      sin=sin,
+                                                      position_ids=offset_info)
                     query = query.transpose(1, 2)
                     key = key.transpose(1, 2)
 
@@ -712,15 +568,14 @@ class GroupedQueryAttention(nn.Module):
 class MultiheadAttention(GroupedQueryAttention):
     """Multi-head self attention.
 
-    Using torch or triton attention implementation enables user to also use
-    additive bias.
+    Using torch attention implementation enables user to also use additive bias.
     """
 
     def __init__(
         self,
         d_model: int,
         n_heads: int,
-        attn_impl: str = 'triton',
+        attn_impl: str = 'flash',
         clip_qkv: Optional[float] = None,
         qk_ln: bool = False,
         qk_gn: bool = False,
@@ -753,15 +608,14 @@ class MultiheadAttention(GroupedQueryAttention):
 class MultiQueryAttention(GroupedQueryAttention):
     """Multi-Query self attention.
 
-    Using torch or triton attention implementation enables user to also use
-    additive bias.
+    Using torch attention implementation enables user to also use additive bias.
     """
 
     def __init__(
         self,
         d_model: int,
         n_heads: int,
-        attn_impl: str = 'triton',
+        attn_impl: str = 'flash',
         clip_qkv: Optional[float] = None,
         qk_ln: bool = False,
         qk_gn: bool = False,
@@ -792,17 +646,16 @@ class MultiQueryAttention(GroupedQueryAttention):
 
 
 def attn_bias_shape(
-        attn_impl: str, n_heads: int, seq_len: int, alibi: bool,
-        prefix_lm: bool, causal: bool,
+        attn_impl: str, n_heads: int, seq_len: int, alibi: bool, causal: bool,
         use_sequence_id: bool) -> Optional[tuple[int, int, int, int]]:
     if attn_impl == 'flash':
         return None
-    elif attn_impl in ['torch', 'triton']:
+    elif attn_impl == 'torch':
         if alibi:
-            if (prefix_lm or not causal) or use_sequence_id:
+            if (not causal) or use_sequence_id:
                 return (1, n_heads, seq_len, seq_len)
             return (1, n_heads, 1, seq_len)
-        elif prefix_lm or use_sequence_id:
+        elif use_sequence_id:
             return (1, 1, seq_len, seq_len)
         return None
     else:
@@ -820,7 +673,7 @@ def build_attn_bias(
 ) -> Optional[torch.Tensor]:
     if attn_impl == 'flash':
         return None
-    elif attn_impl in ['torch', 'triton']:
+    elif attn_impl == 'torch':
         if alibi:
             # in place add alibi to attn bias
             device, dtype = attn_bias.device, attn_bias.dtype

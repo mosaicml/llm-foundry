@@ -1,7 +1,7 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: v0.4.0
+  git_branch: v0.6.0
   # git_commit: # OR use your commit hash
   pip_install: -e .[gpu]
   ssh_clone: false  # Should be true if using a private repo
@@ -9,7 +9,7 @@ integrations:
 command: |
   cd llm-foundry/scripts/
   composer eval/eval.py /mnt/config/parameters.yaml
-image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
+image: mosaicml/llm-foundry:2.1.0_cu121_flash2-latest
 name: mpt-1b-eval
 
 compute:
@@ -41,7 +41,7 @@ parameters:
       max_seq_len: ${max_seq_len}
       vocab_size: 50368
       attn_config:
-        attn_impl: triton
+        attn_impl: flash
 
     load_path:  # Add your (non-optional) Composer checkpoint path here!
 

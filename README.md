@@ -40,6 +40,20 @@ You'll find in this repo:
 * `mcli/` - launch any of these workloads using [MCLI](https://docs.mosaicml.com/projects/mcli/en/latest/) and the [MosaicML platform](https://www.mosaicml.com/platform)
 * `TUTORIAL.md` - a deeper dive into the repo, example workflows, and FAQs
 
+# DBRX
+
+DBRX is a state-of-the-art open source LLM trained by Databricks Mosaic team. It uses the Mixture-of-Experts (MoE) architecture and was trained with optimized versions of [Composer](https://github.com/mosaicml/composer), LLM Foundry, and [MegaBlocks](https://github.com/databricks/megablocks). The model has 132B total parameters and 36B active parameters. We have released two DBRX models:
+
+
+| Model              | Context Length | Download                                           |
+| ------------------ | -------------- | -------------------------------------------------- |
+| DBRX Base          | 32768          | https://huggingface.co/databricks/dbrx-base        |
+| DBRX Instruct      | 32768          | https://huggingface.co/databricks/dbrx-instruct    |
+
+Our model weights and code are licensed for both researchers and commercial entities. The Databricks Open Source License can be found at [LICENSE](https://github.com/databricks/dbrx/LICENSE), and our Acceptable Use Policy can be found [here](https://www.databricks.com/legal/acceptable-use-policy-open-model).
+
+For more information about the DBRX models, see https://github.com/databricks/dbrx.
+
 # MPT
 
 Mosaic Pretrained Transformers (MPT) are GPT-style models with some special features -- Flash Attention for efficiency, ALiBi for context length extrapolation, and stability improvements to mitigate loss spikes. As part of MosaicML's Foundation series, we have open-sourced several MPT models:
@@ -77,6 +91,7 @@ Tutorial videos from the community:
 Something missing? Contribute with a PR!
 
 # Latest News
+* [Blog: Introducing DBRX: A New State-of-the-Art Open LLM](https://www.databricks.com/blog/introducing-dbrx-new-state-art-open-llm)
 * [Blog: LLM Training and Inference with Intel Gaudi2 AI Accelerators](https://www.databricks.com/blog/llm-training-and-inference-intel-gaudi2-ai-accelerators)
 * [Blog: Training LLMs at Scale with AMD MI250 GPUs](https://www.databricks.com/blog/training-llms-scale-amd-mi250-gpus)
 * [Blog: Training LLMs with AMD MI250 GPUs and MosaicML](https://www.mosaicml.com/blog/amd-mi250)
@@ -92,14 +107,14 @@ Something missing? Contribute with a PR!
 
 
 # Hardware and Software Requirements
-This codebase has been tested with PyTorch 2.1 with NVIDIA A100s and H100s.
+This codebase has been tested with PyTorch 2.2 with NVIDIA A100s and H100s.
 This codebase may also work on systems with other devices, such as consumer NVIDIA cards and AMD cards, but we are not actively testing these systems.
 If you have success/failure using LLM Foundry on other systems, please let us know in a Github issue and we will update the support matrix!
 
 | Device         | Torch Version | Cuda Version | Status                       |
 | -------------- | ------------- | ------------ | ---------------------------- |
-| A100-40GB/80GB | 2.1.0         | 12.1         | :white_check_mark: Supported |
-| H100-80GB      | 2.1.0         | 12.1         | :white_check_mark: Supported |
+| A100-40GB/80GB | 2.2.1         | 12.1         | :white_check_mark: Supported |
+| H100-80GB      | 2.2.1         | 12.1         | :white_check_mark: Supported |
 
 ## MosaicML Docker Images
 We highly recommend using our prebuilt Docker images. You can find them here: https://hub.docker.com/orgs/mosaicml/repositories.
@@ -107,17 +122,15 @@ We highly recommend using our prebuilt Docker images. You can find them here: ht
 The `mosaicml/pytorch` images are pinned to specific PyTorch and CUDA versions, and are stable and rarely updated.
 
 The `mosaicml/llm-foundry` images are built with new tags upon every commit to the `main` branch.
-You can select a specific commit hash such as `mosaicml/llm-foundry:1.13.1_cu117-f678575` or take the latest one using `mosaicml/llm-foundry:1.13.1_cu117-latest`.
+You can select a specific commit hash such as `mosaicml/llm-foundry:2.2.1_cu121_flash2-36ab1ba` or take the latest one using `mosaicml/llm-foundry:2.2.1_cu121_flash2-latest`.
 
 **Please Note:** The `mosaicml/llm-foundry` images do not come with the `llm-foundry` package preinstalled, just the dependencies. You will still need to `pip install llm-foundry` either from PyPi or from source.
 
 | Docker Image                                           | Torch Version | Cuda Version      | LLM Foundry dependencies installed? |
 | ------------------------------------------------------ | ------------- | ----------------- | ----------------------------------- |
-| `mosaicml/pytorch:2.1.0_cu121-python3.10-ubuntu20.04`  | 2.1.0         | 12.1 (Infiniband) | No                                  |
-| `mosaicml/llm-foundry:2.1.0_cu121-latest`              | 2.1.0         | 12.1 (Infiniband) | Yes (flash attention v1. Warning: Support for flash attention v1 has been deprecated.)            |
-| `mosaicml/llm-foundry:2.1.0_cu121_flash2-latest`       | 2.1.0         | 12.1 (Infiniband) | Yes (flash attention v2. Note: We recommend using flash attention v2.)            |
-| `mosaicml/llm-foundry:2.1.0_cu121_aws-latest`          | 2.1.0         | 12.1 (EFA)        | Yes (flash attention v1. Warning: Support for flash attention v1 has been deprecated.)            |
-| `mosaicml/llm-foundry:2.1.0_cu121_flash2_aws-latest`   | 2.1.0         | 12.1 (EFA)        | Yes (flash attention v2. Note: We recommend using flash attention v2.)            |
+| `mosaicml/pytorch:2.2.1_cu121-python3.11-ubuntu20.04`  | 2.2.1         | 12.1 (Infiniband) | No                                  |
+| `mosaicml/llm-foundry:2.2.1_cu121_flash2-latest`       | 2.2.1         | 12.1 (Infiniband) | Yes                                 |
+| `mosaicml/llm-foundry:2.2.1_cu121_flash2_aws-latest`   | 2.2.1         | 12.1 (EFA)        | Yes                                 |
 
 
 # Installation
@@ -134,9 +147,7 @@ We *strongly* recommend working with LLM Foundry inside a Docker container (see 
 ```bash
 git clone https://github.com/mosaicml/llm-foundry.git
 cd llm-foundry
-pip install -e ".[gpu-flash2]"  # or `pip install -e .` if no NVIDIA GPU.
-# Note: Currently, `pip install -e ".[gpu-flash2]"` installs Flash Attention v2, and `pip install -e ".[gpu]"` installs Flash Attention v1.
-#       However, once the support for Flash Attention v1 is removed, both of these commands will install Flash Attention v2.
+pip install -e ".[gpu]"  # or `pip install -e .` if no NVIDIA GPU.
 ```
 
 ### Without Docker (not recommended)
@@ -154,9 +165,7 @@ source llmfoundry-venv/bin/activate
 
 pip install cmake packaging torch  # setup.py requires these be installed
 
-pip install -e ".[gpu-flash2]"  # or `pip install -e .` if no NVIDIA GPU.
-# Note: Currently, `pip install -e ".[gpu-flash2]"` installs Flash Attention v2, and `pip install -e ".[gpu]"` installs Flash Attention v1.
-#       However, once the support for Flash Attention v1 is removed, both of these commands will install Flash Attention v2.
+pip install -e ".[gpu]"  # or `pip install -e .` if no NVIDIA GPU.
 ```
 
 ### TransformerEngine and amp_fp8 support
@@ -190,7 +199,6 @@ pip3 install torch torchvision torchaudio --index-url https://download.pytorch.o
 **Lastly**, install the ROCm enabled flash attention (instructions [here](https://github.com/ROCmSoftwarePlatform/flash-attention/tree/flash_attention_for_rocm2#amd-gpurocm-support)).
 
 Notes:
-1. `attn_impl: triton` does not work.
 1. We don't yet have a Docker image where everything works perfectly. You might need to up/downgrade some packages (in our case, we needed to downgrade to `numpy==1.23.5`) before everything works without issue.
 
 ### Intel Gaudi
@@ -260,6 +268,97 @@ export HUGGING_FACE_HUB_TOKEN=your-auth-token
 ```
 
 and uncomment the line containing `--hf_repo_for_upload ...` in the above call to `inference/convert_composer_to_hf.py`.
+
+# Registry
+
+You can use the registry to customize your workflows without forking the library. Some components of LLM Foundry are registrable, such as models, loggers, and callbacks. This means that you can register new options for these components, and then use them in your yaml config.
+
+## Discovering registrable components
+To help find and understand registrable components, you can use the `llmfoundry registry` cli command.
+
+We provide two commands currently:
+- `llmfoundry registry get [--group]`: List all registries, and their components, optionally specifying a specific registry. Example usage: `llmfoundry registry get --group loggers` or `llmfoundry registry get`
+- `llmfoundry registry find <group> <name>`: Get information about a specific registered component. Example usage: `llmfoundry registry find loggers wandb`
+
+Use `--help` on any of these commands for more information.
+
+## How to register
+
+There are a few ways to register a new component:
+
+### Python entrypoints
+
+You can specify registered components via a Python entrypoint if you are building your own package with registered components.
+
+For example, the following would register the `WandBLogger` class, under the key `wandb`, in the `llm_foundry.loggers` registry:
+
+<!--pytest.mark.skip-->
+```yaml
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "foundry_registry"
+version = "0.1.0"
+dependencies = [
+    "mosaicml",
+    "llm-foundry",
+]
+
+[project.entry-points."llm_foundry.loggers"]
+my_logger = "foundry_registry.loggers:MyLogger"
+```
+
+### Direct call to register
+
+You can also register a component directly in your code:
+
+<!--pytest.mark.skip-->
+```python
+from composer.loggers import LoggerDestination
+from llmfoundry.registry import loggers
+
+class MyLogger(LoggerDestination):
+    pass
+
+loggers.register("my_logger", func=MyLogger)
+```
+
+### Decorators
+
+You can also use decorators to register components directly from your code:
+
+<!--pytest.mark.skip-->
+```python
+from composer.loggers import LoggerDestination
+from llmfoundry.registry import loggers
+
+@loggers.register("my_logger")
+class MyLogger(LoggerDestination):
+    pass
+```
+
+For both the direct call and decorator approaches, if using the LLM Foundry train/eval scripts, you will need to provide the `code_paths` argument, which is a list of files need to execute in order to register your components. For example, you may have a file called `foundry_imports.py` that contains the following:
+
+<!--pytest.mark.skip-->
+```python
+from foundry_registry.loggers import MyLogger
+from llmfoundry.registry import loggers
+
+loggers.register("my_logger", func=MyLogger)
+```
+
+You would then provide `code_paths` to the train/eval scripts in your yaml config:
+
+<!--pytest.mark.skip-->
+```yaml
+...
+code_paths:
+  - foundry_imports.py
+...
+```
+
 
 # Learn more about LLM Foundry!
 

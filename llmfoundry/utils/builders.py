@@ -1,46 +1,50 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import contextlib
 import functools
 import logging
 import os
 import re
-import warnings
 from collections import OrderedDict
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import (Any, ContextManager, Dict, Iterable, List, Optional, Tuple,
+                    Union)
 
 import torch
-from composer import algorithms
-from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
-                                MemoryMonitor, OptimizerMonitor,
-                                RuntimeEstimator, SpeedMonitor)
 from composer.core import Algorithm, Callback, Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
-from composer.loggers import (InMemoryLogger, LoggerDestination, MLFlowLogger,
-                              TensorboardLogger, WandBLogger)
-from composer.optim import DecoupledAdamW
-from composer.optim.scheduler import (ComposerScheduler,
-                                      ConstantWithWarmupScheduler,
-                                      CosineAnnealingWithWarmupScheduler,
-                                      LinearWithWarmupScheduler)
+from composer.loggers import LoggerDestination
+from composer.models import ComposerModel
+from composer.optim.scheduler import ComposerScheduler
 from composer.utils import dist
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from torch.optim.optimizer import Optimizer
+from torchmetrics import Metric
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from llmfoundry.callbacks import (AsyncEval, EvalGauntlet, FDiffMetrics,
-                                  GlobalLRScaling, HuggingFaceCheckpointer,
-                                  LayerFreezing, MonolithicCheckpointSaver,
-                                  ScheduledGarbageCollector)
+from llmfoundry import registry
+from llmfoundry.callbacks import EvalGauntlet
 from llmfoundry.data.dataloader import build_dataloader
-from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
-                              DecoupledLionW, DecoupledLionW_8bit)
-from llmfoundry.optim.scheduler import InverseSquareRootWithWarmupScheduler
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
+from llmfoundry.utils.registry_utils import construct_from_registry
 
 log = logging.getLogger(__name__)
+
+__all__ = [
+    'build_algorithm',
+    'build_callback',
+    'build_evaluators',
+    'build_icl_data_and_gauntlet',
+    'build_icl_evaluators',
+    'build_logger',
+    'build_optimizer',
+    'build_scheduler',
+    'build_tokenizer',
+    'build_composer_model',
+    'build_metric',
+]
 
 
 def build_evaluators(
@@ -155,98 +159,118 @@ def build_icl_data_and_gauntlet(
     return icl_evaluators, logger_keys, eval_gauntlet_cb
 
 
+def build_composer_model(
+    name: str,
+    cfg: DictConfig,
+    tokenizer: PreTrainedTokenizerBase,
+    init_context: Optional[ContextManager] = None,
+    master_weights_dtype: Optional[str] = None,
+) -> ComposerModel:
+    """Builds a ComposerModel from the registry.
+
+    Args:
+        name (str): Name of the model to build.
+        cfg (DictConfig): Configuration for the model.
+        tokenizer (PreTrainedTokenizerBase): Tokenizer to use.
+        init_context (Optional[ContextManager], optional): Context manager to use for initialization. Defaults to None.
+        master_weights_dtype (Optional[str], optional): Master weights dtype. Defaults to None.
+
+    Returns:
+        ComposerModel: _description_
+    """
+    if init_context is None:
+        init_context = contextlib.nullcontext()
+
+    with init_context:
+        model = construct_from_registry(
+            name=name,
+            registry=registry.models,
+            pre_validation_function=ComposerModel,
+            post_validation_function=None,
+            kwargs={
+                'om_model_config': cfg,
+                'tokenizer': tokenizer
+            },
+        )
+
+    str_dtype_to_torch_dtype = {
+        'f16': torch.float16,
+        'float16': torch.float16,
+        'bf16': torch.bfloat16,
+        'bfloat16': torch.bfloat16,
+    }
+
+    if master_weights_dtype is not None:
+        if master_weights_dtype not in str_dtype_to_torch_dtype:
+            raise ValueError(
+                f'Invalid master_weights_dtype: {master_weights_dtype}. ' +
+                f'Valid options are: {list(str_dtype_to_torch_dtype.keys())}.')
+        dtype = str_dtype_to_torch_dtype[master_weights_dtype]
+        model = model.to(dtype=dtype)
+
+    return model
+
+
 def build_callback(
     name: str,
-    kwargs: Union[DictConfig, Dict[str, Any]],
+    kwargs: Optional[Dict[str, Any]] = None,
     config: Any = None,
 ) -> Callback:
-    if name == 'lr_monitor':
-        return LRMonitor()
-    elif name == 'memory_monitor':
-        return MemoryMonitor()
-    elif name == 'speed_monitor':
-        return SpeedMonitor(window_size=kwargs.get('window_size', 1),
-                            gpu_flops_available=kwargs.get(
-                                'gpu_flops_available', None))
-    elif name == 'fdiff':
-        return FDiffMetrics(**kwargs)
-    elif name == 'runtime_estimator':
-        return RuntimeEstimator()
-    elif name == 'optimizer_monitor':
-        return OptimizerMonitor(log_optimizer_metrics=kwargs.get(
-            'log_optimizer_metrics', True),)
-    elif name == 'generate_callback':
-        prompts = kwargs.pop('prompts')
-        interval = kwargs.pop('interval', None)
-        # Generate callback used to be batch_log_interval, so this is for backwards compatibility
-        if interval is None:
-            batch_log_interval: str = kwargs.pop('batch_log_interval', '')
-            if batch_log_interval:
-                interval = f'{batch_log_interval}ba'
-                warnings.warn(
-                    ('generate_callback.batch_log_interval is deprecated and will be removed in a future release.'
-                     f'Please use interval: {interval}'),
-                    DeprecationWarning,
-                )
-            else:
-                raise KeyError(
-                    '"interval" must be specified with generate callback')
-        return Generate(prompts=list(prompts), interval=interval, **kwargs)
-    elif name == 'global_lr_scaling':
-        return GlobalLRScaling(**kwargs)
-    elif name == 'layer_freezing':
-        return LayerFreezing(**kwargs)
-    elif name == 'mono_ckpt_saver':
-        return MonolithicCheckpointSaver(**kwargs)
-    elif name == 'scheduled_gc':
-        return ScheduledGarbageCollector(**kwargs)
-    elif name == 'early_stopper':
-        return EarlyStopper(**kwargs)
-    elif name == 'hf_checkpointer':
-        if isinstance(kwargs, DictConfig):
-            kwargs = om.to_object(kwargs)  # pyright: ignore
-        return HuggingFaceCheckpointer(**kwargs)
-    elif name == 'async_eval':
-        if config is None:
+    """Builds a callback from the registry."""
+    registry_to_use = registry.callbacks
+    if name in registry.callbacks_with_config:
+        if kwargs is None:
+            kwargs = {}
+        if 'config' in kwargs:
             raise ValueError(
-                'Parameters config is required for async eval callback')
+                f'`config` is a reserved keyword for callbacks with config. Please remove it from the kwargs.'
+            )
+        kwargs['config'] = config
+        registry_to_use = registry.callbacks_with_config
 
-        return AsyncEval(**kwargs, training_params=config)
-    else:
-        raise ValueError(f'Not sure how to build callback: {name}')
-
-
-def build_logger(name: str, kwargs: Dict[str, Any]) -> LoggerDestination:
-    if name == 'wandb':
-        return WandBLogger(**kwargs)
-    elif name == 'tensorboard':
-        return TensorboardLogger(**kwargs)
-    elif name == 'in_memory_logger':
-        return InMemoryLogger(**kwargs)
-    elif name == 'mlflow':
-        return MLFlowLogger(**kwargs)
-    elif name == 'inmemory':
-        return InMemoryLogger(**kwargs)
-    else:
-        raise ValueError(f'Not sure how to build logger: {name}')
+    return construct_from_registry(name=name,
+                                   registry=registry_to_use,
+                                   partial_function=True,
+                                   pre_validation_function=Callback,
+                                   post_validation_function=None,
+                                   kwargs=kwargs)
 
 
-def build_algorithm(name: str, kwargs: Dict[str, Any]) -> Algorithm:
-    if name == 'gradient_clipping':
-        return algorithms.GradientClipping(**kwargs)
-    elif name == 'alibi':
-        return algorithms.Alibi(**kwargs)
-    elif name == 'gated_linear_units':
-        return algorithms.GatedLinearUnits(**kwargs)
-    elif name == 'low_precision_layernorm':
-        return algorithms.LowPrecisionLayerNorm(**kwargs)
-    else:
-        raise ValueError(f'Not sure how to build algorithm: {name}')
+def build_logger(name: str,
+                 kwargs: Optional[Dict[str, Any]] = None) -> LoggerDestination:
+    """Builds a logger from the registry."""
+    return construct_from_registry(name=name,
+                                   registry=registry.loggers,
+                                   partial_function=True,
+                                   pre_validation_function=LoggerDestination,
+                                   post_validation_function=None,
+                                   kwargs=kwargs)
+
+
+def build_algorithm(name: str,
+                    kwargs: Optional[Dict[str, Any]] = None) -> Algorithm:
+    """Builds an algorithm from the registry."""
+    return construct_from_registry(name=name,
+                                   registry=registry.algorithms,
+                                   partial_function=True,
+                                   pre_validation_function=Algorithm,
+                                   post_validation_function=None,
+                                   kwargs=kwargs)
+
+
+def build_metric(name: str, kwargs: Optional[Dict[str, Any]] = None) -> Metric:
+    """Builds a metric from the registry."""
+    return construct_from_registry(name=name,
+                                   registry=registry.metrics,
+                                   partial_function=True,
+                                   pre_validation_function=Metric,
+                                   post_validation_function=None,
+                                   kwargs=kwargs)
 
 
 def _extract_param_groups(
     model: torch.nn.Module,
-    optimizer_config: Dict[str, Any],
+    optimizer_config: Optional[Dict[str, Any]] = None,
 ) -> Union[Iterable[torch.Tensor], Iterable[Dict[str, Any]]]:
     """Extracts parameter groups defined in the optimizer config.
 
@@ -308,6 +332,9 @@ def _extract_param_groups(
             torch.Tensor's or dict's. Specifies what Tensors should be optimized
             and their param groupings.
     """
+    if optimizer_config is None:
+        return model.parameters()
+
     if 'disable_grad' in optimizer_config.keys():
         str_matches = optimizer_config.pop('disable_grad')
         if isinstance(str_matches, str):
@@ -344,37 +371,42 @@ def _extract_param_groups(
     return model.parameters()
 
 
-def build_optimizer(model: torch.nn.Module, name: str,
-                    optimizer_config: Dict[str, Any]) -> Optimizer:
+def build_optimizer(
+        model: torch.nn.Module,
+        name: str,
+        optimizer_config: Optional[Dict[str, Any]] = None) -> Optimizer:
 
     params = _extract_param_groups(model, optimizer_config)
+    kwargs = optimizer_config
 
-    if name == 'decoupled_adamw':
-        return DecoupledAdamW(params, **optimizer_config)
-    elif name == 'decoupled_lionw':
-        return DecoupledLionW(params, **optimizer_config)
-    elif name == 'clip_lion':
-        return DecoupledClipLion(params, **optimizer_config)
-    elif name == 'adalr_lion':
-        return DecoupledAdaLRLion(params, **optimizer_config)
-    elif name == 'decoupled_lionw_8b':
-        return DecoupledLionW_8bit(params, **optimizer_config)
-    else:
-        raise ValueError(f'Not sure how to build optimizer: {name}')
+    if kwargs is None:
+        kwargs = {}
+    if 'params' in kwargs:
+        raise ValueError(
+            'The `params` will be automatically extracted from the model and ' +
+            'optimizer config. Please remove it from the optimizer config kwargs.'
+        )
+
+    kwargs['params'] = params
+    return construct_from_registry(name=name,
+                                   registry=registry.optimizers,
+                                   partial_function=True,
+                                   pre_validation_function=Optimizer,
+                                   post_validation_function=None,
+                                   kwargs=kwargs)
 
 
-def build_scheduler(name: str,
-                    scheduler_config: Dict[str, Any]) -> ComposerScheduler:
-    if name == 'constant_with_warmup':
-        return ConstantWithWarmupScheduler(**scheduler_config)
-    elif name == 'cosine_with_warmup':
-        return CosineAnnealingWithWarmupScheduler(**scheduler_config)
-    elif name == 'inv_sqrt_with_warmup':
-        return InverseSquareRootWithWarmupScheduler(**scheduler_config)
-    elif name == 'linear_decay_with_warmup':
-        return LinearWithWarmupScheduler(**scheduler_config)
-    else:
-        raise ValueError(f'Not sure how to build scheduler: {name}')
+def build_scheduler(
+        name: str,
+        scheduler_config: Optional[Dict[str, Any]] = None) -> ComposerScheduler:
+    return construct_from_registry(
+        name=name,
+        registry=registry.schedulers,
+        partial_function=True,
+        pre_validation_function=ComposerScheduler,
+        post_validation_function=None,
+        kwargs=scheduler_config,
+    )
 
 
 def build_tokenizer(
@@ -484,8 +516,15 @@ def build_icl_evaluators(
             icl_cfg.batch_size = default_batch_size
         if 'pass_at_k' not in icl_cfg:
             icl_cfg.pass_at_k = 1
-        if 'num_beams' not in icl_cfg:
-            icl_cfg.num_beams = 20
+        if 'fewshot_random_seed' not in icl_cfg:
+            icl_cfg.fewshot_random_seed = 1234
+        if 'generations_per_sample' not in icl_cfg:
+            icl_cfg.generations_per_sample = 1
+
+        if 'num_beams' in icl_cfg:
+            raise ValueError(
+                'num_beams is no longer supported as a top level icl_task parameter.'  + \
+                'Please use generation_kwargs.num_beams instead.')
 
     for icl_cfg in icl_tasks_list:
         assert isinstance(icl_cfg, DictConfig)
@@ -504,6 +543,16 @@ def build_icl_evaluators(
                 os.remove(destination_path)
             dist.barrier()
 
+            hf_parsing_map = icl_cfg.get('hf_parsing_map', {})
+            hf_loading_vars = icl_cfg.get('hf_loading_vars', {})
+
+            early_stopping_criteria = icl_cfg.get('early_stopping_criteria',
+                                                  None)
+            if isinstance(early_stopping_criteria, ListConfig):
+                early_stopping_criteria = om.to_container(
+                    early_stopping_criteria)
+            assert early_stopping_criteria is None or isinstance(
+                early_stopping_criteria, list)
             dataloaders = get_icl_task_dataloader(
                 icl_cfg.icl_task_type,
                 icl_cfg.dataset_uri,
@@ -514,13 +563,19 @@ def build_icl_evaluators(
                 num_fewshot=num_fewshot,
                 prompt_string=icl_cfg.prompt_string,
                 example_delimiter=icl_cfg.example_delimiter,
+                hf_loading_vars=hf_loading_vars,
+                hf_parsing_map=hf_parsing_map,
                 continuation_delimiter=icl_cfg.continuation_delimiter,
                 question_prelimiter=icl_cfg.get('question_prelimiter', ''),
                 destination_path=destination_path,
+                fewshot_random_seed=icl_cfg.fewshot_random_seed,
                 pass_at_k=icl_cfg.pass_at_k,
-                generations_per_sample=icl_cfg.num_beams,
+                generations_per_sample=icl_cfg.generations_per_sample,
                 has_categories=icl_cfg.get('has_categories', False),
-                cot_delimiter=icl_cfg.get('cot_delimiter', ''))
+                cot_delimiter=icl_cfg.get('cot_delimiter', ''),
+                generation_kwargs=icl_cfg.get('generation_kwargs', {}),
+                early_stopping_criteria=early_stopping_criteria,
+                do_normalization=icl_cfg.get('do_normalization', True))
             if hasattr(
                     icl_cfg,
                     'has_categories') and icl_cfg.has_categories and isinstance(

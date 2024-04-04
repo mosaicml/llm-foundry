@@ -316,6 +316,8 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
     """
     from composer.utils import dist, get_device, reproducibility
 
+    log.debug('Searching for optimal packing ratio.')
+
     # Stash the rng state to restore later.
     rng_state = reproducibility.get_rng_state()
     # Set the seed so that auto packing is deterministic.
@@ -459,6 +461,12 @@ def profile_packing(
         waste_percent = 100 * packer.waste
         return padding_percent, waste_percent
 
-    for packing_ratio, raw_batch_size in zip(packing_ratios, raw_batch_sizes):
+    log.debug('Profiling packing ratios')
+    total_packing_ratios = min(len(packing_ratios), len(raw_batch_sizes))
+    for i, (packing_ratio,
+            raw_batch_size) in enumerate(zip(packing_ratios, raw_batch_sizes)):
+        log.debug(
+            f'Progress [{i}/{total_packing_ratios}]: Profiling packing ratio {packing_ratio}'
+        )
         padding, waste = profile(raw_batch_size)
         yield (packing_ratio, padding, waste)

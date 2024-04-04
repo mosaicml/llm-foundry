@@ -54,7 +54,7 @@ install_requires = [
     'mosaicml[libcloud,wandb,oci,gcs]>=0.21.1,<0.22',
     'mlflow>=2.10,<3',
     'accelerate>=0.25,<0.26',  # for HF inference `device_map`
-    'transformers>=4.38.2,<4.39',
+    'transformers>=4.39.3,<4.40',
     'mosaicml-streaming>=0.7.4,<0.8',
     'torch>=2.2.1,<2.3',
     'datasets>=2.16,<2.17',
@@ -67,7 +67,7 @@ install_requires = [
     'onnx==1.14.0',
     'onnxruntime==1.15.1',
     'boto3>=1.21.45,<2',
-    'huggingface-hub>=0.17.0,<1.0',
+    'huggingface-hub>=0.19.0,<1.0',
     'beautifulsoup4>=4.12.2,<5',  # required for model download utils
     'tenacity>=8.2.3,<9',
     'catalogue>=2,<3',

@@ -7,6 +7,7 @@ from typing import Callable, Dict, Iterable, List, Literal, Optional, Tuple
 
 import numpy as np
 import torch
+from composer.utils import dist
 from omegaconf import DictConfig
 from transformers import PreTrainedTokenizerBase
 
@@ -315,6 +316,8 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
     """
     from composer.utils import dist, get_device, reproducibility
 
+    log.debug('Searching for optimal packing ratio.')
+
     # Stash the rng state to restore later.
     rng_state = reproducibility.get_rng_state()
     # Set the seed so that auto packing is deterministic.
@@ -388,8 +391,19 @@ def profile_packing(
     dataloader_cfg.persistent_workers = False
 
     # If streaming dataset, use a temporary local folder for profiling
+    local_rank_zero = dist.get_global_rank() - dist.get_local_rank()
     if dataloader_cfg.dataset.get('remote') is not None:
-        dataloader_cfg.dataset.local = tempfile.TemporaryDirectory().name
+        tmp_path_to_broadcast = tempfile.TemporaryDirectory().name
+        gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
+        tmp_path = gathered_paths[local_rank_zero]
+        dataloader_cfg.dataset.local = tmp_path
+
+    if dataloader_cfg.dataset.get('streams') is not None:
+        for stream_config in dataloader_cfg.dataset.streams.values():
+            tmp_path_to_broadcast = tempfile.TemporaryDirectory().name
+            gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
+            tmp_path = gathered_paths[local_rank_zero]
+            stream_config.local = tmp_path
 
     # Determine the packing_ratio values we'll try
     packing_ratios, raw_batch_sizes = [], []
@@ -447,6 +461,12 @@ def profile_packing(
         waste_percent = 100 * packer.waste
         return padding_percent, waste_percent
 
-    for packing_ratio, raw_batch_size in zip(packing_ratios, raw_batch_sizes):
+    log.debug('Profiling packing ratios')
+    total_packing_ratios = min(len(packing_ratios), len(raw_batch_sizes))
+    for i, (packing_ratio,
+            raw_batch_size) in enumerate(zip(packing_ratios, raw_batch_sizes)):
+        log.debug(
+            f'Progress [{i}/{total_packing_ratios}]: Profiling packing ratio {packing_ratio}'
+        )
         padding, waste = profile(raw_batch_size)
         yield (packing_ratio, padding, waste)

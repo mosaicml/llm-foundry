@@ -7,7 +7,6 @@ from llmfoundry.models.layers.attention import (
     flash_attn_fn, scaled_multihead_dot_product_attention)
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.layers.custom_embedding import SharedEmbedding
-from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY, MPTMLP, build_ffn
 from llmfoundry.models.layers.norm import LPLayerNorm
 
@@ -24,7 +23,6 @@ __all__ = [
     'MPTMLP',
     'MPTBlock',
     'LPLayerNorm',
-    'FC_CLASS_REGISTRY',
     'SharedEmbedding',
     'FFN_CLASS_REGISTRY',
     'build_ffn',

@@ -10,8 +10,7 @@ from typing import Any, Callable, Optional, Tuple, Union
 import torch
 from torch import nn
 
-from llmfoundry.layers_registry import norms
-from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
+from llmfoundry.layers_registry import fcs, norms
 
 try:
     import transformer_engine.pytorch as te
@@ -87,7 +86,7 @@ def generic_param_init_fn_(
             f'Expected init_div_is_residual to be boolean or numeric, got {init_div_is_residual}'
         )
 
-    if isinstance(module, tuple(set(FC_CLASS_REGISTRY.values()))):
+    if isinstance(module, tuple(set([fcs.get(n) for n in fcs.get_all()]))):
         # Linear
         if hasattr(module, '_fused'):
             fused_init_helper_(module, init_fn_)

@@ -233,7 +233,7 @@ class HuggingFaceCheckpointer(Callback):
 
                 import mlflow
                 mlflow.environment_variables.MLFLOW_HUGGINGFACE_MODEL_MAX_SHARD_SIZE.set(
-                    '5GB')
+                    '1GB')
         elif event == Event.FIT_END:
             # Wait for all child processes spawned by the callback to finish.
             timeout = 3600

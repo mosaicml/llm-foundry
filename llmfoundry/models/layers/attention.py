@@ -502,8 +502,7 @@ class GroupedQueryAttention(nn.Module):
             elif rotary_emb_w_meta_info['impl'] == 'hf':
                 if is_transformers_version_gte('4.38'):
                     (cos, sin) = rotary_emb(x=value,
-                                            position_ids=offset_info,
-                                            seq_len=None)
+                                            position_ids=offset_info,)
                 else:
                     (cos, sin) = rotary_emb(x=value, seq_len=seq_len)
                 if is_transformers_version_gte('4.38'):

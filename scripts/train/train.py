@@ -137,9 +137,9 @@ def main(cfg: DictConfig) -> Trainer:
     if max_split_size_mb is not None:
         cuda_alloc_conf.append(f'max_split_size_mb:{max_split_size_mb}')
 
-    # Expandeable segments
-    if cfg.pop('expandeable_segments', False):
-        cuda_alloc_conf.append('expandeable_segments:True')
+    # Expandable segments
+    if cfg.pop('expandable_segments', False):
+        cuda_alloc_conf.append('expandable_segments:True')
 
     if len(cuda_alloc_conf) > 0:
         os.environ['PYTORCH_CUDA_ALLOC_CONF'] = ','.join(cuda_alloc_conf)

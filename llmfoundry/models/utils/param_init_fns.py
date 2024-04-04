@@ -10,7 +10,7 @@ from typing import Any, Callable, Optional, Tuple, Union
 import torch
 from torch import nn
 
-from llmfoundry.layers_registry import norms
+from llmfoundry.layers_registry import module_init_fns, norms, param_init_fns
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 
 try:
@@ -53,42 +53,16 @@ def fused_init_helper_(module: nn.Module, init_fn_: Callable) -> None:
         init_fn_(module.weight[slice_indices])
 
 
-def generic_param_init_fn_(
+def fc_init(
     module: nn.Module,
     init_fn_: Callable,
-    n_layers: int,
-    d_model: Optional[int] = None,
-    init_div_is_residual: Union[int, float, str, bool] = True,
-    emb_init_std: Optional[float] = None,
-    emb_init_uniform_lim: Optional[Union[Tuple[float, float], float]] = None,
+    init_div_is_residual: Union[int, float, str, bool],
+    div_is_residual: Optional[float],
     **kwargs: Any,
-) -> None:
-    del kwargs  # unused, just to capture any extra args from the config
-    # enable user to divide _is_residual weights by
-
-    # a value which defaults to math.sqrt(2 * cfg.n_layers)
-    init_div_is_residual = init_div_is_residual
-
-    if init_div_is_residual is False:
-        # not used, for pyright
-        div_is_residual = 1.0
-    elif init_div_is_residual is True:
-        div_is_residual = math.sqrt(2 * n_layers)
-    elif isinstance(init_div_is_residual, float) or isinstance(
-            init_div_is_residual, int):
-        div_is_residual = init_div_is_residual
-    elif init_div_is_residual.isnumeric():
-        # do not trust YAML parsing to always convert numbers to numbers
-        div_is_residual = float(init_div_is_residual)
-    else:
-        # not used, for pyright
-        div_is_residual = 1.0
-        raise ValueError(
-            f'Expected init_div_is_residual to be boolean or numeric, got {init_div_is_residual}'
-        )
+) -> bool:
+    del kwargs  # unused, just to capture any extra args
 
     if isinstance(module, tuple(set(FC_CLASS_REGISTRY.values()))):
-        # Linear
         if hasattr(module, '_fused'):
             fused_init_helper_(module, init_fn_)
         else:
@@ -101,8 +75,21 @@ def generic_param_init_fn_(
                 module, '_is_residual', False):
             with torch.no_grad():
                 module.weight.div_(div_is_residual)  # type: ignore
+        return True
 
-    elif isinstance(module, nn.Embedding):
+    return False
+
+
+def embedding_init(
+    module: nn.Module,
+    init_fn_: Callable,
+    emb_init_std: Optional[float],
+    emb_init_uniform_lim: Optional[Union[Tuple[float, float], float]],
+    **kwargs: Any,
+) -> bool:
+    del kwargs  # unused, just to capture any extra args
+
+    if isinstance(module, nn.Embedding):
         # Embedding
         if emb_init_std is not None:
             std = emb_init_std
@@ -129,8 +116,19 @@ def generic_param_init_fn_(
 
         emb_init_fn_(module.weight)
 
-    elif isinstance(module,
-                    tuple(set([norms.get(name) for name in norms.get_all()]))):
+        return True
+
+    return False
+
+
+def norm_init(
+    module: nn.Module,
+    **kwargs: Any,
+) -> bool:
+    del kwargs  # unused, just to capture any extra args
+
+    if isinstance(module,
+                  tuple(set([norms.get(name) for name in norms.get_all()]))):
         # Norm
         if hasattr(module, 'weight') and isinstance(module.weight,
                                                     torch.Tensor):
@@ -138,7 +136,22 @@ def generic_param_init_fn_(
         if hasattr(module, 'bias') and isinstance(module.bias, torch.Tensor):
             torch.nn.init.zeros_(module.bias)
 
-    elif isinstance(module, nn.MultiheadAttention):
+        return True
+
+    return False
+
+
+def multihead_attention_init(
+    module: nn.Module,
+    init_fn_: Callable,
+    d_model: Optional[int],
+    init_div_is_residual: Union[int, float, str, bool],
+    div_is_residual: float,
+    **kwargs: Any,
+) -> bool:
+    del kwargs  # unused, just to capture any extra args
+
+    if isinstance(module, nn.MultiheadAttention):
         # torch's MultiheadAttention
         if module._qkv_same_embed_dim:
             assert module.in_proj_weight is not None
@@ -173,7 +186,19 @@ def generic_param_init_fn_(
         if module.out_proj.bias is not None:
             torch.nn.init.zeros_(module.out_proj.bias)
 
-    elif te is not None and isinstance(module, te.LayerNormMLP):
+        return True
+
+    return False
+
+
+def te_layernorm_mlp_init(
+    module: nn.Module,
+    init_fn_: Callable,
+    **kwargs: Any,
+) -> bool:
+    del kwargs  # unused, just to capture any extra args
+
+    if te is not None and isinstance(module, te.LayerNormMLP):
         if isinstance(module.layer_norm_weight, torch.Tensor):
             torch.nn.init.ones_(module.layer_norm_weight)
         if isinstance(module.layer_norm_bias, torch.Tensor):
@@ -191,12 +216,71 @@ def generic_param_init_fn_(
         with torch.no_grad():
             module.fc2_weight.div_(div_is_residual)  # type: ignore
 
+        return True
+
+    return False
+
+
+def generic_param_init_fn_(
+    module: nn.Module,
+    init_fn_: Callable,
+    n_layers: int,
+    d_model: Optional[int] = None,
+    init_div_is_residual: Union[int, float, str, bool] = True,
+    emb_init_std: Optional[float] = None,
+    emb_init_uniform_lim: Optional[Union[Tuple[float, float], float]] = None,
+    **kwargs: Any,
+) -> None:
+    del kwargs  # unused, just to capture any extra args from the config
+    # enable user to divide _is_residual weights by
+
+    # a value which defaults to math.sqrt(2 * cfg.n_layers)
+    init_div_is_residual = init_div_is_residual
+
+    if init_div_is_residual is False:
+        # not used, for pyright
+        div_is_residual = 1.0
+    elif init_div_is_residual is True:
+        div_is_residual = math.sqrt(2 * n_layers)
+    elif isinstance(init_div_is_residual, float) or isinstance(
+            init_div_is_residual, int):
+        div_is_residual = init_div_is_residual
+    elif init_div_is_residual.isnumeric():
+        # do not trust YAML parsing to always convert numbers to numbers
+        div_is_residual = float(init_div_is_residual)
     else:
+        # not used, for pyright
+        div_is_residual = 1.0
+        raise ValueError(
+            f'Expected init_div_is_residual to be boolean or numeric, got {init_div_is_residual}'
+        )
+
+    all_module_init_fns = [
+        module_init_fns.get(name) for name in module_init_fns.get_all()
+    ]
+    did_init = False
+    for module_init_fn in all_module_init_fns:
+        did_init = module_init_fn(
+            module=module,
+            init_fn_=init_fn_,
+            d_model=d_model,
+            init_div_is_residual=init_div_is_residual,
+            div_is_residual=div_is_residual,
+            emb_init_std=emb_init_std,
+            emb_init_uniform_lim=emb_init_uniform_lim,
+        )
+
+        if did_init:
+            break
+
+    if not did_init:
         for _ in module.parameters(recurse=False):
             # raise error if uninitialized module has any parameters
             raise NotImplementedError(
-                f'{module.__class__.__name__} parameters are not initialized by param_init_fn.'
-            )
+                f'{module.__class__.__name__} parameters are not initialized by any of the registered module_init_fns. '
+                +
+                'Please add an appropriate module_init_fn to the registry. Currently registered module_init_fns are: '
+                + ', '.join(module_init_fns.get_all()))
 
 
 def _normal_init_(std: float, mean: float = 0.0) -> Callable:
@@ -412,13 +496,17 @@ def xavier_normal_param_init_fn_(
     )
 
 
-MODEL_INIT_REGISTRY = {
-    'default_': torch_default_param_init_fn_,
-    'baseline_': baseline_param_init_fn_,
-    'kaiming_uniform_': kaiming_uniform_param_init_fn_,
-    'kaiming_normal_': kaiming_normal_param_init_fn_,
-    'neox_init_': neox_param_init_fn_,
-    'small_init_': small_param_init_fn_,
-    'xavier_uniform_': xavier_uniform_param_init_fn_,
-    'xavier_normal_': xavier_normal_param_init_fn_,
-}
+param_init_fns.register('default_', func=torch_default_param_init_fn_)
+param_init_fns.register('baseline_', func=baseline_param_init_fn_)
+param_init_fns.register('kaiming_uniform_', func=kaiming_uniform_param_init_fn_)
+param_init_fns.register('kaiming_normal_', func=kaiming_normal_param_init_fn_)
+param_init_fns.register('neox_init_', func=neox_param_init_fn_)
+param_init_fns.register('small_init_', func=small_param_init_fn_)
+param_init_fns.register('xavier_uniform_', func=xavier_uniform_param_init_fn_)
+param_init_fns.register('xavier_normal_', func=xavier_normal_param_init_fn_)
+
+module_init_fns.register('fc', func=fc_init)
+module_init_fns.register('embedding', func=embedding_init)
+module_init_fns.register('norm', func=norm_init)
+module_init_fns.register('multihead_attention', func=multihead_attention_init)
+module_init_fns.register('te_layernorm_mlp', func=te_layernorm_mlp_init)

@@ -31,6 +31,7 @@ def test_expected_registries_exist():
         'metrics',
         'models',
         'norms',
+        'fcs',
     }
 
     assert existing_registries == expected_registry_names

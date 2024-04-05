@@ -77,7 +77,7 @@ _ALLOWED_PROMPT_KEYS = {'prompt'}
 _ALLOWED_MESSAGES_KEYS = {'messages'}
 _ALLOWED_ROLE_KEYS = {'role'}
 _ALLOWED_CONTENT_KEYS = {'content'}
-_ALLOWED_ROLES = {'user', 'assistant', 'system'}
+_ALLOWED_ROLES = {'user', 'assistant', 'system', 'tool'}
 _ALLOWED_LAST_MESSAGE_ROLES = {'assistant'}
 DOWNLOADED_FT_DATASETS_DIRPATH = os.path.abspath(
     os.path.join(os.path.realpath(__file__), os.pardir, os.pardir, os.pardir,
@@ -898,3 +898,24 @@ def muennighoff_tokenize_function(inp: Dict) -> Dict[str, str]:
     except Exception as e:
         raise UnableToProcessPromptResponseError(inp) from e
     return {'prompt': prompt, 'response': response}
+
+
+@dataset_constructor.register('teknium/OpenHermes-2.5')
+def shareGPT_format_preprocessor(inp: Dict) -> Dict[str, str]:
+    """Convert from ShareGPT format to our chat format"""
+    role_map = {
+        'human': 'user',
+        'gpt': 'assistant',
+        'system': 'system',
+        'tool': 'tool'
+    }
+    try:
+        conversation = inp['conversations']
+        messages = []
+        for message in conversation:
+            role = role_map[message['from']]
+            content = message['value']
+            messages.append({'role': role, 'content': content})
+    except Exception as e:
+        raise UnableToProcessPromptResponseError(inp) from e
+    return {'messages': messages}

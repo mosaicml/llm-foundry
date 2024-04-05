@@ -217,7 +217,7 @@ def _slice_chat_formatted_example(
         if conversation_through_previous_turn != prompt_with_history[:len(
                 conversation_through_previous_turn)]:
             raise ValueError(
-                f'The prompt_with_histry must start with the conversation through the previous turn. {conversation_through_previous_turn=}, {prompt_with_history=}'
+                f'The prompt_with_history must start with the conversation through the previous turn. {conversation_through_previous_turn=}, {prompt_with_history=}'
             )
         if prompt_with_history != full_conversation[:len(prompt_with_history)]:
             raise ValueError(
@@ -901,7 +901,7 @@ def muennighoff_tokenize_function(inp: Dict) -> Dict[str, str]:
 
 
 @dataset_constructor.register('teknium/OpenHermes-2.5')
-def shareGPT_format_preprocessor(inp: Dict) -> Dict[str, str]:
+def shareGPT_format_preprocessor(inp: Dict) -> Dict[str, List[Dict[str, str]]]:
     """Convert from ShareGPT format to our chat format."""
     role_map = {
         'human': 'user',
@@ -911,10 +911,10 @@ def shareGPT_format_preprocessor(inp: Dict) -> Dict[str, str]:
     }
     try:
         conversation = inp['conversations']
-        messages = []
+        messages: List[Dict[str, str]] = []
         for message in conversation:
-            role = role_map[message['from']]
-            content = message['value']
+            role: str = role_map[message['from']]
+            content: str = message['value']
             messages.append({'role': role, 'content': content})
     except Exception as e:
         raise UnableToProcessPromptResponseError(inp) from e

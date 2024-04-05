@@ -14,7 +14,7 @@ from einops import rearrange
 from packaging import version
 from torch import nn
 
-from llmfoundry.layers_registry import attention_class, attention_implementation
+from llmfoundry.layers_registry import attention_classes, attention_implementation
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 from llmfoundry.models.layers.layer_builders import build_norm
 
@@ -342,7 +342,7 @@ def flash_attn_fn(
     return output, None, past_key_value
 
 
-@attention_class.register_class('grouped_query_attention')
+@attention_classes.register_class('grouped_query_attention')
 class GroupedQueryAttention(nn.Module):
     """Grouped Query Attention (GQA) is a generalization of Multi-head (MHA).
 
@@ -569,7 +569,7 @@ class GroupedQueryAttention(nn.Module):
         return self.out_proj(context), attn_weights, past_key_value
 
 
-@attention_class.register_class('multihead_attention')
+@attention_classes.register_class('multihead_attention')
 class MultiheadAttention(GroupedQueryAttention):
     """Multi-head self attention.
 
@@ -610,7 +610,7 @@ class MultiheadAttention(GroupedQueryAttention):
         )
 
 
-@attention_class.register_class('multiquery_attention')
+@attention_classes.register_class('multiquery_attention')
 class MultiQueryAttention(GroupedQueryAttention):
     """Multi-Query self attention.
 

@@ -31,7 +31,7 @@ def test_expected_registries_exist():
         'metrics',
         'models',
         'norms',
-        'attention_class',
+        'attention_classes',
         'attention_implementation',
     }
 

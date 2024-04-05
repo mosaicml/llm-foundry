@@ -12,7 +12,7 @@ from torchmetrics import Metric
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.interfaces import CallbackWithConfig
-from llmfoundry.layers_registry import (attention_class,
+from llmfoundry.layers_registry import (attention_classes,
                                         attention_implementation, norms)
 from llmfoundry.utils.registry_utils import create_registry
 
@@ -131,6 +131,6 @@ __all__ = [
     'metrics',
     'dataloaders',
     'norms',
-    'attention_class',
+    'attention_classes',
     'attention_implementation',
 ]

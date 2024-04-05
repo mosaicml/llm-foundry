@@ -14,7 +14,8 @@ from einops import rearrange
 from packaging import version
 from torch import nn
 
-from llmfoundry.layers_registry import attention_classes, attention_implementation
+from llmfoundry.layers_registry import (attention_classes,
+                                        attention_implementations)
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 from llmfoundry.models.layers.layer_builders import build_norm
 
@@ -435,7 +436,7 @@ class GroupedQueryAttention(nn.Module):
                 device=device,
             )
 
-        self.attn_fn = attention_implementation.get(self.attn_impl)
+        self.attn_fn = attention_implementations.get(self.attn_impl)
 
         self.out_proj = FC_CLASS_REGISTRY[fc_type](
             self.d_model,
@@ -739,6 +740,6 @@ def build_alibi_bias(
     return alibi_bias.to(dtype=dtype)
 
 
-attention_implementation.register('flash', func=flash_attn_fn)
-attention_implementation.register('torch',
-                                  func=scaled_multihead_dot_product_attention)
+attention_implementations.register('flash', func=flash_attn_fn)
+attention_implementations.register('torch',
+                                   func=scaled_multihead_dot_product_attention)

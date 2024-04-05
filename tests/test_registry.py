@@ -32,7 +32,7 @@ def test_expected_registries_exist():
         'models',
         'norms',
         'attention_classes',
-        'attention_implementation',
+        'attention_implementations',
     }
 
     assert existing_registries == expected_registry_names

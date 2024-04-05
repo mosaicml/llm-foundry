@@ -13,7 +13,7 @@ from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.interfaces import CallbackWithConfig
 from llmfoundry.layers_registry import (attention_classes,
-                                        attention_implementation, norms)
+                                        attention_implementations, norms)
 from llmfoundry.utils.registry_utils import create_registry
 
 _loggers_description = (
@@ -132,5 +132,5 @@ __all__ = [
     'dataloaders',
     'norms',
     'attention_classes',
-    'attention_implementation',
+    'attention_implementations',
 ]

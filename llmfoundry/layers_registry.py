@@ -20,23 +20,23 @@ _attention_classes_description = (
     'The attention_classes registry is used to register classes that implement attention layers. See '
     + 'attention.py for expected constructor signature.')
 attention_classes = create_registry('llmfoundry',
-                                  'attention_classes',
-                                  generic_type=Type[torch.nn.Module],
-                                  entry_points=True,
-                                  description=_attention_classes_description)
+                                    'attention_classes',
+                                    generic_type=Type[torch.nn.Module],
+                                    entry_points=True,
+                                    description=_attention_classes_description)
 
-_attention_implementation_description = (
-    'The attention_implementation registry is used to register functions that implement the attention operation.'
+_attention_implementations_description = (
+    'The attention_implementations registry is used to register functions that implement the attention operation.'
     + 'See attention.py for expected function signature.')
-attention_implementation = create_registry(
+attention_implementations = create_registry(
     'llmfoundry',
-    'attention_implementation',
+    'attention_implementations',
     generic_type=Callable,
     entry_points=True,
-    description=_attention_implementation_description)
+    description=_attention_implementations_description)
 
 __all__ = [
     'norms',
     'attention_classes',
-    'attention_implementation',
+    'attention_implementations',
 ]

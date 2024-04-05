@@ -32,8 +32,9 @@ def get_act_ckpt_module(mod_name: str) -> Any:
         mod_type = norms.get(mod_name)
     else:
         msg = ', '.join(
-            list(attention_classes.get_all()) + list(FFN_CLASS_REGISTRY.keys()) +
-            list(norms.get_all()) + ['MPTBlock'])
+            list(attention_classes.get_all()) +
+            list(FFN_CLASS_REGISTRY.keys()) + list(norms.get_all()) +
+            ['MPTBlock'])
         raise ValueError(
             f'{mod_name} (specified in activation_checkpointing_target) is not a recognized option out of available options {msg}.'
         )

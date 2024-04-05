@@ -24,7 +24,7 @@ def get_act_ckpt_module(mod_name: str) -> Any:
     """Get the module type from the module name."""
     if mod_name.lower() == 'mptblock':
         mod_type = MPTBlock
-    elif mod_name in attention_class.get_all():
+    elif mod_name in attention_class:
         mod_type = attention_class.get(mod_name)
     elif mod_name in FFN_CLASS_REGISTRY:
         mod_type = FFN_CLASS_REGISTRY[mod_name]

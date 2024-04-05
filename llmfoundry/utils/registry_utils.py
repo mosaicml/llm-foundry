@@ -14,6 +14,7 @@ import catalogue
 __all__ = ['TypedRegistry', 'create_registry', 'construct_from_registry']
 
 T = TypeVar('T')
+TypeBoundT = TypeVar('TypeBoundT', bound=Type)
 
 
 class TypedRegistry(catalogue.Registry, Generic[T]):
@@ -34,6 +35,12 @@ class TypedRegistry(catalogue.Registry, Generic[T]):
         return super().__call__(name, func)
 
     def register(self, name: str, *, func: Optional[T] = None) -> T:
+        return super().register(name, func=func)
+
+    def register_class(self,
+                       name: str,
+                       *,
+                       func: Optional[TypeBoundT] = None) -> TypeBoundT:
         return super().register(name, func=func)
 
     def get(self, name: str) -> T:

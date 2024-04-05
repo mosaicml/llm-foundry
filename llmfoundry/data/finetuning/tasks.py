@@ -902,7 +902,7 @@ def muennighoff_tokenize_function(inp: Dict) -> Dict[str, str]:
 
 @dataset_constructor.register('teknium/OpenHermes-2.5')
 def shareGPT_format_preprocessor(inp: Dict) -> Dict[str, str]:
-    """Convert from ShareGPT format to our chat format"""
+    """Convert from ShareGPT format to our chat format."""
     role_map = {
         'human': 'user',
         'gpt': 'assistant',

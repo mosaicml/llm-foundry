@@ -15,14 +15,18 @@ norms = create_registry('llmfoundry',
                         entry_points=True,
                         description=_norm_description)
 
-_ffns_description = """The ffns registry is used to register functions that build ffn layers."""
+_ffns_description = (
+    'The ffns registry is used to register functions that build ffn layers.' +
+    'See ffn.py for examples.')
 ffns = create_registry('llmfoundry',
                        'ffns',
                        generic_type=Callable,
                        entry_points=True,
                        description=_ffns_description)
 
-_ffns_with_norm_description = """The ffns_with_norm registry is used to register functions that build ffn layers that apply a normalization layer."""
+_ffns_with_norm_description = (
+    'The ffns_with_norm registry is used to register functions that build ffn layers that apply a normalization layer.'
+    + 'See ffn.py for examples.')
 ffns_with_norm = create_registry('llmfoundry',
                                  'ffns_with_norm',
                                  generic_type=Callable,

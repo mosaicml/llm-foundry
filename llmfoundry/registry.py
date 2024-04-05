@@ -12,7 +12,7 @@ from torchmetrics import Metric
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.interfaces import CallbackWithConfig
-from llmfoundry.layers_registry import norms
+from llmfoundry.layers_registry import module_init_fns, norms, param_init_fns
 from llmfoundry.utils.registry_utils import create_registry
 
 _loggers_description = (
@@ -121,4 +121,6 @@ __all__ = [
     'metrics',
     'dataloaders',
     'norms',
+    'param_init_fns',
+    'module_init_fns',
 ]

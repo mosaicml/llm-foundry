@@ -15,7 +15,11 @@ norms = create_registry('llmfoundry',
                         entry_points=True,
                         description=_norm_description)
 
-_param_init_fns_description = """The param_init_fns registry is used to register functions that initialize parameters."""
+_param_init_fns_description = (
+    'The param_init_fns registry is used to register functions that initialize parameters.'
+    +
+    'These will be called on a module to initialize its parameters. See param_init_fns.py for examples.'
+)
 param_init_fns = create_registry('llmfoundry',
                                  'param_init_fns',
                                  generic_type=Callable[..., None],

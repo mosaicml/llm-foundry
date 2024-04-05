@@ -31,6 +31,8 @@ def test_expected_registries_exist():
         'metrics',
         'models',
         'norms',
+        'param_init_fns',
+        'module_init_fns',
     }
 
     assert existing_registries == expected_registry_names

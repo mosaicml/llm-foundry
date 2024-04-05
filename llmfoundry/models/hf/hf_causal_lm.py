@@ -87,7 +87,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         init_device = om_model_config.get('init_device', 'cpu')
         # Resolve "mixed" init device to either "cpu" or "meta"
         resolved_init_device = hf_get_init_device(init_device)
-        requested_attention_implementations = 'flash_attention_2' if use_flash_attention_2 else 'eager'
+        requested_attention_implementation = 'flash_attention_2' if use_flash_attention_2 else 'eager'
 
         if use_flash_attention_2 and not is_flash_v2_installed():
             raise ValueError(
@@ -120,7 +120,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             pretrained_model_name_or_path,
             trust_remote_code=trust_remote_code,
             use_auth_token=use_auth_token,
-            attn_implementation=requested_attention_implementations,
+            attn_implementation=requested_attention_implementation,
             use_cache=
             False,  # Necessary due to https://github.com/huggingface/transformers/issues/28056
         )
@@ -134,7 +134,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                 config,  # type: ignore
                 *args,  # type: ignore
                 **kwargs):  # type: ignore
-            config._attn_implementation = requested_attention_implementations
+            config._attn_implementation = requested_attention_implementation
             return config
 
         PreTrainedModel._autoset_attn_implementation = classmethod(

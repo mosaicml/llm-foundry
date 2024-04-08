@@ -66,8 +66,7 @@ class VLLMCausalLMEvalWrapper(VLLMEvalInterface):
                 tokens = [t for t in tokens if t != padding_tok]
                 prompts.append(tokens)
 
-            sampling_params = vllm.SamplingParams(temperature=0.8,
-                                                  top_p=1,
+            sampling_params = vllm.SamplingParams(temperature=0,
                                                   max_tokens=num_tokens,
                                                   n=num_sequences)
 

@@ -20,7 +20,6 @@ from composer.models import HuggingFaceModel
 from composer.utils import dist
 
 from llmfoundry.models.layers.attention import is_flash_v2_installed
-from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
 if is_flash_v2_installed():
     try:  # This try...except is needed because transformers requires it despite the 'if' statement above
@@ -42,11 +41,13 @@ from transformers.models.llama.modeling_llama import \
 from transformers.models.llama.modeling_llama import \
     LlamaRotaryEmbedding as HFRotaryEmbedding
 
+from llmfoundry.layers_registry import norms
 from llmfoundry.models.layers.attention import (attn_bias_shape,
                                                 build_attn_bias, gen_slopes)
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.layers.custom_embedding import SharedEmbedding
 from llmfoundry.models.layers.ffn import build_ffn as build_ffn
+from llmfoundry.models.layers.layer_builders import build_norm
 from llmfoundry.models.mpt.configuration_mpt import MPTConfig
 
 # NOTE: All utils are imported directly even if unused so that
@@ -297,12 +298,11 @@ class MPTModel(MPTPreTrainedModel):
             else:
                 config.init_device = 'meta'
 
-        if config.norm_type.lower() not in NORM_CLASS_REGISTRY.keys():
-            norm_options = ' | '.join(NORM_CLASS_REGISTRY.keys())
+        if config.norm_type.lower() not in norms.get_all():
+            norm_options = ' | '.join(norms.get_all())
             raise NotImplementedError(
                 f'Requested norm type ({config.norm_type}) is not implemented within this repo (Options: {norm_options}).'
             )
-        norm_class = NORM_CLASS_REGISTRY[config.norm_type.lower()]
 
         # CogView (https://arxiv.org/abs/2105.13290) and GLM-130B (https://arxiv.org/abs/2210.02414)
         # both report this helping with stabilizing training
@@ -329,7 +329,11 @@ class MPTModel(MPTPreTrainedModel):
             block.max_block_idx = config.n_layers - 1
             pass_on_block_idx(block)
 
-        self.norm_f = norm_class(config.d_model, device=config.init_device)
+        self.norm_f = build_norm(
+            name=config.norm_type.lower(),
+            normalized_shape=config.d_model,
+            device=config.init_device,
+        )
 
         self.rope = config.attn_config['rope']
         self.rope_impl = None

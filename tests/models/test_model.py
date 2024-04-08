@@ -26,8 +26,9 @@ from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.models.bloom.modeling_bloom import build_alibi_tensor
 
 from llmfoundry import ComposerHFCausalLM
+from llmfoundry.layers_registry import norms
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithFSDP
-from llmfoundry.models.layers import NORM_CLASS_REGISTRY, build_alibi_bias
+from llmfoundry.models.layers import build_alibi_bias
 from llmfoundry.models.layers.attention import (check_alibi_support,
                                                 is_flash_v2_installed)
 from llmfoundry.models.layers.blocks import MPTBlock
@@ -682,7 +683,7 @@ def test_lora_id():
     assert isinstance(model.model, peft.PeftModelForCausalLM)
 
 
-@pytest.mark.parametrize('norm_type', NORM_CLASS_REGISTRY.keys())
+@pytest.mark.parametrize('norm_type', norms.get_all())
 @pytest.mark.parametrize('no_bias', [False, True])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
 @pytest.mark.parametrize('expansion_ratio,ffn_hidden_size', [

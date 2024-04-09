@@ -306,7 +306,7 @@ dependencies = [
     "llm-foundry",
 ]
 
-[project.entry-points."llm_foundry.loggers"]
+[project.entry-points."llmfoundry_loggers"]
 my_logger = "foundry_registry.loggers:MyLogger"
 ```
 

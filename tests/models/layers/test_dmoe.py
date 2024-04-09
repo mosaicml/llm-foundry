@@ -36,25 +36,22 @@ def _get_all_inputs(
 ):
     world_size: int = dist.get_world_size()
     rank: int = dist.get_rank()
-    device: torch.device = torch.device(  # pyright: ignore[reportGeneralTypeIssues]
-        f'cuda:{rank}')
+    device: torch.device = torch.device(f'cuda:{rank}')
     all_inputs = []
     for _ in range(world_size):
-        all_inputs.append(
-            torch.rand(  # pyright: ignore[reportGeneralTypeIssues]
-                input_shape,
-                device=device,
-                dtype=dtype))
+        all_inputs.append(torch.rand(
+            input_shape,
+            device=device,
+            dtype=dtype,
+        ))
     return all_inputs
 
 
-def _get_torch_dtype(
-    fp16: bool, bf16: bool
-) -> Optional[torch.dtype]:  # pyright: ignore[reportGeneralTypeIssues]
+def _get_torch_dtype(fp16: bool, bf16: bool) -> Optional[torch.dtype]:
     if fp16:
-        return torch.float16  # pyright: ignore[reportGeneralTypeIssues]
+        return torch.float16
     elif bf16:
-        return torch.bfloat16  # pyright: ignore[reportGeneralTypeIssues]
+        return torch.bfloat16
     return None
 
 
@@ -83,8 +80,7 @@ def test_dmoe(moe_num_experts: int, mlp_type: str, moe_world_size: int,
     x = _get_all_inputs(input_shape, dtype)[rank]
 
     # Construct DDP torch dMoE
-    device = torch.device(  # pyright: ignore[reportGeneralTypeIssues]
-        f'cuda:{dist.get_rank()}')
+    device = torch.device(f'cuda:{dist.get_rank()}')
     common_args = {
         'hidden_size': hidden_size,
         'ffn_hidden_size': hidden_size,
@@ -109,16 +105,9 @@ def test_dmoe(moe_num_experts: int, mlp_type: str, moe_world_size: int,
     # Construct TP MB dMoE
     mp_dmoe_args = copy.deepcopy(common_args)
     extra_args = {
-        'fp16':
-            fp16,
-        'bf16':
-            bf16,
-        'init_method':
-            partial(
-                torch.nn.init.  # pyright: ignore[reportGeneralTypeIssues]
-                uniform_,
-                a=-1.0,
-                b=1.0),
+        'fp16': fp16,
+        'bf16': bf16,
+        'init_method': partial(torch.nn.init.uniform_, a=-1.0, b=1.0),
     }
     device_mesh = None
     if moe_world_size > 1:
@@ -196,8 +185,7 @@ def test_dmoe(moe_num_experts: int, mlp_type: str, moe_world_size: int,
 
     torch_y = torch_dmoe(x)
     mb_y = mb_dmoe(x)
-    torch.testing.assert_close(  # pyright: ignore[reportGeneralTypeIssues]
-        torch_y, mb_y)
+    torch.testing.assert_close(torch_y, mb_y)
 
 
 @pytest.mark.skipif(not is_megablocks_imported,
@@ -241,12 +229,11 @@ def test_fwd_equal_dmoe(seqlen: int, precision: str, mlp_type: str):
                                ))
     device = 'cuda:0'
     if precision == 'fp32':
-        dtype = torch.float32  # pyright: ignore[reportGeneralTypeIssues]
+        dtype = torch.float32
         context = nullcontext()
     elif precision == 'bf16':
-        dtype = torch.bfloat16  # pyright: ignore[reportGeneralTypeIssues]
-        context = torch.autocast(  # pyright: ignore[reportGeneralTypeIssues]
-            'cuda', torch.bfloat16)  # pyright: ignore[reportGeneralTypeIssues]
+        dtype = torch.bfloat16
+        context = torch.autocast('cuda', torch.bfloat16)
     else:
         raise ValueError(f'Invalid {precision=}')
 
@@ -262,12 +249,13 @@ def test_fwd_equal_dmoe(seqlen: int, precision: str, mlp_type: str):
     torch_dmoe_model.load_state_dict(mb_dmoe_model.state_dict())
 
     # tokens
-    token_ids = torch.randint(  # pyright: ignore[reportGeneralTypeIssues]
-        0,  # pyright: ignore[reportGeneralTypeIssues]
+    token_ids = torch.randint(
+        0,
         mb_dmoe_config.vocab_size,
         (1, seqlen),
         device=device,
-        dtype=torch.long)  # pyright: ignore[reportGeneralTypeIssues]
+        dtype=torch.long,
+    )
 
     with context:
         mpt_logits = mb_dmoe_model(token_ids).logits

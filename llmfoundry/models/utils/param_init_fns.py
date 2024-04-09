@@ -10,8 +10,8 @@ from typing import Any, Callable, Optional, Tuple, Union
 import torch
 from torch import nn
 
+from llmfoundry.layers_registry import norms
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
-from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
 try:
     import transformer_engine.pytorch as te
@@ -129,7 +129,8 @@ def generic_param_init_fn_(
 
         emb_init_fn_(module.weight)
 
-    elif isinstance(module, tuple(set(NORM_CLASS_REGISTRY.values()))):
+    elif isinstance(module,
+                    tuple(set([norms.get(name) for name in norms.get_all()]))):
         # Norm
         if hasattr(module, 'weight') and isinstance(module.weight,
                                                     torch.Tensor):

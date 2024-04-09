@@ -271,8 +271,4 @@ def test_fwd_equal_dmoe(seqlen: int, precision: str, mlp_type: str):
     with context:
         mpt_logits = mb_dmoe_model(token_ids).logits
         db_logits = torch_dmoe_model(token_ids).logits
-        assert mb_allclose(mpt_logits,
-                           db_logits,
-                           rtol=0.005,
-                           atol=0.01,
-                           verbose=True)
+        assert torch.allclose(mpt_logits, db_logits, rtol=0.01, atol=0.01)

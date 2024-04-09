@@ -280,7 +280,7 @@ def main(cfg: DictConfig) -> Trainer:
     load_strict_model_weights: bool = scfg.load_strict_model_weights
     load_ignore_keys: Optional[List[str]] = scfg.load_ignore_keys
     compile_config: Optional[Dict[str, Any]] = scfg.compile_config
-    metadata: Optional[Dict[str, str]] = convert_to_dict(scfg.metadata)
+    metadata: Optional[Dict[str, Any]] = convert_to_dict(scfg.metadata)
     should_log_config: bool = scfg.log_config
 
     # Enable autoresume from model checkpoints if possible

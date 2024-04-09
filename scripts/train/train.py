@@ -166,7 +166,9 @@ def validate_config(cfg: TrainConfig):
 
 
 def main(cfg: DictConfig) -> Trainer:
-    scfg: TrainConfig = OmegaConf.structured(TrainConfig(**cfg)) # type: ignore (TrainConfig does expect arguments, the type checker is wrong here)
+    scfg: TrainConfig = OmegaConf.structured(
+        TrainConfig(**cfg)
+    )  # type: ignore (TrainConfig does expect arguments, the type checker is wrong here)
 
     code_paths = scfg.code_paths
     # Import any user provided code

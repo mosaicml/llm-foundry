@@ -109,6 +109,8 @@ class StreamingTextDataset(StreamingDataset):
                  sampling_method: str = 'balanced',
                  sampling_granularity: int = 1,
                  batching_method: str = 'random',
+                 allow_unsafe_types: bool = False,
+                 replication: Optional[int] = None,
                  **kwargs: Any):
 
         if len(kwargs) > 0:
@@ -151,8 +153,8 @@ class StreamingTextDataset(StreamingDataset):
             sampling_method=sampling_method,
             sampling_granularity=sampling_granularity,
             batching_method=batching_method,
-            allow_unsafe_types=False,
-            replication=None,
+            allow_unsafe_types=allow_unsafe_types,
+            replication=replication,
         )
         self.tokenizer = tokenizer
         self.max_seq_len = max_seq_len

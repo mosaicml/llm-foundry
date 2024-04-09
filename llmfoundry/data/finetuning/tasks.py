@@ -516,6 +516,8 @@ class StreamingFinetuningDataset(StreamingDataset):
                  sampling_granularity: int = 1,
                  batching_method: str = 'random',
                  max_seq_len: int = 2048,
+                 allow_unsafe_types: bool = False,
+                 replication: Optional[int] = None,
                  **kwargs: Any):
 
         if len(kwargs) > 0:
@@ -552,8 +554,8 @@ class StreamingFinetuningDataset(StreamingDataset):
             sampling_method=sampling_method,
             sampling_granularity=sampling_granularity,
             batching_method=batching_method,
-            allow_unsafe_types=False,
-            replication=None,
+            allow_unsafe_types=allow_unsafe_types,
+            replication=replication,
         )
 
         self.tokenizer = tokenizer

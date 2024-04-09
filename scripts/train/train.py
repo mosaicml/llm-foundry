@@ -35,8 +35,8 @@ from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_composer_model, build_evaluators,
                                        build_logger, build_optimizer,
                                        build_scheduler, build_tokenizer)
-from llmfoundry.utils.config_utils import (convert_to_dict, log_config,
-                                           pop_config, process_init_device,
+from llmfoundry.utils.config_utils import (log_config, pop_config,
+                                           process_init_device,
                                            update_batch_size_info)
 from llmfoundry.utils.registry_utils import import_file
 
@@ -45,11 +45,11 @@ log = logging.getLogger(__name__)
 
 @dataclass
 class TrainConfig:
-    model: DictConfig = MISSING
-    tokenizer: DictConfig = MISSING
-    optimizer: DictConfig = MISSING
-    scheduler: DictConfig = MISSING
-    train_loader: DictConfig = MISSING
+    model: Dict[str, Any] = MISSING
+    tokenizer: Dict[str, Any] = MISSING
+    optimizer: Dict[str, Any] = MISSING
+    scheduler: Dict[str, Any] = MISSING
+    train_loader: Dict[str, Any] = MISSING
     device_train_batch_size: int = MISSING
     device_eval_batch_size: int = MISSING
     max_duration: Union[int, str] = MISSING
@@ -63,15 +63,18 @@ class TrainConfig:
     expandable_segments: bool = False
     cuda_load_lazy: bool = False
     dist_timeout: Union[int, float] = 600.0
-    eval_loader: Optional[Union[DictConfig, ListConfig]] = None
-    icl_tasks: Optional[Union[ListConfig, str]] = None
-    fsdp_config: Optional[DictConfig] = None
-    eval_gauntlet: Optional[Union[DictConfig, str]] = None
+    eval_loader: Optional[Dict[str, Any]] = None
+    eval_loaders: Optional[List[Dict[str, Any]]] = None
+    icl_tasks: Optional[List[Dict[str, Any]]] = None
+    icl_tasks_str: Optional[str] = None
+    fsdp_config: Optional[Dict[str, Any]] = None
+    eval_gauntlet: Optional[Dict[str, Any]] = None
+    eval_gauntlet_str: Optional[str] = None
     icl_subset_num_batches: Optional[int] = None
     icl_seq_len: Optional[int] = None
-    loggers: Optional[DictConfig] = None
-    callbacks: Optional[DictConfig] = None
-    algorithms: Optional[DictConfig] = None
+    loggers: Optional[Dict[str, Any]] = None
+    callbacks: Optional[Dict[str, Any]] = None
+    algorithms: Optional[Dict[str, Any]] = None
     run_name: Optional[str] = None
     save_folder: Optional[str] = None
     save_latest_filename: Optional[str] = None
@@ -92,25 +95,25 @@ class TrainConfig:
     load_strict_model_weights: bool = True
     load_ignore_keys: Optional[List[str]] = None
     compile_config: Optional[Dict[str, Any]] = None
-    metadata: Optional[DictConfig] = None
+    metadata: Optional[Dict[str, Any]] = None
     log_config: bool = True
     autoresume: bool = False
-    data_local: Optional[Dict[str, Any]] = None
-    data_remote: Optional[Dict[str, Any]] = None
+    data_local: Optional[str] = None
+    data_remote: Optional[str] = None
     global_seed: Optional[int] = None
     global_train_batch_size: Optional[int] = None
     n_gpus: Optional[int] = None
     device_train_grad_accum: Optional[int] = None
-    profiler: Optional[DictConfig] = None
+    profiler: Optional[Dict[str, Any]] = None
 
 
 def validate_config(cfg: TrainConfig):
     """Validates compatible model and dataloader selection."""
     loaders = [cfg.train_loader]
-    if cfg.eval_loader is not None:
+    if cfg.eval_loader is not None or cfg.eval_loaders is not None:
         eval_loader = cfg.eval_loader
-        if isinstance(eval_loader, ListConfig):
-            for loader in eval_loader:
+        if isinstance(cfg.eval_loaders, ListConfig):
+            for loader in cfg.eval_loaders:
                 if loader.label is None:
                     raise ValueError(
                         'When specifying multiple evaluation datasets, each one must include the \
@@ -125,7 +128,7 @@ def validate_config(cfg: TrainConfig):
                     f'Model type "{cfg.model.name}" is not supported when using the "text " ' +\
                     f'dataloader. Only finetuning is supported.')
 
-    if cfg.icl_tasks is not None:
+    if cfg.icl_tasks is not None or cfg.icl_tasks_str is not None:
         if cfg.model.name == 'hf_t5':
             raise ValueError(
                 'ICL evaluation does not currently support Encoder-Decoder models, such as "hf_t5".'
@@ -169,6 +172,24 @@ def validate_config(cfg: TrainConfig):
 
 
 def main(cfg: DictConfig) -> Trainer:
+    # Resolve all interpolation variables as early as possible
+    om.resolve(cfg)
+
+    if (loader := cfg.get('eval_loader', None)) is not None:
+        # structured config does not support unions of containers
+        if isinstance(loader, ListConfig):
+            loaders: Optional[ListConfig] = loader
+            cfg['eval_loaders'] = loaders
+            cfg.pop('eval_loader')
+    if (tasks := cfg.get('icl_tasks', None)) is not None:
+        if isinstance(tasks, str):
+            cfg['icl_tasks_str'] = tasks
+            cfg.pop('icl_tasks')
+    if (gauntlet := cfg.get('eval_gauntlet', None)) is not None:
+        if isinstance(gauntlet, str):
+            cfg['eval_gauntlet_str'] = gauntlet
+            cfg.pop('eval_gauntlet')
+
     scfg: TrainConfig = OmegaConf.structured(
         TrainConfig(**cfg)
     )  # type: ignore (TrainConfig does expect arguments, the type checker is wrong here)
@@ -188,9 +209,6 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Check for incompatibilities between the model and data loaders
     validate_config(scfg)
-
-    # Resolve all interpolation variables as early as possible
-    om.resolve(cfg)
 
     # Create copy of config for logging
     logged_cfg: DictConfig = copy.deepcopy(cfg)
@@ -228,16 +246,20 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Mandatory model training configs
     model_config: DictConfig = scfg.model
-    tokenizer_config: Dict[str, Any] = convert_to_dict(scfg.tokenizer)
-    optimizer_config: Dict[str, Any] = convert_to_dict(scfg.optimizer)
-    scheduler_config: Dict[str, Any] = convert_to_dict(scfg.scheduler)
+    tokenizer_config: Dict[str, Any] = scfg.tokenizer
+    optimizer_config: Dict[str, Any] = scfg.optimizer
+    scheduler_config: Dict[str, Any] = scfg.scheduler
     train_loader_config: DictConfig = scfg.train_loader
 
     # Optional fsdp data, fine-tuning, and eval configs
-    fsdp_config: Optional[Dict[str, Any]] = convert_to_dict(scfg.fsdp_config)
+    fsdp_config: Optional[Dict[str, Any]] = scfg.fsdp_config
 
-    eval_loader_config: Optional[Union[DictConfig,
-                                       ListConfig]] = scfg.eval_loader
+    if scfg.eval_loader is not None and scfg.eval_loaders is not None:
+        raise ValueError(
+            'Only one of `eval_loader` or `eval_loaders` should be provided.')
+    eval_loader_config: Optional[Union[
+        DictConfig,
+        ListConfig]] = scfg.eval_loader if scfg.eval_loader is not None else scfg.eval_loaders
     icl_tasks_config: Optional[Union[ListConfig, str]] = scfg.icl_tasks
     eval_gauntlet_config: Optional[Union[DictConfig, str]] = scfg.eval_gauntlet
     icl_subset_num_batches: Optional[int] = scfg.icl_subset_num_batches
@@ -280,7 +302,7 @@ def main(cfg: DictConfig) -> Trainer:
     load_strict_model_weights: bool = scfg.load_strict_model_weights
     load_ignore_keys: Optional[List[str]] = scfg.load_ignore_keys
     compile_config: Optional[Dict[str, Any]] = scfg.compile_config
-    metadata: Optional[Dict[str, Any]] = convert_to_dict(scfg.metadata)
+    metadata: Optional[Dict[str, Any]] = scfg.metadata
     should_log_config: bool = scfg.log_config
 
     # Enable autoresume from model checkpoints if possible

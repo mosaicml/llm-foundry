@@ -151,6 +151,8 @@ class StreamingTextDataset(StreamingDataset):
             sampling_method=sampling_method,
             sampling_granularity=sampling_granularity,
             batching_method=batching_method,
+            allow_unsafe_types=False,
+            replication=None,
         )
         self.tokenizer = tokenizer
         self.max_seq_len = max_seq_len

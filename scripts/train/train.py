@@ -92,7 +92,7 @@ class TrainConfig:
     load_strict_model_weights: bool = True
     load_ignore_keys: Optional[List[str]] = None
     compile_config: Optional[Dict[str, Any]] = None
-    metadata: Optional[Dict[str, str]] = None
+    metadata: Optional[DictConfig] = None
     log_config: bool = True
     autoresume: bool = False
     data_local: Optional[Dict[str, Any]] = None

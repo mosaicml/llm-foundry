@@ -103,7 +103,7 @@ class TrainConfig:
     profiler: Optional[Dict[str, Any]] = None
 
 
-def validate_config(cfg: DictConfig):
+def validate_config(cfg: TrainConfig):
     """Validates compatible model and dataloader selection."""
     loaders = [cfg.train_loader]
     if 'eval_loader' in cfg:

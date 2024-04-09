@@ -26,6 +26,8 @@ from llmfoundry.utils import (find_mosaicml_logger, log_train_analytics,
                               maybe_create_mosaicml_logger)
 
 install()
+from omegaconf import MISSING
+
 from llmfoundry.callbacks import AsyncEval
 from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
@@ -43,16 +45,21 @@ log = logging.getLogger(__name__)
 
 @attr.s(auto_attribs=True)
 class TrainConfig:
+    model: DictConfig = MISSING
+    tokenizer: Dict[str, Any] = MISSING
+    optimizer: Dict[str, Any] = MISSING
+    scheduler: Dict[str, Any] = MISSING
+    train_loader: DictConfig = MISSING
+    device_train_batch_size: int = MISSING
+    device_eval_batch_size: int = MISSING
+    max_duration: Union[int, str] = MISSING
+    eval_interval: Union[int, str] = MISSING
+    precision: str = MISSING
+    max_seq_len: int = MISSING
+
+    code_paths: List[str] = []
     eval_loader: Optional[Union[DictConfig, ListConfig]] = None
     icl_tasks: Optional[Union[ListConfig, str]] = None
-    code_paths: List[str] = []
-    seed: int = 42
-    dist_timeout: Union[int, float] = 600.0
-    model: DictConfig
-    tokenizer: Dict[str, Any]
-    optimizer: Dict[str, Any]
-    scheduler: Dict[str, Any]
-    train_loader: DictConfig
     fsdp_config: Optional[Dict[str, Any]] = None
     eval_loader: Optional[Union[DictConfig, ListConfig]] = None
     icl_tasks: Optional[Union[ListConfig, str]] = None
@@ -62,12 +69,6 @@ class TrainConfig:
     loggers: Optional[DictConfig] = None
     callbacks: Optional[DictConfig] = None
     algorithms: Optional[DictConfig] = None
-    device_train_batch_size: int
-    device_eval_batch_size: int
-    max_duration: Union[int, str]
-    eval_interval: Union[int, str]
-    precision: str
-    max_seq_len: int
     run_name: Optional[str] = None
     save_folder: Optional[str] = None
     save_latest_filename: Optional[str] = None
@@ -75,7 +76,6 @@ class TrainConfig:
     save_weights_only: bool = False
     save_filename: Optional[str] = None
     save_interval: Union[str, int] = '1000ba'
-
     save_num_checkpoints_to_keep: int = -1
     progress_bar: bool = False
     log_to_console: bool = True
@@ -92,21 +92,19 @@ class TrainConfig:
     metadata: Optional[Dict[str, str]] = None
     log_config: bool = True
     autoresume: bool = False
-
     data_local: Optional[Dict[str, Any]] = None
     data_remote: Optional[Dict[str, Any]] = None
     global_seed: Optional[int] = None
     global_train_batch_size: Optional[int] = None
     n_gpus: Optional[int] = None
     device_train_grad_accum: Optional[int] = None
-
     profiler: Optional[Dict[str, Any]] = None
 
 
 def validate_config(cfg: TrainConfig):
     """Validates compatible model and dataloader selection."""
     loaders = [cfg.train_loader]
-    if 'eval_loader' in cfg:
+    if cfg.eval_loader is not None:
         eval_loader = cfg.eval_loader
         if isinstance(eval_loader, ListConfig):
             for loader in eval_loader:
@@ -124,7 +122,7 @@ def validate_config(cfg: TrainConfig):
                     f'Model type "{cfg.model.name}" is not supported when using the "text " ' +\
                     f'dataloader. Only finetuning is supported.')
 
-    if 'icl_tasks' in cfg:
+    if cfg.icl_tasks is not None:
         if cfg.model.name == 'hf_t5':
             raise ValueError(
                 'ICL evaluation does not currently support Encoder-Decoder models, such as "hf_t5".'
@@ -141,17 +139,18 @@ def validate_config(cfg: TrainConfig):
 
     if (cfg.model.get('fc_type', 'torch') == 'te' or
             'te' in cfg.model.get('ffn_config', {}).get('ffn_type', 'mptmlp')):
-        fsdp_config = cfg.get('fsdp_config', None)
-        act_ckpt = fsdp_config.get('activation_checkpointing', False)
+        fsdp_config = cfg.fsdp_config
+        act_ckpt = fsdp_config.get('activation_checkpointing',
+                                   False) if fsdp_config else False
         act_ckpt_reentrant = fsdp_config.get(
-            'activation_checkpointing_reentrant', True)
-        if fsdp_config is not None and act_ckpt == True and act_ckpt_reentrant == False:
+            'activation_checkpointing_reentrant', True) if fsdp_config else True
+        if fsdp_config is not None and act_ckpt == True and act_ckpt_reentrant == False and cfg.fsdp_config is not None:
             warnings.warn(
                 '`te.Linear` layers do not support activation_checkpointing with '
                 + '`activation_checkpointing_reentrant = False`. ' +
                 'Setting cfg.fsdp_config.activation_checkpointing_reentrant=True.'
             )
-            cfg.fsdp_config.activation_checkpointing_reentrant = True
+            cfg.fsdp_config['activation_checkpointing_reentrant'] = True
 
     if 'te' in cfg.model.get('ffn_config', {}).get('ffn_type', 'mptmlp'):
         warnings.warn(
@@ -167,7 +166,7 @@ def validate_config(cfg: TrainConfig):
 
 
 def main(cfg: DictConfig) -> Trainer:
-    scfg: TrainConfig = OmegaConf.structured(TrainConfig(**cfg))
+    scfg: TrainConfig = OmegaConf.structured(TrainConfig(**cfg)) # type: ignore (TrainConfig does expect arguments, the type checker is wrong here)
 
     code_paths = scfg.code_paths
     # Import any user provided code

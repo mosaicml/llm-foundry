@@ -30,6 +30,7 @@ def test_expected_registries_exist():
         'dataloaders',
         'metrics',
         'models',
+        'norms',
     }
 
     assert existing_registries == expected_registry_names

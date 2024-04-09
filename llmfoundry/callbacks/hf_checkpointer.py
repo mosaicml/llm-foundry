@@ -376,8 +376,8 @@ class HuggingFaceCheckpointer(Callback):
             # Edit HF config before building 2nd model copy
             copied_config = copy.deepcopy(original_model.config)
             if copied_config.model_type == 'mpt':
-                copied_config.config.attn_config['attn_impl'] = 'torch'
-                copied_config.config.init_device = 'cpu'
+                copied_config.attn_config['attn_impl'] = 'torch'
+                copied_config.init_device = 'cpu'
                 if 'moe_world_size' in getattr(copied_config, 'ffn_config', {}):
                     copied_config.ffn_config['moe_world_size'] = 1
 

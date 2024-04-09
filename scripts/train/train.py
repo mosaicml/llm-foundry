@@ -58,7 +58,7 @@ class TrainConfig:
     max_seq_len: int = MISSING
     seed: int = MISSING
 
-    code_paths: List[str] = []
+    code_paths: Optional[List[str]] = None
     max_split_size_mb: Optional[int] = None
     expandable_segments: bool = False
     cuda_load_lazy: bool = False
@@ -175,7 +175,7 @@ def main(cfg: DictConfig) -> Trainer:
         TrainConfig(**cfg)
     )  # type: ignore (TrainConfig does expect arguments, the type checker is wrong here)
 
-    code_paths = scfg.code_paths
+    code_paths = scfg.code_paths if scfg.code_paths else []
     # Import any user provided code
     for code_path in code_paths:
         import_file(code_path)

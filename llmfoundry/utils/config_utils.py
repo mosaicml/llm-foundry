@@ -5,7 +5,7 @@ import contextlib
 import logging
 import math
 import warnings
-from typing import Any, Dict, Literal, Mapping, Optional, Tuple, Union
+from typing import Any, Dict, List, Literal, Mapping, Optional, Tuple, Union
 
 from composer.utils import dist
 from omegaconf import DictConfig, ListConfig
@@ -22,6 +22,18 @@ __all__ = [
     'process_init_device',
     'log_config',
 ]
+
+
+def convert_to_dict(
+    value: Optional[Union[ListConfig, DictConfig]]
+) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
+    if value is None:
+        return None
+    if not isinstance(value, DictConfig) and not isinstance(value, ListConfig):
+        raise ValueError(
+            f'The value {value} is of type {type(value)} that cannot be \
+                        converted to a dict or list. Please check your yaml.')
+    return om.to_container(value)
 
 
 def pop_config(cfg: DictConfig,

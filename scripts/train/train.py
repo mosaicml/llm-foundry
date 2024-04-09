@@ -7,9 +7,9 @@ import os
 import sys
 import time
 import warnings
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
 
-import attr
 import torch
 from composer import Trainer
 from composer.core.callback import Callback
@@ -35,20 +35,20 @@ from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_composer_model, build_evaluators,
                                        build_logger, build_optimizer,
                                        build_scheduler, build_tokenizer)
-from llmfoundry.utils.config_utils import (log_config, pop_config,
-                                           process_init_device,
+from llmfoundry.utils.config_utils import (convert_to_dict, log_config,
+                                           pop_config, process_init_device,
                                            update_batch_size_info)
 from llmfoundry.utils.registry_utils import import_file
 
 log = logging.getLogger(__name__)
 
 
-@attr.s(auto_attribs=True)
+@dataclass
 class TrainConfig:
     model: DictConfig = MISSING
-    tokenizer: Dict[str, Any] = MISSING
-    optimizer: Dict[str, Any] = MISSING
-    scheduler: Dict[str, Any] = MISSING
+    tokenizer: DictConfig = MISSING
+    optimizer: DictConfig = MISSING
+    scheduler: DictConfig = MISSING
     train_loader: DictConfig = MISSING
     device_train_batch_size: int = MISSING
     device_eval_batch_size: int = MISSING
@@ -56,8 +56,13 @@ class TrainConfig:
     eval_interval: Union[int, str] = MISSING
     precision: str = MISSING
     max_seq_len: int = MISSING
+    seed: int = MISSING
 
     code_paths: List[str] = []
+    max_split_size_mb: Optional[int] = None
+    expandable_segments: bool = False
+    cuda_load_lazy: bool = False
+    dist_timeout: Union[int, float] = 600.0
     eval_loader: Optional[Union[DictConfig, ListConfig]] = None
     icl_tasks: Optional[Union[ListConfig, str]] = None
     fsdp_config: Optional[Dict[str, Any]] = None
@@ -98,7 +103,7 @@ class TrainConfig:
     global_train_batch_size: Optional[int] = None
     n_gpus: Optional[int] = None
     device_train_grad_accum: Optional[int] = None
-    profiler: Optional[Dict[str, Any]] = None
+    profiler: Optional[DictConfig] = None
 
 
 def validate_config(cfg: TrainConfig):
@@ -184,7 +189,7 @@ def main(cfg: DictConfig) -> Trainer:
     )
 
     # Check for incompatibilities between the model and data loaders
-    validate_config(cfg)
+    validate_config(scfg)
 
     # Resolve all interpolation variables as early as possible
     om.resolve(cfg)
@@ -194,12 +199,12 @@ def main(cfg: DictConfig) -> Trainer:
 
     cuda_alloc_conf = []
     # Get max split size mb
-    max_split_size_mb: Optional[int] = cfg.pop('max_split_size_mb', None)
+    max_split_size_mb: Optional[int] = scfg.max_split_size_mb
     if max_split_size_mb is not None:
         cuda_alloc_conf.append(f'max_split_size_mb:{max_split_size_mb}')
 
     # Expandable segments
-    if cfg.pop('expandable_segments', False):
+    if scfg.expandable_segments:
         cuda_alloc_conf.append('expandable_segments:True')
 
     if len(cuda_alloc_conf) > 0:
@@ -207,19 +212,16 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Set CUDA lazy loading
     # This can save a bit of memory if not all modules are needed
-    cuda_load_lazy: bool = cfg.pop('cuda_load_lazy', False)
+    cuda_load_lazy: bool = scfg.cuda_load_lazy
     if cuda_load_lazy:
         os.environ['CUDA_MODULE_LOADING'] = 'LAZY'
 
     # Set seed first
-    seed: int = pop_config(cfg, 'seed', must_exist=True)
+    seed: int = scfg.seed
     reproducibility.seed_all(seed)
 
     # Initialize pytorch distributed training process groups
-    dist_timeout: Union[int, float] = pop_config(cfg,
-                                                 'dist_timeout',
-                                                 must_exist=False,
-                                                 default_value=600.0)
+    dist_timeout: Union[int, float] = scfg.dist_timeout
     dist.initialize_dist(get_device(None), timeout=dist_timeout)
 
     # Get global and device batch size information from distributed/single node setting
@@ -227,177 +229,61 @@ def main(cfg: DictConfig) -> Trainer:
     logged_cfg.update(cfg, merge=True)
 
     # Mandatory model training configs
-    model_config: DictConfig = pop_config(cfg, 'model', must_exist=True)
-    tokenizer_config: Dict[str, Any] = pop_config(cfg,
-                                                  'tokenizer',
-                                                  must_exist=True,
-                                                  convert=True)
-    optimizer_config: Dict[str, Any] = pop_config(cfg,
-                                                  'optimizer',
-                                                  must_exist=True,
-                                                  convert=True)
-    scheduler_config: Dict[str, Any] = pop_config(cfg,
-                                                  'scheduler',
-                                                  must_exist=True,
-                                                  convert=True)
-    train_loader_config: DictConfig = pop_config(cfg,
-                                                 'train_loader',
-                                                 must_exist=True)
+    model_config: DictConfig = scfg.model
+    tokenizer_config: Dict[str, Any] = convert_to_dict(scfg.tokenizer)
+    optimizer_config: Dict[str, Any] = convert_to_dict(scfg.optimizer)
+    scheduler_config: Dict[str, Any] = convert_to_dict(scfg.scheduler)
+    train_loader_config: DictConfig = scfg.train_loader
 
     # Optional fsdp data, fine-tuning, and eval configs
-    fsdp_config: Optional[Dict[str, Any]] = pop_config(cfg,
-                                                       'fsdp_config',
-                                                       must_exist=False,
-                                                       default_value=None,
-                                                       convert=True)
-    eval_loader_config: Optional[Union[DictConfig, ListConfig]] = pop_config(
-        cfg, 'eval_loader', must_exist=False, default_value=None)
-    icl_tasks_config: Optional[Union[ListConfig,
-                                     str]] = pop_config(cfg,
-                                                        'icl_tasks',
-                                                        must_exist=False,
-                                                        default_value=None)
-    eval_gauntlet_config: Optional[Union[DictConfig,
-                                         str]] = pop_config(cfg,
-                                                            'eval_gauntlet',
-                                                            must_exist=False,
-                                                            default_value=None)
-    icl_subset_num_batches: Optional[int] = pop_config(cfg,
-                                                       'icl_subset_num_batches',
-                                                       must_exist=False,
-                                                       default_value=None)
-    icl_seq_len: Optional[int] = pop_config(cfg,
-                                            'icl_seq_len',
-                                            must_exist=False,
-                                            default_value=None)
+    fsdp_config: Optional[Dict[str, Any]] = convert_to_dict(scfg.fsdp_config)
+
+    eval_loader_config: Optional[Union[DictConfig,
+                                       ListConfig]] = scfg.eval_loader
+    icl_tasks_config: Optional[Union[ListConfig, str]] = scfg.icl_tasks
+    eval_gauntlet_config: Optional[Union[DictConfig, str]] = scfg.eval_gauntlet
+    icl_subset_num_batches: Optional[int] = scfg.icl_subset_num_batches
+    icl_seq_len: Optional[int] = scfg.icl_seq_len
     # Optional logging, evaluation and callback configs
-    logger_configs: Optional[DictConfig] = pop_config(cfg,
-                                                      'loggers',
-                                                      must_exist=False,
-                                                      default_value=None,
-                                                      convert=True)
-    callback_configs: Optional[DictConfig] = pop_config(cfg,
-                                                        'callbacks',
-                                                        must_exist=False,
-                                                        default_value=None,
-                                                        convert=True)
-    algorithm_configs: Optional[DictConfig] = pop_config(cfg,
-                                                         'algorithms',
-                                                         must_exist=False,
-                                                         default_value=None)
+    logger_configs: Optional[DictConfig] = scfg.loggers
+    callback_configs: Optional[DictConfig] = scfg.callbacks
+    algorithm_configs: Optional[DictConfig] = scfg.algorithms
 
     # Mandatory hyperparameters for training
-    device_train_batch_size: int = pop_config(cfg,
-                                              'device_train_batch_size',
-                                              must_exist=True)
-    device_eval_batch_size: int = pop_config(cfg,
-                                             'device_eval_batch_size',
-                                             must_exist=True)
-    max_duration: Union[int, str] = pop_config(cfg,
-                                               'max_duration',
-                                               must_exist=True)
-    eval_interval: Union[int, str] = pop_config(cfg,
-                                                'eval_interval',
-                                                default_value=1,
-                                                must_exist=False)
-    precision: str = pop_config(cfg, 'precision', must_exist=True)
-    max_seq_len: int = pop_config(cfg, 'max_seq_len', must_exist=True)
+    device_train_batch_size: int = scfg.device_train_batch_size
+    device_eval_batch_size: int = scfg.device_eval_batch_size
+    max_duration: Union[int, str] = scfg.max_duration
+    eval_interval: Union[int, str] = scfg.eval_interval
+    precision: str = scfg.precision
+    max_seq_len: int = scfg.max_seq_len
 
     # Optional parameters will be set to default values if not specified.
     default_run_name: str = os.environ.get('RUN_NAME', 'llm')
-    run_name: str = pop_config(cfg,
-                               'run_name',
-                               must_exist=False,
-                               default_value=default_run_name)
-    save_folder: Optional[str] = pop_config(cfg,
-                                            'save_folder',
-                                            must_exist=False,
-                                            default_value=None)
+    run_name: str = scfg.run_name if scfg.run_name else default_run_name
+    save_folder: Optional[str] = scfg.save_folder
     is_state_dict_sharded: bool = (fsdp_config.get('state_dict_type', 'full')
                                    == 'sharded') if fsdp_config else False
-    save_latest_filename: str = pop_config(
-        cfg,
-        'save_latest_filename',
-        must_exist=False,
-        default_value='latest-sharded-rank{rank}'
-        if is_state_dict_sharded else 'latest-rank{rank}.pt')
-    save_overwrite: bool = pop_config(cfg,
-                                      'save_overwrite',
-                                      must_exist=False,
-                                      default_value=False)
-    save_weights_only: bool = pop_config(cfg,
-                                         'save_weights_only',
-                                         must_exist=False,
-                                         default_value=False)
-    save_filename: str = pop_config(
-        cfg,
-        'save_filename',
-        must_exist=False,
-        default_value='ep{epoch}-ba{batch}-rank{rank}.pt')
-    save_interval: Union[str, int] = pop_config(cfg,
-                                                'save_interval',
-                                                must_exist=False,
-                                                default_value='1000ba')
-    save_num_checkpoints_to_keep: int = pop_config(
-        cfg, 'save_num_checkpoints_to_keep', must_exist=False, default_value=-1)
-    progress_bar = pop_config(cfg,
-                              'progress_bar',
-                              must_exist=False,
-                              default_value=False)
-    log_to_console: bool = pop_config(cfg,
-                                      'log_to_console',
-                                      must_exist=False,
-                                      default_value=True)
-    python_log_level: Optional[str] = pop_config(cfg,
-                                                 'python_log_level',
-                                                 must_exist=False,
-                                                 default_value='debug')
-    console_log_interval: Union[int, str] = pop_config(cfg,
-                                                       'console_log_interval',
-                                                       must_exist=False,
-                                                       default_value='1ba')
-    device_train_microbatch_size: Union[str, int] = pop_config(
-        cfg,
-        'device_train_microbatch_size',
-        must_exist=False,
-        default_value='auto')
-    eval_subset_num_batches: int = pop_config(cfg,
-                                              'eval_subset_num_batches',
-                                              must_exist=False,
-                                              default_value=-1)
-    eval_first: bool = pop_config(cfg,
-                                  'eval_first',
-                                  must_exist=False,
-                                  default_value=False)
-    load_path: str = pop_config(cfg,
-                                'load_path',
-                                must_exist=False,
-                                default_value=None)
-    load_weights_only: bool = pop_config(cfg,
-                                         'load_weights_only',
-                                         must_exist=False,
-                                         default_value=False)
-    load_strict_model_weights: bool = pop_config(cfg,
-                                                 'load_strict_model_weights',
-                                                 must_exist=False,
-                                                 default_value=True)
-    load_ignore_keys: Optional[List[str]] = pop_config(cfg,
-                                                       'load_ignore_keys',
-                                                       must_exist=False,
-                                                       default_value=None)
-    compile_config: Optional[Dict[str, Any]] = pop_config(cfg,
-                                                          'compile_config',
-                                                          must_exist=False,
-                                                          default_value=None)
-    metadata: Optional[Dict[str, str]] = pop_config(cfg,
-                                                    'metadata',
-                                                    must_exist=False,
-                                                    default_value=None,
-                                                    convert=True)
-    should_log_config: bool = pop_config(cfg,
-                                         'log_config',
-                                         must_exist=False,
-                                         default_value=True)
+    save_latest_filename: str = scfg.save_latest_filename if scfg.save_latest_filename else 'latest-sharded-rank{rank}' if is_state_dict_sharded else 'latest-rank{rank}.pt'
+    save_overwrite: bool = scfg.save_overwrite
+    save_weights_only: bool = scfg.save_weights_only
+    save_filename: str = scfg.save_filename if scfg.save_filename else 'ep{epoch}-ba{batch}-rank{rank}.pt'
+    save_interval: Union[str, int] = scfg.save_interval
+    save_num_checkpoints_to_keep: int = scfg.save_num_checkpoints_to_keep
+    progress_bar = scfg.progress_bar
+    log_to_console: bool = scfg.log_to_console
+    python_log_level: Optional[str] = scfg.python_log_level
+    console_log_interval: Union[int, str] = scfg.console_log_interval
+    device_train_microbatch_size: Union[str,
+                                        int] = scfg.device_train_microbatch_size
+    eval_subset_num_batches: int = scfg.eval_subset_num_batches
+    eval_first: bool = scfg.eval_first
+    load_path: str = scfg.load_path
+    load_weights_only: bool = scfg.load_weights_only
+    load_strict_model_weights: bool = scfg.load_strict_model_weights
+    load_ignore_keys: Optional[List[str]] = scfg.load_ignore_keys
+    compile_config: Optional[Dict[str, Any]] = scfg.compile_config
+    metadata: Optional[Dict[str, str]] = convert_to_dict(scfg.metadata)
+    should_log_config: bool = scfg.log_config
 
     # Enable autoresume from model checkpoints if possible
     autoresume_default: bool = False
@@ -487,11 +373,7 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Profiling
     profiler: Optional[Profiler] = None
-    profiler_cfg: Optional[DictConfig] = pop_config(cfg,
-                                                    'profiler',
-                                                    must_exist=False,
-                                                    convert=False,
-                                                    default_value=None)
+    profiler_cfg: Optional[DictConfig] = scfg.profiler
     if profiler_cfg:
         profiler_schedule_cfg: Dict = pop_config(profiler_cfg,
                                                  'schedule',

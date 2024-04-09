@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Union
 
 import torch
+import torch.nn as nn
 from composer.core import Callback, Event, State, Time, TimeUnit
 from composer.core.state import fsdp_state_dict_type_context
 from composer.loggers import Logger, MLFlowLogger
@@ -24,6 +25,7 @@ from composer.utils import (dist, format_name_with_dist_and_time,
                             parse_uri)
 from composer.utils.misc import create_interval_scheduler
 from mlflow.transformers import _fetch_model_card, _write_license_information
+from packaging import version
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
@@ -312,28 +314,72 @@ class HuggingFaceCheckpointer(Callback):
             state_dict_model = state.model.model
             original_tokenizer = state.model.tokenizer
 
-        state_dict_context = fsdp_state_dict_type_context(
-            original_model,
-            state_dict_type='full') if ((not state.is_model_ddp) and isinstance(
-                state_dict_model, FSDP)) else contextlib.nullcontext()
+        if version.parse(torch.__version__) > version.parse('2.2.9'):
+            from torch.distributed._tensor import DTensor
+            from torch.distributed.checkpoint.state_dict import (
+                StateDictOptions, get_model_state_dict)
+            cpu_offload = True
 
-        with state_dict_context:
-            state_dict = state_dict_model.state_dict()
+            # Add a dtensor->cpu tensor hook to avoid CUDA OOM
+            def dtensor_to_tensor_hook(
+                module: nn.Module,
+                state_dict: Dict[str, Any],
+                prefix: str,
+                *args: Any,
+            ) -> Dict[str, Any]:
+                dtensor_fqns = []
+                for fqn in state_dict.keys():
+                    tensor = state_dict[fqn]
+                    if isinstance(tensor, DTensor):
+                        dtensor_fqns.append(fqn)
+                        tensor = tensor.full_tensor()  # type: ignore
+                        if dist.get_global_rank() == 0:
+                            if cpu_offload:
+                                tensor = tensor.cpu()
+                            state_dict[fqn] = tensor
+                if dist.get_global_rank() != 0:
+                    for fqn in dtensor_fqns:
+                        del state_dict[fqn]
+                return state_dict
 
-            # convert the state dict to the requested precision
-            for k, v in state_dict.items():
-                if isinstance(v, torch.Tensor):
-                    state_dict[k] = v.to(dtype=self.dtype)
+            hooks = []
+            for _, module in state_dict_model.named_modules():
+                if isinstance(module, FSDP):
+                    hooks.append(
+                        module._register_state_dict_hook(
+                            dtensor_to_tensor_hook))
+
+            state_dict = get_model_state_dict(state_dict_model,
+                                              options=StateDictOptions(
+                                                  full_state_dict=True,
+                                                  cpu_offload=cpu_offload))
+            for hook in hooks:
+                hook.remove()
+        else:
+            state_dict_context = fsdp_state_dict_type_context(
+                original_model, state_dict_type='full') if (
+                    (not state.is_model_ddp) and isinstance(
+                        state_dict_model, FSDP)) else contextlib.nullcontext()
+            with state_dict_context:
+                state_dict = state_dict_model.state_dict()
+
+        # Convert the state dict to the requested precis
+        for k, v in state_dict.items():
+            if isinstance(v, torch.Tensor):
+                state_dict[k] = v.to(dtype=self.dtype)
 
         new_model_instance = None  # Need this for pyright because variable could be unbound
 
         if dist.get_global_rank() == 0:
             log.debug('Saving Hugging Face checkpoint in global rank 0')
 
+            # Edit HF config before building 2nd model copy
             copied_config = copy.deepcopy(original_model.config)
             if copied_config.model_type == 'mpt':
-                copied_config.attn_config['attn_impl'] = 'torch'
-                copied_config.init_device = 'cpu'
+                copied_config.config.attn_config['attn_impl'] = 'torch'
+                copied_config.config.init_device = 'cpu'
+                if 'moe_world_size' in getattr(copied_config, 'ffn_config', {}):
+                    copied_config.ffn_config['moe_world_size'] = 1
 
             log.debug(f'Creating new model instance')
 

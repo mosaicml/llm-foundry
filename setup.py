@@ -117,8 +117,15 @@ extra_deps['openai'] = [
     'openai==1.3.8',
     'tiktoken==0.4.0',
 ]
-extra_deps['all-cpu'] = set(
-    dep for key, deps in extra_deps.items() for dep in deps if 'gpu' not in key)
+
+extra_deps['megablocks'] = [
+    'megablocks==0.5.1',
+    'grouped-gemm==0.1.4',
+]
+
+extra_deps['all-cpu'] = set(dep for key, deps in extra_deps.items()
+                            for dep in deps
+                            if 'gpu' not in key and 'megablocks' not in key)
 extra_deps['all'] = set(dep for key, deps in extra_deps.items() for dep in deps
                         if key not in {'gpu-flash2', 'all-cpu'})
 extra_deps['all-flash2'] = set(dep for key, deps in extra_deps.items()

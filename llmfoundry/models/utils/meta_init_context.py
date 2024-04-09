@@ -21,6 +21,7 @@ from typing import Any, Callable, Optional
 
 import torch
 import torch.nn as nn
+from torch.distributed._tensor import DTensor
 
 
 @contextmanager
@@ -86,11 +87,13 @@ def init_on_device(device: torch.device, include_buffers: bool = False):
         if param is not None:
             parameter = self._parameters[name]
             assert parameter is not None
-
-            param_cls = type(parameter)
-            kwargs = parameter.__dict__
-
-            self._parameters[name] = param_cls(parameter.to(device), **kwargs)
+            if isinstance(parameter, DTensor):
+                self._parameters[name] = parameter.to(device)  # type: ignore
+            else:
+                param_cls = type(parameter)
+                kwargs = parameter.__dict__
+                self._parameters[name] = param_cls(parameter.to(device),
+                                                   **kwargs)
 
     def register_empty_buffer(self: torch.nn.Module,
                               name: str,

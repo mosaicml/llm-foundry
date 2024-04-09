@@ -7,8 +7,9 @@ from functools import partial
 from typing import List, Optional
 
 import pytest
+import torch
 import torch.distributed as dist
-import torch.nn.functional
+import torch.nn.functional as F
 import torch.optim as optim
 from torch.distributed._tensor import DTensor, Placement, Replicate, Shard
 from torch.distributed._tensor.device_mesh import init_device_mesh
@@ -24,15 +25,15 @@ from llmfoundry.models.mpt.modeling_mpt import MPTForCausalLM
 
 try:
     import megablocks
-    from megablocks.layers.testing import allclose as mb_allclose
     is_megablocks_imported = True
 except ModuleNotFoundError:
     is_megablocks_imported = False
 
 
 def _get_all_inputs(
-        input_shape: List[int],
-        dtype: torch.dtype):  # pyright: ignore[reportGeneralTypeIssues]
+    input_shape: List[int],
+    dtype: Optional[torch.dtype],
+):
     world_size: int = dist.get_world_size()
     rank: int = dist.get_rank()
     device: torch.device = torch.device(  # pyright: ignore[reportGeneralTypeIssues]
@@ -88,7 +89,7 @@ def test_dmoe(moe_num_experts: int, mlp_type: str, moe_world_size: int,
         'hidden_size': hidden_size,
         'ffn_hidden_size': hidden_size,
         'moe_top_k': 2,
-        'activation_fn': partial(torch.nn.functional.gelu, approximate='none'),
+        'activation_fn': partial(F.gelu, approximate='none'),
         'moe_jitter_eps': 0.0,  # Disable randomiztion
         'moe_normalize_expert_weights': 1,
         'uniform_expert_assignment': False,

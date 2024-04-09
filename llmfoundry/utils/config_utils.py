@@ -5,7 +5,7 @@ import contextlib
 import logging
 import math
 import warnings
-from typing import Any, Dict, List, Literal, Mapping, Optional, Tuple, Union
+from typing import Any, Dict, Literal, Mapping, Optional, Tuple, Union
 
 from composer.utils import dist
 from omegaconf import DictConfig, ListConfig
@@ -24,9 +24,7 @@ __all__ = [
 ]
 
 
-def convert_to_dict(
-    value: Optional[Union[ListConfig, DictConfig]]
-) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
+def convert_to_dict(value: Optional[Union[ListConfig, DictConfig]]) -> Any:
     if value is None:
         return None
     if not isinstance(value, DictConfig) and not isinstance(value, ListConfig):

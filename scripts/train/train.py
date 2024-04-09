@@ -65,7 +65,7 @@ class TrainConfig:
     dist_timeout: Union[int, float] = 600.0
     eval_loader: Optional[Union[DictConfig, ListConfig]] = None
     icl_tasks: Optional[Union[ListConfig, str]] = None
-    fsdp_config: Optional[Dict[str, Any]] = None
+    fsdp_config: Optional[DictConfig] = None
     eval_loader: Optional[Union[DictConfig, ListConfig]] = None
     icl_tasks: Optional[Union[ListConfig, str]] = None
     eval_gauntlet: Optional[Union[DictConfig, str]] = None
@@ -293,29 +293,11 @@ def main(cfg: DictConfig) -> Trainer:
         and not save_weights_only:
         autoresume_default = True
 
-    if cfg.get('autoresume') is None and autoresume_default:
+    if not scfg.autoresume and autoresume_default:
         log.info('As run_name, save_folder, and save_latest_filename are set, \
                 changing autoresume default to True...')
 
-    autoresume: bool = pop_config(cfg,
-                                  'autoresume',
-                                  must_exist=False,
-                                  default_value=autoresume_default)
-
-    # Pop known unused parameters that are used as interpolation variables or
-    # created by update_batch_size_info.
-    pop_config(cfg, 'data_local', must_exist=False)
-    pop_config(cfg, 'data_remote', must_exist=False)
-    pop_config(cfg, 'global_seed', must_exist=False)
-    pop_config(cfg, 'global_train_batch_size', must_exist=False)
-    pop_config(cfg, 'n_gpus', must_exist=False)
-    pop_config(cfg, 'device_train_grad_accum', must_exist=False)
-
-    # Warn users for unused parameters
-    for key in cfg:
-        warnings.warn(
-            f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary.'
-        )
+    autoresume: bool = scfg.autoresume
 
     # Warn if fsdp is enabled but user only has 1 GPU
     if dist.get_world_size() == 1 and fsdp_config is not None:

@@ -66,8 +66,6 @@ class TrainConfig:
     eval_loader: Optional[Union[DictConfig, ListConfig]] = None
     icl_tasks: Optional[Union[ListConfig, str]] = None
     fsdp_config: Optional[DictConfig] = None
-    eval_loader: Optional[Union[DictConfig, ListConfig]] = None
-    icl_tasks: Optional[Union[ListConfig, str]] = None
     eval_gauntlet: Optional[Union[DictConfig, str]] = None
     icl_subset_num_batches: Optional[int] = None
     icl_seq_len: Optional[int] = None
@@ -277,7 +275,7 @@ def main(cfg: DictConfig) -> Trainer:
                                         int] = scfg.device_train_microbatch_size
     eval_subset_num_batches: int = scfg.eval_subset_num_batches
     eval_first: bool = scfg.eval_first
-    load_path: str = scfg.load_path
+    load_path: Optional[str] = scfg.load_path
     load_weights_only: bool = scfg.load_weights_only
     load_strict_model_weights: bool = scfg.load_strict_model_weights
     load_ignore_keys: Optional[List[str]] = scfg.load_ignore_keys

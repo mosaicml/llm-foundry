@@ -9,7 +9,7 @@ import logging
 import os
 import random
 import warnings
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Union
 
 import torch
 import transformers
@@ -478,8 +478,7 @@ class InContextLearningDataset(Dataset):
         batch['attention_mask'] = ~(batch['input_ids'] == self.pad_tok_id)
         return batch
 
-    def split_batch(self, batch: Any,
-                    microbatch_size: int) -> List[Dict[str, Any]]:
+    def split_batch(self, batch: Any, microbatch_size: int) -> Sequence:
         """Handling for certain specialty columns that must be split into.
 
         batches in different formats.
@@ -906,8 +905,7 @@ class InContextLearningMultipleChoiceTaskDataset(InContextLearningDataset):
     def get_num_samples_in_batch(self, batch: Dict[str, torch.Tensor]) -> int:
         return batch['input_ids'].shape[0] // self.num_choices
 
-    def split_batch(self, batch: Any,
-                    microbatch_size: int) -> List[Dict[str, Any]]:
+    def split_batch(self, batch: Any, microbatch_size: int) -> Sequence:
         """Split batch while ensuring all continuations are in the same.
 
         microbatch.

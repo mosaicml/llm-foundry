@@ -11,7 +11,8 @@ from composer.loggers import InMemoryLogger
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 
-from scripts.train.train import main, validate_config  # noqa: E402
+from llmfoundry.utils.config_utils import update_batch_size_info
+from scripts.train.train import TrainConfig, main, validate_config  # noqa: E402
 from tests.data_utils import (create_arxiv_dataset, create_c4_dataset_xxsmall,
                               gpt_tiny_cfg)
 from tests.fixtures.autouse import REPO_DIR
@@ -156,12 +157,13 @@ def test_validate_config():
         test_cfg: DictConfig = om.load(f)  # type: ignore
     test_cfg.model.ffn_config.moe_world_size = 4
     test_cfg.fsdp_config.use_orig_params = False
+    test_cfg = update_batch_size_info(test_cfg)
     with pytest.raises(
             ValueError,
             match=
             'MoEs with expert parallelism (.*) require `use_orig_params=True`.'
     ):
-        validate_config(test_cfg)
+        validate_config(om.structured(TrainConfig(**test_cfg)))
 
 
 def test_eval_metrics_with_no_train_metrics(tmp_path: pathlib.Path):

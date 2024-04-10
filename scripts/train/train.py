@@ -115,7 +115,7 @@ def validate_config(cfg: TrainConfig):
         eval_loader = cfg.eval_loader
         if isinstance(cfg.eval_loaders, ListConfig):
             for loader in cfg.eval_loaders:
-                if loader.label is None:
+                if 'label' not in loader:
                     raise ValueError(
                         'When specifying multiple evaluation datasets, each one must include the \
                             `label` attribute.')
@@ -123,14 +123,14 @@ def validate_config(cfg: TrainConfig):
         else:
             loaders.append(eval_loader)
     for loader in loaders:
-        if loader.name == 'text':
-            if cfg.model.name == 'hf_t5':
+        if loader['name'] == 'text':
+            if cfg.model['name'] == 'hf_t5':
                 raise ValueError(
-                    f'Model type "{cfg.model.name}" is not supported when using the "text " ' +\
+                    f'Model type "{cfg.model["name"]}" is not supported when using the "text " ' +\
                     f'dataloader. Only finetuning is supported.')
 
     if cfg.icl_tasks is not None or cfg.icl_tasks_str is not None:
-        if cfg.model.name == 'hf_t5':
+        if cfg.model['name'] == 'hf_t5':
             raise ValueError(
                 'ICL evaluation does not currently support Encoder-Decoder models, such as "hf_t5".'
             )
@@ -175,8 +175,8 @@ def validate_config(cfg: TrainConfig):
                                            'mptmlp') in ('mb_moe', 'mb_dmoe'):
         moe_world_size = cfg.model.get('ffn_config',
                                        {}).get('moe_world_size', 1)
-        use_orig_params = cfg.get('fsdp_config',
-                                  {}).get('use_orig_params', True)
+        use_orig_params = cfg.fsdp_config.get(
+            'use_orig_params', True) if cfg.fsdp_config is not None else True
         if moe_world_size > 1 and not use_orig_params:
             raise ValueError(
                 f'MoEs with expert parallelism (moe_world_size {moe_world_size} > 1) require `use_orig_params=True`.'
@@ -257,11 +257,11 @@ def main(cfg: DictConfig) -> Trainer:
     dist.initialize_dist(get_device(None), timeout=dist_timeout)
 
     # Mandatory model training configs
-    model_config: DictConfig = scfg.model
+    model_config: Dict[str, Any] = scfg.model
     tokenizer_config: Dict[str, Any] = scfg.tokenizer
     optimizer_config: Dict[str, Any] = scfg.optimizer
     scheduler_config: Dict[str, Any] = scfg.scheduler
-    train_loader_config: DictConfig = scfg.train_loader
+    train_loader_config: Dict[str, Any] = scfg.train_loader
 
     # Optional fsdp data, fine-tuning, and eval configs
     fsdp_config: Optional[Dict[str, Any]] = scfg.fsdp_config
@@ -269,17 +269,21 @@ def main(cfg: DictConfig) -> Trainer:
     if scfg.eval_loader is not None and scfg.eval_loaders is not None:
         raise ValueError(
             'Only one of `eval_loader` or `eval_loaders` should be provided.')
-    eval_loader_config: Optional[Union[
+    eval_loader_config: Optional[Union[Dict[str, Any], List[Dict[
+        str,
+        Any]]]] = scfg.eval_loader if scfg.eval_loader is not None else scfg.eval_loaders
+    icl_tasks_config: Optional[Union[
+        List[Dict[str, Any]],
+        str]] = scfg.icl_tasks if scfg.icl_tasks is not None else scfg.icl_tasks_str
+    eval_gauntlet_config: Optional[Union[
         DictConfig,
-        ListConfig]] = scfg.eval_loader if scfg.eval_loader is not None else scfg.eval_loaders
-    icl_tasks_config: Optional[Union[ListConfig, str]] = scfg.icl_tasks
-    eval_gauntlet_config: Optional[Union[DictConfig, str]] = scfg.eval_gauntlet
+        str]] = scfg.eval_gauntlet if scfg.eval_gauntlet is not None else scfg.eval_gauntlet_str
     icl_subset_num_batches: Optional[int] = scfg.icl_subset_num_batches
     icl_seq_len: Optional[int] = scfg.icl_seq_len
     # Optional logging, evaluation and callback configs
-    logger_configs: Optional[DictConfig] = scfg.loggers
-    callback_configs: Optional[DictConfig] = scfg.callbacks
-    algorithm_configs: Optional[DictConfig] = scfg.algorithms
+    logger_configs: Optional[Dict[str, Any]] = scfg.loggers
+    callback_configs: Optional[Dict[str, Any]] = scfg.callbacks
+    algorithm_configs: Optional[Dict[str, Any]] = scfg.algorithms
 
     # Mandatory hyperparameters for training
     device_train_batch_size: int = scfg.device_train_batch_size

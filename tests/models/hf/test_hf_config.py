@@ -12,7 +12,7 @@ import pytest
 import torch
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
-from transformers import AutoModelForCausalLM
+from transformers import AutoModelForCausalLM, PretrainedConfig
 
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils import build_tokenizer
@@ -205,3 +205,34 @@ def test_rope_scaling_override():
     # This would error if the config isn't parsed into a proper dictionary
     model.get_metadata()
     assert model.config.rope_scaling == {'type': 'dynamic', 'factor': 0.5}
+
+
+@pytest.mark.skipif('HUGGING_FACE_HUB_TOKEN' not in os.environ,
+                    reason='CI does not have access to Dbrx')
+def test_nested_override():
+    model_cfg = {
+        'name': 'hf_causal_lm',
+        'pretrained_model_name_or_path': 'databricks/dbrx-instruct',
+        'config_overrides': {
+            'ffn_config': {
+                'ffn_hidden_size': 500,
+            }
+        },
+        'use_auth_token': True,
+        'pretrained': False,
+        'init_device': 'meta',
+    }
+    model_cfg = om.create(model_cfg)
+
+    model = build_composer_model(
+        name=model_cfg.name,
+        cfg=model_cfg,
+        tokenizer=None,  # type: ignore
+    )
+
+    # The value we changed
+    assert model.config.ffn_config.ffn_hidden_size == 500
+    # Ensure we still have a config, and haven't replaced it with a dictionary
+    assert isinstance(model.config.ffn_config, PretrainedConfig)
+    # Ensure the other values still exist and are not set back to their defaults
+    assert model.config.ffn_config.moe_num_experts == 16

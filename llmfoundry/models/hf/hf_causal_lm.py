@@ -11,8 +11,8 @@ from typing import TYPE_CHECKING, Any, Dict, Mapping
 from composer.models.huggingface import peft_installed
 from composer.utils import dist
 from omegaconf import DictConfig
-from transformers import (AutoConfig, AutoModelForCausalLM, PreTrainedModel,
-                          PreTrainedTokenizerBase)
+from transformers import (AutoConfig, AutoModelForCausalLM, PretrainedConfig,
+                          PreTrainedModel, PreTrainedTokenizerBase)
 
 from llmfoundry.metrics import (DEFAULT_CAUSAL_LM_EVAL_METRICS,
                                 DEFAULT_CAUSAL_LM_TRAIN_METRICS)
@@ -161,6 +161,18 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             elif attr is None and isinstance(v, Mapping):
                 setattr(config, k, {})
                 getattr(config, k).update(v)
+            elif isinstance(attr, PretrainedConfig):
+                if not isinstance(v, Mapping):
+                    raise ValueError(
+                        f'Expected a dictionary for config override {k}, but got {v}.'
+                    )
+
+                for _k, _v in v.items():
+                    if not hasattr(attr, _k):
+                        raise ValueError(
+                            f'config does not have attribute "{_k}" to override ({k}: {_k}: {_v}).'
+                        )
+                    setattr(attr, _k, _v)
             else:
                 setattr(config, k, v)
 

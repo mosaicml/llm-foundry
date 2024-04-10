@@ -1182,7 +1182,7 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
       for more details):
 
         - pad_token_id: ID for padding token, derived automatically
-        - num_beams: How many beams to search for generations, set to 1
+        - num_beams: How many beams to search for generations, default set to 1
         - do_sample: Determines whether model is sampling or greedily decoding. Always set to True
         - use_cache: Whether or not to use past key values to speed up sampling. Always set to True
 
@@ -1492,6 +1492,10 @@ def build_icl_dataloader(
         )
         effective_batchsize = batch_size
     elif icl_task_type == 'code_evaluation':
+        warnings.warn(
+            VersionedDeprecationWarning(
+                "ICL task type 'code_evaluation' is deprecated and will no longer be supported. ",
+                'v0.7.0'))
         dataset = InContextLearningCodeEvalDataset(
             dataset_uri=dataset_uri,
             tokenizer=tokenizer,

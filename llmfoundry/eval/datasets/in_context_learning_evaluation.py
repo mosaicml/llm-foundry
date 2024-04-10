@@ -1,10 +1,6 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-# Copyright 2022 MosaicML Composer authors
-# SPDX-License-Identifier: Apache-2.0
-# This code is based on the implementation in https://github.com/EleutherAI/lm-evaluation-harness/blob/8c048e266a22a1c85ccbdb0c209ac712e4f39989/lm_eval/base.py#L221-L330
-
 from __future__ import annotations
 
 import copy
@@ -50,7 +46,7 @@ __all__ = [
 
 class InContextLearningDataset(Dataset):
     r"""A base dataset that constructs batches for in-context learning task.
-
+    
     evaluations. The dataset format is expected to be a local jsonl file, a
     cloud link to a jsonl file, or a Hugging Face dataset link. 'context' refers
     to the input a model will recieve before generating an output. For example,

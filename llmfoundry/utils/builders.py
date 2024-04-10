@@ -388,7 +388,7 @@ def build_optimizer(
             'optimizer config. Please remove it from the optimizer config kwargs.'
         )
 
-    kwargs['params'] = params
+    kwargs['params'] = list(params)
     return construct_from_registry(name=name,
                                    registry=registry.optimizers,
                                    partial_function=True,
@@ -438,7 +438,9 @@ def build_tokenizer(
             int(1e30),
         )
 
-    if not hasattr(tokenizer, 'eos_token') or tokenizer.eos_token is None:
+    if not hasattr(
+            tokenizer, 'eos_token'
+    ) or tokenizer.eos_token is None:  # type: ignore (sometime's it's not none but that's ok too)
         raise ValueError(
             f'The tokenizer {tokenizer_name} must have an eos_token.')
 

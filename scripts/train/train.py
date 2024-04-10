@@ -113,7 +113,7 @@ def validate_config(cfg: TrainConfig):
     loaders = [cfg.train_loader]
     if cfg.eval_loader is not None or cfg.eval_loaders is not None:
         eval_loader = cfg.eval_loader
-        if isinstance(cfg.eval_loaders, ListConfig):
+        if isinstance(cfg.eval_loaders, list):
             for loader in cfg.eval_loaders:
                 if 'label' not in loader:
                     raise ValueError(

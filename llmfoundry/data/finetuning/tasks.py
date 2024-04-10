@@ -901,7 +901,7 @@ def muennighoff_tokenize_function(inp: Dict) -> Dict[str, str]:
 
 
 @dataset_constructor.register(
-    'teknium/OpenHermes-2.5', 'lilacai/glaive-function-calling-v2-sharegpt'
+    'teknium/OpenHermes-2.5', 'eitanturok/glaive-function-calling-v2-sharegpt'
     )
 def shareGPT_format_preprocessor(inp: Dict) -> Dict[str, List[Dict[str, str]]]:
     """Convert from ShareGPT format to our chat format."""

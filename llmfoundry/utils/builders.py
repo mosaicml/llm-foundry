@@ -388,7 +388,7 @@ def build_optimizer(
             'optimizer config. Please remove it from the optimizer config kwargs.'
         )
 
-    kwargs['params'] = list(params)
+    kwargs['params'] = params
     return construct_from_registry(name=name,
                                    registry=registry.optimizers,
                                    partial_function=True,

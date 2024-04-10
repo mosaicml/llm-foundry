@@ -259,9 +259,9 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Mandatory model training configs
     model_config: DictConfig = DictConfig(scfg.model)
-    tokenizer_config: Dict[str, Any] = scfg.tokenizer
-    optimizer_config: Dict[str, Any] = scfg.optimizer
-    scheduler_config: Dict[str, Any] = scfg.scheduler
+    tokenizer_config: Dict[str, Any] = {**scfg.tokenizer}
+    optimizer_config: Dict[str, Any] = {**scfg.optimizer}
+    scheduler_config: Dict[str, Any] = {**scfg.scheduler}
     train_loader_config: DictConfig = DictConfig(scfg.train_loader)
 
     # Optional fsdp data, fine-tuning, and eval configs

@@ -105,6 +105,7 @@ class TrainConfig:
     n_gpus: Optional[int] = None
     device_train_grad_accum: Optional[int] = None
     profiler: Optional[Dict[str, Any]] = None
+    save_ignore_keys: Optional[List[str]] = None
 
 
 def validate_config(cfg: TrainConfig):
@@ -301,6 +302,7 @@ def main(cfg: DictConfig) -> Trainer:
     load_weights_only: bool = scfg.load_weights_only
     load_strict_model_weights: bool = scfg.load_strict_model_weights
     load_ignore_keys: Optional[List[str]] = scfg.load_ignore_keys
+    save_ignore_keys: Optional[List[str]] = scfg.save_ignore_keys
     compile_config: Optional[Dict[str, Any]] = scfg.compile_config
     metadata: Optional[Dict[str, Any]] = scfg.metadata
     should_log_config: bool = scfg.log_config

@@ -61,7 +61,7 @@ class TestTrainingYAMLInputs:
     def test_misspelled_mandatory_params_fail(self, cfg: DictConfig) -> None:
         """Check that mandatory misspelled inputs fail to train."""
         cfg.trai_loader = cfg.pop('train_loader')
-        with pytest.raises(TypeError):
+        with pytest.raises((omegaconf.errors.MissingMandatoryValue, TypeError)):
             main(cfg)
 
     def test_missing_mandatory_parameters_fail(self, cfg: DictConfig) -> None:

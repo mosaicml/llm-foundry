@@ -196,17 +196,13 @@ def main(cfg: DictConfig) -> Trainer:
     # structured config does not support unions of containers, so separate single and plural containers
     if (loader := cfg.get('eval_loader', None)) is not None:
         if isinstance(loader, ListConfig):
-            loaders: Optional[ListConfig] = loader
-            cfg['eval_loaders'] = loaders
-            cfg.pop('eval_loader')
+            cfg['eval_loaders'] = list(cfg.pop('eval_loader'))
     if (tasks := cfg.get('icl_tasks', None)) is not None:
         if isinstance(tasks, str):
-            cfg['icl_tasks_str'] = tasks
-            cfg.pop('icl_tasks')
+            cfg['icl_tasks_str'] = cfg.pop('icl_tasks')
     if (gauntlet := cfg.get('eval_gauntlet', None)) is not None:
         if isinstance(gauntlet, str):
-            cfg['eval_gauntlet_str'] = gauntlet
-            cfg.pop('eval_gauntlet')
+            cfg['eval_gauntlet_str'] = cfg.pop('eval_gauntlet')
 
     arg_config_keys = set(cfg.keys())
     extraneous_keys = set.difference(arg_config_keys, TRAIN_CONFIG_KEYS)

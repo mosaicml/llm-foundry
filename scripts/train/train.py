@@ -187,8 +187,15 @@ def main(cfg: DictConfig) -> Trainer:
     # Resolve all interpolation variables as early as possible
     om.resolve(cfg)
 
+    # Create copy of config for logging
+    logged_cfg: DictConfig = copy.deepcopy(cfg)
+
+    # Get global and device batch size information from distributed/single node setting
+    cfg = update_batch_size_info(cfg)
+    logged_cfg.update(cfg, merge=True)
+
+    # structured config does not support unions of containers, so separate single and plural containers
     if (loader := cfg.get('eval_loader', None)) is not None:
-        # structured config does not support unions of containers
         if isinstance(loader, ListConfig):
             loaders: Optional[ListConfig] = loader
             cfg['eval_loaders'] = loaders
@@ -222,9 +229,6 @@ def main(cfg: DictConfig) -> Trainer:
     # Check for incompatibilities between the model and data loaders
     validate_config(scfg)
 
-    # Create copy of config for logging
-    logged_cfg: DictConfig = copy.deepcopy(cfg)
-
     cuda_alloc_conf = []
     # Get max split size mb
     max_split_size_mb: Optional[int] = scfg.max_split_size_mb
@@ -251,10 +255,6 @@ def main(cfg: DictConfig) -> Trainer:
     # Initialize pytorch distributed training process groups
     dist_timeout: Union[int, float] = scfg.dist_timeout
     dist.initialize_dist(get_device(None), timeout=dist_timeout)
-
-    # Get global and device batch size information from distributed/single node setting
-    cfg = update_batch_size_info(cfg)
-    logged_cfg.update(cfg, merge=True)
 
     # Mandatory model training configs
     model_config: DictConfig = scfg.model

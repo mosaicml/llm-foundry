@@ -26,8 +26,9 @@ from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.models.bloom.modeling_bloom import build_alibi_tensor
 
 from llmfoundry import ComposerHFCausalLM
+from llmfoundry.layers_registry import norms
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithFSDP
-from llmfoundry.models.layers import NORM_CLASS_REGISTRY, build_alibi_bias
+from llmfoundry.models.layers import build_alibi_bias
 from llmfoundry.models.layers.attention import (check_alibi_support,
                                                 is_flash_v2_installed)
 from llmfoundry.models.layers.blocks import MPTBlock
@@ -52,7 +53,8 @@ def _load_tokenizer_cfg(cfg: DictConfig) -> Dict:
     return config
 
 
-def get_objs(conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml'):
+def _get_objs(request: pytest.FixtureRequest,
+              conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml'):
     warnings.filterwarnings(
         action='ignore',
         message='Torchmetrics v0.9 introduced a new argument class property')
@@ -63,16 +65,19 @@ def get_objs(conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml'):
     fsdp_config = om.to_container(fsdp_config,
                                   resolve=True) if fsdp_config else None
 
+    # Check if we are running on GPU
+    is_gpu = False
+    for item in request.session.items:
+        is_gpu |= item.get_closest_marker('gpu') is not None
+
     # Build Model
     # For fast initialization, use `meta` device
     print('Initializing model...')
-    device = 'cpu'
-    test_cfg.precision = 'fp32'
+    device = 'cuda' if is_gpu else 'cpu'
+    test_cfg.precision = 'amp_bf16' if is_gpu else 'fp32'
     test_cfg.model.attn_config = {
         'attn_impl': 'torch',
     }
-    # device = 'cuda'
-    # test_cfg.precision = 'amp'
     test_cfg.model.init_device = device
     test_cfg.device = device
 
@@ -150,9 +155,13 @@ def gen_random_enc_dec_batch(batch_size: int, vocab_size: int, max_seq_len: int,
     return batch
 
 
-def test_full_forward_and_backward(batch_size: int = 2):
-    test_cfg, model, optimizer = get_objs(
-        conf_path='scripts/train/yamls/pretrain/testing.yaml')
+@pytest.mark.parametrize('conf_path', [
+    'scripts/train/yamls/pretrain/testing.yaml',
+])
+def test_full_forward_and_backward(request: pytest.FixtureRequest,
+                                   conf_path: str,
+                                   batch_size: int = 2):
+    test_cfg, model, optimizer = _get_objs(request=request, conf_path=conf_path)
 
     batch = gen_random_batch(batch_size, test_cfg)
 
@@ -169,9 +178,10 @@ def test_full_forward_and_backward(batch_size: int = 2):
     assert not torch.equal(original_params, updated_params)
 
 
-def test_full_forward_and_backward_with_inputs_embeds(batch_size: int = 2):
-    test_cfg, model, optimizer = get_objs(
-        conf_path='scripts/train/yamls/pretrain/testing.yaml')
+def test_full_forward_and_backward_with_inputs_embeds(
+        request: pytest.FixtureRequest, batch_size: int = 2):
+    test_cfg, model, optimizer = _get_objs(
+        request=request, conf_path='scripts/train/yamls/pretrain/testing.yaml')
 
     batch = gen_random_batch(batch_size, test_cfg, inputs=['inputs_embeds'])
 
@@ -187,9 +197,10 @@ def test_full_forward_and_backward_with_inputs_embeds(batch_size: int = 2):
 
 
 @pytest.mark.parametrize('inputs', [[], ['input_ids', 'inputs_embeds']])
-def test_invalid_inputs_embeds_input_ids_combinations(inputs: List[str]):
-    test_cfg, model, _ = get_objs(
-        conf_path='scripts/train/yamls/pretrain/testing.yaml')
+def test_invalid_inputs_embeds_input_ids_combinations(
+        request: pytest.FixtureRequest, inputs: List[str]):
+    test_cfg, model, _ = _get_objs(
+        request=request, conf_path='scripts/train/yamls/pretrain/testing.yaml')
 
     batch = gen_random_batch(2, test_cfg, inputs=inputs)
 
@@ -198,9 +209,15 @@ def test_invalid_inputs_embeds_input_ids_combinations(inputs: List[str]):
         _ = model(batch)
 
 
-def test_attention_mechanism(batch_size: int = 2):
-    test_cfg, model, _ = get_objs(
-        conf_path='scripts/train/yamls/pretrain/testing.yaml')
+@pytest.mark.parametrize('conf_path', [
+    'scripts/train/yamls/pretrain/testing.yaml',
+    pytest.param('scripts/train/yamls/pretrain/testing-moe.yaml',
+                 marks=pytest.mark.gpu),
+])
+def test_attention_mechanism(request: pytest.FixtureRequest,
+                             conf_path: str,
+                             batch_size: int = 2):
+    test_cfg, model, _ = _get_objs(request=request, conf_path=conf_path)
 
     batch = gen_random_batch(batch_size, test_cfg)
 
@@ -216,43 +233,45 @@ def test_attention_mechanism(batch_size: int = 2):
     pos = torch.arange(0, S, dtype=torch.long,
                        device=input_ids.device).unsqueeze(0)
 
-    tok_emb = model.model.transformer.wte(input_ids)
-    pos_emb = model.model.transformer.wpe(pos)
-    x = model.model.transformer.emb_drop(tok_emb + pos_emb)
+    with get_precision_context(test_cfg.precision):
+        tok_emb = model.model.transformer.wte(input_ids)
+        pos_emb = model.model.transformer.wpe(pos)
+        x = model.model.transformer.emb_drop(tok_emb + pos_emb)
 
-    # basically the attention mask should be a tensor shape (bsz, seqlen, seqlen)
-    # wih -inf along the upper triangle as well as wherever there are any pad tokens
-    # and with 0 everywhere else
-    expected_zerod_weights = nn.Transformer.generate_square_subsequent_mask(test_cfg.max_seq_len)\
-        .reshape(1, test_cfg.max_seq_len, test_cfg.max_seq_len)
-    expected_zerod_weights = torch.isneginf(
-        torch.cat(batch_size * [expected_zerod_weights]))
-    torch_key_padding = torch.cat(  # type: ignore
-        test_cfg.max_seq_len *
-        [(~attention_mask).reshape(batch_size, 1, test_cfg.max_seq_len)],
-        axis=1)
-    expected_zerod_weights |= torch_key_padding
+        # basically the attention mask should be a tensor shape (bsz, seqlen, seqlen)
+        # wih -inf along the upper triangle as well as wherever there are any pad tokens
+        # and with 0 everywhere else
+        expected_zerod_weights = nn.Transformer.generate_square_subsequent_mask(test_cfg.max_seq_len, device=test_cfg.device)\
+            .reshape(1, test_cfg.max_seq_len, test_cfg.max_seq_len)
+        expected_zerod_weights = torch.isneginf(
+            torch.cat(batch_size * [expected_zerod_weights]))
+        torch_key_padding = torch.cat(  # type: ignore
+            test_cfg.max_seq_len *
+            [(~attention_mask).reshape(batch_size, 1, test_cfg.max_seq_len)],
+            axis=1)
+        expected_zerod_weights |= torch_key_padding
 
-    attn_bias, attention_mask = model.model.transformer._attn_bias(
-        device=x.device, dtype=x.dtype, attention_mask=attention_mask)
+        attn_bias, attention_mask = model.model.transformer._attn_bias(
+            device=x.device, dtype=x.dtype, attention_mask=attention_mask)
 
-    for block in model.model.transformer.blocks:
-        a = block.norm_1(x)
-        b, attention_weights, _ = block.attn(
-            a,
-            past_key_value=None,
-            attn_bias=attn_bias,
-            attention_mask=attention_mask,
-            is_causal=model.model.transformer.is_causal,
-            needs_weights=True)
+        for block in model.model.transformer.blocks:
+            a = block.norm_1(x)
+            b, attention_weights, _ = block.attn(
+                a,
+                past_key_value=None,
+                attn_bias=attn_bias,
+                attention_mask=attention_mask,
+                is_causal=model.model.transformer.is_causal,
+                needs_weights=True)
 
-        zerod_weights = (attention_weights == 0)
-        assert torch.equal(expected_zerod_weights.expand(*zerod_weights.shape),
-                           zerod_weights)
-        x = x + block.resid_attn_dropout(b)
-        m = block.norm_2(x)
-        n = block.ffn(m)
-        x = x + block.resid_ffn_dropout(n)
+            zerod_weights = (attention_weights == 0)
+            assert torch.equal(
+                expected_zerod_weights.expand(*zerod_weights.shape),
+                zerod_weights)
+            x = x + block.resid_attn_dropout(b)
+            m = block.norm_2(x)
+            n = block.ffn(m)
+            x = x + block.resid_ffn_dropout(n)
 
 
 def test_full_forward_and_backward_gpt2_small(batch_size: int = 2):
@@ -423,7 +442,6 @@ def test_determinism(attn_impl: str, precision: torch.dtype, ffn_type: str,
             output_2 = model_2(batch)
             assert output_1.logits.allclose(output_2.logits, rtol=0.0,
                                             atol=0.0), f'differed at step {i}'
-
             loss_1 = model_1.loss(output_1, batch)
             loss_2 = model_2.loss(output_2, batch)
             assert isinstance(loss_1, torch.Tensor)
@@ -682,7 +700,7 @@ def test_lora_id():
     assert isinstance(model.model, peft.PeftModelForCausalLM)
 
 
-@pytest.mark.parametrize('norm_type', NORM_CLASS_REGISTRY.keys())
+@pytest.mark.parametrize('norm_type', norms.get_all())
 @pytest.mark.parametrize('no_bias', [False, True])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
 @pytest.mark.parametrize('expansion_ratio,ffn_hidden_size', [

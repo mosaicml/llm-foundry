@@ -89,7 +89,7 @@ def validate_config(cfg: DictConfig):
             )
             cfg.fsdp_config.activation_checkpointing_reentrant = True
 
-    if 'te' in cfg.model.get('ffn_config', {}).get('ffn_type', 'mptmlp'):
+    if cfg.model.get('ffn_config', {}).get('ffn_type', 'mptmlp') == 'te_ln_mlp':
         warnings.warn(
             '`te.LayerNormMLP` requires has issues with torch._dynamo. ' +
             'Setting `torch._dynamo.config.suppress_errors = True` and falling back to eager.'
@@ -100,6 +100,17 @@ def validate_config(cfg: DictConfig):
         raise ValueError(
             '`load_in_8bit` is only supported for evaluation rather than training.'
         )
+
+    if cfg.model.get('ffn_config', {}).get('ffn_type',
+                                           'mptmlp') in ('mb_moe', 'mb_dmoe'):
+        moe_world_size = cfg.model.get('ffn_config',
+                                       {}).get('moe_world_size', 1)
+        use_orig_params = cfg.get('fsdp_config',
+                                  {}).get('use_orig_params', True)
+        if moe_world_size > 1 and not use_orig_params:
+            raise ValueError(
+                f'MoEs with expert parallelism (moe_world_size {moe_world_size} > 1) require `use_orig_params=True`.'
+            )
 
 
 def main(cfg: DictConfig) -> Trainer:
@@ -136,9 +147,9 @@ def main(cfg: DictConfig) -> Trainer:
     if max_split_size_mb is not None:
         cuda_alloc_conf.append(f'max_split_size_mb:{max_split_size_mb}')
 
-    # Expandeable segments
-    if cfg.pop('expandeable_segments', False):
-        cuda_alloc_conf.append('expandeable_segments:True')
+    # Expandable segments
+    if cfg.pop('expandable_segments', False):
+        cuda_alloc_conf.append('expandable_segments:True')
 
     if len(cuda_alloc_conf) > 0:
         os.environ['PYTORCH_CUDA_ALLOC_CONF'] = ','.join(cuda_alloc_conf)
@@ -321,6 +332,10 @@ def main(cfg: DictConfig) -> Trainer:
                                                  default_value=True)
     load_ignore_keys: Optional[List[str]] = pop_config(cfg,
                                                        'load_ignore_keys',
+                                                       must_exist=False,
+                                                       default_value=None)
+    save_ignore_keys: Optional[List[str]] = pop_config(cfg,
+                                                       'save_ignore_keys',
                                                        must_exist=False,
                                                        default_value=None)
     compile_config: Optional[Dict[str, Any]] = pop_config(cfg,
@@ -520,11 +535,20 @@ def main(cfg: DictConfig) -> Trainer:
     )
 
     # Log number of parameters
-    n_params = sum(p.numel() for p in model.parameters())
-    n_trainable_params = sum(
-        p.numel() for p in model.parameters() if p.requires_grad)
+    if hasattr(model, 'n_total_params'):
+        n_params = model.n_total_params
+        n_trainable_params = n_params  # TODO: we currently assume all parameters are trainable.
+    else:
+        n_params = sum(p.numel() for p in model.parameters())
+        n_trainable_params = sum(
+            p.numel() for p in model.parameters() if p.requires_grad)
+    if hasattr(model, 'n_active_params'):
+        n_active_params = model.n_active_params
+    else:
+        n_active_params = n_params
     logged_cfg.update({
         'n_params': n_params,
+        'n_active_params': n_active_params,
         'n_trainable_params': n_trainable_params,
     })
 
@@ -580,6 +604,7 @@ def main(cfg: DictConfig) -> Trainer:
         load_weights_only=load_weights_only,
         load_strict_model_weights=load_strict_model_weights,
         load_ignore_keys=load_ignore_keys,
+        save_ignore_keys=save_ignore_keys,
         autoresume=autoresume,
         python_log_level=python_log_level,
         dist_timeout=dist_timeout,

@@ -206,7 +206,6 @@ def main(args: Namespace) -> None:
         if device is not None:
             print(f'Placing model on {device=}...')
             model.to(device)
-        model.to(model_dtype)
     except Exception as e:
         raise RuntimeError(
             'Unable to load HF model. ' +

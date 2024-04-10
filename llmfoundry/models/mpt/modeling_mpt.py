@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import math
 import warnings
+from functools import cached_property
 from typing import (Any, Dict, List, Mapping, MutableMapping, Optional, Tuple,
                     Union)
 
@@ -20,7 +21,6 @@ from composer.models import HuggingFaceModel
 from composer.utils import dist
 
 from llmfoundry.models.layers.attention import is_flash_v2_installed
-from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
 if is_flash_v2_installed():
     try:  # This try...except is needed because transformers requires it despite the 'if' statement above
@@ -42,12 +42,17 @@ from transformers.models.llama.modeling_llama import \
 from transformers.models.llama.modeling_llama import \
     LlamaRotaryEmbedding as HFRotaryEmbedding
 
+from llmfoundry.layers_registry import norms
 from llmfoundry.models.layers.attention import (attn_bias_shape,
                                                 build_attn_bias, gen_slopes)
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.layers.custom_embedding import SharedEmbedding
 from llmfoundry.models.layers.ffn import build_ffn as build_ffn
+from llmfoundry.models.layers.layer_builders import build_norm
 from llmfoundry.models.mpt.configuration_mpt import MPTConfig
+from llmfoundry.models.utils.config_moe_args import config_moe_args
+from llmfoundry.models.utils.mpt_param_count import (mpt_get_active_params,
+                                                     mpt_get_total_params)
 
 # NOTE: All utils are imported directly even if unused so that
 # HuggingFace can detect all the needed files to copy into its modules folder.
@@ -275,6 +280,8 @@ def _fsdp_wrap_fn(
     module: nn.Module,
 ) -> bool:
     # FSDP Wrap function for MPT Models
+    if hasattr(module, '_fsdp_kwargs_dict'):
+        return module._fsdp_kwargs_dict
     return isinstance(module, MPTBlock)
 
 
@@ -297,12 +304,11 @@ class MPTModel(MPTPreTrainedModel):
             else:
                 config.init_device = 'meta'
 
-        if config.norm_type.lower() not in NORM_CLASS_REGISTRY.keys():
-            norm_options = ' | '.join(NORM_CLASS_REGISTRY.keys())
+        if config.norm_type.lower() not in norms.get_all():
+            norm_options = ' | '.join(norms.get_all())
             raise NotImplementedError(
                 f'Requested norm type ({config.norm_type}) is not implemented within this repo (Options: {norm_options}).'
             )
-        norm_class = NORM_CLASS_REGISTRY[config.norm_type.lower()]
 
         # CogView (https://arxiv.org/abs/2105.13290) and GLM-130B (https://arxiv.org/abs/2210.02414)
         # both report this helping with stabilizing training
@@ -316,10 +322,20 @@ class MPTModel(MPTPreTrainedModel):
                                           config.d_model,
                                           device=config.init_device)
         self.emb_drop = nn.Dropout(config.emb_pdrop)
+        self.mb_args = None
+        block_args = config.to_dict()
+        if block_args['ffn_config']['ffn_type'] in ('mb_moe', 'mb_dmoe'):
+            block_args['ffn_config'] = config_moe_args(
+                block_args['ffn_config'],
+                config.d_model,
+                config.expansion_ratio,
+                config.n_layers,
+            )
+            self.mb_args = block_args['ffn_config'].get('args')
         self.blocks = nn.ModuleList([
             MPTBlock(
                 device=config.init_device,
-                **config.to_dict(),
+                **block_args,
             ) for _ in range(config.n_layers)
         ])
 
@@ -329,7 +345,11 @@ class MPTModel(MPTPreTrainedModel):
             block.max_block_idx = config.n_layers - 1
             pass_on_block_idx(block)
 
-        self.norm_f = norm_class(config.d_model, device=config.init_device)
+        self.norm_f = build_norm(
+            name=config.norm_type.lower(),
+            normalized_shape=config.d_model,
+            device=config.init_device,
+        )
 
         self.rope = config.attn_config['rope']
         self.rope_impl = None
@@ -367,12 +387,12 @@ class MPTModel(MPTPreTrainedModel):
             for module in self.modules():
                 if hasattr(module, 'bias') and isinstance(
                         module.bias, nn.Parameter):
-                    log.info(f'Removing bias from {module=}.')
+                    log.debug(f'Removing bias from {module=}.')
                     module.register_parameter('bias', None)
 
                 # For transformer engine
-                if hasattr(module, 'use_bias'):
-                    log.info(f'Setting use_bias=False for {module=}.')
+                if hasattr(module, 'use_bias') and module.use_bias is True:
+                    log.debug(f'Setting use_bias=False for {module=}.')
                     module.use_bias = False
 
         log.debug(self)
@@ -976,8 +996,6 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             allow_embedding_resizing=True,
         )
 
-        self.n_active_params = sum(p.numel() for p in self.parameters())
-
         loss_fn_config = om_model_config.get('loss_fn', 'fused_crossentropy')
         if loss_fn_config == 'fused_crossentropy':
             try:
@@ -1008,6 +1026,15 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         return targets
 
     def forward(self, batch: MutableMapping) -> CausalLMOutputWithPast:
+        if self.config.ffn_config['ffn_type'] in ('mb_moe', 'mb_dmoe'):
+            # Clear MegaBlocks MoE load balancing loss cache
+            try:  # Add try/catch to avoid transformers complaining and raising errors
+                from megablocks.layers.moe import clear_load_balancing_loss
+            except:
+                raise RuntimeError(
+                    'Requirements for MegaBlocks not installed; see install instructions in `README.md`.'
+                )
+            clear_load_balancing_loss()
         return self.model(
             input_ids=batch.get('input_ids', None),
             attention_mask=batch.get('attention_mask', None),
@@ -1016,7 +1043,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         )
 
     def loss(self, outputs: CausalLMOutputWithPast,
-             batch: Mapping) -> torch.Tensor:
+             batch: Mapping) -> Union[dict, torch.Tensor]:
         targets = self.get_targets(batch)
         losses = self.loss_fn(outputs.logits.view(-1, outputs.logits.size(-1)),
                               targets.view(-1))
@@ -1026,18 +1053,40 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         else:
             loss = losses.sum() / (targets != self.loss_fn.ignore_index).sum()
 
+        if self.config.ffn_config['ffn_type'] in ('mb_moe', 'mb_dmoe'):
+            # MegaBlocks MoE load balancing loss
+            try:  # Add try/catch to avoid transformers complaining and raising errors
+                from megablocks.layers.moe import batched_load_balancing_loss
+            except:
+                raise RuntimeError(
+                    'Requirements for MegaBlocks not installed; see install instructions in `README.md`.'
+                )
+            lbl = batched_load_balancing_loss(self.model.transformer.mb_args)
+            return {
+                'total': loss + lbl,
+                'loss': loss,
+                'lbl': lbl,
+            }
+
         return loss
 
-    def flops_per_batch(self, batch: Mapping) -> int:
+    @cached_property
+    def n_total_params(self):
+        """Gets the total number of parameters in the model."""
+        return mpt_get_total_params(self)
+
+    @cached_property
+    def n_active_params(self):
+        """Gets the total number of active parameters in the model."""
+        return mpt_get_active_params(self)
+
+    def flops_per_batch(self, batch: Mapping):
         # Note: this computation does not take into account padding, and assumes
         # that the dataset has been constructed without padding. Additionally, we
         # assume the backward pass is approximately 2x the forward pass
 
         bs, msl = batch['input_ids'].shape[0:2]
         params = self.n_active_params
-        if not self.model.transformer.config.tie_word_embeddings:
-            # embedding layers are lookup tables, therefore are not counted in the FLOP computation
-            params -= self.model.transformer.wte.weight.numel()
         params_flops_per_token = 2 * params
         params_flops_per_seq = params_flops_per_token * msl
         attn_flops_per_seq = (self.model.config.n_layers * 2 * 2 *

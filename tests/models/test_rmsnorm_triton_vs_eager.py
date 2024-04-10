@@ -8,6 +8,7 @@ import torch
 from composer.core.precision import get_precision_context
 
 from llmfoundry.models.layers.attention import is_flash_v2_installed
+from llmfoundry.models.layers.layer_builders import build_norm
 
 
 @pytest.mark.gpu
@@ -19,17 +20,18 @@ def test_rmsnorm_triton_vs_eager(normalized_shape: Union[int, List[int]],
         pytest.skip(
             'triton implementation of rmsnorm requires flash attention 2.')
 
-    from llmfoundry.models.layers import norm
-
     batch_size = 2
 
-    cfg = {
-        'normalized_shape': normalized_shape,
-        'device': device,
-    }
-
-    eager_rmsnorm = norm.NORM_CLASS_REGISTRY['rmsnorm'](**cfg)
-    triton_rmsnorm = norm.NORM_CLASS_REGISTRY['triton_rmsnorm'](**cfg)
+    eager_rmsnorm = build_norm(
+        name='rmsnorm',
+        normalized_shape=normalized_shape,
+        device=device,
+    )
+    triton_rmsnorm = build_norm(
+        name='triton_rmsnorm',
+        normalized_shape=normalized_shape,
+        device=device,
+    )
 
     triton_rmsnorm.load_state_dict(eager_rmsnorm.state_dict())
 

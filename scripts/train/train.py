@@ -120,7 +120,7 @@ def validate_config(cfg: TrainConfig):
         if isinstance(cfg.eval_loaders, list) or isinstance(
                 cfg.eval_loaders, ListConfig):
             for loader in cfg.eval_loaders:
-                if 'label' not in loader:
+                if 'label' not in loader or loader['label'] is not None:
                     raise ValueError(
                         'When specifying multiple evaluation datasets, each one must include the \
                             `label` attribute.')

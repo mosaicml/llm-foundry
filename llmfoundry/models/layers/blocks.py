@@ -10,7 +10,7 @@ import torch.nn as nn
 
 from llmfoundry.models.layers.attention import ATTN_CLASS_REGISTRY
 from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY, build_ffn
-from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
+from llmfoundry.models.layers.layer_builders import build_norm
 
 try:
     from flash_attn.bert_padding import unpad_input, pad_input  # type: ignore # yapf: disable # isort: skip
@@ -72,7 +72,6 @@ class MPTBlock(nn.Module):
         del kwargs  # unused, just to capture any extra args from the config
         super().__init__()
 
-        norm_class = NORM_CLASS_REGISTRY[norm_type.lower()]
         assert isinstance(attn_config['attn_type'], str)
         attn_class = ATTN_CLASS_REGISTRY[attn_config['attn_type']]
 
@@ -88,7 +87,11 @@ class MPTBlock(nn.Module):
             if k not in args_to_exclude_in_attn_class
         }
 
-        self.norm_1 = norm_class(d_model, device=device)
+        self.norm_1 = build_norm(
+            name=norm_type.lower(),
+            normalized_shape=d_model,
+            device=device,
+        )
         self.attn = attn_class(
             d_model=d_model,
             n_heads=n_heads,
@@ -100,7 +103,11 @@ class MPTBlock(nn.Module):
         self.norm_2 = None
         if not getattr(FFN_CLASS_REGISTRY[ffn_config['ffn_type']], '_has_norm',
                        False):
-            self.norm_2 = norm_class(d_model, device=device)
+            self.norm_2 = build_norm(
+                name=norm_type.lower(),
+                normalized_shape=d_model,
+                device=device,
+            )
         self.ffn = build_ffn(
             d_model=d_model,
             expansion_ratio=expansion_ratio,

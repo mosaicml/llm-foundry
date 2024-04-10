@@ -1,10 +1,6 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-# Copyright 2022 MosaicML Composer authors
-# SPDX-License-Identifier: Apache-2.0
-# This code is based on the implementation in https://github.com/EleutherAI/lm-evaluation-harness/blob/8c048e266a22a1c85ccbdb0c209ac712e4f39989/lm_eval/base.py#L221-L330
-
 from __future__ import annotations
 
 import copy
@@ -97,14 +93,17 @@ class InContextLearningDataset(Dataset):
         strip_dataset (bool): Boolean for whether to strip whitespace from data. Trailing whitespace can cause degenerative outputs,
             so unless whitespace should be preserved (for example in code), this should be set to True.
         padding_side (str): Side of the content and answer on which to apply padding. Can be either 'right' or 'left'.
+        tokenize_labels (bool): Whether or not the labels should be tokenized. Generally determined by which metric a dataset uses.
         padding_size (int): The final size of the tensor after padding. Defaults to max_sequence_length.
         base_batch (Dict): The base dictionary upon which a batch is created. See above for more details.
         base_mapping (Dict): A mapping of batch keys to dataset columns, used to create batches. See above for more details.
         hf_loading_vars (Dict): A dictionary containing keyword arguments to be passed into `load_dataset` if dataset is being pulled from HF.
         hf_parsing_map (Dict): A dictionary containing a mapping from HF columns to ICL dataset keys. The dictionary should be formatted {icl_key:[hf_key1, hf_key1]}.
             Column contents will be concatenated with ' ' seperating them. If not included, will load the columns already present in the HF dataset.
-        tokenize_labels (bool): Whether or not the labels should be tokenized. Generally determined by which metric a dataset uses.
         generation_kwargs (Dict): A dictionary containing keyword arguments to be passed along to the model's generate function.
+        static_keys (List): A list of the key values which will be broadcast across a batch (e.g. it is the same for each batch element).
+        list_keys (List): A list of the batch keys whose values are lists which will be split using list methods during calls to split_batch.
+        tensor_keys (List): A list of the batch keys whose values are tensors which will be split using tensor methods during calls to split_batch.
     """
 
     def __init__(
@@ -125,15 +124,15 @@ class InContextLearningDataset(Dataset):
         strip_dataset: bool = True,
         padding_side: str = 'right',
         tokenize_labels: bool = True,
-        static_keys: Optional[List] = None,
-        list_keys: Optional[List] = None,
-        tensor_keys: Optional[List] = None,
         padding_size: Optional[int] = None,
         base_batch: Optional[Dict] = None,
         batch_mapping: Optional[Dict] = None,
         hf_loading_vars: Optional[Dict] = None,
         hf_parsing_map: Optional[Dict] = None,
         generation_kwargs: Optional[Dict] = None,
+        static_keys: Optional[List] = None,
+        list_keys: Optional[List] = None,
+        tensor_keys: Optional[List] = None,
     ):
         self.tokenizer = tokenizer
         self.prefix_space = tokenizer_needs_prefix_space(self.tokenizer)

@@ -7,7 +7,7 @@ import os
 import sys
 import time
 import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import Any, Dict, List, Optional, Union
 
 import torch
@@ -106,6 +106,10 @@ class TrainConfig:
     device_train_grad_accum: Optional[int] = None
     profiler: Optional[Dict[str, Any]] = None
     save_ignore_keys: Optional[List[str]] = None
+    variables: Optional[Dict[str, Any]] = None
+
+
+TRAIN_CONFIG_KEYS = set(field.name for field in fields(TrainConfig))
 
 
 def validate_config(cfg: TrainConfig):
@@ -113,7 +117,8 @@ def validate_config(cfg: TrainConfig):
     loaders = [cfg.train_loader]
     if cfg.eval_loader is not None or cfg.eval_loaders is not None:
         eval_loader = cfg.eval_loader
-        if isinstance(cfg.eval_loaders, list):
+        if isinstance(cfg.eval_loaders, list) or isinstance(
+                cfg.eval_loaders, ListConfig):
             for loader in cfg.eval_loaders:
                 if 'label' not in loader:
                     raise ValueError(
@@ -188,13 +193,6 @@ def main(cfg: DictConfig) -> Trainer:
     # Resolve all interpolation variables as early as possible
     om.resolve(cfg)
 
-    # Create copy of config for logging
-    logged_cfg: DictConfig = copy.deepcopy(cfg)
-
-    # Get global and device batch size information from distributed/single node setting
-    cfg = update_batch_size_info(cfg)
-    logged_cfg.update(cfg, merge=True)
-
     # structured config does not support unions of containers, so separate single and plural containers
     if (loader := cfg.get('eval_loader', None)) is not None:
         if isinstance(loader, ListConfig):
@@ -209,6 +207,26 @@ def main(cfg: DictConfig) -> Trainer:
         if isinstance(gauntlet, str):
             cfg['eval_gauntlet_str'] = gauntlet
             cfg.pop('eval_gauntlet')
+
+    arg_config_keys = set(cfg.keys())
+    extraneous_keys = set.difference(arg_config_keys, TRAIN_CONFIG_KEYS)
+
+    if 'variables' not in cfg:
+        cfg['variables'] = {}
+
+    for key in extraneous_keys:
+        warnings.warn(
+            f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary. Interpreting {key} as a variable for logging purposes.'
+        )
+        # TODO (milo): delete the below line once we deprecate variables at the top level.
+        cfg['variables'][key] = cfg.pop(key)
+
+    # Create copy of config for logging
+    logged_cfg: DictConfig = copy.deepcopy(cfg)
+
+    # Get global and device batch size information from distributed/single node setting
+    cfg = update_batch_size_info(cfg)
+    logged_cfg.update(cfg, merge=True)
 
     scfg: TrainConfig = OmegaConf.structured(
         TrainConfig(**cfg)

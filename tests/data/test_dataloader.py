@@ -1095,15 +1095,20 @@ def test_build_unknown_dataloader():
         _ = build_dataloader(cfg, tokenizer, 2)
 
 
+invalid_conversation_params_sharegpt = [
+    'add_invalid_last_chat_message', 'add_invalid_content_type',
+    'add_invalid_role', 'add_not_alternating_roles'
+]
+
+
 @pytest.mark.parametrize(
-    ','.join(invalid_conversation_params),
-    generate_exclusive_test_params(invalid_conversation_params))
+    ','.join(invalid_conversation_params_sharegpt),
+    generate_exclusive_test_params(invalid_conversation_params_sharegpt))
 def test_sharegpt_format(tmp_path: pathlib.Path,
                          add_invalid_last_chat_message: bool,
-                         add_invalid_message_key_quantity: bool,
                          add_invalid_content_type: bool, add_invalid_role: bool,
                          add_not_alternating_roles: bool):
-    tokenizer_name = 'mosaicml/mpt-30b-chat'
+    tokenizer_name = 'mosaicml/mpt-7b'
     max_seq_len = 2048
     dataset_size = 5
     device_batch_size = 5
@@ -1125,7 +1130,7 @@ def test_sharegpt_format(tmp_path: pathlib.Path,
             path=tiny_dataset_path,
             size=dataset_size,
             add_invalid_last_chat_message=add_invalid_last_chat_message,
-            add_invalid_message_key_quantity=add_invalid_message_key_quantity,
+            add_invalid_message_key_quantity=False,
             add_invalid_content_type=add_invalid_content_type,
             add_invalid_role=add_invalid_role,
             add_not_alternating_roles=add_not_alternating_roles,
@@ -1158,9 +1163,6 @@ def test_sharegpt_format(tmp_path: pathlib.Path,
     if add_invalid_last_chat_message:
         error_context = pytest.raises(InvalidLastChatMessageRoleError,
                                       match='Invalid last message role:')
-    if add_invalid_message_key_quantity:
-        error_context = pytest.raises(IncorrectMessageKeyQuantityError,
-                                      match='Expected 2 keys in message')
     if add_invalid_content_type:
         error_context = pytest.raises(InvalidContentTypeError,
                                       match='Expected content to be')

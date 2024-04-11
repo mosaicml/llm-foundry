@@ -7,6 +7,7 @@ import torch
 
 from llmfoundry.layers_registry import attention_classes, norms
 from llmfoundry.models.layers.blocks import MPTBlock
+from llmfoundry.models.layers.blocks import FusedNormAttentionNorm, MPTBlock
 from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY
 
 
@@ -26,6 +27,8 @@ def get_act_ckpt_module(mod_name: str) -> Any:
         mod_type = MPTBlock
     elif mod_name in attention_classes:
         mod_type = attention_classes.get(mod_name)
+    elif mod_name.lower() == 'norm_attn_norm':
+        mod_type = FusedNormAttentionNorm
     elif mod_name in FFN_CLASS_REGISTRY:
         mod_type = FFN_CLASS_REGISTRY[mod_name]
     elif mod_name in norms:

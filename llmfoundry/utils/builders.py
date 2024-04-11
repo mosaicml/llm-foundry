@@ -104,6 +104,7 @@ def build_eval_loaders(
             # Load the eval data to fail fast. metrics will get added
             # later in add_metrics_to_eval_loaders, after the model is loaded
             metric_names=[],
+            device_eval_microbatch_size=device_eval_batch_size,
         )
         evaluators.append(eval_loader)
     return evaluators

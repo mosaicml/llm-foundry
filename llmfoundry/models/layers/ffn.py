@@ -6,18 +6,27 @@
 import logging
 from copy import deepcopy
 from functools import partial
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, List, Optional, Union
 
 import torch
 import torch.nn as nn
+from torch.distributed._tensor import DeviceMesh, DTensor, Placement, Shard
 
 from llmfoundry.layers_registry import ffns, ffns_with_norm
+from llmfoundry.models.layers.dmoe import dMoE
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 
 try:
     import transformer_engine.pytorch as te
-except:
-    te = None
+    is_te_imported = True
+except ModuleNotFoundError:
+    is_te_imported = False
+
+try:
+    import megablocks
+    is_megablocks_imported = True
+except ModuleNotFoundError:
+    is_megablocks_imported = False
 
 log = logging.getLogger(__name__)
 
@@ -78,6 +87,18 @@ def resolve_ffn_hidden_size(
                 f'`d_model * expansion_ratio` must be an integer ({d_model=}; {expansion_ratio=}; {d_model * expansion_ratio=}).'
             )
     return ffn_hidden_size
+
+
+def dtensorify_param(param: nn.Parameter, mesh: DeviceMesh,
+                     placements: List[Placement]):
+    """Construct a DTensor from an already sharded local parameter."""
+    param_dtensor = DTensor.from_local(
+        param.data,
+        device_mesh=mesh,
+        placements=placements,
+        run_check=False,
+    )
+    return nn.Parameter(param_dtensor)
 
 
 class MPTMLP(nn.Module):
@@ -145,7 +166,6 @@ class MPTGLU(MPTMLP):
             **self.fc_kwargs,
         )
 
-    @torch.compile
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.down_proj(self.act(self.gate_proj(x)) * self.up_proj(x))
 
@@ -214,9 +234,209 @@ def build_te_ln_mlp(
         **kwargs,
     )
 
+def build_torch_dmoe(
+    d_model: int,
+    expansion_ratio: Union[int, float],
+    ffn_hidden_size: Optional[int] = None,
+    ffn_act_fn: Optional[dict] = None,
+    device: Optional[str] = None,
+    bias: bool = True,
+    **kwargs: Any,
+) -> nn.Module:
+    moe_num_experts = kwargs.pop('moe_num_experts')
+    moe_top_k = kwargs.pop('moe_top_k')
+    mlp_type = kwargs.pop('mlp_type')
+    moe_jitter_eps = kwargs.pop('moe_jitter_eps')
+    moe_normalize_expert_weights = kwargs.pop('moe_normalize_expert_weights')
+    uniform_expert_assignment = kwargs.pop('uniform_expert_assignment')
+
+    if len(kwargs) > 0:
+        raise ValueError(f'Invalid arguments to torch dmoe: {kwargs}.')
+
+    return dMoE(
+            hidden_size=d_model,
+            ffn_hidden_size=resolve_ffn_hidden_size(d_model, expansion_ratio,
+                                                    ffn_hidden_size),
+            moe_num_experts=moe_num_experts,
+            moe_top_k=moe_top_k,
+            mlp_type=mlp_type,
+            bias=bias,
+            moe_jitter_eps=moe_jitter_eps,
+            activation_fn=resolve_ffn_act_fn(ffn_act_fn),
+            moe_normalize_expert_weights=moe_normalize_expert_weights,
+            uniform_expert_assignment=uniform_expert_assignment,
+            device=device,  # pyright: ignore[reportGeneralTypeIssues]
+        )
+
+def _mb_setup_args(
+    d_model: int,
+    expansion_ratio: Union[int, float],
+    ffn_hidden_size: Optional[int],
+    ffn_act_fn: Optional[dict],
+    device: Optional[str],
+    bias: bool,
+    kwargs: dict[str, Any],
+) -> tuple['megablocks.layers.arguments.Arguments', int, torch.distributed.ProcessGroup]:
+    if megablocks is None:
+        raise RuntimeError(
+            'Requirements for megablocks not installed; see install instructions in `README.md`.'
+        )
+    args = kwargs['args']
+    args.bias = bias
+    args.hidden_size = d_model
+    args.device = device
+
+    ffn_hidden_size = resolve_ffn_hidden_size(d_model, expansion_ratio,
+                                                ffn_hidden_size)
+    args.ffn_hidden_size = ffn_hidden_size
+
+    if ffn_act_fn is not None:
+        args.activation_fn = resolve_ffn_act_fn(ffn_act_fn)
+
+    moe_world_size = 1
+    expert_parallel_group = args.expert_parallel_group
+    if expert_parallel_group is not None:
+        moe_world_size = expert_parallel_group.size()
+    if kwargs.get('moe_world_size') != moe_world_size:
+        raise RuntimeError(
+            f'MoE expert_parallel_group configured with incorrect world size.'
+        )
+    
+    return args, moe_world_size, expert_parallel_group
+
+def _patch_ffn_mb(
+    ffn: nn.Module,
+    moe_world_size: int,
+    expert_parallel_group: torch.distributed.ProcessGroup,
+    device_mesh: DeviceMesh,
+    args: 'megablocks.layers.arguments.Arguments',
+    **kwargs: Any,
+):
+    # Attach args to MLP directly for use in param_init_fn
+    ffn.experts.mlp.hidden_size = args.ffn_hidden_size
+    ffn.experts.mlp.expert_parallel_group = expert_parallel_group
+    ffn.experts.mlp.weight_parallel_group = args.weight_parallel_group
+
+    if moe_world_size > 1:
+        device_mesh = kwargs['device_mesh']
+
+        expert_mesh = device_mesh['expert_parallel']
+        expert_placements: List[Placement] = [Shard(0)]
+        # Register in two loops as you cannot overwrite parameters while iterating over named_parameters()
+        dtensorified_params = [
+            (name,
+                dtensorify_param(param=parameter,
+                                mesh=expert_mesh,
+                                placements=expert_placements))
+            for name, parameter in ffn.experts.mlp.named_parameters()
+        ]
+        for name, dtensorified_param in dtensorified_params:
+            ffn.experts.mlp.register_parameter(name, dtensorified_param)
+
+        device_mesh = kwargs['device_mesh']
+        if device_mesh.mesh.ndim == 2:
+            submesh = device_mesh['weight_parallel']
+        elif device_mesh.mesh.ndim == 3:
+            raise RuntimeError(f'HSDP + MoE is not supported.')
+        else:
+            raise ValueError(
+                f'{device_mesh.mesh.ndim=} not supported for MoE.')
+
+        ffn.experts._fsdp_kwargs_dict = {
+            'device_mesh': submesh,
+        }
+
+
+
+def build_mb_moe(
+    d_model: int,
+    expansion_ratio: Union[int, float],
+    ffn_hidden_size: Optional[int] = None,
+    ffn_act_fn: Optional[dict] = None,
+    device: Optional[str] = None,
+    bias: bool = True,
+    **kwargs: Any,
+) -> nn.Module:
+    if not is_megablocks_imported:
+        raise RuntimeError(
+            'Requirements for megablocks not installed; see install instructions in `README.md`.'
+        )
+
+    args, moe_world_size, expert_parallel_group = _mb_setup_args(
+        d_model=d_model,
+        expansion_ratio=expansion_ratio,
+        ffn_hidden_size=ffn_hidden_size,
+        ffn_act_fn=ffn_act_fn,
+        device=device,
+        bias=bias,
+        kwargs=kwargs,
+    )
+
+    ffn = megablocks.layers.moe.MoE(args)
+
+    # Fused initialization setup
+    # For param_init_fn, enables shape based init of stacked layers
+    ffn.experts.mlp._stack_dim = 0
+
+    _patch_ffn_mb(
+        ffn=ffn,
+        moe_world_size=moe_world_size,
+        expert_parallel_group=expert_parallel_group,
+        device_mesh=kwargs['device_mesh'],
+        args=args,
+        **kwargs,
+    )
+
+
+def build_mb_dmoe(
+    d_model: int,
+    expansion_ratio: Union[int, float],
+    ffn_hidden_size: Optional[int] = None,
+    ffn_act_fn: Optional[dict] = None,
+    device: Optional[str] = None,
+    bias: bool = True,
+    **kwargs: Any,
+) -> nn.Module:
+    if not is_megablocks_imported:
+        raise RuntimeError(
+            'Requirements for megablocks not installed; see install instructions in `README.md`.'
+        )
+
+    args, moe_world_size, expert_parallel_group = _mb_setup_args(
+        d_model=d_model,
+        expansion_ratio=expansion_ratio,
+        ffn_hidden_size=ffn_hidden_size,
+        ffn_act_fn=ffn_act_fn,
+        device=device,
+        bias=bias,
+        kwargs=kwargs,
+    )
+
+    ffn = megablocks.layers.dmoe.dMoE(args)
+
+    # Fused initialization setup
+    # For param_init_fn, enables shape based init of fused layers
+    n_exp = min(1, args.moe_num_experts // moe_world_size)
+    ffn.experts.mlp._fused = (0, [
+        (n + 1) * args.ffn_hidden_size for n in range(n_exp - 1)
+    ])
+
+    _patch_ffn_mb(
+        ffn=ffn,
+        moe_world_size=moe_world_size,
+        expert_parallel_group=expert_parallel_group,
+        device_mesh=kwargs['device_mesh'],
+        args=args,
+        **kwargs,
+    )
 
 ffns.register('mptglu', func=build_mptglu)
 ffns.register('mptmlp', func=build_mptmlp)
+ffns.register('torch_dmoe', func=build_torch_dmoe)
 
-if te is not None:
+if is_te_imported:
     ffns_with_norm.register('te_ln_mlp', func=build_te_ln_mlp)
+
+if is_megablocks_imported:
+    ffns.register('mb_moe', func=build_mb_moe)
+    ffns.register('mb_dmoe', func=build_mb_dmoe)

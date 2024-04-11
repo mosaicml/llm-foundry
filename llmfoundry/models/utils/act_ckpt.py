@@ -7,7 +7,7 @@ import torch
 
 from llmfoundry.layers_registry import ffns, ffns_with_norm, norms
 from llmfoundry.models.layers.attention import ATTN_CLASS_REGISTRY
-from llmfoundry.models.layers.blocks import MPTBlock
+from llmfoundry.models.layers.blocks import FusedNormAttentionNorm, MPTBlock
 
 
 def pass_on_block_idx(parent: torch.nn.Module):
@@ -24,6 +24,8 @@ def get_act_ckpt_module(mod_name: str) -> Any:
     """Get the module type from the module name."""
     if mod_name.lower() == 'mptblock':
         mod_type = MPTBlock
+    elif mod_name.lower() == 'norm_attn_norm':
+        mod_type = FusedNormAttentionNorm
     elif mod_name in ATTN_CLASS_REGISTRY:
         mod_type = ATTN_CLASS_REGISTRY[mod_name]
     elif mod_name in ffns:

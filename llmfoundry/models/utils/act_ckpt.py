@@ -6,7 +6,6 @@ from typing import Any
 import torch
 
 from llmfoundry.layers_registry import attention_classes, norms
-from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.layers.blocks import FusedNormAttentionNorm, MPTBlock
 from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY
 

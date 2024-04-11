@@ -70,7 +70,7 @@ class VLLMCausalLMEvalWrapper(VLLMEvalInterface):
                 tokens = [t for t in tokens if t != padding_tok]
                 prompts.append(tokens)
             
-            sampling_params = vllm.SamplingParams(temperature=0.8, top_p=1, max_tokens=num_tokens, n=num_sequences)
+            sampling_params = vllm.SamplingParams(top_k=1, max_tokens=num_tokens, n=num_sequences)
 
             with torch.no_grad():
                 with torch.cuda.amp.autocast(enabled=False):

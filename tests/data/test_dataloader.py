@@ -1093,3 +1093,88 @@ def test_build_unknown_dataloader():
     tokenizer = MagicMock()
     with pytest.raises(catalogue.RegistryError):
         _ = build_dataloader(cfg, tokenizer, 2)
+
+
+@pytest.mark.parametrize(
+    ','.join(invalid_conversation_params),
+    generate_exclusive_test_params(invalid_conversation_params))
+def test_sharegpt_format(tmp_path: pathlib.Path,
+                         add_invalid_last_chat_message: bool,
+                         add_invalid_message_key_quantity: bool,
+                         add_invalid_content_type: bool, add_invalid_role: bool,
+                         add_not_alternating_roles: bool):
+    tokenizer_name = 'databricks/dbrx-instruct'
+    max_seq_len = 2048
+    dataset_size = 5
+    device_batch_size = 5
+    tiny_dataset_folder_path = tmp_path
+    tiny_dataset_path = str(tiny_dataset_folder_path / 'train.jsonl')
+
+    tokenizer = build_tokenizer(
+        tokenizer_name=tokenizer_name,
+        tokenizer_kwargs={
+            'model_max_length': max_seq_len,
+            'trust_remote_code': True
+        },
+    )
+    tokenizer.add_special_tokens({
+        'pad_token': '<pad>',
+        'bos_token': '<bos>',
+        'eos_token': '<eos>',
+    })
+
+    if dist.get_global_rank() == 0:
+        make_tiny_conversation_ft_dataset(
+            path=tiny_dataset_path,
+            size=dataset_size,
+            add_invalid_last_chat_message=add_invalid_last_chat_message,
+            add_invalid_message_key_quantity=add_invalid_message_key_quantity,
+            add_invalid_content_type=add_invalid_content_type,
+            add_invalid_role=add_invalid_role,
+            add_not_alternating_roles=add_not_alternating_roles,
+            use_messages_format=False,
+        )
+
+    cfg = {
+        'name': 'finetuning',
+        'dataset': {
+            'hf_name': str(tiny_dataset_folder_path),
+            'preprocessing_fn': 'teknium/OpenHermes-2.5',
+            'split': 'train',
+            'max_seq_len': max_seq_len,
+            'decoder_only_format': True,
+            'allow_pad_trimming': False,
+            'packing_ratio': None,
+            'shuffle': True,
+        },
+        'drop_last': False,
+        'num_workers': 0,
+        'prefetch_factor': None,
+        'pin_memory': False,
+        'persistent_workers': False,
+        'timeout': 0
+    }
+
+    cfg = om.create(cfg)
+
+    error_context = contextlib.nullcontext()
+    if add_invalid_last_chat_message:
+        error_context = pytest.raises(InvalidLastChatMessageRoleError,
+                                      match='Invalid last message role:')
+    if add_invalid_message_key_quantity:
+        error_context = pytest.raises(IncorrectMessageKeyQuantityError,
+                                      match='Expected 2 keys in message')
+    if add_invalid_content_type:
+        error_context = pytest.raises(InvalidContentTypeError,
+                                      match='Expected content to be')
+    if add_invalid_role:
+        error_context = pytest.raises(InvalidRoleError,
+                                      match='Expected role to be one of')
+
+    if add_not_alternating_roles:
+        error_context = pytest.raises(ConsecutiveRepeatedChatRolesError,
+                                      match='Conversation roles must alternate')
+
+    with error_context:
+        build_finetuning_dataloader(cfg, tokenizer,
+                                    device_batch_size).dataloader

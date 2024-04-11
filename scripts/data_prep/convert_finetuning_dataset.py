@@ -269,6 +269,7 @@ def main(args: Namespace) -> None:
             examples_removed = 0
             for sample in tqdm(samples, desc=split_name):
                 formatted_sample = preprocessing_fn(sample)
+                assert isinstance(formatted_sample, dict)
 
                 # Use the _get_example_type utility to confirm that the formatted sample
                 # can be interpreted by the tokenization code
@@ -300,13 +301,15 @@ def main(args: Namespace) -> None:
                     out.write(sample_to_write)
                 else:
                     if example_type == 'prompt_response':
-                        encoded_sample = {
-                            key: formatted_sample[key].encode('utf-8')
-                            for key in ['prompt', 'response']
-                        }
+                        encoded_sample = {}
+                        for key in ['prompt', 'response']:
+                            value = formatted_sample[key]
+                            assert isinstance(value, str)
+                            encoded_sample[key] = value.encode('utf-8')
+                        out.write(encoded_sample)
                     else:
-                        encoded_sample = formatted_sample
-                    out.write(encoded_sample)
+                        out.write(formatted_sample)
+
         if tokenizer is not None and examples_removed > 0:
             warnings.warn(
                 f'Dropped {examples_removed} examples where the prompt was longer than {args.max_seq_len}, '

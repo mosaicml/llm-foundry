@@ -9,6 +9,7 @@ import transformers
 from llmfoundry.data.finetuning.tasks import (_ALLOWED_PROMPT_KEYS,
                                               _ALLOWED_RESPONSE_KEYS,
                                               _slice_chat_formatted_example,
+                                              dataset_constructor,
                                               tokenize_formatted_example)
 from llmfoundry.utils.builders import build_tokenizer
 
@@ -178,34 +179,67 @@ def test_tokenize_instruct_example_well_formed():
 @pytest.mark.parametrize(
     'tokenizer_name',
     ['EleutherAI/gpt-neox-20b', 'HuggingFaceH4/zephyr-7b-beta', 't5-base'])
-def test_multi_turn_chat_slicing(tokenizer_name: str):
-    convo = [
-        {
-            'role': 'system',
-            'content': 'everyone thinks you are so cool'
-        },
-        {
-            'role': 'user',
-            'content': 'hiiii'
-        },
-        {
-            'role': 'assistant',
-            'content': 'yassss'
-        },
-        {
-            'role': 'user',
-            'content': 'HIIIIII!!!'
-        },
-        {
-            'role': 'assistant',
-            'content': 'YASSSSSS'
-        },
-    ]
+@pytest.mark.parametrize('messages_format', [True, False])
+def test_multi_turn_chat_slicing(tokenizer_name: str, messages_format: bool):
+    if messages_format:
+        convo = [
+            {
+                'role': 'system',
+                'content': 'everyone thinks you are so cool'
+            },
+            {
+                'role': 'user',
+                'content': 'hiiii'
+            },
+            {
+                'role': 'assistant',
+                'content': 'yassss'
+            },
+            {
+                'role': 'user',
+                'content': 'HIIIIII!!!'
+            },
+            {
+                'role': 'assistant',
+                'content': 'YASSSSSS'
+            },
+        ]
+    else:
+        convo = [
+            {
+                'from': 'system',
+                'value': 'everyone thinks you are so cool'
+            },
+            {
+                'from': 'human',
+                'value': 'hiiii'
+            },
+            {
+                'from': 'gpt',
+                'value': 'yassss'
+            },
+            {
+                'from': 'tool',
+                'value': 'HIIIIII!!!'
+            },
+            {
+                'from': 'gpt',
+                'value': 'YASSSSSS'
+            },
+        ]
+        tmp = {'conversations': convo}
+        preprocessor = dataset_constructor.get_preprocessing_fn_from_str(
+            'teknium/OpenHermes-2.5')
+        assert preprocessor is not None
+        convo = preprocessor(tmp)['messages']
+        assert isinstance(convo, list)
+
+    example = {'messages': convo}
 
     tok = transformers.AutoTokenizer.from_pretrained(tokenizer_name)
 
     templated_prompt_response_turns = _slice_chat_formatted_example(
-        {'messages': convo}, tok)
+        example, tok)
 
     reconstructed_chat = ''
     for prompt, response in templated_prompt_response_turns:

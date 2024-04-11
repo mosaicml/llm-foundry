@@ -55,7 +55,7 @@ install_requires = [
     'mlflow>=2.10,<3',
     'accelerate>=0.25,<0.26',  # for HF inference `device_map`
     'transformers>=4.39.3,<4.40',
-    'mosaicml-streaming>=0.7.4,<0.8',
+    'mosaicml-streaming>=0.7.5,<0.8',
     'torch>=2.2.1,<2.3',
     'datasets>=2.16,<2.17',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
@@ -117,8 +117,15 @@ extra_deps['openai'] = [
     'openai==1.3.8',
     'tiktoken==0.4.0',
 ]
-extra_deps['all-cpu'] = set(
-    dep for key, deps in extra_deps.items() for dep in deps if 'gpu' not in key)
+
+extra_deps['megablocks'] = [
+    'megablocks==0.5.1',
+    'grouped-gemm==0.1.4',
+]
+
+extra_deps['all-cpu'] = set(dep for key, deps in extra_deps.items()
+                            for dep in deps
+                            if 'gpu' not in key and 'megablocks' not in key)
 extra_deps['all'] = set(dep for key, deps in extra_deps.items() for dep in deps
                         if key not in {'gpu-flash2', 'all-cpu'})
 extra_deps['all-flash2'] = set(dep for key, deps in extra_deps.items()

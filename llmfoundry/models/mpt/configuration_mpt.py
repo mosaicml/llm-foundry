@@ -19,6 +19,7 @@ from llmfoundry.models.layers.blocks import attn_config_defaults
 from llmfoundry.models.layers.norm import LPLayerNorm  # type: ignore (see note)
 from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY  # type: ignore (see note)
 from llmfoundry.models.layers.layer_builders import build_norm, build_fc  # type: ignore (see note)
+from llmfoundry.models.layers.dmoe import dMoE  # type: ignore (see note)
 from llmfoundry.layers_registry import norms  # type: ignore (see note)
 from llmfoundry.utils.registry_utils import construct_from_registry  # type: ignore (see note)
 
@@ -289,6 +290,8 @@ class MPTConfig(PretrainedConfig):
             )
         elif self.ffn_config['ffn_type'] in ['mptmlp', 'mptglu']:
             self.ffn_config['fc_type'] = self.fc_type
+        elif self.ffn_config['ffn_type'] in ['mb_moe', 'mb_dmoe']:
+            self.ffn_config['return_bias'] = False
         elif self.ffn_config['ffn_type'] == 'te_ln_mlp':
             self.ffn_config['bias'] = not self.no_bias
             if 'ffn_act_fn' in self.ffn_config.keys():

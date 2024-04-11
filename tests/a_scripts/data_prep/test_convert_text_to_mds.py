@@ -106,6 +106,7 @@ def test_single_and_multi_process(merge_shard_groups: Mock,
             processes=processes,
             args_str='Namespace()',
             reprocess=False,
+            trust_remote_code=False,
         )
 
     call_convert_text_to_mds()
@@ -195,6 +196,7 @@ def test_local_path(tmp_path: pathlib.Path):
             processes=1,
             args_str='Namespace()',
             reprocess=reprocess,
+            trust_remote_code=False,
         )
 
     # Create input text data
@@ -234,6 +236,7 @@ def test_input_folder_not_exist(tmp_path: pathlib.Path):
             processes=1,
             args_str='Namespace()',
             reprocess=False,
+            trust_remote_code=False,
         )
 
 

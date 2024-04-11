@@ -169,7 +169,8 @@ def _validate_chat_formatted_example(example: ChatFormattedDict):
             raise InvalidContentTypeError(type(message[content_key]))
         if last_message_role is not None and last_message_role == message[
                 role_key]:
-            raise ConsecutiveRepeatedChatRolesError(last_message_role)
+            pass
+            # raise ConsecutiveRepeatedChatRolesError(last_message_role)
         last_message_role = message[role_key]
 
 

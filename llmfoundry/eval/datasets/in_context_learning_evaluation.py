@@ -493,6 +493,8 @@ class InContextLearningDataset(Dataset):
         # Don't split kwargs that don't change
         # Normally split torch tensors
         # List split lists of strings
+        if isinstance(microbatch_size, float):
+            raise ValueError('split_batch does not support floating point microbatch_size.')
         chunked = {}
         for k, v in batch.items():
             if k in self.static_keys:
@@ -922,6 +924,8 @@ class InContextLearningMultipleChoiceTaskDataset(InContextLearningDataset):
         Returns:
             list: List of chunked batches
         """
+        if isinstance(microbatch_size, float):
+            raise ValueError('split_batch does not support floating point microbatch_size.')
         chunked = {}
         for k, v in batch.items():
             if k in self.static_keys:

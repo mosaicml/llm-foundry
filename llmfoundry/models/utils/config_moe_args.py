@@ -9,6 +9,7 @@ import torch
 from packaging import version
 from torch import distributed
 
+from llmfoundry.layers_registry import ffns_with_megablocks
 from llmfoundry.models.layers.ffn import resolve_ffn_hidden_size
 
 
@@ -156,7 +157,7 @@ def config_moe_args(
     Returns:
         ffn_config (dict): FFN configuration with MoE configured.
     """
-    if ffn_config['ffn_type'] in ('mb_moe', 'mb_dmoe'):
+    if ffn_config['ffn_type'] in ffns_with_megablocks:
         return config_megablocks_moe_args(
             ffn_config=ffn_config,
             d_model=d_model,

@@ -20,6 +20,7 @@ import torch.nn.functional as F
 from composer.models import HuggingFaceModel
 from composer.utils import dist
 
+from llmfoundry.layers_registry import ffns_with_megablocks
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 
 if is_flash_v2_installed():
@@ -324,7 +325,7 @@ class MPTModel(MPTPreTrainedModel):
         self.emb_drop = nn.Dropout(config.emb_pdrop)
         self.mb_args = None
         block_args = config.to_dict()
-        if block_args['ffn_config']['ffn_type'] in ('mb_moe', 'mb_dmoe'):
+        if block_args['ffn_config']['ffn_type'] in ffns_with_megablocks:
             block_args['ffn_config'] = config_moe_args(
                 block_args['ffn_config'],
                 config.d_model,
@@ -1026,7 +1027,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         return targets
 
     def forward(self, batch: MutableMapping) -> CausalLMOutputWithPast:
-        if self.config.ffn_config['ffn_type'] in ('mb_moe', 'mb_dmoe'):
+        if self.config.ffn_config['ffn_type'] in ffns_with_megablocks:
             # Clear MegaBlocks MoE load balancing loss cache
             try:  # Add try/catch to avoid transformers complaining and raising errors
                 from megablocks.layers.moe import clear_load_balancing_loss
@@ -1053,7 +1054,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         else:
             loss = losses.sum() / (targets != self.loss_fn.ignore_index).sum()
 
-        if self.config.ffn_config['ffn_type'] in ('mb_moe', 'mb_dmoe'):
+        if self.config.ffn_config['ffn_type'] in ffns_with_megablocks:
             # MegaBlocks MoE load balancing loss
             try:  # Add try/catch to avoid transformers complaining and raising errors
                 from megablocks.layers.moe import batched_load_balancing_loss

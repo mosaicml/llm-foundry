@@ -33,8 +33,19 @@ ffns_with_norm = create_registry('llmfoundry',
                                  entry_points=True,
                                  description=_ffns_with_norm_description)
 
+_ffns_with_megablocks_description = (
+    'The ffns_with_megablocks registry is used to register functions that build ffn layers using MegaBlocks.'
+    + 'See ffn.py for examples.')
+ffns_with_megablocks = create_registry(
+    'llmfoundry',
+    'ffns_with_megablocks',
+    generic_type=Callable,
+    entry_points=True,
+    description=_ffns_with_megablocks_description)
+
 __all__ = [
     'norms',
     'ffns',
     'ffns_with_norm',
+    'ffns_with_megablocks',
 ]

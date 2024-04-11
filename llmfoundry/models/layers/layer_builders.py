@@ -5,7 +5,8 @@ from typing import Any, Dict, List, Optional, Union
 
 import torch
 
-from llmfoundry.layers_registry import ffns, ffns_with_norm, norms
+from llmfoundry.layers_registry import (ffns, ffns_with_megablocks,
+                                        ffns_with_norm, norms)
 from llmfoundry.utils.registry_utils import construct_from_registry
 
 
@@ -37,6 +38,9 @@ def build_ffn(
     if name in ffns_with_norm:
         registry_to_use = ffns_with_norm
 
+    if name in ffns_with_megablocks:
+        registry_to_use = ffns_with_megablocks
+
     kwargs = {
         'd_model': d_model,
         'expansion_ratio': expansion_ratio,
@@ -58,5 +62,8 @@ def build_ffn(
 
     if name in ffns_with_norm:
         result._has_norm = True
+
+    if name in ffns_with_megablocks:
+        result._uses_megablocks = True
 
     return result

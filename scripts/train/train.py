@@ -26,6 +26,7 @@ from llmfoundry.utils import (find_mosaicml_logger, log_train_analytics,
 install()
 from llmfoundry.callbacks import AsyncEval
 from llmfoundry.data.dataloader import build_dataloader
+from llmfoundry.layers_registry import ffns_with_megablocks
 from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_algorithm, build_callback,
                                        build_composer_model, build_evaluators,
@@ -102,7 +103,7 @@ def validate_config(cfg: DictConfig):
         )
 
     if cfg.model.get('ffn_config', {}).get('ffn_type',
-                                           'mptmlp') in ('mb_moe', 'mb_dmoe'):
+                                           'mptmlp') in ffns_with_megablocks:
         moe_world_size = cfg.model.get('ffn_config',
                                        {}).get('moe_world_size', 1)
         use_orig_params = cfg.get('fsdp_config',

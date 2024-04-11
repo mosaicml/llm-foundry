@@ -13,7 +13,8 @@ import torch.nn as nn
 from torch.distributed import ProcessGroup
 from torch.distributed._tensor import DeviceMesh, DTensor, Placement, Shard
 
-from llmfoundry.layers_registry import ffns, ffns_with_norm
+from llmfoundry.layers_registry import (ffns, ffns_with_megablocks,
+                                        ffns_with_norm)
 from llmfoundry.models.layers.dmoe import dMoE
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
 
@@ -444,5 +445,5 @@ if is_te_imported:
     ffns_with_norm.register('te_ln_mlp', func=build_te_ln_mlp)
 
 if is_megablocks_imported:
-    ffns.register('mb_moe', func=build_mb_moe)
-    ffns.register('mb_dmoe', func=build_mb_dmoe)
+    ffns_with_megablocks.register('mb_moe', func=build_mb_moe)
+    ffns_with_megablocks.register('mb_dmoe', func=build_mb_dmoe)

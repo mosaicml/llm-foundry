@@ -8,6 +8,7 @@ from typing import Any, Dict, Optional, Union
 
 from transformers import PretrainedConfig
 
+from llmfoundry.layers_registry import ffns_with_megablocks
 from llmfoundry.models.layers.attention import (check_alibi_support,
                                                 is_flash_v2_installed)
 from llmfoundry.models.layers.blocks import attn_config_defaults
@@ -290,7 +291,7 @@ class MPTConfig(PretrainedConfig):
             )
         elif self.ffn_config['ffn_type'] in ['mptmlp', 'mptglu']:
             self.ffn_config['fc_type'] = self.fc_type
-        elif self.ffn_config['ffn_type'] in ['mb_moe', 'mb_dmoe']:
+        elif self.ffn_config['ffn_type'] in ffns_with_megablocks:
             self.ffn_config['return_bias'] = False
         elif self.ffn_config['ffn_type'] == 'te_ln_mlp':
             self.ffn_config['bias'] = not self.no_bias

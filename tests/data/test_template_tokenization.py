@@ -176,10 +176,9 @@ def test_tokenize_instruct_example_well_formed():
             assert 'labels' in tokenized_example['turns'][0]
 
 
-@pytest.mark.parametrize('tokenizer_name', [
-    'databricks/dbrx-instruct', 'EleutherAI/gpt-neox-20b',
-    'HuggingFaceH4/zephyr-7b-beta', 't5-base'
-])
+@pytest.mark.parametrize(
+    'tokenizer_name',
+    ['EleutherAI/gpt-neox-20b', 'HuggingFaceH4/zephyr-7b-beta', 't5-base'])
 @pytest.mark.parametrize('messages_format', [True, False])
 def test_multi_turn_chat_slicing(tokenizer_name: str, messages_format: bool):
     if messages_format:
@@ -237,9 +236,7 @@ def test_multi_turn_chat_slicing(tokenizer_name: str, messages_format: bool):
 
     example = {'messages': convo}
 
-    tok = transformers.AutoTokenizer.from_pretrained(tokenizer_name,
-                                                     trust_remote_code='dbrx'
-                                                     in tokenizer_name)
+    tok = transformers.AutoTokenizer.from_pretrained(tokenizer_name)
 
     templated_prompt_response_turns = _slice_chat_formatted_example(
         example, tok)

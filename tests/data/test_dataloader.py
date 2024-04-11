@@ -1103,7 +1103,7 @@ def test_sharegpt_format(tmp_path: pathlib.Path,
                          add_invalid_message_key_quantity: bool,
                          add_invalid_content_type: bool, add_invalid_role: bool,
                          add_not_alternating_roles: bool):
-    tokenizer_name = 'databricks/dbrx-instruct'
+    tokenizer_name = 'mosaicml/mpt-30b-chat'
     max_seq_len = 2048
     dataset_size = 5
     device_batch_size = 5
@@ -1112,10 +1112,7 @@ def test_sharegpt_format(tmp_path: pathlib.Path,
 
     tokenizer = build_tokenizer(
         tokenizer_name=tokenizer_name,
-        tokenizer_kwargs={
-            'model_max_length': max_seq_len,
-            'trust_remote_code': True
-        },
+        tokenizer_kwargs={'model_max_length': max_seq_len},
     )
     tokenizer.add_special_tokens({
         'pad_token': '<pad>',

@@ -10,6 +10,7 @@ from typing import Any, Callable, List, Optional, Union
 
 import torch
 import torch.nn as nn
+from torch.distributed import ProcessGroup
 from torch.distributed._tensor import DeviceMesh, DTensor, Placement, Shard
 
 from llmfoundry.layers_registry import ffns, ffns_with_norm
@@ -234,6 +235,7 @@ def build_te_ln_mlp(
         **kwargs,
     )
 
+
 def build_torch_dmoe(
     d_model: int,
     expansion_ratio: Union[int, float],
@@ -254,19 +256,20 @@ def build_torch_dmoe(
         raise ValueError(f'Invalid arguments to torch dmoe: {kwargs}.')
 
     return dMoE(
-            hidden_size=d_model,
-            ffn_hidden_size=resolve_ffn_hidden_size(d_model, expansion_ratio,
-                                                    ffn_hidden_size),
-            moe_num_experts=moe_num_experts,
-            moe_top_k=moe_top_k,
-            mlp_type=mlp_type,
-            bias=bias,
-            moe_jitter_eps=moe_jitter_eps,
-            activation_fn=resolve_ffn_act_fn(ffn_act_fn),
-            moe_normalize_expert_weights=moe_normalize_expert_weights,
-            uniform_expert_assignment=uniform_expert_assignment,
-            device=device,  # pyright: ignore[reportGeneralTypeIssues]
-        )
+        hidden_size=d_model,
+        ffn_hidden_size=resolve_ffn_hidden_size(d_model, expansion_ratio,
+                                                ffn_hidden_size),
+        moe_num_experts=moe_num_experts,
+        moe_top_k=moe_top_k,
+        mlp_type=mlp_type,
+        bias=bias,
+        moe_jitter_eps=moe_jitter_eps,
+        activation_fn=resolve_ffn_act_fn(ffn_act_fn),
+        moe_normalize_expert_weights=moe_normalize_expert_weights,
+        uniform_expert_assignment=uniform_expert_assignment,
+        device=device,  # pyright: ignore[reportGeneralTypeIssues]
+    )
+
 
 def _mb_setup_args(
     d_model: int,
@@ -276,7 +279,7 @@ def _mb_setup_args(
     device: Optional[str],
     bias: bool,
     kwargs: dict[str, Any],
-) -> tuple['megablocks.layers.arguments.Arguments', int, torch.distributed.ProcessGroup]:
+) -> tuple['megablocks.layers.arguments.Arguments', int, ProcessGroup]:
     if megablocks is None:
         raise RuntimeError(
             'Requirements for megablocks not installed; see install instructions in `README.md`.'
@@ -287,7 +290,7 @@ def _mb_setup_args(
     args.device = device
 
     ffn_hidden_size = resolve_ffn_hidden_size(d_model, expansion_ratio,
-                                                ffn_hidden_size)
+                                              ffn_hidden_size)
     args.ffn_hidden_size = ffn_hidden_size
 
     if ffn_act_fn is not None:
@@ -299,15 +302,15 @@ def _mb_setup_args(
         moe_world_size = expert_parallel_group.size()
     if kwargs.get('moe_world_size') != moe_world_size:
         raise RuntimeError(
-            f'MoE expert_parallel_group configured with incorrect world size.'
-        )
-    
+            f'MoE expert_parallel_group configured with incorrect world size.')
+
     return args, moe_world_size, expert_parallel_group
+
 
 def _patch_ffn_mb(
     ffn: nn.Module,
     moe_world_size: int,
-    expert_parallel_group: torch.distributed.ProcessGroup,
+    expert_parallel_group: ProcessGroup,
     device_mesh: DeviceMesh,
     args: 'megablocks.layers.arguments.Arguments',
     **kwargs: Any,
@@ -325,9 +328,9 @@ def _patch_ffn_mb(
         # Register in two loops as you cannot overwrite parameters while iterating over named_parameters()
         dtensorified_params = [
             (name,
-                dtensorify_param(param=parameter,
-                                mesh=expert_mesh,
-                                placements=expert_placements))
+             dtensorify_param(param=parameter,
+                              mesh=expert_mesh,
+                              placements=expert_placements))
             for name, parameter in ffn.experts.mlp.named_parameters()
         ]
         for name, dtensorified_param in dtensorified_params:
@@ -339,13 +342,11 @@ def _patch_ffn_mb(
         elif device_mesh.mesh.ndim == 3:
             raise RuntimeError(f'HSDP + MoE is not supported.')
         else:
-            raise ValueError(
-                f'{device_mesh.mesh.ndim=} not supported for MoE.')
+            raise ValueError(f'{device_mesh.mesh.ndim=} not supported for MoE.')
 
         ffn.experts._fsdp_kwargs_dict = {
             'device_mesh': submesh,
         }
-
 
 
 def build_mb_moe(
@@ -386,6 +387,8 @@ def build_mb_moe(
         args=args,
         **kwargs,
     )
+
+    return ffn
 
 
 def build_mb_dmoe(
@@ -429,6 +432,9 @@ def build_mb_dmoe(
         args=args,
         **kwargs,
     )
+
+    return ffn
+
 
 ffns.register('mptglu', func=build_mptglu)
 ffns.register('mptmlp', func=build_mptmlp)

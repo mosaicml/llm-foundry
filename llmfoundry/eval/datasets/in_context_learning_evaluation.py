@@ -478,7 +478,7 @@ class InContextLearningDataset(Dataset):
         batch['attention_mask'] = ~(batch['input_ids'] == self.pad_tok_id)
         return batch
 
-    def split_batch(self, batch: Any, microbatch_size: int) -> Sequence:
+    def split_batch(self, batch: Any, microbatch_size: int) -> Sequence[Any]:
         """Handling for certain specialty columns that must be split into.
 
         batches in different formats.
@@ -905,7 +905,7 @@ class InContextLearningMultipleChoiceTaskDataset(InContextLearningDataset):
     def get_num_samples_in_batch(self, batch: Dict[str, torch.Tensor]) -> int:
         return batch['input_ids'].shape[0] // self.num_choices
 
-    def split_batch(self, batch: Any, microbatch_size: int) -> Sequence:
+    def split_batch(self, batch: Any, microbatch_size: int) -> Sequence[Any]:
         """Split batch while ensuring all continuations are in the same.
 
         microbatch.

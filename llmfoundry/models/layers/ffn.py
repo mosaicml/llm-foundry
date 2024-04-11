@@ -12,8 +12,8 @@ import torch
 import torch.nn as nn
 from torch.distributed._tensor import DeviceMesh, DTensor, Placement, Shard
 
-from llmfoundry.models.layers.layer_builders import build_fc
 from llmfoundry.models.layers.dmoe import dMoE
+from llmfoundry.models.layers.layer_builders import build_fc
 
 try:
     import transformer_engine.pytorch as te

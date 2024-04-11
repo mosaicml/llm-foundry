@@ -13,7 +13,6 @@ from torch import nn
 from torch.distributed._tensor import DTensor
 
 from llmfoundry.layers_registry import fcs, norms
-from llmfoundry.layers_registry import norms
 from llmfoundry.models.layers.dmoe import GLU, MLP
 
 try:

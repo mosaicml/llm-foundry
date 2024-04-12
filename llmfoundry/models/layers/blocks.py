@@ -74,7 +74,7 @@ class MPTBlock(nn.Module):
         del kwargs  # unused, just to capture any extra args from the config
         super().__init__()
 
-        ffn_type = ffn_config.pop('ffn_type')
+        ffn_type = ffn_config['ffn_type']
 
         self.ffn = build_ffn(
             name=ffn_type,

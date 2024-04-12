@@ -35,6 +35,7 @@ def build_ffn(
     bias: bool,
     ffn_kwargs: Dict[str, Any],
 ):
+
     registry_to_use = ffns
     if name in ffns_with_norm:
         registry_to_use = ffns_with_norm
@@ -47,7 +48,7 @@ def build_ffn(
         'expansion_ratio': expansion_ratio,
         'device': device,
         'bias': bias,
-        **ffn_kwargs,
+        **{k:v for k,v in ffn_kwargs.items() if k != 'ffn_type'},
     }
 
     def _validation_function(maybe_module: Any):

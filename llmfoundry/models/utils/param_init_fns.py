@@ -328,6 +328,8 @@ def moe_init(
     print(type(module))
     print(isinstance(module, GLU))
     print(isinstance(module, MLP))
+    print(GLU)
+    print(MLP)
     if megablocks is not None and isinstance(module, (
             megablocks.layers.moe.MoE,
             megablocks.layers.dmoe.dMoE,

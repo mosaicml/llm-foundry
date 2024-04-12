@@ -317,6 +317,52 @@ def te_layernorm_mlp_init(
     return False
 
 
+def moe_init(
+    module: nn.Module,
+    init_fn_: Callable,
+    init_div_is_residual: Union[int, float, str, bool],
+    div_is_residual: float,
+    **kwargs: Any,
+) -> bool:
+    if megablocks is not None and isinstance(module, (
+            megablocks.layers.moe.MoE,
+            megablocks.layers.dmoe.dMoE,
+            megablocks.layers.moe.ParallelMLP,
+            megablocks.layers.dmoe.ParallelDroplessMLP,
+    )):
+        if hasattr(module, 'bias') and module.bias is not None:
+            # Initialize bias to 0
+            torch.nn.init.zeros_(module.bias)  # type: ignore
+        return True
+    elif megablocks is not None and isinstance(module,
+                                               megablocks.layers.glu.SparseGLU):
+        _megablocks_sparse_glu_generic_param_init_fn_(
+            module, init_fn_, bool(init_div_is_residual), div_is_residual)
+        return True
+    elif megablocks is not None and isinstance(module,
+                                               megablocks.layers.mlp.SparseMLP):
+        _megablocks_sparse_mlp_generic_param_init_fn_(
+            module, init_fn_, bool(init_div_is_residual), div_is_residual)
+        return True
+    elif megablocks is not None and isinstance(module,
+                                               megablocks.layers.mlp.MLP):
+        _megablocks_mlp_generic_param_init_fn_(module, init_fn_,
+                                               bool(init_div_is_residual),
+                                               div_is_residual)
+        return True
+    elif isinstance(module, GLU):
+        init_fn_(module.w1)
+        init_fn_(module.v1)
+        init_fn_(module.w2)
+        return True
+    elif isinstance(module, MLP):
+        init_fn_(module.w1)
+        init_fn_(module.w2)
+        return True
+
+    return False
+
+
 def generic_param_init_fn_(
     module: nn.Module,
     init_fn_: Callable,
@@ -350,37 +396,6 @@ def generic_param_init_fn_(
         raise ValueError(
             f'Expected init_div_is_residual to be boolean or numeric, got {init_div_is_residual}'
         )
-
-    # TODO: FINISH MERGING
-    # elif megablocks is not None and isinstance(module, (
-    #         megablocks.layers.moe.MoE,
-    #         megablocks.layers.dmoe.dMoE,
-    #         megablocks.layers.moe.ParallelMLP,
-    #         megablocks.layers.dmoe.ParallelDroplessMLP,
-    # )):
-    #     if hasattr(module, 'bias') and module.bias is not None:
-    #         # Initialize bias to 0
-    #         torch.nn.init.zeros_(module.bias)  # type: ignore
-    # elif megablocks is not None and isinstance(module,
-    #                                            megablocks.layers.glu.SparseGLU):
-    #     _megablocks_sparse_glu_generic_param_init_fn_(
-    #         module, init_fn_, bool(init_div_is_residual), div_is_residual)
-    # elif megablocks is not None and isinstance(module,
-    #                                            megablocks.layers.mlp.SparseMLP):
-    #     _megablocks_sparse_mlp_generic_param_init_fn_(
-    #         module, init_fn_, bool(init_div_is_residual), div_is_residual)
-    # elif megablocks is not None and isinstance(module,
-    #                                            megablocks.layers.mlp.MLP):
-    #     _megablocks_mlp_generic_param_init_fn_(module, init_fn_,
-    #                                            bool(init_div_is_residual),
-    #                                            div_is_residual)
-    # elif isinstance(module, GLU):
-    #     init_fn_(module.w1)
-    #     init_fn_(module.v1)
-    #     init_fn_(module.w2)
-    # elif isinstance(module, MLP):
-    #     init_fn_(module.w1)
-    #     init_fn_(module.w2)
 
     all_module_init_fns = [
         module_init_fns.get(name) for name in module_init_fns.get_all()
@@ -827,3 +842,4 @@ module_init_fns.register('embedding', func=embedding_init)
 module_init_fns.register('norm', func=norm_init)
 module_init_fns.register('multihead_attention', func=multihead_attention_init)
 module_init_fns.register('te_layernorm_mlp', func=te_layernorm_mlp_init)
+module_init_fns.register('moe', func=moe_init)

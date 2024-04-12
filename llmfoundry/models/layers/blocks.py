@@ -201,7 +201,7 @@ class FusedNormAttentionNorm(nn.Module):
         d_model: int,
         n_heads: int,
         attn_config: Optional[Dict] = None,
-        ffn_config: Optional[Dict] = None,
+        ffn_type: str = 'mptmlp',
         fc_type: str = 'torch',
         resid_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
@@ -211,7 +211,6 @@ class FusedNormAttentionNorm(nn.Module):
     ):
         super().__init__()
         assert attn_config is not None
-        assert ffn_config is not None
         assert isinstance(attn_config['attn_type'], str)
 
         # necessary to avoid passing extraneous args into attn_class while allowing the use of **kwargs
@@ -241,8 +240,6 @@ class FusedNormAttentionNorm(nn.Module):
                 **attn_config_subset_for_attn_class
             },
         )
-
-        ffn_type = ffn_config.pop('ffn_type')
 
         self.norm_2 = None
         if not ffn_type in ffns_with_norm:

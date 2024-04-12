@@ -20,6 +20,8 @@ from torch.distributed.checkpoint.state_dict import (StateDictOptions,
 from torch.distributed.tensor.parallel.ddp import _pre_dp_module_transform
 from torch.nn.parallel import DistributedDataParallel as DDP
 
+from composer.utils import dist as cdist
+
 from llmfoundry.models.layers.dmoe import dMoE
 from llmfoundry.models.layers.ffn import dtensorify_param
 from llmfoundry.models.mpt.configuration_mpt import MPTConfig
@@ -192,7 +194,7 @@ def test_dmoe(moe_num_experts: int, mlp_type: str, moe_world_size: int,
 # TODO(GRT-2435): Change to fixture
 def delete_transformers_cache():
     # Only delete the files on local rank 0, otherwise race conditions are created
-    if not dist.get_local_rank() == 0:
+    if not cdist.get_local_rank() == 0:
         return
 
     hf_cache_home = os.path.expanduser(

@@ -2,8 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import copy
-import os
-import shutil
 from contextlib import nullcontext
 from functools import partial
 from typing import List, Optional
@@ -13,7 +11,6 @@ import torch
 import torch.distributed as dist
 import torch.nn.functional as F
 import torch.optim as optim
-from composer.utils import dist as cdist
 from torch.distributed._tensor import DTensor, Placement, Replicate, Shard
 from torch.distributed._tensor.device_mesh import init_device_mesh
 from torch.distributed.checkpoint.state_dict import (StateDictOptions,
@@ -191,23 +188,6 @@ def test_dmoe(moe_num_experts: int, mlp_type: str, moe_world_size: int,
     torch.testing.assert_close(torch_y, mb_y)
 
 
-# TODO(GRT-2435): Change to fixture
-def delete_transformers_cache():
-    # Only delete the files on local rank 0, otherwise race conditions are created
-    if not cdist.get_local_rank() == 0:
-        return
-
-    hf_cache_home = os.path.expanduser(
-        os.getenv(
-            'HF_HOME',
-            os.path.join(os.getenv('XDG_CACHE_HOME', '~/.cache'),
-                         'huggingface')))
-    HF_MODULES_CACHE = os.getenv('HF_MODULES_CACHE',
-                                 os.path.join(hf_cache_home, 'modules'))
-    if os.path.exists(HF_MODULES_CACHE) and os.path.isdir(HF_MODULES_CACHE):
-        shutil.rmtree(HF_MODULES_CACHE)
-
-
 @pytest.mark.skipif(not is_megablocks_imported,
                     reason='This test needs megablocks module')
 @pytest.mark.gpu
@@ -215,15 +195,6 @@ def delete_transformers_cache():
 @pytest.mark.parametrize('mlp_type', ['glu', 'mlp'])
 @pytest.mark.parametrize('precision', ['bf16', 'fp32'])
 def test_fwd_equal_dmoe(seqlen: int, precision: str, mlp_type: str):
-    delete_transformers_cache()
-
-    from llmfoundry.layers_registry import module_init_fns
-    print(module_init_fns.get_all())
-
-    from llmfoundry.models.layers.ffn import resolve_ffn_act_fn  # type: ignore
-
-    print(module_init_fns.get_all())
-
     mb_dmoe_config = MPTConfig(d_model=1024,
                                n_heads=32,
                                n_layers=1,
@@ -290,5 +261,3 @@ def test_fwd_equal_dmoe(seqlen: int, precision: str, mlp_type: str):
         mpt_logits = mb_dmoe_model(token_ids).logits
         db_logits = torch_dmoe_model(token_ids).logits
         assert torch.allclose(mpt_logits, db_logits, rtol=0.01, atol=0.01)
-
-    delete_transformers_cache()

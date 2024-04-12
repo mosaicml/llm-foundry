@@ -77,7 +77,7 @@ class MPTBlock(nn.Module):
             expansion_ratio=expansion_ratio,
             device=device,
             bias=not no_bias,
-            **ffn_config,
+            ffn_kwargs=ffn_config,
         )
 
         if self.fuse_norm_attn_norm:

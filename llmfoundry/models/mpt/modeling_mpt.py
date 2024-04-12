@@ -325,6 +325,7 @@ class MPTModel(MPTPreTrainedModel):
         self.emb_drop = nn.Dropout(config.emb_pdrop)
         self.mb_args = None
         block_args = config.to_dict()
+        print(block_args['ffn_config'])
         if block_args['ffn_config']['ffn_type'] in ffns_with_megablocks:
             block_args['ffn_config'] = config_moe_args(
                 block_args['ffn_config'],
@@ -332,6 +333,7 @@ class MPTModel(MPTPreTrainedModel):
                 config.expansion_ratio,
                 config.n_layers,
             )
+            print(block_args['ffn_config'])
             self.mb_args = block_args['ffn_config'].get('args')
         self.blocks = nn.ModuleList([
             MPTBlock(

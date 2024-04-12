@@ -16,7 +16,7 @@ from torch.distributed._tensor import DeviceMesh, DTensor, Placement, Shard
 from llmfoundry.layers_registry import (ffns, ffns_with_megablocks,
                                         ffns_with_norm)
 from llmfoundry.models.layers.dmoe import dMoE
-from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
+from llmfoundry.models.layers.layer_builders import build_fc
 
 try:
     import transformer_engine.pytorch as te
@@ -55,7 +55,7 @@ def resolve_ffn_act_fn(
     config = deepcopy(config)
     name = config.pop('name')
     if not hasattr(torch.nn.functional, name):
-        raise ValueError(f'Unrecognised activation function name ({name}).')
+        raise ValueError(f'Unrecognized activation function name ({name}).')
     act = getattr(torch.nn.functional, name)
     return partial(act, **config)
 
@@ -124,16 +124,18 @@ class MPTMLP(nn.Module):
 
         self.fc_kwargs['device'] = device
 
-        self.up_proj = FC_CLASS_REGISTRY[fc_type](
-            d_model,
-            ffn_hidden_size,
-            **self.fc_kwargs,
+        self.up_proj = build_fc(
+            name=fc_type,
+            in_features=d_model,
+            out_features=ffn_hidden_size,
+            fc_kwargs=self.fc_kwargs,
         )
         self.act = act_fn
-        self.down_proj = FC_CLASS_REGISTRY[fc_type](
-            ffn_hidden_size,
-            d_model,
-            **self.fc_kwargs,
+        self.down_proj = build_fc(
+            name=fc_type,
+            in_features=ffn_hidden_size,
+            out_features=d_model,
+            fc_kwargs=self.fc_kwargs,
         )
         self.down_proj._is_residual = True
 
@@ -162,10 +164,11 @@ class MPTGLU(MPTMLP):
             device=device,
             bias=bias,
         )
-        self.gate_proj = FC_CLASS_REGISTRY[fc_type](
-            d_model,
-            self.up_proj.out_features,
-            **self.fc_kwargs,
+        self.gate_proj = build_fc(
+            name=fc_type,
+            in_features=d_model,
+            out_features=self.up_proj.out_features,
+            fc_kwargs=self.fc_kwargs,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

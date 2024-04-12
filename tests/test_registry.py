@@ -33,6 +33,7 @@ def test_expected_registries_exist():
         'norms',
         'ffns',
         'ffns_with_norm',
+        'fcs',
     }
 
     assert existing_registries == expected_registry_names

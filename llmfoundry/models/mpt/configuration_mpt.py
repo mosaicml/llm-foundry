@@ -17,9 +17,8 @@ from llmfoundry.models.layers.blocks import attn_config_defaults
 # HuggingFace can detect all the needed files to copy into its modules folder.
 # Otherwise, certain modules are missing.
 # isort: off
-from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY  # type: ignore (see note)
 from llmfoundry.models.layers.norm import LPLayerNorm  # type: ignore (see note)
-from llmfoundry.models.layers.layer_builders import build_norm, build_ffn  # type: ignore (see note)
+from llmfoundry.models.layers.layer_builders import build_norm, build_fc, build_ffn  # type: ignore (see note)
 from llmfoundry.models.layers.dmoe import dMoE  # type: ignore (see note)
 from llmfoundry.layers_registry import norms  # type: ignore (see note)
 from llmfoundry.utils.registry_utils import construct_from_registry  # type: ignore (see note)

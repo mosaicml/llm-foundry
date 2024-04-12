@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import torch
 
-from llmfoundry.layers_registry import (ffns, ffns_with_megablocks,
+from llmfoundry.layers_registry import (fcs, ffns, ffns_with_megablocks,
                                         ffns_with_norm, norms)
 from llmfoundry.utils.registry_utils import construct_from_registry
 
@@ -67,3 +67,21 @@ def build_ffn(
         result._uses_megablocks = True
 
     return result
+
+
+def build_fc(
+    name: str,
+    in_features: int,
+    out_features: int,
+    fc_kwargs: Dict[str, Any],
+):
+    kwargs = {
+        'in_features': in_features,
+        'out_features': out_features,
+        **fc_kwargs,
+    }
+
+    return construct_from_registry(name=name,
+                                   registry=fcs,
+                                   pre_validation_function=torch.nn.Module,
+                                   kwargs=kwargs)

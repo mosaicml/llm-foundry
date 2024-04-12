@@ -12,7 +12,7 @@ from torchmetrics import Metric
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.interfaces import CallbackWithConfig
-from llmfoundry.layers_registry import (ffns, ffns_with_megablocks,
+from llmfoundry.layers_registry import (fcs, ffns, ffns_with_megablocks,
                                         ffns_with_norm, norms)
 from llmfoundry.utils.registry_utils import create_registry
 
@@ -125,4 +125,5 @@ __all__ = [
     'ffns',
     'ffns_with_norm',
     'ffns_with_megablocks',
+    'fcs',
 ]

@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import torch
 
-from llmfoundry.layers_registry import attention_classes, norms
+from llmfoundry.layers_registry import attention_classes, norms, fcs
 from llmfoundry.utils.registry_utils import construct_from_registry
 
 
@@ -33,3 +33,20 @@ def build_attention_layer(
                                    registry=attention_classes,
                                    pre_validation_function=torch.nn.Module,
                                    kwargs=attn_kwargs)
+
+def build_fc(
+    name: str,
+    in_features: int,
+    out_features: int,
+    fc_kwargs: Dict[str, Any],
+):
+    kwargs = {
+        'in_features': in_features,
+        'out_features': out_features,
+        **fc_kwargs,
+    }
+
+    return construct_from_registry(name=name,
+                                   registry=fcs,
+                                   pre_validation_function=torch.nn.Module,
+                                   kwargs=kwargs)

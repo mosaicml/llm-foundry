@@ -16,8 +16,7 @@ from torch import nn
 
 from llmfoundry.layers_registry import (attention_classes,
                                         attention_implementations)
-from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
-from llmfoundry.models.layers.layer_builders import build_norm
+from llmfoundry.models.layers.layer_builders import build_fc, build_norm
 
 
 def is_flash_v2_installed(v2_version: str = '2.0.0'):
@@ -409,10 +408,11 @@ class GroupedQueryAttention(nn.Module):
             'bias': bias,
         }
         fc_kwargs['device'] = device
-        self.Wqkv = FC_CLASS_REGISTRY[fc_type](
-            self.d_model,
-            self.d_model + 2 * self.kv_n_heads * self.head_dim,
-            **fc_kwargs,
+        self.Wqkv = build_fc(
+            name=fc_type,
+            in_features=self.d_model,
+            out_features=self.d_model + 2 * self.kv_n_heads * self.head_dim,
+            fc_kwargs=fc_kwargs,
         )
         # for param init fn; enables shape based init of fused layers
         fuse_splits = [
@@ -438,10 +438,11 @@ class GroupedQueryAttention(nn.Module):
 
         self.attn_fn = attention_implementations.get(self.attn_impl)
 
-        self.out_proj = FC_CLASS_REGISTRY[fc_type](
-            self.d_model,
-            self.d_model,
-            **fc_kwargs,
+        self.out_proj = build_fc(
+            name=fc_type,
+            in_features=self.d_model,
+            out_features=self.d_model,
+            fc_kwargs=fc_kwargs,
         )
         self.out_proj._is_residual = True
 

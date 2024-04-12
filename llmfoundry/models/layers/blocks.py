@@ -8,6 +8,7 @@ from typing import Any, Dict, Optional, Tuple
 import torch
 import torch.nn as nn
 
+from llmfoundry.layers_registry import ffns_with_norm
 from llmfoundry.models.layers.attention import ATTN_CLASS_REGISTRY
 from llmfoundry.models.layers.layer_builders import build_ffn, build_norm
 
@@ -239,17 +240,9 @@ class FusedNormAttentionNorm(nn.Module):
         )
 
         ffn_type = ffn_config.pop('ffn_type')
-        self.ffn = build_ffn(
-            name=ffn_type,
-            d_model=d_model,
-            expansion_ratio=expansion_ratio,
-            device=device,
-            bias=not no_bias,
-            ffn_kwargs=ffn_config,
-        )
 
         self.norm_2 = None
-        if not getattr(self.ffn, '_has_norm', False):
+        if not ffn_type in ffns_with_norm:
             self.norm_2 = build_norm(
                 name=norm_type.lower(),
                 normalized_shape=d_model,

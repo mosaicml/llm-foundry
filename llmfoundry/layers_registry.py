@@ -26,6 +26,34 @@ fcs = create_registry('llmfoundry',
                       entry_points=True,
                       description=_fc_description)
 
+_ffns_description = (
+    'The ffns registry is used to register functions that build ffn layers.' +
+    'See ffn.py for examples.')
+ffns = create_registry('llmfoundry',
+                       'ffns',
+                       generic_type=Callable,
+                       entry_points=True,
+                       description=_ffns_description)
+
+_ffns_with_norm_description = (
+    'The ffns_with_norm registry is used to register functions that build ffn layers that apply a normalization layer.'
+    + 'See ffn.py for examples.')
+ffns_with_norm = create_registry('llmfoundry',
+                                 'ffns_with_norm',
+                                 generic_type=Callable,
+                                 entry_points=True,
+                                 description=_ffns_with_norm_description)
+
+_ffns_with_megablocks_description = (
+    'The ffns_with_megablocks registry is used to register functions that build ffn layers using MegaBlocks.'
+    + 'See ffn.py for examples.')
+ffns_with_megablocks = create_registry(
+    'llmfoundry',
+    'ffns_with_megablocks',
+    generic_type=Callable,
+    entry_points=True,
+    description=_ffns_with_megablocks_description)
+
 _attention_classes_description = (
     'The attention_classes registry is used to register classes that implement attention layers. See '
     + 'attention.py for expected constructor signature.')
@@ -69,6 +97,9 @@ __all__ = [
     'norms',
     'param_init_fns',
     'module_init_fns',
+    'ffns',
+    'ffns_with_norm',
+    'ffns_with_megablocks',
     'attention_classes',
     'attention_implementations',
     'fcs',

@@ -145,7 +145,7 @@ def construct_from_registry(
         )
 
     if post_validation_function is not None:
-        post_validation_function(registered_constructor)
+        post_validation_function(constructed_item)
 
     return constructed_item
 

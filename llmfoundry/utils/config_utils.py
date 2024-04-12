@@ -11,6 +11,7 @@ from composer.utils import dist
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 
+from llmfoundry.layers_registry import ffns_with_megablocks
 from llmfoundry.models.utils import init_empty_weights
 
 log = logging.getLogger(__name__)
@@ -131,7 +132,7 @@ def process_init_device(model_cfg: DictConfig, fsdp_config: Optional[Dict]):
 
     # Set ffn_config.device_mesh to fsdp_config.device_mesh
     if fsdp_config is not None and 'device_mesh' in fsdp_config and 'ffn_config' in model_cfg and model_cfg[
-            'ffn_config'].get('ffn_type', None) in {'mb_moe', 'mb_dmoe'}:
+            'ffn_config'].get('ffn_type', None) in ffns_with_megablocks:
         # Raise ValueError if not using device mesh with MoE expert parallelism
         if fsdp_config['device_mesh'] is None and model_cfg['ffn_config'].get(
                 'moe_world_size', 1) > 1:

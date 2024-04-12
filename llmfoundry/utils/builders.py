@@ -502,7 +502,7 @@ def build_icl_evaluators(
                     warnings.warn(
                         VersionedDeprecationWarning(
                             "ICL task type 'question_answering' is now deprecated. Use identifier 'generation_task_with_answers'",
-                            'v0.7.0'))
+                            'v0.9.0'))
                 icl_cfg.metric_names = [
                     'InContextLearningGenerationExactMatchAccuracy'
                 ]

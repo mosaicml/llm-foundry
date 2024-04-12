@@ -1,9 +1,11 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import copy
 import functools
 import importlib.util
 import os
+from contextlib import contextmanager
 from pathlib import Path
 from types import ModuleType
 from typing import (Any, Callable, Dict, Generic, Optional, Sequence, Type,
@@ -15,6 +17,7 @@ __all__ = ['TypedRegistry', 'create_registry', 'construct_from_registry']
 
 T = TypeVar('T')
 TypeBoundT = TypeVar('TypeBoundT', bound=Type)
+CallableBoundT = TypeVar('CallableBoundT', bound=Callable[..., Any])
 
 
 class TypedRegistry(catalogue.Registry, Generic[T]):
@@ -142,7 +145,7 @@ def construct_from_registry(
         )
 
     if post_validation_function is not None:
-        post_validation_function(registered_constructor)
+        post_validation_function(constructed_item)
 
     return constructed_item
 
@@ -173,3 +176,13 @@ def import_file(loc: Union[str, Path]) -> ModuleType:
     except Exception as e:
         raise RuntimeError(f'Error executing {loc}') from e
     return module
+
+
+@contextmanager
+def save_registry():
+    """Save the registry state and restore after the context manager exits."""
+    saved_registry_state = copy.deepcopy(catalogue.REGISTRY)
+
+    yield
+
+    catalogue.REGISTRY = saved_registry_state

@@ -8,6 +8,7 @@ from typing import Any, Dict, Optional, Union
 
 from transformers import PretrainedConfig
 
+from llmfoundry.layers_registry import ffns_with_megablocks
 from llmfoundry.models.layers.attention import (check_alibi_support,
                                                 is_flash_v2_installed)
 from llmfoundry.models.layers.blocks import attn_config_defaults
@@ -16,11 +17,9 @@ from llmfoundry.models.layers.blocks import attn_config_defaults
 # HuggingFace can detect all the needed files to copy into its modules folder.
 # Otherwise, certain modules are missing.
 # isort: off
-from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY  # type: ignore (see note)
 from llmfoundry.models.layers.norm import LPLayerNorm  # type: ignore (see note)
-from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY  # type: ignore (see note)
+from llmfoundry.models.layers.layer_builders import build_norm, build_fc, build_ffn  # type: ignore (see note)
 from llmfoundry.models.layers.dmoe import dMoE  # type: ignore (see note)
-from llmfoundry.models.layers.layer_builders import build_norm  # type: ignore (see note)
 from llmfoundry.layers_registry import norms  # type: ignore (see note)
 from llmfoundry.utils.registry_utils import construct_from_registry  # type: ignore (see note)
 
@@ -291,7 +290,7 @@ class MPTConfig(PretrainedConfig):
             )
         elif self.ffn_config['ffn_type'] in ['mptmlp', 'mptglu']:
             self.ffn_config['fc_type'] = self.fc_type
-        elif self.ffn_config['ffn_type'] in ['mb_moe', 'mb_dmoe']:
+        elif self.ffn_config['ffn_type'] in ffns_with_megablocks:
             self.ffn_config['return_bias'] = False
         elif self.ffn_config['ffn_type'] == 'te_ln_mlp':
             self.ffn_config['bias'] = not self.no_bias

@@ -48,7 +48,7 @@ from llmfoundry.models.layers.attention import (
     MultiheadAttention, attn_bias_shape, build_alibi_bias, build_attn_bias,
     flash_attn_fn, scaled_multihead_dot_product_attention)
 from llmfoundry.models.layers.blocks import MPTBlock
-from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY, MPTMLP, build_ffn
+from llmfoundry.models.layers.ffn import MPTMLP
 from llmfoundry.models.mpt import (ComposerMPTCausalLM, MPTConfig,
                                    MPTForCausalLM, MPTModel, MPTPreTrainedModel)
 from llmfoundry.tokenizers import TiktokenTokenizerWrapper
@@ -57,9 +57,7 @@ __all__ = [
     'build_finetuning_dataloader',
     'Seq2SeqFinetuningCollator',
     'MPTBlock',
-    'FFN_CLASS_REGISTRY',
     'MPTMLP',
-    'build_ffn',
     'MPTConfig',
     'MPTPreTrainedModel',
     'MPTModel',

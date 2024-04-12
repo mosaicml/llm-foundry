@@ -12,7 +12,10 @@ from torchmetrics import Metric
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.interfaces import CallbackWithConfig
-from llmfoundry.layers_registry import norms
+from llmfoundry.layers_registry import (attention_classes,
+                                        attention_implementations, fcs, ffns,
+                                        ffns_with_megablocks, ffns_with_norm,
+                                        norms)
 from llmfoundry.utils.registry_utils import create_registry
 
 _loggers_description = (
@@ -85,17 +88,24 @@ schedulers = create_registry('llmfoundry',
                              entry_points=True,
                              description=_schedulers_description)
 
-_models_description = """The models registry is used to register classes that implement the ComposerModel interface. The model
-constructor should accept two arguments: an omegaconf DictConfig named `om_model_config` and a PreTrainedTokenizerBase named `tokenizer`.
-Note: This will soon be updated to take in named kwargs instead of a config directly."""
+_models_description = (
+    'The models registry is used to register classes that implement the ComposerModel interface. '
+    +
+    'The model constructor should accept two arguments: an omegaconf DictConfig named `om_model_config` and a PreTrainedTokenizerBase named `tokenizer`. '
+    +
+    'Note: This will soon be updated to take in named kwargs instead of a config directly.'
+)
 models = create_registry('llmfoundry',
                          'models',
                          generic_type=Type[ComposerModel],
                          entry_points=True,
                          description=_models_description)
 
-_dataloaders_description = """The dataloaders registry is used to register functions that create a DataSpec. The function should take
-a DictConfig, a PreTrainedTokenizerBase, and an int as arguments, and return a DataSpec."""
+_dataloaders_description = (
+    'The dataloaders registry is used to register functions that create a DataSpec. The function should take '
+    +
+    'a DictConfig, a PreTrainedTokenizerBase, and an int as arguments, and return a DataSpec.'
+)
 dataloaders = create_registry(
     'llmfoundry',
     'dataloaders',
@@ -103,7 +113,9 @@ dataloaders = create_registry(
     entry_points=True,
     description=_dataloaders_description)
 
-_metrics_description = """The metrics registry is used to register classes that implement the torchmetrics.Metric interface."""
+_metrics_description = (
+    'The metrics registry is used to register classes that implement the torchmetrics.Metric interface.'
+)
 metrics = create_registry('llmfoundry',
                           'metrics',
                           generic_type=Type[Metric],
@@ -121,4 +133,10 @@ __all__ = [
     'metrics',
     'dataloaders',
     'norms',
+    'ffns',
+    'ffns_with_norm',
+    'ffns_with_megablocks',
+    'attention_classes',
+    'attention_implementations',
+    'fcs',
 ]

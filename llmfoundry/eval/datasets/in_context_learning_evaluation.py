@@ -46,7 +46,6 @@ __all__ = [
 
 class InContextLearningDataset(Dataset):
     r"""A base dataset that constructs batches for in-context learning task.
-    
     evaluations. The dataset format is expected to be a local jsonl file, a
     cloud link to a jsonl file, or a Hugging Face dataset link. 'context' refers
     to the input a model will recieve before generating an output. For example,
@@ -243,7 +242,10 @@ class InContextLearningDataset(Dataset):
             with dist.local_rank_zero_download_and_wait(destination_path):
                 if dist.get_local_rank() == 0:
                     get_file(dataset_uri, destination_path, overwrite=True)
-            dataset = load_dataset('json', data_files=destination_path, split='train', streaming=False)
+            dataset = load_dataset('json',
+                                   data_files=destination_path,
+                                   split='train',
+                                   streaming=False)
         assert isinstance(dataset, HFDataset)
         return dataset
 

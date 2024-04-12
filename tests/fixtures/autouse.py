@@ -14,15 +14,18 @@ from composer.utils import dist, get_device, reproducibility
 REPO_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
 sys.path.append(REPO_DIR)
 
+
 @pytest.fixture(autouse=True)
 def save_registry():
     from catalogue import REGISTRY
+
     # Save it
     saved_registry = copy.deepcopy(REGISTRY)
     # Yield
     yield
     # Restore it
     REGISTRY.update(saved_registry)
+
 
 @pytest.fixture(autouse=True)
 def initialize_dist(request: pytest.FixtureRequest):

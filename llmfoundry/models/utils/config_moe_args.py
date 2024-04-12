@@ -18,12 +18,6 @@ def create_process_group_ranks(ranks: tuple[int]):
     Used in create_set_process_group and create_mod_process_group methods below.
 
     This function is an alternative to `distributed.new_group(ranks)`.
-    When working with FSDP in torch1.13.1, using `distributed.new_group(ranks)`
-    resulted in an error but this method worked.
-
-    TODO(GRT-2416): When composer no longer has support for torch1.13.1, we should
-    consider using `distributed.new_group(ranks)` here and in composer's FSDP
-    custom process group init.
 
     Args:
         ranks (tuple[int]): Tuple of ranks of group members.

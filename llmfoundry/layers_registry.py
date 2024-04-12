@@ -14,7 +14,18 @@ norms = create_registry('llmfoundry',
                         generic_type=Type[torch.nn.Module],
                         entry_points=True,
                         description=_norm_description)
+_fc_description = (
+    'The fully connected layers registry is used to register classes that implement fully connected layers (i.e. torch.nn.Linear).'
+    +
+    'These classes should take in_features and out_features in as args, at a minimum.'
+)
+fcs = create_registry('llmfoundry',
+                      'fcs',
+                      generic_type=Type[torch.nn.Module],
+                      entry_points=True,
+                      description=_fc_description)
 
 __all__ = [
     'norms',
+    'fcs',
 ]

@@ -6,7 +6,7 @@ import os
 import shutil
 from argparse import Namespace
 from pathlib import Path
-from typing import Optional
+from typing import Dict, List, Optional
 
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
@@ -99,6 +99,7 @@ def make_tiny_conversation_ft_dataset(
     add_invalid_content_type: bool = False,
     add_invalid_role: bool = False,
     add_not_alternating_roles: bool = False,
+    use_messages_format: bool = True,
 ):
     if Path(path).suffix != '.jsonl':
         raise ValueError(f'Path {path} must be a jsonl file.')
@@ -197,6 +198,24 @@ def make_tiny_conversation_ft_dataset(
                 'content': "This question doesn't make sense."
             }]
         })
+
+    def messages_to_conversation(sample: Dict):
+        assert 'messages' in sample
+        messages = sample['messages']
+
+        role_map = {
+            'user': 'human',
+            'assistant': 'gpt',
+        }
+        conversations: List[Dict[str, str]] = []
+        for message in messages:
+            role: str = role_map.get(message['role'], message['role'])
+            content: str = message['content']
+            conversations.append({'from': role, 'value': content})
+        return {'conversations': conversations}
+
+    if not use_messages_format:
+        samples = [messages_to_conversation(sample) for sample in samples]
 
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'w') as _f:

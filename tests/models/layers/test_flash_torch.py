@@ -8,6 +8,7 @@ from omegaconf import OmegaConf as om
 from llmfoundry.models.layers import attention
 from llmfoundry.models.layers.attention import (check_alibi_support, gen_slopes,
                                                 is_flash_v2_installed)
+from llmfoundry.models.layers.layer_builders import build_attention_layer
 from llmfoundry.models.mpt.modeling_mpt import (apply_sequence_id,
                                                 gen_attention_mask_in_length,
                                                 gen_flash_attn_padding_info,
@@ -120,9 +121,15 @@ def test_attn_impl(attn_impl_0: str,
                                        ]).to(device=device)
 
     cfg.attn_impl = attn_impl_0
-    attn0 = attention.ATTN_CLASS_REGISTRY[attn_type](**cfg).to(device)
+    attn0 = build_attention_layer(
+        name=attn_type,
+        attn_kwargs=om.to_container(cfg),  # type: ignore
+    ).to(device)
     cfg.attn_impl = attn_impl_1
-    attn1 = attention.ATTN_CLASS_REGISTRY[attn_type](**cfg).to(device)
+    attn1 = build_attention_layer(
+        name=attn_type,
+        attn_kwargs=om.to_container(cfg),  # type: ignore
+    ).to(device)
 
     attn1.load_state_dict(attn0.state_dict())
 

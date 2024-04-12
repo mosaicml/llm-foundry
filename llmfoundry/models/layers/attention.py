@@ -14,8 +14,9 @@ from einops import rearrange
 from packaging import version
 from torch import nn
 
-from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
-from llmfoundry.models.layers.layer_builders import build_norm
+from llmfoundry.layers_registry import (attention_classes,
+                                        attention_implementations)
+from llmfoundry.models.layers.layer_builders import build_fc, build_norm
 
 
 def is_flash_v2_installed(v2_version: str = '2.0.0'):
@@ -341,6 +342,7 @@ def flash_attn_fn(
     return output, None, past_key_value
 
 
+@attention_classes.register_class('grouped_query_attention')
 class GroupedQueryAttention(nn.Module):
     """Grouped Query Attention (GQA) is a generalization of Multi-head (MHA).
 
@@ -406,10 +408,11 @@ class GroupedQueryAttention(nn.Module):
             'bias': bias,
         }
         fc_kwargs['device'] = device
-        self.Wqkv = FC_CLASS_REGISTRY[fc_type](
-            self.d_model,
-            self.d_model + 2 * self.kv_n_heads * self.head_dim,
-            **fc_kwargs,
+        self.Wqkv = build_fc(
+            name=fc_type,
+            in_features=self.d_model,
+            out_features=self.d_model + 2 * self.kv_n_heads * self.head_dim,
+            fc_kwargs=fc_kwargs,
         )
         # for param init fn; enables shape based init of fused layers
         fuse_splits = [
@@ -433,17 +436,13 @@ class GroupedQueryAttention(nn.Module):
                 device=device,
             )
 
-        if self.attn_impl == 'flash':
-            self.attn_fn = flash_attn_fn
-        elif self.attn_impl == 'torch':
-            self.attn_fn = scaled_multihead_dot_product_attention
-        else:
-            raise ValueError(f'{attn_impl=} is an invalid setting.')
+        self.attn_fn = attention_implementations.get(self.attn_impl)
 
-        self.out_proj = FC_CLASS_REGISTRY[fc_type](
-            self.d_model,
-            self.d_model,
-            **fc_kwargs,
+        self.out_proj = build_fc(
+            name=fc_type,
+            in_features=self.d_model,
+            out_features=self.d_model,
+            fc_kwargs=fc_kwargs,
         )
         self.out_proj._is_residual = True
 
@@ -572,6 +571,7 @@ class GroupedQueryAttention(nn.Module):
         return self.out_proj(context), attn_weights, past_key_value
 
 
+@attention_classes.register_class('multihead_attention')
 class MultiheadAttention(GroupedQueryAttention):
     """Multi-head self attention.
 
@@ -612,6 +612,7 @@ class MultiheadAttention(GroupedQueryAttention):
         )
 
 
+@attention_classes.register_class('multiquery_attention')
 class MultiQueryAttention(GroupedQueryAttention):
     """Multi-Query self attention.
 
@@ -740,8 +741,6 @@ def build_alibi_bias(
     return alibi_bias.to(dtype=dtype)
 
 
-ATTN_CLASS_REGISTRY = {
-    'multihead_attention': MultiheadAttention,
-    'multiquery_attention': MultiQueryAttention,
-    'grouped_query_attention': GroupedQueryAttention
-}
+attention_implementations.register('flash', func=flash_attn_fn)
+attention_implementations.register('torch',
+                                   func=scaled_multihead_dot_product_attention)

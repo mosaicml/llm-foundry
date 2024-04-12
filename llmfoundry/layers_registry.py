@@ -7,13 +7,43 @@ import torch
 
 from llmfoundry.utils.registry_utils import create_registry
 
-# Layers
-_norm_description = """The norms registry is used to register classes that implement normalization layers."""
+_norm_description = (
+    'The norms registry is used to register classes that implement normalization layers.'
+)
 norms = create_registry('llmfoundry',
                         'norms',
                         generic_type=Type[torch.nn.Module],
                         entry_points=True,
                         description=_norm_description)
+_fc_description = (
+    'The fully connected layers registry is used to register classes that implement fully connected layers (i.e. torch.nn.Linear).'
+    +
+    'These classes should take in_features and out_features in as args, at a minimum.'
+)
+fcs = create_registry('llmfoundry',
+                      'fcs',
+                      generic_type=Type[torch.nn.Module],
+                      entry_points=True,
+                      description=_fc_description)
+
+_attention_classes_description = (
+    'The attention_classes registry is used to register classes that implement attention layers. See '
+    + 'attention.py for expected constructor signature.')
+attention_classes = create_registry('llmfoundry',
+                                    'attention_classes',
+                                    generic_type=Type[torch.nn.Module],
+                                    entry_points=True,
+                                    description=_attention_classes_description)
+
+_attention_implementations_description = (
+    'The attention_implementations registry is used to register functions that implement the attention operation.'
+    + 'See attention.py for expected function signature.')
+attention_implementations = create_registry(
+    'llmfoundry',
+    'attention_implementations',
+    generic_type=Callable,
+    entry_points=True,
+    description=_attention_implementations_description)
 
 _param_init_fns_description = (
     'The param_init_fns registry is used to register functions that initialize parameters.'
@@ -39,4 +69,7 @@ __all__ = [
     'norms',
     'param_init_fns',
     'module_init_fns',
+    'attention_classes',
+    'attention_implementations',
+    'fcs',
 ]

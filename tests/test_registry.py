@@ -33,6 +33,9 @@ def test_expected_registries_exist():
         'norms',
         'param_init_fns',
         'module_init_fns',
+        'attention_classes',
+        'attention_implementations',
+        'fcs',
     }
 
     assert existing_registries == expected_registry_names

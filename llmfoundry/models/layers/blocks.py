@@ -86,7 +86,6 @@ class MPTBlock(nn.Module):
             self.norm_attn_norm = FusedNormAttentionNorm(
                 d_model=d_model,
                 n_heads=n_heads,
-                expansion_ratio=expansion_ratio,
                 attn_config=attn_config,
                 ffn_config=ffn_config,
                 fc_type=fc_type,
@@ -198,7 +197,6 @@ class FusedNormAttentionNorm(nn.Module):
         self,
         d_model: int,
         n_heads: int,
-        expansion_ratio: float,
         attn_config: Optional[Dict] = None,
         ffn_config: Optional[Dict] = None,
         fc_type: str = 'torch',

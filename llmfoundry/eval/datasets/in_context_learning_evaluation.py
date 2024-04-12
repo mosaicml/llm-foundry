@@ -9,7 +9,7 @@ import logging
 import os
 import random
 import warnings
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Union
 
 import torch
 import transformers
@@ -93,14 +93,17 @@ class InContextLearningDataset(Dataset):
         strip_dataset (bool): Boolean for whether to strip whitespace from data. Trailing whitespace can cause degenerative outputs,
             so unless whitespace should be preserved (for example in code), this should be set to True.
         padding_side (str): Side of the content and answer on which to apply padding. Can be either 'right' or 'left'.
+        tokenize_labels (bool): Whether or not the labels should be tokenized. Generally determined by which metric a dataset uses.
         padding_size (int): The final size of the tensor after padding. Defaults to max_sequence_length.
         base_batch (Dict): The base dictionary upon which a batch is created. See above for more details.
         base_mapping (Dict): A mapping of batch keys to dataset columns, used to create batches. See above for more details.
         hf_loading_vars (Dict): A dictionary containing keyword arguments to be passed into `load_dataset` if dataset is being pulled from HF.
         hf_parsing_map (Dict): A dictionary containing a mapping from HF columns to ICL dataset keys. The dictionary should be formatted {icl_key:[hf_key1, hf_key1]}.
             Column contents will be concatenated with ' ' seperating them. If not included, will load the columns already present in the HF dataset.
-        tokenize_labels (bool): Whether or not the labels should be tokenized. Generally determined by which metric a dataset uses.
         generation_kwargs (Dict): A dictionary containing keyword arguments to be passed along to the model's generate function.
+        static_keys (List): A list of the key values which will be broadcast across a batch (e.g. it is the same for each batch element).
+        list_keys (List): A list of the batch keys whose values are lists which will be split using list methods during calls to split_batch.
+        tensor_keys (List): A list of the batch keys whose values are tensors which will be split using tensor methods during calls to split_batch.
     """
 
     def __init__(
@@ -121,15 +124,15 @@ class InContextLearningDataset(Dataset):
         strip_dataset: bool = True,
         padding_side: str = 'right',
         tokenize_labels: bool = True,
-        static_keys: Optional[List] = None,
-        list_keys: Optional[List] = None,
-        tensor_keys: Optional[List] = None,
         padding_size: Optional[int] = None,
         base_batch: Optional[Dict] = None,
         batch_mapping: Optional[Dict] = None,
         hf_loading_vars: Optional[Dict] = None,
         hf_parsing_map: Optional[Dict] = None,
         generation_kwargs: Optional[Dict] = None,
+        static_keys: Optional[List] = None,
+        list_keys: Optional[List] = None,
+        tensor_keys: Optional[List] = None,
     ):
         self.tokenizer = tokenizer
         self.prefix_space = tokenizer_needs_prefix_space(self.tokenizer)
@@ -473,14 +476,14 @@ class InContextLearningDataset(Dataset):
         return batch
 
     def split_batch(self, batch: Any,
-                    microbatch_size: int) -> List[Dict[str, Any]]:
+                    microbatch_size: Union[int, float]) -> Sequence[Any]:
         """Handling for certain specialty columns that must be split into.
 
         batches in different formats.
 
         Args:
             batch (Dict): Batch of data
-            microbatch_size (int): Size of microbatches
+            microbatch_size (int | float): Size of microbatches
 
         Returns:
             List: List of chunked batches
@@ -488,6 +491,9 @@ class InContextLearningDataset(Dataset):
         # Don't split kwargs that don't change
         # Normally split torch tensors
         # List split lists of strings
+        if isinstance(microbatch_size, float):
+            raise ValueError(
+                'split_batch does not support floating point microbatch_size.')
         chunked = {}
         for k, v in batch.items():
             if k in self.static_keys:
@@ -901,7 +907,7 @@ class InContextLearningMultipleChoiceTaskDataset(InContextLearningDataset):
         return batch['input_ids'].shape[0] // self.num_choices
 
     def split_batch(self, batch: Any,
-                    microbatch_size: int) -> List[Dict[str, Any]]:
+                    microbatch_size: Union[int, float]) -> Sequence[Any]:
         """Split batch while ensuring all continuations are in the same.
 
         microbatch.
@@ -913,11 +919,14 @@ class InContextLearningMultipleChoiceTaskDataset(InContextLearningDataset):
         microbatch_size and real attributes by microbatch_size * num_choices.
         Args:
             batch (Dict): Batch of data
-            microbatch_size (int): Size of microbatches
+            microbatch_size (int | float): Size of microbatches
 
         Returns:
             list: List of chunked batches
         """
+        if isinstance(microbatch_size, float):
+            raise ValueError(
+                'split_batch does not support floating point microbatch_size.')
         chunked = {}
         for k, v in batch.items():
             if k in self.static_keys:
@@ -1175,7 +1184,7 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
       for more details):
 
         - pad_token_id: ID for padding token, derived automatically
-        - num_beams: How many beams to search for generations, set to 1
+        - num_beams: How many beams to search for generations, default set to 1
         - do_sample: Determines whether model is sampling or greedily decoding. Always set to True
         - use_cache: Whether or not to use past key values to speed up sampling. Always set to True
 
@@ -1485,6 +1494,10 @@ def build_icl_dataloader(
         )
         effective_batchsize = batch_size
     elif icl_task_type == 'code_evaluation':
+        warnings.warn(
+            VersionedDeprecationWarning(
+                "ICL task type 'code_evaluation' is deprecated and will no longer be supported. ",
+                'v0.7.0'))
         dataset = InContextLearningCodeEvalDataset(
             dataset_uri=dataset_uri,
             tokenizer=tokenizer,

@@ -8,7 +8,6 @@ import os
 import warnings
 from typing import TYPE_CHECKING, Any, Dict, Mapping
 
-# required for loading a python model into composer
 from composer.models.huggingface import peft_installed
 from composer.utils import dist
 from omegaconf import DictConfig

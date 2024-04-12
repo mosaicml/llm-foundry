@@ -5,8 +5,9 @@ from typing import Any
 
 import torch
 
-from llmfoundry.layers_registry import ffns, ffns_with_norm, norms
-from llmfoundry.models.layers.attention import ATTN_CLASS_REGISTRY
+from llmfoundry.layers_registry import (attention_classes, ffns,
+                                        ffns_with_megablocks, ffns_with_norm,
+                                        norms)
 from llmfoundry.models.layers.blocks import FusedNormAttentionNorm, MPTBlock
 
 
@@ -24,20 +25,23 @@ def get_act_ckpt_module(mod_name: str) -> Any:
     """Get the module type from the module name."""
     if mod_name.lower() == 'mptblock':
         mod_type = MPTBlock
+    elif mod_name in attention_classes:
+        mod_type = attention_classes.get(mod_name)
     elif mod_name.lower() == 'norm_attn_norm':
         mod_type = FusedNormAttentionNorm
-    elif mod_name in ATTN_CLASS_REGISTRY:
-        mod_type = ATTN_CLASS_REGISTRY[mod_name]
     elif mod_name in ffns:
         mod_type = ffns.get(mod_name)
     elif mod_name in ffns_with_norm:
         mod_type = ffns_with_norm.get(mod_name)
+    elif mod_name in ffns_with_megablocks:
+        mod_type = ffns_with_megablocks.get(mod_name)
     elif mod_name in norms:
         mod_type = norms.get(mod_name)
     else:
         msg = ', '.join(
-            list(ATTN_CLASS_REGISTRY.keys()) + list(ffns.get_all()) +
-            list(ffns_with_norm.get_all()) + list(norms.get_all()) +
+            list(attention_classes.keys()) + list(ffns.get_all()) +
+            list(ffns_with_norm.get_all()) +
+            list(ffns_with_megablocks.get_all()) + list(norms.get_all()) +
             ['MPTBlock'])
         raise ValueError(
             f'{mod_name} (specified in activation_checkpointing_target) is not a recognized option out of available options {msg}.'

@@ -15,6 +15,7 @@ __all__ = ['TypedRegistry', 'create_registry', 'construct_from_registry']
 
 T = TypeVar('T')
 TypeBoundT = TypeVar('TypeBoundT', bound=Type)
+CallableBoundT = TypeVar('CallableBoundT', bound=Callable[..., Any])
 
 
 class TypedRegistry(catalogue.Registry, Generic[T]):

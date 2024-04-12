@@ -33,6 +33,9 @@ def test_expected_registries_exist():
         'norms',
         'ffns',
         'ffns_with_norm',
+        'ffns_with_megablocks',
+        'attention_classes',
+        'attention_implementations',
         'fcs',
     }
 

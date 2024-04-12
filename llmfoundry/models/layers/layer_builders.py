@@ -5,8 +5,9 @@ from typing import Any, Dict, List, Optional, Union
 
 import torch
 
-from llmfoundry.layers_registry import (fcs, ffns, ffns_with_megablocks,
-                                        ffns_with_norm, norms)
+from llmfoundry.layers_registry import (attention_classes, fcs, ffns,
+                                        ffns_with_megablocks, ffns_with_norm,
+                                        norms)
 from llmfoundry.utils.registry_utils import construct_from_registry
 
 
@@ -67,6 +68,16 @@ def build_ffn(
         result._uses_megablocks = True
 
     return result
+
+
+def build_attention_layer(
+    name: str,
+    attn_kwargs: Dict[str, Any],
+):
+    return construct_from_registry(name=name,
+                                   registry=attention_classes,
+                                   pre_validation_function=torch.nn.Module,
+                                   kwargs=attn_kwargs)
 
 
 def build_fc(

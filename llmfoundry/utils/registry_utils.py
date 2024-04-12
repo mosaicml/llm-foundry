@@ -1,10 +1,11 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import copy
 import functools
 import importlib.util
-from contextlib import contextmanager
 import os
+from contextlib import contextmanager
 from pathlib import Path
 from types import ModuleType
 from typing import (Any, Callable, Dict, Generic, Optional, Sequence, Type,
@@ -175,6 +176,7 @@ def import_file(loc: Union[str, Path]) -> ModuleType:
     except Exception as e:
         raise RuntimeError(f'Error executing {loc}') from e
     return module
+
 
 @contextmanager
 def save_registry():

@@ -15,10 +15,12 @@ from llmfoundry.utils.registry_utils import save_registry
 REPO_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
 sys.path.append(REPO_DIR)
 
+
 @pytest.fixture(autouse=True)
 def save_registry_fixture():
     with save_registry():
         yield
+
 
 @pytest.fixture(autouse=True)
 def initialize_dist(request: pytest.FixtureRequest):

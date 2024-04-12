@@ -74,7 +74,7 @@ class MPTBlock(nn.Module):
         super().__init__()
 
         ffn_type = ffn_config['ffn_type']
-        ffn_has_norm = not ffn_type in ffns_with_norm
+        ffn_has_norm = ffn_type in ffns_with_norm
 
         if self.fuse_norm_attn_norm:
             self.norm_attn_norm = FusedNormAttentionNorm(

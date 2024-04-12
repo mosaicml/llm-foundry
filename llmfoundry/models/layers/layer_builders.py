@@ -48,7 +48,7 @@ def build_ffn(
         'expansion_ratio': expansion_ratio,
         'device': device,
         'bias': bias,
-        **{k:v for k,v in ffn_kwargs.items() if k != 'ffn_type'},
+        **{k: v for k, v in ffn_kwargs.items() if k != 'ffn_type'},
     }
 
     def _validation_function(maybe_module: Any):

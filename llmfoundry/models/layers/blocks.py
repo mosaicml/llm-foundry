@@ -61,7 +61,6 @@ class MPTBlock(nn.Module):
         use_pad_tok_in_ffn: bool = True,
         **kwargs: Any,
     ):
-        print(ffn_config)
         if attn_config is None:
             attn_config = attn_config_defaults
 

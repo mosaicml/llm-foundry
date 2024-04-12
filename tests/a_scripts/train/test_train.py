@@ -147,6 +147,7 @@ def test_train_multi_eval(tmp_path: pathlib.Path):
         tuple)
 
 
+@pytest.mark.gpu
 def test_validate_config():
     conf_path: str = os.path.join(
         REPO_DIR,

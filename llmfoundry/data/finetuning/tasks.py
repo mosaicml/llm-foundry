@@ -77,7 +77,7 @@ _ALLOWED_PROMPT_KEYS = {'prompt'}
 _ALLOWED_MESSAGES_KEYS = {'messages'}
 _ALLOWED_ROLE_KEYS = {'role'}
 _ALLOWED_CONTENT_KEYS = {'content'}
-_ALLOWED_ROLES = {'user', 'assistant', 'system'}
+_ALLOWED_ROLES = {'user', 'assistant', 'system', 'tool'}
 _ALLOWED_LAST_MESSAGE_ROLES = {'assistant'}
 DOWNLOADED_FT_DATASETS_DIRPATH = os.path.abspath(
     os.path.join(os.path.realpath(__file__), os.pardir, os.pardir, os.pardir,
@@ -217,7 +217,7 @@ def _slice_chat_formatted_example(
         if conversation_through_previous_turn != prompt_with_history[:len(
                 conversation_through_previous_turn)]:
             raise ValueError(
-                f'The prompt_with_histry must start with the conversation through the previous turn. {conversation_through_previous_turn=}, {prompt_with_history=}'
+                f'The prompt_with_history must start with the conversation through the previous turn. {conversation_through_previous_turn=}, {prompt_with_history=}'
             )
         if prompt_with_history != full_conversation[:len(prompt_with_history)]:
             raise ValueError(
@@ -490,6 +490,12 @@ class StreamingFinetuningDataset(StreamingDataset):
             Defaults to ``1``.
         batching_method (str): Which batching method to use, either ``random``, ``stratified``, or
             ``per_stream``. Defaults to ``random``.
+        allow_unsafe_types (bool): If a shard contains Pickle, which allows arbitrary code
+            execution during deserialization, whether to keep going if ``True`` or raise an error
+            if ``False``. Defaults to ``False``.
+        replication (int, optional): Determines how many consecutive devices will receive the same
+            samples. Useful for training with tensor or sequence parallelism, where multiple
+            devices need to see the same partition of the dataset. Defaults to ``None``.
     """
 
     def __init__(self,
@@ -516,6 +522,8 @@ class StreamingFinetuningDataset(StreamingDataset):
                  sampling_granularity: int = 1,
                  batching_method: str = 'random',
                  max_seq_len: int = 2048,
+                 allow_unsafe_types: bool = False,
+                 replication: Optional[int] = None,
                  **kwargs: Any):
 
         if len(kwargs) > 0:
@@ -552,6 +560,8 @@ class StreamingFinetuningDataset(StreamingDataset):
             sampling_method=sampling_method,
             sampling_granularity=sampling_granularity,
             batching_method=batching_method,
+            allow_unsafe_types=allow_unsafe_types,
+            replication=replication,
         )
 
         self.tokenizer = tokenizer
@@ -614,9 +624,8 @@ class DatasetConstructor:
         log.info('\n'.join(tasks))
 
     def get_preprocessing_fn_from_dict(
-            self,
-            mapping: Dict[str,
-                          str]) -> Callable[[Dict[str, Any]], Dict[str, str]]:
+            self, mapping: Dict[str,
+                                str]) -> Callable[[Dict[str, Any]], Example]:
         """Get a preprocessing function from a dictionary.
 
         The dictionary maps column names in the dataset to "prompt" and "response".
@@ -652,7 +661,7 @@ class DatasetConstructor:
         self,
         preprocessor: Optional[str],
         dataset_name: Optional[str] = None
-    ) -> Optional[Callable[[Dict[str, Any]], Dict[str, str]]]:
+    ) -> Optional[Callable[[Dict[str, Any]], Example]]:
         """Get a preprocessing function from a string.
 
         String can be either a registered function or an import path.
@@ -700,7 +709,7 @@ class DatasetConstructor:
 
     def build_from_hf(
         self, dataset_name: str, split: str, safe_load: bool, max_seq_len: int,
-        preprocessing_fn: Optional[Callable[[dict[str, Any]], dict[str, str]]],
+        preprocessing_fn: Optional[Callable[[dict[str, Any]], Example]],
         tokenizer: PreTrainedTokenizerBase, target_prompts: str,
         target_responses: str, decoder_only_format: bool, hf_kwargs: Dict[str,
                                                                           Any]
@@ -783,7 +792,8 @@ class DatasetConstructor:
 
             def dataset_mapper(example: Dict):
                 if preprocessing_fn is not None:
-                    example = preprocessing_fn(example)
+                    return tokenize_formatted_example(preprocessing_fn(example),
+                                                      tokenizer)
                 return tokenize_formatted_example(example, tokenizer)
 
             detected_cpu_count = os.cpu_count() or 1
@@ -847,7 +857,7 @@ dataset_constructor = DatasetConstructor()
 
 
 @dataset_constructor.register('tatsu-lab/alpaca')
-def alpaca_preprocessing_function(inp: Dict) -> Dict[str, str]:
+def alpaca_preprocessing_function(inp: Dict) -> PromptResponseDict:
     """Split out prompt/response from text."""
     try:
         prompt, response = inp['text'].split('### Response:')
@@ -859,7 +869,7 @@ def alpaca_preprocessing_function(inp: Dict) -> Dict[str, str]:
 
 
 @dataset_constructor.register('HuggingFaceH4/databricks_dolly_15k')
-def dolly_preprocessing_function(inp: Dict) -> Dict[str, str]:
+def dolly_preprocessing_function(inp: Dict) -> PromptResponseDict:
     """Format the text string."""
     PROMPT_FORMAT = 'Below is an instruction that describes a task. Write a response that appropriately completes the request.\n\n### Instruction:\n{instruction}\n\n### Response:\n'
     try:
@@ -875,7 +885,7 @@ def dolly_preprocessing_function(inp: Dict) -> Dict[str, str]:
 
 
 @dataset_constructor.register('bigscience/P3')
-def p3_preprocessing_function(inp: Dict) -> Dict[str, str]:
+def p3_preprocessing_function(inp: Dict) -> PromptResponseDict:
     """Format the already-split example."""
     return {
         'prompt': inp['inputs'] + ':',
@@ -885,7 +895,7 @@ def p3_preprocessing_function(inp: Dict) -> Dict[str, str]:
 
 # Muennighoff's P3 and flan datasets share a similar convention
 @dataset_constructor.register('Muennighoff/P3', 'Muennighoff/flan')
-def muennighoff_tokenize_function(inp: Dict) -> Dict[str, str]:
+def muennighoff_tokenize_function(inp: Dict) -> PromptResponseDict:
     """Format the already-split example."""
     try:
         prompt: str = inp['inputs']
@@ -898,3 +908,22 @@ def muennighoff_tokenize_function(inp: Dict) -> Dict[str, str]:
     except Exception as e:
         raise UnableToProcessPromptResponseError(inp) from e
     return {'prompt': prompt, 'response': response}
+
+
+@dataset_constructor.register('teknium/OpenHermes-2.5')
+def shareGPT_format_preprocessor(inp: Dict) -> ChatFormattedDict:
+    """Convert from ShareGPT format to our chat format."""
+    role_map = {
+        'human': 'user',
+        'gpt': 'assistant',
+    }
+    try:
+        conversation = inp['conversations']
+        messages: List[Dict[str, str]] = []
+        for message in conversation:
+            role: str = role_map.get(message['from'], message['from'])
+            content: str = message['value']
+            messages.append({'role': role, 'content': content})
+    except Exception as e:
+        raise UnableToProcessPromptResponseError(inp) from e
+    return {'messages': messages}

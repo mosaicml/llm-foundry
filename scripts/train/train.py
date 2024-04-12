@@ -102,20 +102,12 @@ def validate_config(cfg: DictConfig):
             '`load_in_8bit` is only supported for evaluation rather than training.'
         )
 
-    print('in validate')
-    print(cfg.model.get('ffn_config', {}).get('ffn_type', 'mptmlp'))
-    print(
-        cfg.model.get('ffn_config', {}).get('ffn_type', 'mptmlp') in
-        ffns_with_megablocks)
     if cfg.model.get('ffn_config', {}).get('ffn_type',
                                            'mptmlp') in ffns_with_megablocks:
-        print('inside')
         moe_world_size = cfg.model.get('ffn_config',
                                        {}).get('moe_world_size', 1)
-        print(moe_world_size)
         use_orig_params = cfg.get('fsdp_config',
                                   {}).get('use_orig_params', True)
-        print(use_orig_params)
         if moe_world_size > 1 and not use_orig_params:
             raise ValueError(
                 f'MoEs with expert parallelism (moe_world_size {moe_world_size} > 1) require `use_orig_params=True`.'

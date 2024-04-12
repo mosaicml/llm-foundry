@@ -104,7 +104,9 @@ def validate_config(cfg: DictConfig):
 
     print('in validate')
     print(cfg.model.get('ffn_config', {}).get('ffn_type', 'mptmlp'))
-    print(cfg.model.get('ffn_config', {}).get('ffn_type', 'mptmlp') in ffns_with_megablocks)
+    print(
+        cfg.model.get('ffn_config', {}).get('ffn_type', 'mptmlp') in
+        ffns_with_megablocks)
     if cfg.model.get('ffn_config', {}).get('ffn_type',
                                            'mptmlp') in ffns_with_megablocks:
         print('inside')

@@ -73,6 +73,7 @@ class MPTBlock(nn.Module):
         super().__init__()
 
         self.ffn = build_ffn(
+            name=ffn_config['ffn_type'],
             d_model=d_model,
             expansion_ratio=expansion_ratio,
             device=device,

@@ -324,12 +324,6 @@ def moe_init(
     div_is_residual: float,
     **kwargs: Any,
 ) -> bool:
-    print('in moe init')
-    print(type(module))
-    print(isinstance(module, GLU))
-    print(isinstance(module, MLP))
-    print(GLU)
-    print(MLP)
     if megablocks is not None and isinstance(module, (
             megablocks.layers.moe.MoE,
             megablocks.layers.dmoe.dMoE,

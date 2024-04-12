@@ -274,7 +274,7 @@ def build_torch_dmoe(
         activation_fn=resolve_ffn_act_fn(ffn_act_fn),
         moe_normalize_expert_weights=moe_normalize_expert_weights,
         uniform_expert_assignment=uniform_expert_assignment,
-        device=device,  # pyright: ignore[reportGeneralTypeIssues]
+        device=torch.device(device) if device is not None else None,
     )
 
 

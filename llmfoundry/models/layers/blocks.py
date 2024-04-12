@@ -74,22 +74,14 @@ class MPTBlock(nn.Module):
         super().__init__()
 
         ffn_type = ffn_config['ffn_type']
-
-        self.ffn = build_ffn(
-            name=ffn_type,
-            d_model=d_model,
-            expansion_ratio=expansion_ratio,
-            device=device,
-            bias=not no_bias,
-            ffn_kwargs=ffn_config,
-        )
+        ffn_has_norm = not ffn_type in ffns_with_norm
 
         if self.fuse_norm_attn_norm:
             self.norm_attn_norm = FusedNormAttentionNorm(
                 d_model=d_model,
                 n_heads=n_heads,
                 attn_config=attn_config,
-                ffn_type=ffn_type,
+                ffn_has_norm=ffn_has_norm,
                 fc_type=fc_type,
                 resid_pdrop=resid_pdrop,
                 norm_type=norm_type,
@@ -127,12 +119,21 @@ class MPTBlock(nn.Module):
                 },
             )
             self.norm_2 = None
-            if not getattr(self.ffn, '_has_norm', False):
+            if not ffn_has_norm:
                 self.norm_2 = build_norm(
                     name=norm_type.lower(),
                     normalized_shape=d_model,
                     device=device,
                 )
+
+        self.ffn = build_ffn(
+            name=ffn_type,
+            d_model=d_model,
+            expansion_ratio=expansion_ratio,
+            device=device,
+            bias=not no_bias,
+            ffn_kwargs=ffn_config,
+        )
 
         self.resid_attn_dropout = nn.Dropout(resid_pdrop)
         self.resid_ffn_dropout = nn.Dropout(resid_pdrop)
@@ -201,7 +202,7 @@ class FusedNormAttentionNorm(nn.Module):
         d_model: int,
         n_heads: int,
         attn_config: Optional[Dict] = None,
-        ffn_type: str = 'mptmlp',
+        ffn_has_norm: bool = False,
         fc_type: str = 'torch',
         resid_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
@@ -242,7 +243,7 @@ class FusedNormAttentionNorm(nn.Module):
         )
 
         self.norm_2 = None
-        if not ffn_type in ffns_with_norm:
+        if not ffn_has_norm:
             self.norm_2 = build_norm(
                 name=norm_type.lower(),
                 normalized_shape=d_model,

@@ -61,6 +61,7 @@ class MPTBlock(nn.Module):
         use_pad_tok_in_ffn: bool = True,
         **kwargs: Any,
     ):
+        print(ffn_config)
         if attn_config is None:
             attn_config = attn_config_defaults
 
@@ -89,7 +90,7 @@ class MPTBlock(nn.Module):
                 d_model=d_model,
                 n_heads=n_heads,
                 attn_config=attn_config,
-                ffn_config=ffn_config,
+                ffn_type=ffn_type,
                 fc_type=fc_type,
                 resid_pdrop=resid_pdrop,
                 norm_type=norm_type,

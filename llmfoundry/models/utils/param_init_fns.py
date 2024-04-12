@@ -324,6 +324,10 @@ def moe_init(
     div_is_residual: float,
     **kwargs: Any,
 ) -> bool:
+    print('in moe init')
+    print(type(module))
+    print(isinstance(module, GLU))
+    print(isinstance(module, MLP))
     if megablocks is not None and isinstance(module, (
             megablocks.layers.moe.MoE,
             megablocks.layers.dmoe.dMoE,
@@ -400,8 +404,11 @@ def generic_param_init_fn_(
     all_module_init_fns = [
         module_init_fns.get(name) for name in module_init_fns.get_all()
     ]
+    print('in init')
+    print(all_module_init_fns)
     did_init = False
     for module_init_fn in all_module_init_fns:
+        print(type(module), module_init_fn)
         did_init = module_init_fn(
             module=module,
             init_fn_=init_fn_,

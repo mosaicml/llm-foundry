@@ -217,6 +217,13 @@ def delete_transformers_cache():
 def test_fwd_equal_dmoe(seqlen: int, precision: str, mlp_type: str):
     delete_transformers_cache()
 
+    import llmfoundry
+    print(llmfoundry.layers_registry.ffns.get_all())
+
+    from llmfoundry.models.layers.ffn import resolve_ffn_act_fn  # type: ignore
+
+    print(llmfoundry.layers_registry.ffns.get_all())
+
     mb_dmoe_config = MPTConfig(d_model=1024,
                                n_heads=32,
                                n_layers=1,

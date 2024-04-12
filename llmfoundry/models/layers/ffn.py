@@ -317,7 +317,6 @@ def _patch_ffn_mb(
     expert_parallel_group: ProcessGroup,
     device_mesh: DeviceMesh,
     args: 'megablocks.layers.arguments.Arguments',
-    **kwargs: Any,
 ):
     # Attach args to MLP directly for use in param_init_fn
     ffn.experts.mlp.hidden_size = args.ffn_hidden_size
@@ -325,8 +324,6 @@ def _patch_ffn_mb(
     ffn.experts.mlp.weight_parallel_group = args.weight_parallel_group
 
     if moe_world_size > 1:
-        device_mesh = kwargs['device_mesh']
-
         expert_mesh = device_mesh['expert_parallel']
         expert_placements: List[Placement] = [Shard(0)]
         # Register in two loops as you cannot overwrite parameters while iterating over named_parameters()
@@ -340,7 +337,6 @@ def _patch_ffn_mb(
         for name, dtensorified_param in dtensorified_params:
             ffn.experts.mlp.register_parameter(name, dtensorified_param)
 
-        device_mesh = kwargs['device_mesh']
         if device_mesh.mesh.ndim == 2:
             submesh = device_mesh['weight_parallel']
         elif device_mesh.mesh.ndim == 3:
@@ -389,7 +385,6 @@ def build_mb_moe(
         expert_parallel_group=expert_parallel_group,
         device_mesh=kwargs['device_mesh'],
         args=args,
-        **kwargs,
     )
 
     return ffn
@@ -434,7 +429,6 @@ def build_mb_dmoe(
         expert_parallel_group=expert_parallel_group,
         device_mesh=kwargs['device_mesh'],
         args=args,
-        **kwargs,
     )
 
     return ffn

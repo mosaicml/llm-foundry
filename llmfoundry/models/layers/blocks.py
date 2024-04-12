@@ -8,9 +8,9 @@ from typing import Any, Dict, Optional, Tuple
 import torch
 import torch.nn as nn
 
-from llmfoundry.models.layers.attention import ATTN_CLASS_REGISTRY
 from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY, build_ffn
-from llmfoundry.models.layers.layer_builders import build_norm
+from llmfoundry.models.layers.layer_builders import (build_attention_layer,
+                                                     build_norm)
 
 try:
     from flash_attn.bert_padding import unpad_input, pad_input  # type: ignore # yapf: disable # isort: skip
@@ -87,8 +87,6 @@ class MPTBlock(nn.Module):
             )
         else:
             assert isinstance(attn_config['attn_type'], str)
-            attn_class = ATTN_CLASS_REGISTRY[attn_config['attn_type']]
-
             # Necessary to avoid passing extraneous args into attn_class while allowing the use of **kwargs
             args_to_exclude_in_attn_class = {
                 'attn_type', 'alibi', 'attn_uses_sequence_id', 'alibi_bias_max',
@@ -106,13 +104,16 @@ class MPTBlock(nn.Module):
                 normalized_shape=d_model,
                 device=device,
             )
-            self.attn = attn_class(
-                d_model=d_model,
-                n_heads=n_heads,
-                fc_type=fc_type,
-                device=device,
-                **attn_config_subset_for_attn_class,
-                bias=not no_bias,
+            self.attn = build_attention_layer(
+                name=attn_config['attn_type'],
+                attn_kwargs={
+                    'd_model': d_model,
+                    'n_heads': n_heads,
+                    'fc_type': fc_type,
+                    'device': device,
+                    'bias': not no_bias,
+                    **attn_config_subset_for_attn_class
+                },
             )
             self.norm_2 = None
             if not getattr(FFN_CLASS_REGISTRY[ffn_config['ffn_type']],
@@ -209,7 +210,6 @@ class FusedNormAttentionNorm(nn.Module):
         assert attn_config is not None
         assert ffn_config is not None
         assert isinstance(attn_config['attn_type'], str)
-        attn_class = ATTN_CLASS_REGISTRY[attn_config['attn_type']]
 
         # necessary to avoid passing extraneous args into attn_class while allowing the use of **kwargs
         args_to_exclude_in_attn_class = {
@@ -227,13 +227,16 @@ class FusedNormAttentionNorm(nn.Module):
             normalized_shape=d_model,
             device=device,
         )
-        self.attn = attn_class(
-            d_model=d_model,
-            n_heads=n_heads,
-            fc_type=fc_type,
-            device=device,
-            **attn_config_subset_for_attn_class,
-            bias=not no_bias,
+        self.attn = build_attention_layer(
+            name=attn_config['attn_type'],
+            attn_kwargs={
+                'd_model': d_model,
+                'n_heads': n_heads,
+                'fc_type': fc_type,
+                'device': device,
+                'bias': not no_bias,
+                **attn_config_subset_for_attn_class
+            },
         )
         self.norm_2 = None
         if not getattr(FFN_CLASS_REGISTRY[ffn_config['ffn_type']], '_has_norm',

@@ -38,11 +38,13 @@ def test_rope_dail_vs_hf(attn_type: str, seq_len: int, device: str = 'cuda'):
 
     attn0 = build_attention_layer(
         name=attn_type,
-        attn_kwargs=om.to_container(cfg),  # type: ignore
+        attn_kwargs=om.to_container(
+            cfg),  # type: ignore (to_container return broad type)
     ).to(device)
     attn1 = build_attention_layer(
         name=attn_type,
-        attn_kwargs=om.to_container(cfg),  # type: ignore
+        attn_kwargs=om.to_container(
+            cfg),  # type: ignore (to_container return broad type)
     ).to(device)
 
     attn1.load_state_dict(attn0.state_dict())

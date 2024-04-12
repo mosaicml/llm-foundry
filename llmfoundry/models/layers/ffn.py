@@ -256,6 +256,9 @@ def build_torch_dmoe(
     moe_normalize_expert_weights = kwargs.pop('moe_normalize_expert_weights')
     uniform_expert_assignment = kwargs.pop('uniform_expert_assignment')
 
+    fc_type = kwargs.pop('fc_type', 'torch')
+    del fc_type  # Unused
+
     if len(kwargs) > 0:
         raise ValueError(f'Invalid arguments to torch dmoe: {kwargs}.')
 

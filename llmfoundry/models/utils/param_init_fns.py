@@ -4,19 +4,27 @@
 import math
 import warnings
 from collections.abc import Sequence
+from copy import deepcopy
 from functools import partial
 from typing import Any, Callable, Optional, Tuple, Union
 
 import torch
 from torch import nn
+from torch.distributed._tensor import DTensor
 
+from llmfoundry.layers_registry import norms
+from llmfoundry.models.layers.dmoe import GLU, MLP
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
-from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
 try:
     import transformer_engine.pytorch as te
 except:
     te = None
+
+try:
+    import megablocks
+except:
+    megablocks = None
 
 
 def torch_default_param_init_fn_(
@@ -30,27 +38,114 @@ def torch_default_param_init_fn_(
         module.reset_parameters()
 
 
-def fused_init_helper_(module: nn.Module, init_fn_: Callable) -> None:
-    # parameter initialization is often based on the parameters shape.
-    # If a layer is fused, initialization should be based on the shapes
-    # of the original tensor instead of the shape of the fused tensor.
-    # Layers which are fused should have the _fused attribute defined.
-    # The first element of _fused is the dimension along which the tensor is fused.
-    # This is followed by an iterable of split indices."
+def fused_init_helper_(
+    module: nn.Module,
+    init_fn_: Callable,
+    name_param: str = 'weight',
+):
+    """Initializes parameters which have been fused for efficiency purposes.
 
+    Parameter initialization is often based on the parameters shape. If a layer is fused,
+    initialization should be based on the shapes of the original tensor instead of the
+    shape of the fused tensor. Layers which are fused should have the _fused
+    attribute. First element of _fused is the dimension along which the tensor is fused.
+    Second element is a an iterable of split indices.
+
+    Args:
+        module (nn.Module): The module to initialize.
+        init_fn_ (Callable): Initialization method.
+        name_param (str): Name of parameter to initalize within the module.
+    """
     _fused = getattr(module, '_fused', None)
-
     if _fused is None:
         raise RuntimeError(f'Internal logic error')
 
-    assert isinstance(module.weight, torch.Tensor)
+    fused_param_init_helper(getattr(module, name_param), init_fn_, _fused)
 
-    dim, splits = _fused
-    splits = (0, *splits, module.weight.size(dim))
+
+def fused_param_init_helper(
+    param: torch.Tensor,
+    init_fn_: Callable,
+    fused_parameters: tuple[int, list[int]],
+):
+    """Initializes parameters that are fused together.
+
+    Args:
+        param (torch.Tensor): Tensor to initialize.
+        init_fn_ (Callable): Initialization method.
+        fused_parameters (tuple[int, list[int]]): First element of _fused is the dimension
+            along which the tensor is fused. Second element is a an iterable of split indices.
+    """
+    p_ndims = param.ndim
+    dim, splits = fused_parameters
+    splits = (0, *splits, param.size(dim))  # type: ignore
     for s, e in zip(splits[:-1], splits[1:]):
-        slice_indices = [slice(None)] * module.weight.ndim
+        slice_indices = [slice(None)] * p_ndims  # type: ignore
         slice_indices[dim] = slice(s, e)
-        init_fn_(module.weight[slice_indices])
+        init_fn_(param[slice_indices])  # type: ignore
+
+
+def stacked_init_helper_(
+    module: nn.Module,
+    init_fn_: Callable,
+    name_param: str = 'weight',
+):
+    """Initializes parameters stacked along a new dimention.
+
+    Parameter initialization is often based on the parameters shape. If a layer is stacked,
+    initialization should be based on the shapes of the original tensor instead of the
+    shape of the stacked tensor. Layers which are fused should have the _stacked_dim
+    attribute defining the new dimension along which they are stacked.
+
+    Args:
+        module (nn.Module): The module to initialize.
+        init_fn_ (Callable): Initialization method.
+        name_param (str): Name of parameter to initalize within the module.
+    """
+    stack_dim = getattr(module, '_stack_dim', None)
+    if stack_dim is None:
+        raise RuntimeError(f'Internal logic error')
+
+    stacked_param_init_helper(getattr(module, name_param), init_fn_, stack_dim)
+
+
+def stacked_param_init_helper(
+    param: torch.Tensor,
+    init_fn_: Callable,
+    stack_dim: int,
+):
+    """Initialize parameters stacked along a new dimention.
+
+    Args:
+        param (torch.Tensor): Tensor to initialize.
+        init_fn_ (Callable): Initialization method.
+        stack_dim (int): Dimention along with parameters are stacked
+    """
+    p_ndims = param.ndim
+
+    for idx in range(param.size(stack_dim)):
+        slice_indices = [slice(None)] * p_ndims  # type: ignore
+        slice_indices[stack_dim] = idx  # type: ignore
+        init_fn_(param[slice_indices])  # type: ignore
+
+
+def _flip_fan_mode(init_fn_: Callable):
+    """Changes the mode of an init_fn_.
+
+    init_fn_'s "mode" is set to operate on standard torch modules eg torch.nn.Linear.
+    If a custom layer transposes its weights before they are allied such that it is
+    opposite pytorch's conventions, we must flip the fan mode, from fan_in to fan_out.
+
+    Args:
+        init_fn_ (Callable): Initialization method.
+    """
+    _init_fn_ = deepcopy(init_fn_)
+    if 'mode' in _init_fn_.keywords:
+        if _init_fn_.keywords['mode'] == 'fan_in':
+            _init_fn_.keywords['mode'] = 'fan_out'
+        elif _init_fn_.keywords['mode'] == 'fan_out':
+            _init_fn_.keywords['mode'] = 'fan_in'
+    return _init_fn_
 
 
 def generic_param_init_fn_(
@@ -129,7 +224,8 @@ def generic_param_init_fn_(
 
         emb_init_fn_(module.weight)
 
-    elif isinstance(module, tuple(set(NORM_CLASS_REGISTRY.values()))):
+    elif isinstance(module,
+                    tuple(set([norms.get(name) for name in norms.get_all()]))):
         # Norm
         if hasattr(module, 'weight') and isinstance(module.weight,
                                                     torch.Tensor):
@@ -190,6 +286,35 @@ def generic_param_init_fn_(
         with torch.no_grad():
             module.fc2_weight.div_(div_is_residual)  # type: ignore
 
+    elif megablocks is not None and isinstance(module, (
+            megablocks.layers.moe.MoE,
+            megablocks.layers.dmoe.dMoE,
+            megablocks.layers.moe.ParallelMLP,
+            megablocks.layers.dmoe.ParallelDroplessMLP,
+    )):
+        if hasattr(module, 'bias') and module.bias is not None:
+            # Initialize bias to 0
+            torch.nn.init.zeros_(module.bias)  # type: ignore
+    elif megablocks is not None and isinstance(module,
+                                               megablocks.layers.glu.SparseGLU):
+        _megablocks_sparse_glu_generic_param_init_fn_(
+            module, init_fn_, bool(init_div_is_residual), div_is_residual)
+    elif megablocks is not None and isinstance(module,
+                                               megablocks.layers.mlp.SparseMLP):
+        _megablocks_sparse_mlp_generic_param_init_fn_(
+            module, init_fn_, bool(init_div_is_residual), div_is_residual)
+    elif megablocks is not None and isinstance(module,
+                                               megablocks.layers.mlp.MLP):
+        _megablocks_mlp_generic_param_init_fn_(module, init_fn_,
+                                               bool(init_div_is_residual),
+                                               div_is_residual)
+    elif isinstance(module, GLU):
+        init_fn_(module.w1)
+        init_fn_(module.v1)
+        init_fn_(module.w2)
+    elif isinstance(module, MLP):
+        init_fn_(module.w1)
+        init_fn_(module.w2)
     else:
         for _ in module.parameters(recurse=False):
             # raise error if uninitialized module has any parameters
@@ -198,7 +323,197 @@ def generic_param_init_fn_(
             )
 
 
-def _normal_init_(std: float, mean: float = 0.0) -> Callable:
+def _megablocks_sparse_mlp_generic_param_init_fn_(
+    module: nn.Module,
+    init_fn_: Callable,
+    init_div_is_residual: bool = False,
+    div_is_residual: float = 1.0,
+):
+    """Initializes MegaBlocks MLP.
+
+    To enable elastic deterministic initialization, this method creates the entire
+    weight matrix then slice into the weight tensors such that the sampled weights
+    should not vary between moe world size for the same random seed.
+
+    Args:
+        module (nn.Module): The module to initialize.
+        init_fn_ (Callable): Initialization method.
+        init_div_is_residual (bool): Flag enabling parameters tagged with _is_residual
+            flag to be divided by div_is_residual.
+        div_is_residual (float): The value by which parameter initialization is divided
+            if init_div_is_residual flag is enabled.
+    """
+    expert_process_group_size, rank, weight_parallel_group_size, weight_parallel_group_rank = 1, 0, 1, 0
+    if module.expert_parallel_group is not None:
+        expert_process_group_size = int(
+            module.expert_parallel_group.size())  # type: ignore
+        rank = int(module.expert_parallel_group.rank())  # type: ignore
+    if module.weight_parallel_group is not None:
+        weight_parallel_group_size = int(
+            module.weight_parallel_group.size())  # type: ignore
+        weight_parallel_group_rank = int(
+            module.weight_parallel_group.rank())  # type: ignore
+
+    hidden_size = int(module.hidden_size)  # type: ignore
+
+    # Initialize w1
+    w1 = module.w1
+    if isinstance(w1, DTensor):
+        w1 = w1._local_tensor
+    w1_size = list(w1.shape)  # type: ignore
+    w1_size[
+        0] = w1_size[0] * expert_process_group_size * weight_parallel_group_size
+
+    n_exp = w1_size[0] // hidden_size
+    _fused = (0, [(n + 1) * hidden_size for n in range(n_exp - 1)])
+
+    _w1 = w1.new_empty(w1_size)  # type: ignore
+    fused_param_init_helper(_w1, init_fn_, _fused)
+    _w1_local = _w1.chunk(expert_process_group_size, dim=0)[rank]
+    _w1_local_slice = _w1_local.chunk(weight_parallel_group_size,
+                                      dim=0)[weight_parallel_group_rank]
+    with torch.no_grad():
+        w1.copy_(_w1_local_slice)  # type: ignore
+
+    # Initialize w2
+    w2 = module.w2
+    if isinstance(w2, DTensor):
+        w2 = w2._local_tensor
+    w2_size = list(w2.shape)  # type: ignore
+    w2_size[
+        0] = w2_size[0] * expert_process_group_size * weight_parallel_group_size
+    _w2 = w2.new_empty(w2_size)  # type: ignore
+    # MegaBlocks operates on w2 as x @ w2, so needs flipped fan mode
+    fused_param_init_helper(_w2, _flip_fan_mode(init_fn_), _fused)
+    _w2_local = _w2.chunk(expert_process_group_size, dim=0)[rank]
+    _w2_local_slice = _w2_local.chunk(weight_parallel_group_size,
+                                      dim=0)[weight_parallel_group_rank]
+    with torch.no_grad():
+        w2.copy_(_w2_local_slice)  # type: ignore
+    if init_div_is_residual is not False:
+        with torch.no_grad():
+            w2.div_(div_is_residual)  # type: ignore
+
+
+def _megablocks_sparse_glu_generic_param_init_fn_(
+    module: nn.Module,
+    init_fn_: Callable,
+    init_div_is_residual: bool = False,
+    div_is_residual: float = 1.0,
+):
+    """Initializes MegaBlocks Sparse GLU.
+
+    Extends the Megablocks Sparse MLP case to an additional weight v1 for GLUs.
+    This additional weight v1 has the same initialization procedure as w1 for MLPs.
+
+    Args:
+        module (nn.Module): The module to initialize.
+        init_fn_ (Callable): Initialization method.
+        init_div_is_residual (bool): Flag enabling parameters tagged with _is_residual
+            flag to be divided by div_is_residual.
+        div_is_residual (float): The value by which parameter initialization is divided
+            if init_div_is_residual flag is enabled.
+    """
+    # Init for w1 and w2 matrices
+    _megablocks_sparse_mlp_generic_param_init_fn_(
+        module=module,
+        init_fn_=init_fn_,
+        init_div_is_residual=init_div_is_residual,
+        div_is_residual=div_is_residual)
+
+    # Init ported from _megablocks_sparse_mlp_generic_param_init_fn_ for v1
+    expert_process_group_size, rank, weight_parallel_group_size, weight_parallel_group_rank = 1, 0, 1, 0
+    if module.expert_parallel_group is not None:
+        expert_process_group_size = int(
+            module.expert_parallel_group.size())  # type: ignore
+        rank = int(module.expert_parallel_group.rank())  # type: ignore
+    if module.weight_parallel_group is not None:
+        weight_parallel_group_size = int(
+            module.weight_parallel_group.size())  # type: ignore
+        weight_parallel_group_rank = int(
+            module.weight_parallel_group.rank())  # type: ignore
+
+    hidden_size = int(module.hidden_size)  # type: ignore
+
+    # Separately initialize v1
+    v1 = module.v1
+    if isinstance(v1, DTensor):
+        v1 = v1._local_tensor
+    v1_size = list(v1.shape)  # type: ignore
+    v1_size[
+        0] = v1_size[0] * expert_process_group_size * weight_parallel_group_size
+
+    n_exp = v1_size[0] // hidden_size
+    _fused = (0, [(n + 1) * hidden_size for n in range(n_exp - 1)])
+
+    _v1 = v1.new_empty(v1_size)  # type: ignore
+    fused_param_init_helper(_v1, init_fn_, _fused)
+    _v1_local = _v1.chunk(expert_process_group_size, dim=0)[rank]
+    _v1_local_slice = _v1_local.chunk(weight_parallel_group_size,
+                                      dim=0)[weight_parallel_group_rank]
+    with torch.no_grad():
+        v1.copy_(_v1_local_slice)  # type: ignore
+
+
+def _megablocks_mlp_generic_param_init_fn_(
+    module: nn.Module,
+    init_fn_: Callable,
+    init_div_is_residual: bool = False,
+    div_is_residual: float = 1.0,
+):
+    """Initializes MegaBlocks' MLP.
+
+    To enable elastic deterministic initialization, this method creates the entire
+    weight matrix then slice into the weight tensors such that the sampled weights
+    should not vary between moe world size for the same random seed.
+
+    Args:
+        module (nn.Module): The module to initialize.
+        init_fn_ (Callable): Initialization method.
+        init_div_is_residual (bool): Flag enabling parameters tagged with _is_residual
+            flag to be divided by div_is_residual.
+        div_is_residual (float): The value by which parameter initialization is divided
+            if init_div_is_residual flag is enabled.
+    """
+    expert_process_group_size, rank, weight_parallel_group_size, w_rank = 1, 0, 1, 0
+    if module.expert_parallel_group is not None:
+        expert_process_group_size = int(
+            module.expert_parallel_group.size())  # type: ignore
+        rank = int(module.expert_parallel_group.rank())  # type: ignore
+    if module.weight_parallel_group is not None:
+        weight_parallel_group_size = int(
+            module.weight_parallel_group.size())  # type: ignore
+        w_rank = int(module.weight_parallel_group.rank())  # type: ignore
+
+    _init_fn_ = _flip_fan_mode(init_fn_)
+
+    # Initialize w1
+    w1_size = list(module.w1.shape)  # type: ignore
+    w1_size[0] = w1_size[0] * expert_process_group_size
+    w1_size[1] = w1_size[1] * weight_parallel_group_size
+    _w1 = module.w1.new_empty(w1_size)  # type: ignore
+    stacked_param_init_helper(_w1, _init_fn_, module._stack_dim)  # type: ignore
+    _w1_local = _w1.chunk(expert_process_group_size, dim=0)[rank]
+    _w1_local_slice = _w1_local.chunk(weight_parallel_group_size, dim=1)[w_rank]
+    with torch.no_grad():
+        module.w1.copy_(_w1_local_slice)  # type: ignore
+
+    # Initialize w2
+    w2_size = list(module.w2.shape)  # type: ignore
+    w2_size[0] = w2_size[0] * expert_process_group_size
+    w2_size[1] = w2_size[1] * weight_parallel_group_size
+    _w2 = module.w2.new_empty(w2_size)  # type: ignore
+    stacked_param_init_helper(_w2, _init_fn_, module._stack_dim)  # type: ignore
+    _w2_local = _w2.chunk(expert_process_group_size, dim=0)[rank]
+    _w2_local_slice = _w2_local.chunk(weight_parallel_group_size, dim=1)[w_rank]
+    with torch.no_grad():
+        module.w2.copy_(_w2_local_slice)  # type: ignore
+    if init_div_is_residual is not False:
+        with torch.no_grad():
+            module.w2.div_(div_is_residual)  # type: ignore
+
+
+def _normal_init_(std: float, mean: float = 0.0):
     return partial(torch.nn.init.normal_, mean=mean, std=std)
 
 
@@ -262,8 +577,8 @@ def small_param_init_fn_(
     **kwargs: Any,
 ) -> None:
     del kwargs  # unused, just to capture any extra args from the config
-    # very close to kaiming normal
-    # from Transformers without Tears (2019) - Nguyen & Salazar
+    # Very close to kaiming normal
+    # From Transformers without Tears (2019) - Nguyen & Salazar
     std = math.sqrt(2 / (5 * d_model))
     _normal_param_init_fn_(
         module=module,

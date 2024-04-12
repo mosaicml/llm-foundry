@@ -7,11 +7,15 @@ import logging
 import math
 import os
 import re
+import shutil
 import tempfile
+import time
+from multiprocessing.context import SpawnProcess
 from pathlib import Path
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 import torch
+import torch.nn as nn
 from composer.core import Callback, Event, State, Time, TimeUnit
 from composer.core.state import fsdp_state_dict_type_context
 from composer.loggers import Logger, MLFlowLogger
@@ -21,6 +25,7 @@ from composer.utils import (dist, format_name_with_dist_and_time,
                             parse_uri)
 from composer.utils.misc import create_interval_scheduler
 from mlflow.transformers import _fetch_model_card, _write_license_information
+from packaging import version
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
@@ -70,6 +75,31 @@ def _maybe_get_license_filename(
 
     except StopIteration:
         return None
+
+
+def _register_model_with_run_id_multiprocess(
+    mlflow_logger: MLFlowLogger,
+    composer_logging_level: int,
+    model_uri: str,
+    name: str,
+    await_creation_for: int,
+):
+    """Call MLFlowLogger.register_model_with_run_id.
+
+    Used mainly to register from a child process.
+    """
+    # Setup logging for child process. This ensures that any logs from composer are surfaced.
+    if composer_logging_level > 0:
+        # If logging_level is 0, then the composer logger was unset.
+        logging.basicConfig(
+            format=
+            f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
+        )
+        logging.getLogger('composer').setLevel(composer_logging_level)
+
+    # Register model.
+    mlflow_logger.register_model_with_run_id(
+        model_uri=model_uri, name=name, await_creation_for=await_creation_for)
 
 
 class HuggingFaceCheckpointer(Callback):
@@ -171,6 +201,10 @@ class HuggingFaceCheckpointer(Callback):
         self.last_checkpoint_batch: Optional[Time] = None
         self.mlflow_loggers = []
 
+        self.child_processes: List[SpawnProcess] = []
+        # Temporary save directory used by child_processes.
+        self.temp_save_dir = None
+
     def run_event(self, event: Event, state: State, logger: Logger) -> None:
         # The interval scheduler handles only returning True for the appropriate events
         if state.get_elapsed_duration() is not None and self.check_interval(
@@ -201,7 +235,22 @@ class HuggingFaceCheckpointer(Callback):
 
                 import mlflow
                 mlflow.environment_variables.MLFLOW_HUGGINGFACE_MODEL_MAX_SHARD_SIZE.set(
-                    '5GB')
+                    '1GB')
+        elif event == Event.FIT_END:
+            # Wait for all child processes spawned by the callback to finish.
+            timeout = 3600
+            wait_start = time.time()
+            while not self._all_child_processes_done():
+                wait_time = time.time() - wait_start
+                if wait_time > timeout:
+                    raise TimeoutError(
+                        f'Waited {wait_time} seconds for child processes to complete. Exceeded timeout of {timeout} seconds.'
+                    )
+                time.sleep(2)
+
+            # Clean up temporary save directory; all processes are done with it.
+            if self.temp_save_dir is not None:
+                shutil.rmtree(self.temp_save_dir)
 
     def _is_last_batch(self, state: State):
         elapsed_duration = state.get_elapsed_duration()
@@ -217,6 +266,12 @@ class HuggingFaceCheckpointer(Callback):
                 state.max_duration.value * state.dataloader_len) == 0
 
         return False
+
+    def _all_child_processes_done(self) -> bool:
+        not_done = any(process.is_alive() for process in self.child_processes)
+        x = torch.tensor(1 if not_done else 0).to(device='cuda')
+        dist.all_reduce(x, reduce_operation='MAX')
+        return x.item() == 0
 
     def _save_checkpoint(self, state: State, logger: Logger):
         del logger  # unused
@@ -235,158 +290,219 @@ class HuggingFaceCheckpointer(Callback):
                 Path(self.save_dir_format_str) /
                 self.huggingface_folder_name_fstr), state.run_name,
             state.timestamp)
-        dir_context_mgr = tempfile.TemporaryDirectory(
-        ) if self.remote_ud is not None else contextlib.nullcontext(
-            enter_result=save_dir)
 
-        with dir_context_mgr as temp_save_dir:
-            assert isinstance(temp_save_dir,
-                              str)  # pyright doesn't know about enter_result
+        # Use a temporary directory if save_dir is remote.
+        use_temp_dir = self.remote_ud is not None
+        temp_save_dir = tempfile.mkdtemp() if use_temp_dir else save_dir
 
-            log.debug('Gathering state dict')
-            from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
+        log.debug('Gathering state dict')
+        from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 
-            if state.is_model_ddp:
-                composer_model = state.model.module
-                original_model: PreTrainedModel = state.model.module.model
-                state_dict_model = state.model.module.model
-                original_tokenizer = state.model.module.tokenizer
-            elif isinstance(state.model.model, FSDP):
-                composer_model = state.model
-                original_model: PreTrainedModel = state.model.model.module
-                state_dict_model = state.model.model
-                original_tokenizer = state.model.tokenizer
-            else:
-                composer_model = state.model
-                original_model: PreTrainedModel = state.model.model
-                state_dict_model = state.model.model
-                original_tokenizer = state.model.tokenizer
+        if state.is_model_ddp:
+            composer_model = state.model.module
+            original_model: PreTrainedModel = state.model.module.model
+            state_dict_model = state.model.module.model
+            original_tokenizer = state.model.module.tokenizer
+        elif isinstance(state.model.model, FSDP):
+            composer_model = state.model
+            original_model: PreTrainedModel = state.model.model.module
+            state_dict_model = state.model.model
+            original_tokenizer = state.model.tokenizer
+        else:
+            composer_model = state.model
+            original_model: PreTrainedModel = state.model.model
+            state_dict_model = state.model.model
+            original_tokenizer = state.model.tokenizer
 
+        if version.parse(torch.__version__) > version.parse('2.2.9'):
+            from torch.distributed._tensor import DTensor
+            from torch.distributed.checkpoint.state_dict import (
+                StateDictOptions, get_model_state_dict)
+            cpu_offload = True
+
+            # Add a dtensor->cpu tensor hook to avoid CUDA OOM
+            def dtensor_to_tensor_hook(
+                module: nn.Module,
+                state_dict: Dict[str, Any],
+                prefix: str,
+                *args: Any,
+            ) -> Dict[str, Any]:
+                dtensor_fqns = []
+                for fqn in state_dict.keys():
+                    tensor = state_dict[fqn]
+                    if isinstance(tensor, DTensor):
+                        dtensor_fqns.append(fqn)
+                        tensor = tensor.full_tensor()  # type: ignore
+                        if dist.get_global_rank() == 0:
+                            if cpu_offload:
+                                tensor = tensor.cpu()
+                            state_dict[fqn] = tensor
+                if dist.get_global_rank() != 0:
+                    for fqn in dtensor_fqns:
+                        del state_dict[fqn]
+                return state_dict
+
+            hooks = []
+            for _, module in state_dict_model.named_modules():
+                if isinstance(module, FSDP):
+                    hooks.append(
+                        module._register_state_dict_hook(
+                            dtensor_to_tensor_hook))
+
+            state_dict = get_model_state_dict(state_dict_model,
+                                              options=StateDictOptions(
+                                                  full_state_dict=True,
+                                                  cpu_offload=cpu_offload))
+            for hook in hooks:
+                hook.remove()
+        else:
             state_dict_context = fsdp_state_dict_type_context(
                 original_model, state_dict_type='full') if (
                     (not state.is_model_ddp) and isinstance(
                         state_dict_model, FSDP)) else contextlib.nullcontext()
-
             with state_dict_context:
                 state_dict = state_dict_model.state_dict()
 
-                # convert the state dict to the requested precision
-                for k, v in state_dict.items():
-                    if isinstance(v, torch.Tensor):
-                        state_dict[k] = v.to(dtype=self.dtype)
+        # Convert the state dict to the requested precis
+        for k, v in state_dict.items():
+            if isinstance(v, torch.Tensor):
+                state_dict[k] = v.to(dtype=self.dtype)
 
-            if dist.get_global_rank() == 0:
-                log.debug('Saving Hugging Face checkpoint in global rank 0')
+        new_model_instance = None  # Need this for pyright because variable could be unbound
 
-                copied_config = copy.deepcopy(original_model.config)
-                if copied_config.model_type == 'mpt':
-                    copied_config.attn_config['attn_impl'] = 'torch'
-                    copied_config.init_device = 'cpu'
+        if dist.get_global_rank() == 0:
+            log.debug('Saving Hugging Face checkpoint in global rank 0')
 
-                log.debug(f'Creating new model instance')
+            # Edit HF config before building 2nd model copy
+            copied_config = copy.deepcopy(original_model.config)
+            if copied_config.model_type == 'mpt':
+                copied_config.attn_config['attn_impl'] = 'torch'
+                copied_config.init_device = 'cpu'
+                if 'moe_world_size' in getattr(copied_config, 'ffn_config', {}):
+                    copied_config.ffn_config['moe_world_size'] = 1
 
-                if composer_model.using_peft:
-                    # We don't use meta here because the state dict does not contain the full
-                    # model, only the adapter weights.
-                    active_adapter = original_model.active_adapter
-                    base_model = original_model.get_base_model()
-                    new_base_model_instance = type(base_model)(copied_config)
+            log.debug(f'Creating new model instance')
 
-                    new_model_instance = type(original_model)(
-                        new_base_model_instance,
-                        original_model.peft_config[active_adapter])
-                    new_model_instance.to(dtype=self.dtype)
-                else:
-                    # First create the model instance on meta device to avoid the
-                    # initialization cost.
-                    with init_empty_weights():
-                        new_model_instance = type(original_model)(copied_config)
+            if composer_model.using_peft:
+                # We don't use meta here because the state dict does not contain the full
+                # model, only the adapter weights.
+                active_adapter = original_model.active_adapter
+                base_model = original_model.get_base_model()
+                new_base_model_instance = type(base_model)(copied_config)
 
-                # Then load the state dict in with "assign" so that the state dict
-                # is loaded properly even though the model is initially on meta device.
-                new_model_instance.load_state_dict(state_dict, assign=True)
-                del state_dict
+                new_model_instance = type(original_model)(
+                    new_base_model_instance,
+                    original_model.peft_config[active_adapter])
+                new_model_instance.to(dtype=self.dtype)
+            else:
+                # First create the model instance on meta device to avoid the
+                # initialization cost.
+                with init_empty_weights():
+                    new_model_instance = type(original_model)(copied_config)
 
-                log.debug('Saving Hugging Face checkpoint to disk')
-                new_model_instance.save_pretrained(temp_save_dir)
-                if original_tokenizer is not None:
-                    assert isinstance(original_tokenizer,
-                                      PreTrainedTokenizerBase)
-                    original_tokenizer.save_pretrained(temp_save_dir)
+            # Then load the state dict in with "assign" so that the state dict
+            # is loaded properly even though the model is initially on meta device.
+            new_model_instance.load_state_dict(state_dict, assign=True)
+            del state_dict
 
-                # Only need to edit files for MPT because it has custom code
-                if original_model.config.model_type == 'mpt':
-                    log.debug('Editing MPT files for HuggingFace compatibility')
-                    edit_files_for_hf_compatibility(
-                        temp_save_dir,
-                        self.flatten_imports,
+            log.debug('Saving Hugging Face checkpoint to disk')
+            new_model_instance.save_pretrained(temp_save_dir)
+            if original_tokenizer is not None:
+                assert isinstance(original_tokenizer, PreTrainedTokenizerBase)
+                original_tokenizer.save_pretrained(temp_save_dir)
+
+            # Only need to edit files for MPT because it has custom code
+            if original_model.config.model_type == 'mpt':
+                log.debug('Editing MPT files for HuggingFace compatibility')
+                edit_files_for_hf_compatibility(
+                    temp_save_dir,
+                    self.flatten_imports,
+                )
+
+            if self.remote_ud is not None:
+                for filename in os.listdir(temp_save_dir):
+                    remote_file_name = os.path.join(save_dir, filename)
+                    remote_file_uri = self.remote_ud.remote_backend.get_uri(
+                        remote_file_name)
+                    log.info(
+                        f'Uploading HuggingFace formatted checkpoint to {remote_file_uri}'
+                    )
+                    self.remote_ud.upload_file(
+                        state=state,
+                        remote_file_name=remote_file_name,
+                        file_path=Path(os.path.join(temp_save_dir, filename)),
+                        overwrite=self.overwrite,
                     )
 
-                if self.remote_ud is not None:
-                    for filename in os.listdir(temp_save_dir):
-                        remote_file_name = os.path.join(save_dir, filename)
-                        remote_file_uri = self.remote_ud.remote_backend.get_uri(
-                            remote_file_name)
-                        log.info(
-                            f'Uploading HuggingFace formatted checkpoint to {remote_file_uri}'
+        dist.barrier()
+
+        if dist.get_global_rank() == 0:
+            if self.mlflow_registered_model_name and self._is_last_batch(state):
+                components = {'model': new_model_instance}
+                if original_tokenizer is not None:
+                    components['tokenizer'] = original_tokenizer
+
+                log.debug('Logging Hugging Face model to MLFlow')
+                for i, mlflow_logger in enumerate(self.mlflow_loggers):
+                    log.debug(
+                        f'Registering model to UC at {mlflow_logger.model_registry_prefix}.{self.mlflow_registered_model_name}'
+                    )
+                    local_save_path = str(
+                        Path(temp_save_dir) / f'mlflow_save_{i}')
+
+                    # TODO: Remove after mlflow fixes the bug that makes this necessary
+                    import mlflow
+                    mlflow.store._unity_catalog.registry.rest_store.get_feature_dependencies = lambda *args, **kwargs: ''
+                    model_saving_kwargs: Dict[str, Any] = {
+                        'path': local_save_path
+                    }
+                    if composer_model.using_peft:
+                        model_saving_kwargs['flavor'] = 'peft'
+                        model_saving_kwargs[
+                            'save_pretrained_dir'] = temp_save_dir
+                        model_saving_kwargs[
+                            'metadata'] = self.mlflow_logging_config['metadata']
+                    else:
+                        model_saving_kwargs['flavor'] = 'transformers'
+                        model_saving_kwargs['transformers_model'] = components
+                        model_saving_kwargs.update(self.mlflow_logging_config)
+
+                    mlflow_logger.save_model(**model_saving_kwargs)
+
+                    # Upload the license file generated by mlflow during the model saving.
+                    license_filename = _maybe_get_license_filename(
+                        local_save_path,
+                        self.mlflow_logging_config['metadata'].get(
+                            'pretrained_model_name', None))
+                    if license_filename is not None:
+                        mlflow_logger._mlflow_client.log_artifact(
+                            mlflow_logger._run_id,
+                            os.path.join(local_save_path, license_filename),
                         )
-                        self.remote_ud.upload_file(
-                            state=state,
-                            remote_file_name=remote_file_name,
-                            file_path=Path(os.path.join(temp_save_dir,
-                                                        filename)),
-                            overwrite=self.overwrite,
-                        )
 
-                if self.mlflow_registered_model_name and self._is_last_batch(
-                        state):
-                    components = {'model': new_model_instance}
-                    if original_tokenizer is not None:
-                        components['tokenizer'] = original_tokenizer
+                    # Spawn a new process to register the model.
+                    process = SpawnProcess(
+                        target=_register_model_with_run_id_multiprocess,
+                        kwargs={
+                            'mlflow_logger':
+                                mlflow_logger,
+                            'composer_logging_level':
+                                logging.getLogger('composer').level,
+                            'model_uri':
+                                local_save_path,
+                            'name':
+                                self.mlflow_registered_model_name,
+                            'await_creation_for':
+                                3600,
+                        })
+                    process.start()
+                    self.child_processes.append(process)
 
-                    log.debug('Logging Hugging Face model to MLFlow')
-                    for i, mlflow_logger in enumerate(self.mlflow_loggers):
-                        log.debug(
-                            f'Registering model to UC at {mlflow_logger.model_registry_prefix}.{self.mlflow_registered_model_name}'
-                        )
-                        local_save_path = str(
-                            Path(temp_save_dir) / f'mlflow_save_{i}')
-
-                        # TODO: Remove after mlflow fixes the bug that makes this necessary
-                        import mlflow
-                        mlflow.store._unity_catalog.registry.rest_store.get_feature_dependencies = lambda *args, **kwargs: ''
-                        model_saving_kwargs: Dict[str, Any] = {
-                            'path': local_save_path
-                        }
-                        if composer_model.using_peft:
-                            model_saving_kwargs['flavor'] = 'peft'
-                            model_saving_kwargs[
-                                'save_pretrained_dir'] = temp_save_dir
-                            model_saving_kwargs[
-                                'metadata'] = self.mlflow_logging_config[
-                                    'metadata']
-                        else:
-                            model_saving_kwargs['flavor'] = 'transformers'
-                            model_saving_kwargs[
-                                'transformers_model'] = components
-                            model_saving_kwargs.update(
-                                self.mlflow_logging_config)
-
-                        mlflow_logger.save_model(**model_saving_kwargs)
-
-                        # Upload the license file generated by mlflow during the model saving.
-                        license_filename = _maybe_get_license_filename(
-                            local_save_path,
-                            self.mlflow_logging_config['metadata'].get(
-                                'pretrained_model_name', None))
-                        if license_filename is not None:
-                            mlflow_logger._mlflow_client.log_artifact(
-                                mlflow_logger._run_id,
-                                os.path.join(local_save_path, license_filename),
-                            )
-
-                        mlflow_logger.register_model_with_run_id(
-                            model_uri=local_save_path,
-                            name=self.mlflow_registered_model_name,
-                            await_creation_for=3600,
-                        )
+                    # Save the temporary directory to be cleaned up later.
+                    if use_temp_dir:
+                        self.temp_save_dir = temp_save_dir
+            else:
+                # Clean up the temporary directory if we don't need to register to mlflow.
+                if use_temp_dir:
+                    shutil.rmtree(temp_save_dir)
+        dist.barrier()

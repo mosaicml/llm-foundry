@@ -15,7 +15,7 @@ from packaging import version
 from torch import nn
 
 from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY
-from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
+from llmfoundry.models.layers.layer_builders import build_norm
 
 
 def is_flash_v2_installed(v2_version: str = '2.0.0'):
@@ -419,12 +419,19 @@ class GroupedQueryAttention(nn.Module):
         self.Wqkv._fused = (0, fuse_splits)
 
         if self.qk_ln or self.qk_gn:
-            norm_class = NORM_CLASS_REGISTRY[norm_type.lower()]
             norm_size = self.head_dim if qk_gn else d_model
-            self.q_ln = norm_class(norm_size, device=device)
+            self.q_ln = build_norm(
+                name=norm_type.lower(),
+                normalized_shape=norm_size,
+                device=device,
+            )
             if qk_ln:
                 norm_size = self.head_dim * kv_n_heads
-            self.k_ln = norm_class(norm_size, device=device)
+            self.k_ln = build_norm(
+                name=norm_type.lower(),
+                normalized_shape=norm_size,
+                device=device,
+            )
 
         if self.attn_impl == 'flash':
             self.attn_fn = flash_attn_fn
@@ -501,9 +508,10 @@ class GroupedQueryAttention(nn.Module):
                 value = value.view(bsz, seqlen, self.kv_n_heads * self.head_dim)
             elif rotary_emb_w_meta_info['impl'] == 'hf':
                 if is_transformers_version_gte('4.38'):
-                    (cos, sin) = rotary_emb(x=value,
-                                            position_ids=offset_info,
-                                            seq_len=None)
+                    (cos, sin) = rotary_emb(
+                        x=value,
+                        position_ids=offset_info,
+                    )
                 else:
                     (cos, sin) = rotary_emb(x=value, seq_len=seq_len)
                 if is_transformers_version_gte('4.38'):

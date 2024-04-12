@@ -91,6 +91,7 @@ Tutorial videos from the community:
 Something missing? Contribute with a PR!
 
 # Latest News
+* [Blog: Introducing DBRX: A New State-of-the-Art Open LLM](https://www.databricks.com/blog/introducing-dbrx-new-state-art-open-llm)
 * [Blog: LLM Training and Inference with Intel Gaudi2 AI Accelerators](https://www.databricks.com/blog/llm-training-and-inference-intel-gaudi2-ai-accelerators)
 * [Blog: Training LLMs at Scale with AMD MI250 GPUs](https://www.databricks.com/blog/training-llms-scale-amd-mi250-gpus)
 * [Blog: Training LLMs with AMD MI250 GPUs and MosaicML](https://www.mosaicml.com/blog/amd-mi250)
@@ -305,7 +306,7 @@ dependencies = [
     "llm-foundry",
 ]
 
-[project.entry-points."llm_foundry.loggers"]
+[project.entry-points."llmfoundry_loggers"]
 my_logger = "foundry_registry.loggers:MyLogger"
 ```
 

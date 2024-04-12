@@ -3,6 +3,7 @@
 
 import functools
 import importlib.util
+from contextlib import contextmanager
 import os
 from pathlib import Path
 from types import ModuleType
@@ -174,3 +175,12 @@ def import_file(loc: Union[str, Path]) -> ModuleType:
     except Exception as e:
         raise RuntimeError(f'Error executing {loc}') from e
     return module
+
+@contextmanager
+def save_registry():
+    """Save the registry state and restore after the context manager exits."""
+    saved_registry_state = copy.deepcopy(catalogue.REGISTRY)
+
+    yield
+
+    catalogue.REGISTRY = saved_registry_state

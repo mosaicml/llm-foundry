@@ -52,6 +52,7 @@ def write_huggingface_pretrained_from_composer_checkpoint(
         local_checkpoint_save_location (Optional[Union[Path, str]], optional): If specified, where to save the checkpoint file to locally.
                                                                                 If the input ``checkpoint_path`` is already a local path, this will be a symlink.
                                                                                 Defaults to None, which will use a temporary file.
+        bert_config_path (Optional[str], optional): Path to the bert config file. Defaults to None. A placeholder config from mosaicml/mosaic-bert-base will be used if not provided.
     """
     dtype = {
         'fp32': torch.float32,

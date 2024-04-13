@@ -15,7 +15,7 @@ from llmfoundry.interfaces import CallbackWithConfig
 from llmfoundry.layers_registry import (attention_classes,
                                         attention_implementations, fcs, ffns,
                                         ffns_with_megablocks, ffns_with_norm,
-                                        norms)
+                                        module_init_fns, norms, param_init_fns)
 from llmfoundry.utils.registry_utils import create_registry
 
 _loggers_description = (
@@ -133,6 +133,8 @@ __all__ = [
     'metrics',
     'dataloaders',
     'norms',
+    'param_init_fns',
+    'module_init_fns',
     'ffns',
     'ffns_with_norm',
     'ffns_with_megablocks',

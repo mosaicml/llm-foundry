@@ -43,7 +43,7 @@ from transformers.models.llama.modeling_llama import \
 from transformers.models.llama.modeling_llama import \
     LlamaRotaryEmbedding as HFRotaryEmbedding
 
-from llmfoundry.layers_registry import norms
+from llmfoundry.layers_registry import norms, param_init_fns
 from llmfoundry.models.layers.attention import (attn_bias_shape,
                                                 build_attn_bias, gen_slopes)
 from llmfoundry.models.layers.blocks import MPTBlock
@@ -62,7 +62,6 @@ from llmfoundry.models.utils.meta_init_context import \
     init_empty_weights  # type: ignore (see note)
 from llmfoundry.models.utils.param_init_fns import (
     generic_param_init_fn_,  # type: ignore (see note)
-    MODEL_INIT_REGISTRY,
 )
 from llmfoundry.models.layers.ffn import resolve_ffn_act_fn  # type: ignore (see note)
 
@@ -678,7 +677,7 @@ class MPTModel(MPTPreTrainedModel):
     # Param Initialization, needed for device='meta' fast initialization
     def param_init_fn(self, module: nn.Module) -> None:
         init_fn_name = self.config.init_config['name']
-        MODEL_INIT_REGISTRY[init_fn_name](
+        param_init_fns.get(init_fn_name)(
             module=module,
             n_layers=self.config.n_layers,
             d_model=self.config.d_model,
@@ -838,7 +837,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
     # Param Initialization, needed for device='meta' fast initialization
     def param_init_fn(self, module: nn.Module) -> None:
         init_fn_name = self.config.init_config['name']
-        MODEL_INIT_REGISTRY[init_fn_name](
+        param_init_fns.get(init_fn_name)(
             module=module,
             n_layers=self.config.n_layers,
             d_model=self.config.d_model,

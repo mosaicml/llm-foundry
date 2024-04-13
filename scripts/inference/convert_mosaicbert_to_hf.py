@@ -82,11 +82,11 @@ def write_huggingface_pretrained_from_composer_checkpoint(
         #json
         with open(bert_config_path, 'r') as f:
             bert_config = json.load(f)   
-        composer_state_dict["state"]["integrations"]["huggingface"]["model"]["config"]["content"] = bert_config
+        composer_state_dict["state"]["integrations"] = {"huggingface":{"model":{"config":{"content": bert_config}}}}
 
     else:
         # placeholder config from mosaicml/mosaic-bert-base
-        composer_state_dict["state"]["integrations"]["huggingface"] = {
+        composer_state_dict["state"]["integrations"]={"huggingface":{
             "model":{"config":{"content":{
                 "_name_or_path": "mosaicml/mosaic-bert",
                 "alibi_starting_size": 512,
@@ -118,7 +118,7 @@ def write_huggingface_pretrained_from_composer_checkpoint(
                 "use_cache": False,
                 "vocab_size": 30522
 
-        }}},
+        }}}},
         "tokenizer":{}
     }
     if 'state' not in composer_state_dict:

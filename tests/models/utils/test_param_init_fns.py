@@ -12,7 +12,8 @@ from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from torch import nn
 
-from llmfoundry.models.utils import MODEL_INIT_REGISTRY, generic_param_init_fn_
+from llmfoundry.layers_registry import param_init_fns
+from llmfoundry.models.utils import generic_param_init_fn_
 
 
 class MLP(nn.Module):
@@ -150,7 +151,7 @@ def test_emb_init(emb_init_cfg: Optional[Tuple[str, Union[int, List[int]]]]):
                        bias=True)),
         ]))
 
-    model.apply(partial(MODEL_INIT_REGISTRY['kaiming_normal_'], **dict_cfg))
+    model.apply(partial(param_init_fns.get('kaiming_normal_'), **dict_cfg))
 
     assert isinstance(model.emb, torch.nn.Embedding)
 

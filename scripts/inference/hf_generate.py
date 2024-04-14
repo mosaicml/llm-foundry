@@ -64,7 +64,9 @@ def parse_args() -> Namespace:
             'This is an explanation of deep learning to a five year old. Deep learning is',
         ],
         help='List of generation prompts or list of delimited files. Use syntax ' +\
-             '"file::/path/to/prompt.txt" to load a prompt(s) contained in a txt file.'
+             f'"{utils.PROMPTFILE_PREFIX}/path/to/prompt.txt" to load prompt(s) contained in a txt file. ' +\
+             f'You can load a file from an object store without a prefix, e.g. "s3://bucket/path/to/prompt.txt". ' +\
+             f'\nUse syntax "{utils.PROMPTDATASET_PREFIX}org/dataset" to load prompts from a HF dataset. '
         )
     parser.add_argument(
         '--prompt-delimiter',
@@ -276,7 +278,10 @@ def main(args: Namespace) -> None:
             print(f'\nTokenizing prompts...')
             maybe_synchronize()
             encode_start = time.time()
-            encoded_inp = tokenizer(batch, return_tensors='pt', padding=True)
+            encoded_inp = tokenizer(batch,
+                                    return_tensors='pt',
+                                    padding=True,
+                                    truncation=True)
             for key, value in encoded_inp.items():
                 encoded_inp[key] = value.to(model.device)
             maybe_synchronize()

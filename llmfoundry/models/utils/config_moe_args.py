@@ -9,7 +9,29 @@ import torch
 from packaging import version
 from torch import distributed
 
+from llmfoundry.layers_registry import ffns_with_megablocks
 from llmfoundry.models.layers.ffn import resolve_ffn_hidden_size
+
+
+def create_process_group_ranks(ranks: tuple[int]):
+    """Creates a new distributed group.
+
+    Used in create_set_process_group and create_mod_process_group methods below.
+
+    This function is an alternative to `distributed.new_group(ranks)`.
+
+    Args:
+        ranks (tuple[int]): Tuple of ranks of group members.
+
+    Returns:
+        A handle of distributed group that can be given to collective calls.
+    """
+    ranks_gather_list = [None for _ in range(distributed.get_world_size())]
+    distributed.all_gather_object(ranks_gather_list, ranks)
+    ranks_per_subgroup = list(set(ranks_gather_list))
+    group, _ = distributed.distributed_c10d.new_subgroups_by_enumeration(
+        ranks_per_subgroup)
+    return group
 
 
 def create_set_process_group(k: int):
@@ -33,7 +55,7 @@ def create_set_process_group(k: int):
         raise RuntimeError(f'{world_size=} must be divisible by {k=}.')
     start = distributed.get_rank() // k * k
     ranks = tuple(range(start, start + k))
-    return distributed.new_group(ranks)
+    return create_process_group_ranks(ranks)
 
 
 def config_megablocks_moe_args(
@@ -156,7 +178,7 @@ def config_moe_args(
     Returns:
         ffn_config (dict): FFN configuration with MoE configured.
     """
-    if ffn_config['ffn_type'] in ('mb_moe', 'mb_dmoe'):
+    if ffn_config['ffn_type'] in ffns_with_megablocks:
         return config_megablocks_moe_args(
             ffn_config=ffn_config,
             d_model=d_model,

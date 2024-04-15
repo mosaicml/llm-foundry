@@ -13,7 +13,6 @@ from typing import Any, Dict, List, Optional, Union
 import torch
 from composer import Trainer
 from composer.core.callback import Callback
-from composer.metrics.nlp import InContextLearningMetric
 from composer.profiler import (JSONTraceHandler, Profiler, TraceHandler,
                                cyclic_schedule)
 from composer.utils import dist, get_device, reproducibility
@@ -22,6 +21,7 @@ from omegaconf import OmegaConf
 from omegaconf import OmegaConf as om
 from rich.traceback import install
 
+from llmfoundry.eval.metrics.nlp import InContextLearningMetric
 from llmfoundry.utils import (find_mosaicml_logger, log_train_analytics,
                               maybe_create_mosaicml_logger)
 
@@ -30,6 +30,7 @@ from omegaconf import MISSING
 
 from llmfoundry.callbacks import AsyncEval
 from llmfoundry.data.dataloader import build_dataloader
+from llmfoundry.layers_registry import ffns_with_megablocks
 from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_algorithm, build_callback,
                                        build_composer_model, build_evaluators,
@@ -156,14 +157,14 @@ def validate_config(cfg: TrainConfig):
         act_ckpt = fsdp_config.get('activation_checkpointing',
                                    False) if fsdp_config else False
         act_ckpt_reentrant = fsdp_config.get(
-            'activation_checkpointing_reentrant', True) if fsdp_config else True
-        if fsdp_config is not None and act_ckpt == True and act_ckpt_reentrant == False and cfg.fsdp_config is not None:
+            'activation_checkpointing_reentrant', False)
+        if fsdp_config is not None and act_ckpt == True and act_ckpt_reentrant == True:
             warnings.warn(
                 '`te.Linear` layers do not support activation_checkpointing with '
-                + '`activation_checkpointing_reentrant = False`. ' +
-                'Setting cfg.fsdp_config.activation_checkpointing_reentrant=True.'
+                + '`activation_checkpointing_reentrant = True`. ' +
+                'Setting cfg.fsdp_config.activation_checkpointing_reentrant=False.'
             )
-            cfg.fsdp_config['activation_checkpointing_reentrant'] = True
+            cfg.fsdp_config.activation_checkpointing_reentrant = False
 
     if cfg.model.get('ffn_config', {}).get('ffn_type', 'mptmlp') == 'te_ln_mlp':
         warnings.warn(
@@ -178,7 +179,7 @@ def validate_config(cfg: TrainConfig):
         )
 
     if cfg.model.get('ffn_config', {}).get('ffn_type',
-                                           'mptmlp') in ('mb_moe', 'mb_dmoe'):
+                                           'mptmlp') in ffns_with_megablocks:
         moe_world_size = cfg.model.get('ffn_config',
                                        {}).get('moe_world_size', 1)
         use_orig_params = cfg.fsdp_config.get(

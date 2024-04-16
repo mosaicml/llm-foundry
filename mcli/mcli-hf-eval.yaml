@@ -1,10 +1,17 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
+<<<<<<< HEAD
   git_branch: debug_f1_score # v0.4.0
   # git_commit: # OR use your commit hash
   pip_install: -e ".[gpu]"
   ssh_clone: false # Should be true if using a private repo
+=======
+  git_branch: v0.7.0
+  # git_commit:  # OR use your commit hash
+  pip_install: .[gpu]
+  ssh_clone: false  # Should be true if using a private repo
+>>>>>>> migrate_subclasses_to_foundry
 
 command: |
   pip uninstall mosaicml -y
@@ -18,7 +25,7 @@ gpu_num: 32
 gpu_type: a100_40gb
 cluster: r7z2  # replace with your cluster here!
 
-image: mosaicml/llm-foundry:2.1.0_cu121_flash2-latest
+image: mosaicml/llm-foundry:2.2.1_cu121_flash2-latest
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:
@@ -52,6 +59,7 @@ parameters:
     limit_all_gathers: True
 
 
+<<<<<<< HEAD
   icl_tasks:
   -
     label: quac
@@ -89,3 +97,7 @@ parameters:
       subset_sample: -1
       output_directory: s3://mosaicml-internal-checkpoints-test/test_icl_f1_mpt30b
 
+=======
+  icl_tasks: "eval/yamls/tasks_v0.3.yaml"
+  eval_gauntlet: "eval/yamls/eval_gauntlet_v0.3.yaml"
+>>>>>>> migrate_subclasses_to_foundry

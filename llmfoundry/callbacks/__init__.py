@@ -1,33 +1,55 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-try:
-    from llmfoundry.callbacks.async_eval_callback import AsyncEval
-    from llmfoundry.callbacks.eval_gauntlet_callback import EvalGauntlet
-    from llmfoundry.callbacks.fdiff_callback import FDiffMetrics
-    from llmfoundry.callbacks.generate_callback import Generate
-    from llmfoundry.callbacks.hf_checkpointer import HuggingFaceCheckpointer
-    from llmfoundry.callbacks.model_gauntlet_callback import ModelGauntlet
-    from llmfoundry.callbacks.monolithic_ckpt_callback import \
-        MonolithicCheckpointSaver
-    from llmfoundry.callbacks.resumption_callbacks import (GlobalLRScaling,
-                                                           LayerFreezing)
-    from llmfoundry.callbacks.scheduled_gc_callback import \
-        ScheduledGarbageCollector
-except ImportError as e:
-    raise ImportError(
-        'Please make sure to pip install . to get requirements for llm-foundry.'
-    ) from e
+from composer.callbacks import (EarlyStopper, EvalOutputLogging, Generate,
+                                LRMonitor, MemoryMonitor, MemorySnapshot,
+                                OOMObserver, OptimizerMonitor, RuntimeEstimator,
+                                SpeedMonitor)
+
+from llmfoundry.callbacks.async_eval_callback import AsyncEval
+from llmfoundry.callbacks.curriculum_learning_callback import CurriculumLearning
+from llmfoundry.callbacks.eval_gauntlet_callback import EvalGauntlet
+from llmfoundry.callbacks.fdiff_callback import FDiffMetrics
+from llmfoundry.callbacks.hf_checkpointer import HuggingFaceCheckpointer
+from llmfoundry.callbacks.log_mbmoe_tok_per_expert_callback import \
+    MegaBlocksMoE_TokPerExpert
+from llmfoundry.callbacks.monolithic_ckpt_callback import \
+    MonolithicCheckpointSaver
+from llmfoundry.callbacks.resumption_callbacks import (GlobalLRScaling,
+                                                       LayerFreezing)
+from llmfoundry.callbacks.scheduled_gc_callback import ScheduledGarbageCollector
+from llmfoundry.registry import callbacks, callbacks_with_config
+
+callbacks.register('lr_monitor', func=LRMonitor)
+callbacks.register('memory_monitor', func=MemoryMonitor)
+callbacks.register('memory_snapshot', func=MemorySnapshot)
+callbacks.register('speed_monitor', func=SpeedMonitor)
+callbacks.register('runtime_estimator', func=RuntimeEstimator)
+callbacks.register('optimizer_monitor', func=OptimizerMonitor)
+callbacks.register('generate_callback', func=Generate)
+callbacks.register('early_stopper', func=EarlyStopper)
+callbacks.register('fdiff_metrics', func=FDiffMetrics)
+callbacks.register('hf_checkpointer', func=HuggingFaceCheckpointer)
+callbacks.register('global_lr_scaling', func=GlobalLRScaling)
+callbacks.register('layer_freezing', func=LayerFreezing)
+callbacks.register('mono_checkpoint_saver', func=MonolithicCheckpointSaver)
+callbacks.register('scheduled_gc', func=ScheduledGarbageCollector)
+callbacks.register('oom_observer', func=OOMObserver)
+callbacks.register('eval_output_logging', func=EvalOutputLogging)
+callbacks.register('mbmoe_tok_per_expert', func=MegaBlocksMoE_TokPerExpert)
+
+callbacks_with_config.register('async_eval', func=AsyncEval)
+callbacks_with_config.register('curriculum_learning', func=CurriculumLearning)
 
 __all__ = [
     'FDiffMetrics',
-    'Generate',
     'MonolithicCheckpointSaver',
     'GlobalLRScaling',
     'LayerFreezing',
     'ScheduledGarbageCollector',
     'EvalGauntlet',
-    'ModelGauntlet',
     'HuggingFaceCheckpointer',
+    'MegaBlocksMoE_TokPerExpert',
     'AsyncEval',
+    'CurriculumLearning',
 ]

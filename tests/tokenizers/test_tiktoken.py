@@ -39,7 +39,7 @@ MODEL_ENCODING_NAME_PARAMETRIZATION = [
     ('gpt2', None),
 ]
 
-DEFAULT_SYSTEM_PROMPT = """<|im_start|>system\nYou are a helpful, respectful and honest assistant. Always answer as helpfully as possible."""
+DEFAULT_SYSTEM_PROMPT = """<|im_start|>system\nYou are a helpful, respectful and honest assistant. Always answer as helpfully as possible.<|im_end|>"""
 
 MULTI_TURN_CHAT_ML = [
     [{
@@ -73,34 +73,32 @@ Please summarize the goals in this text:
 
 Going outside has benefits include reducing stress and triggering the relaxation response, which can help us not only feel better mentally, but even heal faster from physical ailments.<|im_end|>
 <|im_start|>assistant
-You should go outside and touch grass.<|im_end|><|endoftext|>""",
-    """<|im_start|>system
-You are a honest and helpful AI language model. Tell the user the truth, the whole truth, and nothing but the truth.
+You should go outside and touch grass.<|im_end|>""", """<|im_start|>system
+You are a honest and helpful AI language model. Tell the user the truth, the whole truth, and nothing but the truth.<|im_end|>
 <|im_start|>user
 Please summarize the goals in this text:
 
 Going outside has benefits include reducing stress and triggering the relaxation response, which can help us not only feel better mentally, but even heal faster from physical ailments.<|im_end|>
 <|im_start|>assistant
-You should go outside and touch grass.<|im_end|><|endoftext|>"""
+You should go outside and touch grass.<|im_end|>"""
 ]
 
 MULTI_TURN_CHAT_STRING_SYSTEM_PROMPT = [
     """<|im_start|>system
-You are a helpful, respectful and honest assistant. Always answer as helpfully as possible.
+You are a helpful, respectful and honest assistant. Always answer as helpfully as possible.<|im_end|>
 <|im_start|>user
 Please summarize the goals in this text:
 
 Going outside has benefits include reducing stress and triggering the relaxation response, which can help us not only feel better mentally, but even heal faster from physical ailments.<|im_end|>
 <|im_start|>assistant
-You should go outside and touch grass.<|im_end|><|endoftext|>""",
-    """<|im_start|>system
-You are a honest and helpful AI language model. Tell the user the truth, the whole truth, and nothing but the truth.
+You should go outside and touch grass.<|im_end|>""", """<|im_start|>system
+You are a honest and helpful AI language model. Tell the user the truth, the whole truth, and nothing but the truth.<|im_end|>
 <|im_start|>user
 Please summarize the goals in this text:
 
 Going outside has benefits include reducing stress and triggering the relaxation response, which can help us not only feel better mentally, but even heal faster from physical ailments.<|im_end|>
 <|im_start|>assistant
-You should go outside and touch grass.<|im_end|><|endoftext|>"""
+You should go outside and touch grass.<|im_end|>"""
 ]
 
 MULTI_TURN_GENERATE_CHAT_ML = [[{
@@ -108,15 +106,25 @@ MULTI_TURN_GENERATE_CHAT_ML = [[{
         'Please summarize the goals in this text:\n\nGoing outside has benefits include reducing stress and triggering the relaxation response, which can help us not only feel better mentally, but even heal faster from physical ailments.',
     'role':
         'user'
+}, {
+    'content': 'You should go outside and touch grass.',
+    'role': 'assistant'
+}, {
+    'content': 'What else can I do?',
+    'role': 'user'
 }]]
 
 MULTI_TURN_GENERATE_STRING = [
     """<|im_start|>system
-You are a helpful, respectful and honest assistant. Always answer as helpfully as possible.
+You are a helpful, respectful and honest assistant. Always answer as helpfully as possible.<|im_end|>
 <|im_start|>user
 Please summarize the goals in this text:
 
 Going outside has benefits include reducing stress and triggering the relaxation response, which can help us not only feel better mentally, but even heal faster from physical ailments.<|im_end|>
+<|im_start|>assistant
+You should go outside and touch grass.<|im_end|>
+<|im_start|>user
+What else can I do?<|im_end|>
 <|im_start|>assistant
 """
 ]
@@ -354,6 +362,24 @@ def test_additional_special_tokens(model_name: Optional[str],
     decoded_outputs = wrapped_tokenizer.decode(
         encoded_outputs, spaces_between_special_tokens=False)
     assert decoded_outputs == input_string
+
+
+def test_additional_special_tokens_len():
+    special_token_to_add = '<|im_start|>'
+    with_special = TiktokenTokenizerWrapper(
+        model_name='gpt-4', additional_special_tokens=[special_token_to_add])
+
+    no_special = TiktokenTokenizerWrapper(model_name='gpt-4',)
+    assert len(with_special.get_vocab()) == len(no_special.get_vocab()) + 1
+
+    ret = with_special.add_special_tokens(
+        {'additional_special_tokens': ['<|im_start|>']})
+    assert ret == 0
+
+    ret = with_special.add_special_tokens(
+        {'additional_special_tokens': ['<|im_end|>']})
+    assert ret == 1
+    assert len(with_special.get_vocab()) == len(no_special.get_vocab()) + 2
 
 
 @pytest.mark.parametrize('model_name,encoding_name',

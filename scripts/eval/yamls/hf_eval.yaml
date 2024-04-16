@@ -37,12 +37,13 @@ models:
 device_eval_batch_size: 4
 
 # FSDP config for model sharding
-# fsdp_config:
-#   sharding_strategy: FULL_SHARD
-#   mixed_precision: FULL
-#   forward_prefetch: True
-#   limit_all_gathers: True
+fsdp_config:
+  sharding_strategy: FULL_SHARD
+  mixed_precision: FULL
+  forward_prefetch: True
+  limit_all_gathers: True
 
+<<<<<<< HEAD
 icl_tasks:
 -
     label: quac
@@ -79,3 +80,7 @@ callbacks:
       print_only_incorrect: false
       subset_sample: 100
       output_directory: s3://mosaicml-internal-checkpoints-test/test_f1_score_mpt30b
+=======
+icl_tasks: "eval/yamls/tasks_v0.3.yaml"
+eval_gauntlet: "eval/yamls/eval_gauntlet_v0.3.yaml"
+>>>>>>> migrate_subclasses_to_foundry

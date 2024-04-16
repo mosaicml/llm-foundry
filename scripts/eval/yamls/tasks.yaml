@@ -4,7 +4,7 @@ icl_tasks:
   dataset_uri: eval/local_data/world_knowledge/jeopardy_all.jsonl
   num_fewshot: [10]
   icl_task_type: language_modeling
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  continuation_delimiter: "\nAnswer: "  # this separates questions from answers
   has_categories: true
 -
   label: bigbench_qa_wikidata
@@ -16,19 +16,19 @@ icl_tasks:
   dataset_uri: eval/local_data/world_knowledge/arc_easy.jsonl
   num_fewshot: [10]
   icl_task_type: multiple_choice
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  continuation_delimiter: "\nAnswer: "  # this separates questions from answers
 -
   label: arc_challenge
   dataset_uri: eval/local_data/world_knowledge/arc_challenge.jsonl
   num_fewshot: [10]
   icl_task_type: multiple_choice
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  continuation_delimiter: "\nAnswer: "  # this separates questions from answers
 -
   label: mmlu
   dataset_uri: eval/local_data/world_knowledge/mmlu.jsonl
   num_fewshot: [10]
   icl_task_type: multiple_choice
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  continuation_delimiter: "\nAnswer: "  # this separates questions from answers
   has_categories: true
 -
   label: bigbench_misconceptions
@@ -45,7 +45,7 @@ icl_tasks:
   dataset_uri: eval/local_data/commonsense_reasoning/piqa.jsonl
   num_fewshot: [10]
   icl_task_type: multiple_choice
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  continuation_delimiter: "\nAnswer: "  # this separates questions from answers
 -
   label: openbook_qa
   dataset_uri: eval/local_data/commonsense_reasoning/openbook_qa.jsonl
@@ -151,7 +151,7 @@ icl_tasks:
   dataset_uri: eval/local_data/symbolic_problem_solving/logi_qa.jsonl
   num_fewshot: [10]
   icl_task_type: multiple_choice
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  continuation_delimiter: "\nAnswer: "  # this separates questions from answers
 -
   label: pubmed_qa_labeled
   dataset_uri: eval/local_data/reading_comprehension/pubmed_qa_labeled.jsonl
@@ -172,13 +172,13 @@ icl_tasks:
   dataset_uri: eval/local_data/reading_comprehension/boolq.jsonl
   num_fewshot: [10]
   icl_task_type: multiple_choice
-  continuation_delimiter: "\nAnswer: " # this separates questions from answers
+  continuation_delimiter: "\nAnswer: "  # this separates questions from answers
 # -
 #   label: human_eval
 #   dataset_uri: eval/local_data/programming/human_eval.jsonl
 #   num_fewshot: [0]
 #   pass_at_k: 1
-#   num_beams: 20
+#   generations_per_sample: 20
 #   batch_size: 1
 #   icl_task_type: code_evaluation
 # -
@@ -186,7 +186,7 @@ icl_tasks:
 #   dataset_uri: eval/local_data/programming/processed_human_eval_cpp.jsonl
 #   num_fewshot: [0]
 #   pass_at_k: 1
-#   num_beams: 20
+#   generations_per_sample: 20
 #   batch_size: 1
 #   icl_task_type: code_evaluation
 # -
@@ -194,7 +194,7 @@ icl_tasks:
 #   dataset_uri: eval/local_data/programming/processed_human_eval_js.jsonl
 #   num_fewshot: [0]
 #   pass_at_k: 1
-#   num_beams: 20
+#   generations_per_sample: 20
 #   batch_size: 1
 #   icl_task_type: code_evaluation
 # -
@@ -202,7 +202,7 @@ icl_tasks:
 #   dataset_uri: eval/local_data/programming/human_eval_return_simple.jsonl
 #   num_fewshot: [0]
 #   pass_at_k: 1
-#   num_beams: 20
+#   generations_per_sample: 20
 #   batch_size: 1
 #   icl_task_type: code_evaluation
 # -
@@ -210,7 +210,7 @@ icl_tasks:
 #   dataset_uri: eval/local_data/programming/human_eval_return_complex.jsonl
 #   num_fewshot: [0]
 #   pass_at_k: 1
-#   num_beams: 20
+#   generations_per_sample: 20
 #   batch_size: 1
 #   icl_task_type: code_evaluation
 # -
@@ -218,7 +218,7 @@ icl_tasks:
 #   dataset_uri: eval/local_data/programming/human_eval-0.25.jsonl
 #   num_fewshot: [0]
 #   pass_at_k: 1
-#   num_beams: 20
+#   generations_per_sample: 20
 #   batch_size: 1
 #   icl_task_type: code_evaluation
 # -
@@ -226,7 +226,7 @@ icl_tasks:
 #   dataset_uri: eval/local_data/programming/human_eval-0.5.jsonl
 #   num_fewshot: [0]
 #   pass_at_k: 1
-#   num_beams: 20
+#   generations_per_sample: 20
 #   batch_size: 1
 #   icl_task_type: code_evaluation
 # -
@@ -234,6 +234,6 @@ icl_tasks:
 #   dataset_uri: eval/local_data/programming/human_eval-0.75.jsonl
 #   num_fewshot: [0]
 #   pass_at_k: 1
-#   num_beams: 20
+#   generations_per_sample: 20
 #   batch_size: 1
 #   icl_task_type: code_evaluation

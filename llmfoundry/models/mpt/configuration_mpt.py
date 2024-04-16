@@ -16,9 +16,12 @@ from llmfoundry.models.layers.blocks import attn_config_defaults
 # HuggingFace can detect all the needed files to copy into its modules folder.
 # Otherwise, certain modules are missing.
 # isort: off
-from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY  # type: ignore (see note)
 from llmfoundry.models.layers.norm import LPLayerNorm  # type: ignore (see note)
 from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY  # type: ignore (see note)
+from llmfoundry.models.layers.layer_builders import build_norm, build_fc  # type: ignore (see note)
+from llmfoundry.models.layers.dmoe import dMoE  # type: ignore (see note)
+from llmfoundry.layers_registry import norms  # type: ignore (see note)
+from llmfoundry.utils.registry_utils import construct_from_registry  # type: ignore (see note)
 
 ffn_config_defaults: Dict = {
     'ffn_type': 'mptmlp',
@@ -62,7 +65,6 @@ class MPTConfig(PretrainedConfig):
         fc_type: str = 'torch',
         tie_word_embeddings: bool = True,
         use_pad_tok_in_ffn: bool = True,
-        verbose: Optional[int] = None,
         **kwargs: Any,
     ):
         """The MPT configuration class.
@@ -80,15 +82,13 @@ class MPTConfig(PretrainedConfig):
             attn_config (Dict): A dictionary used to configure the model's attention module:
                 attn_type (str): type of attention to use. Options: multihead_attention, multiquery_attention, grouped_query_attention
                 attn_pdrop (float): The dropout probability for the attention layers.
-                attn_impl (str): The attention implementation to use. One of 'torch', 'flash', or 'triton'.
+                attn_impl (str): The attention implementation to use. One of 'torch' or 'flash'.
                 qk_ln (bool): Whether to apply layer normalization to the queries and keys in the attention layer.
+                qk_gn (bool): Whether to apply group normalization to the queries and keys in the attention layer.
                 clip_qkv (Optional[float]): If not None, clip the queries, keys, and values in the attention layer to
                     this value.
                 softmax_scale (Optional[float]): If not None, scale the softmax in the attention layer by this value. If None,
                     use the default scale of ``1/sqrt(d_keys)``.
-                prefix_lm (Optional[bool]): Whether the model should operate as a Prefix LM. This requires passing an
-                    extra `prefix_mask` argument which indicates which tokens belong to the prefix. Tokens in the prefix
-                    can attend to one another bi-directionally. Tokens outside the prefix use causal attention.
                 attn_uses_sequence_id (Optional[bool]): Whether to restrict attention to tokens that have the same sequence_id.
                     When the model is in `train` mode, this requires passing an extra `sequence_id` argument which indicates
                     which sub-sequence each token belongs to.
@@ -112,7 +112,6 @@ class MPTConfig(PretrainedConfig):
             init_device (str): The device to use for parameter initialization.
             logit_scale (Optional[Union[float, str]]): If not None, scale the logits by this value.
             no_bias (bool): Whether to use bias in all layers.
-            verbose (int): Deprecated.
             embedding_fraction (float): The fraction to scale the gradients of the embedding layer by.
             norm_type (str): choose type of norm to use
             use_cache (bool): Whether or not the model should return the last key/values attentions
@@ -155,11 +154,6 @@ class MPTConfig(PretrainedConfig):
         self.init_config = init_config
         self.fc_type = fc_type
         self.use_pad_tok_in_ffn = use_pad_tok_in_ffn
-        if verbose is not None:
-            warnings.warn(
-                DeprecationWarning(
-                    'verbose argument for MPTConfig is now ignored and will be removed. Use python_log_level instead.'
-                ))
 
         if 'name' in kwargs:
             del kwargs['name']
@@ -214,24 +208,20 @@ class MPTConfig(PretrainedConfig):
             raise ValueError(
                 "self.attn_config['attn_pdrop'], resid_pdrop, emb_pdrop are probabilities and must be between 0 and 1"
             )
-        if self.attn_config['attn_impl'] not in ['torch', 'flash', 'triton']:
+        if self.attn_config['attn_impl'] not in ['torch', 'flash']:
             raise ValueError(
                 f"Unknown attn_impl={self.attn_config['attn_impl']}")
-        if self.attn_config['prefix_lm'] and self.attn_config[
-                'attn_impl'] not in ['torch', 'triton']:
-            raise NotImplementedError(
-                'prefix_lm only implemented with torch and triton attention.')
         if self.attn_config['alibi'] and not check_alibi_support(
                 self.attn_config['attn_impl']):
             raise NotImplementedError(
-                'alibi only implemented with torch, triton, and flash (v2.4.2 or higher) attention.'
+                'alibi only implemented with torch and flash (v2.4.2 or higher) attention.'
             )
         if self.attn_config['attn_uses_sequence_id'] and not (
-                self.attn_config['attn_impl'] in ['torch', 'triton'] or
+                self.attn_config['attn_impl'] == 'torch' or
             (self.attn_config['attn_impl'] == 'flash' and
              is_flash_v2_installed(v2_version='v2.1.2'))):
             raise NotImplementedError(
-                'attn_uses_sequence_id only implemented with torch, triton, and flash (v2.1.2 or higher) attention.'
+                'attn_uses_sequence_id only implemented with torch and flash (v2.1.2 or higher) attention.'
             )
         if self.attn_config['rope'] and (self.attn_config['rope_impl']
                                          not in ['dail', 'hf']):
@@ -300,6 +290,8 @@ class MPTConfig(PretrainedConfig):
             )
         elif self.ffn_config['ffn_type'] in ['mptmlp', 'mptglu']:
             self.ffn_config['fc_type'] = self.fc_type
+        elif self.ffn_config['ffn_type'] in ['mb_moe', 'mb_dmoe']:
+            self.ffn_config['return_bias'] = False
         elif self.ffn_config['ffn_type'] == 'te_ln_mlp':
             self.ffn_config['bias'] = not self.no_bias
             if 'ffn_act_fn' in self.ffn_config.keys():

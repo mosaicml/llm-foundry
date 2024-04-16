@@ -125,7 +125,7 @@ def convert_examples_ckpt(
                 'attn_clip_qkv', attn_config_defaults['clip_qkv'])
 
             for k in [
-                    'attn_pdrop', 'attn_impl', 'softmax_scale', 'prefix_lm',
+                    'attn_pdrop', 'attn_impl', 'softmax_scale',
                     'attn_uses_sequence_id', 'alibi', 'alibi_bias_max'
             ]:
                 if k in hf_config:

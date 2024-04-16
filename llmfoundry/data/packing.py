@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-import os
 import tempfile
 from typing import Callable, Dict, Iterable, List, Literal, Optional, Tuple
 
 import numpy as np
 import torch
+from composer.utils import dist
 from omegaconf import DictConfig
 from transformers import PreTrainedTokenizerBase
 
@@ -72,16 +72,24 @@ class BinPackCollator:
                 'input_ids',
                 'labels',
                 'attention_mask',
-                'bidirectional_mask',
+                'sequence_id',
             ]
-
         # Cut everything down to size
-        sizes, trimmed_examples = [], []
-        for idx in range(batch['attention_mask'].shape[0]):
-            size, trimmed_example = _extract_trim_batch_idx(batch, idx)
-            sizes.append(size)
-            trimmed_examples.append(trimmed_example)
+        sizes, trimmed_examples = _trim_batch(batch)
+        return self._pack_trimmed_examples(trimmed_examples, sizes)
 
+    def _pack_trimmed_examples(self, trimmed_examples: List[Dict[str,
+                                                                 torch.Tensor]],
+                               sizes: List[int]) -> Dict[str, torch.Tensor]:
+        """Packs trimmed examples into fixed-size bins and repads them.
+
+        Args:
+            trimmed_examples (List[Dict[str, torch.Tensor]]): A list of trimmed examples.
+            sizes (List[int]): The sizes of the trimmed examples.
+
+        Returns:
+            Dict[str, torch.Tensor]: A batch of repadded examples ready for processing
+        """
         # Apply our CS 101 bin packing algorithm.
         packed_examples, n_packed_tokens, n_total_tokens, leftover_bins = _first_fit_bin_packing(
             sizes=sizes,
@@ -101,6 +109,26 @@ class BinPackCollator:
                        pad_token_id=self.pad_token_id,
                        padding_side=self.padding_side)
         return batch
+
+
+def _trim_batch(
+    batch: Dict[str, torch.Tensor]
+) -> Tuple[List[int], List[Dict[str, torch.Tensor]]]:
+    """Trims padding off all examples in batch.
+
+    Args:
+        batch (Dict[str, torch.Tensor]): Batch of padded data with tensors as values.
+
+    Returns:
+        A tuple with unpadded lengths of examples and a list of each trimmed example from the batch.
+    """
+    # Cut everything down to size
+    sizes, trimmed_examples = [], []
+    for idx in range(batch['attention_mask'].shape[0]):
+        size, trimmed_example = _extract_trim_batch_idx(batch, idx)
+        sizes.append(size)
+        trimmed_examples.append(trimmed_example)
+    return sizes, trimmed_examples
 
 
 def _extract_trim_batch_idx(batch: Dict[str, torch.Tensor],
@@ -250,7 +278,6 @@ def _repad(packed_examples: List[Dict[str, torch.Tensor]], max_seq_len: int,
         'input_ids': pad_token_id,
         'labels': -100,
         'attention_mask': 0,
-        'bidirectional_mask': 0,
         'sequence_id': -1,
     }
     keys = packed_examples[0].keys()
@@ -288,6 +315,8 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
         A packing ratio that minimizes padding while maintaining zero waste.
     """
     from composer.utils import dist, get_device, reproducibility
+
+    log.debug('Searching for optimal packing ratio.')
 
     # Stash the rng state to restore later.
     rng_state = reproducibility.get_rng_state()
@@ -355,15 +384,26 @@ def profile_packing(
 
     # Turn off packing for the dataloader (we want raw, pre-packed examples)
     dataloader_cfg = copy.deepcopy(dataloader_cfg)
-    dataloader_cfg.dataset.packing_ratio = None
+    dataloader_cfg.dataset.packing_ratio = 1.0
     dataloader_cfg.drop_last = False
     dataloader_cfg.num_workers = 0
     dataloader_cfg.prefetch_factor = None
     dataloader_cfg.persistent_workers = False
 
     # If streaming dataset, use a temporary local folder for profiling
+    local_rank_zero = dist.get_global_rank() - dist.get_local_rank()
     if dataloader_cfg.dataset.get('remote') is not None:
-        dataloader_cfg.dataset.local = tempfile.TemporaryDirectory().name
+        tmp_path_to_broadcast = tempfile.TemporaryDirectory().name
+        gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
+        tmp_path = gathered_paths[local_rank_zero]
+        dataloader_cfg.dataset.local = tmp_path
+
+    if dataloader_cfg.dataset.get('streams') is not None:
+        for stream_config in dataloader_cfg.dataset.streams.values():
+            tmp_path_to_broadcast = tempfile.TemporaryDirectory().name
+            gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
+            tmp_path = gathered_paths[local_rank_zero]
+            stream_config.local = tmp_path
 
     # Determine the packing_ratio values we'll try
     packing_ratios, raw_batch_sizes = [], []
@@ -386,18 +426,14 @@ def profile_packing(
     # Get a bunch of raw examples
     big_batch = next(iter(train_dataloader))
 
-    def split_big_batch(raw_batch_size: int) -> List:
-        input_ids = big_batch['input_ids'].split(raw_batch_size)
-        batches = [{'input_ids': x} for x in input_ids]
-
-        for key in big_batch.keys():
-            if key == 'input_ids':
-                continue
-            for idx, split in enumerate(big_batch[key].split(raw_batch_size)):
-                batches[idx].update({key: split})
-        return batches
+    # Cut everything down to size
+    sizes, trimmed_examples = _trim_batch(big_batch)
 
     def profile(raw_batch_size: int) -> Tuple[Optional[float], Optional[float]]:
+        # Copy trimmed examples so that the dicts are not shared between profiling runs.
+        trimmed_examples_copy = [te.copy() for te in trimmed_examples]
+
+        # Create the packing collator.
         packer = BinPackCollator(
             collator=lambda x: x,
             target_batch_size=device_batch_size,
@@ -407,10 +443,12 @@ def profile_packing(
             max_leftover_bins_to_keep=max_leftovers_to_keep)
 
         # Simulate feeding the packing collator a bunch of data
-        for batch in split_big_batch(raw_batch_size):
-            if batch['input_ids'].shape[0] < device_batch_size:
+        for idx in range(0, len(trimmed_examples_copy), raw_batch_size):
+            batch = trimmed_examples_copy[idx:idx + raw_batch_size]
+            if len(batch) < device_batch_size:
                 continue
-            packer.pack(batch)
+            packer._pack_trimmed_examples(batch,
+                                          sizes[idx:idx + raw_batch_size])
 
         if packer.n_packed_examples == 0:
             log.debug(
@@ -423,108 +461,12 @@ def profile_packing(
         waste_percent = 100 * packer.waste
         return padding_percent, waste_percent
 
-    for packing_ratio, raw_batch_size in zip(packing_ratios, raw_batch_sizes):
+    log.debug('Profiling packing ratios')
+    total_packing_ratios = min(len(packing_ratios), len(raw_batch_sizes))
+    for i, (packing_ratio,
+            raw_batch_size) in enumerate(zip(packing_ratios, raw_batch_sizes)):
+        log.debug(
+            f'Progress [{i}/{total_packing_ratios}]: Profiling packing ratio {packing_ratio}'
+        )
         padding, waste = profile(raw_batch_size)
         yield (packing_ratio, padding, waste)
-
-
-if __name__ == '__main__':
-
-    import warnings
-
-    warnings.warn(
-        DeprecationWarning(
-            'Please use scripts/misc/profile_packing.py to profile packing.' +
-            'This script will be removed in later releases.'))
-
-    import os
-    from argparse import ArgumentParser, Namespace
-
-    from omegaconf import OmegaConf as om
-
-    from llmfoundry.utils import build_tokenizer
-
-    def parse_args() -> Namespace:
-        """Parse commandline arguments."""
-        parser = ArgumentParser(
-            description=
-            'Profile packing_ratio choices for a particular workload.')
-        parser.add_argument(
-            '--yaml-path',
-            type=str,
-            required=True,
-            help='Path to the YAML that defines the workload to profile.')
-        parser.add_argument('--num-devices',
-                            type=int,
-                            default=None,
-                            help='How many devices your run will use.')
-        parser.add_argument('--min',
-                            type=float,
-                            required=True,
-                            help='Smallest packing_ratio to test. Must be >=1.')
-        parser.add_argument(
-            '--max',
-            type=float,
-            required=True,
-            help='Largest packing_ratio to test. Must be larger than `min`.')
-        parser.add_argument(
-            '--num-packing-ratios',
-            type=int,
-            default=20,
-            help=
-            'Number of packing_ratio values (spaced between `min` and `max) to try.'
-        )
-
-        args = parser.parse_args()
-
-        if not os.path.isfile(args.yaml_path):
-            raise FileNotFoundError(
-                '`yaml_path` does not correspond to any existing file.')
-        if args.num_devices < 1:
-            raise ValueError('`num_devices` must be a positive integer.')
-        if args.min < 1.0:
-            raise ValueError('`min` must be >=1.0.')
-        if args.max < args.min:
-            raise ValueError('`max` cannot be less than `min`.')
-        if args.num_packing_ratios < 1:
-            raise ValueError('`num_packing_ratios` must be a positive integer.')
-        return args
-
-    args = parse_args()
-
-    with open(args.yaml_path) as f:
-        cfg = om.load(f)
-    if 'parameters' in cfg:
-        cfg = om.to_container(cfg.parameters)
-        cfg = om.create(cfg)
-    device_batch_size = cfg.global_train_batch_size // args.num_devices
-
-    # Fetch a bunch of raw examples once, which we'll re-use
-    if 'train_loader' not in cfg:
-        raise ValueError('config must define train_loader')
-    dataloader_cfg = cfg.train_loader
-
-    # build tokenizer
-    if 'tokenizer' not in cfg:
-        raise ValueError('config must define tokenizer')
-
-    resolved_tokenizer_cfg = om.to_container(cfg.tokenizer, resolve=True)
-    if not isinstance(resolved_tokenizer_cfg, Dict):
-        raise ValueError(
-            'tokenizer config needs to be resolved by omegaconf into a Dict.')
-    tokenizer_cfg = resolved_tokenizer_cfg
-
-    tokenizer_name = tokenizer_cfg['name']
-    tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
-    tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
-
-    results = profile_packing(dataloader_cfg, tokenizer, args.min, args.max,
-                              args.num_packing_ratios, device_batch_size)
-
-    header = '\n\n\n packing_ratio | % PADDING | % WASTE'
-    fstr = '        {:5.1f}  |  {:5.2f}%   | {:6.2f}%'
-
-    print(header)
-    print('-' * len(header))
-    for packing_ratio, padding, waste in results:
-        print(fstr.format(packing_ratio, padding, waste))

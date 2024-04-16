@@ -1,10 +1,10 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: v0.4.0
+  git_branch: v0.7.0
   # git_commit: # OR use your commit hash
-  pip_install: -e .[gpu]
-  ssh_clone: false # Should be true if using a private repo
+  pip_install: .[gpu]
+  ssh_clone: false  # Should be true if using a private repo
 
 command: |
   cd llm-foundry/scripts/inference
@@ -35,7 +35,7 @@ command: |
       "Here's a quick recipe for baking chocolate chip cookies: Start by" \
       "The best 5 cities to visit in Europe are"
 
-image: mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04
+image: mosaicml/llm-foundry:2.2.1_cu121_flash2-latest
 name: hf-generate
 
 compute:

@@ -1,9 +1,13 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Dict, List, Optional, Type, Union
+from typing import List, Optional, Union
 
 import torch
+
+from llmfoundry.layers_registry import norms
+
+norms.register(name='layernorm', func=torch.nn.LayerNorm)
 
 
 def _cast_if_autocast_enabled(tensor: torch.Tensor) -> torch.Tensor:
@@ -18,6 +22,7 @@ def _cast_if_autocast_enabled(tensor: torch.Tensor) -> torch.Tensor:
     return tensor
 
 
+@norms.register_class('low_precision_layernorm')
 class LPLayerNorm(torch.nn.LayerNorm):
 
     def __init__(
@@ -62,6 +67,7 @@ def rms_norm(x: torch.Tensor,
     return output
 
 
+@norms.register_class('rmsnorm')
 class RMSNorm(torch.nn.Module):
 
     def __init__(
@@ -84,6 +90,7 @@ class RMSNorm(torch.nn.Module):
         return rms_norm(x.float(), self.weight, self.eps).to(dtype=x.dtype)
 
 
+@norms.register_class('low_precision_rmsnorm')
 class LPRMSNorm(RMSNorm):
 
     def __init__(
@@ -111,9 +118,43 @@ class LPRMSNorm(RMSNorm):
                             self.eps).to(dtype=x.dtype)
 
 
-NORM_CLASS_REGISTRY: Dict[str, Type[torch.nn.Module]] = {
-    'layernorm': torch.nn.LayerNorm,
-    'low_precision_layernorm': LPLayerNorm,
-    'rmsnorm': RMSNorm,
-    'low_precision_rmsnorm': LPRMSNorm,
-}
+@norms.register_class('triton_rmsnorm')
+class TritonRMSNorm(torch.nn.Module):
+
+    def __init__(
+        self,
+        normalized_shape: Union[int, List[int], torch.Size],
+        eps: float = 1e-5,
+        device: Optional[torch.device] = None,
+        dtype: Optional[torch.dtype] = None,
+    ):
+        super().__init__()
+        self.eps = eps
+
+        try:
+            from flash_attn.ops.triton.layer_norm import rms_norm_fn
+        except ImportError:
+            raise ImportError(
+                'triton_rms_norm requires Flash Attention to be installed. ' +
+                'Please pip install flash-attn.')
+
+        if not isinstance(normalized_shape, int):
+            raise ValueError('TritonRMSNorm only supports 1D tensors')
+
+        self.rms_norm_fn = rms_norm_fn
+
+        self.weight = torch.nn.Parameter(
+            torch.ones(normalized_shape, device=device, dtype=dtype))
+
+    def forward(self, x: torch.Tensor):
+        # Flash Attention expect a flat tensor
+        return self.rms_norm_fn(
+            x,
+            self.weight,
+            None,  # no bias
+            residual=None,
+            eps=self.eps,
+            dropout_p=0.0,  # no dropout by default
+            prenorm=False,
+            residual_in_fp32=False,
+        )

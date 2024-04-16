@@ -2,7 +2,7 @@ max_seq_len: 2048
 global_seed: 17
 
 # Run Name
-run_name: # If left blank, will be read from env var $RUN_NAME
+run_name:  # If left blank, will be read from env var $RUN_NAME
 
 model:
   name: hf_causal_lm
@@ -11,7 +11,7 @@ model:
   config_overrides:
     max_seq_len: ${max_seq_len}
     attn_config:
-      attn_impl: triton
+      attn_impl: flash
       # Set this to `true` if using `train_loader.dataset.packing_ratio` below
       attn_uses_sequence_id: false
 

@@ -13,6 +13,7 @@ import torch
 import torch.nn as nn
 from accelerate import init_empty_weights
 from composer.core.precision import Precision, get_precision_context
+from composer.models.huggingface import maybe_get_underlying_model
 from composer.optim import DecoupledAdamW
 from composer.trainer.dist_strategy import prepare_fsdp_module
 from composer.utils import dist, get_device, reproducibility
@@ -24,14 +25,16 @@ from transformers import (AutoModelForCausalLM, AutoTokenizer, PreTrainedModel,
 from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.models.bloom.modeling_bloom import build_alibi_tensor
 
-from llmfoundry import COMPOSER_MODEL_REGISTRY, ComposerHFCausalLM
-from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
-from llmfoundry.models.layers import NORM_CLASS_REGISTRY, build_alibi_bias
+from llmfoundry import ComposerHFCausalLM
+from llmfoundry.layers_registry import norms
+from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithFSDP
+from llmfoundry.models.layers import build_alibi_bias
 from llmfoundry.models.layers.attention import (check_alibi_support,
                                                 is_flash_v2_installed)
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils import build_tokenizer
+from llmfoundry.utils.builders import build_composer_model
 
 
 def get_config(
@@ -50,7 +53,8 @@ def _load_tokenizer_cfg(cfg: DictConfig) -> Dict:
     return config
 
 
-def get_objs(conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml'):
+def _get_objs(request: pytest.FixtureRequest,
+              conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml'):
     warnings.filterwarnings(
         action='ignore',
         message='Torchmetrics v0.9 introduced a new argument class property')
@@ -61,16 +65,19 @@ def get_objs(conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml'):
     fsdp_config = om.to_container(fsdp_config,
                                   resolve=True) if fsdp_config else None
 
+    # Check if we are running on GPU
+    is_gpu = False
+    for item in request.session.items:
+        is_gpu |= item.get_closest_marker('gpu') is not None
+
     # Build Model
     # For fast initialization, use `meta` device
     print('Initializing model...')
-    device = 'cpu'
-    test_cfg.precision = 'fp32'
+    device = 'cuda' if is_gpu else 'cpu'
+    test_cfg.precision = 'amp_bf16' if is_gpu else 'fp32'
     test_cfg.model.attn_config = {
         'attn_impl': 'torch',
     }
-    # device = 'cuda'
-    # test_cfg.precision = 'amp'
     test_cfg.model.init_device = device
     test_cfg.device = device
 
@@ -82,8 +89,12 @@ def get_objs(conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml'):
     tokenizer = build_tokenizer(test_cfg.tokenizer.name,
                                 tokenizer_cfg.get('kwargs', {}))
 
-    model = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
-                                                         tokenizer)
+    model = build_composer_model(
+        name=test_cfg.model.name,
+        cfg=test_cfg.model,
+        tokenizer=tokenizer,
+    )
+
     # Optimizer
     assert test_cfg.optimizer.name == 'decoupled_adamw'
     optimizer = DecoupledAdamW(model.parameters(),
@@ -102,7 +113,7 @@ def gen_random_batch(batch_size: int,
     # default to only input ids
     if inputs == None:
         inputs = ['input_ids']
-    # generate input batch of random data, suitable for a Causal or Prefix LM
+    # generate input batch of random data, suitable for a Causal LM
     batch = {}
     for inp in inputs:
         if inp == 'input_ids':
@@ -122,8 +133,6 @@ def gen_random_batch(batch_size: int,
     batch['attention_mask'] = torch.ones(size=(batch_size,
                                                test_cfg.max_seq_len),
                                          dtype=torch.int64).to(test_cfg.device)
-    batch['bidirectional_mask'] = batch['attention_mask'].clone()
-    batch['bidirectional_mask'][:, (test_cfg.max_seq_len // 2):] = 0
     return batch
 
 
@@ -146,9 +155,13 @@ def gen_random_enc_dec_batch(batch_size: int, vocab_size: int, max_seq_len: int,
     return batch
 
 
-def test_full_forward_and_backward(batch_size: int = 2):
-    test_cfg, model, optimizer = get_objs(
-        conf_path='scripts/train/yamls/pretrain/testing.yaml')
+@pytest.mark.parametrize('conf_path', [
+    'scripts/train/yamls/pretrain/testing.yaml',
+])
+def test_full_forward_and_backward(request: pytest.FixtureRequest,
+                                   conf_path: str,
+                                   batch_size: int = 2):
+    test_cfg, model, optimizer = _get_objs(request=request, conf_path=conf_path)
 
     batch = gen_random_batch(batch_size, test_cfg)
 
@@ -158,15 +171,17 @@ def test_full_forward_and_backward(batch_size: int = 2):
     original_params = next(model.parameters()).clone().data
     outputs = model(batch)
     loss = model.loss(outputs, batch)
+    assert isinstance(loss, torch.Tensor)
     loss.backward()
     optimizer.step()
     updated_params = next(model.parameters()).clone().data
     assert not torch.equal(original_params, updated_params)
 
 
-def test_full_forward_and_backward_with_inputs_embeds(batch_size: int = 2):
-    test_cfg, model, optimizer = get_objs(
-        conf_path='scripts/train/yamls/pretrain/testing.yaml')
+def test_full_forward_and_backward_with_inputs_embeds(
+        request: pytest.FixtureRequest, batch_size: int = 2):
+    test_cfg, model, optimizer = _get_objs(
+        request=request, conf_path='scripts/train/yamls/pretrain/testing.yaml')
 
     batch = gen_random_batch(batch_size, test_cfg, inputs=['inputs_embeds'])
 
@@ -174,6 +189,7 @@ def test_full_forward_and_backward_with_inputs_embeds(batch_size: int = 2):
     original_params = next(model.parameters()).clone().data
     outputs = model(batch)
     loss = model.loss(outputs, batch)
+    assert isinstance(loss, torch.Tensor)
     loss.backward()
     optimizer.step()
     updated_params = next(model.parameters()).clone().data
@@ -181,9 +197,10 @@ def test_full_forward_and_backward_with_inputs_embeds(batch_size: int = 2):
 
 
 @pytest.mark.parametrize('inputs', [[], ['input_ids', 'inputs_embeds']])
-def test_invalid_inputs_embeds_input_ids_combinations(inputs: List[str]):
-    test_cfg, model, _ = get_objs(
-        conf_path='scripts/train/yamls/pretrain/testing.yaml')
+def test_invalid_inputs_embeds_input_ids_combinations(
+        request: pytest.FixtureRequest, inputs: List[str]):
+    test_cfg, model, _ = _get_objs(
+        request=request, conf_path='scripts/train/yamls/pretrain/testing.yaml')
 
     batch = gen_random_batch(2, test_cfg, inputs=inputs)
 
@@ -192,9 +209,15 @@ def test_invalid_inputs_embeds_input_ids_combinations(inputs: List[str]):
         _ = model(batch)
 
 
-def test_attention_mechanism(batch_size: int = 2):
-    test_cfg, model, _ = get_objs(
-        conf_path='scripts/train/yamls/pretrain/testing.yaml')
+@pytest.mark.parametrize('conf_path', [
+    'scripts/train/yamls/pretrain/testing.yaml',
+    pytest.param('scripts/train/yamls/pretrain/testing-moe.yaml',
+                 marks=pytest.mark.gpu),
+])
+def test_attention_mechanism(request: pytest.FixtureRequest,
+                             conf_path: str,
+                             batch_size: int = 2):
+    test_cfg, model, _ = _get_objs(request=request, conf_path=conf_path)
 
     batch = gen_random_batch(batch_size, test_cfg)
 
@@ -210,48 +233,48 @@ def test_attention_mechanism(batch_size: int = 2):
     pos = torch.arange(0, S, dtype=torch.long,
                        device=input_ids.device).unsqueeze(0)
 
-    tok_emb = model.model.transformer.wte(input_ids)
-    pos_emb = model.model.transformer.wpe(pos)
-    x = model.model.transformer.emb_drop(tok_emb + pos_emb)
+    with get_precision_context(test_cfg.precision):
+        tok_emb = model.model.transformer.wte(input_ids)
+        pos_emb = model.model.transformer.wpe(pos)
+        x = model.model.transformer.emb_drop(tok_emb + pos_emb)
 
-    # basically the attention mask should be a tensor shape (bsz, seqlen, seqlen)
-    # wih -inf along the upper triangle as well as wherever there are any pad tokens
-    # and with 0 everywhere else
-    expected_zerod_weights = nn.Transformer.generate_square_subsequent_mask(test_cfg.max_seq_len)\
-        .reshape(1, test_cfg.max_seq_len, test_cfg.max_seq_len)
-    expected_zerod_weights = torch.isneginf(
-        torch.cat(batch_size * [expected_zerod_weights]))
-    torch_key_padding = torch.cat(  # type: ignore
-        test_cfg.max_seq_len *
-        [(~attention_mask).reshape(batch_size, 1, test_cfg.max_seq_len)],
-        axis=1)
-    expected_zerod_weights |= torch_key_padding
+        # basically the attention mask should be a tensor shape (bsz, seqlen, seqlen)
+        # wih -inf along the upper triangle as well as wherever there are any pad tokens
+        # and with 0 everywhere else
+        expected_zerod_weights = nn.Transformer.generate_square_subsequent_mask(test_cfg.max_seq_len, device=test_cfg.device)\
+            .reshape(1, test_cfg.max_seq_len, test_cfg.max_seq_len)
+        expected_zerod_weights = torch.isneginf(
+            torch.cat(batch_size * [expected_zerod_weights]))
+        torch_key_padding = torch.cat(  # type: ignore
+            test_cfg.max_seq_len *
+            [(~attention_mask).reshape(batch_size, 1, test_cfg.max_seq_len)],
+            axis=1)
+        expected_zerod_weights |= torch_key_padding
 
-    attn_bias, attention_mask = model.model.transformer._attn_bias(
-        device=x.device, dtype=x.dtype, attention_mask=attention_mask)
+        attn_bias, attention_mask = model.model.transformer._attn_bias(
+            device=x.device, dtype=x.dtype, attention_mask=attention_mask)
 
-    for block in model.model.transformer.blocks:
-        a = block.norm_1(x)
-        b, attention_weights, _ = block.attn(
-            a,
-            past_key_value=None,
-            attn_bias=attn_bias,
-            attention_mask=attention_mask,
-            is_causal=model.model.transformer.is_causal,
-            needs_weights=True)
+        for block in model.model.transformer.blocks:
+            a = block.norm_1(x)
+            b, attention_weights, _ = block.attn(
+                a,
+                past_key_value=None,
+                attn_bias=attn_bias,
+                attention_mask=attention_mask,
+                is_causal=model.model.transformer.is_causal,
+                needs_weights=True)
 
-        zerod_weights = (attention_weights == 0)
-        assert torch.equal(expected_zerod_weights.expand(*zerod_weights.shape),
-                           zerod_weights)
-        x = x + block.resid_attn_dropout(b)
-        m = block.norm_2(x)
-        n = block.ffn(m)
-        x = x + block.resid_ffn_dropout(n)
+            zerod_weights = (attention_weights == 0)
+            assert torch.equal(
+                expected_zerod_weights.expand(*zerod_weights.shape),
+                zerod_weights)
+            x = x + block.resid_attn_dropout(b)
+            m = block.norm_2(x)
+            n = block.ffn(m)
+            x = x + block.resid_ffn_dropout(n)
 
 
-@pytest.mark.parametrize('prefixlm', [False, True])
-def test_full_forward_and_backward_gpt2_small(prefixlm: bool,
-                                              batch_size: int = 2):
+def test_full_forward_and_backward_gpt2_small(batch_size: int = 2):
     warnings.filterwarnings(
         action='ignore',
         message='Torchmetrics v0.9 introduced a new argument class property')
@@ -262,18 +285,17 @@ def test_full_forward_and_backward_gpt2_small(prefixlm: bool,
     device = 'cpu'
     neo_cfg.device = device
     neo_cfg.max_seq_len = 256
-
-    if prefixlm:
-        neo_cfg.model.name = 'hf_prefix_lm'
-    else:
-        neo_cfg.model.name = 'hf_causal_lm'
+    neo_cfg.model.name = 'hf_causal_lm'
 
     tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(neo_cfg.tokenizer)
     tokenizer = build_tokenizer(neo_cfg.tokenizer.name,
                                 tokenizer_cfg.get('kwargs', {}))
 
-    model = COMPOSER_MODEL_REGISTRY[neo_cfg.model.name](neo_cfg.model,
-                                                        tokenizer).to(device)
+    model = build_composer_model(
+        name=neo_cfg.model.name,
+        cfg=neo_cfg.model,
+        tokenizer=tokenizer,
+    ).to(device)
 
     assert isinstance(model.tokenizer,
                       (PreTrainedTokenizer, PreTrainedTokenizerFast))
@@ -295,6 +317,7 @@ def test_full_forward_and_backward_gpt2_small(prefixlm: bool,
     original_params = next(model.parameters()).clone().data
     outputs = model(batch)
     loss = model.loss(outputs, batch)
+    assert isinstance(loss, torch.Tensor)
     loss.backward()
     optimizer.step()
     updated_params = next(model.parameters()).clone().data
@@ -317,8 +340,11 @@ def test_full_forward_and_backward_t5_small(batch_size: int = 2):
     tokenizer = build_tokenizer(t5_cfg.tokenizer.name,
                                 tokenizer_cfg.get('kwargs', {}))
 
-    model = COMPOSER_MODEL_REGISTRY[t5_cfg.model.name](t5_cfg.model,
-                                                       tokenizer).to(device)
+    model = build_composer_model(
+        name=t5_cfg.model.name,
+        cfg=t5_cfg.model,
+        tokenizer=tokenizer,
+    ).to(device)
 
     assert isinstance(model.tokenizer,
                       (PreTrainedTokenizer, PreTrainedTokenizerFast))
@@ -339,6 +365,7 @@ def test_full_forward_and_backward_t5_small(batch_size: int = 2):
     original_params = next(model.parameters()).clone().data
     outputs = model(batch)
     loss = model.loss(outputs, batch)
+    assert isinstance(loss, torch.Tensor)
     loss.backward()
     optimizer.step()
     updated_params = next(model.parameters()).clone().data
@@ -390,8 +417,11 @@ def test_determinism(attn_impl: str, precision: torch.dtype, ffn_type: str,
     tokenizer = build_tokenizer(test_cfg.tokenizer.name,
                                 tokenizer_cfg.get('kwargs', {}))
 
-    model_1 = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
-                                                           tokenizer)
+    model_1 = build_composer_model(
+        name=test_cfg.model.name,
+        cfg=test_cfg.model,
+        tokenizer=tokenizer,
+    )
     model_2 = copy.deepcopy(model_1)
 
     optimizer_1 = DecoupledAdamW(model_1.parameters(),
@@ -412,9 +442,10 @@ def test_determinism(attn_impl: str, precision: torch.dtype, ffn_type: str,
             output_2 = model_2(batch)
             assert output_1.logits.allclose(output_2.logits, rtol=0.0,
                                             atol=0.0), f'differed at step {i}'
-
             loss_1 = model_1.loss(output_1, batch)
             loss_2 = model_2.loss(output_2, batch)
+            assert isinstance(loss_1, torch.Tensor)
+            assert isinstance(loss_2, torch.Tensor)
             assert loss_1 == loss_2
             loss_1.backward()
             loss_2.backward()
@@ -456,15 +487,18 @@ def test_loss_fn():
     tokenizer = build_tokenizer(test_cfg.tokenizer.name,
                                 tokenizer_cfg.get('kwargs', {}))
 
-    model_1 = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
-                                                           tokenizer)
+    model_1 = build_composer_model(
+        name=test_cfg.model.name,
+        cfg=test_cfg.model,
+        tokenizer=tokenizer,
+    )
     model_2 = copy.deepcopy(model_1)
 
     model_1.to(test_cfg.device)
     model_2.to(test_cfg.device)
 
     assert isinstance(model_1.loss_fn, torch.nn.CrossEntropyLoss)
-    model_2.loss_fn = FusedCrossEntropyLoss(ignore_index=-100)
+    model_2.loss_fn = FusedCrossEntropyLoss(ignore_index=-100, reduction='none')
 
     optimizer_1 = DecoupledAdamW(model_1.parameters(),
                                  lr=test_cfg.optimizer.lr,
@@ -486,6 +520,8 @@ def test_loss_fn():
 
         loss_1 = model_1.loss(output_1, batch)
         loss_2 = model_2.loss(output_2, batch)
+        assert isinstance(loss_1, torch.Tensor)
+        assert isinstance(loss_2, torch.Tensor)
         assert loss_1.allclose(loss_2, rtol=1e-3,
                                atol=1e-3), f'differed at step {i}'
         loss_1.backward()
@@ -499,17 +535,129 @@ def test_loss_fn():
                                     atol=1e-4), f'differed at step {i}'
 
 
-def test_opt_wrapping():
-    conf = {
+@pytest.mark.gpu
+@pytest.mark.parametrize('loss_fn_config',
+                         ['torch_crossentropy', 'fused_crossentropy'])
+def test_loss_reduction(loss_fn_config: str):
+    """Tests the Fused CrossEntropy vs torch.nn.CrossEntropy loss function.
+
+    We provide non-zero tolerances to account for small numerics differences
+    between the two loss implementations.
+    """
+    try:
+        from flash_attn.losses.cross_entropy import CrossEntropyLoss as FusedCrossEntropyLoss  # type: ignore # isort: skip
+    except:
+        pytest.skip('Fused cross entropy was not installed')
+
+    # run numerical test in pure fp32
+    from torch.backends import cuda, cudnn
+    cuda.matmul.allow_tf32 = False
+    cudnn.allow_tf32 = False
+
+    conf_path = 'scripts/train/yamls/pretrain/testing.yaml'
+    with open(conf_path) as f:
+        test_cfg = om.load(f)
+
+    assert isinstance(test_cfg, DictConfig)
+
+    test_cfg.model.loss_fn = loss_fn_config
+
+    test_cfg.device = 'cuda:0'
+    test_cfg.model.init_device = 'cpu'
+    test_cfg.model.init_config = {
+        'name': 'baseline_',
+        'init_std': 0.02,
+    }
+
+    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
+    tokenizer = build_tokenizer(test_cfg.tokenizer.name,
+                                tokenizer_cfg.get('kwargs', {}))
+
+    model_1 = build_composer_model(
+        name=test_cfg.model.name,
+        cfg=test_cfg.model,
+        tokenizer=tokenizer,
+    )
+    model_2 = copy.deepcopy(model_1)
+
+    model_1.to(test_cfg.device)
+    model_2.to(test_cfg.device)
+
+    # Reduce the loss in FusedCrossEntropyLoss
+    if loss_fn_config == 'fused_crossentropy':
+        assert isinstance(model_1.loss_fn, FusedCrossEntropyLoss)
+        model_2.loss_fn = FusedCrossEntropyLoss(ignore_index=-100,
+                                                reduction='mean')
+    else:
+        assert isinstance(model_1.loss_fn, torch.nn.CrossEntropyLoss)
+        model_2.loss_fn = torch.nn.CrossEntropyLoss(ignore_index=-100,
+                                                    reduction='mean')
+
+    optimizer_1 = DecoupledAdamW(model_1.parameters(),
+                                 lr=test_cfg.optimizer.lr,
+                                 betas=test_cfg.optimizer.betas,
+                                 eps=test_cfg.optimizer.eps,
+                                 weight_decay=test_cfg.optimizer.weight_decay)
+    optimizer_2 = DecoupledAdamW(model_2.parameters(),
+                                 lr=test_cfg.optimizer.lr,
+                                 betas=test_cfg.optimizer.betas,
+                                 eps=test_cfg.optimizer.eps,
+                                 weight_decay=test_cfg.optimizer.weight_decay)
+
+    for i in range(3):
+        batch = gen_random_batch(2, test_cfg)
+        output_1 = model_1(batch)
+        output_2 = model_2(batch)
+        assert output_1.logits.allclose(output_2.logits, rtol=1e-4,
+                                        atol=1e-4), f'differed at step {i}'
+
+        loss_1 = model_1.loss(output_1, batch)
+
+        # Loss for model_2 gets reduced within the loss_fn, so we handle it separately
+        targets = model_2.get_targets(batch)
+        loss_2 = model_2.loss_fn(
+            output_2.logits.view(-1, output_2.logits.size(-1)),
+            targets.view(-1))
+
+        assert isinstance(loss_1, torch.Tensor)
+        assert isinstance(loss_2, torch.Tensor)
+        assert loss_1.allclose(loss_2, rtol=1e-3,
+                               atol=1e-3), f'differed at step {i}'
+        loss_1.backward()
+        loss_2.backward()
+        optimizer_1.step()
+        optimizer_2.step()
+
+        for p1, p2 in zip(model_1.parameters(), model_2.parameters()):
+            assert p1.data.shape == p2.data.shape
+            assert p1.data.allclose(p2.data, rtol=1e-5,
+                                    atol=1e-4), f'differed at step {i}'
+
+
+@pytest.mark.parametrize('peft_config', [
+    None,
+    {
+        'peft_type': 'LORA',
+        'task_type': 'CAUSAL_LM'
+    },
+])
+def test_opt_wrapping(peft_config: Optional[dict[str, str]]):
+    if peft_config is not None:
+        _ = pytest.importorskip('peft')
+
+    conf: dict[str, dict[str, Any]] = {
         'model': {
             'name': 'hf_causal_lm',
             'pretrained_model_name_or_path': 'facebook/opt-125m',
-            'pretrained': 'false'
+            'pretrained': False
         },
         'tokenizer': {
             'name': 'facebook/opt-125m'
         }
     }
+    if peft_config is not None:
+        conf['model']['peft_config'] = peft_config
+
     config = DictConfig(conf)
 
     tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(config.tokenizer)
@@ -519,13 +667,40 @@ def test_opt_wrapping():
     model = ComposerHFCausalLM(config.model, tokenizer)
 
     # check that all the modules we except are blocked from FSDP wrapping
-    assert not model.model.model._fsdp_wrap
-    assert not model.model.model.decoder._fsdp_wrap
-    assert not model.model.model.decoder.embed_tokens._fsdp_wrap
-    assert not model.model.lm_head._fsdp_wrap
+    underlying_model = maybe_get_underlying_model(model.model)
+    assert not underlying_model.model._fsdp_wrap
+    assert not underlying_model.model.decoder._fsdp_wrap
+    assert not underlying_model.model.decoder.embed_tokens._fsdp_wrap
+    assert not underlying_model.lm_head._fsdp_wrap
 
 
-@pytest.mark.parametrize('norm_type', NORM_CLASS_REGISTRY.keys())
+def test_lora_id():
+    peft = pytest.importorskip('peft')
+
+    conf: dict[str, dict[str, Union[str, dict]]] = {
+        'model': {
+            'name': 'hf_causal_lm',
+            'pretrained_model_name_or_path': 'facebook/opt-350m',
+            'pretrained': 'false',
+            'pretrained_lora_id_or_path': 'ybelkada/opt-350m-lora',
+        },
+        'tokenizer': {
+            'name': 'facebook/opt-350m'
+        }
+    }
+
+    config = DictConfig(conf)
+
+    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(config.tokenizer)
+    tokenizer = build_tokenizer(config.tokenizer.name,
+                                tokenizer_cfg.get('kwargs', {}))
+
+    model = ComposerHFCausalLM(config.model, tokenizer)
+
+    assert isinstance(model.model, peft.PeftModelForCausalLM)
+
+
+@pytest.mark.parametrize('norm_type', norms.get_all())
 @pytest.mark.parametrize('no_bias', [False, True])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
 @pytest.mark.parametrize('expansion_ratio,ffn_hidden_size', [
@@ -558,6 +733,11 @@ def test_opt_wrapping():
 def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool,
                       expansion_ratio: Union[int, float], ffn_hidden_size: int,
                       ffn_act_fn: dict):
+    if norm_type == 'triton_rmsnorm' and not is_flash_v2_installed():
+        pytest.skip(
+            f'norm_type=triton_rmsnorm requires flash Attention to be installed'
+        )
+
     # Test that the config constructs the model as expected.
     hf_config = MPTConfig(
         init_device='cpu',
@@ -621,7 +801,7 @@ def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool,
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('attention_impl', ['flash', 'triton', 'torch'])
+@pytest.mark.parametrize('attention_impl', ['flash', 'torch'])
 @pytest.mark.parametrize('pos_emb_config', [{
     'alibi': True,
     'rope': False
@@ -733,7 +913,6 @@ def test_sequence_id_based_masking(attention_impl: str, pos_emb_config: dict):
 @pytest.mark.parametrize('attention_impl', [
     'torch',
     pytest.param('flash', marks=pytest.mark.gpu),
-    pytest.param('triton', marks=pytest.mark.gpu),
     pytest.param('torch', marks=pytest.mark.gpu)
 ])
 @pytest.mark.parametrize('pos_emb_config', [{
@@ -936,65 +1115,9 @@ def test_forward_with_padding(attention_impl: str, pos_emb_config: dict,
                                   atol=pad_vs_unpad_atol)
 
 
-@pytest.mark.parametrize('attention_impl', ['torch', 'triton'])
-def test_advanced_mask_building(attention_impl: str):
-    # Test that the correct attention mask is created when both
-    # prefix_mask and sequence_id are used
-    hf_config = MPTConfig(
-        init_device='cpu',
-        d_model=16,
-        n_heads=1,
-        n_layers=1,
-        expansion_ratio=1,
-        max_seq_len=256,
-        emb_pdrop=0.0,
-        resid_pdrop=0.0,
-        attn_config={
-            'attn_impl': attention_impl,
-            'prefix_lm': True,
-            'attn_uses_sequence_id': True,
-            'alibi': False,
-        },
-    )
-    mpt = MPTForCausalLM(hf_config)
-    mpt.eval()
-
-    prefix_mask = torch.ByteTensor([[1, 1, 0, 0, 1, 1, 1, 0]])
-    sequence_id = torch.LongTensor([[0, 0, 0, 0, 1, 1, 1, 1]])
-
-    attn_bias, _ = mpt.transformer._attn_bias(device=mpt.device,
-                                              dtype=torch.float32,
-                                              attention_mask=None,
-                                              prefix_mask=prefix_mask,
-                                              sequence_id=sequence_id)
-
-    assert isinstance(attn_bias, torch.Tensor)
-    assert attn_bias.shape == torch.Size([1, 1, 8, 8])
-
-    # We'll construct the expected value of attn_bias and then compare.
-    can_attend = torch.tensor([
-        [1, 1, 0, 0, 0, 0, 0, 0],
-        [1, 1, 0, 0, 0, 0, 0, 0],
-        [1, 1, 1, 0, 0, 0, 0, 0],
-        [1, 1, 1, 1, 0, 0, 0, 0],
-        [0, 0, 0, 0, 1, 1, 1, 0],
-        [0, 0, 0, 0, 1, 1, 1, 0],
-        [0, 0, 0, 0, 1, 1, 1, 0],
-        [0, 0, 0, 0, 1, 1, 1, 1],
-    ])
-    can_attend = can_attend.bool().view(1, 1, 8, 8)
-    expected_attn_bias = torch.zeros_like(attn_bias)
-    expected_attn_bias = expected_attn_bias.masked_fill(
-        torch.logical_not(can_attend),
-        torch.finfo(attn_bias.dtype).min)
-
-    assert torch.equal(attn_bias, expected_attn_bias)
-
-
 @pytest.mark.parametrize('attention_impl,precision', [
     ('torch', 'fp32'),
     pytest.param('flash', 'amp_bf16', marks=pytest.mark.gpu),
-    pytest.param('triton', 'amp_bf16', marks=pytest.mark.gpu),
     pytest.param('torch', 'amp_bf16', marks=pytest.mark.gpu),
     pytest.param('torch', 'fp32', marks=pytest.mark.gpu),
 ])
@@ -1131,12 +1254,10 @@ def test_generate(attention_impl: str, precision: str, pos_emb_config: dict,
                          max_new_tokens=5,
                          use_cache=True)
         _ = mpt.generate(input_ids=None,
-                         inputs_embeds=None,
                          max_new_tokens=5,
                          use_cache=False,
                          bos_token_id=50256)
         _ = mpt.generate(input_ids=None,
-                         inputs_embeds=None,
                          max_new_tokens=5,
                          use_cache=True,
                          bos_token_id=50256)
@@ -1181,6 +1302,7 @@ def test_generate_with_device_map(tmp_path: pathlib.Path, world_size: int,
         'transformer.blocks.0': 0,
         'transformer.blocks.1': 1 if world_size == 2 else 0,
         'transformer.norm_f': 1 if world_size == 2 else 0,
+        'lm_head': 1 if world_size == 2 else 0,
     }
 
     pipe = pipeline(
@@ -1248,7 +1370,6 @@ def test_save_from_pretrained(tmp_path: pathlib.Path):
 @pytest.mark.parametrize('attn_impl', [
     'torch',
     pytest.param('flash', marks=pytest.mark.gpu),
-    pytest.param('triton', marks=pytest.mark.gpu),
 ])
 @pytest.mark.parametrize('pos_emb_config', [{
     'alibi': False,
@@ -1382,7 +1503,6 @@ def test_forward_with_cache_and_padding(attn_impl: str, pos_emb_config: dict):
 @pytest.mark.parametrize('attn_impl', [
     'torch',
     pytest.param('flash', marks=pytest.mark.gpu),
-    pytest.param('triton', marks=pytest.mark.gpu),
 ])
 @pytest.mark.parametrize('pos_emb_config', [{
     'alibi': False,
@@ -1521,7 +1641,6 @@ def test_forward_with_cache(attn_impl: str, pos_emb_config: dict,
 @pytest.mark.parametrize('attn_impl', [
     'torch',
     pytest.param('flash', marks=pytest.mark.gpu),
-    pytest.param('triton', marks=pytest.mark.gpu),
 ])
 @pytest.mark.parametrize('pos_emb_config', [{
     'alibi': False,
@@ -1620,7 +1739,6 @@ def test_generate_with_past_kv(attn_impl: str, pos_emb_config: dict,
 @pytest.mark.parametrize('attn_impl', [
     'torch',
     pytest.param('flash', marks=pytest.mark.gpu),
-    pytest.param('triton', marks=pytest.mark.gpu),
 ])
 @pytest.mark.parametrize('generation_kwargs', [{
     'max_new_tokens': 2,
@@ -1817,7 +1935,6 @@ def test_alibi_vs_hf():
 @pytest.mark.parametrize('attn_impl', [
     'torch',
     pytest.param('flash', marks=pytest.mark.gpu),
-    pytest.param('triton', marks=pytest.mark.gpu),
     pytest.param('torch', marks=pytest.mark.gpu),
 ])
 @pytest.mark.parametrize('pos_emb_config', [{
@@ -1850,7 +1967,7 @@ def test_forward_with_output_attentions_and_output_hidden_states(
         attn_impl: str, pos_emb_config: dict):
     if pos_emb_config['alibi'] and not check_alibi_support(attn_impl):
         pytest.skip(f'flash attention below v2.4.2 does not support alibi.')
-    if attn_impl in ['flash', 'triton']:
+    if attn_impl == 'flash':
         pytest.skip(f'output_attentions only implemented with torch attention.')
     if pos_emb_config['rope'] and pos_emb_config[
             'rope_impl'] == 'dail' and not is_flash_v2_installed():
@@ -1974,7 +2091,7 @@ def test_hf_init(tmp_path: pathlib.Path,
 
     prepare_fsdp_module(model, optimizer, fsdp_config, precision, device, False)
 
-    model = HuggingFaceModelWithZLoss(model, tokenizer)
+    model = HuggingFaceModelWithFSDP(model, tokenizer)
 
     batch = gen_random_batch(batch_size, test_cfg)
 
@@ -1983,6 +2100,7 @@ def test_hf_init(tmp_path: pathlib.Path,
     with torch.autocast('cuda', dtype=torch.bfloat16, enabled=True):
         outputs = model(batch)
     loss = model.loss(outputs, batch)
+    assert isinstance(loss, torch.Tensor)
     loss.backward()
     optimizer.step()
 
@@ -1992,7 +2110,7 @@ def test_hf_init(tmp_path: pathlib.Path,
 
 
 @pytest.mark.gpu
-def test_head_dim_8_triton_mqa_attn(batch_size: int = 2):
+def test_head_dim_8_flash_mqa_attn(batch_size: int = 2):
     test_cfg = get_config(conf_path='scripts/train/yamls/pretrain/testing.yaml')
     test_cfg.device = torch.cuda.current_device()
 
@@ -2008,7 +2126,7 @@ def test_head_dim_8_triton_mqa_attn(batch_size: int = 2):
         emb_pdrop=0.1,
         resid_pdrop=0.2,
         attn_config={
-            'attn_impl': 'triton',
+            'attn_impl': 'flash',
             'attn_type': 'multiquery_attention'
         },
     )
@@ -2020,7 +2138,7 @@ def test_head_dim_8_triton_mqa_attn(batch_size: int = 2):
 
     mpt = MPTForCausalLM(hf_config)
 
-    model = HuggingFaceModelWithZLoss(mpt, tokenizer, shift_labels=True)
+    model = HuggingFaceModelWithFSDP(mpt, tokenizer, shift_labels=True)
 
     model = model.to(test_cfg.device)
     batch = gen_random_batch(batch_size, test_cfg)

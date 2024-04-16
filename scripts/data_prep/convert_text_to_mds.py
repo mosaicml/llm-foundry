@@ -18,10 +18,14 @@ from tqdm import tqdm
 from transformers import AutoTokenizer
 
 from llmfoundry.data import ConcatTokensDataset
+from llmfoundry.utils import maybe_create_mosaicml_logger
 from llmfoundry.utils.data_prep_utils import (DownloadingIterable,
                                               merge_shard_groups)
+from llmfoundry.utils.exceptions import (InputFolderMissingDataError,
+                                         OutputFolderNotEmptyError)
 
 log = logging.getLogger(__name__)
+
 DONE_FILENAME = '.text_to_mds_conversion_done'
 
 
@@ -110,6 +114,13 @@ def parse_args() -> Namespace:
         help='If true, reprocess the input_folder to mds format. Otherwise, ' +
         'only reprocess upon changes to the input folder or dataset creation parameters.',
     )
+    parser.add_argument(
+        '--trust-remote-code',
+        type=bool,
+        required=False,
+        default=False,
+        help='If true, allows custom code to be executed to load the tokenizer',
+    )
 
     parsed = parser.parse_args()
 
@@ -120,7 +131,8 @@ def parse_args() -> Namespace:
             parser.error(
                 'Cannot set --eos_text with --use_tokenizer_eos. Please specify one.'
             )
-        tokenizer = AutoTokenizer.from_pretrained(parsed.tokenizer)
+        tokenizer = AutoTokenizer.from_pretrained(
+            parsed.tokenizer, trust_remote_code=parsed.trust_remote_code)
         parsed.eos_text = tokenizer.eos_token
 
     # now that we have validated them, change BOS/EOS to strings
@@ -167,6 +179,7 @@ def get_task_args(
     bos_text: str,
     no_wrap: bool,
     compression: str,
+    trust_remote_code: bool,
 ) -> Iterable:
     """Get download_and_convert arguments split across n_groups.
 
@@ -183,6 +196,7 @@ def get_task_args(
         bos_text (str): Text to prepend to each example to separate concatenated samples
         no_wrap: (bool): Whether to let text examples wrap across multiple training examples
         compression (str): The compression algorithm to use for MDS writing
+        trust_remote_code (bool): If true, allows custom code to be executed to load the tokenizer
     """
     num_objects = len(object_names)
     objs_per_group = math.ceil(num_objects / n_groups)
@@ -198,6 +212,7 @@ def get_task_args(
             bos_text,
             no_wrap,
             compression,
+            trust_remote_code,
         )
 
 
@@ -219,6 +234,7 @@ def download_and_convert(
     bos_text: str,
     no_wrap: bool,
     compression: str,
+    trust_remote_code: bool,
 ):
     """Downloads and converts text fies to MDS format.
 
@@ -232,6 +248,7 @@ def download_and_convert(
         bos_text (str): Text to prepend to each example to separate concatenated samples
         no_wrap: (bool): Whether to let text examples wrap across multiple training examples
         compression (str): The compression algorithm to use for MDS writing
+        trust_remote_code (bool): If true, allows custom code to be executed to load the tokenizer
     """
     object_store = maybe_create_object_store_from_uri(input_folder)
 
@@ -240,7 +257,8 @@ def download_and_convert(
         downloading_iter = DownloadingIterable(object_names=file_names,
                                                output_folder=tmp_dir,
                                                object_store=object_store)
-        tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+        tokenizer = AutoTokenizer.from_pretrained(
+            tokenizer_name, trust_remote_code=trust_remote_code)
         tokenizer.model_max_length = 5000000000  # Hack to prevent warnings from HuggingFace
 
         # Use the ConcatTokensDataset from LLM-foundry to concatenate sequences of tokens up
@@ -349,6 +367,7 @@ def convert_text_to_mds(
     processes: int,
     args_str: str,
     reprocess: bool,
+    trust_remote_code: bool,
 ):
     """Convert a folder of text files to MDS format.
 
@@ -364,12 +383,13 @@ def convert_text_to_mds(
         processes (int): The number of processes to use.
         args_str (str): String representation of the arguments
         reprocess (bool): Whether to always reprocess the given folder of text files
+        trust_remote_code (bool): If true, allows custom code to be executed to load the tokenizer
     """
     is_remote_output = is_remote_path(output_folder)
 
     object_names = get_object_names(input_folder)
     if len(object_names) == 0:
-        raise ValueError(f'No text files were found at {input_folder}.')
+        raise InputFolderMissingDataError(input_folder)
 
     # Check if the text files in the bucket have already been processed.
     if not reprocess and is_already_processed(output_folder, args_str,
@@ -385,11 +405,14 @@ def convert_text_to_mds(
     local_output_folder = tempfile.TemporaryDirectory(
     ).name if is_remote_output else output_folder
 
+    if os.path.isdir(output_folder) and len(os.listdir(output_folder)) > 0:
+        raise OutputFolderNotEmptyError(output_folder)
+
     if processes > 1:
         # Download and convert the text files in parallel
         args = get_task_args(object_names, local_output_folder, input_folder,
                              processes, tokenizer_name, concat_tokens, eos_text,
-                             bos_text, no_wrap, compression)
+                             bos_text, no_wrap, compression, trust_remote_code)
         with ProcessPoolExecutor(max_workers=processes) as executor:
             list(executor.map(download_and_convert_starargs, args))
 
@@ -398,7 +421,7 @@ def convert_text_to_mds(
     else:
         download_and_convert(object_names, local_output_folder, input_folder,
                              tokenizer_name, concat_tokens, eos_text, bos_text,
-                             no_wrap, compression)
+                             no_wrap, compression, trust_remote_code)
 
     # Write a done file with the args and object names
     write_done_file(local_output_folder, args_str, object_names)
@@ -442,14 +465,22 @@ def _args_str(original_args: Namespace) -> str:
 
 if __name__ == '__main__':
     args = parse_args()
-    convert_text_to_mds(tokenizer_name=args.tokenizer,
-                        output_folder=args.output_folder,
-                        input_folder=args.input_folder,
-                        concat_tokens=args.concat_tokens,
-                        eos_text=args.eos_text,
-                        bos_text=args.bos_text,
-                        no_wrap=args.no_wrap,
-                        compression=args.compression,
-                        processes=args.processes,
-                        reprocess=args.reprocess,
-                        args_str=_args_str(args))
+    mosaicml_logger = maybe_create_mosaicml_logger()
+
+    try:
+        convert_text_to_mds(tokenizer_name=args.tokenizer,
+                            output_folder=args.output_folder,
+                            input_folder=args.input_folder,
+                            concat_tokens=args.concat_tokens,
+                            eos_text=args.eos_text,
+                            bos_text=args.bos_text,
+                            no_wrap=args.no_wrap,
+                            compression=args.compression,
+                            processes=args.processes,
+                            reprocess=args.reprocess,
+                            trust_remote_code=args.trust_remote_code,
+                            args_str=_args_str(args))
+    except Exception as e:
+        if mosaicml_logger is not None:
+            mosaicml_logger.log_exception(e)
+        raise e

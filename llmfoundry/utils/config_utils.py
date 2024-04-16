@@ -15,6 +15,14 @@ from llmfoundry.models.utils import init_empty_weights
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    'pop_config',
+    'calculate_batch_size_info',
+    'update_batch_size_info',
+    'process_init_device',
+    'log_config',
+]
+
 
 def pop_config(cfg: DictConfig,
                key: str,
@@ -120,6 +128,17 @@ def process_init_device(model_cfg: DictConfig, fsdp_config: Optional[Dict]):
             # Set defaults for mixed initialization
             fsdp_config.setdefault('use_orig_params', False)
             fsdp_config.setdefault('load_monolith_rank0_only', True)
+
+    # Set ffn_config.device_mesh to fsdp_config.device_mesh
+    if fsdp_config is not None and 'device_mesh' in fsdp_config and 'ffn_config' in model_cfg and model_cfg[
+            'ffn_config'].get('ffn_type', None) in {'mb_moe', 'mb_dmoe'}:
+        # Raise ValueError if not using device mesh with MoE expert parallelism
+        if fsdp_config['device_mesh'] is None and model_cfg['ffn_config'].get(
+                'moe_world_size', 1) > 1:
+            raise ValueError(
+                'device_mesh must be specified in fsdp_config when using MoE with moe_world_size > 1.'
+            )
+        model_cfg.ffn_config.device_mesh = fsdp_config['device_mesh']
 
     # No mixed precision needed for weights when they're already 16 bits
     master_dtype = model_cfg.get('master_weights_dtype')

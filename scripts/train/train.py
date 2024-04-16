@@ -194,7 +194,7 @@ def main(cfg: DictConfig) -> Trainer:
     # Resolve all interpolation variables as early as possible
     om.resolve(cfg)
 
-    # structured config does not support unions of containers, so separate single and plural containers
+    # Structured config does not support unions of containers, so separate single and plural containers
     if (loader := cfg.get('eval_loader', None)) is not None:
         if isinstance(loader, ListConfig):
             cfg['eval_loaders'] = list(cfg.pop('eval_loader'))

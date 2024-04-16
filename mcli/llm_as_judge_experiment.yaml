@@ -1,13 +1,9 @@
 integrations:
   - integration_type: git_repo
-    git_repo: maxisawesome/llm-foundry
-    git_branch: rag_generation_tasks_with_logging_and_api
+    git_repo: llm-foundry
+    git_branch: rag_plus_f1
     pip_install: -e .[gpu-flash2]
     ssh_clone: true # Should be true if using a private repo
-  - integration_type: git_repo
-    git_repo: maxisawesome/composer
-    git_branch: rag_gen_debug
-    pip_install: -e .[all]
     ssh_clone: true # Should be true if using a private repo
   - integration_type: wandb
     entity: mosaic-ml
@@ -54,8 +50,7 @@ parameters:
     wandb: {}
 
   icl_tasks:
-  - 
-     label: natural_questions_closed
+  - label: natural_questions_closed
       dataset_uri: eval/local_data/free_response/natural_questions_closed.jsonl
       num_fewshot: [0]
       icl_task_type: rag_generation

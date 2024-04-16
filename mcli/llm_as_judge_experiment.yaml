@@ -51,7 +51,7 @@ parameters:
   icl_tasks:
   - 
     label: natural_questions_closed
-    dataset_uri: eval/local_data/free_response/natural_questions_closed.jsonl
+    dataset_uri: eval/local_data/free_response/natural_questions_closed_rag.jsonl
     num_fewshot: [0]
     icl_task_type: rag_generation
     prompt_string: "Please read the passages below so you can use them to answer a question."
@@ -62,7 +62,7 @@ parameters:
     use_gold_docs_only: true
   - 
     label: quac
-    dataset_uri: eval/local_data/free_response/quac.jsonl
+    dataset_uri: eval/local_data/free_response/quac_rag.jsonl
     num_fewshot: [0]
     icl_task_type: rag_generation
     prompt_string: "Please read the passages below so you can use them to answer a question."
@@ -73,7 +73,7 @@ parameters:
     use_gold_docs_only: true
   - 
     label: natural_questions_openbook_short
-    dataset_uri: eval/local_data/free_response/natural_questions_openbook_short.jsonl
+    dataset_uri: eval/local_data/free_response/natural_questions_openbook_short_rag.jsonl
     num_fewshot: [0]
     icl_task_type: rag_generation
     prompt_string: "Please read the passages below so you can use them to answer a question."
@@ -84,7 +84,7 @@ parameters:
     use_gold_docs_only: true
   - 
     label: narrativeqa
-    dataset_uri: eval/local_data/free_response/narrativeqa.jsonl
+    dataset_uri: eval/local_data/free_response/narrativeqa_rag.jsonl
     num_fewshot: [0]
     icl_task_type: rag_generation
     prompt_string: "Please read the passages below so you can use them to answer a question."

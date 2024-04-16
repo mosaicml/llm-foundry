@@ -8,27 +8,19 @@ import os
 import warnings
 from typing import TYPE_CHECKING, Any, Dict, Mapping
 
-# required for loading a python model into composer
-from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
 from composer.models.huggingface import peft_installed
 from composer.utils import dist
 from omegaconf import DictConfig
 from transformers import (AutoConfig, AutoModelForCausalLM, PreTrainedModel,
                           PreTrainedTokenizerBase)
 
-from llmfoundry.eval.metrics import (InContextLearningCodeEvalAccuracy,
-                                     InContextLearningLMAccuracy,
-                                     InContextLearningMultipleChoiceAccuracy,
-                                     InContextLearningGenerationAccuracy,
-                                     InContextLearningLLMAsAJudge,
-                                     InContextLearningGenerationAccuracyJSONParsing)
-from llmfoundry.metrics import TokenAccuracy
+from llmfoundry.metrics import (DEFAULT_CAUSAL_LM_EVAL_METRICS,
+                                DEFAULT_CAUSAL_LM_TRAIN_METRICS)
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
-from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
+from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithFSDP
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.utils import init_empty_weights
 from llmfoundry.utils.config_utils import pop_config
-from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
 if TYPE_CHECKING:
     from peft import PeftConfig
@@ -38,7 +30,7 @@ __all__ = ['ComposerHFCausalLM']
 log = logging.getLogger(__name__)
 
 
-class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
+class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
     """Configures a :class:`.HuggingFaceModel` around a Causal LM.
 
     Args:
@@ -61,16 +53,16 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             cfg.use_auth_token (bool, optional): Whether to use the Hugging Face authentication token when
                 loading from Hugging Face Hub. Default: ``False``.
             cfg.use_train_metrics (bool, optional): Whether to use training metrics. Default: ``True``.
-            cfg.z_loss (float, optional): The z-loss coefficient. Default: ``0.0``.
             cfg.load_in_8bit (bool, optional): Whether to load the model in 8-bit mode. Default: ``False``.
             cfg.init_device (str, optional): Which device to initialize the model on. Default: ``'cpu'``.
-            cfg.attention_patch_type (str, optional): Which attention patch to use for llama models. Default: ``None``.
             cfg.use_flash_attention_2 (bool, optional): Whether to use flash-attention 2. Default: ``False``.
         tokenizer (PreTrainedTokenizer): The tokenizer that the model will use.
     """
 
     def __init__(self, om_model_config: DictConfig,
                  tokenizer: PreTrainedTokenizerBase):
+        from llmfoundry.utils.builders import build_metric
+
         pretrained_model_name_or_path = om_model_config.pretrained_model_name_or_path
         pretrained_lora_id_or_path = om_model_config.get(
             'pretrained_lora_id_or_path', None)
@@ -89,19 +81,19 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         use_auth_token = om_model_config.get('use_auth_token', False)
         use_flash_attention_2 = om_model_config.get('use_flash_attention_2',
                                                     False)
-        requested_attention_implementation = 'flash_attention_2' if use_flash_attention_2 else 'eager'
         load_in_8bit = om_model_config.get('load_in_8bit', False)
-        if use_flash_attention_2 and not is_flash_v2_installed():
-            raise ValueError(
-                'use_flash_attention_2 is set to True, but flash-attention 2 is not installed. '
-                + 'Please `pip install llm-foundry[gpu-flash2]`.')
 
         # Set up config args for the model construction and base classes
-        z_loss = om_model_config.get('z_loss', 0.0)
         init_device = om_model_config.get('init_device', 'cpu')
         # Resolve "mixed" init device to either "cpu" or "meta"
         resolved_init_device = hf_get_init_device(init_device)
-        attention_patch_type = om_model_config.get('attention_patch_type', None)
+        requested_attention_implementation = 'flash_attention_2' if use_flash_attention_2 else 'eager'
+
+        if use_flash_attention_2 and not is_flash_v2_installed():
+            raise ValueError(
+                'use_flash_attention_2 is set to True, but flash-attention 2 is not installed. '
+                + 'Please `pip install llm-foundry[gpu]`.')
+
         peft_config_dict = pop_config(om_model_config,
                                       'peft_config',
                                       must_exist=False,
@@ -111,25 +103,17 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
                 'PEFT is not installed, but peft_config was passed. Please install LLM Foundry with the peft extra to use peft_config.'
             )
 
-        # Set up training and eval metrics
+        use_train_metrics = om_model_config.get('use_train_metrics', True)
+        train_metric_names = DEFAULT_CAUSAL_LM_TRAIN_METRICS + om_model_config.get(
+            'additional_train_metrics', [])
         train_metrics = [
-            LanguageCrossEntropy(),
-            LanguagePerplexity(),
-            TokenAccuracy()
-        ]
+            build_metric(metric, {}) for metric in train_metric_names
+        ] if use_train_metrics else []
+        eval_metric_names = DEFAULT_CAUSAL_LM_EVAL_METRICS + om_model_config.get(
+            'additional_eval_metrics', [])
         eval_metrics = [
-            LanguageCrossEntropy(),
-            LanguagePerplexity(),
-            TokenAccuracy(),
-            InContextLearningLMAccuracy(),
-            InContextLearningMultipleChoiceAccuracy(),
-            InContextLearningGenerationAccuracy(),
-            InContextLearningCodeEvalAccuracy(),
-            InContextLearningLLMAsAJudge(),
-            InContextLearningGenerationAccuracyJSONParsing(),
+            build_metric(metric, {}) for metric in eval_metric_names
         ]
-        if not om_model_config.get('use_train_metrics', True):
-            train_metrics = []
 
         # Construct the Hugging Face config to use
         config = AutoConfig.from_pretrained(
@@ -246,9 +230,6 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
         if dist.get_local_rank() == 0:
             os.remove(signal_file_path)
 
-        if attention_patch_type is not None:
-            self._patch_attention_type(model, attention_patch_type)
-
         # Hugging Face's weight tying does not succeed if the model is inited on meta device
         # so we manually apply the weight tying here
         if model.config.tie_word_embeddings and resolved_init_device == 'meta':
@@ -273,33 +254,9 @@ class ComposerHFCausalLM(HuggingFaceModelWithZLoss):
             tokenizer=tokenizer,
             metrics=train_metrics,
             eval_metrics=eval_metrics,
-            z_loss=z_loss,
             init_device=init_device,
             peft_config=peft_config,
         )
-
-    @staticmethod
-    def _patch_attention_type(model: PreTrainedModel,
-                              attention_patch_type: str) -> None:
-        if model.config.model_type != 'llama':
-            raise ValueError(
-                f'attention_patch_type is only supported for llama models, but got {model.config.model_type}'
-            )
-
-        warnings.warn(
-            VersionedDeprecationWarning(
-                'Attention patches for Llama models are deprecated. We recommend `use_flash_attention_2: True` for Llama models.',
-                remove_version='0.7.0'))
-
-        log.debug(
-            f'Patching llama attention with {attention_patch_type} attention')
-        from transformers.models.llama.modeling_llama import LlamaAttention
-
-        from llmfoundry.models.layers.llama_attention_monkeypatch import \
-            get_llama_attention_patch_fn
-        LlamaAttention.forward = get_llama_attention_patch_fn(
-            attention_patch_type)
-        model.config.use_cache = False
 
     @staticmethod
     def _get_peft_config(peft_config_dict: Dict[str, Any]) -> 'PeftConfig':

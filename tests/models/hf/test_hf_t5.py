@@ -18,8 +18,6 @@ def test_experimental_hf_t5():
         },
         'pretrained': False,
         'init_device': 'cpu',
-        'z_loss': 0.0,
-        'adapt_vocab_for_denoising': False
     })
 
     tokenizer = transformers.T5Tokenizer.from_pretrained('t5-base')

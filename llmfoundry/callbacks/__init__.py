@@ -1,10 +1,10 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
-                                MemoryMonitor, MemorySnapshot, OOMObserver,
-                                OptimizerMonitor, RuntimeEstimator,
-                                SpeedMonitor, EvalOutputLogging)
+from composer.callbacks import (EarlyStopper, EvalOutputLogging, Generate,
+                                LRMonitor, MemoryMonitor, MemorySnapshot,
+                                OOMObserver, OptimizerMonitor, RuntimeEstimator,
+                                SpeedMonitor)
 
 from llmfoundry.callbacks.async_eval_callback import AsyncEval
 from llmfoundry.callbacks.curriculum_learning_callback import CurriculumLearning

@@ -1,0 +1,97 @@
+integrations:
+  - integration_type: git_repo
+    git_repo: maxisawesome/llm-foundry
+    git_branch: rag_generation_tasks_with_logging_and_api
+    pip_install: -e .[gpu-flash2]
+    ssh_clone: true # Should be true if using a private repo
+  - integration_type: git_repo
+    git_repo: maxisawesome/composer
+    git_branch: rag_gen_debug
+    pip_install: -e .[all]
+    ssh_clone: true # Should be true if using a private repo
+  - integration_type: wandb
+    entity: mosaic-ml
+    project: rag-gen-eval
+
+scheduling:
+  resumable: false
+  priority: medium
+  preemptible: false
+command: |
+  pip install openai
+  pip install tiktoken
+  cd llm-foundry/scripts
+  composer eval/eval.py /mnt/config/parameters.yaml
+
+name: rag-generation-all-tasks-dbrx
+compute:
+  cluster: r7z22
+  gpus: 8
+
+image: mosaicml/llm-foundry:2.2.1_cu121_flash2-latest
+
+parameters:
+  max_seq_len: 4096
+  seed: 1
+  precision: amp_bf16
+  models:
+  -
+    model_name: openai/gpt-3.5-turbo-instruct
+    model:
+      name: openai_causal_lm
+      version: gpt-3.5-turbo-instruct
+    tokenizer:
+      name: tiktoken
+      kwargs:
+        model_name: gpt-3.5-turbo-instruct
+
+  device_eval_batch_size: 8
+
+  callbacks:
+    eval_output_logging: {}
+
+  loggers:
+    wandb: {}
+
+  icl_tasks:
+  - 
+     label: natural_questions_closed
+      dataset_uri: eval/local_data/free_response/natural_questions_closed.jsonl
+      num_fewshot: [0]
+      icl_task_type: rag_generation
+      prompt_string: "Please read the passages below so you can use them to answer a question."
+      continuation_delimiter: "\nAnswer: "
+      passage_delimiter: "\nPassage: "
+      passage_query_delimiter: "\nAnswer the following question using information from the passages only. Do not use other information. The answer should as small as possible while still answering the question.\nQuery: "
+      metric_names: ["InContextLearningGenerationAccuracy", "InContextLearningLLMAsAJudge", "InContextLearningGenerationF1Score"]
+      use_gold_docs_only: true
+  - label: quac
+      dataset_uri: eval/local_data/free_response/quac.jsonl
+      num_fewshot: [0]
+      icl_task_type: rag_generation
+      prompt_string: "Please read the passages below so you can use them to answer a question."
+      continuation_delimiter: "\nAnswer: "
+      passage_delimiter: "\nPassage: "
+      passage_query_delimiter: "\nAnswer the following question using information from the passages only. Do not use other information. The answer should as small as possible while still answering the question.\nQuery: "
+      metric_names: ["InContextLearningGenerationAccuracy", "InContextLearningLLMAsAJudge", "InContextLearningGenerationF1Score"]
+      use_gold_docs_only: true
+  - label: natural_questions_openbook_short
+      dataset_uri: eval/local_data/free_response/natural_questions_openbook_short.jsonl
+      num_fewshot: [0]
+      icl_task_type: rag_generation
+      prompt_string: "Please read the passages below so you can use them to answer a question."
+      continuation_delimiter: "\nAnswer: "
+      passage_delimiter: "\nPassage: "
+      passage_query_delimiter: "\nAnswer the following question using information from the passages only. Do not use other information. The answer should as small as possible while still answering the question.\nQuery: "
+      metric_names: ["InContextLearningGenerationAccuracy", "InContextLearningLLMAsAJudge", "InContextLearningGenerationF1Score"]
+      use_gold_docs_only: true
+  - label: narrativeqa
+      dataset_uri: eval/local_data/free_response/narrativeqa.jsonl
+      num_fewshot: [0]
+      icl_task_type: rag_generation
+      prompt_string: "Please read the passages below so you can use them to answer a question."
+      continuation_delimiter: "\nAnswer: "
+      passage_delimiter: "\nPassage: "
+      passage_query_delimiter: "\nAnswer the following question using information from the passages only. Do not use other information. The answer should as small as possible while still answering the question.\nQuery: "
+      metric_names: ["InContextLearningGenerationAccuracy", "InContextLearningLLMAsAJudge", "InContextLearningGenerationF1Score"]
+      use_gold_docs_only: true

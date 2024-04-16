@@ -11,7 +11,7 @@ from llmfoundry.eval.metrics.nlp import (
     InContextLearningLMExpectedCalibrationError,
     InContextLearningMCExpectedCalibrationError, InContextLearningMetric,
     InContextLearningMultipleChoiceAccuracy, InContextLearningGenerationAccuracy, InContextLearningLLMAsAJudge, 
-    InContextLearningGenerationAccuracyJSONParsing)
+    InContextLearningGenerationAccuracyJSONParsing, InContextLearningGenerationF1Score)
 
 __all__ = [
     'InContextLearningLMAccuracy',
@@ -19,6 +19,7 @@ __all__ = [
     'InContextLearningGenerationAccuracy',
     'InContextLearningMCExpectedCalibrationError',
     'InContextLearningLMExpectedCalibrationError',
+    'InContextLearningGenerationF1Score',
     'InContextLearningMetric',
     'InContextLearningCodeEvalAccuracy',
     'InContextLearningLLMAsAJudge',

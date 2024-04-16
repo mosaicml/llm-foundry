@@ -16,17 +16,9 @@ from typing import (Any, Dict, List, Mapping, MutableMapping, Optional, Tuple,
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
 from composer.models import HuggingFaceModel
 from composer.utils import dist
 
-from llmfoundry.eval.metrics import (InContextLearningCodeEvalAccuracy,
-                                     InContextLearningLMAccuracy,
-                                     InContextLearningMultipleChoiceAccuracy,
-                                     InContextLearningGenerationAccuracy,
-                                     InContextLearningLLMAsAJudge,
-                                     InContextLearningGenerationAccuracyJSONParsing)
-from llmfoundry.metrics import TokenAccuracy
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
@@ -61,14 +53,6 @@ from llmfoundry.models.mpt.configuration_mpt import MPTConfig
 # HuggingFace can detect all the needed files to copy into its modules folder.
 # Otherwise, certain modules are missing.
 # isort: off
-from llmfoundry.models.utils.adapt_tokenizer import (
-    AutoTokenizerForMOD,  # type: ignore (see note)
-    adapt_tokenizer_for_denoising,  # type: ignore (see note)
-)
-from llmfoundry.models.utils.hf_prefixlm_converter import (
-    add_bidirectional_mask_if_missing,  # type: ignore (see note)
-    convert_hf_causal_lm_to_prefix_lm,  # type: ignore (see note)
-)
 from llmfoundry.models.utils.meta_init_context import \
     init_empty_weights  # type: ignore (see note)
 from llmfoundry.models.utils.param_init_fns import (
@@ -79,12 +63,6 @@ from llmfoundry.models.utils.param_init_fns import (
 from llmfoundry.models.utils.act_ckpt import (pass_on_block_idx,
                                               build_act_ckpt_mod_to_blocks,
                                               check_mapping_blocks_overlap)
-
-try:
-    from llmfoundry.models.layers.flash_attn_triton import flash_attn_func as flash_attn_func
-except:
-    pass
-# isort: on
 
 import logging
 
@@ -307,7 +285,6 @@ class MPTModel(MPTPreTrainedModel):
         super().__init__(config)
 
         self.attn_impl = config.attn_config['attn_impl']
-        self.prefix_lm = config.attn_config['prefix_lm']
         self.attn_uses_sequence_id = config.attn_config['attn_uses_sequence_id']
         self.alibi = config.attn_config['alibi']
         self.alibi_bias_max = config.attn_config['alibi_bias_max']
@@ -372,7 +349,7 @@ class MPTModel(MPTPreTrainedModel):
             )
             self.apply(self.param_init_fn)
 
-        self.is_causal = not self.prefix_lm
+        self.is_causal = True
 
         # define attn mask
         self._attn_bias_initialized = False
@@ -382,7 +359,6 @@ class MPTModel(MPTPreTrainedModel):
             config.n_heads,
             config.max_seq_len,
             self.alibi,
-            prefix_lm=self.prefix_lm,
             causal=self.is_causal,
             use_sequence_id=self.attn_uses_sequence_id,
         )
@@ -415,7 +391,6 @@ class MPTModel(MPTPreTrainedModel):
         device: torch.device,
         dtype: torch.dtype,
         attention_mask: Optional[torch.ByteTensor] = None,
-        prefix_mask: Optional[torch.ByteTensor] = None,
         sequence_id: Optional[torch.LongTensor] = None,
     ) -> Tuple[Optional[torch.Tensor], Optional[torch.ByteTensor]]:
         if not self._attn_bias_initialized:
@@ -434,8 +409,7 @@ class MPTModel(MPTPreTrainedModel):
                 )
             self._attn_bias_initialized = True
 
-        # flash does not support prefix_lm and will incorporate any
-        # attention_mask inside the attention module
+        # flash will incorporate any attention_mask inside the attention module
         if self.attn_impl == 'flash':
             return self.attn_bias, attention_mask
 
@@ -446,19 +420,13 @@ class MPTModel(MPTPreTrainedModel):
 
         attn_bias = self.attn_bias
 
-        # If using torch or triton, we incorporate the prefix_mask (if appropriate)
-        if self.prefix_lm:
-            assert isinstance(attn_bias, torch.Tensor)  # pyright
-            assert isinstance(prefix_mask, torch.Tensor)  # pyright
-            attn_bias = self._apply_prefix_mask(attn_bias, prefix_mask)
-
-        # If using torch or triton, we incorporate sequence_id (if appropriate)
+        # If using torch, we incorporate sequence_id (if appropriate)
         if self.attn_uses_sequence_id and sequence_id is not None:
             assert isinstance(attn_bias, torch.Tensor)  # pyright
             attn_bias = apply_sequence_id(attn_bias, sequence_id,
                                           self.config.max_seq_len)
 
-        # If using torch or triton, we incorporate attention_mask. This will output
+        # If using torch, we incorporate attention_mask. This will output
         # None in place of attention_mask since it will not be further needed in the
         # attention modules.
         if attention_mask is not None:
@@ -471,54 +439,17 @@ class MPTModel(MPTPreTrainedModel):
                 # clamp to 0 necessary for torch 2.0 compile()
                 _s_k = max(0, attn_bias.size(-1) - s_k)
                 attn_bias = attn_bias[:, :, :, _s_k:]
-            if prefix_mask is not None and (attention_mask.shape !=
-                                            prefix_mask.shape):
-                raise ValueError(
-                    f'attention_mask shape={attention_mask.shape} ' +
-                    f'and prefix_mask shape={prefix_mask.shape} are not equal.')
             min_val = torch.finfo(attn_bias.dtype).min
             attn_bias = attn_bias.masked_fill(
                 ~attention_mask.view(-1, 1, 1, s_k), min_val)
 
         return attn_bias, attention_mask
 
-    def _apply_prefix_mask(self, attn_bias: torch.Tensor,
-                           prefix_mask: torch.Tensor) -> torch.Tensor:
-        s_k, s_q = attn_bias.shape[-2:]
-        if (s_k != self.config.max_seq_len) or (s_q != self.config.max_seq_len):
-            raise ValueError(
-                'attn_bias does not match the expected shape. ' +
-                f'The last two dimensions should both be {self.config.max_length} '
-                + f'but are {s_k} and {s_q}.')
-        seq_len = prefix_mask.shape[-1]
-        if seq_len > self.config.max_seq_len:
-            raise ValueError(
-                f'prefix_mask sequence length cannot exceed max_seq_len={self.config.max_seq_len}'
-            )
-
-        # select seq_len subset of attn mask
-        attn_bias = attn_bias[..., :seq_len, :seq_len]
-
-        # Mix the causal max and the bidirectional mask to get the full
-        # allowable attention (i.e. full = not accounting for padding yet)
-        causal = torch.tril(
-            torch.ones((seq_len, seq_len),
-                       dtype=torch.bool,
-                       device=prefix_mask.device)).view(1, 1, seq_len, seq_len)
-        prefix = prefix_mask.view(-1, 1, 1, seq_len)
-        cannot_attend = ~torch.logical_or(causal, prefix.bool())
-
-        min_val = torch.finfo(attn_bias.dtype).min
-        attn_bias = attn_bias.masked_fill(cannot_attend, min_val)
-
-        return attn_bias
-
     def forward(
         self,
         input_ids: Optional[torch.LongTensor] = None,
         past_key_values: Optional[List[Tuple[torch.FloatTensor]]] = None,
         attention_mask: Optional[torch.ByteTensor] = None,
-        prefix_mask: Optional[torch.ByteTensor] = None,
         sequence_id: Optional[torch.LongTensor] = None,
         return_dict: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
@@ -534,9 +465,6 @@ class MPTModel(MPTPreTrainedModel):
         if attention_mask is not None:
             attention_mask = attention_mask.bool()  # type: ignore
 
-        if prefix_mask is not None:
-            prefix_mask = prefix_mask.bool()  # type: ignore
-
         # These args are passed in by keyword in huggingface's generate function
         # https://github.com/huggingface/transformers/blob/68287689f2f0d8b7063c400230b3766987abf18d/src/transformers/generation/utils.py#L2201-L2206
         # but have not yet been fully implemented in MPTModel
@@ -546,18 +474,13 @@ class MPTModel(MPTPreTrainedModel):
         if output_attentions:
             if self.attn_impl != 'torch':
                 raise NotImplementedError(
-                    'output_attentions is not implemented for MPT when using attn_impl `flash` or `triton`.'
+                    'output_attentions is not implemented for MPT when using attn_impl `flash`.'
                 )
 
         if (self.training and attention_mask is not None and
                 attention_mask[:, 0].sum() != attention_mask.shape[0]):
             raise NotImplementedError(
                 'MPT does not support training with left padding.')
-
-        if self.prefix_lm and prefix_mask is None:
-            raise ValueError(
-                'prefix_mask is a required argument when MPT is configured with prefix_lm=True.'
-            )
 
         if self.training:
             if self.attn_uses_sequence_id and sequence_id is None:
@@ -602,8 +525,8 @@ class MPTModel(MPTPreTrainedModel):
                     +
                     f'layer in the network ({len(past_key_values)=}; {self.config.n_layers=}).'
                 )
-            # For attn_impl: triton and flash the past key tensor spec is (batch, seq, dim).
-            # For attn_impl: torch the past key tensor spec is (batch, heads, head_dim, seq).
+            # For attn_impl: flash, the past key tensor spec is (batch, seq, dim).
+            # For attn_impl: torch, the past key tensor spec is (batch, heads, head_dim, seq).
             # Here we shift position embedding using the `seq` dim of the past key
             past_position = past_key_values[0][0].size(1)
             if self.attn_impl == 'torch':
@@ -662,7 +585,6 @@ class MPTModel(MPTPreTrainedModel):
             device=x.device,
             dtype=torch.float32,
             attention_mask=attention_mask,
-            prefix_mask=prefix_mask,
             sequence_id=sequence_id,
         )
         attention_mask_in_length = gen_attention_mask_in_length(
@@ -833,7 +755,6 @@ class MPTForCausalLM(MPTPreTrainedModel):
         input_ids: Optional[torch.LongTensor] = None,
         past_key_values: Optional[List[Tuple[torch.FloatTensor]]] = None,
         attention_mask: Optional[torch.ByteTensor] = None,
-        prefix_mask: Optional[torch.ByteTensor] = None,
         sequence_id: Optional[torch.LongTensor] = None,
         labels: Optional[torch.LongTensor] = None,
         return_dict: Optional[bool] = None,
@@ -851,7 +772,6 @@ class MPTForCausalLM(MPTPreTrainedModel):
             input_ids=input_ids,
             past_key_values=past_key_values,
             attention_mask=attention_mask,
-            prefix_mask=prefix_mask,
             sequence_id=sequence_id,
             return_dict=return_dict,
             output_attentions=output_attentions,
@@ -983,16 +903,6 @@ class MPTForCausalLM(MPTPreTrainedModel):
         if past_key_values is not None:
             input_ids = input_ids[:, -1].unsqueeze(-1)
 
-        if self.transformer.prefix_lm:
-            # Leverage a convenience of sequential generation!
-            prefix_mask = torch.ones_like(attention_mask)
-            # This requires that we're using the cache
-            if kwargs.get('use_cache') == False:
-                raise NotImplementedError(
-                    'MPT with prefix_lm=True does not support use_cache=False.')
-        else:
-            prefix_mask = None
-
         # if `inputs_embeds` are passed, we only want to use them in the 1st generation step
         if inputs_embeds is not None and past_key_values is None:
             model_inputs = {'inputs_embeds': inputs_embeds}
@@ -1001,7 +911,6 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
         model_inputs.update({
             'attention_mask': attention_mask,
-            'prefix_mask': prefix_mask,
             'sequence_id': sequence_id,
             'past_key_values': past_key_values,
             'use_cache': kwargs.get('use_cache', True),
@@ -1034,27 +943,27 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         om_model_config: DictConfig,
         tokenizer: Optional[PreTrainedTokenizerBase] = None,
     ):
+        from llmfoundry.metrics import (DEFAULT_CAUSAL_LM_EVAL_METRICS,
+                                        DEFAULT_CAUSAL_LM_TRAIN_METRICS)
+        from llmfoundry.utils.builders import build_metric
+
         resolved_om_model_config = om.to_container(om_model_config,
                                                    resolve=True)
+        assert isinstance(resolved_om_model_config, dict)
+
         hf_config = MPTConfig.from_dict(resolved_om_model_config)
         model = MPTForCausalLM(hf_config)
 
         use_train_metrics = om_model_config.get('use_train_metrics', True)
+        train_metric_names = DEFAULT_CAUSAL_LM_TRAIN_METRICS + resolved_om_model_config.get(
+            'additional_train_metrics', [])
         train_metrics = [
-            LanguageCrossEntropy(),
-            LanguagePerplexity(),
-            TokenAccuracy()
+            build_metric(metric, {}) for metric in train_metric_names
         ] if use_train_metrics else []
+        eval_metric_names = DEFAULT_CAUSAL_LM_EVAL_METRICS + resolved_om_model_config.get(
+            'additional_eval_metrics', [])
         eval_metrics = [
-            LanguageCrossEntropy(),
-            LanguagePerplexity(),
-            TokenAccuracy(),
-            InContextLearningLMAccuracy(),
-            InContextLearningMultipleChoiceAccuracy(),
-            InContextLearningGenerationAccuracy(),
-            InContextLearningCodeEvalAccuracy(),
-            InContextLearningLLMAsAJudge(),
-            InContextLearningGenerationAccuracyJSONParsing(),
+            build_metric(metric, {}) for metric in eval_metric_names
         ]
 
         super().__init__(
@@ -1097,13 +1006,9 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         return targets
 
     def forward(self, batch: MutableMapping) -> CausalLMOutputWithPast:
-        if self.model.transformer.prefix_lm:
-            add_bidirectional_mask_if_missing(batch)
-        # Note: prefix_mask is only used if model.prefix_lm is True
         return self.model(
             input_ids=batch.get('input_ids', None),
             attention_mask=batch.get('attention_mask', None),
-            prefix_mask=batch.get('bidirectional_mask', None),
             sequence_id=batch.get('sequence_id', None),
             inputs_embeds=batch.get('inputs_embeds', None),
         )

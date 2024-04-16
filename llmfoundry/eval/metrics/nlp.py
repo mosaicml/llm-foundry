@@ -130,6 +130,12 @@ class InContextLearningGenerationF1Score(InContextLearningMetric):
                        default=torch.tensor(0.),
                        dist_reduce_fx='sum')
         self.add_state('total', default=torch.tensor(0.), dist_reduce_fx='sum')
+        self.metric_result_dict = {
+            'cleaned_output': [],
+            'original_label': [],
+            'cleaned_label': [],
+            'result': [],
+        }
 
     def normalize_answer(self, answer: str):
         """Taken from official evaluation script for v1.1 of the SQuAD.
@@ -153,13 +159,18 @@ class InContextLearningGenerationF1Score(InContextLearningMetric):
 
     def update(self, batch: Dict[str, Any], outputs: List[str],
                labels: List[List[str]]):
+        metric_result_dict = deepcopy(self.metric_result_dict)
 
         for sample_output, sample_labels in zip(outputs, labels):
             sample_output = sample_output.split('\n')[0]
-            prediction_tokens = self.normalize_answer(sample_output).split()
+            cleaned_final_answer = self.normalize_answer(sample_output)
+            prediction_tokens = cleaned_final_answer.split()
             max_f1 = 0
+            cleaned_sample_labels = []
             for label in sample_labels:
-                references_tokens = self.normalize_answer(label).split()
+                cleaned_label = self.normalize_answer(label)
+                cleaned_sample_labels.append(cleaned_label)
+                references_tokens = cleaned_label.split()
                 common = Counter(prediction_tokens) & Counter(references_tokens)
                 num_same = sum(common.values())
                 if num_same == 0:
@@ -172,6 +183,13 @@ class InContextLearningGenerationF1Score(InContextLearningMetric):
 
             self.correct += torch.tensor(max_f1)
             self.total += torch.tensor(1.0)
+            metric_result_dict['original_label'].append(sample_labels)
+            metric_result_dict['cleaned_output'].append(cleaned_final_answer)
+            metric_result_dict['cleaned_label'].append(cleaned_sample_labels)
+            metric_result_dict['result'].append(torch.tensor(max_f1).item())
+         
+
+        return metric_result_dict
 
     def compute(self):
         assert isinstance(self.correct, Tensor)

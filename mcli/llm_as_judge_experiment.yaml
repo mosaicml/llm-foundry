@@ -1,6 +1,6 @@
 integrations:
   - integration_type: git_repo
-    git_repo: llm-foundry
+    git_repo: mosaicml/llm-foundry
     git_branch: rag_plus_f1
     pip_install: -e .[gpu-flash2]
     ssh_clone: true # Should be true if using a private repo
@@ -49,43 +49,47 @@ parameters:
     wandb: {}
 
   icl_tasks:
-  - label: natural_questions_closed
-      dataset_uri: eval/local_data/free_response/natural_questions_closed.jsonl
-      num_fewshot: [0]
-      icl_task_type: rag_generation
-      prompt_string: "Please read the passages below so you can use them to answer a question."
-      continuation_delimiter: "\nAnswer: "
-      passage_delimiter: "\nPassage: "
-      passage_query_delimiter: "\nAnswer the following question using information from the passages only. Do not use other information. The answer should as small as possible while still answering the question.\nQuery: "
-      metric_names: ["InContextLearningGenerationAccuracy", "InContextLearningLLMAsAJudge", "InContextLearningGenerationF1Score"]
-      use_gold_docs_only: true
-  - label: quac
-      dataset_uri: eval/local_data/free_response/quac.jsonl
-      num_fewshot: [0]
-      icl_task_type: rag_generation
-      prompt_string: "Please read the passages below so you can use them to answer a question."
-      continuation_delimiter: "\nAnswer: "
-      passage_delimiter: "\nPassage: "
-      passage_query_delimiter: "\nAnswer the following question using information from the passages only. Do not use other information. The answer should as small as possible while still answering the question.\nQuery: "
-      metric_names: ["InContextLearningGenerationAccuracy", "InContextLearningLLMAsAJudge", "InContextLearningGenerationF1Score"]
-      use_gold_docs_only: true
-  - label: natural_questions_openbook_short
-      dataset_uri: eval/local_data/free_response/natural_questions_openbook_short.jsonl
-      num_fewshot: [0]
-      icl_task_type: rag_generation
-      prompt_string: "Please read the passages below so you can use them to answer a question."
-      continuation_delimiter: "\nAnswer: "
-      passage_delimiter: "\nPassage: "
-      passage_query_delimiter: "\nAnswer the following question using information from the passages only. Do not use other information. The answer should as small as possible while still answering the question.\nQuery: "
-      metric_names: ["InContextLearningGenerationAccuracy", "InContextLearningLLMAsAJudge", "InContextLearningGenerationF1Score"]
-      use_gold_docs_only: true
-  - label: narrativeqa
-      dataset_uri: eval/local_data/free_response/narrativeqa.jsonl
-      num_fewshot: [0]
-      icl_task_type: rag_generation
-      prompt_string: "Please read the passages below so you can use them to answer a question."
-      continuation_delimiter: "\nAnswer: "
-      passage_delimiter: "\nPassage: "
-      passage_query_delimiter: "\nAnswer the following question using information from the passages only. Do not use other information. The answer should as small as possible while still answering the question.\nQuery: "
-      metric_names: ["InContextLearningGenerationAccuracy", "InContextLearningLLMAsAJudge", "InContextLearningGenerationF1Score"]
-      use_gold_docs_only: true
+  - 
+    label: natural_questions_closed
+    dataset_uri: eval/local_data/free_response/natural_questions_closed.jsonl
+    num_fewshot: [0]
+    icl_task_type: rag_generation
+    prompt_string: "Please read the passages below so you can use them to answer a question."
+    continuation_delimiter: "\nAnswer: "
+    passage_delimiter: "\nPassage: "
+    passage_query_delimiter: "\nAnswer the following question using information from the passages only. Do not use other information. The answer should as small as possible while still answering the question.\nQuery: "
+    metric_names: ["InContextLearningGenerationAccuracy", "InContextLearningLLMAsAJudge", "InContextLearningGenerationF1Score"]
+    use_gold_docs_only: true
+  - 
+    label: quac
+    dataset_uri: eval/local_data/free_response/quac.jsonl
+    num_fewshot: [0]
+    icl_task_type: rag_generation
+    prompt_string: "Please read the passages below so you can use them to answer a question."
+    continuation_delimiter: "\nAnswer: "
+    passage_delimiter: "\nPassage: "
+    passage_query_delimiter: "\nAnswer the following question using information from the passages only. Do not use other information. The answer should as small as possible while still answering the question.\nQuery: "
+    metric_names: ["InContextLearningGenerationAccuracy", "InContextLearningLLMAsAJudge", "InContextLearningGenerationF1Score"]
+    use_gold_docs_only: true
+  - 
+    label: natural_questions_openbook_short
+    dataset_uri: eval/local_data/free_response/natural_questions_openbook_short.jsonl
+    num_fewshot: [0]
+    icl_task_type: rag_generation
+    prompt_string: "Please read the passages below so you can use them to answer a question."
+    continuation_delimiter: "\nAnswer: "
+    passage_delimiter: "\nPassage: "
+    passage_query_delimiter: "\nAnswer the following question using information from the passages only. Do not use other information. The answer should as small as possible while still answering the question.\nQuery: "
+    metric_names: ["InContextLearningGenerationAccuracy", "InContextLearningLLMAsAJudge", "InContextLearningGenerationF1Score"]
+    use_gold_docs_only: true
+  - 
+    label: narrativeqa
+    dataset_uri: eval/local_data/free_response/narrativeqa.jsonl
+    num_fewshot: [0]
+    icl_task_type: rag_generation
+    prompt_string: "Please read the passages below so you can use them to answer a question."
+    continuation_delimiter: "\nAnswer: "
+    passage_delimiter: "\nPassage: "
+    passage_query_delimiter: "\nAnswer the following question using information from the passages only. Do not use other information. The answer should as small as possible while still answering the question.\nQuery: "
+    metric_names: ["InContextLearningGenerationAccuracy", "InContextLearningLLMAsAJudge", "InContextLearningGenerationF1Score"]
+    use_gold_docs_only: true

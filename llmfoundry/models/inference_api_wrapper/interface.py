@@ -5,12 +5,12 @@ from typing import Any, Optional
 
 import torch
 from composer.core.types import Batch
-from composer.metrics import InContextLearningMetric
 from composer.models import ComposerModel
 from omegaconf import DictConfig
 from torchmetrics import Metric
 from transformers import AutoTokenizer
 
+from llmfoundry.eval.metrics import InContextLearningMetric
 from llmfoundry.metrics import DEFAULT_CAUSAL_LM_EVAL_METRICS
 
 
@@ -63,13 +63,19 @@ class InferenceAPIEvalWrapper(ComposerModel):
                 tokens = tokens.tolist()
                 tokens = [t for t in tokens if t != padding_tok]
                 prompt = self.tokenizer.decode(tokens)
+                if 'generation_length' in batch:
+                    num_tokens = batch['generation_length']
+                elif 'generation_kwargs' in batch:
+                    num_tokens = batch['generation_kwargs'].get(
+                        'max_new_tokens', 2)
+
                 for i in range(
                         0,
                         batch.get('generation_kwargs',
                                   {}).get('num_return_sequences', 1)):
                     api_output = self.try_generate_completion(  #
                         prompt,
-                        num_tokens=batch['generation_length'],
+                        num_tokens=num_tokens,
                         generation_kwargs=batch.get('generation_kwargs', {}))
                     sample_output = self.completion_to_string(api_output)[0]
                     outputs.append(sample_output)
@@ -107,6 +113,7 @@ class InferenceAPIEvalWrapper(ComposerModel):
                 batch['input_ids'].device)
 
     def update_metric(self, batch: Any, outputs: Any, metric: Metric) -> None:
+        metric_result = None
         if isinstance(metric, InContextLearningMetric) and batch.get(
                 'mode', None) == 'icl_task':
             batch = self.rebatch(batch)
@@ -119,7 +126,9 @@ class InferenceAPIEvalWrapper(ComposerModel):
                 'mode', None) == 'generate':
             self.labels = batch.pop('labels')
             assert self.labels is not None
-            metric_result = metric.update(batch=batch, outputs=outputs, labels=self.labels)
+            metric_result = metric.update(batch=batch,
+                                          outputs=outputs,
+                                          labels=self.labels)
         else:
             raise NotImplementedError(
                 'Inference API wrapper only supports InContextLearningMetrics and mode=icl_task,mode=generate'

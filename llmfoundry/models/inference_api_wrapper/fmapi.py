@@ -4,6 +4,7 @@
 import logging
 import os
 import time
+from typing import Dict, Optional
 
 import requests
 from omegaconf import DictConfig
@@ -49,6 +50,7 @@ class FMAPIEvalInterface(OpenAIEvalInterface):
 
     def __init__(self, om_model_config: DictConfig, tokenizer: AutoTokenizer):
         is_local = om_model_config.pop('local', False)
+        api_key = om_model_config.pop('api_key', None)
         if is_local:
             base_url = os.environ.get('MOSAICML_MODEL_ENDPOINT',
                                       'http://0.0.0.0:8080/v2')
@@ -60,7 +62,7 @@ class FMAPIEvalInterface(OpenAIEvalInterface):
                 'Must specify base_url or use local=True in model_cfg for FMAPIsEvalWrapper'
             )
 
-        super().__init__(om_model_config, tokenizer)
+        super().__init__(om_model_config, tokenizer, api_key)
 
 
 class FMAPICasualLMEvalWrapper(FMAPIEvalInterface, OpenAICausalLMEvalWrapper):

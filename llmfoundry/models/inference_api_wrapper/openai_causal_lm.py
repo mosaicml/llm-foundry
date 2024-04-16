@@ -12,6 +12,9 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 import torch
 from composer.core.types import Batch
 from composer.utils.import_helpers import MissingConditionalImportError
+from openai.types.chat.chat_completion import ChatCompletion
+from openai.types.completion import Completion
+from openai.types.completion_choice import Logprobs
 from omegaconf import DictConfig
 from transformers import AutoTokenizer
 
@@ -25,13 +28,12 @@ __all__ = [
     'OpenAIChatAPIEvalWrapper',
 ]
 
-MAX_RETRIES = 10
+MAX_RETRIES = 100
 
 
 class OpenAIEvalInterface(InferenceAPIEvalWrapper):
 
-    def __init__(self, om_model_config: DictConfig,
-                 tokenizer: AutoTokenizer) -> None:
+    def __init__(self, om_model_config: DictConfig, tokenizer: AutoTokenizer, api_key: Optional[str] = None) -> None:
         super().__init__(om_model_config, tokenizer)
         try:
             import openai
@@ -40,8 +42,8 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
                 extra_deps_group='openai',
                 conda_package='openai',
                 conda_channel='conda-forge') from e
-
-        api_key = os.environ.get('OPENAI_API_KEY')
+        if api_key is None:
+            api_key = os.environ.get(om_model_config.get('api_env_key', 'OPENAI_API_KEY'))
         base_url = om_model_config.get('base_url')
         if base_url is None:
             # Using OpenAI default, where the API key is required
@@ -74,14 +76,15 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
 
     def try_generate_completion(
         self,
-        prompt: str,
+        prompt: Union[str, List],
         num_tokens: int,
         generation_kwargs: Optional[dict] = None
     ) -> Optional[Union[Completion, ChatCompletion]]:
         if generation_kwargs is None:
             generation_kwargs = {}
         try:
-            from openai import APITimeoutError, RateLimitError
+            from openai import (APITimeoutError, InternalServerError,
+                                RateLimitError)
         except ImportError as e:
             raise MissingConditionalImportError(
                 extra_deps_group='openai',
@@ -97,13 +100,14 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
                                                       generation_kwargs)
                 break
             except RateLimitError as e:
-                if 'You exceeded your current quota' in str(
-                        e._message):  # pyright: ignore
-                    raise e
                 delay *= 2 * (1 + random.random())
                 sleep(delay)
                 continue
             except APITimeoutError as e:
+                delay *= 2 * (1 + random.random())
+                sleep(delay)
+                continue
+            except InternalServerError as e:
                 delay *= 2 * (1 + random.random())
                 sleep(delay)
                 continue
@@ -113,31 +117,38 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
 
 class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
 
-    def __init__(self, om_model_config: DictConfig,
-                 tokenizer: AutoTokenizer) -> None:
-        super().__init__(om_model_config, tokenizer)
+    def __init__(self, om_model_config: DictConfig, tokenizer: AutoTokenizer,  api_key: Optional[str] = None) -> None:
+        super().__init__(om_model_config, tokenizer, api_key)
+        self.om_model_config = om_model_config
 
     def generate_completion(
             self,
-            prompt: str,
+            prompt: Union[str, List[dict]], #
             num_tokens: int,
             generation_kwargs: Optional[dict] = None) -> ChatCompletion:
         if generation_kwargs is None:
             generation_kwargs = {}
-        return self.client.chat.completions.create(
-            model=self.model_name,
-            messages=[{
-                'role':
-                    'system',
-                'content':
-                    om_model_config.get('system_role_prompt',
+        if isinstance(prompt, str):
+            messages = [{
+                    'role':
+                        'system',
+                    'content':
+                        self.om_model_config.get('system_role_prompt',
                                         'Please complete the following text: ')
-            }, {
-                'role': 'user',
-                'content': prompt
-            }],
-            max_tokens=num_tokens,
-            temperature=generation_kwargs.get('temperature', 0.0))
+                }, {
+                    'role': 'user',
+                    'content': prompt
+                }]
+        elif isinstance(prompt, list):
+            messages = prompt
+        else:
+            raise ValueError(f"Prompt must be str or list: {prompt}")
+        return self.client.chat.completions.create(
+                model=self.model_name,
+                messages=messages,
+                max_tokens=num_tokens,
+                temperature=generation_kwargs.get('temperature', 1.0))
+
 
     def completion_to_string(self, completion: ChatCompletion):
         return [choice.message.content for choice in completion.choices]
@@ -216,13 +227,20 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
                 tokens = tokens.tolist()
                 tokens = [t for t in tokens if t != padding_tok]
                 prompt = self.tokenizer.decode(tokens)
+
+                if 'generation_length' in batch:
+                    num_tokens = batch['generation_length']
+                elif 'generation_kwargs' in batch:
+                    num_tokens = batch['generation_kwargs'].get(
+                        'max_new_tokens', 2)
+
                 for _ in range(
                         0,
                         batch.get('generation_kwargs',
                                   {}).get('num_return_sequences', 1)):
                     api_output = self.try_generate_completion(  #
                         prompt,
-                        num_tokens=batch['generation_length'],
+                        num_tokens=num_tokens,
                         generation_kwargs=batch.get('generation_kwargs', {}))
 
                     assert api_output is not None
@@ -285,14 +303,14 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
 
 class OpenAICausalLMEvalWrapper(OpenAIEvalInterface):
 
-    def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer) -> None:
-        super().__init__(model_cfg, tokenizer)
+    def __init__(self, om_model_config: Dict, tokenizer: AutoTokenizer,  api_key: Optional[str] = None) -> None:
+        super().__init__(om_model_config, tokenizer, api_key)
         self.generate_completion = lambda prompt, num_tokens, generation_kwargs: self.client.completions.create(  # pyright: ignore
             model=self.model_name,
             prompt=prompt,
             max_tokens=num_tokens,
             logprobs=5,
-            temperature=generation_kwargs.get('temperature', 0.0))
+            temperature=generation_kwargs.get('temperature', 1.0))
 
     def process_result(self, completion: Optional['Completion']):
         if completion is None:
@@ -319,3 +337,4 @@ class OpenAICausalLMEvalWrapper(OpenAIEvalInterface):
                 encoding = self.tokenizer(k)['input_ids']
                 tensor[encoding[0]] = tokenizer_logprobs[k]
             return tensor
+

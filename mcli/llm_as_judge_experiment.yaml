@@ -4,7 +4,6 @@ integrations:
     git_branch: rag_plus_f1
     pip_install: -e .[gpu-flash2]
     ssh_clone: true # Should be true if using a private repo
-    ssh_clone: true # Should be true if using a private repo
   - integration_type: wandb
     entity: mosaic-ml
     project: rag-gen-eval
@@ -19,7 +18,7 @@ command: |
   cd llm-foundry/scripts
   composer eval/eval.py /mnt/config/parameters.yaml
 
-name: rag-generation-all-tasks-dbrx
+name: llm-as-judge-experiment-gpt3.5-turbo
 compute:
   cluster: r7z22
   gpus: 8

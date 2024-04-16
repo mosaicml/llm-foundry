@@ -20,8 +20,8 @@ command: |
 
 name: llm-as-judge-experiment-gpt3.5-turbo
 compute:
-  cluster: r7z22
-  gpus: 8
+  cluster: r1z2
+  gpus: 1
 
 image: mosaicml/llm-foundry:2.2.1_cu121_flash2-latest
 

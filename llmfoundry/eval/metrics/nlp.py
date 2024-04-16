@@ -159,6 +159,7 @@ class InContextLearningGenerationF1Score(InContextLearningMetric):
 
     def update(self, batch: Dict[str, Any], outputs: List[str],
                labels: List[List[str]]):
+        # implementation based on HELM
         metric_result_dict = deepcopy(self.metric_result_dict)
 
         for sample_output, sample_labels in zip(outputs, labels):

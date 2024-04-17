@@ -7,7 +7,7 @@ import os
 import sys
 import time
 import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
@@ -193,6 +193,9 @@ class EvalConfig:
     callbacks: Optional[Dict[str, Any]] = None
 
 
+EVAL_CONFIG_KEYS = set(field.name for field in fields(EvalConfig))
+
+
 def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     om.resolve(cfg)
 
@@ -206,6 +209,19 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     if 'icl_tasks' in cfg:
         if isinstance(cfg.icl_tasks, str):
             cfg.icl_tasks_str = cfg.pop('icl_tasks')
+
+    arg_config_keys = set(cfg.keys())
+    extraneous_keys = set.difference(arg_config_keys, EVAL_CONFIG_KEYS)
+
+    if 'variables' not in cfg:
+        cfg['variables'] = {}
+
+    for key in extraneous_keys:
+        warnings.warn(
+            f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary. Interpreting {key} as a variable for logging purposes.'
+        )
+        # TODO (milo): delete the below line once we deprecate variables at the top level.
+        cfg['variables'][key] = cfg.pop(key)
 
     scfg: EvalConfig = om.structured(EvalConfig(**cfg))
     # Create copy of config for logging

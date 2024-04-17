@@ -107,7 +107,6 @@ def evaluate_model(
         tokenizer=tokenizer,
         init_context=init_context,
     )
-    breakpoint()
     # Now add the eval metrics
     if eval_loader_config is not None:
         train_metrics = composer_model.get_metrics(is_train=True)

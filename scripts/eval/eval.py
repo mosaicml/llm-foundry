@@ -238,9 +238,11 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     eval_gauntlet_config = DictConfig(
         scfg.eval_gauntlet) if scfg.eval_gauntlet else scfg.eval_gauntlet_str
 
-    fsdp_config = scfg.fsdp_config
+    fsdp_config = {**scfg.fsdp_config} if scfg.fsdp_config else None
 
-    assert isinstance(fsdp_config, Dict) or fsdp_config is None
+    assert isinstance(
+        fsdp_config, Dict
+    ) or fsdp_config is None, f'fsdp_config must be a Dict or None but is {type(fsdp_config)}'
 
     # Mandatory Evaluation Parameters
     icl_tasks: Union[ListConfig, str, None] = ListConfig(

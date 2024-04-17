@@ -225,8 +225,9 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     assert isinstance(fsdp_config, Dict) or fsdp_config is None
 
     # Mandatory Evaluation Parameters
-    icl_tasks = ListConfig(
+    icl_tasks: Union[ListConfig, str, None] = ListConfig(
         scfg.icl_tasks) if scfg.icl_tasks else scfg.icl_tasks_str
+    assert icl_tasks is not None, 'icl_tasks must be specified in the config'
     max_seq_len = scfg.max_seq_len
     device_eval_batch_size = scfg.device_eval_batch_size
     precision = scfg.precision

@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional
 
 from composer.models.huggingface import peft_installed
 from composer.utils import dist
+from omegaconf import OmegaConf as om
 from transformers import (AutoConfig, AutoModelForCausalLM, PretrainedConfig,
                           PreTrainedModel, PreTrainedTokenizerBase)
 
@@ -61,7 +62,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         self,
         tokenizer: PreTrainedTokenizerBase,
         pretrained_model_name_or_path: str,
-        pretrained: bool,
+        pretrained: Optional[bool] = True,
         pretrained_lora_id_or_path: Optional[str] = None,
         trust_remote_code: bool = True,
         use_auth_token: bool = False,
@@ -77,7 +78,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
 
         from llmfoundry.utils.builders import build_metric
 
-        config_overrides = config_overrides or {}
+        config_overrides = om.to_container(
+            config_overrides, resolve=True) if config_overrides else {}
         additional_train_metrics = additional_train_metrics or []
 
         pretrained_model_name_or_path = pretrained_model_name_or_path

@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import List, Mapping, Optional
 
 from composer.utils import dist
+from omegaconf import OmegaConf as om
 from transformers import (AutoConfig, PreTrainedTokenizerBase,
                           T5ForConditionalGeneration)
 
@@ -47,7 +48,7 @@ class ComposerHFT5(HuggingFaceModelWithFSDP):
         self,
         tokenizer: PreTrainedTokenizerBase,
         pretrained_model_name_or_path: str,
-        pretrained: bool,
+        pretrained: Optional[bool] = True,
         trust_remote_code: bool = True,
         use_auth_token: bool = False,
         config_overrides: Optional[Mapping] = None,
@@ -57,6 +58,8 @@ class ComposerHFT5(HuggingFaceModelWithFSDP):
     ):
         from llmfoundry.utils.builders import build_metric
 
+        config_overrides = om.to_container(config_overrides or {}, resolve=True)
+
         config = AutoConfig.from_pretrained(
             pretrained_model_name_or_path,
             trust_remote_code=trust_remote_code,
@@ -64,7 +67,7 @@ class ComposerHFT5(HuggingFaceModelWithFSDP):
         )
 
         # set config overrides
-        for k, v in (config_overrides or {}):
+        for k, v in (config_overrides or {}).items():
             if not hasattr(config, k):
                 raise ValueError(
                     f'config does not have attribute "{k}" to override ({k}: {v}).'

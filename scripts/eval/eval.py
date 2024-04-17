@@ -99,11 +99,11 @@ def evaluate_model(
             'The FSDP config block is not supported when loading ' +
             'Hugging Face models in 8bit.')
 
-    init_context = process_init_device(model, fsdp_config)
+    init_context = process_init_device(DictConfig(model), fsdp_config)
 
     composer_model = build_composer_model(
         name=model['name'],
-        cfg=model,
+        cfg=DictConfig(model),
         tokenizer=tokenizer,
         init_context=init_context,
     )

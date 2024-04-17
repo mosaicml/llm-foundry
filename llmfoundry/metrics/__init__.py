@@ -1,14 +1,15 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from composer.metrics import (InContextLearningCodeEvalAccuracy,
-                              InContextLearningLMAccuracy,
-                              InContextLearningLMExpectedCalibrationError,
-                              InContextLearningMCExpectedCalibrationError,
-                              InContextLearningMultipleChoiceAccuracy,
-                              InContextLearningQAAccuracy, MaskedAccuracy)
-from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
+from composer.metrics import (LanguageCrossEntropy, LanguagePerplexity,
+                              MaskedAccuracy)
 
+from llmfoundry.eval.metrics import (
+    InContextLearningCodeEvalAccuracy,
+    InContextLearningGenerationExactMatchAccuracy, InContextLearningLMAccuracy,
+    InContextLearningLMExpectedCalibrationError,
+    InContextLearningMCExpectedCalibrationError,
+    InContextLearningMultipleChoiceAccuracy)
 from llmfoundry.metrics.token_acc import TokenAccuracy
 from llmfoundry.registry import metrics
 
@@ -19,7 +20,8 @@ metrics.register('lm_expected_calibration_error',
 metrics.register('mc_expected_calibration_error',
                  func=InContextLearningMCExpectedCalibrationError)
 metrics.register('mc_accuracy', func=InContextLearningMultipleChoiceAccuracy)
-metrics.register('qa_accuracy', func=InContextLearningQAAccuracy)
+metrics.register('qa_accuracy',
+                 func=InContextLearningGenerationExactMatchAccuracy)
 metrics.register('code_eval_accuracy', func=InContextLearningCodeEvalAccuracy)
 metrics.register('language_cross_entropy', func=LanguageCrossEntropy)
 metrics.register('language_perplexity', func=LanguagePerplexity)
@@ -54,7 +56,7 @@ __all__ = [
     'InContextLearningLMExpectedCalibrationError',
     'InContextLearningMCExpectedCalibrationError',
     'InContextLearningMultipleChoiceAccuracy',
-    'InContextLearningQAAccuracy',
+    'InContextLearningGenerationExactMatchAccuracy',
     'InContextLearningCodeEvalAccuracy',
     'LanguageCrossEntropy',
     'LanguagePerplexity',

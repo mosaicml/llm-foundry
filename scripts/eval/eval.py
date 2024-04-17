@@ -35,7 +35,9 @@ log = logging.getLogger(__name__)
 
 
 def evaluate_model(
-    model_cfg: DictConfig,
+    tokenizer: Dict[str, Any],
+    model_name: str,
+    model: Dict[str, Any],
     dist_timeout: Union[float, int],
     run_name: str,
     seed: int,
@@ -55,13 +57,12 @@ def evaluate_model(
     metadata: Optional[Dict[str, str]],
     logged_config: DictConfig,
     should_log_config: bool = True,
+    load_path: Optional[str] = None,
 ):
 
-    log.info(f'Evaluating model: {model_cfg.model_name}')
+    log.info(f'Evaluating model: {model_name}')
     # Build tokenizer and model
-    tokenizer_cfg: Dict[str,
-                        Any] = om.to_container(model_cfg.tokenizer,
-                                               resolve=True)  # type: ignore
+    tokenizer_cfg = tokenizer
     tokenizer_name = tokenizer_cfg['name']
     tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
@@ -93,16 +94,16 @@ def evaluate_model(
             mosaicml_logger.log_metrics(metadata)
             mosaicml_logger._flush_metadata(force_flush=True)
 
-    if fsdp_config and model_cfg.model.get('load_in_8bit', False):
+    if fsdp_config and model.get('load_in_8bit', False):
         raise ValueError(
             'The FSDP config block is not supported when loading ' +
             'Hugging Face models in 8bit.')
 
-    init_context = process_init_device(model_cfg.model, fsdp_config)
+    init_context = process_init_device(model, fsdp_config)
 
     composer_model = build_composer_model(
-        name=model_cfg.model.name,
-        cfg=model_cfg.model,
+        name=model['name'],
+        cfg=model,
         tokenizer=tokenizer,
         init_context=init_context,
     )
@@ -119,8 +120,7 @@ def evaluate_model(
             [avg for avg in eval_gauntlet_callback.averages] +
             [t.name for t in eval_gauntlet_callback.categories])
 
-    load_path = model_cfg.get('load_path', None)
-    if model_cfg.model.name == 'mpt_causal_lm' and load_path is None:
+    if model['name'] == 'mpt_causal_lm' and load_path is None:
         raise ValueError(
             'MPT causal LMs require a load_path to the checkpoint for model evaluation.'
             +
@@ -129,7 +129,7 @@ def evaluate_model(
 
     assert composer_model is not None
 
-    log.info(f'Building trainer for {model_cfg.model_name}...')
+    log.info(f'Building trainer for {model_name}...')
     trainer = Trainer(
         run_name=run_name,
         seed=seed,
@@ -150,7 +150,7 @@ def evaluate_model(
         log.info('Evaluation config:')
         log_config(logged_config)
 
-    log.info(f'Starting eval for {model_cfg.model_name}...')
+    log.info(f'Starting eval for {model_name}...')
     if torch.cuda.is_available():
         torch.cuda.synchronize()
     a = time.time()
@@ -160,7 +160,7 @@ def evaluate_model(
         torch.cuda.synchronize()
     b = time.time()
 
-    log.info(f'Ran {model_cfg.model_name} eval in: {b-a} seconds')
+    log.info(f'Ran {model_name} eval in: {b-a} seconds')
     return (trainer, logger_keys, eval_gauntlet_callback, eval_gauntlet_df)
 
 
@@ -191,6 +191,8 @@ class EvalConfig:
     log_config: bool = True
     model_name_or_path: Optional[str] = None
     callbacks: Optional[Dict[str, Any]] = None
+
+    variables: Optional[Dict[str, Any]] = None  # variables to ignore
 
 
 EVAL_CONFIG_KEYS = set(field.name for field in fields(EvalConfig))
@@ -308,7 +310,6 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     for model_cfg in model_configs:
         (trainer, logger_keys, eval_gauntlet_callback,
          eval_gauntlet_df) = evaluate_model(
-             model_cfg=model_cfg,
              dist_timeout=dist_timeout,
              run_name=run_name,
              seed=seed,
@@ -327,7 +328,8 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
              icl_subset_num_batches=icl_subset_num_batches,
              metadata=metadata,
              logged_config=logged_cfg,
-             should_log_config=should_log_config)
+             should_log_config=should_log_config,
+             **model_cfg)
         trainers.append(trainer)
 
         if eval_gauntlet_callback is not None:

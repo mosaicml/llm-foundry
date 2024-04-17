@@ -7,6 +7,7 @@ import os
 import sys
 import time
 import warnings
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
@@ -15,7 +16,7 @@ from composer.core import Callback
 from composer.loggers.logger_destination import LoggerDestination
 from composer.trainer import Trainer
 from composer.utils import dist, get_device, reproducibility
-from omegaconf import DictConfig, ListConfig
+from omegaconf import MISSING, DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from rich.traceback import install
 
@@ -27,8 +28,7 @@ from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_callback, build_composer_model,
                                        build_evaluators, build_logger,
                                        build_tokenizer)
-from llmfoundry.utils.config_utils import (log_config, pop_config,
-                                           process_init_device)
+from llmfoundry.utils.config_utils import log_config, process_init_device
 from llmfoundry.utils.registry_utils import import_file
 
 log = logging.getLogger(__name__)
@@ -164,92 +164,81 @@ def evaluate_model(
     return (trainer, logger_keys, eval_gauntlet_callback, eval_gauntlet_df)
 
 
-def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
-    # Run user provided code if specified
-    code_paths = pop_config(cfg,
-                            'code_paths',
-                            must_exist=False,
-                            default_value=[],
-                            convert=True)
-    for code_path in code_paths:
-        import_file(code_path)
+@dataclass
+class EvalConfig:
+    models: List[Dict[str, Any]] = MISSING
 
+    code_paths: Optional[List[str]] = None
+    eval_gauntlet: Optional[Dict[str, Any]] = None
+    eval_gauntlet_str: Optional[str] = None
+    fsdp_config: Optional[Dict[str, Any]] = None
+    icl_tasks: Union[str, List[str]] = MISSING
+    max_seq_len: int = MISSING
+    device_eval_batch_size: int = MISSING
+    precision: str = 'amp_bf16'
+    python_log_level: Optional[str] = None
+    eval_loader: Optional[Dict[str, Any]] = None
+    eval_loaders: Optional[List[Dict[str, Any]]] = None
+
+    seed: int = 17
+    dist_timeout: Union[float, int] = 600.0
+    run_name: Optional[str] = None
+    loggers: Optional[Dict[str, Any]] = None
+    eval_subset_num_batches: int = -1
+    icl_subset_num_batches: Optional[int] = None
+    metadata: Optional[Dict[str, str]] = None
+    log_config: bool = True
+    model_name_or_path: Optional[str] = None
+    callbacks: Optional[Dict[str, Any]] = None
+
+
+def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     om.resolve(cfg)
 
+    # flatten union types before creating structured config:
+    if 'eval_gauntlet' in cfg:
+        if isinstance(cfg.eval_gauntlet, str):
+            cfg.eval_gauntlet_str = cfg.pop('eval_gauntlet')
+    if 'eval_loader' in cfg:
+        if isinstance(cfg.eval_loader, ListConfig):
+            cfg.eval_loaders = cfg.pop('eval_loader')
+
+    scfg: EvalConfig = om.structured(EvalConfig(**cfg))
     # Create copy of config for logging
     logged_cfg: DictConfig = copy.deepcopy(cfg)
 
-    model_configs: ListConfig = pop_config(cfg, 'models', must_exist=True)
-    eval_gauntlet_config: Optional[Union[str, DictConfig]] = pop_config(
-        cfg, 'eval_gauntlet', must_exist=False, default_value=None)
+    # Run user provided code if specified
+    code_paths = scfg.code_paths
+    for code_path in (code_paths or []):
+        import_file(code_path)
 
-    fsdp_dict_cfg: Optional[DictConfig] = pop_config(cfg,
-                                                     'fsdp_config',
-                                                     must_exist=False,
-                                                     default_value=None)
-    fsdp_config: Optional[Dict] = om.to_container(
-        fsdp_dict_cfg,
-        resolve=True) if fsdp_dict_cfg is not None else None  # type: ignore
+    model_configs = scfg.models
+    eval_gauntlet_config = scfg.eval_gauntlet if scfg.eval_gauntlet else scfg.eval_gauntlet_str
+
+    fsdp_config = scfg.fsdp_config
+
     assert isinstance(fsdp_config, Dict) or fsdp_config is None
 
     # Mandatory Evaluation Parameters
-    icl_tasks: Union[str, ListConfig] = pop_config(cfg,
-                                                   'icl_tasks',
-                                                   must_exist=True)
-    max_seq_len: int = pop_config(cfg, 'max_seq_len', must_exist=True)
-    device_eval_batch_size: int = pop_config(cfg,
-                                             'device_eval_batch_size',
-                                             must_exist=True)
-    precision: str = pop_config(cfg,
-                                'precision',
-                                must_exist=False,
-                                default_value=None)
-    python_log_level: Optional[str] = pop_config(cfg,
-                                                 'python_log_level',
-                                                 must_exist=False,
-                                                 default_value='debug')
+    icl_tasks = scfg.icl_tasks
+    max_seq_len = scfg.max_seq_len
+    device_eval_batch_size = scfg.device_eval_batch_size
+    precision = scfg.precision
+    python_log_level: Optional[str] = scfg.python_log_level
 
     # Optional Evaluation Parameters with default values
-    eval_loader_config: Optional[Union[DictConfig, ListConfig]] = pop_config(
-        cfg, 'eval_loader', must_exist=False, default_value=None)
-    seed: int = pop_config(cfg, 'seed', must_exist=False, default_value=17)
-    dist_timeout: Union[float, int] = pop_config(cfg,
-                                                 'dist_timeout',
-                                                 must_exist=False,
-                                                 default_value=600.0)
+    eval_loader_config = scfg.eval_loader if scfg.eval_loader else scfg.eval_loaders
+    seed = scfg.seed
+    dist_timeout = scfg.dist_timeout
     default_run_name: str = os.environ.get('RUN_NAME', 'llm')
-    run_name: str = pop_config(cfg,
-                               'run_name',
-                               must_exist=False,
-                               default_value=default_run_name)
-    loggers_cfg: Dict[str, Any] = pop_config(cfg,
-                                             'loggers',
-                                             must_exist=False,
-                                             default_value={})
-    eval_subset_num_batches: int = pop_config(cfg,
-                                              'eval_subset_num_batches',
-                                              must_exist=False,
-                                              default_value=-1)
-    icl_subset_num_batches: Optional[int] = pop_config(cfg,
-                                                       'icl_subset_num_batches',
-                                                       must_exist=False,
-                                                       default_value=None)
-    metadata: Optional[Dict[str, str]] = pop_config(cfg,
-                                                    'metadata',
-                                                    must_exist=False,
-                                                    default_value=None,
-                                                    convert=True)
-    should_log_config: bool = pop_config(cfg,
-                                         'log_config',
-                                         must_exist=False,
-                                         default_value=True)
+    run_name = scfg.run_name if scfg.run_name else default_run_name
+    loggers_cfg = scfg.loggers
+    eval_subset_num_batches = scfg.eval_subset_num_batches
+    icl_subset_num_batches = scfg.icl_subset_num_batches
+    metadata = scfg.metadata
+    should_log_config = scfg.log_config
 
-    # Pop out interpolation variables.
-    pop_config(cfg, 'model_name_or_path', must_exist=False, default_value=None)
-    callback_configs: Optional[DictConfig] = pop_config(cfg,
-                                                        'callbacks',
-                                                        must_exist=False,
-                                                        default_value=None)
+    callback_configs = scfg.callbacks
 
     # Warn for unused parameters
     for key in cfg:
@@ -276,7 +265,7 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
 
     loggers: List[LoggerDestination] = [
         build_logger(name, logger_cfg)
-        for name, logger_cfg in loggers_cfg.items()
+        for name, logger_cfg in (loggers_cfg or {}).items()
     ]
 
     mosaicml_logger = find_mosaicml_logger(loggers)
@@ -326,9 +315,10 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
                 for b in t.benchmarks:
                     benchmark_to_taxonomy[b.name] = t.name
 
+        assert 'model_name' in model_cfg, 'model_name must be specified in model config'
         model_results = calculate_markdown_results(logger_keys, trainer,
                                                    benchmark_to_taxonomy,
-                                                   model_cfg.model_name)
+                                                   model_cfg['model_name'])
 
         if models_df is None:
             models_df = model_results

@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional
 
 from composer.models.huggingface import peft_installed
 from composer.utils import dist
-from omegaconf import OmegaConf as om
 from transformers import (AutoConfig, AutoModelForCausalLM, PretrainedConfig,
                           PreTrainedModel, PreTrainedTokenizerBase)
 
@@ -73,14 +72,15 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         peft_config: Optional[Dict[str, Any]] = None,
         use_train_metrics: bool = True,
         additional_train_metrics: Optional[List] = None,
+        additional_eval_metrics: Optional[List] = None,
         name: Optional[str] = None,
     ):
 
         from llmfoundry.utils.builders import build_metric
 
-        config_overrides = om.to_container(
-            config_overrides, resolve=True) if config_overrides else {}
+        config_overrides = config_overrides or {}
         additional_train_metrics = additional_train_metrics or []
+        additional_eval_metrics = additional_eval_metrics or []
 
         pretrained_model_name_or_path = pretrained_model_name_or_path
         pretrained_lora_id_or_path = pretrained_lora_id_or_path
@@ -112,7 +112,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         train_metrics = [
             build_metric(metric, {}) for metric in train_metric_names
         ] if use_train_metrics else []
-        eval_metric_names = DEFAULT_CAUSAL_LM_EVAL_METRICS + additional_train_metrics
+        eval_metric_names = DEFAULT_CAUSAL_LM_EVAL_METRICS + additional_eval_metrics
         eval_metrics = [
             build_metric(metric, {}) for metric in eval_metric_names
         ]

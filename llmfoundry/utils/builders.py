@@ -167,7 +167,7 @@ def build_composer_model(
     tokenizer: PreTrainedTokenizerBase,
     init_context: Optional[ContextManager] = None,
     master_weights_dtype: Optional[str] = None,
-    **cfg: Dict[str, Any],
+    **cfg: Union[Dict, DictConfig],
 ) -> ComposerModel:
     """Builds a ComposerModel from the registry.
 
@@ -183,6 +183,10 @@ def build_composer_model(
     """
     if init_context is None:
         init_context = contextlib.nullcontext()
+
+    for k, v in cfg.items():
+        if isinstance(v, DictConfig):
+            cfg[k] = om.to_container(v, resolve=True)
 
     with init_context:
         model = construct_from_registry(

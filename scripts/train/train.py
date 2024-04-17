@@ -165,7 +165,7 @@ def validate_config(cfg: TrainConfig):
                 'Setting cfg.fsdp_config.activation_checkpointing_reentrant=False.'
             )
             if cfg.fsdp_config is not None:
-                cfg.fsdp_config.activation_checkpointing_reentrant = False
+                cfg.fsdp_config['activation_checkpointing_reentrant'] = False
 
     if cfg.model.get('ffn_config', {}).get('ffn_type', 'mptmlp') == 'te_ln_mlp':
         warnings.warn(

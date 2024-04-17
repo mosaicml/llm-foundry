@@ -1,9 +1,10 @@
+variables:
+  # Run Name
+  run_name:  # If left blank, will be read from env var $RUN_NAME
+
 # Note: This requires ~64x80GB GPUs
 max_seq_len: 4096
 icl_seq_len: 1024
-
-# Run Name
-run_name:  # If left blank, will be read from env var $RUN_NAME
 
 # Model
 model:

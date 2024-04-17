@@ -1,7 +1,9 @@
+variables:
+  global_seed: 17
+
 data_local: ./my-adaptation-data
 data_remote:  # If blank, files must be present in data_local
 max_seq_len: 4096
-global_seed: 17
 
 # Run Name
 run_name:  # If left blank, will be read from env var $COMPOSER_RUN_NAME

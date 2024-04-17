@@ -1,5 +1,7 @@
+variables:
+  global_seed: 17
+
 max_seq_len: 512
-global_seed: 17
 
 data_local: ./my_data
 data_remote:  # If blank, files must be present in data_local

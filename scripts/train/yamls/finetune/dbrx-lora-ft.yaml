@@ -1,6 +1,8 @@
-# Note: This requires ~16x80GB GPUs
+variables:
+  # Note: This requires ~16x80GB GPUs
+  icl_seq_len: 1024
+
 max_seq_len: 4096
-icl_seq_len: 1024
 
 # Run Name
 run_name:  # If left blank, will be read from env var $RUN_NAME

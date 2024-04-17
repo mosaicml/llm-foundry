@@ -153,18 +153,19 @@ def validate_config(cfg: TrainConfig):
 
     if (cfg.model.get('fc_type', 'torch') == 'te' or
             'te' in cfg.model.get('ffn_config', {}).get('ffn_type', 'mptmlp')):
-        fsdp_config = cfg.fsdp_config
+        fsdp_config = cfg.fsdp_config or DictConfig({})
         act_ckpt = fsdp_config.get('activation_checkpointing',
                                    False) if fsdp_config else False
         act_ckpt_reentrant = fsdp_config.get(
             'activation_checkpointing_reentrant', False)
-        if fsdp_config is not None and act_ckpt == True and act_ckpt_reentrant == True:
+        if act_ckpt == True and act_ckpt_reentrant == True:
             warnings.warn(
                 '`te.Linear` layers do not support activation_checkpointing with '
                 + '`activation_checkpointing_reentrant = True`. ' +
                 'Setting cfg.fsdp_config.activation_checkpointing_reentrant=False.'
             )
-            cfg.fsdp_config.activation_checkpointing_reentrant = False
+            if cfg.fsdp_config is not None:
+                cfg.fsdp_config.activation_checkpointing_reentrant = False
 
     if cfg.model.get('ffn_config', {}).get('ffn_type', 'mptmlp') == 'te_ln_mlp':
         warnings.warn(

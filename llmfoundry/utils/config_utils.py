@@ -240,7 +240,7 @@ def log_dataset_uri(cfg: DictConfig) -> mlflow.data.meta_dataset.MetaDataset:
         'https': mlflow.data.http_dataset_source.HTTPDatasetSource,
         'hf': mlflow.data.huggingface_dataset_source.HuggingFaceDatasetSource,
         'delta_table': mlflow.data.delta_dataset_source.DeltaDatasetSource,
-        'uc_volume': mlflow.data.delta_dataset_source.UCVolumeDatasetSource,
+        'uc_volume': mlflow.data.uc_volume_dataset_source.UCVolumeDatasetSource,
         'local': mlflow.data.http_dataset_source.HTTPDatasetSource,
     }
 

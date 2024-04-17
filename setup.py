@@ -96,7 +96,7 @@ extra_deps['databricks'] = [
 ]
 
 extra_deps['tensorboard'] = [
-    'mosaicml[tensorboard]>=0.20.1,<0.21',
+    'mosaicml[tensorboard]>=0.21.2,<0.22',
 ]
 
 # Flash 2 group kept for backwards compatibility
@@ -107,7 +107,7 @@ extra_deps['gpu-flash2'] = [
 extra_deps['gpu'] = copy.deepcopy(extra_deps['gpu-flash2'])
 
 extra_deps['peft'] = [
-    'mosaicml[peft]>=0.20.1,<0.21',
+    'mosaicml[peft]>=0.21.2,<0.22',
 ]
 
 extra_deps['olmo'] = [

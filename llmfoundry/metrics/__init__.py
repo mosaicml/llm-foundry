@@ -1,14 +1,18 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from composer.metrics import (InContextLearningCodeEvalAccuracy,
-                              InContextLearningLMAccuracy,
-                              InContextLearningLMExpectedCalibrationError,
-                              InContextLearningMCExpectedCalibrationError,
-                              InContextLearningMultipleChoiceAccuracy,
-                              InContextLearningQAAccuracy, MaskedAccuracy)
-from composer.metrics.nlp import LanguageCrossEntropy, LanguagePerplexity
+from composer.metrics import (LanguageCrossEntropy, LanguagePerplexity,
+                              MaskedAccuracy)
 
+from llmfoundry.eval.metrics import (
+    InContextLearningCodeEvalAccuracy, InContextLearningLMAccuracy,
+    InContextLearningLMExpectedCalibrationError,
+    InContextLearningMCExpectedCalibrationError,
+    InContextLearningGenerationAccuracyJSONParsing,
+    InContextLearningGenerationF1Score,
+    InContextLearningLLMAsAJudge,
+    InContextLearningGenerationAccuracy,
+    InContextLearningMultipleChoiceAccuracy)
 from llmfoundry.metrics.token_acc import TokenAccuracy
 from llmfoundry.registry import metrics
 
@@ -19,8 +23,12 @@ metrics.register('lm_expected_calibration_error',
 metrics.register('mc_expected_calibration_error',
                  func=InContextLearningMCExpectedCalibrationError)
 metrics.register('mc_accuracy', func=InContextLearningMultipleChoiceAccuracy)
-metrics.register('qa_accuracy', func=InContextLearningQAAccuracy)
+metrics.register('qa_accuracy',
+                 func=InContextLearningGenerationAccuracy)
 metrics.register('code_eval_accuracy', func=InContextLearningCodeEvalAccuracy)
+metrics.register('llm_as_a_judge_acuracy', func=InContextLearningLLMAsAJudge)
+metrics.register('json_parsing_accuracy', func=InContextLearningGenerationAccuracyJSONParsing)
+metrics.register('f1_score', func=InContextLearningGenerationF1Score)
 metrics.register('language_cross_entropy', func=LanguageCrossEntropy)
 metrics.register('language_perplexity', func=LanguagePerplexity)
 metrics.register('masked_accuracy', func=MaskedAccuracy)
@@ -40,6 +48,9 @@ DEFAULT_CAUSAL_LM_EVAL_METRICS = [
     'mc_expected_calibration_error',
     'mc_accuracy',
     'qa_accuracy',
+    'llm_as_a_judge_acuracy',
+    'json_parsing_accuracy',
+    'f1_score',
     'code_eval_accuracy',
 ]
 
@@ -54,7 +65,10 @@ __all__ = [
     'InContextLearningLMExpectedCalibrationError',
     'InContextLearningMCExpectedCalibrationError',
     'InContextLearningMultipleChoiceAccuracy',
-    'InContextLearningQAAccuracy',
+    'InContextLearningGenerationAccuracy',
+    'InContextLearningLLMAsAJudge',
+    'InContextLearningGenerationAccuracyJSONParsing',
+    'InContextLearningGenerationF1Score',
     'InContextLearningCodeEvalAccuracy',
     'LanguageCrossEntropy',
     'LanguagePerplexity',

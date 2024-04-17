@@ -107,7 +107,7 @@ def evaluate_model(
         tokenizer=tokenizer,
         init_context=init_context,
     )
-
+    breakpoint()
     # Now add the eval metrics
     if eval_loader_config is not None:
         train_metrics = composer_model.get_metrics(is_train=True)
@@ -256,7 +256,7 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
         warnings.warn(
             f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary.'
         )
-
+    breakpoint()
     reproducibility.seed_all(seed)
     dist.initialize_dist(get_device(None), timeout=dist_timeout)
 

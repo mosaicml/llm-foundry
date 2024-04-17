@@ -6,11 +6,10 @@
 import logging
 import os
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, Mapping
+from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional
 
 from composer.models.huggingface import peft_installed
 from composer.utils import dist
-from omegaconf import DictConfig
 from transformers import (AutoConfig, AutoModelForCausalLM, PretrainedConfig,
                           PreTrainedModel, PreTrainedTokenizerBase)
 
@@ -20,7 +19,6 @@ from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithFSDP
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.utils import init_empty_weights
-from llmfoundry.utils.config_utils import pop_config
 
 if TYPE_CHECKING:
     from peft import PeftConfig
@@ -59,32 +57,40 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         tokenizer (PreTrainedTokenizer): The tokenizer that the model will use.
     """
 
-    def __init__(self, om_model_config: DictConfig,
-                 tokenizer: PreTrainedTokenizerBase):
+    def __init__(
+        self,
+        tokenizer: PreTrainedTokenizerBase,
+        pretrained_model_name_or_path: str,
+        pretrained: bool,
+        pretrained_lora_id_or_path: Optional[str] = None,
+        trust_remote_code: bool = True,
+        use_auth_token: bool = False,
+        use_flash_attention_2: bool = False,
+        load_in_8bit: bool = False,
+        init_device: str = 'cpu',
+        config_overrides: Optional[Dict[str, Any]] = None,
+        peft_config: Optional[Dict[str, Any]] = None,
+        use_train_metrics: bool = True,
+        additional_train_metrics: Optional[List] = None,
+        name: Optional[str] = None,
+    ):
+
         from llmfoundry.utils.builders import build_metric
 
-        pretrained_model_name_or_path = om_model_config.pretrained_model_name_or_path
-        pretrained_lora_id_or_path = om_model_config.get(
-            'pretrained_lora_id_or_path', None)
+        config_overrides = config_overrides or {}
+        additional_train_metrics = additional_train_metrics or []
 
-        if not om_model_config.get(
-                'trust_remote_code', True
-        ) and pretrained_model_name_or_path.startswith('mosaicml/mpt'):
+        pretrained_model_name_or_path = pretrained_model_name_or_path
+        pretrained_lora_id_or_path = pretrained_lora_id_or_path
+
+        if not trust_remote_code and pretrained_model_name_or_path.startswith(
+                'mosaicml/mpt'):
             raise ValueError(
                 'trust_remote_code must be set to True for MPT models. Without this, the MPT model code will come from the transformers library, '
                 +
                 'which is significantly slower and not compatible with the LLM foundry training code, rather than the code release by MosaicML.'
             )
 
-        # Set up Hugging Face args
-        trust_remote_code = om_model_config.get('trust_remote_code', True)
-        use_auth_token = om_model_config.get('use_auth_token', False)
-        use_flash_attention_2 = om_model_config.get('use_flash_attention_2',
-                                                    False)
-        load_in_8bit = om_model_config.get('load_in_8bit', False)
-
-        # Set up config args for the model construction and base classes
-        init_device = om_model_config.get('init_device', 'cpu')
         # Resolve "mixed" init device to either "cpu" or "meta"
         resolved_init_device = hf_get_init_device(init_device)
         requested_attention_implementation = 'flash_attention_2' if use_flash_attention_2 else 'eager'
@@ -94,23 +100,17 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                 'use_flash_attention_2 is set to True, but flash-attention 2 is not installed. '
                 + 'Please `pip install llm-foundry[gpu]`.')
 
-        peft_config_dict = pop_config(om_model_config,
-                                      'peft_config',
-                                      must_exist=False,
-                                      convert=True)
+        peft_config_dict = peft_config
         if peft_config_dict is not None and not peft_installed:
             raise ValueError(
                 'PEFT is not installed, but peft_config was passed. Please install LLM Foundry with the peft extra to use peft_config.'
             )
 
-        use_train_metrics = om_model_config.get('use_train_metrics', True)
-        train_metric_names = DEFAULT_CAUSAL_LM_TRAIN_METRICS + om_model_config.get(
-            'additional_train_metrics', [])
+        train_metric_names = DEFAULT_CAUSAL_LM_TRAIN_METRICS + additional_train_metrics
         train_metrics = [
             build_metric(metric, {}) for metric in train_metric_names
         ] if use_train_metrics else []
-        eval_metric_names = DEFAULT_CAUSAL_LM_EVAL_METRICS + om_model_config.get(
-            'additional_eval_metrics', [])
+        eval_metric_names = DEFAULT_CAUSAL_LM_EVAL_METRICS + additional_train_metrics
         eval_metrics = [
             build_metric(metric, {}) for metric in eval_metric_names
         ]
@@ -141,7 +141,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             _autoset_attn_implementation_monkeypatch)
 
         # set config overrides
-        for k, v in om_model_config.get('config_overrides', {}).items():
+        for k, v in config_overrides.items():
             if not hasattr(config, k):
                 raise ValueError(
                     f'config does not have attribute "{k}" to override ({k}: {v}).'
@@ -179,7 +179,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         # We need to have all non-zero local ranks be not-pretrained
         # Rank 0 will still be pretrained, and distribute the weights appropriately
         if dist.get_local_rank() != 0 and init_device == 'mixed':
-            om_model_config.pretrained = False
+            pretrained = False
 
         # If the HuggingFace model is coming from a local folder, Hugging Face copies the modules into the
         # transformers modules cache. On particular systems, this operation seems to cause contention between
@@ -201,7 +201,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
 
         # initialize the model on the correct device
         if resolved_init_device == 'cpu':
-            if om_model_config.pretrained:
+            if pretrained:
                 model = AutoModelForCausalLM.from_pretrained(
                     pretrained_model_name_or_path,
                     trust_remote_code=trust_remote_code,
@@ -215,7 +215,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                     trust_remote_code=trust_remote_code,
                 )
         elif resolved_init_device == 'meta':
-            if om_model_config.pretrained:
+            if pretrained:
                 raise ValueError(
                     'Setting cfg.pretrained=True is not supported when init_device="meta".'
                 )

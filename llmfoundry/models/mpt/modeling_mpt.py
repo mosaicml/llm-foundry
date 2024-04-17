@@ -31,8 +31,6 @@ if is_flash_v2_installed():
     except Exception as e:
         raise e
 
-from omegaconf import DictConfig
-from omegaconf import OmegaConf as om
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from transformers.modeling_outputs import (BaseModelOutputWithPast,
                                            CausalLMOutputWithPast)
@@ -961,28 +959,27 @@ class ComposerMPTCausalLM(HuggingFaceModel):
 
     def __init__(
         self,
-        om_model_config: DictConfig,
         tokenizer: Optional[PreTrainedTokenizerBase] = None,
+        use_train_metrics: Optional[bool] = True,
+        additional_train_metrics: Optional[List] = None,
+        loss_fn: Optional[Union[str, Dict]] = 'fused_crossentropy',
+        **kwargs: Dict[str, Any],
     ):
         from llmfoundry.metrics import (DEFAULT_CAUSAL_LM_EVAL_METRICS,
                                         DEFAULT_CAUSAL_LM_TRAIN_METRICS)
         from llmfoundry.utils.builders import build_metric
 
-        resolved_om_model_config = om.to_container(om_model_config,
-                                                   resolve=True)
-        assert isinstance(resolved_om_model_config, dict)
+        additional_train_metrics = additional_train_metrics or []
 
-        hf_config = MPTConfig.from_dict(resolved_om_model_config)
-        model = MPTForCausalLM(hf_config)
+        model = MPTForCausalLM(
+            MPTConfig(use_train_metrics=use_train_metrics, **kwargs))
 
-        use_train_metrics = om_model_config.get('use_train_metrics', True)
-        train_metric_names = DEFAULT_CAUSAL_LM_TRAIN_METRICS + resolved_om_model_config.get(
-            'additional_train_metrics', [])
+        use_train_metrics = use_train_metrics
+        train_metric_names = DEFAULT_CAUSAL_LM_TRAIN_METRICS + additional_train_metrics
         train_metrics = [
             build_metric(metric, {}) for metric in train_metric_names
         ] if use_train_metrics else []
-        eval_metric_names = DEFAULT_CAUSAL_LM_EVAL_METRICS + resolved_om_model_config.get(
-            'additional_eval_metrics', [])
+        eval_metric_names = DEFAULT_CAUSAL_LM_EVAL_METRICS + additional_train_metrics
         eval_metrics = [
             build_metric(metric, {}) for metric in eval_metric_names
         ]
@@ -997,7 +994,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             allow_embedding_resizing=True,
         )
 
-        loss_fn_config = om_model_config.get('loss_fn', 'fused_crossentropy')
+        loss_fn_config = loss_fn
         if loss_fn_config == 'fused_crossentropy':
             try:
                 from flash_attn.losses.cross_entropy import \

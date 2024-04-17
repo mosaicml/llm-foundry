@@ -1,7 +1,16 @@
-max_seq_len: 4096
 seed: 1
-precision: amp_bf16
+max_seq_len: 2048
+device_eval_batch_size: 4
 models:
+# -
+#   model_name: openai/gpt-3.5-turbo
+#   model:
+#     name: openai_chat
+#     version: gpt-3.5-turbo
+#   tokenizer:
+#     name: tiktoken
+#     kwargs:
+#       model_name: gpt-3.5-turbo
 -
   model_name: openai/gpt-3.5-turbo-instruct
   model:
@@ -12,53 +21,4 @@ models:
     kwargs:
       model_name: gpt-3.5-turbo-instruct
 
-device_eval_batch_size: 8
-
-callbacks:
-  eval_output_logging: {}
-
-loggers:
-  wandb: {}
-
-icl_subset_num_batches: 1
-icl_tasks:
-- 
-  label: natural_questions_closed
-  dataset_uri: eval/local_data/free_response/natural_questions_closed_rag.jsonl
-  num_fewshot: [0]
-  icl_task_type: rag_generation
-  metric_names: ["InContextLearningGenerationAccuracy", "InContextLearningLLMAsAJudge", "InContextLearningGenerationF1Score"]
-  use_gold_docs_only: true
-# - 
-#   label: quac
-#   dataset_uri: eval/local_data/free_response/quac_rag.jsonl
-#   num_fewshot: [0]
-#   icl_task_type: rag_generation
-#   prompt_string: "Please read the passages below so you can use them to answer a question."
-#   continuation_delimiter: "\nAnswer: "
-#   passage_delimiter: "\nPassage: "
-#   passage_query_delimiter: "\nAnswer the following question using information from the passages only. Do not use other information. The answer should as small as possible while still answering the question.\nQuery: "
-#   metric_names: ["InContextLearningGenerationAccuracy", "InContextLearningLLMAsAJudge", "InContextLearningGenerationF1Score"]
-#   use_gold_docs_only: true
-# - 
-#   label: natural_questions_openbook_short
-#   dataset_uri: eval/local_data/free_response/natural_questions_openbook_short_rag.jsonl
-#   num_fewshot: [0]
-#   icl_task_type: rag_generation
-#   prompt_string: "Please read the passages below so you can use them to answer a question."
-#   continuation_delimiter: "\nAnswer: "
-#   passage_delimiter: "\nPassage: "
-#   passage_query_delimiter: "\nAnswer the following question using information from the passages only. Do not use other information. The answer should as small as possible while still answering the question.\nQuery: "
-#   metric_names: ["InContextLearningGenerationAccuracy", "InContextLearningLLMAsAJudge", "InContextLearningGenerationF1Score"]
-#   use_gold_docs_only: true
-# - 
-#   label: narrativeqa
-#   dataset_uri: eval/local_data/free_response/narrativeqa_rag.jsonl
-#   num_fewshot: [0]
-#   icl_task_type: rag_generation
-#   prompt_string: "Please read the passages below so you can use them to answer a question."
-#   continuation_delimiter: "\nAnswer: "
-#   passage_delimiter: "\nPassage: "
-#   passage_query_delimiter: "\nAnswer the following question using information from the passages only. Do not use other information. The answer should as small as possible while still answering the question.\nQuery: "
-#   metric_names: ["InContextLearningGenerationAccuracy", "InContextLearningLLMAsAJudge", "InContextLearningGenerationF1Score"]
-#   use_gold_docs_only: true
+icl_tasks: "eval/yamls/api_compatible_tasks_v0.3.yaml"

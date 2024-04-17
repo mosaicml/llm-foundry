@@ -256,7 +256,6 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
         warnings.warn(
             f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary.'
         )
-    breakpoint()
     reproducibility.seed_all(seed)
     dist.initialize_dist(get_device(None), timeout=dist_timeout)
 

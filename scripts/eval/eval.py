@@ -172,7 +172,8 @@ class EvalConfig:
     eval_gauntlet: Optional[Dict[str, Any]] = None
     eval_gauntlet_str: Optional[str] = None
     fsdp_config: Optional[Dict[str, Any]] = None
-    icl_tasks: Union[str, List[str]] = MISSING
+    icl_tasks: Optional[List[str]] = MISSING
+    icl_tasks_str: Optional[str] = None
     max_seq_len: int = MISSING
     device_eval_batch_size: int = MISSING
     precision: str = 'amp_bf16'
@@ -202,6 +203,9 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     if 'eval_loader' in cfg:
         if isinstance(cfg.eval_loader, ListConfig):
             cfg.eval_loaders = cfg.pop('eval_loader')
+    if 'icl_tasks' in cfg:
+        if isinstance(cfg.icl_tasks, str):
+            cfg.icl_tasks_str = cfg.pop('icl_tasks')
 
     scfg: EvalConfig = om.structured(EvalConfig(**cfg))
     # Create copy of config for logging
@@ -212,22 +216,26 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     for code_path in (code_paths or []):
         import_file(code_path)
 
-    model_configs = scfg.models
-    eval_gauntlet_config = scfg.eval_gauntlet if scfg.eval_gauntlet else scfg.eval_gauntlet_str
+    model_configs = ListConfig(scfg.models)
+    eval_gauntlet_config = DictConfig(
+        scfg.eval_gauntlet) if scfg.eval_gauntlet else scfg.eval_gauntlet_str
 
     fsdp_config = scfg.fsdp_config
 
     assert isinstance(fsdp_config, Dict) or fsdp_config is None
 
     # Mandatory Evaluation Parameters
-    icl_tasks = scfg.icl_tasks
+    icl_tasks = ListConfig(
+        scfg.icl_tasks) if scfg.icl_tasks else scfg.icl_tasks_str
     max_seq_len = scfg.max_seq_len
     device_eval_batch_size = scfg.device_eval_batch_size
     precision = scfg.precision
     python_log_level: Optional[str] = scfg.python_log_level
 
     # Optional Evaluation Parameters with default values
-    eval_loader_config = scfg.eval_loader if scfg.eval_loader else scfg.eval_loaders
+    eval_loader_config = DictConfig(
+        scfg.eval_loader) if scfg.eval_loader else ListConfig(
+            scfg.eval_loaders) if scfg.eval_loaders else None
     seed = scfg.seed
     dist_timeout = scfg.dist_timeout
     default_run_name: str = os.environ.get('RUN_NAME', 'llm')
@@ -238,7 +246,7 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     metadata = scfg.metadata
     should_log_config = scfg.log_config
 
-    callback_configs = scfg.callbacks
+    callback_configs = DictConfig(scfg.callbacks)
 
     # Warn for unused parameters
     for key in cfg:

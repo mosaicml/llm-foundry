@@ -71,7 +71,7 @@ def log_train_analytics(mosaicml_logger: MosaicMLLogger,
                         train_loader_config: DictConfig,
                         eval_loader_config: Optional[Union[DictConfig,
                                                            ListConfig]],
-                        callback_configs: Optional[DictConfig],
+                        callback_configs: Optional[Dict[str, Any]],
                         tokenizer_name: str, load_path: Optional[str],
                         icl_tasks_config: Optional[Union[ListConfig, str]],
                         eval_gauntlet: Optional[Union[DictConfig, str]]):

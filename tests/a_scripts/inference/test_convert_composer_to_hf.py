@@ -774,8 +774,8 @@ def test_huggingface_conversion_callback(
         device_batch_size,
     )
 
-    original_model = build_composer_model(model_cfg['name'], model_cfg,
-                                          tokenizer)
+    original_model = build_composer_model(model_cfg['name'], tokenizer,
+                                          **model_cfg)
     optimizer_name = optimizer_config.pop('name')
     optimizer = build_optimizer(original_model, optimizer_name,
                                 optimizer_config)
@@ -871,9 +871,9 @@ def test_convert_and_generate(model: str, tie_word_embeddings: bool,
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         om_cfg.tokenizer.name, use_auth_token=model == 'llama2')
     original_model = build_composer_model(
-        name=om_cfg['model'].name,
-        cfg=om_cfg['model'],
+        composer_model_name=om_cfg['model'].name,
         tokenizer=tokenizer,
+        **om_cfg['model'],
     )
     trainer = Trainer(model=original_model,
                       device='cpu' if not model == 'mptmoe' else 'gpu')
@@ -943,9 +943,9 @@ def test_convert_and_generate_meta(tie_word_embeddings: str,
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         om_cfg.tokenizer.name)
     original_model = build_composer_model(
-        name=om_cfg['model'].name,
-        cfg=om_cfg['model'],
+        composer_model_name=om_cfg['model'].name,
         tokenizer=tokenizer,
+        **om_cfg['model'],
     )
     trainer = Trainer(model=original_model,
                       device='cpu' if not 'moe' in conf_path else 'gpu')
@@ -1153,10 +1153,10 @@ def test_mptmoe_huggingface_conversion_callback(
 
     init_context = process_init_device(model_cfg, fsdp_config)
     original_model = build_composer_model(
-        name=model_cfg.name,
-        cfg=model_cfg,
+        composer_model_name=model_cfg.name,
         tokenizer=tokenizer,
         init_context=init_context,
+        **model_cfg,
     )
 
     optimizer = build_optimizer(original_model, optimizer_name,

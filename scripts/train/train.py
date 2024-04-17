@@ -298,8 +298,7 @@ def main(cfg: DictConfig) -> Trainer:
     icl_seq_len: Optional[int] = scfg.icl_seq_len
     # Optional logging, evaluation and callback configs
     logger_configs: Optional[Dict[str, Any]] = scfg.loggers
-    callback_configs: Optional[DictConfig] = DictConfig(
-        scfg.callbacks) if scfg.callbacks else None
+    callback_configs: Optional[Dict[str, Any]] = scfg.callbacks
     algorithm_configs: Optional[Dict[str, Any]] = scfg.algorithms
 
     # Mandatory hyperparameters for training
@@ -493,11 +492,11 @@ def main(cfg: DictConfig) -> Trainer:
     # Build Model
     log.info('Initializing model...')
     model = build_composer_model(
-        name=model_config.name,
-        cfg=model_config,
+        composer_model_name=model_config.name,
         tokenizer=tokenizer,
         init_context=init_context,
         master_weights_dtype=model_config.get('master_weights_dtype', None),
+        **model_config,
     )
 
     # Log number of parameters

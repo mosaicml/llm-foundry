@@ -5,10 +5,9 @@
 
 from __future__ import annotations
 
-from typing import Mapping
+from typing import List, Mapping, Optional
 
 from composer.utils import dist
-from omegaconf import DictConfig
 from transformers import (AutoConfig, PreTrainedTokenizerBase,
                           T5ForConditionalGeneration)
 
@@ -44,18 +43,28 @@ class ComposerHFT5(HuggingFaceModelWithFSDP):
         tokenizer (PreTrainedTokenizer): The tokenizer that the model will use.
     """
 
-    def __init__(self, om_model_config: DictConfig,
-                 tokenizer: PreTrainedTokenizerBase):
+    def __init__(
+        self,
+        tokenizer: PreTrainedTokenizerBase,
+        pretrained_model_name_or_path: str,
+        pretrained: bool,
+        trust_remote_code: bool = True,
+        use_auth_token: bool = False,
+        config_overrides: Optional[Mapping] = None,
+        init_device: str = 'cpu',
+        additional_train_metrics: Optional[List] = None,
+        name: Optional[str] = None,
+    ):
         from llmfoundry.utils.builders import build_metric
 
         config = AutoConfig.from_pretrained(
-            om_model_config.pretrained_model_name_or_path,
-            trust_remote_code=om_model_config.get('trust_remote_code', True),
-            use_auth_token=om_model_config.get('use_auth_token', False),
+            pretrained_model_name_or_path,
+            trust_remote_code=trust_remote_code,
+            use_auth_token=use_auth_token,
         )
 
         # set config overrides
-        for k, v in om_model_config.get('config_overrides', {}).items():
+        for k, v in (config_overrides or {}):
             if not hasattr(config, k):
                 raise ValueError(
                     f'config does not have attribute "{k}" to override ({k}: {v}).'
@@ -77,7 +86,7 @@ class ComposerHFT5(HuggingFaceModelWithFSDP):
             raise ValueError(f'Model type "hf_t5" currently only supports T5 models ' +\
                              f'using configs where `is_encoder_decoder` is ``True``.')
 
-        init_device = om_model_config.get('init_device', 'cpu')
+        init_device = init_device
 
         # Get the device we want to initialize, and use the
         # resolved version to initialize the HF model
@@ -86,17 +95,16 @@ class ComposerHFT5(HuggingFaceModelWithFSDP):
         # We need to have all non-zero local ranks be not-pretrained
         # Rank 0 will still be pretrained, and distribute the weights appropriately
         if dist.get_local_rank() != 0 and init_device == 'mixed':
-            om_model_config.pretrained = False
+            pretrained = False
 
         if resolved_init_device == 'cpu':
-            if om_model_config.pretrained:
+            if pretrained:
                 model = T5ForConditionalGeneration.from_pretrained(
-                    om_model_config.pretrained_model_name_or_path,
-                    config=config)
+                    pretrained_model_name_or_path, config=config)
             else:
                 model = T5ForConditionalGeneration(config)
         elif resolved_init_device == 'meta':
-            if om_model_config.pretrained:
+            if pretrained:
                 raise ValueError(
                     'Setting cfg.pretrained=True is not supported when init_device="meta".'
                 )
@@ -108,7 +116,7 @@ class ComposerHFT5(HuggingFaceModelWithFSDP):
 
         metrics = [
             build_metric(metric, {}) for metric in DEFAULT_ENC_DEC_METRICS +
-            om_model_config.get('additional_train_metrics', [])
+            (additional_train_metrics or [])
         ]
 
         composer_model = super().__init__(model=model,

@@ -90,9 +90,9 @@ def _get_objs(request: pytest.FixtureRequest,
                                 tokenizer_cfg.get('kwargs', {}))
 
     model = build_composer_model(
-        name=test_cfg.model.name,
-        cfg=test_cfg.model,
+        composer_model_name=test_cfg.model.name,
         tokenizer=tokenizer,
+        **test_cfg.model,
     )
 
     # Optimizer
@@ -292,9 +292,9 @@ def test_full_forward_and_backward_gpt2_small(batch_size: int = 2):
                                 tokenizer_cfg.get('kwargs', {}))
 
     model = build_composer_model(
-        name=neo_cfg.model.name,
-        cfg=neo_cfg.model,
+        composer_model_name=neo_cfg.model.name,
         tokenizer=tokenizer,
+        **neo_cfg.model,
     ).to(device)
 
     assert isinstance(model.tokenizer,
@@ -341,9 +341,9 @@ def test_full_forward_and_backward_t5_small(batch_size: int = 2):
                                 tokenizer_cfg.get('kwargs', {}))
 
     model = build_composer_model(
-        name=t5_cfg.model.name,
-        cfg=t5_cfg.model,
+        composer_model_name=t5_cfg.model.name,
         tokenizer=tokenizer,
+        **t5_cfg.model,
     ).to(device)
 
     assert isinstance(model.tokenizer,
@@ -418,9 +418,9 @@ def test_determinism(attn_impl: str, precision: torch.dtype, ffn_type: str,
                                 tokenizer_cfg.get('kwargs', {}))
 
     model_1 = build_composer_model(
-        name=test_cfg.model.name,
-        cfg=test_cfg.model,
+        composer_model_name=test_cfg.model.name,
         tokenizer=tokenizer,
+        **test_cfg.model,
     )
     model_2 = copy.deepcopy(model_1)
 
@@ -488,9 +488,9 @@ def test_loss_fn():
                                 tokenizer_cfg.get('kwargs', {}))
 
     model_1 = build_composer_model(
-        name=test_cfg.model.name,
-        cfg=test_cfg.model,
+        composer_model_name=test_cfg.model.name,
         tokenizer=tokenizer,
+        **test_cfg.model,
     )
     model_2 = copy.deepcopy(model_1)
 
@@ -574,9 +574,9 @@ def test_loss_reduction(loss_fn_config: str):
                                 tokenizer_cfg.get('kwargs', {}))
 
     model_1 = build_composer_model(
-        name=test_cfg.model.name,
-        cfg=test_cfg.model,
+        composer_model_name=test_cfg.model.name,
         tokenizer=tokenizer,
+        **test_cfg.model,
     )
     model_2 = copy.deepcopy(model_1)
 
@@ -766,7 +766,7 @@ def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool,
     assert mpt.config.d_model == 128
     assert mpt.config.n_heads == 4
     assert mpt.config.n_layers == 2
-    if ffn_hidden_size is None:
+    if ffn_hidden_size is None:  # type: ignore (sometimes it may not be none)
         assert mpt.config.expansion_ratio == expansion_ratio
     else:
         assert mpt.config.ffn_config['ffn_hidden_size'] == ffn_hidden_size
@@ -783,7 +783,7 @@ def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool,
     assert len(mpt.transformer.blocks) == 2
 
     d_model = hf_config.d_model
-    if ffn_hidden_size is None:
+    if ffn_hidden_size is None:  # type: ignore (sometimes it may not be none)
         ffn_hidden_size = int(hf_config.d_model * hf_config.expansion_ratio)
     for block in mpt.transformer.blocks:
         assert isinstance(block, MPTBlock)

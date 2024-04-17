@@ -53,12 +53,15 @@ def evaluate_model(
     eval_gauntlet_df: Optional[pd.DataFrame],
     eval_subset_num_batches: int,
     icl_subset_num_batches: Optional[int],
-    callback_configs: Optional[DictConfig],
+    callback_configs: Optional[Dict[str, Any]],
     metadata: Optional[Dict[str, str]],
     logged_config: DictConfig,
     should_log_config: bool = True,
     load_path: Optional[str] = None,
+    **kwargs: Dict[str, Any],
 ):
+    model_extra_params = kwargs
+    warnings.warn(f'Extra parameters: {model_extra_params}')
 
     log.info(f'Evaluating model: {model_name}')
     # Build tokenizer and model
@@ -101,12 +104,10 @@ def evaluate_model(
 
     init_context = process_init_device(DictConfig(model), fsdp_config)
 
-    composer_model = build_composer_model(
-        name=model['name'],
-        cfg=DictConfig(model),
-        tokenizer=tokenizer,
-        init_context=init_context,
-    )
+    composer_model = build_composer_model(composer_model_name=model['name'],
+                                          tokenizer=tokenizer,
+                                          init_context=init_context,
+                                          **model)
 
     # Now add the eval metrics
     if eval_loader_config is not None:
@@ -267,7 +268,7 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     metadata = scfg.metadata
     should_log_config = scfg.log_config
 
-    callback_configs = DictConfig(scfg.callbacks)
+    callback_configs = {**scfg.callbacks}
 
     # Warn for unused parameters
     for key in cfg:

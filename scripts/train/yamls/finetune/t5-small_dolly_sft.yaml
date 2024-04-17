@@ -10,12 +10,12 @@ run_name:  # If left blank, will be read from env var $RUN_NAME
 # Model
 model:
   name: hf_t5
-  pretrained_model_name_or_path: ${model_name}
+  pretrained_model_name_or_path: ${variables.model_name}
   pretrained: true
 
 # Tokenizer
 tokenizer:
-  name: ${model_name}
+  name: ${variables.model_name}
 
 # Dataloaders
 train_loader:

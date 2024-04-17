@@ -163,11 +163,11 @@ def build_icl_data_and_gauntlet(
 
 
 def build_composer_model(
-    name: str,
-    cfg: DictConfig,
+    composer_model_name: str,
     tokenizer: PreTrainedTokenizerBase,
     init_context: Optional[ContextManager] = None,
     master_weights_dtype: Optional[str] = None,
+    **cfg: Dict[str, Any],
 ) -> ComposerModel:
     """Builds a ComposerModel from the registry.
 
@@ -186,13 +186,12 @@ def build_composer_model(
 
     with init_context:
         model = construct_from_registry(
-            name=name,
+            name=composer_model_name,
             registry=registry.models,
             pre_validation_function=ComposerModel,
             post_validation_function=None,
             kwargs={
-                'om_model_config': cfg,
-                'tokenizer': tokenizer
+                **cfg, 'tokenizer': tokenizer
             },
         )
 

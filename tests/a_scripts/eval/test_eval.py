@@ -47,11 +47,9 @@ def mock_saved_model_path(eval_cfg: Union[om.ListConfig, om.DictConfig]):
     tokenizer = build_tokenizer(model_cfg.tokenizer.name,
                                 model_cfg.tokenizer.get('kwargs', {}))
     # build model
-    model = build_composer_model(
-        name=model_cfg.model.name,
-        cfg=model_cfg.model,
-        tokenizer=tokenizer,
-    )
+    model = build_composer_model(composer_model_name=model_cfg.model.name,
+                                 tokenizer=tokenizer,
+                                 **model_cfg.model)
 
     # create mocked save checkpoint
     trainer = Trainer(model=model, device=device)

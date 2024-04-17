@@ -18,7 +18,7 @@ def _build_model(config: DictConfig, tokenizer: PreTrainedTokenizerBase):
     model = build_composer_model(
         composer_model_name=config.name,
         tokenizer=tokenizer,
-        **config,
+        cfg=config,
     )
     return model
 

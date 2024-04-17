@@ -67,7 +67,7 @@ def main(config: DictConfig):
     composer_model = build_composer_model(
         composer_model_name=config.model.name,
         tokenizer=tokenizer,
-        **config.model,
+        cfg=config.model,
     )
     model = composer_model.model
     model.eval()

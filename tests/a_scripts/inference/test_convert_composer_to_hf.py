@@ -774,8 +774,9 @@ def test_huggingface_conversion_callback(
         device_batch_size,
     )
 
-    original_model = build_composer_model(model_cfg['name'], tokenizer,
-                                          **model_cfg)
+    original_model = build_composer_model(model_cfg['name'],
+                                          tokenizer=tokenizer,
+                                          cfg=model_cfg)
     optimizer_name = optimizer_config.pop('name')
     optimizer = build_optimizer(original_model, optimizer_name,
                                 optimizer_config)
@@ -873,7 +874,7 @@ def test_convert_and_generate(model: str, tie_word_embeddings: bool,
     original_model = build_composer_model(
         composer_model_name=om_cfg['model'].name,
         tokenizer=tokenizer,
-        **om_cfg['model'],
+        cfg=om_cfg['model'],
     )
     trainer = Trainer(model=original_model,
                       device='cpu' if not model == 'mptmoe' else 'gpu')
@@ -945,7 +946,7 @@ def test_convert_and_generate_meta(tie_word_embeddings: str,
     original_model = build_composer_model(
         composer_model_name=om_cfg['model'].name,
         tokenizer=tokenizer,
-        **om_cfg['model'],
+        cfg=om_cfg['model'],
     )
     trainer = Trainer(model=original_model,
                       device='cpu' if not 'moe' in conf_path else 'gpu')
@@ -1156,7 +1157,7 @@ def test_mptmoe_huggingface_conversion_callback(
         composer_model_name=model_cfg.name,
         tokenizer=tokenizer,
         init_context=init_context,
-        **model_cfg,
+        cfg=model_cfg,
     )
 
     optimizer = build_optimizer(original_model, optimizer_name,

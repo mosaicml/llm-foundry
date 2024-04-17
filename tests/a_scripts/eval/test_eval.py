@@ -49,7 +49,7 @@ def mock_saved_model_path(eval_cfg: Union[om.ListConfig, om.DictConfig]):
     # build model
     model = build_composer_model(composer_model_name=model_cfg.model.name,
                                  tokenizer=tokenizer,
-                                 **model_cfg.model)
+                                 cfg=model_cfg.model)
 
     # create mocked save checkpoint
     trainer = Trainer(model=model, device=device)

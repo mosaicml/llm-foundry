@@ -49,7 +49,7 @@ def test_remote_code_false_mpt(
         _ = build_composer_model(
             composer_model_name=test_cfg.model.name,
             tokenizer=tokenizer,
-            **test_cfg.model,
+            cfg=test_cfg.model,
         )
 
 
@@ -141,7 +141,7 @@ def test_hf_config_override(
     model = build_composer_model(
         composer_model_name=test_cfg.model.name,
         tokenizer=tokenizer,
-        **test_cfg.model,
+        cfg=test_cfg.model,
     )
 
     # save model
@@ -165,7 +165,7 @@ def test_hf_config_override(
     hf_model = build_composer_model(
         composer_model_name=hf_model_config.model.name,
         tokenizer=tokenizer,
-        **hf_model_config.model,
+        cfg=hf_model_config.model,
     )
 
     for k, v in hf_model_config.model.config_overrides.items():
@@ -200,7 +200,7 @@ def test_rope_scaling_override():
     model = build_composer_model(
         composer_model_name=model_cfg.name,
         tokenizer=None,  # type: ignore
-        **model_cfg,
+        cfg=model_cfg,
     )
     # This would error if the config isn't parsed into a proper dictionary
     model.get_metadata()
@@ -227,7 +227,7 @@ def test_nested_override():
     model = build_composer_model(
         composer_model_name=model_cfg.name,
         tokenizer=None,  # type: ignore
-        **model_cfg,
+        cfg=model_cfg,
     )
 
     # The value we changed

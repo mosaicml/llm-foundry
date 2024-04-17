@@ -61,7 +61,7 @@ def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
     hf_model = build_composer_model(
         composer_model_name=hf_cfg.model.name,
         tokenizer=tokenizer,
-        **hf_cfg.model,
+        cfg=hf_cfg.model,
     ).to(device)
     hf_n_params = sum(p.numel() for p in hf_model.parameters())
 
@@ -113,7 +113,7 @@ def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
     model = build_composer_model(
         composer_model_name=model_cfg.name,
         tokenizer=tokenizer,
-        **model_cfg,
+        cfg=model_cfg,
     ).to(device)
     n_params = sum(p.numel() for p in model.parameters())
 

@@ -234,16 +234,6 @@ def log_dataset_uri(cfg: DictConfig) -> mlflow.data.meta_dataset.MetaDataset:
     data_paths = parse_source_dataset(cfg)
 
     # To be used when MLFlow implements fixes + 2.11.4
-    # dataset_source_mapping = {
-    #     's3': mlflow.data.http_dataset_source.HTTPDatasetSource,
-    #     'oci': mlflow.data.http_dataset_source.HTTPDatasetSource,
-    #     'https': mlflow.data.http_dataset_source.HTTPDatasetSource,
-    #     'hf': mlflow.data.huggingface_dataset_source.HuggingFaceDatasetSource,
-    #     'delta_table': mlflow.data.delta_dataset_source.DeltaDatasetSource,
-    #     'uc_volume': mlflow.data.delta_dataset_source.UCVolumeDatasetSource,
-    #     'local': mlflow.data.http_dataset_source.HTTPDatasetSource,
-    # }
-
     dataset_source_mapping = {
         's3': mlflow.data.http_dataset_source.HTTPDatasetSource,
         'oci': mlflow.data.http_dataset_source.HTTPDatasetSource,
@@ -253,6 +243,16 @@ def log_dataset_uri(cfg: DictConfig) -> mlflow.data.meta_dataset.MetaDataset:
         'uc_volume': mlflow.data.delta_dataset_source.UCVolumeDatasetSource,
         'local': mlflow.data.http_dataset_source.HTTPDatasetSource,
     }
+
+    # dataset_source_mapping = {
+    #     's3': mlflow.data.http_dataset_source.HTTPDatasetSource,
+    #     'oci': mlflow.data.http_dataset_source.HTTPDatasetSource,
+    #     'https': mlflow.data.http_dataset_source.HTTPDatasetSource,
+    #     'hf': mlflow.data.huggingface_dataset_source.HuggingFaceDatasetSource,
+    #     'delta_table': mlflow.data.delta_dataset_source.DeltaDatasetSource,
+    #     'uc_volume': mlflow.data.delta_dataset_source.UCVolumeDatasetSource,
+    #     'local': mlflow.data.http_dataset_source.HTTPDatasetSource,
+    # }
 
     data_stores = []
     for dataset_type, path, split in data_paths:

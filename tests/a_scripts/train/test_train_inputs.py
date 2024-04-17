@@ -74,7 +74,6 @@ class TestTrainingYAMLInputs:
             'scheduler',
             'max_duration',
             'eval_interval',
-            'precision',
             'max_seq_len',
         ]
         for param in mandatory_params:

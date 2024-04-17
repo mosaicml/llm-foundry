@@ -107,7 +107,7 @@ def evaluate_model(
     composer_model = build_composer_model(composer_model_name=model['name'],
                                           tokenizer=tokenizer,
                                           init_context=init_context,
-                                          **model)
+                                          cfg=model)
 
     # Now add the eval metrics
     if eval_loader_config is not None:

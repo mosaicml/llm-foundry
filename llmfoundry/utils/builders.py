@@ -163,11 +163,11 @@ def build_icl_data_and_gauntlet(
 
 
 def build_composer_model(
-    composer_model_name: str,
+    name: str,
+    cfg: Union[Dict, DictConfig],
     tokenizer: PreTrainedTokenizerBase,
     init_context: Optional[ContextManager] = None,
     master_weights_dtype: Optional[str] = None,
-    **cfg: Union[Dict, DictConfig],
 ) -> ComposerModel:
     """Builds a ComposerModel from the registry.
 
@@ -190,7 +190,7 @@ def build_composer_model(
 
     with init_context:
         model = construct_from_registry(
-            name=composer_model_name,
+            name=name,
             registry=registry.models,
             pre_validation_function=ComposerModel,
             post_validation_function=None,
@@ -377,16 +377,16 @@ def _extract_param_groups(
     return model.parameters()
 
 
-def build_optimizer(
-        model: torch.nn.Module,
-        name: str,
-        optimizer_config: Optional[Dict[str, Any]] = None) -> Optimizer:
+def build_optimizer(model: torch.nn.Module, name: str,
+                    **optimizer_config: Dict[str, Any]) -> Optimizer:
+
+    for k, v in optimizer_config.items():
+        if isinstance(v, DictConfig):
+            optimizer_config[k] = om.to_container(v, resolve=True)
 
     params = _extract_param_groups(model, optimizer_config)
     kwargs = optimizer_config
 
-    if kwargs is None:
-        kwargs = {}
     if 'params' in kwargs:
         raise ValueError(
             'The `params` will be automatically extracted from the model and ' +

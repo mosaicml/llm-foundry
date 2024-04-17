@@ -92,7 +92,7 @@ def _get_objs(request: pytest.FixtureRequest,
     model = build_composer_model(
         composer_model_name=test_cfg.model.name,
         tokenizer=tokenizer,
-        **test_cfg.model,
+        cfg=test_cfg.model,
     )
 
     # Optimizer
@@ -294,7 +294,7 @@ def test_full_forward_and_backward_gpt2_small(batch_size: int = 2):
     model = build_composer_model(
         composer_model_name=neo_cfg.model.name,
         tokenizer=tokenizer,
-        **neo_cfg.model,
+        cfg=neo_cfg.model,
     ).to(device)
 
     assert isinstance(model.tokenizer,
@@ -343,7 +343,7 @@ def test_full_forward_and_backward_t5_small(batch_size: int = 2):
     model = build_composer_model(
         composer_model_name=t5_cfg.model.name,
         tokenizer=tokenizer,
-        **t5_cfg.model,
+        cfg=t5_cfg.model,
     ).to(device)
 
     assert isinstance(model.tokenizer,
@@ -420,7 +420,7 @@ def test_determinism(attn_impl: str, precision: torch.dtype, ffn_type: str,
     model_1 = build_composer_model(
         composer_model_name=test_cfg.model.name,
         tokenizer=tokenizer,
-        **test_cfg.model,
+        cfg=test_cfg.model,
     )
     model_2 = copy.deepcopy(model_1)
 
@@ -490,7 +490,7 @@ def test_loss_fn():
     model_1 = build_composer_model(
         composer_model_name=test_cfg.model.name,
         tokenizer=tokenizer,
-        **test_cfg.model,
+        cfg=test_cfg.model,
     )
     model_2 = copy.deepcopy(model_1)
 
@@ -576,7 +576,7 @@ def test_loss_reduction(loss_fn_config: str):
     model_1 = build_composer_model(
         composer_model_name=test_cfg.model.name,
         tokenizer=tokenizer,
-        **test_cfg.model,
+        cfg=test_cfg.model,
     )
     model_2 = copy.deepcopy(model_1)
 

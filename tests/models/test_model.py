@@ -664,7 +664,7 @@ def test_opt_wrapping(peft_config: Optional[dict[str, str]]):
     tokenizer = build_tokenizer(config.tokenizer.name,
                                 tokenizer_cfg.get('kwargs', {}))
 
-    model = ComposerHFCausalLM(config.model, tokenizer)
+    model = ComposerHFCausalLM(**config.model, tokenizer=tokenizer)
 
     # check that all the modules we except are blocked from FSDP wrapping
     underlying_model = maybe_get_underlying_model(model.model)

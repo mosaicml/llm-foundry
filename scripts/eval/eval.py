@@ -239,7 +239,8 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     eval_gauntlet_config = DictConfig(
         scfg.eval_gauntlet) if scfg.eval_gauntlet else scfg.eval_gauntlet_str
 
-    fsdp_config = {**scfg.fsdp_config} if scfg.fsdp_config else None
+    fsdp_config = om.to_container(
+        scfg.fsdp_config) if scfg.fsdp_config else None
 
     assert isinstance(
         fsdp_config, Dict
@@ -268,7 +269,8 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     metadata = scfg.metadata
     should_log_config = scfg.log_config
 
-    callback_configs = {**scfg.callbacks}
+    callback_configs = om.to_container(
+        scfg.callbacks) if scfg.callbacks else None
 
     # Warn for unused parameters
     for key in cfg:

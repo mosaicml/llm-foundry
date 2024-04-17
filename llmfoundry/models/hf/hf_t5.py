@@ -8,7 +8,6 @@ from __future__ import annotations
 from typing import List, Mapping, Optional
 
 from composer.utils import dist
-from omegaconf import OmegaConf as om
 from transformers import (AutoConfig, PreTrainedTokenizerBase,
                           T5ForConditionalGeneration)
 
@@ -58,7 +57,7 @@ class ComposerHFT5(HuggingFaceModelWithFSDP):
     ):
         from llmfoundry.utils.builders import build_metric
 
-        config_overrides = om.to_container(config_overrides or {}, resolve=True)
+        config_overrides = config_overrides or {}
 
         config = AutoConfig.from_pretrained(
             pretrained_model_name_or_path,

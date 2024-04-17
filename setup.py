@@ -92,7 +92,7 @@ extra_deps['databricks'] = [
     'mosaicml[databricks]>=0.20.1,<0.21',
     'databricks-sql-connector>=3,<4',
     'databricks-connect==14.1.0',
-    'databricks-sdk==0.25.1'
+    'databricks-sdk==0.25.1',
     'lz4>=4,<5',
 ]
 

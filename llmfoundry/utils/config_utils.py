@@ -247,9 +247,7 @@ def log_dataset_uri(cfg: DictConfig) -> mlflow.data.meta_dataset.MetaDataset:
         source_class = dataset_source_mapping.get(dataset_type)
         
         if source_class:
-            if dataset_type == 'delta_table':
-                source = source_class(delta_table_path=path)
-            if dataset_type == 'hf' or dataset_type == 'uc_volume':
+            if dataset_type == 'hf' or dataset_type == 'uc_volume' or dataset_type == 'delta_table':
                 source = source_class(path=path)
             else:
                 source = source_class(url=path)

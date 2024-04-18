@@ -214,7 +214,8 @@ def test_packing_with_dataloader(packing_ratio: Any):
         'timeout': 0,
     })
 
-    loader = build_finetuning_dataloader(cfg, tokenizer,
+    loader = build_finetuning_dataloader(**cfg,
+                                         tokenizer=tokenizer,
                                          device_batch_size=6).dataloader
 
     assert isinstance(loader, DataLoader)

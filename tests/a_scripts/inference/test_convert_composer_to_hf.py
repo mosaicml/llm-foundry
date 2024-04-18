@@ -769,9 +769,9 @@ def test_huggingface_conversion_callback(
     )
 
     train_dataloader = build_finetuning_dataloader(
-        dataloader_cfg,
-        tokenizer,
-        device_batch_size,
+        tokenizer=tokenizer,
+        device_batch_size=device_batch_size,
+        **dataloader_cfg,
     )
 
     original_model = build_composer_model(model_cfg['name'],
@@ -1138,9 +1138,9 @@ def test_mptmoe_huggingface_conversion_callback(
     )
 
     train_dataloader = build_finetuning_dataloader(
-        dataloader_cfg,
-        tokenizer,
-        device_batch_size,
+        **dataloader_cfg,
+        tokenizer=tokenizer,
+        device_batch_size=device_batch_size,
     )
 
     optimizer_config = {

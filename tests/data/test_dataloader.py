@@ -322,8 +322,9 @@ def test_finetuning_dataloader(use_chat_formatting: bool,
     if not decoder_only_format:
         expected_keys += ['decoder_attention_mask', 'decoder_input_ids']
 
-    loader = build_finetuning_dataloader(cfg, tokenizer,
-                                         device_batch_size).dataloader
+    loader = build_finetuning_dataloader(tokenizer=tokenizer,
+                                         device_batch_size=device_batch_size,
+                                         **cfg).dataloader
     batch_ix = 0
     for batch in loader:
         for k in expected_keys:
@@ -368,7 +369,9 @@ def test_finetuning_dataloader_safe_load(hf_name: str,
     tokenizer = build_tokenizer('gpt2', {})
 
     with expectation:
-        _ = build_finetuning_dataloader(cfg, tokenizer, 1)
+        _ = build_finetuning_dataloader(tokenizer=tokenizer,
+                                        device_batch_size=1,
+                                        **cfg)
 
     # If no raised errors, we should expect downloaded files with only safe file types.
     if expectation == does_not_raise():
@@ -432,7 +435,9 @@ def test_finetuning_dataloader_small_data(dataset_size: int,
                                       match='Your dataset')
 
     with error_context:
-        _ = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
+        _ = build_finetuning_dataloader(tokenizer=tokenizer,
+                                        device_batch_size=device_batch_size,
+                                        **cfg)
 
     if dist.get_global_rank() == 0:
         shutil.rmtree(tiny_dataset_folder_path)
@@ -474,7 +479,9 @@ def test_finetuning_dataloader_custom_split(tmp_path: pathlib.Path, split: str):
         tokenizer_kwargs={'model_max_length': max_seq_len},
     )
 
-    _ = build_finetuning_dataloader(cfg, tokenizer, 4)
+    _ = build_finetuning_dataloader(tokenizer=tokenizer,
+                                    device_batch_size=4,
+                                    **cfg)
 
 
 def mock_get_file(path: str, destination: str, overwrite: bool = False):
@@ -519,7 +526,9 @@ def test_finetuning_dataloader_custom_split_remote(split: str):
     # Mock get_file to avoid downloading the file
     with patch('llmfoundry.data.finetuning.dataloader.get_file',
                wraps=mock_get_file) as f:
-        _ = build_finetuning_dataloader(cfg, tokenizer, 4)
+        _ = build_finetuning_dataloader(tokenizer=tokenizer,
+                                        device_batch_size=4,
+                                        **cfg)
         for call in f.call_args_list:
             path_arg = call.kwargs['path']
             dest_arg = call.kwargs['destination']
@@ -587,7 +596,9 @@ def test_finetuning_dataloader_streaming(pretokenize: bool,
 
     cfg = om.create(cfg)
 
-    dataloader = build_finetuning_dataloader(cfg, tokenizer, 2).dataloader
+    dataloader = build_finetuning_dataloader(tokenizer=tokenizer,
+                                             device_batch_size=2,
+                                             **cfg).dataloader
 
     expected_keys = ['input_ids', 'labels']
     for batch in dataloader:
@@ -754,8 +765,9 @@ def test_malformed_data(
                                       match='Please specify exactly one.')
 
     with error_context:
-        dl = build_finetuning_dataloader(cfg, tokenizer,
-                                         device_batch_size).dataloader
+        dl = build_finetuning_dataloader(tokenizer=tokenizer,
+                                         device_batch_size=device_batch_size,
+                                         **cfg).dataloader
 
     if not any(invalid_prompt_response_params):
         # +5 because we added samples with just bos/eos in each of prompt/response
@@ -854,8 +866,9 @@ def test_malformed_conversation_data(tmp_path: pathlib.Path,
                                       match='Conversation roles must alternate')
 
     with error_context:
-        build_finetuning_dataloader(cfg, tokenizer,
-                                    device_batch_size).dataloader
+        build_finetuning_dataloader(tokenizer=tokenizer,
+                                    device_batch_size=device_batch_size,
+                                    **cfg).dataloader
 
 
 def test_finetune_dataloader_pure_pad_responses():
@@ -905,8 +918,9 @@ def test_finetune_dataloader_pure_pad_responses():
     assert tokenizer('|PAD|').input_ids[0] == tokenizer.pad_token_id
 
     device_batch_size = 1
-    dataloader = build_finetuning_dataloader(cfg, tokenizer,
-                                             device_batch_size).dataloader
+    dataloader = build_finetuning_dataloader(
+        tokenizer=tokenizer, device_batch_size=device_batch_size,
+        **cfg).dataloader
 
     # We should be able to iterate through this dataset without crashing
     for i, batch in enumerate(dataloader):
@@ -1037,7 +1051,9 @@ def test_token_counting_func_dataloader_setting(
         monkeypatch.setattr(
             'llmfoundry.data.finetuning.tasks.DatasetConstructor.build_from_hf',
             lambda *args, **kwargs: [])
-        dl = build_finetuning_dataloader(cfg, gptt, batch_size)
+        dl = build_finetuning_dataloader(tokenizer=gptt,
+                                         device_batch_size=batch_size,
+                                         **cfg)
     elif dataloader_type == 'finetuning-streaming':
         cfg = DictConfig({
             'name': 'finetuning',
@@ -1056,7 +1072,9 @@ def test_token_counting_func_dataloader_setting(
         monkeypatch.setattr(
             'llmfoundry.data.finetuning.tasks.DatasetConstructor.build_from_streaming',
             lambda *args, **kwargs: [])
-        dl = build_finetuning_dataloader(cfg, gptt, batch_size)
+        dl = build_finetuning_dataloader(tokenizer=gptt,
+                                         device_batch_size=batch_size,
+                                         **cfg)
     elif dataloader_type == 'text':
         cfg = DictConfig({
             'name': 'text',
@@ -1175,5 +1193,6 @@ def test_sharegpt_format(tmp_path: pathlib.Path,
                                       match='Conversation roles must alternate')
 
     with error_context:
-        build_finetuning_dataloader(cfg, tokenizer,
-                                    device_batch_size).dataloader
+        build_finetuning_dataloader(tokenizer=tokenizer,
+                                    device_batch_size=device_batch_size,
+                                    **cfg).dataloader

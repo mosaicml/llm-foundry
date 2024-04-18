@@ -245,12 +245,13 @@ class ConcatenatedSequenceCollatorWrapper:
         return torch.cat([left_zeros, cumulative_sep[:, :-1]], dim=1)
 
 
-def build_streams(dataset_cfg: DictConfig):
-    streams_dict = dataset_cfg.pop('streams', None)
+def build_streams(streams: Optional[Dict[str, Any]] = None,
+                  **dataset_cfg: DictConfig):
+    streams_dict = streams
     # build streams
     streams = None
     if streams_dict is not None:
-        streams = []
+        streams: List = []
         for _, stream in streams_dict.items():
             # stream is the streams kwargs
             # fwd all kwargs with **stream allows streaming to check args
@@ -298,7 +299,7 @@ def build_text_dataloader(
                 ' To override this error, set the override_bos_token_id_mismatch_error flag to True in the dataset config section of the YAML.'
             )
 
-    streams = build_streams(cfg.dataset)
+    streams = build_streams(**cfg.dataset)
 
     # build dataset potentially with streams
     dataset = StreamingTextDataset(

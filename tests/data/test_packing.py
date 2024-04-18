@@ -175,7 +175,8 @@ def test_auto_packing_with_streaming_dataloader(tmp_path: Path):
         'timeout': 0,
     })
 
-    loader = build_finetuning_dataloader(cfg, tokenizer,
+    loader = build_finetuning_dataloader(**cfg,
+                                         tokenizer=tokenizer,
                                          device_batch_size=6).dataloader
 
     batch_ix = 0

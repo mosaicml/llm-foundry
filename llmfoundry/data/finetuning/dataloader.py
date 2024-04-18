@@ -35,6 +35,13 @@ def build_finetuning_dataloader(
     tokenizer: PreTrainedTokenizerBase,
     device_batch_size: int,
     dataset: DictConfig,
+    num_workers: int,
+    drop_last: bool = False,
+    pin_memory: bool = True,
+    prefetch_factor: int = 2,
+    persistent_workers: bool = True,
+    name: Optional[str] = None,
+    timeout: int = 0,
 ) -> DataSpec:
     """Builds a finetuning dataloader for training or evaluating.
 
@@ -133,55 +140,61 @@ def build_finetuning_dataloader(
         padding/waste rates for different `cfg.dataset.packing_ratio` choices,
         given a starting workload YAML.
     """
-    _validate_config(dataset)
+    dataset_cfg = dataset
+    _validate_config(dataset_cfg)
 
     # Use EOS as the pad token if none exists
     if tokenizer.pad_token is None:  # type: ignore (sometimes it's none and that's ok)
         tokenizer.pad_token = tokenizer.eos_token
 
     collate_fn, dataloader_batch_size = _build_collate_fn(
-        dataset=dataset,
+        dataset_cfg=dataset_cfg,
         tokenizer=tokenizer,
-        device_batch_size=device_batch_size)
+        device_batch_size=device_batch_size,
+        max_seq_len=dataset_cfg.max_seq_len,
+        decoder_only_format=dataset_cfg.decoder_only_format,
+    )
 
     dataset = None  # for pyright
     sampler = None
-    if cfg.dataset.get('remote') is not None or cfg.dataset.get(
+    if dataset_cfg.get('remote') is not None or cfg.dataset.get(
             'streams') is not None:
         # Build streaming dataloader
-        streams = build_streams(cfg.dataset)
+        streams = build_streams(**dataset_cfg)
+
+        # note: we don't need to use ** here because we're setting default values for almost all arguments
         dataset = dataset_constructor.build_from_streaming(
             tokenizer=tokenizer,
             streams=streams,
-            local=cfg.dataset.get('local', None),
-            remote=cfg.dataset.get('remote', None),
-            split=cfg.dataset.get('split', None),
-            download_retry=cfg.dataset.get('download_retry', 2),
-            download_timeout=cfg.dataset.get('download_timeout', 60),
-            validate_hash=cfg.dataset.get('validate_hash', None),
-            keep_zip=cfg.dataset.get('keep_zip', False),
-            epoch_size=cfg.dataset.get('epoch_size', None),
-            predownload=cfg.dataset.get('predownload', None),
-            cache_limit=cfg.dataset.get('cache_limit', None),
-            partition_algo=cfg.dataset.get('partition_algo', 'relaxed'),
-            num_canonical_nodes=cfg.dataset.get('num_canonical_nodes', None),
+            local=dataset_cfg.get('local', None),
+            remote=dataset_cfg.get('remote', None),
+            split=dataset_cfg.get('split', None),
+            download_retry=dataset_cfg.get('download_retry', 2),
+            download_timeout=dataset_cfg.get('download_timeout', 60),
+            validate_hash=dataset_cfg.get('validate_hash', None),
+            keep_zip=dataset_cfg.get('keep_zip', False),
+            epoch_size=dataset_cfg.get('epoch_size', None),
+            predownload=dataset_cfg.get('predownload', None),
+            cache_limit=dataset_cfg.get('cache_limit', None),
+            partition_algo=dataset_cfg.get('partition_algo', 'relaxed'),
+            num_canonical_nodes=dataset_cfg.get('num_canonical_nodes', None),
             batch_size=device_batch_size,
-            shuffle=cfg.dataset.get('shuffle', False),
-            shuffle_algo=cfg.dataset.get('shuffle_algo', 'py1e'),
-            shuffle_seed=cfg.dataset.get('shuffle_seed', 9176),
-            shuffle_block_size=cfg.dataset.get('shuffle_block_size', None),
-            sampling_method=cfg.dataset.get('sampling_method', 'balanced'),
-            sampling_granularity=cfg.dataset.get('sampling_granularity', 1),
-            batching_method=cfg.dataset.get('batching_method', 'random'),
-            max_seq_len=cfg.dataset.max_seq_len,
-            allow_unsafe_types=cfg.dataset.get('allow_unsafe_types', False),
-            replication=cfg.dataset.get('replication', None),
+            shuffle=dataset_cfg.get('shuffle', False),
+            shuffle_algo=dataset_cfg.get('shuffle_algo', 'py1e'),
+            shuffle_seed=dataset_cfg.get('shuffle_seed', 9176),
+            shuffle_block_size=dataset_cfg.get('shuffle_block_size', None),
+            sampling_method=dataset_cfg.get('sampling_method', 'balanced'),
+            sampling_granularity=dataset_cfg.get('sampling_granularity', 1),
+            batching_method=dataset_cfg.get('batching_method', 'random'),
+            max_seq_len=dataset_cfg.max_seq_len,
+            allow_unsafe_types=dataset_cfg.get('allow_unsafe_types', False),
+            replication=dataset_cfg.get('replication', None),
         )
 
     else:
         # Build HF dataloader
-        dataset_name_or_path = cfg.dataset.hf_name
-        split = cfg.dataset.get('split')
+        dataset_name_or_path = dataset_cfg.hf_name
+        split = dataset_cfg.get('split')
         if split is None:
             raise MissingHuggingFaceURLSplitError()
 
@@ -193,7 +206,7 @@ def build_finetuning_dataloader(
             split = split.replace('-', '_')
 
         # Get the preprocessing function.
-        proto_preprocessing_fn = cfg.dataset.get('preprocessing_fn')
+        proto_preprocessing_fn = dataset_cfg.get('preprocessing_fn')
         if isinstance(proto_preprocessing_fn, (dict, DictConfig)):
             preprocessing_fn = dataset_constructor.get_preprocessing_fn_from_dict(
                 dict(proto_preprocessing_fn))
@@ -205,26 +218,26 @@ def build_finetuning_dataloader(
         dataset = dataset_constructor.build_from_hf(
             dataset_name=dataset_name_or_path,
             split=split,
-            safe_load=cfg.dataset.get('safe_load', False),
-            max_seq_len=cfg.dataset.max_seq_len,
+            safe_load=dataset_cfg.get('safe_load', False),
+            max_seq_len=dataset_cfg.max_seq_len,
             preprocessing_fn=preprocessing_fn,
             tokenizer=tokenizer,
-            target_prompts=cfg.dataset.get('target_prompts',
+            target_prompts=dataset_cfg.get('target_prompts',
                                            _DEFAULT_TARGET_PROMPTS),
-            target_responses=cfg.dataset.get('target_responses',
+            target_responses=dataset_cfg.get('target_responses',
                                              _DEFAULT_TARGET_RESPONSES),
-            decoder_only_format=cfg.dataset.decoder_only_format,
-            hf_kwargs=cfg.dataset.get('hf_kwargs', {}))
+            decoder_only_format=dataset_cfg.decoder_only_format,
+            hf_kwargs=dataset_cfg.get('hf_kwargs', {}))
 
         # Ensure dataset is large enough.
-        if cfg.drop_last:
+        if drop_last:
             world_size = dist.get_world_size()
             minimum_dataset_size = world_size * dataloader_batch_size
             if hasattr(dataset, '__len__'):
                 full_dataset_size = len(dataset)
                 if full_dataset_size < minimum_dataset_size:
                     raise NotEnoughDatasetSamplesError(
-                        dataset_name=cfg.dataset.hf_name,
+                        dataset_name=dataset_cfg.hf_name,
                         split=split,
                         dataloader_batch_size=dataloader_batch_size,
                         world_size=world_size,
@@ -232,21 +245,21 @@ def build_finetuning_dataloader(
                         minimum_dataset_size=minimum_dataset_size)
         # Initialize sampler.
         sampler = dist.get_sampler(dataset,
-                                   drop_last=cfg.drop_last,
-                                   shuffle=cfg.dataset.shuffle)
+                                   drop_last=drop_last,
+                                   shuffle=dataset_cfg.shuffle)
 
     assert dataset is not None  # for pyright
     dl = DataLoader(
         dataset,
         collate_fn=collate_fn,
         batch_size=dataloader_batch_size,
-        drop_last=cfg.drop_last,
+        drop_last=drop_last,
         sampler=sampler,
-        num_workers=cfg.num_workers,
-        pin_memory=cfg.get('pin_memory', True),
-        prefetch_factor=cfg.get('prefetch_factor', 2),
-        persistent_workers=cfg.get('persistent_workers', True),
-        timeout=cfg.get('timeout', 0),
+        num_workers=num_workers,
+        pin_memory=pin_memory,
+        prefetch_factor=prefetch_factor,
+        persistent_workers=persistent_workers,
+        timeout=timeout,
     )
 
     token_counting_func = get_tokens_per_batch_func()
@@ -430,15 +443,13 @@ def _build_collate_fn(
     device_batch_size: int,
     max_seq_len: int,
     decoder_only_format: bool,
-    dataset: DictConfig,
+    dataset_cfg: DictConfig,
     max_leftover_bins_to_keep: Optional[int] = None,
     packing_ratio: Optional[Union[float, str]] = None,
     target_responses: str = _DEFAULT_TARGET_RESPONSES,
     target_prompts: str = _DEFAULT_TARGET_PROMPTS,
     allow_pad_trimming: bool = False,
 ) -> Tuple[Union[Seq2SeqFinetuningCollator, BinPackCollator], int]:
-    max_seq_len = max_seq_len
-
     collate_fn = Seq2SeqFinetuningCollator(
         tokenizer=tokenizer,
         max_seq_len=max_seq_len,
@@ -459,7 +470,7 @@ def _build_collate_fn(
         return collate_fn, device_batch_size
 
     if packing_ratio == 'auto':
-        packing_ratio = auto_packing_ratio(dataset_config=dataset,
+        packing_ratio = auto_packing_ratio(dataset_config=dataset_cfg,
                                            tokenizer=tokenizer,
                                            device_batch_size=device_batch_size)
 

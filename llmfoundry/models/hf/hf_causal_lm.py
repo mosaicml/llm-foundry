@@ -73,8 +73,17 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         use_train_metrics: bool = True,
         additional_train_metrics: Optional[List] = None,
         additional_eval_metrics: Optional[List] = None,
+        # ignored args
         name: Optional[str] = None,
+        device: Optional[Any] = None,
     ):
+
+        if device is not None:
+            warnings.warn(
+                'device is deprecated and will be removed in a future release. '
+                + 'Please use init_device instead.',
+                DeprecationWarning,
+            )
 
         from llmfoundry.utils.builders import build_metric
 

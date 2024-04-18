@@ -8,7 +8,7 @@ import warnings
 import mlflow
 from typing import Any, Dict, Literal, Mapping, Optional, Tuple, Union
 
-from composer.utils import dist
+from composer.utils import dist, parse_uri
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 

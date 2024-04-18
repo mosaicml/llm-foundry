@@ -196,6 +196,8 @@ def main(cfg: DictConfig) -> Trainer:
     # Resolve all interpolation variables as early as possible
     unstructured_config = om.to_container(cfg, resolve=True)
     assert isinstance(unstructured_config, dict)
+    assert all(isinstance(k, str) for k in unstructured_config.keys())
+    unstructured_config = {str(k): v for k, v in unstructured_config.items()}
 
     # Structured config does not support unions of containers, so separate single and plural containers
     if (loader := unstructured_config.get('eval_loader', None)) is not None:

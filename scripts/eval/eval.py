@@ -203,7 +203,11 @@ EVAL_CONFIG_KEYS = set(field.name for field in fields(EvalConfig))
 
 
 def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
+    # Resolve all interpolation variables as early as possible
     unstructured_config = om.to_container(cfg, resolve=True)
+    assert isinstance(unstructured_config, dict)
+    assert all(isinstance(k, str) for k in unstructured_config.keys())
+    unstructured_config = {str(k): v for k, v in unstructured_config.items()}
 
     # flatten union types before creating structured config:
     if 'eval_gauntlet' in unstructured_config:

@@ -271,6 +271,9 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     assert isinstance(
         fsdp_config, Dict
     ) or fsdp_config is None, f'fsdp_config must be a Dict or None but is {type(fsdp_config)}'
+    assert all(isinstance(k, str)
+               for k in fsdp_config.keys()), 'fsdp_config keys must be strings'
+    fsdp_config = {str(k): v for k, v in fsdp_config.items()}  # pyright fix
 
     # Mandatory Evaluation Parameters
     icl_tasks: Union[ListConfig, str, None] = ListConfig(

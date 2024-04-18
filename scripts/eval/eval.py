@@ -173,8 +173,11 @@ class EvalConfig:
     eval_gauntlet: Optional[Dict[str, Any]] = None
     eval_gauntlet_str: Optional[str] = None
     fsdp_config: Optional[Dict[str, Any]] = None
-    icl_tasks: Optional[List[str]] = MISSING
+
+    # one of icl_tasks or icl_tasks_str must be specified
+    icl_tasks: Optional[List[Dict[str, Any]]] = None
     icl_tasks_str: Optional[str] = None
+
     max_seq_len: int = MISSING
     device_eval_batch_size: int = MISSING
     precision: str = 'amp_bf16'
@@ -200,47 +203,53 @@ EVAL_CONFIG_KEYS = set(field.name for field in fields(EvalConfig))
 
 
 def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
-    om.resolve(cfg)
+    unstructured_config = om.to_container(cfg, resolve=True)
 
     # flatten union types before creating structured config:
-    if 'eval_gauntlet' in cfg:
-        if isinstance(cfg.eval_gauntlet, str):
-            cfg.eval_gauntlet_str = cfg.pop('eval_gauntlet')
-    if 'eval_loader' in cfg:
-        if isinstance(cfg.eval_loader, ListConfig):
-            cfg.eval_loaders = cfg.pop('eval_loader')
-    if 'icl_tasks' in cfg:
-        if isinstance(cfg.icl_tasks, str):
-            cfg.icl_tasks_str = cfg.pop('icl_tasks')
+    if 'eval_gauntlet' in unstructured_config:
+        if isinstance(unstructured_config['eval_gauntlet'], str):
+            unstructured_config['eval_gauntlet_str'] = unstructured_config.pop(
+                'eval_gauntlet')
+    if (loader := unstructured_config.get('eval_loader', None)) is not None:
+        if isinstance(loader, list):
+            unstructured_config['eval_loaders'] = unstructured_config.pop(
+                'eval_loader')
+    if 'icl_tasks' in unstructured_config:
+        if isinstance(unstructured_config['icl_tasks'], str):
+            unstructured_config['icl_tasks_str'] = unstructured_config.pop(
+                'icl_tasks')
+    else:
+        raise ValueError('icl_tasks must be specified in the config')
 
-    arg_config_keys = set(cfg.keys())
+    arg_config_keys = set(unstructured_config.keys())
     extraneous_keys = set.difference(arg_config_keys, EVAL_CONFIG_KEYS)
 
-    if 'variables' not in cfg:
-        cfg['variables'] = {}
+    if 'variables' not in unstructured_config:
+        unstructured_config['variables'] = {}
 
     for key in extraneous_keys:
         warnings.warn(
-            f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary. Interpreting {key} as a variable for logging purposes.'
-        )
+            f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary. Interpreting {key} as a variable for logging purposes. Top-level variables are deprecated and will not be supported in future releases.',
+            DeprecationWarning)
         # TODO (milo): delete the below line once we deprecate variables at the top level.
-        cfg['variables'][key] = cfg.pop(key)
+        unstructured_config['variables'][key] = unstructured_config.pop(key)
 
-    scfg: EvalConfig = om.structured(EvalConfig(**cfg))
+    eval_config: EvalConfig = om.structured(EvalConfig(**unstructured_config))
     # Create copy of config for logging
-    logged_cfg: DictConfig = copy.deepcopy(cfg)
+    logged_cfg: DictConfig = copy.deepcopy(unstructured_config)
 
     # Run user provided code if specified
-    code_paths = scfg.code_paths
+    code_paths = eval_config.code_paths
     for code_path in (code_paths or []):
         import_file(code_path)
 
-    model_configs = ListConfig(scfg.models)
+    model_configs = ListConfig(eval_config.models)
     eval_gauntlet_config = DictConfig(
-        scfg.eval_gauntlet) if scfg.eval_gauntlet else scfg.eval_gauntlet_str
+        eval_config.eval_gauntlet
+    ) if eval_config.eval_gauntlet else eval_config.eval_gauntlet_str
 
     fsdp_config = om.to_container(
-        scfg.fsdp_config) if scfg.fsdp_config else None
+        eval_config.fsdp_config) if eval_config.fsdp_config else None
 
     assert isinstance(
         fsdp_config, Dict
@@ -248,35 +257,32 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
 
     # Mandatory Evaluation Parameters
     icl_tasks: Union[ListConfig, str, None] = ListConfig(
-        scfg.icl_tasks) if scfg.icl_tasks else scfg.icl_tasks_str
+        eval_config.icl_tasks
+    ) if eval_config.icl_tasks else eval_config.icl_tasks_str
     assert icl_tasks is not None, 'icl_tasks must be specified in the config'
-    max_seq_len = scfg.max_seq_len
-    device_eval_batch_size = scfg.device_eval_batch_size
-    precision = scfg.precision
-    python_log_level: Optional[str] = scfg.python_log_level
+    max_seq_len = eval_config.max_seq_len
+    device_eval_batch_size = eval_config.device_eval_batch_size
+    precision = eval_config.precision
+    python_log_level: Optional[str] = eval_config.python_log_level
 
     # Optional Evaluation Parameters with default values
     eval_loader_config = DictConfig(
-        scfg.eval_loader) if scfg.eval_loader else ListConfig(
-            scfg.eval_loaders) if scfg.eval_loaders else None
-    seed = scfg.seed
-    dist_timeout = scfg.dist_timeout
+        eval_config.eval_loader) if eval_config.eval_loader else ListConfig(
+            eval_config.eval_loaders) if eval_config.eval_loaders else None
+    seed = eval_config.seed
+    dist_timeout = eval_config.dist_timeout
     default_run_name: str = os.environ.get('RUN_NAME', 'llm')
-    run_name = scfg.run_name if scfg.run_name else default_run_name
-    loggers_cfg = scfg.loggers
-    eval_subset_num_batches = scfg.eval_subset_num_batches
-    icl_subset_num_batches = scfg.icl_subset_num_batches
-    metadata = scfg.metadata
-    should_log_config = scfg.log_config
+    run_name = eval_config.run_name if eval_config.run_name else default_run_name
+    loggers_cfg = eval_config.loggers
+    eval_subset_num_batches = eval_config.eval_subset_num_batches
+    icl_subset_num_batches = eval_config.icl_subset_num_batches
+    metadata = eval_config.metadata
+    should_log_config = eval_config.log_config
 
-    callback_configs = om.to_container(scfg.callbacks) if scfg.callbacks else []
-
-    if callback_configs is not None:
-        assert isinstance(callback_configs, dict)
-        callback_configs = {str(k): v for k, v in callback_configs.items()}
+    callback_configs = eval_config.callbacks
 
     # Warn for unused parameters
-    for key in cfg:
+    for key in unstructured_config:
         warnings.warn(
             f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary.'
         )

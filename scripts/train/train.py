@@ -199,9 +199,9 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Structured config does not support unions of containers, so separate single and plural containers
     if (loader := unstructured_config.get('eval_loader', None)) is not None:
-        if isinstance(loader, list) or isinstance(loader, ListConfig):
-            unstructured_config['eval_loaders'] = list(
-                unstructured_config.pop('eval_loader'))
+        if isinstance(loader, list):
+            unstructured_config['eval_loaders'] = unstructured_config.pop(
+                'eval_loader')
     if (tasks := unstructured_config.get('icl_tasks', None)) is not None:
         if isinstance(tasks, str):
             unstructured_config['icl_tasks_str'] = unstructured_config.pop(
@@ -219,7 +219,7 @@ def main(cfg: DictConfig) -> Trainer:
 
     for key in extraneous_keys:
         warnings.warn(
-            f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary. Interpreting {key} as a variable for logging purposes. This behavior is deprecated.',
+            f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary. Interpreting {key} as a variable for logging purposes. Top-level variables are deprecated and will not be supported in future releases.',
             DeprecationWarning)
         # TODO (milo): delete the below line once we deprecate variables at the top level.
         unstructured_config['variables'][key] = unstructured_config.pop(key)

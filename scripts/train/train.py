@@ -146,6 +146,11 @@ TRAIN_CONFIG_KEYS = set(field.name for field in fields(TrainConfig))
 
 def validate_config(train_config: TrainConfig):
     """Validates compatible model and dataloader selection."""
+    # check for missing mandatory fields
+    for field in TRAIN_CONFIG_KEYS:
+        _ = getattr(train_config, field)
+
+    # validate the rest of the config
     loaders = [train_config.train_loader]
     if train_config.eval_loaders is not None:
         for loader in (train_config.eval_loaders or []):  # pyright

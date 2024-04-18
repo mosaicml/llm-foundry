@@ -46,7 +46,7 @@ def evaluate_model(
     device_eval_batch_size: int,
     eval_gauntlet_config: Optional[Union[str, DictConfig]],
     eval_loader_config: Optional[Union[DictConfig, ListConfig]],
-    fsdp_config: Optional[Dict],
+    fsdp_config: Optional[Dict[str, Any]],
     loggers: List[LoggerDestination],
     python_log_level: Optional[str],
     precision: str,
@@ -267,9 +267,10 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
         eval_config.eval_gauntlet
     ) if eval_config.eval_gauntlet else eval_config.eval_gauntlet_str
 
+    fsdp_config = om.to_container(eval_config.fsdp_config)
     assert isinstance(
-        eval_config.fsdp_config, Dict
-    ) or eval_config.fsdp_config is None, f'fsdp_config must be a Dict or None but is {type(eval_config.fsdp_config)}'
+        fsdp_config, Dict
+    ) or fsdp_config is None, f'fsdp_config must be a Dict or None but is {type(fsdp_config)}'
 
     # Mandatory Evaluation Parameters
     icl_tasks: Union[ListConfig, str, None] = ListConfig(
@@ -332,7 +333,7 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
              device_eval_batch_size=eval_config.device_eval_batch_size,
              eval_gauntlet_config=eval_gauntlet_config,
              eval_loader_config=eval_loader_config,
-             fsdp_config=eval_config.fsdp_config,
+             fsdp_config=fsdp_config,
              loggers=loggers,
              python_log_level=eval_config.python_log_level,
              precision=eval_config.precision,

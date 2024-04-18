@@ -267,13 +267,17 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
         eval_config.eval_gauntlet
     ) if eval_config.eval_gauntlet else eval_config.eval_gauntlet_str
 
-    fsdp_config = om.to_container(eval_config.fsdp_config)
+    # the below line fixes a strange issue where the fsdp_config is a DictConfig rather than a Dict,
+    # despite the type hint being Dict[str, Any] and the `cfg` object being sent to `to_container`.
+    # I think it might be rewrapped in DictConfig during the `structured` call in `_make_eval_and_log_config`.
+    # this redundant check is necessary to avoid a pyright error.
+    fsdp_config = om.to_container(
+        eval_config.fsdp_config) if eval_config.fsdp_config else None
     assert isinstance(
         fsdp_config, Dict
     ) or fsdp_config is None, f'fsdp_config must be a Dict or None but is {type(fsdp_config)}'
-    assert all(isinstance(k, str)
-               for k in fsdp_config.keys()), 'fsdp_config keys must be strings'
-    fsdp_config = {str(k): v for k, v in fsdp_config.items()}  # pyright fix
+    fsdp_config = {str(k): v for k, v in fsdp_config.items()
+                  } if fsdp_config else None  # pyright fix
 
     # Mandatory Evaluation Parameters
     icl_tasks: Union[ListConfig, str, None] = ListConfig(

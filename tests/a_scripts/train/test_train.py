@@ -165,7 +165,7 @@ def test_validate_config():
             match=
             'MoEs with expert parallelism (.*) require `use_orig_params=True`.'
     ):
-        validate_config(om.structured(TrainConfig(**test_cfg)))
+        validate_config(om.structured(TrainConfig(**test_cfg_dict)))
 
 
 def test_eval_metrics_with_no_train_metrics(tmp_path: pathlib.Path):

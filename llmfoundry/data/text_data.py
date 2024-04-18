@@ -260,16 +260,25 @@ def build_streams(streams: Optional[Dict[str, Any]] = None,
 
 
 def build_text_dataloader(
-    cfg: DictConfig,
+    name: str,
     tokenizer: PreTrainedTokenizerBase,
     device_batch_size: int,
+    dataset: DictConfig,
+    drop_last: bool,
+    num_workers: int,
+    pin_memory: bool = True,
+    prefetch_factor: int = 2,
+    persistent_workers: bool = True,
+    timeout: int = 0,
 ) -> DataSpec:
-    assert cfg.name == 'text', f'Tried to build text dataloader with cfg.name={cfg.name}'
+    dataset_cfg = dataset
+    dataset = None
+    assert name == 'text', f'Tried to build text dataloader with cfg.name={name}'
 
     # get kwargs
-    mlm_probability = cfg.dataset.pop('mlm_probability', None)
-    eos_token_id = cfg.dataset.pop('eos_token_id', None)
-    bos_token_id = cfg.dataset.pop('bos_token_id', None)
+    mlm_probability = dataset_cfg.pop('mlm_probability', None)
+    eos_token_id = dataset_cfg.pop('eos_token_id', None)
+    bos_token_id = dataset_cfg.dataset.pop('bos_token_id', None)
 
     if eos_token_id is None and bos_token_id is None and (hasattr(
             tokenizer, 'eos_token_id') or hasattr(tokenizer, 'bos_token_id')):
@@ -280,7 +289,7 @@ def build_text_dataloader(
     tokenizer_eos_token_id = getattr(tokenizer, 'eos_token_id', None)
     if eos_token_id is not None and eos_token_id != tokenizer_eos_token_id:
         eos_mismatch_str = f'Provided {eos_token_id=} does not match the eos_token_id of the tokenizer={tokenizer_eos_token_id}.'
-        if cfg.dataset.pop('override_eos_token_id_mismatch_error', False):
+        if dataset_cfg.pop('override_eos_token_id_mismatch_error', False):
             log.warning(eos_mismatch_str)
         else:
             raise ValueError(
@@ -291,7 +300,7 @@ def build_text_dataloader(
     tokenizer_bos_token_id = getattr(tokenizer, 'bos_token_id', None)
     if bos_token_id is not None and bos_token_id != tokenizer_bos_token_id:
         bos_mismatch_str = f'Provided {bos_token_id=} does not match the bos_token_id of the tokenizer={tokenizer_bos_token_id}.'
-        if cfg.dataset.pop('override_bos_token_id_mismatch_error', False):
+        if dataset_cfg.pop('override_bos_token_id_mismatch_error', False):
             log.warning(bos_mismatch_str)
         else:
             raise ValueError(
@@ -299,14 +308,14 @@ def build_text_dataloader(
                 ' To override this error, set the override_bos_token_id_mismatch_error flag to True in the dataset config section of the YAML.'
             )
 
-    streams = build_streams(**cfg.dataset)
+    streams = build_streams(**dataset_cfg)
 
     # build dataset potentially with streams
     dataset = StreamingTextDataset(
         tokenizer=tokenizer,
         streams=streams,
         batch_size=device_batch_size,
-        **cfg.dataset,
+        **dataset_cfg,
     )
 
     collate_fn = transformers.DataCollatorForLanguageModeling(
@@ -325,12 +334,12 @@ def build_text_dataloader(
         dataset,
         collate_fn=collate_fn,
         batch_size=device_batch_size,
-        drop_last=cfg.drop_last,
-        num_workers=cfg.num_workers,
-        pin_memory=cfg.get('pin_memory', True),
-        prefetch_factor=cfg.get('prefetch_factor', 2),
-        persistent_workers=cfg.get('persistent_workers', True),
-        timeout=cfg.get('timeout', 0),
+        drop_last=drop_last,
+        num_workers=num_workers,
+        pin_memory=pin_memory,
+        prefetch_factor=prefetch_factor,
+        persistent_workers=persistent_workers,
+        timeout=timeout,
     )
 
     # If we pretokenized, we may not have padding, in which case the

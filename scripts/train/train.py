@@ -36,7 +36,7 @@ from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_logger, build_optimizer,
                                        build_scheduler, build_tokenizer)
 from llmfoundry.utils.config_utils import (log_config, pop_config,
-                                           process_init_device, to_str_dict,
+                                           process_init_device,
                                            update_batch_size_info)
 from llmfoundry.utils.registry_utils import import_file
 
@@ -194,7 +194,8 @@ def validate_config(train_config: TrainConfig):
 
 
 def main(cfg: DictConfig) -> Trainer:
-    unstructured_config = cfg
+    unstructured_config = om.to_container(cfg, resolve=True)
+    assert isinstance(unstructured_config, dict)
     # Resolve all interpolation variables as early as possible
     om.resolve(unstructured_config)
 
@@ -226,7 +227,7 @@ def main(cfg: DictConfig) -> Trainer:
         unstructured_config['variables'][key] = unstructured_config.pop(key)
 
     # Create copy of config for logging
-    logged_cfg: DictConfig = copy.deepcopy(unstructured_config)
+    logged_cfg: Dict[str, Any] = copy.deepcopy(unstructured_config)
 
     # Get global and device batch size information from distributed/single node setting
     unstructured_config = update_batch_size_info(unstructured_config)
@@ -281,9 +282,9 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Mandatory model training configs
     model_config: DictConfig = DictConfig(train_cfg.model)
-    tokenizer_config: Dict[str, Any] = to_str_dict(train_cfg.tokenizer)
-    optimizer_config: Dict[str, Any] = to_str_dict(train_cfg.optimizer)
-    scheduler_config: Dict[str, Any] = to_str_dict(train_cfg.scheduler)
+    tokenizer_config: Dict[str, Any] = train_cfg.tokenizer
+    optimizer_config: Dict[str, Any] = train_cfg.optimizer
+    scheduler_config: Dict[str, Any] = train_cfg.scheduler
     train_loader_config: DictConfig = DictConfig(train_cfg.train_loader)
 
     # Optional fsdp data, fine-tuning, and eval configs

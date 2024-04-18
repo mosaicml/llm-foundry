@@ -124,6 +124,7 @@ def validate_config(train_config: TrainConfig):
                             `label` attribute.')
                 loaders.append(loader)
         else:
+            assert train_config.eval_loader is not None  # pyright being pyright
             loaders.append(train_config.eval_loader)
     for loader in loaders:
         if loader['name'] == 'text':

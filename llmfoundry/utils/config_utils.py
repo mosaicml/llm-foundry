@@ -231,7 +231,6 @@ def parse_source_dataset(cfg: DictConfig):
         elif cfg.get(f'{data_split}_loader', {}).get('dataset', {}).get('local', None):
             local_path = cfg.get(f'{data_split}_loader', {}).get('dataset', {}).get('local', None)
             split = cfg.get(f'{data_split}_loader', {}).get('dataset', {}).get('split', None)
-            remote_path = f'{remote_path.rstrip("/")}/{split}/' if split else remote_path
             data_paths.add(('local', local_path, data_split))
 
     return data_paths
@@ -260,7 +259,6 @@ def log_dataset_uri(cfg: DictConfig) -> mlflow.data.meta_dataset.MetaDataset:
         'local': mlflow.data.http_dataset_source.HTTPDatasetSource,
     }
 
-    data_stores = []
     for dataset_type, path, split in data_paths:
         source_class = dataset_source_mapping.get(dataset_type)
         

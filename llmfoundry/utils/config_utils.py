@@ -25,6 +25,13 @@ __all__ = [
 ]
 
 
+def to_str_dict(cfg: DictConfig) -> Dict[str, Any]:
+    """Converts a DictConfig to a dictionary with string keys."""
+    cfg_dict = om.to_container(cfg, resolve=True)
+    assert isinstance(cfg_dict, dict)
+    return {str(k): v for k, v in cfg_dict.items()}
+
+
 def pop_config(cfg: DictConfig,
                key: str,
                must_exist: bool = True,

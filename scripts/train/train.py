@@ -36,7 +36,7 @@ from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_logger, build_optimizer,
                                        build_scheduler, build_tokenizer)
 from llmfoundry.utils.config_utils import (log_config, pop_config,
-                                           process_init_device,
+                                           process_init_device, to_str_dict,
                                            update_batch_size_info)
 from llmfoundry.utils.registry_utils import import_file
 
@@ -280,9 +280,9 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Mandatory model training configs
     model_config: DictConfig = DictConfig(train_cfg.model)
-    tokenizer_config: Dict[str, Any] = {**train_cfg.tokenizer}
-    optimizer_config: Dict[str, Any] = {**train_cfg.optimizer}
-    scheduler_config: Dict[str, Any] = {**train_cfg.scheduler}
+    tokenizer_config: Dict[str, Any] = to_str_dict(train_cfg.tokenizer)
+    optimizer_config: Dict[str, Any] = to_str_dict(train_cfg.optimizer)
+    scheduler_config: Dict[str, Any] = to_str_dict(train_cfg.scheduler)
     train_loader_config: DictConfig = DictConfig(train_cfg.train_loader)
 
     # Optional fsdp data, fine-tuning, and eval configs

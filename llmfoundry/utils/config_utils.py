@@ -34,8 +34,8 @@ def pop_config(cfg: DictConfig,
     """Pop a value from the main config file and return it.
 
     If the key does not exist, return the default_value or raise a RuntimeError
-    depending on the must_exist flag. If the convert flag is set to True, then
-    we will convert the value to a python object using OmegaConf.to_container.
+    depending on the must_exist flag. If the convert flag is set to True, then we will
+    convert the value to a python object using OmegaConf.to_container.
     """
     value = cfg.pop(key, None)
     if value is not None and convert:
@@ -166,8 +166,8 @@ def process_init_device(model_cfg: DictConfig, fsdp_config: Optional[Dict]):
 def log_config(cfg: DictConfig) -> None:
     """Logs the current config and updates the wandb and mlflow configs.
 
-    This function can be called multiple times to update the wandb and MLflow
-    config with different variables.
+    This function can be called multiple times to update the wandb and MLflow config
+    with different variables.
     """
     print(om.to_yaml(cfg))
     if 'wandb' in cfg.get('loggers', {}):
@@ -189,11 +189,13 @@ def log_config(cfg: DictConfig) -> None:
 
 
 def parse_source_dataset(cfg: DictConfig):
-    """
-    Parse a run config for dataset information related to training and evaluation stages.
+    """Parse a run config for dataset information related to training and evaluation
+    stages.
 
-    It supports extracting paths from different sources including local filesystem, remote locations, Hugging Face datasets,
-    Delta tables, and UC volume paths. The function aggregates unique dataset identifiers and their types from the configuration.
+    It supports extracting paths from different sources including local filesystem,
+    remote locations, Hugging Face datasets, Delta tables, and UC volume paths. The
+    function aggregates unique dataset identifiers and their types from the
+    configuration.
     """
     data_paths = set()
 
@@ -240,8 +242,8 @@ def parse_source_dataset(cfg: DictConfig):
 
 
 def log_dataset_uri(cfg: DictConfig) -> mlflow.data.meta_dataset.MetaDataset:
-    """
-    Extract dataset information from the provided configuration and translate it into MLFlow-compatible dataset source instances.
+    """Extract dataset information from the provided configuration and translate it into
+    MLFlow-compatible dataset source instances.
 
     Args:
         cfg (DictConfig): The run configuration object containing dataset definitions.

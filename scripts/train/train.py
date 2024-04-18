@@ -227,7 +227,7 @@ def main(cfg: DictConfig) -> Trainer:
         unstructured_config['variables'][key] = unstructured_config.pop(key)
 
     # Create copy of config for logging
-    logged_cfg: Dict[str, Any] = copy.deepcopy(unstructured_config)
+    logged_cfg: DictConfig = copy.deepcopy(DictConfig(unstructured_config))
 
     # Get global and device batch size information from distributed/single node setting
     unstructured_config = update_batch_size_info(unstructured_config)
@@ -588,7 +588,7 @@ def main(cfg: DictConfig) -> Trainer:
 
     if should_log_config:
         log.info('Logging config')
-        log_config(DictConfig(logged_cfg))
+        log_config(logged_cfg)
     torch.cuda.empty_cache()
     gc.collect()
 

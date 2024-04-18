@@ -240,7 +240,7 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
 
     eval_config: EvalConfig = om.structured(EvalConfig(**unstructured_config))
     # Create copy of config for logging
-    logged_cfg: DictConfig = copy.deepcopy(unstructured_config)
+    logged_cfg: DictConfig = copy.deepcopy(DictConfig(unstructured_config))
 
     # Run user provided code if specified
     code_paths = eval_config.code_paths

@@ -27,7 +27,6 @@ def test_flash2(model_name: str, use_flash_attention_2: bool, init_device: str):
                 'intermediate_size': 64,
                 'hidden_size': 64,
             },
-            'use_auth_token': True,
             'pretrained': False,
             'init_device': init_device,
         }

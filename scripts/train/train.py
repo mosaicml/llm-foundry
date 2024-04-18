@@ -120,7 +120,7 @@ def validate_config(cfg: TrainConfig):
         eval_loader = cfg.eval_loader
         if isinstance(cfg.eval_loaders, list) or isinstance(
                 cfg.eval_loaders, ListConfig):
-            for loader in cfg.eval_loaders:
+            for loader in (cfg.eval_loaders or []):  # pyright
                 if 'label' not in loader or loader['label'] is None:
                     raise ValueError(
                         'When specifying multiple evaluation datasets, each one must include the \
@@ -271,7 +271,7 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Initialize pytorch distributed training process groups
     dist_timeout: Union[int, float] = scfg.dist_timeout
-    # dist.initialize_dist(get_device(None), timeout=dist_timeout)
+    dist.initialize_dist(get_device(None), timeout=dist_timeout)
 
     # Mandatory model training configs
     model_config: DictConfig = DictConfig(scfg.model)

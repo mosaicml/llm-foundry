@@ -107,7 +107,7 @@ def test_auto_packing(profile_packing: Mock):
     profile_packing.return_value = [(1, .9, 0), (2, .8, 0), (3, .7, .5)]
 
     packing_ratio = auto_packing_ratio(
-        dataset_config=DictConfig({'dataset': {
+        dataloader_cfg=DictConfig({'dataset': {
             'max_seq_len': 2048
         }}),
         tokenizer=None,

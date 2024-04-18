@@ -246,18 +246,19 @@ class ConcatenatedSequenceCollatorWrapper:
         return torch.cat([left_zeros, cumulative_sep[:, :-1]], dim=1)
 
 
-def build_streams(streams: Optional[Dict[str, Any]] = None,
-                  **dataset_cfg: DictConfig):
+def build_streams(
+        streams: Optional[Dict[str, Any]] = None,
+        **dataset_cfg_rest: DictConfig  # unused
+):
     streams_dict = streams
     # build streams
-    streams = None
     if streams_dict is not None:
-        streams: List = []
+        streams_ret: List = []
         for _, stream in streams_dict.items():
             # stream is the streams kwargs
             # fwd all kwargs with **stream allows streaming to check args
-            streams.append(Stream(**stream))
-    return streams
+            streams_ret.append(Stream(**stream))
+    return streams_ret
 
 
 def build_text_dataloader(

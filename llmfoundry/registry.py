@@ -6,10 +6,8 @@ from composer.core import Algorithm, Callback, DataSpec
 from composer.loggers import LoggerDestination
 from composer.models import ComposerModel
 from composer.optim import ComposerScheduler
-from omegaconf import DictConfig
 from torch.optim import Optimizer
 from torchmetrics import Metric
-from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.interfaces import CallbackWithConfig
 from llmfoundry.layers_registry import (attention_classes,
@@ -109,7 +107,9 @@ _dataloaders_description = (
 dataloaders = create_registry(
     'llmfoundry',
     'dataloaders',
-    generic_type=Callable[[DictConfig, PreTrainedTokenizerBase, int], DataSpec],
+    generic_type=Callable[
+        ...,
+        DataSpec],  # the arguments to the dataloader may vary depending on the contents of the config.
     entry_points=True,
     description=_dataloaders_description)
 

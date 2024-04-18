@@ -474,11 +474,11 @@ def main(cfg: DictConfig) -> Trainer:
     ## Evaluation
     if use_async_eval:
         evaluators = []
-        if eval_first:
+        if train_cfg.eval_first:
             warnings.warn(
                 'AsyncEval callback does not support eval_first=True. Ignoring.'
             )
-            eval_first = False
+            train_cfg.eval_first = False
 
     else:
         log.info('Building eval loader...')
@@ -497,7 +497,7 @@ def main(cfg: DictConfig) -> Trainer:
 
     if mosaicml_logger is not None:
         log_train_analytics(mosaicml_logger, model_config, train_loader_config,
-                            eval_loader_config, train_cfg.callback_configs,
+                            eval_loader_config, train_cfg.callbacks,
                             tokenizer_name, train_cfg.load_path,
                             icl_tasks_config, eval_gauntlet_config)
     # Build Model
@@ -595,7 +595,7 @@ def main(cfg: DictConfig) -> Trainer:
     gc.collect()
 
     # Eval first if requested
-    if eval_first and trainer.state.timestamp.batch.value == 0:
+    if train_cfg.eval_first and trainer.state.timestamp.batch.value == 0:
         trainer.eval()
 
     log.info('Starting training...')

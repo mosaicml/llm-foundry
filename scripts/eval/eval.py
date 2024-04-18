@@ -342,7 +342,7 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
              icl_subset_num_batches=eval_config.icl_subset_num_batches,
              metadata=eval_config.metadata,
              logged_config=logged_cfg,
-             should_log_config=eval_config.should_log_config,
+             should_log_config=eval_config.log_config,
              **model_cfg)
         trainers.append(trainer)
 

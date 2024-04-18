@@ -116,9 +116,7 @@ def validate_config(train_config: TrainConfig):
     """Validates compatible model and dataloader selection."""
     loaders = [train_config.train_loader]
     if train_config.eval_loader is not None or train_config.eval_loaders is not None:
-        eval_loader = train_config.eval_loader
-        if isinstance(train_config.eval_loaders, list) or isinstance(
-                train_config.eval_loaders, ListConfig):
+        if isinstance(train_config.eval_loaders, list):
             for loader in (train_config.eval_loaders or []):  # pyright
                 if 'label' not in loader or loader['label'] is None:
                     raise ValueError(
@@ -126,8 +124,7 @@ def validate_config(train_config: TrainConfig):
                             `label` attribute.')
                 loaders.append(loader)
         else:
-            if eval_loader is not None:
-                loaders.append(eval_loader)
+            loaders.append(train_config.eval_loader)
     for loader in loaders:
         if loader['name'] == 'text':
             if train_config.model['name'] == 'hf_t5':

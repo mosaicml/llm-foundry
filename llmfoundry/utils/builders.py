@@ -390,7 +390,7 @@ def build_optimizer(model: torch.nn.Module, name: str,
             optimizer_config[k] = om.to_container(v, resolve=True)
 
     params = _extract_param_groups(model, optimizer_config)
-    kwargs = optimizer_config
+    kwargs = {**optimizer_config}
 
     if 'params' in kwargs:
         raise ValueError(

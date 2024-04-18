@@ -115,17 +115,16 @@ TRAIN_CONFIG_KEYS = set(field.name for field in fields(TrainConfig))
 def validate_config(train_config: TrainConfig):
     """Validates compatible model and dataloader selection."""
     loaders = [train_config.train_loader]
-    if train_config.eval_loader is not None or train_config.eval_loaders is not None:
-        if isinstance(train_config.eval_loaders, list):
-            for loader in (train_config.eval_loaders or []):  # pyright
-                if 'label' not in loader or loader['label'] is None:
-                    raise ValueError(
-                        'When specifying multiple evaluation datasets, each one must include the \
+    if train_config.eval_loaders is not None:
+        for loader in (train_config.eval_loaders or []):  # pyright
+            if 'label' not in loader or loader['label'] is None:
+                raise ValueError(
+                    'When specifying multiple evaluation datasets, each one must include the \
                             `label` attribute.')
-                loaders.append(loader)
-        else:
-            assert train_config.eval_loader is not None  # pyright being pyright
-            loaders.append(train_config.eval_loader)
+            loaders.append(loader)
+    if train_config.eval_loader is not None:
+        assert train_config.eval_loaders is None, 'Only one of `eval_loader` or `eval_loaders` should be provided.'
+        loaders.append(train_config.eval_loader)
     for loader in loaders:
         if loader['name'] == 'text':
             if train_config.model['name'] == 'hf_t5':
@@ -194,14 +193,13 @@ def validate_config(train_config: TrainConfig):
 
 
 def main(cfg: DictConfig) -> Trainer:
+    # Resolve all interpolation variables as early as possible
     unstructured_config = om.to_container(cfg, resolve=True)
     assert isinstance(unstructured_config, dict)
-    # Resolve all interpolation variables as early as possible
-    om.resolve(unstructured_config)
 
     # Structured config does not support unions of containers, so separate single and plural containers
     if (loader := unstructured_config.get('eval_loader', None)) is not None:
-        if isinstance(loader, ListConfig):
+        if isinstance(loader, list) or isinstance(loader, ListConfig):
             unstructured_config['eval_loaders'] = list(
                 unstructured_config.pop('eval_loader'))
     if (tasks := unstructured_config.get('icl_tasks', None)) is not None:
@@ -441,7 +439,7 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Callbacks
     callbacks: List[Callback] = [
-        build_callback(str(name), callback_cfg, om.to_container(logged_cfg))
+        build_callback(str(name), callback_cfg, logged_cfg)
         for name, callback_cfg in callback_configs.items()
     ] if callback_configs else []
 
@@ -588,7 +586,7 @@ def main(cfg: DictConfig) -> Trainer:
 
     if should_log_config:
         log.info('Logging config')
-        log_config(logged_cfg)
+        log_config(DictConfig(logged_cfg))
     torch.cuda.empty_cache()
     gc.collect()
 

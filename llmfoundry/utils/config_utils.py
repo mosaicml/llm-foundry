@@ -90,19 +90,19 @@ def calculate_batch_size_info(
 
 
 # Coming soon: this conversion math will be done inside Composer Trainer
-def update_batch_size_info(cfg: DictConfig) -> DictConfig:
+def update_batch_size_info(cfg: Dict[str, Any]) -> DictConfig:
     device_train_batch_size, device_train_microbatch_size, device_train_grad_accum = calculate_batch_size_info(
-        cfg.global_train_batch_size, cfg.device_train_microbatch_size)
-    cfg.n_gpus = dist.get_world_size()
-    cfg.device_train_batch_size = device_train_batch_size
-    cfg.device_train_microbatch_size = device_train_microbatch_size
-    cfg.device_train_grad_accum = device_train_grad_accum
+        cfg['global_train_batch_size'], cfg['device_train_microbatch_size'])
+    cfg['n_gpus'] = dist.get_world_size()
+    cfg['device_train_batch_size'] = device_train_batch_size
+    cfg['device_train_microbatch_size'] = device_train_microbatch_size
+    cfg['device_train_grad_accum'] = device_train_grad_accum
     # Safely set `device_eval_batch_size` if not provided by user
     if 'device_eval_batch_size' not in cfg:
-        if cfg.device_train_microbatch_size == 'auto':
-            cfg.device_eval_batch_size = 1  # TODO debug auto eval microbatching
+        if cfg['device_train_microbatch_size'] == 'auto':
+            cfg['device_eval_batch_size'] = 1  # TODO debug auto eval microbatching
         else:
-            cfg.device_eval_batch_size = cfg.device_train_microbatch_size
+            cfg['device_eval_batch_size'] = cfg.device_train_microbatch_size
     return cfg
 
 

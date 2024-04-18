@@ -107,7 +107,9 @@ def test_auto_packing(profile_packing: Mock):
     profile_packing.return_value = [(1, .9, 0), (2, .8, 0), (3, .7, .5)]
 
     packing_ratio = auto_packing_ratio(
-        dataset_config=DictConfig({'max_seq_len': 2048}),
+        dataset_config=DictConfig({'dataset': {
+            'max_seq_len': 2048
+        }}),
         tokenizer=None,
         device_batch_size=1,
     )  # Dummy values, profiling results are already set.
@@ -132,7 +134,9 @@ def test_dist_auto_packing(profile_packing: Mock):
                                         (3, .7, .5)]  # should pick 2
 
     packing_ratio = auto_packing_ratio(
-        dataloader_cfg=DictConfig({'max_seq_len': 2048}),
+        dataloader_cfg=DictConfig({'dataset': {
+            'max_seq_len': 2048
+        }}),
         tokenizer=None,
         device_batch_size=1,
     )  # Dummy values, profiling results are already set.

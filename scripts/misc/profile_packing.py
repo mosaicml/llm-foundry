@@ -88,9 +88,8 @@ if __name__ == '__main__':
     tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
-    results = profile_packing(dataloader_cfg.dataset, tokenizer, args.min,
-                              args.max, args.num_packing_ratios,
-                              device_batch_size)
+    results = profile_packing(dataloader_cfg, tokenizer, args.min, args.max,
+                              args.num_packing_ratios, device_batch_size)
 
     header = '\n\n\n packing_ratio | % PADDING | % WASTE'
     fstr = '        {:5.1f}  |  {:5.2f}%   | {:6.2f}%'

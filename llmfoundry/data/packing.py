@@ -290,7 +290,7 @@ def _repad(packed_examples: List[Dict[str, torch.Tensor]], max_seq_len: int,
     return batch
 
 
-def auto_packing_ratio(dataset_config: DictConfig,
+def auto_packing_ratio(dataloader_cfg: DictConfig,
                        tokenizer: PreTrainedTokenizerBase,
                        device_batch_size: int,
                        num_packing_ratios: int = 20) -> float:
@@ -324,13 +324,14 @@ def auto_packing_ratio(dataset_config: DictConfig,
     reproducibility.seed_all(0)
 
     # If max_seq_len is very small, skip profiling and select packing ratio of 1.
+    dataset_config = dataloader_cfg.dataset
     max_seq_len = dataset_config.get('max_seq_len')
     if max_seq_len <= 100:
         return 1
 
     min_ratio = 1
     max_ratio = max_seq_len / 100
-    profiling_results = profile_packing(dataset_config=dataset_config,
+    profiling_results = profile_packing(dataloader_cfg=dataloader_cfg,
                                         tokenizer=tokenizer,
                                         min_ratio=min_ratio,
                                         max_ratio=max_ratio,
@@ -360,9 +361,12 @@ def auto_packing_ratio(dataset_config: DictConfig,
 
 
 def profile_packing(
-    dataset_config: DictConfig, tokenizer: PreTrainedTokenizerBase,
-    min_ratio: float, max_ratio: float, num_packing_ratios: int,
-    device_batch_size: int
+    dataloader_cfg: DictConfig,
+    tokenizer: PreTrainedTokenizerBase,
+    min_ratio: float,
+    max_ratio: float,
+    num_packing_ratios: int,
+    device_batch_size: int,
 ) -> Iterable[Tuple[float, Optional[float], Optional[float]]]:
     """Generator function that profiles example packing across packing ratios.
 
@@ -381,13 +385,13 @@ def profile_packing(
 
     from llmfoundry.data.dataloader import build_dataloader
 
-    max_seq_len = dataloader_cfg.dataset.get('max_seq_len')
-    max_leftovers_to_keep = dataloader_cfg.dataset.get('max_leftovers_to_keep',
-                                                       None)
+    dataset_cfg = dataloader_cfg.dataset
+    max_seq_len = dataset_cfg.get('max_seq_len')
+    max_leftovers_to_keep = dataset_cfg.get('max_leftovers_to_keep', None)
 
     # Turn off packing for the dataloader (we want raw, pre-packed examples)
-    dataloader_cfg = DictConfig({
-        'dataset': copy.deepcopy(dataset_config),
+    dataloader_cfg = copy.deepcopy(dataloader_cfg)
+    dataloader_cfg.update({
         'drop_last': False,
         'num_workers': 0,
         'prefetch_factor': None,

@@ -147,12 +147,21 @@ def build_finetuning_dataloader(
     if tokenizer.pad_token is None:  # type: ignore (sometimes it's none and that's ok)
         tokenizer.pad_token = tokenizer.eos_token
 
+    # this full config is necessary for properly profiling the packing ratio
+    dataloader_cfg = DictConfig({
+        'name': name,
+        'dataset': dataset_cfg,
+        'drop_last': drop_last,
+        'num_workers': num_workers,
+        'pin_memory': pin_memory,
+        'prefetch_factor': prefetch_factor,
+        'persistent_workers': persistent_workers,
+        'timeout': timeout,
+    })
     collate_fn, dataloader_batch_size = _build_collate_fn(
-        dataset_cfg=dataset_cfg,
+        dataloader_cfg=dataloader_cfg,
         tokenizer=tokenizer,
         device_batch_size=device_batch_size,
-        max_seq_len=dataset_cfg.max_seq_len,
-        decoder_only_format=dataset_cfg.decoder_only_format,
     )
 
     dataset = None  # for pyright
@@ -439,17 +448,19 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
 
 
 def _build_collate_fn(
+    dataloader_cfg: DictConfig,
     tokenizer: PreTrainedTokenizerBase,
     device_batch_size: int,
-    max_seq_len: int,
-    decoder_only_format: bool,
-    dataset_cfg: DictConfig,
-    max_leftover_bins_to_keep: Optional[int] = None,
-    packing_ratio: Optional[Union[float, str]] = None,
-    target_responses: str = _DEFAULT_TARGET_RESPONSES,
-    target_prompts: str = _DEFAULT_TARGET_PROMPTS,
-    allow_pad_trimming: bool = False,
 ) -> Tuple[Union[Seq2SeqFinetuningCollator, BinPackCollator], int]:
+    # these `.get` calls are safe because the dataset_cfg is validated for extra keys
+    dataset_cfg = dataloader_cfg.dataset
+    target_responses = dataset_cfg.get('target_responses',
+                                       _DEFAULT_TARGET_RESPONSES)
+    target_prompts = dataset_cfg.get('target_prompts', _DEFAULT_TARGET_PROMPTS)
+    max_seq_len = dataset_cfg.max_seq_len
+    decoder_only_format = dataset_cfg.decoder_only_format
+    allow_pad_trimming = dataset_cfg.get('allow_pad_trimming', False)
+
     collate_fn = Seq2SeqFinetuningCollator(
         tokenizer=tokenizer,
         max_seq_len=max_seq_len,
@@ -459,8 +470,8 @@ def _build_collate_fn(
         allow_pad_trimming=allow_pad_trimming,
     )
 
-    packing_ratio = packing_ratio
-    max_leftover_bins_to_keep = max_leftover_bins_to_keep
+    packing_ratio = dataset_cfg.get('packing_ratio')
+    max_leftover_bins_to_keep = dataset_cfg.get('max_leftover_bins_to_keep')
     if packing_ratio is None:
         if max_leftover_bins_to_keep is not None:
             raise ValueError(
@@ -470,7 +481,7 @@ def _build_collate_fn(
         return collate_fn, device_batch_size
 
     if packing_ratio == 'auto':
-        packing_ratio = auto_packing_ratio(dataset_config=dataset_cfg,
+        packing_ratio = auto_packing_ratio(dataloader_cfg=dataloader_cfg,
                                            tokenizer=tokenizer,
                                            device_batch_size=device_batch_size)
 

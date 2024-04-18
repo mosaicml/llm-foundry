@@ -219,8 +219,8 @@ def main(cfg: DictConfig) -> Trainer:
 
     for key in extraneous_keys:
         warnings.warn(
-            f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary. Interpreting {key} as a variable for logging purposes.'
-        )
+            f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary. Interpreting {key} as a variable for logging purposes. This behavior is deprecated.',
+            DeprecationWarning)
         # TODO (milo): delete the below line once we deprecate variables at the top level.
         unstructured_config['variables'][key] = unstructured_config.pop(key)
 

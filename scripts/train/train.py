@@ -11,7 +11,7 @@ from dataclasses import dataclass, fields
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
-from composer import Trainer
+from composer import ComposerModel, Trainer
 from composer.core.callback import Callback
 from composer.profiler import (JSONTraceHandler, Profiler, TraceHandler,
                                cyclic_schedule)
@@ -272,6 +272,26 @@ def _make_train_and_log_config(
     return logged_cfg, train_cfg
 
 
+def _log_num_params(model: ComposerModel, logged_cfg: DictConfig):
+    # Log number of parameters
+    if hasattr(model, 'n_total_params'):
+        n_params = model.n_total_params
+        n_trainable_params = n_params  # TODO: we currently assume all parameters are trainable.
+    else:
+        n_params = sum(p.numel() for p in model.parameters())
+        n_trainable_params = sum(
+            p.numel() for p in model.parameters() if p.requires_grad)
+    if hasattr(model, 'n_active_params'):
+        n_active_params = model.n_active_params
+    else:
+        n_active_params = n_params
+    logged_cfg.update({
+        'n_params': n_params,
+        'n_active_params': n_active_params,
+        'n_trainable_params': n_trainable_params,
+    })
+
+
 def main(cfg: DictConfig) -> Trainer:
     logged_cfg, train_cfg = _make_train_and_log_config(cfg)
 
@@ -328,18 +348,16 @@ def main(cfg: DictConfig) -> Trainer:
     if train_cfg.eval_loader is not None and train_cfg.eval_loaders is not None:
         raise ValueError(
             'Only one of `eval_loader` or `eval_loaders` should be provided.')
-    eval_loader_config: Optional[Union[DictConfig, ListConfig]] = DictConfig(
+    eval_loader_config = DictConfig(
         train_cfg.eval_loader
     ) if train_cfg.eval_loader is not None else ListConfig(
         train_cfg.eval_loaders) if train_cfg.eval_loaders is not None else None
-    icl_tasks_config: Optional[Union[ListConfig, str]] = ListConfig(
+    icl_tasks_config = ListConfig(
         train_cfg.icl_tasks
     ) if train_cfg.icl_tasks is not None else train_cfg.icl_tasks_str
-    eval_gauntlet_config: Optional[Union[DictConfig, str]] = DictConfig(
+    eval_gauntlet_config = DictConfig(
         train_cfg.eval_gauntlet
     ) if train_cfg.eval_gauntlet is not None else train_cfg.eval_gauntlet_str
-    icl_subset_num_batches: Optional[int] = train_cfg.icl_subset_num_batches
-    icl_seq_len: Optional[int] = train_cfg.icl_seq_len
 
     # Optional parameters will be set to default values if not specified.
     default_run_name: str = os.environ.get('RUN_NAME', 'llm')
@@ -360,8 +378,6 @@ def main(cfg: DictConfig) -> Trainer:
     if not train_cfg.autoresume and autoresume_default:
         log.info('As run_name, save_folder, and save_latest_filename are set, \
                 changing autoresume default to True...')
-
-    autoresume: bool = train_cfg.autoresume
 
     # Warn if fsdp is enabled but user only has 1 GPU
     if dist.get_world_size() == 1 and fsdp_config is not None:
@@ -482,7 +498,7 @@ def main(cfg: DictConfig) -> Trainer:
 
     else:
         log.info('Building eval loader...')
-        eval_icl_seq_len: int = icl_seq_len if icl_seq_len else train_cfg.max_seq_len
+        eval_icl_seq_len: int = train_cfg.icl_seq_len if train_cfg.icl_seq_len else train_cfg.max_seq_len
         evaluators, _, eval_gauntlet_callback = build_evaluators(
             eval_loader_config,
             icl_tasks_config,
@@ -490,7 +506,7 @@ def main(cfg: DictConfig) -> Trainer:
             tokenizer=tokenizer,
             device_eval_batch_size=train_cfg.device_eval_batch_size,
             icl_seq_len=eval_icl_seq_len,
-            icl_subset_num_batches=icl_subset_num_batches,
+            icl_subset_num_batches=train_cfg.icl_subset_num_batches,
         )
         if eval_gauntlet_callback is not None:
             callbacks.append(eval_gauntlet_callback)
@@ -510,23 +526,7 @@ def main(cfg: DictConfig) -> Trainer:
         cfg=model_config,
     )
 
-    # Log number of parameters
-    if hasattr(model, 'n_total_params'):
-        n_params = model.n_total_params
-        n_trainable_params = n_params  # TODO: we currently assume all parameters are trainable.
-    else:
-        n_params = sum(p.numel() for p in model.parameters())
-        n_trainable_params = sum(
-            p.numel() for p in model.parameters() if p.requires_grad)
-    if hasattr(model, 'n_active_params'):
-        n_active_params = model.n_active_params
-    else:
-        n_active_params = n_params
-    logged_cfg.update({
-        'n_params': n_params,
-        'n_active_params': n_active_params,
-        'n_trainable_params': n_trainable_params,
-    })
+    _log_num_params(model, logged_cfg)
 
     # Optimizer
     optimizer_name: str = train_cfg.optimizer.pop('name')
@@ -581,7 +581,7 @@ def main(cfg: DictConfig) -> Trainer:
         load_strict_model_weights=train_cfg.load_strict_model_weights,
         load_ignore_keys=train_cfg.load_ignore_keys,
         save_ignore_keys=train_cfg.save_ignore_keys,
-        autoresume=autoresume,
+        autoresume=train_cfg.autoresume,
         python_log_level=train_cfg.python_log_level,
         dist_timeout=dist_timeout,
         profiler=profiler,

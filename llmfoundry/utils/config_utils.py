@@ -5,6 +5,7 @@ import contextlib
 import logging
 import math
 import warnings
+import mlflow
 from typing import Any, Dict, Literal, Mapping, Optional, Tuple, Union
 
 from composer.utils import dist

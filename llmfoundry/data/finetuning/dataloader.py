@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import logging
 import os
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 import torch
 from composer.core.data_spec import DataSpec
@@ -31,9 +31,11 @@ _DEFAULT_TARGET_RESPONSES = 'last'
 _DEFAULT_TARGET_PROMPTS = 'none'
 
 
-def build_finetuning_dataloader(cfg: DictConfig,
-                                tokenizer: PreTrainedTokenizerBase,
-                                device_batch_size: int) -> DataSpec:
+def build_finetuning_dataloader(
+    tokenizer: PreTrainedTokenizerBase,
+    device_batch_size: int,
+    dataset: DictConfig,
+) -> DataSpec:
     """Builds a finetuning dataloader for training or evaluating.
 
     The underlying dataset can be built through one of two code paths:
@@ -131,14 +133,16 @@ def build_finetuning_dataloader(cfg: DictConfig,
         padding/waste rates for different `cfg.dataset.packing_ratio` choices,
         given a starting workload YAML.
     """
-    _validate_config(cfg.dataset)
+    _validate_config(dataset)
 
     # Use EOS as the pad token if none exists
-    if tokenizer.pad_token is None:
+    if tokenizer.pad_token is None:  # type: ignore (sometimes it's none and that's ok)
         tokenizer.pad_token = tokenizer.eos_token
 
     collate_fn, dataloader_batch_size = _build_collate_fn(
-        cfg, tokenizer, device_batch_size)
+        dataset=dataset,
+        tokenizer=tokenizer,
+        device_batch_size=device_batch_size)
 
     dataset = None  # for pyright
     sampler = None
@@ -422,25 +426,30 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
 
 
 def _build_collate_fn(
-    dataloader_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
-    device_batch_size: int
+    tokenizer: PreTrainedTokenizerBase,
+    device_batch_size: int,
+    max_seq_len: int,
+    decoder_only_format: bool,
+    dataset: DictConfig,
+    max_leftover_bins_to_keep: Optional[int] = None,
+    packing_ratio: Optional[Union[float, str]] = None,
+    target_responses: str = _DEFAULT_TARGET_RESPONSES,
+    target_prompts: str = _DEFAULT_TARGET_PROMPTS,
+    allow_pad_trimming: bool = False,
 ) -> Tuple[Union[Seq2SeqFinetuningCollator, BinPackCollator], int]:
-    dataset_cfg = dataloader_cfg.dataset
-    max_seq_len = dataset_cfg.max_seq_len
+    max_seq_len = max_seq_len
 
     collate_fn = Seq2SeqFinetuningCollator(
         tokenizer=tokenizer,
         max_seq_len=max_seq_len,
-        decoder_only_format=dataset_cfg.decoder_only_format,
-        target_responses=dataset_cfg.get('target_responses',
-                                         _DEFAULT_TARGET_RESPONSES),
-        target_prompts=dataset_cfg.get('target_prompts',
-                                       _DEFAULT_TARGET_PROMPTS),
-        allow_pad_trimming=dataset_cfg.get('allow_pad_trimming', False),
+        decoder_only_format=decoder_only_format,
+        target_responses=target_responses,
+        target_prompts=target_prompts,
+        allow_pad_trimming=allow_pad_trimming,
     )
 
-    packing_ratio = dataset_cfg.get('packing_ratio')
-    max_leftover_bins_to_keep = dataset_cfg.get('max_leftover_bins_to_keep')
+    packing_ratio = packing_ratio
+    max_leftover_bins_to_keep = max_leftover_bins_to_keep
     if packing_ratio is None:
         if max_leftover_bins_to_keep is not None:
             raise ValueError(
@@ -450,8 +459,9 @@ def _build_collate_fn(
         return collate_fn, device_batch_size
 
     if packing_ratio == 'auto':
-        packing_ratio = auto_packing_ratio(dataloader_cfg, tokenizer,
-                                           device_batch_size)
+        packing_ratio = auto_packing_ratio(dataset_config=dataset,
+                                           tokenizer=tokenizer,
+                                           device_batch_size=device_batch_size)
 
     if isinstance(packing_ratio, str):
         raise ValueError(
@@ -465,7 +475,7 @@ def _build_collate_fn(
     elif packing_ratio < 1.0:
         raise ValueError('packing_ratio must be >= 1, if supplied')
 
-    if not dataset_cfg.decoder_only_format:
+    if not decoder_only_format:
         raise NotImplementedError(
             'On-the-fly packing is currently only supported for decoder-only formats.'
         )

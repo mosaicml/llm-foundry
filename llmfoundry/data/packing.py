@@ -290,8 +290,9 @@ def _repad(packed_examples: List[Dict[str, torch.Tensor]], max_seq_len: int,
     return batch
 
 
-def auto_packing_ratio(dataloader_cfg: DictConfig,
+def auto_packing_ratio(dataset_config: DictConfig,
                        tokenizer: PreTrainedTokenizerBase,
+                       max_seq_len: int,
                        device_batch_size: int,
                        num_packing_ratios: int = 20) -> float:
     """Find a packing ratio that minimizes padding with zero waste.
@@ -323,16 +324,18 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
     # Set the seed so that auto packing is deterministic.
     reproducibility.seed_all(0)
 
-    max_seq_len = dataloader_cfg.dataset.max_seq_len
     # If max_seq_len is very small, skip profiling and select packing ratio of 1.
     if max_seq_len <= 100:
         return 1
 
     min_ratio = 1
     max_ratio = max_seq_len / 100
-    profiling_results = profile_packing(dataloader_cfg, tokenizer, min_ratio,
-                                        max_ratio, num_packing_ratios,
-                                        device_batch_size)
+    profiling_results = profile_packing(dataset_config=dataset_config,
+                                        tokenizer=tokenizer,
+                                        min_ratio=min_ratio,
+                                        max_ratio=max_ratio,
+                                        num_packing_ratios=num_packing_ratios,
+                                        device_batch_size=device_batch_size)
 
     # Obtain the maximum packing_ratio/minimum padding that has no waste.
     # profiling_results are sorted from smallest to largest packing_ratio.
@@ -357,7 +360,7 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
 
 
 def profile_packing(
-    dataloader_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
+    dataset_config: DictConfig, tokenizer: PreTrainedTokenizerBase,
     min_ratio: float, max_ratio: float, num_packing_ratios: int,
     device_batch_size: int
 ) -> Iterable[Tuple[float, Optional[float], Optional[float]]]:
@@ -383,12 +386,14 @@ def profile_packing(
                                                        None)
 
     # Turn off packing for the dataloader (we want raw, pre-packed examples)
-    dataloader_cfg = copy.deepcopy(dataloader_cfg)
+    dataloader_cfg = DictConfig({
+        'dataset': copy.deepcopy(dataset_config),
+        'drop_last': False,
+        'num_workers': 0,
+        'prefetch_factor': None,
+        'persistent_workers': False,
+    })
     dataloader_cfg.dataset.packing_ratio = 1.0
-    dataloader_cfg.drop_last = False
-    dataloader_cfg.num_workers = 0
-    dataloader_cfg.prefetch_factor = None
-    dataloader_cfg.persistent_workers = False
 
     # If streaming dataset, use a temporary local folder for profiling
     local_rank_zero = dist.get_global_rank() - dist.get_local_rank()

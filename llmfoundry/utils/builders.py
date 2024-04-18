@@ -377,7 +377,7 @@ def _extract_param_groups(
 
 
 def build_optimizer(model: torch.nn.Module, name: str,
-                    **optimizer_config: Dict[str, Any]) -> Optimizer:
+                    optimizer_config: Dict[str, Any]) -> Optimizer:
 
     for k, v in optimizer_config.items():
         if isinstance(v, DictConfig):

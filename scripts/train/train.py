@@ -112,14 +112,14 @@ class TrainConfig:
 TRAIN_CONFIG_KEYS = set(field.name for field in fields(TrainConfig))
 
 
-def validate_config(cfg: TrainConfig):
+def validate_config(train_config: TrainConfig):
     """Validates compatible model and dataloader selection."""
-    loaders = [cfg.train_loader]
-    if cfg.eval_loader is not None or cfg.eval_loaders is not None:
-        eval_loader = cfg.eval_loader
-        if isinstance(cfg.eval_loaders, list) or isinstance(
-                cfg.eval_loaders, ListConfig):
-            for loader in (cfg.eval_loaders or []):  # pyright
+    loaders = [train_config.train_loader]
+    if train_config.eval_loader is not None or train_config.eval_loaders is not None:
+        eval_loader = train_config.eval_loader
+        if isinstance(train_config.eval_loaders, list) or isinstance(
+                train_config.eval_loaders, ListConfig):
+            for loader in (train_config.eval_loaders or []):  # pyright
                 if 'label' not in loader or loader['label'] is None:
                     raise ValueError(
                         'When specifying multiple evaluation datasets, each one must include the \
@@ -130,29 +130,30 @@ def validate_config(cfg: TrainConfig):
                 loaders.append(eval_loader)
     for loader in loaders:
         if loader['name'] == 'text':
-            if cfg.model['name'] == 'hf_t5':
+            if train_config.model['name'] == 'hf_t5':
                 raise ValueError(
-                    f'Model type "{cfg.model["name"]}" is not supported when using the "text " ' +\
+                    f'Model type "{train_config.model["name"]}" is not supported when using the "text " ' +\
                     f'dataloader. Only finetuning is supported.')
 
-    if cfg.icl_tasks is not None or cfg.icl_tasks_str is not None:
-        if cfg.model['name'] == 'hf_t5':
+    if train_config.icl_tasks is not None or train_config.icl_tasks_str is not None:
+        if train_config.model['name'] == 'hf_t5':
             raise ValueError(
                 'ICL evaluation does not currently support Encoder-Decoder models, such as "hf_t5".'
             )
 
-    if (cfg.model.get('fc_type', 'torch') != 'te' and 'te' not in cfg.model.get(
-            'ffn_config', {}).get('ffn_type', 'mptmlp') and
-            'fp8' in cfg.precision):
+    if (train_config.model.get('fc_type', 'torch') != 'te' and
+            'te' not in train_config.model.get('ffn_config', {}).get(
+                'ffn_type', 'mptmlp') and 'fp8' in train_config.precision):
         warnings.warn(
             "fp8 only supported for te.Linear layers. Either set `cfg.model.fc_typ='te'` or "
             +
             "`cfg.model.ffn_config.ffn_type='te_ln_mlp'` to enable layers using fp8 precision."
         )
 
-    if (cfg.model.get('fc_type', 'torch') == 'te' or
-            'te' in cfg.model.get('ffn_config', {}).get('ffn_type', 'mptmlp')):
-        fsdp_config = cfg.fsdp_config or DictConfig({})
+    if (train_config.model.get('fc_type', 'torch') == 'te' or
+            'te' in train_config.model.get('ffn_config', {}).get(
+                'ffn_type', 'mptmlp')):
+        fsdp_config = train_config.fsdp_config or DictConfig({})
         act_ckpt = fsdp_config.get('activation_checkpointing',
                                    False) if fsdp_config else False
         act_ckpt_reentrant = fsdp_config.get(
@@ -163,27 +164,31 @@ def validate_config(cfg: TrainConfig):
                 + '`activation_checkpointing_reentrant = True`. ' +
                 'Setting cfg.fsdp_config.activation_checkpointing_reentrant=False.'
             )
-            if cfg.fsdp_config is not None:
-                cfg.fsdp_config['activation_checkpointing_reentrant'] = False
+            if train_config.fsdp_config is not None:
+                train_config.fsdp_config[
+                    'activation_checkpointing_reentrant'] = False
 
-    if cfg.model.get('ffn_config', {}).get('ffn_type', 'mptmlp') == 'te_ln_mlp':
+    if train_config.model.get('ffn_config', {}).get('ffn_type',
+                                                    'mptmlp') == 'te_ln_mlp':
         warnings.warn(
             '`te.LayerNormMLP` requires has issues with torch._dynamo. ' +
             'Setting `torch._dynamo.config.suppress_errors = True` and falling back to eager.'
         )
         torch._dynamo.config.suppress_errors = True  # type: ignore (third-party)
 
-    if cfg.model.get('load_in_8bit', False):
+    if train_config.model.get('load_in_8bit', False):
         raise ValueError(
             '`load_in_8bit` is only supported for evaluation rather than training.'
         )
 
-    if cfg.model.get('ffn_config', {}).get('ffn_type',
-                                           'mptmlp') in ffns_with_megablocks:
-        moe_world_size = cfg.model.get('ffn_config',
-                                       {}).get('moe_world_size', 1)
-        use_orig_params = cfg.fsdp_config.get(
-            'use_orig_params', True) if cfg.fsdp_config is not None else True
+    if train_config.model.get('ffn_config',
+                              {}).get('ffn_type',
+                                      'mptmlp') in ffns_with_megablocks:
+        moe_world_size = train_config.model.get('ffn_config',
+                                                {}).get('moe_world_size', 1)
+        use_orig_params = train_config.fsdp_config.get(
+            'use_orig_params',
+            True) if train_config.fsdp_config is not None else True
         if moe_world_size > 1 and not use_orig_params:
             raise ValueError(
                 f'MoEs with expert parallelism (moe_world_size {moe_world_size} > 1) require `use_orig_params=True`.'
@@ -191,45 +196,49 @@ def validate_config(cfg: TrainConfig):
 
 
 def main(cfg: DictConfig) -> Trainer:
+    unstructured_config = cfg
     # Resolve all interpolation variables as early as possible
-    om.resolve(cfg)
+    om.resolve(unstructured_config)
 
     # Structured config does not support unions of containers, so separate single and plural containers
-    if (loader := cfg.get('eval_loader', None)) is not None:
+    if (loader := unstructured_config.get('eval_loader', None)) is not None:
         if isinstance(loader, ListConfig):
-            cfg['eval_loaders'] = list(cfg.pop('eval_loader'))
-    if (tasks := cfg.get('icl_tasks', None)) is not None:
+            unstructured_config['eval_loaders'] = list(
+                unstructured_config.pop('eval_loader'))
+    if (tasks := unstructured_config.get('icl_tasks', None)) is not None:
         if isinstance(tasks, str):
-            cfg['icl_tasks_str'] = cfg.pop('icl_tasks')
-    if (gauntlet := cfg.get('eval_gauntlet', None)) is not None:
+            unstructured_config['icl_tasks_str'] = unstructured_config.pop(
+                'icl_tasks')
+    if (gauntlet := unstructured_config.get('eval_gauntlet', None)) is not None:
         if isinstance(gauntlet, str):
-            cfg['eval_gauntlet_str'] = cfg.pop('eval_gauntlet')
+            unstructured_config['eval_gauntlet_str'] = unstructured_config.pop(
+                'eval_gauntlet')
 
-    arg_config_keys = set(cfg.keys())
+    arg_config_keys = set(unstructured_config.keys())
     extraneous_keys = set.difference(arg_config_keys, TRAIN_CONFIG_KEYS)
 
-    if 'variables' not in cfg:
-        cfg['variables'] = {}
+    if 'variables' not in unstructured_config:
+        unstructured_config['variables'] = {}
 
     for key in extraneous_keys:
         warnings.warn(
             f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary. Interpreting {key} as a variable for logging purposes.'
         )
         # TODO (milo): delete the below line once we deprecate variables at the top level.
-        cfg['variables'][key] = cfg.pop(key)
+        unstructured_config['variables'][key] = unstructured_config.pop(key)
 
     # Create copy of config for logging
-    logged_cfg: DictConfig = copy.deepcopy(cfg)
+    logged_cfg: DictConfig = copy.deepcopy(unstructured_config)
 
     # Get global and device batch size information from distributed/single node setting
-    cfg = update_batch_size_info(cfg)
-    logged_cfg.update(cfg, merge=True)
+    unstructured_config = update_batch_size_info(unstructured_config)
+    logged_cfg.update(unstructured_config, merge=True)
 
-    scfg: TrainConfig = om.structured(
-        TrainConfig(**cfg)
+    train_cfg: TrainConfig = om.structured(
+        TrainConfig(**unstructured_config)
     )  # type: ignore (TrainConfig does expect arguments, the type checker is wrong here)
 
-    code_paths = scfg.code_paths if scfg.code_paths else []
+    code_paths = train_cfg.code_paths if train_cfg.code_paths else []
     # Import any user provided code
     for code_path in code_paths:
         import_file(code_path)
@@ -243,16 +252,16 @@ def main(cfg: DictConfig) -> Trainer:
     )
 
     # Check for incompatibilities between the model and data loaders
-    validate_config(scfg)
+    validate_config(train_cfg)
 
     cuda_alloc_conf = []
     # Get max split size mb
-    max_split_size_mb: Optional[int] = scfg.max_split_size_mb
+    max_split_size_mb: Optional[int] = train_cfg.max_split_size_mb
     if max_split_size_mb is not None:
         cuda_alloc_conf.append(f'max_split_size_mb:{max_split_size_mb}')
 
     # Expandable segments
-    if scfg.expandable_segments:
+    if train_cfg.expandable_segments:
         cuda_alloc_conf.append('expandable_segments:True')
 
     if len(cuda_alloc_conf) > 0:
@@ -260,82 +269,84 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Set CUDA lazy loading
     # This can save a bit of memory if not all modules are needed
-    cuda_load_lazy: bool = scfg.cuda_load_lazy
+    cuda_load_lazy: bool = train_cfg.cuda_load_lazy
     if cuda_load_lazy:
         os.environ['CUDA_MODULE_LOADING'] = 'LAZY'
 
     # Set seed first
-    seed: int = scfg.seed
+    seed: int = train_cfg.seed
     reproducibility.seed_all(seed)
 
     # Initialize pytorch distributed training process groups
-    dist_timeout: Union[int, float] = scfg.dist_timeout
+    dist_timeout: Union[int, float] = train_cfg.dist_timeout
     dist.initialize_dist(get_device(None), timeout=dist_timeout)
 
     # Mandatory model training configs
-    model_config: DictConfig = DictConfig(scfg.model)
-    tokenizer_config: Dict[str, Any] = {**scfg.tokenizer}
-    optimizer_config: Dict[str, Any] = {**scfg.optimizer}
-    scheduler_config: Dict[str, Any] = {**scfg.scheduler}
-    train_loader_config: DictConfig = DictConfig(scfg.train_loader)
+    model_config: DictConfig = DictConfig(train_cfg.model)
+    tokenizer_config: Dict[str, Any] = {**train_cfg.tokenizer}
+    optimizer_config: Dict[str, Any] = {**train_cfg.optimizer}
+    scheduler_config: Dict[str, Any] = {**train_cfg.scheduler}
+    train_loader_config: DictConfig = DictConfig(train_cfg.train_loader)
 
     # Optional fsdp data, fine-tuning, and eval configs
-    fsdp_config: Optional[Dict[str, Any]] = scfg.fsdp_config
+    fsdp_config: Optional[Dict[str, Any]] = train_cfg.fsdp_config
 
-    if scfg.eval_loader is not None and scfg.eval_loaders is not None:
+    if train_cfg.eval_loader is not None and train_cfg.eval_loaders is not None:
         raise ValueError(
             'Only one of `eval_loader` or `eval_loaders` should be provided.')
     eval_loader_config: Optional[Union[DictConfig, ListConfig]] = DictConfig(
-        scfg.eval_loader) if scfg.eval_loader is not None else ListConfig(
-            scfg.eval_loaders) if scfg.eval_loaders is not None else None
+        train_cfg.eval_loader
+    ) if train_cfg.eval_loader is not None else ListConfig(
+        train_cfg.eval_loaders) if train_cfg.eval_loaders is not None else None
     icl_tasks_config: Optional[Union[ListConfig, str]] = ListConfig(
-        scfg.icl_tasks) if scfg.icl_tasks is not None else scfg.icl_tasks_str
+        train_cfg.icl_tasks
+    ) if train_cfg.icl_tasks is not None else train_cfg.icl_tasks_str
     eval_gauntlet_config: Optional[Union[DictConfig, str]] = DictConfig(
-        scfg.eval_gauntlet
-    ) if scfg.eval_gauntlet is not None else scfg.eval_gauntlet_str
-    icl_subset_num_batches: Optional[int] = scfg.icl_subset_num_batches
-    icl_seq_len: Optional[int] = scfg.icl_seq_len
+        train_cfg.eval_gauntlet
+    ) if train_cfg.eval_gauntlet is not None else train_cfg.eval_gauntlet_str
+    icl_subset_num_batches: Optional[int] = train_cfg.icl_subset_num_batches
+    icl_seq_len: Optional[int] = train_cfg.icl_seq_len
     # Optional logging, evaluation and callback configs
-    logger_configs: Optional[Dict[str, Any]] = scfg.loggers
-    callback_configs: Optional[Dict[str, Any]] = scfg.callbacks
-    algorithm_configs: Optional[Dict[str, Any]] = scfg.algorithms
+    logger_configs: Optional[Dict[str, Any]] = train_cfg.loggers
+    callback_configs: Optional[Dict[str, Any]] = train_cfg.callbacks
+    algorithm_configs: Optional[Dict[str, Any]] = train_cfg.algorithms
 
     # Mandatory hyperparameters for training
-    device_train_batch_size: int = scfg.device_train_batch_size
-    device_eval_batch_size: int = scfg.device_eval_batch_size
-    max_duration: Union[int, str] = scfg.max_duration
-    eval_interval: Union[int, str] = scfg.eval_interval
-    precision: str = scfg.precision
-    max_seq_len: int = scfg.max_seq_len
+    device_train_batch_size: int = train_cfg.device_train_batch_size
+    device_eval_batch_size: int = train_cfg.device_eval_batch_size
+    max_duration: Union[int, str] = train_cfg.max_duration
+    eval_interval: Union[int, str] = train_cfg.eval_interval
+    precision: str = train_cfg.precision
+    max_seq_len: int = train_cfg.max_seq_len
 
     # Optional parameters will be set to default values if not specified.
     default_run_name: str = os.environ.get('RUN_NAME', 'llm')
-    run_name: str = scfg.run_name if scfg.run_name else default_run_name
-    save_folder: Optional[str] = scfg.save_folder
+    run_name: str = train_cfg.run_name if train_cfg.run_name else default_run_name
+    save_folder: Optional[str] = train_cfg.save_folder
     is_state_dict_sharded: bool = (fsdp_config.get('state_dict_type', 'full')
                                    == 'sharded') if fsdp_config else False
-    save_latest_filename: str = scfg.save_latest_filename if scfg.save_latest_filename else 'latest-sharded-rank{rank}' if is_state_dict_sharded else 'latest-rank{rank}.pt'
-    save_overwrite: bool = scfg.save_overwrite
-    save_weights_only: bool = scfg.save_weights_only
-    save_filename: str = scfg.save_filename if scfg.save_filename else 'ep{epoch}-ba{batch}-rank{rank}.pt'
-    save_interval: Union[str, int] = scfg.save_interval
-    save_num_checkpoints_to_keep: int = scfg.save_num_checkpoints_to_keep
-    progress_bar = scfg.progress_bar
-    log_to_console: bool = scfg.log_to_console
-    python_log_level: Optional[str] = scfg.python_log_level
-    console_log_interval: Union[int, str] = scfg.console_log_interval
-    device_train_microbatch_size: Union[str,
-                                        int] = scfg.device_train_microbatch_size
-    eval_subset_num_batches: int = scfg.eval_subset_num_batches
-    eval_first: bool = scfg.eval_first
-    load_path: Optional[str] = scfg.load_path
-    load_weights_only: bool = scfg.load_weights_only
-    load_strict_model_weights: bool = scfg.load_strict_model_weights
-    load_ignore_keys: Optional[List[str]] = scfg.load_ignore_keys
-    save_ignore_keys: Optional[List[str]] = scfg.save_ignore_keys
-    compile_config: Optional[Dict[str, Any]] = scfg.compile_config
-    metadata: Optional[Dict[str, Any]] = scfg.metadata
-    should_log_config: bool = scfg.log_config
+    save_latest_filename: str = train_cfg.save_latest_filename if train_cfg.save_latest_filename else 'latest-sharded-rank{rank}' if is_state_dict_sharded else 'latest-rank{rank}.pt'
+    save_overwrite: bool = train_cfg.save_overwrite
+    save_weights_only: bool = train_cfg.save_weights_only
+    save_filename: str = train_cfg.save_filename if train_cfg.save_filename else 'ep{epoch}-ba{batch}-rank{rank}.pt'
+    save_interval: Union[str, int] = train_cfg.save_interval
+    save_num_checkpoints_to_keep: int = train_cfg.save_num_checkpoints_to_keep
+    progress_bar = train_cfg.progress_bar
+    log_to_console: bool = train_cfg.log_to_console
+    python_log_level: Optional[str] = train_cfg.python_log_level
+    console_log_interval: Union[int, str] = train_cfg.console_log_interval
+    device_train_microbatch_size: Union[
+        str, int] = train_cfg.device_train_microbatch_size
+    eval_subset_num_batches: int = train_cfg.eval_subset_num_batches
+    eval_first: bool = train_cfg.eval_first
+    load_path: Optional[str] = train_cfg.load_path
+    load_weights_only: bool = train_cfg.load_weights_only
+    load_strict_model_weights: bool = train_cfg.load_strict_model_weights
+    load_ignore_keys: Optional[List[str]] = train_cfg.load_ignore_keys
+    save_ignore_keys: Optional[List[str]] = train_cfg.save_ignore_keys
+    compile_config: Optional[Dict[str, Any]] = train_cfg.compile_config
+    metadata: Optional[Dict[str, Any]] = train_cfg.metadata
+    should_log_config: bool = train_cfg.log_config
 
     # Enable autoresume from model checkpoints if possible
     autoresume_default: bool = False
@@ -345,11 +356,11 @@ def main(cfg: DictConfig) -> Trainer:
         and not save_weights_only:
         autoresume_default = True
 
-    if not scfg.autoresume and autoresume_default:
+    if not train_cfg.autoresume and autoresume_default:
         log.info('As run_name, save_folder, and save_latest_filename are set, \
                 changing autoresume default to True...')
 
-    autoresume: bool = scfg.autoresume
+    autoresume: bool = train_cfg.autoresume
 
     # Warn if fsdp is enabled but user only has 1 GPU
     if dist.get_world_size() == 1 and fsdp_config is not None:
@@ -408,7 +419,7 @@ def main(cfg: DictConfig) -> Trainer:
     # Profiling
     profiler: Optional[Profiler] = None
     profiler_cfg: Optional[DictConfig] = DictConfig(
-        scfg.profiler) if scfg.profiler is not None else None
+        train_cfg.profiler) if train_cfg.profiler is not None else None
     if profiler_cfg:
         profiler_schedule_cfg: Dict = pop_config(profiler_cfg,
                                                  'schedule',

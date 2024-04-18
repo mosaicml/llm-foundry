@@ -48,8 +48,8 @@ def test_remote_code_false_mpt(
             match='trust_remote_code must be set to True for MPT models.'):
         _ = build_composer_model(
             name=test_cfg.model.name,
-            tokenizer=tokenizer,
             cfg=test_cfg.model,
+            tokenizer=tokenizer,
         )
 
 
@@ -140,8 +140,8 @@ def test_hf_config_override(
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
     model = build_composer_model(
         name=test_cfg.model.name,
-        tokenizer=tokenizer,
         cfg=test_cfg.model,
+        tokenizer=tokenizer,
     )
 
     # save model
@@ -164,8 +164,8 @@ def test_hf_config_override(
 
     hf_model = build_composer_model(
         name=hf_model_config.model.name,
-        tokenizer=tokenizer,
         cfg=hf_model_config.model,
+        tokenizer=tokenizer,
     )
 
     for k, v in hf_model_config.model.config_overrides.items():
@@ -199,8 +199,8 @@ def test_rope_scaling_override():
 
     model = build_composer_model(
         name=model_cfg.name,
-        tokenizer=None,  # type: ignore
         cfg=model_cfg,
+        tokenizer=None,  # type: ignore
     )
     # This would error if the config isn't parsed into a proper dictionary
     model.get_metadata()
@@ -226,8 +226,8 @@ def test_nested_override():
 
     model = build_composer_model(
         name=model_cfg.name,
-        tokenizer=None,  # type: ignore
         cfg=model_cfg,
+        tokenizer=None,  # type: ignore
     )
 
     # The value we changed

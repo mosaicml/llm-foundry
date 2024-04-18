@@ -278,7 +278,7 @@ def build_text_dataloader(
     # get kwargs
     mlm_probability = dataset_cfg.pop('mlm_probability', None)
     eos_token_id = dataset_cfg.pop('eos_token_id', None)
-    bos_token_id = dataset_cfg.dataset.pop('bos_token_id', None)
+    bos_token_id = dataset_cfg.pop('bos_token_id', None)
 
     if eos_token_id is None and bos_token_id is None and (hasattr(
             tokenizer, 'eos_token_id') or hasattr(tokenizer, 'bos_token_id')):

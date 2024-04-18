@@ -17,13 +17,15 @@ from llmfoundry.utils.builders import build_composer_model, build_tokenizer
 
 
 def test_peft_wraps():
-    mistral_cfg = transformers.AutoConfig.from_pretrained(
-        'mistralai/Mistral-7B-v0.1', num_hidden_layers=2)
-    mistral = transformers.AutoModelForCausalLM.from_config(mistral_cfg)
-    mistral = get_peft_model(mistral, LoraConfig())
-    prepare_hf_model_for_fsdp(mistral, 'cpu')
+    mpt_cfg = transformers.AutoConfig.from_pretrained('mosaicml/mpt-7b',
+                                                      n_layers=2,
+                                                      trust_remote_code=True)
+    mpt = transformers.AutoModelForCausalLM.from_config(mpt_cfg,
+                                                        trust_remote_code=True)
+    mpt = get_peft_model(mpt, LoraConfig())
+    prepare_hf_model_for_fsdp(mpt, 'cpu')
 
-    for n, m in mistral.named_modules():
+    for n, m in mpt.named_modules():
         if 'lora' in n and 'default' in n:
             has_parameters = any(True for _ in m.parameters())
             has_buffers = any(True for _ in m.buffers())
@@ -51,7 +53,7 @@ def test_lora_mixed_init(peft_config: Optional[dict], tmp_path: pathlib.Path,
                          init_device: str):
     model_cfg = {
         'name': 'hf_causal_lm',
-        'pretrained_model_name_or_path': 'mistralai/Mistral-7B-v0.1',
+        'pretrained_model_name_or_path': 'codellama/CodeLlama-7b-hf',
         'config_overrides': {
             'num_hidden_layers': 2,
             'hidden_size': 32,
@@ -60,7 +62,7 @@ def test_lora_mixed_init(peft_config: Optional[dict], tmp_path: pathlib.Path,
         'pretrained': False,
         'init_device': init_device,
     }
-    tokenizer_name = 'mistralai/Mistral-7B-v0.1'
+    tokenizer_name = 'codellama/CodeLlama-7b-hf'
 
     assert model_cfg is not None
     assert tokenizer_name is not None

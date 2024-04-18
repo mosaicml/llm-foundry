@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import contextlib
-import os
 
 import pytest
 from composer.core.precision import get_precision_context
@@ -15,51 +14,27 @@ from llmfoundry.utils.builders import build_composer_model, build_tokenizer
 
 @pytest.mark.gpu
 @pytest.mark.world_size(2)
-@pytest.mark.parametrize('model_name', ['llama2', 'mistral'])
+@pytest.mark.parametrize('model_name', ['codellama'])
 @pytest.mark.parametrize('use_flash_attention_2', [True, False])
 @pytest.mark.parametrize('init_device', ['cpu', 'mixed', 'meta'])
 def test_flash2(model_name: str, use_flash_attention_2: bool, init_device: str):
-    if model_name == 'llama2':
-        if 'HUGGING_FACE_HUB_TOKEN' not in os.environ:
-            pytest.skip(
-                'The CI cluster does not have access to the Llama models, so skip this test.'
-            )
+    if model_name == 'codellama':
         model_cfg = {
             'name': 'hf_causal_lm',
-            'pretrained_model_name_or_path': 'meta-llama/Llama-2-7b-hf',
+            'pretrained_model_name_or_path': 'codellama/CodeLlama-7b-hf',
             'config_overrides': {
                 'num_hidden_layers': 2,
                 'intermediate_size': 64,
                 'hidden_size': 64,
             },
-            'use_auth_token': True,
             'pretrained': False,
             'init_device': init_device,
         }
 
-        tokenizer_name = 'meta-llama/Llama-2-7b-hf'
+        tokenizer_name = 'codellama/CodeLlama-7b-hf'
         from transformers.models.llama.modeling_llama import (
             LlamaAttention, LlamaFlashAttention2)
         flash_attn_class = LlamaFlashAttention2 if use_flash_attention_2 else LlamaAttention
-        attention_layers_attr = 'model.model.layers'
-        attention_attr = 'self_attn'
-    elif model_name == 'mistral':
-        model_cfg = {
-            'name': 'hf_causal_lm',
-            'pretrained_model_name_or_path': 'mistralai/Mistral-7B-v0.1',
-            'config_overrides': {
-                'num_hidden_layers': 2,
-                'intermediate_size': 64,
-                'hidden_size': 64,
-            },
-            'pretrained': False,
-            'init_device': 'cpu',
-        }
-
-        tokenizer_name = 'mistralai/Mistral-7B-v0.1'
-        from transformers.models.mistral.modeling_mistral import (
-            MistralAttention, MistralFlashAttention2)
-        flash_attn_class = MistralFlashAttention2 if use_flash_attention_2 else MistralAttention
         attention_layers_attr = 'model.model.layers'
         attention_attr = 'self_attn'
     else:

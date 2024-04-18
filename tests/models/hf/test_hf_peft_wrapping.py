@@ -17,13 +17,13 @@ from llmfoundry.utils.builders import build_composer_model, build_tokenizer
 
 
 def test_peft_wraps():
-    mistral_cfg = transformers.AutoConfig.from_pretrained('mosaicml/mpt-7b',
-                                                          num_hidden_layers=2)
-    mistral = transformers.AutoModelForCausalLM.from_config(mistral_cfg)
-    mistral = get_peft_model(mistral, LoraConfig())
-    prepare_hf_model_for_fsdp(mistral, 'cpu')
+    mpt_cfg = transformers.AutoConfig.from_pretrained('mosaicml/mpt-7b',
+                                                          n_layers=2, trust_remote_code=True)
+    mpt = transformers.AutoModelForCausalLM.from_config(mpt_cfg)
+    mpt = get_peft_model(mpt, LoraConfig())
+    prepare_hf_model_for_fsdp(mpt, 'cpu')
 
-    for n, m in mistral.named_modules():
+    for n, m in mpt.named_modules():
         if 'lora' in n and 'default' in n:
             has_parameters = any(True for _ in m.parameters())
             has_buffers = any(True for _ in m.buffers())

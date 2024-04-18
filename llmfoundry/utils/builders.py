@@ -164,7 +164,7 @@ def build_icl_data_and_gauntlet(
 
 def build_composer_model(
     name: str,
-    cfg: Union[Dict, DictConfig],
+    cfg: Union[Dict[str, Any], DictConfig],
     tokenizer: PreTrainedTokenizerBase,
     init_context: Optional[ContextManager] = None,
     master_weights_dtype: Optional[str] = None,
@@ -185,7 +185,13 @@ def build_composer_model(
         init_context = contextlib.nullcontext()
 
     if isinstance(cfg, DictConfig):
-        cfg: Dict[str, Any] = om.to_container(cfg, resolve=True)
+        model_cfg = om.to_container(cfg, resolve=True)
+        assert isinstance(model_cfg, Dict[str, Any])
+    elif isinstance(cfg, Dict[str, Any]):
+        model_cfg = cfg
+    else:
+        raise ValueError(
+            f'Invalid type for cfg: {type(cfg)}. Must be DictConfig or Dict.')
 
     with init_context:
         model = construct_from_registry(
@@ -194,7 +200,7 @@ def build_composer_model(
             pre_validation_function=ComposerModel,
             post_validation_function=None,
             kwargs={
-                **cfg, 'tokenizer': tokenizer
+                **model_cfg, 'tokenizer': tokenizer
             },
         )
 

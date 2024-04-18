@@ -164,7 +164,7 @@ def build_finetuning_dataloader(
         device_batch_size=device_batch_size,
     )
 
-    dataset = None  # for pyright
+    hf_dataset = None  # for pyright
     sampler = None
     if dataset_cfg.get('remote') is not None or dataset_cfg.get(
             'streams') is not None:
@@ -224,7 +224,7 @@ def build_finetuning_dataloader(
                 proto_preprocessing_fn, dataset_name_or_path)
 
         # Build dataset from HF.
-        dataset = dataset_constructor.build_from_hf(
+        hf_dataset = dataset_constructor.build_from_hf(
             dataset_name=dataset_name_or_path,
             split=split,
             safe_load=dataset_cfg.get('safe_load', False),
@@ -242,8 +242,8 @@ def build_finetuning_dataloader(
         if drop_last:
             world_size = dist.get_world_size()
             minimum_dataset_size = world_size * dataloader_batch_size
-            if hasattr(dataset, '__len__'):
-                full_dataset_size = len(dataset)
+            if hasattr(hf_dataset, '__len__'):
+                full_dataset_size = len(hf_dataset)
                 if full_dataset_size < minimum_dataset_size:
                     raise NotEnoughDatasetSamplesError(
                         dataset_name=dataset_cfg.hf_name,
@@ -253,13 +253,13 @@ def build_finetuning_dataloader(
                         full_dataset_size=full_dataset_size,
                         minimum_dataset_size=minimum_dataset_size)
         # Initialize sampler.
-        sampler = dist.get_sampler(dataset,
+        sampler = dist.get_sampler(hf_dataset,
                                    drop_last=drop_last,
                                    shuffle=dataset_cfg.shuffle)
 
-    assert dataset is not None  # for pyright
+    assert hf_dataset is not None  # for pyright
     dl = DataLoader(
-        dataset,
+        hf_dataset,
         collate_fn=collate_fn,
         batch_size=dataloader_batch_size,
         drop_last=drop_last,

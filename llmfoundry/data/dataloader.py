@@ -24,7 +24,8 @@ def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
             that the dataloader will produce.
     """
     kwargs: Dict[str, Any] = {
-        **cfg, 'tokenizer': tokenizer,
+        **{str(k): v for k, v in cfg.items()},  # pyright
+        'tokenizer': tokenizer,
         'device_batch_size': device_batch_size
     }
 

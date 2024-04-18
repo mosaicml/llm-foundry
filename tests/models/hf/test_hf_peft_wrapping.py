@@ -20,7 +20,8 @@ def test_peft_wraps():
     mpt_cfg = transformers.AutoConfig.from_pretrained('mosaicml/mpt-7b',
                                                       n_layers=2,
                                                       trust_remote_code=True)
-    mpt = transformers.AutoModelForCausalLM.from_config(mpt_cfg)
+    mpt = transformers.AutoModelForCausalLM.from_config(mpt_cfg,
+                                                        trust_remote_code=True)
     mpt = get_peft_model(mpt, LoraConfig())
     prepare_hf_model_for_fsdp(mpt, 'cpu')
 

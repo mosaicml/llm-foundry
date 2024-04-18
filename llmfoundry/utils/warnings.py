@@ -1,7 +1,12 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
+import functools
 import warnings
-from typing import Any, Callable
+from typing import Any, Callable, TypeVar, cast
+
+__all__ = [
+    'VersionedDeprecationWarning',
+]
 
 
 class VersionedDeprecationWarning(DeprecationWarning):
@@ -42,22 +47,29 @@ class ExperimentalWarning(Warning):
         )
 
 
+F = TypeVar('F', bound=Callable[..., Any])
+
+
 # Decorator version of experimental warning
-def experimental(feature_name: str):
+def experimental(feature_name: str) -> Callable[[F], F]:
     """Decorator to mark a function as experimental.
 
     The message displayed will be {feature_name} is experimental and may change with future versions.
 
     Args:
         feature_name (str): The name of the experimental feature.
+
+    Returns:
+        The decorated function.
     """
 
     def decorator(func: Callable):
 
+        @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any):
             warnings.warn(ExperimentalWarning(feature_name))
             return func(*args, **kwargs)
 
-        return wrapper
+        return cast(F, wrapper)
 
     return decorator

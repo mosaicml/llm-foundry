@@ -19,7 +19,7 @@ new_files_warning_filter = SpecificWarningFilter(
 
 hf_dynamic_modules_logger.addFilter(new_files_warning_filter)
 
-from llmfoundry import optim, utils
+from llmfoundry import algorithms, callbacks, loggers, optim, registry, utils
 from llmfoundry.data import (ConcatTokensDataset, MixtureOfDenoisersCollator,
                              NoConcatDataset, Seq2SeqFinetuningCollator,
                              build_finetuning_dataloader,
@@ -65,7 +65,11 @@ __all__ = [
     'build_alibi_bias',
     'optim',
     'utils',
+    'loggers',
+    'algorithms',
+    'callbacks',
     'TiktokenTokenizerWrapper',
+    'registry',
 ]
 
 __version__ = '0.6.0'

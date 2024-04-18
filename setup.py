@@ -73,6 +73,7 @@ install_requires = [
     'huggingface-hub>=0.17.0,<1.0',
     'beautifulsoup4>=4.12.2,<5',  # required for model download utils
     'tenacity>=8.2.3,<9',
+    'catalogue>=2,<3',
 ]
 
 extra_deps = {}

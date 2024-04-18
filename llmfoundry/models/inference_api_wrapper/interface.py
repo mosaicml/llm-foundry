@@ -117,14 +117,14 @@ class InferenceAPIEvalWrapper(ComposerModel):
         if isinstance(metric, InContextLearningMetric) and batch.get(
                 'mode', None) == 'icl_task':
             batch = self.rebatch(batch)
-            self.labels = batch.pop('labels')
+            self.labels = batch['labels']
             self.labels[:, :-1] = self.labels[:, 1:].clone()
             self.labels[:, -1] = -100
             assert self.labels is not None
             metric_result = metric.update(batch, outputs, self.labels)
         elif isinstance(metric, InContextLearningMetric) and batch.get(
                 'mode', None) == 'generate':
-            self.labels = batch.pop('labels')
+            self.labels = batch['labels']
             assert self.labels is not None
             metric_result = metric.update(batch=batch,
                                           outputs=outputs,

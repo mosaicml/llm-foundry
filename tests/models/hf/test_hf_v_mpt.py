@@ -112,8 +112,8 @@ def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
     print(model_cfg)
     model = build_composer_model(
         name=model_cfg.name,
-        tokenizer=tokenizer,
         cfg=model_cfg,
+        tokenizer=tokenizer,
     ).to(device)
     n_params = sum(p.numel() for p in model.parameters())
 

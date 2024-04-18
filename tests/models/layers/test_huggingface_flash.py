@@ -84,8 +84,8 @@ def test_flash2(model_name: str, use_flash_attention_2: bool, init_device: str):
     with error_context:
         model = build_composer_model(
             name=model_cfg['name'],
-            tokenizer=tokenizer,
             cfg=model_cfg,
+            tokenizer=tokenizer,
         )
 
         # check that it actually used flash attention 2

@@ -34,8 +34,8 @@ def pop_config(cfg: DictConfig,
     """Pop a value from the main config file and return it.
 
     If the key does not exist, return the default_value or raise a RuntimeError
-    depending on the must_exist flag. If the convert flag is set to True, then we will
-    convert the value to a python object using OmegaConf.to_container.
+    depending on the must_exist flag. If the convert flag is set to True, then
+    we will convert the value to a python object using OmegaConf.to_container.
     """
     value = cfg.pop(key, None)
     if value is not None and convert:
@@ -166,8 +166,8 @@ def process_init_device(model_cfg: DictConfig, fsdp_config: Optional[Dict]):
 def log_config(cfg: DictConfig) -> None:
     """Logs the current config and updates the wandb and mlflow configs.
 
-    This function can be called multiple times to update the wandb and MLflow config
-    with different variables.
+    This function can be called multiple times to update the wandb and MLflow
+    config with different variables.
     """
     print(om.to_yaml(cfg))
     if 'wandb' in cfg.get('loggers', {}):

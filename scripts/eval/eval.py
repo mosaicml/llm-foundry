@@ -272,8 +272,8 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     callback_configs = om.to_container(scfg.callbacks) if scfg.callbacks else []
 
     if callback_configs is not None:
-        assert isinstance(callback_configs,
-                          Dict[str, Any]), 'callbacks must be a Dict'  # pyright
+        assert isinstance(callback_configs, dict)
+        callback_configs = {str(k): v for k, v in callback_configs.items()}
 
     # Warn for unused parameters
     for key in cfg:

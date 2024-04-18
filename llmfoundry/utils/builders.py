@@ -162,6 +162,15 @@ def build_icl_data_and_gauntlet(
     return icl_evaluators, logger_keys, eval_gauntlet_cb
 
 
+def _is_string_keyed_dict(d: dict) -> bool:
+    return isinstance(d, dict) and all(isinstance(k, str) for k in d.keys())
+
+
+def _string_keyed_dict(d: dict) -> Dict[str, Any]:
+    assert all(isinstance(k, str) for k in d.keys())
+    return {str(k): v for k, v in d.items()}
+
+
 def build_composer_model(
     name: str,
     cfg: Union[Dict[str, Any], DictConfig],
@@ -185,10 +194,10 @@ def build_composer_model(
         init_context = contextlib.nullcontext()
 
     if isinstance(cfg, DictConfig):
-        model_cfg = om.to_container(cfg, resolve=True)
-        assert isinstance(model_cfg, Dict[str, Any])
-    elif isinstance(cfg, Dict[str, Any]):
-        model_cfg = cfg
+        cfg = om.to_container(cfg, resolve=True)
+        model_cfg = _string_keyed_dict(model_cfg)  # pyright
+    elif _is_string_keyed_dict(cfg):
+        model_cfg = _string_keyed_dict(cfg)  # pyright
     else:
         raise ValueError(
             f'Invalid type for cfg: {type(cfg)}. Must be DictConfig or Dict.')

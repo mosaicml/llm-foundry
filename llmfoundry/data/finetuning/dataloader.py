@@ -164,7 +164,7 @@ def build_finetuning_dataloader(
         device_batch_size=device_batch_size,
     )
 
-    hf_dataset = None  # for pyright
+    streaming_dataset = None  # for pyright
     sampler = None
     if dataset_cfg.get('remote') is not None or dataset_cfg.get(
             'streams') is not None:
@@ -172,7 +172,7 @@ def build_finetuning_dataloader(
         streams = build_streams(**dataset_cfg)
 
         # note: we don't need to use ** here because we're setting default values for almost all arguments
-        dataset = dataset_constructor.build_from_streaming(
+        streaming_dataset = dataset_constructor.build_from_streaming(
             tokenizer=tokenizer,
             streams=streams,
             local=dataset_cfg.get('local', None),
@@ -224,7 +224,7 @@ def build_finetuning_dataloader(
                 proto_preprocessing_fn, dataset_name_or_path)
 
         # Build dataset from HF.
-        hf_dataset = dataset_constructor.build_from_hf(
+        streaming_dataset = dataset_constructor.build_from_hf(
             dataset_name=dataset_name_or_path,
             split=split,
             safe_load=dataset_cfg.get('safe_load', False),
@@ -242,8 +242,8 @@ def build_finetuning_dataloader(
         if drop_last:
             world_size = dist.get_world_size()
             minimum_dataset_size = world_size * dataloader_batch_size
-            if hasattr(hf_dataset, '__len__'):
-                full_dataset_size = len(hf_dataset)
+            if hasattr(streaming_dataset, '__len__'):
+                full_dataset_size = len(streaming_dataset)
                 if full_dataset_size < minimum_dataset_size:
                     raise NotEnoughDatasetSamplesError(
                         dataset_name=dataset_cfg.hf_name,
@@ -253,13 +253,13 @@ def build_finetuning_dataloader(
                         full_dataset_size=full_dataset_size,
                         minimum_dataset_size=minimum_dataset_size)
         # Initialize sampler.
-        sampler = dist.get_sampler(hf_dataset,
+        sampler = dist.get_sampler(streaming_dataset,
                                    drop_last=drop_last,
                                    shuffle=dataset_cfg.shuffle)
 
-    assert hf_dataset is not None  # for pyright
+    assert streaming_dataset is not None  # for pyright
     dl = DataLoader(
-        hf_dataset,
+        streaming_dataset,
         collate_fn=collate_fn,
         batch_size=dataloader_batch_size,
         drop_last=drop_last,

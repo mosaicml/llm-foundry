@@ -270,7 +270,7 @@ def test_tokenize_no_labels_bos_pr():
     # This tokenizer does not have the add_bos_token attribute
     tokenizer = transformers.AutoTokenizer.from_pretrained('mosaicml/mpt-7b')
 
-    assert not hasattr(tokenizer, 'add_bos_token')
+    assert not tokenizer.add_bos_token
 
     tokenized_example = tokenize_formatted_example(example, tokenizer)
 

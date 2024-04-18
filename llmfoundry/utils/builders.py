@@ -195,6 +195,7 @@ def build_composer_model(
 
     if isinstance(cfg, DictConfig):
         container_cfg = om.to_container(cfg, resolve=True)
+        assert isinstance(container_cfg, dict)  # pyright
         model_cfg = _string_keyed_dict(container_cfg)  # pyright
     elif _is_string_keyed_dict(cfg):
         model_cfg = _string_keyed_dict(cfg)  # pyright

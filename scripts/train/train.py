@@ -17,7 +17,6 @@ from composer.profiler import (JSONTraceHandler, Profiler, TraceHandler,
                                cyclic_schedule)
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
-from omegaconf import OmegaConf
 from omegaconf import OmegaConf as om
 from rich.traceback import install
 
@@ -226,7 +225,7 @@ def main(cfg: DictConfig) -> Trainer:
     cfg = update_batch_size_info(cfg)
     logged_cfg.update(cfg, merge=True)
 
-    scfg: TrainConfig = OmegaConf.structured(
+    scfg: TrainConfig = om.structured(
         TrainConfig(**cfg)
     )  # type: ignore (TrainConfig does expect arguments, the type checker is wrong here)
 

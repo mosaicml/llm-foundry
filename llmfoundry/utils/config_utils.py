@@ -249,6 +249,7 @@ def log_dataset_uri(cfg: DictConfig) -> mlflow.data.meta_dataset.MetaDataset:
     """
     # Figure out which data source to use
     data_paths = parse_source_dataset(cfg)
+    print('----DEBUG: ', data_paths)
 
     dataset_source_mapping = {
         's3': mlflow.data.http_dataset_source.HTTPDatasetSource,

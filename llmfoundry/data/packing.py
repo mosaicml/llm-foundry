@@ -292,7 +292,6 @@ def _repad(packed_examples: List[Dict[str, torch.Tensor]], max_seq_len: int,
 
 def auto_packing_ratio(dataset_config: DictConfig,
                        tokenizer: PreTrainedTokenizerBase,
-                       max_seq_len: int,
                        device_batch_size: int,
                        num_packing_ratios: int = 20) -> float:
     """Find a packing ratio that minimizes padding with zero waste.
@@ -325,6 +324,7 @@ def auto_packing_ratio(dataset_config: DictConfig,
     reproducibility.seed_all(0)
 
     # If max_seq_len is very small, skip profiling and select packing ratio of 1.
+    max_seq_len = dataset_config.get('max_seq_len')
     if max_seq_len <= 100:
         return 1
 

@@ -3,6 +3,8 @@
 
 """Dataloader builder utilities."""
 
+from typing import Any, Dict
+
 from composer import DataSpec
 from omegaconf import DictConfig
 from transformers import PreTrainedTokenizerBase
@@ -21,7 +23,7 @@ def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
         device_batch_size (int): The size of the batches (number of examples)
             that the dataloader will produce.
     """
-    kwargs = {
+    kwargs: Dict[str, Any] = {
         **cfg, 'tokenizer': tokenizer,
         'device_batch_size': device_batch_size
     }

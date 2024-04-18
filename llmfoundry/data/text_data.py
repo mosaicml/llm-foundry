@@ -252,8 +252,8 @@ def build_streams(
 ):
     streams_dict = streams
     # build streams
+    streams_ret: List = []
     if streams_dict is not None:
-        streams_ret: List = []
         for _, stream in streams_dict.items():
             # stream is the streams kwargs
             # fwd all kwargs with **stream allows streaming to check args
@@ -279,7 +279,6 @@ def build_text_dataloader(
             f'Unused parameter `{kwarg}` passed to build_text_dataloader. This parameter is ignored. In future releases, this will raise an error.',
             DeprecationWarning)
     dataset_cfg = dataset
-    dataset = None
     assert name == 'text', f'Tried to build text dataloader with cfg.name={name}'
 
     # get kwargs
@@ -318,7 +317,7 @@ def build_text_dataloader(
     streams = build_streams(**dataset_cfg)
 
     # build dataset potentially with streams
-    dataset = StreamingTextDataset(
+    text_dataset = StreamingTextDataset(
         tokenizer=tokenizer,
         streams=streams,
         batch_size=device_batch_size,
@@ -326,7 +325,7 @@ def build_text_dataloader(
     )
 
     collate_fn = transformers.DataCollatorForLanguageModeling(
-        tokenizer=dataset.tokenizer,
+        tokenizer=text_dataset.tokenizer,
         mlm=mlm_probability is not None,
         mlm_probability=mlm_probability)
 
@@ -338,7 +337,7 @@ def build_text_dataloader(
             bos_token_id=bos_token_id)
 
     dl = DataLoader(
-        dataset,
+        text_dataset,
         collate_fn=collate_fn,
         batch_size=device_batch_size,
         drop_last=drop_last,

@@ -185,7 +185,7 @@ def build_composer_model(
         init_context = contextlib.nullcontext()
 
     if isinstance(cfg, DictConfig):
-        cfg = om.to_container(cfg, resolve=True)
+        cfg: Dict[str, Any] = om.to_container(cfg, resolve=True)
 
     with init_context:
         model = construct_from_registry(

@@ -53,7 +53,7 @@ def evaluate_model(
     eval_gauntlet_df: Optional[pd.DataFrame],
     eval_subset_num_batches: int,
     icl_subset_num_batches: Optional[int],
-    callback_configs: Optional[Dict[str, Any]],
+    callback_configs: Optional[Union[Dict[str, Any], List]],
     metadata: Optional[Dict[str, str]],
     logged_config: DictConfig,
     should_log_config: bool = True,
@@ -269,7 +269,7 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     metadata = scfg.metadata
     should_log_config = scfg.log_config
 
-    callback_configs = om.to_container(
+    callback_configs: Dict[str, Any] = om.to_container(
         scfg.callbacks) if scfg.callbacks else None
 
     # Warn for unused parameters

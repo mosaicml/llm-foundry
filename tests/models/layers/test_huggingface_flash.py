@@ -83,7 +83,7 @@ def test_flash2(model_name: str, use_flash_attention_2: bool, init_device: str):
 
     with error_context:
         model = build_composer_model(
-            composer_model_name=model_cfg['name'],
+            name=model_cfg['name'],
             tokenizer=tokenizer,
             cfg=model_cfg,
         )

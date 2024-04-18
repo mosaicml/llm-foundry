@@ -872,7 +872,7 @@ def test_convert_and_generate(model: str, tie_word_embeddings: bool,
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         om_cfg.tokenizer.name, use_auth_token=model == 'llama2')
     original_model = build_composer_model(
-        composer_model_name=om_cfg['model'].name,
+        name=om_cfg['model'].name,
         tokenizer=tokenizer,
         cfg=om_cfg['model'],
     )
@@ -944,7 +944,7 @@ def test_convert_and_generate_meta(tie_word_embeddings: str,
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         om_cfg.tokenizer.name)
     original_model = build_composer_model(
-        composer_model_name=om_cfg['model'].name,
+        name=om_cfg['model'].name,
         tokenizer=tokenizer,
         cfg=om_cfg['model'],
     )
@@ -1154,7 +1154,7 @@ def test_mptmoe_huggingface_conversion_callback(
 
     init_context = process_init_device(model_cfg, fsdp_config)
     original_model = build_composer_model(
-        composer_model_name=model_cfg.name,
+        name=model_cfg.name,
         tokenizer=tokenizer,
         init_context=init_context,
         cfg=model_cfg,

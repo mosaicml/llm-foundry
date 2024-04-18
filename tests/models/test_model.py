@@ -90,7 +90,7 @@ def _get_objs(request: pytest.FixtureRequest,
                                 tokenizer_cfg.get('kwargs', {}))
 
     model = build_composer_model(
-        composer_model_name=test_cfg.model.name,
+        name=test_cfg.model.name,
         tokenizer=tokenizer,
         cfg=test_cfg.model,
     )
@@ -292,7 +292,7 @@ def test_full_forward_and_backward_gpt2_small(batch_size: int = 2):
                                 tokenizer_cfg.get('kwargs', {}))
 
     model = build_composer_model(
-        composer_model_name=neo_cfg.model.name,
+        name=neo_cfg.model.name,
         tokenizer=tokenizer,
         cfg=neo_cfg.model,
     ).to(device)
@@ -341,7 +341,7 @@ def test_full_forward_and_backward_t5_small(batch_size: int = 2):
                                 tokenizer_cfg.get('kwargs', {}))
 
     model = build_composer_model(
-        composer_model_name=t5_cfg.model.name,
+        name=t5_cfg.model.name,
         tokenizer=tokenizer,
         cfg=t5_cfg.model,
     ).to(device)
@@ -418,7 +418,7 @@ def test_determinism(attn_impl: str, precision: torch.dtype, ffn_type: str,
                                 tokenizer_cfg.get('kwargs', {}))
 
     model_1 = build_composer_model(
-        composer_model_name=test_cfg.model.name,
+        name=test_cfg.model.name,
         tokenizer=tokenizer,
         cfg=test_cfg.model,
     )
@@ -488,7 +488,7 @@ def test_loss_fn():
                                 tokenizer_cfg.get('kwargs', {}))
 
     model_1 = build_composer_model(
-        composer_model_name=test_cfg.model.name,
+        name=test_cfg.model.name,
         tokenizer=tokenizer,
         cfg=test_cfg.model,
     )
@@ -574,7 +574,7 @@ def test_loss_reduction(loss_fn_config: str):
                                 tokenizer_cfg.get('kwargs', {}))
 
     model_1 = build_composer_model(
-        composer_model_name=test_cfg.model.name,
+        name=test_cfg.model.name,
         tokenizer=tokenizer,
         cfg=test_cfg.model,
     )

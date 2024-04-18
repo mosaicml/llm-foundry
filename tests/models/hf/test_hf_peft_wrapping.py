@@ -84,7 +84,7 @@ def test_lora_mixed_init(peft_config: Optional[dict], tmp_path: pathlib.Path,
     )
 
     original_model = build_composer_model(
-        composer_model_name=model_cfg['name'],
+        name=model_cfg['name'],
         tokenizer=tokenizer,
         cfg=model_cfg,
     )

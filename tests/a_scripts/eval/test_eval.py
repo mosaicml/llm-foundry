@@ -47,7 +47,7 @@ def mock_saved_model_path(eval_cfg: Union[om.ListConfig, om.DictConfig]):
     tokenizer = build_tokenizer(model_cfg.tokenizer.name,
                                 model_cfg.tokenizer.get('kwargs', {}))
     # build model
-    model = build_composer_model(composer_model_name=model_cfg.model.name,
+    model = build_composer_model(name=model_cfg.model.name,
                                  tokenizer=tokenizer,
                                  cfg=model_cfg.model)
 

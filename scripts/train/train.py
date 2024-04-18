@@ -492,7 +492,7 @@ def main(cfg: DictConfig) -> Trainer:
     # Build Model
     log.info('Initializing model...')
     model = build_composer_model(
-        composer_model_name=model_config.name,
+        name=model_config.name,
         tokenizer=tokenizer,
         init_context=init_context,
         master_weights_dtype=model_config.get('master_weights_dtype', None),

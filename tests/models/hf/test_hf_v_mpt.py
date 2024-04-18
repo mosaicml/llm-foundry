@@ -59,7 +59,7 @@ def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
         tokenizer_kwargs=tokenizer_kwargs,
     )
     hf_model = build_composer_model(
-        composer_model_name=hf_cfg.model.name,
+        name=hf_cfg.model.name,
         tokenizer=tokenizer,
         cfg=hf_cfg.model,
     ).to(device)
@@ -111,7 +111,7 @@ def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
 
     print(model_cfg)
     model = build_composer_model(
-        composer_model_name=model_cfg.name,
+        name=model_cfg.name,
         tokenizer=tokenizer,
         cfg=model_cfg,
     ).to(device)

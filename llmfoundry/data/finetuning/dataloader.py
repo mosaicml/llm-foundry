@@ -157,7 +157,7 @@ def build_finetuning_dataloader(
 
     dataset = None  # for pyright
     sampler = None
-    if dataset_cfg.get('remote') is not None or cfg.dataset.get(
+    if dataset_cfg.get('remote') is not None or dataset_cfg.get(
             'streams') is not None:
         # Build streaming dataloader
         streams = build_streams(**dataset_cfg)

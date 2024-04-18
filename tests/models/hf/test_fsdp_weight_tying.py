@@ -69,8 +69,8 @@ def test_fsdp_weight_tying(peft_config: Optional[dict], tmp_path: pathlib.Path,
 
     original_model = build_composer_model(
         name=model_cfg['name'],
-        tokenizer=tokenizer,
         cfg=model_cfg,
+        tokenizer=tokenizer,
     )
 
     underlying_model = maybe_get_underlying_model(original_model.model)

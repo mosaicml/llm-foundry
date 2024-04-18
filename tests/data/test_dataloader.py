@@ -227,9 +227,9 @@ def test_correct_padding(tokenizer_name: str,
 
     # Dataloaders
     eval_loader = build_text_dataloader(
-        test_cfg.eval_loader,
-        tokenizer,
-        batch_size,
+        **test_cfg.eval_loader,
+        tokenizer=tokenizer,
+        device_batch_size=batch_size,
     ).dataloader
     batch = next(iter(eval_loader))
 
@@ -1092,7 +1092,9 @@ def test_token_counting_func_dataloader_setting(
         ds_mock.tokenizer = gptt
         monkeypatch.setattr('llmfoundry.data.text_data.StreamingTextDataset',
                             lambda *args, **kwargs: ds_mock)
-        dl = build_text_dataloader(cfg, gptt, batch_size)
+        dl = build_text_dataloader(**cfg,
+                                   tokenizer=gptt,
+                                   device_batch_size=batch_size)
     else:
         raise NotImplementedError()
 

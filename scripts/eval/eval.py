@@ -167,42 +167,52 @@ def evaluate_model(
 
 @dataclass
 class EvalConfig:
+    # Eval Config required parameters:
     models: List[Dict[str, Any]] = MISSING
+    max_seq_len: int = MISSING
+    device_eval_batch_size: int = MISSING
 
+    # Eval Config optional parameters:
     code_paths: Optional[List[str]] = None
+
+    # eval hyperparameters
     eval_gauntlet: Optional[Dict[str, Any]] = None
     eval_gauntlet_str: Optional[str] = None
-    fsdp_config: Optional[Dict[str, Any]] = None
-
+    eval_loader: Optional[Dict[str, Any]] = None
+    eval_loaders: Optional[List[Dict[str, Any]]] = None
+    eval_subset_num_batches: int = -1
+    icl_subset_num_batches: Optional[int] = None
     # one of icl_tasks or icl_tasks_str must be specified
     icl_tasks: Optional[List[Dict[str, Any]]] = None
     icl_tasks_str: Optional[str] = None
 
-    max_seq_len: int = MISSING
-    device_eval_batch_size: int = MISSING
-    precision: str = 'amp_bf16'
+    # loggirg parameters
     python_log_level: Optional[str] = None
-    eval_loader: Optional[Dict[str, Any]] = None
-    eval_loaders: Optional[List[Dict[str, Any]]] = None
-
-    seed: int = 17
-    dist_timeout: Union[float, int] = 600.0
-    run_name: Optional[str] = None
     loggers: Optional[Dict[str, Any]] = None
-    eval_subset_num_batches: int = -1
-    icl_subset_num_batches: Optional[int] = None
-    metadata: Optional[Dict[str, str]] = None
     log_config: bool = True
+
+    # model/run parameters
+    seed: int = 17
+    precision: str = 'amp_bf16'
+    run_name: Optional[str] = None
     model_name_or_path: Optional[str] = None
+    metadata: Optional[Dict[str, str]] = None
+
+    # distributed parameters
+    dist_timeout: Union[float, int] = 600.0
+    fsdp_config: Optional[Dict[str, Any]] = None
+
+    # callback parameters
     callbacks: Optional[Dict[str, Any]] = None
 
+    # variables to ignore
     variables: Optional[Dict[str, Any]] = None  # variables to ignore
 
 
 EVAL_CONFIG_KEYS = set(field.name for field in fields(EvalConfig))
 
 
-def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
+def _make_eval_and_log_config(cfg: DictConfig) -> Tuple[DictConfig, EvalConfig]:
     # Resolve all interpolation variables as early as possible
     unstructured_config = om.to_container(cfg, resolve=True)
     assert isinstance(unstructured_config, dict)
@@ -242,9 +252,14 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     # Create copy of config for logging
     logged_cfg: DictConfig = copy.deepcopy(DictConfig(unstructured_config))
 
+    return logged_cfg, eval_config
+
+
+def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
+    logged_cfg, eval_config = _make_eval_and_log_config(cfg)
+
     # Run user provided code if specified
-    code_paths = eval_config.code_paths
-    for code_path in (code_paths or []):
+    for code_path in (eval_config.code_paths or []):
         import_file(code_path)
 
     model_configs = ListConfig(eval_config.models)
@@ -252,65 +267,46 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
         eval_config.eval_gauntlet
     ) if eval_config.eval_gauntlet else eval_config.eval_gauntlet_str
 
-    fsdp_config = om.to_container(
-        eval_config.fsdp_config) if eval_config.fsdp_config else None
-
     assert isinstance(
-        fsdp_config, Dict
-    ) or fsdp_config is None, f'fsdp_config must be a Dict or None but is {type(fsdp_config)}'
+        eval_config.fsdp_config, Dict
+    ) or eval_config.fsdp_config is None, f'fsdp_config must be a Dict or None but is {type(eval_config.fsdp_config)}'
 
     # Mandatory Evaluation Parameters
     icl_tasks: Union[ListConfig, str, None] = ListConfig(
         eval_config.icl_tasks
     ) if eval_config.icl_tasks else eval_config.icl_tasks_str
     assert icl_tasks is not None, 'icl_tasks must be specified in the config'
-    max_seq_len = eval_config.max_seq_len
-    device_eval_batch_size = eval_config.device_eval_batch_size
-    precision = eval_config.precision
-    python_log_level: Optional[str] = eval_config.python_log_level
 
     # Optional Evaluation Parameters with default values
     eval_loader_config = DictConfig(
         eval_config.eval_loader) if eval_config.eval_loader else ListConfig(
             eval_config.eval_loaders) if eval_config.eval_loaders else None
-    seed = eval_config.seed
-    dist_timeout = eval_config.dist_timeout
     default_run_name: str = os.environ.get('RUN_NAME', 'llm')
     run_name = eval_config.run_name if eval_config.run_name else default_run_name
-    loggers_cfg = eval_config.loggers
-    eval_subset_num_batches = eval_config.eval_subset_num_batches
-    icl_subset_num_batches = eval_config.icl_subset_num_batches
-    metadata = eval_config.metadata
-    should_log_config = eval_config.log_config
 
-    callback_configs = eval_config.callbacks
+    reproducibility.seed_all(eval_config.seed)
+    dist.initialize_dist(get_device(None), timeout=eval_config.dist_timeout)
 
-    # Warn for unused parameters
-    for key in unstructured_config:
-        warnings.warn(
-            f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary.'
-        )
-
-    reproducibility.seed_all(seed)
-    dist.initialize_dist(get_device(None), timeout=dist_timeout)
-
-    if python_log_level is not None:
+    if eval_config.python_log_level is not None:
         logging.basicConfig(
             # Example of format string
             # 2022-06-29 11:22:26,152: rank0[822018][MainThread]: INFO: Message here
             format=
             f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
         )
-        logging.getLogger('llmfoundry').setLevel(python_log_level.upper())
+        logging.getLogger('llmfoundry').setLevel(
+            eval_config.python_log_level.upper())
 
+    # default argument values for evaluate_model
     eval_gauntlet_df = None
     models_df = None
     composite_scores = None
     trainers = []
 
+    # build loggers
     loggers: List[LoggerDestination] = [
         build_logger(name, logger_cfg)
-        for name, logger_cfg in (loggers_cfg or {}).items()
+        for name, logger_cfg in (eval_config.loggers or {}).items()
     ]
 
     mosaicml_logger = find_mosaicml_logger(loggers)
@@ -328,25 +324,25 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     for model_cfg in model_configs:
         (trainer, logger_keys, eval_gauntlet_callback,
          eval_gauntlet_df) = evaluate_model(
-             dist_timeout=dist_timeout,
+             dist_timeout=eval_config.dist_timeout,
              run_name=run_name,
-             seed=seed,
+             seed=eval_config.seed,
              icl_tasks=icl_tasks,
-             max_seq_len=max_seq_len,
-             device_eval_batch_size=device_eval_batch_size,
+             max_seq_len=eval_config.max_seq_len,
+             device_eval_batch_size=eval_config.device_eval_batch_size,
              eval_gauntlet_config=eval_gauntlet_config,
              eval_loader_config=eval_loader_config,
-             fsdp_config=fsdp_config,
+             fsdp_config=eval_config.fsdp_config,
              loggers=loggers,
-             python_log_level=python_log_level,
-             precision=precision,
+             python_log_level=eval_config.python_log_level,
+             precision=eval_config.precision,
              eval_gauntlet_df=eval_gauntlet_df,
-             callback_configs=callback_configs,
-             eval_subset_num_batches=eval_subset_num_batches,
-             icl_subset_num_batches=icl_subset_num_batches,
-             metadata=metadata,
+             callback_configs=eval_config.callbacks,
+             eval_subset_num_batches=eval_config.eval_subset_num_batches,
+             icl_subset_num_batches=eval_config.icl_subset_num_batches,
+             metadata=eval_config.metadata,
              logged_config=logged_cfg,
-             should_log_config=should_log_config,
+             should_log_config=eval_config.should_log_config,
              **model_cfg)
         trainers.append(trainer)
 

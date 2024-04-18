@@ -8,7 +8,7 @@ import sys
 import time
 import warnings
 from dataclasses import dataclass, fields
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
 from composer import Trainer
@@ -45,6 +45,9 @@ log = logging.getLogger(__name__)
 
 @dataclass
 class TrainConfig:
+    """Dataclass for training configuration."""
+
+    # Mandatory model training parameters
     model: Dict[str, Any] = MISSING
     tokenizer: Dict[str, Any] = MISSING
     optimizer: Dict[str, Any] = MISSING
@@ -58,24 +61,43 @@ class TrainConfig:
     max_seq_len: int = MISSING
     seed: int = MISSING
 
+    # Optional model training parameters
+
+    # Code paths to import
     code_paths: Optional[List[str]] = None
+
+    # Cuda allocation configuration
     max_split_size_mb: Optional[int] = None
     expandable_segments: bool = False
     cuda_load_lazy: bool = False
+
+    # distributed training parameters
     dist_timeout: Union[int, float] = 600.0
+    fsdp_config: Optional[Dict[str, Any]] = None
+
+    # evaluation parameters
     eval_loader: Optional[Dict[str, Any]] = None
     eval_loaders: Optional[List[Dict[str, Any]]] = None
     icl_tasks: Optional[List[Dict[str, Any]]] = None
     icl_tasks_str: Optional[str] = None
-    fsdp_config: Optional[Dict[str, Any]] = None
     eval_gauntlet: Optional[Dict[str, Any]] = None
     eval_gauntlet_str: Optional[str] = None
     icl_subset_num_batches: Optional[int] = None
     icl_seq_len: Optional[int] = None
+
+    # logging
     loggers: Optional[Dict[str, Any]] = None
+    progress_bar: bool = False
+    log_to_console: bool = True
+    python_log_level: Optional[str] = 'debug'
+    console_log_interval: Union[int, str] = '1ba'
+    log_config: bool = True
+
+    # callbacks
     callbacks: Optional[Dict[str, Any]] = None
     algorithms: Optional[Dict[str, Any]] = None
-    run_name: Optional[str] = None
+
+    # checkpoints
     save_folder: Optional[str] = None
     save_latest_filename: Optional[str] = None
     save_overwrite: bool = False
@@ -83,29 +105,39 @@ class TrainConfig:
     save_filename: Optional[str] = None
     save_interval: Union[str, int] = '1000ba'
     save_num_checkpoints_to_keep: int = -1
-    progress_bar: bool = False
-    log_to_console: bool = True
-    python_log_level: Optional[str] = 'debug'
-    console_log_interval: Union[int, str] = '1ba'
-    device_train_microbatch_size: Union[str, int] = 'auto'
-    eval_subset_num_batches: int = -1
-    eval_first: bool = False
     load_path: Optional[str] = None
     load_weights_only: bool = False
     load_strict_model_weights: bool = True
     load_ignore_keys: Optional[List[str]] = None
-    compile_config: Optional[Dict[str, Any]] = None
-    metadata: Optional[Dict[str, Any]] = None
-    log_config: bool = True
-    autoresume: bool = False
+    save_ignore_keys: Optional[List[str]] = None
+
+    # dataloader
+    device_train_microbatch_size: Union[str, int] = 'auto'
     data_local: Optional[str] = None
     data_remote: Optional[str] = None
+
+    # eval dataloader
+    eval_subset_num_batches: int = -1
+    eval_first: bool = False
+    compile_config: Optional[Dict[str, Any]] = None
+
+    # metadata
+    metadata: Optional[Dict[str, Any]] = None
+    run_name: Optional[str] = None
+
+    # resumption
+    autoresume: bool = False
+
+    # gradient accumulation
+    device_train_grad_accum: Optional[int] = None
+
+    # profiling
+    profiler: Optional[Dict[str, Any]] = None
+
+    # ignore keys
     global_seed: Optional[int] = None
     global_train_batch_size: Optional[int] = None
     n_gpus: Optional[int] = None
-    device_train_grad_accum: Optional[int] = None
-    profiler: Optional[Dict[str, Any]] = None
-    save_ignore_keys: Optional[List[str]] = None
     variables: Optional[Dict[str, Any]] = None
 
 
@@ -192,7 +224,8 @@ def validate_config(train_config: TrainConfig):
             )
 
 
-def main(cfg: DictConfig) -> Trainer:
+def _make_train_and_log_config(
+        cfg: DictConfig) -> Tuple[DictConfig, TrainConfig]:
     # Resolve all interpolation variables as early as possible
     unstructured_config = om.to_container(cfg, resolve=True)
     assert isinstance(unstructured_config, dict)
@@ -236,6 +269,11 @@ def main(cfg: DictConfig) -> Trainer:
     train_cfg: TrainConfig = om.structured(
         TrainConfig(**unstructured_config)
     )  # type: ignore (TrainConfig does expect arguments, the type checker is wrong here)
+    return logged_cfg, train_cfg
+
+
+def main(cfg: DictConfig) -> Trainer:
+    logged_cfg, train_cfg = _make_train_and_log_config(cfg)
 
     code_paths = train_cfg.code_paths if train_cfg.code_paths else []
     # Import any user provided code
@@ -282,9 +320,6 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Mandatory model training configs
     model_config: DictConfig = DictConfig(train_cfg.model)
-    tokenizer_config: Dict[str, Any] = train_cfg.tokenizer
-    optimizer_config: Dict[str, Any] = train_cfg.optimizer
-    scheduler_config: Dict[str, Any] = train_cfg.scheduler
     train_loader_config: DictConfig = DictConfig(train_cfg.train_loader)
 
     # Optional fsdp data, fine-tuning, and eval configs
@@ -305,54 +340,21 @@ def main(cfg: DictConfig) -> Trainer:
     ) if train_cfg.eval_gauntlet is not None else train_cfg.eval_gauntlet_str
     icl_subset_num_batches: Optional[int] = train_cfg.icl_subset_num_batches
     icl_seq_len: Optional[int] = train_cfg.icl_seq_len
-    # Optional logging, evaluation and callback configs
-    logger_configs: Optional[Dict[str, Any]] = train_cfg.loggers
-    callback_configs: Optional[Dict[str, Any]] = train_cfg.callbacks
-    algorithm_configs: Optional[Dict[str, Any]] = train_cfg.algorithms
-
-    # Mandatory hyperparameters for training
-    device_train_batch_size: int = train_cfg.device_train_batch_size
-    device_eval_batch_size: int = train_cfg.device_eval_batch_size
-    max_duration: Union[int, str] = train_cfg.max_duration
-    eval_interval: Union[int, str] = train_cfg.eval_interval
-    precision: str = train_cfg.precision
-    max_seq_len: int = train_cfg.max_seq_len
 
     # Optional parameters will be set to default values if not specified.
     default_run_name: str = os.environ.get('RUN_NAME', 'llm')
     run_name: str = train_cfg.run_name if train_cfg.run_name else default_run_name
-    save_folder: Optional[str] = train_cfg.save_folder
     is_state_dict_sharded: bool = (fsdp_config.get('state_dict_type', 'full')
                                    == 'sharded') if fsdp_config else False
     save_latest_filename: str = train_cfg.save_latest_filename if train_cfg.save_latest_filename else 'latest-sharded-rank{rank}' if is_state_dict_sharded else 'latest-rank{rank}.pt'
-    save_overwrite: bool = train_cfg.save_overwrite
-    save_weights_only: bool = train_cfg.save_weights_only
     save_filename: str = train_cfg.save_filename if train_cfg.save_filename else 'ep{epoch}-ba{batch}-rank{rank}.pt'
-    save_interval: Union[str, int] = train_cfg.save_interval
-    save_num_checkpoints_to_keep: int = train_cfg.save_num_checkpoints_to_keep
-    progress_bar = train_cfg.progress_bar
-    log_to_console: bool = train_cfg.log_to_console
-    python_log_level: Optional[str] = train_cfg.python_log_level
-    console_log_interval: Union[int, str] = train_cfg.console_log_interval
-    device_train_microbatch_size: Union[
-        str, int] = train_cfg.device_train_microbatch_size
-    eval_subset_num_batches: int = train_cfg.eval_subset_num_batches
-    eval_first: bool = train_cfg.eval_first
-    load_path: Optional[str] = train_cfg.load_path
-    load_weights_only: bool = train_cfg.load_weights_only
-    load_strict_model_weights: bool = train_cfg.load_strict_model_weights
-    load_ignore_keys: Optional[List[str]] = train_cfg.load_ignore_keys
-    save_ignore_keys: Optional[List[str]] = train_cfg.save_ignore_keys
-    compile_config: Optional[Dict[str, Any]] = train_cfg.compile_config
-    metadata: Optional[Dict[str, Any]] = train_cfg.metadata
-    should_log_config: bool = train_cfg.log_config
 
     # Enable autoresume from model checkpoints if possible
     autoresume_default: bool = False
     if logged_cfg.get('run_name', None) is not None \
-        and save_folder is not None \
-        and not save_overwrite \
-        and not save_weights_only:
+        and train_cfg.save_folder is not None \
+        and not train_cfg.save_overwrite \
+        and not train_cfg.save_weights_only:
         autoresume_default = True
 
     if not train_cfg.autoresume and autoresume_default:
@@ -368,7 +370,7 @@ def main(cfg: DictConfig) -> Trainer:
         fsdp_config = None
 
     # set logging level
-    if python_log_level is not None:
+    if train_cfg.python_log_level is not None:
         logging.basicConfig(
             # Example of format string
             # 2022-06-29 11:22:26,152: rank0[822018][MainThread]: INFO: Message here
@@ -376,9 +378,9 @@ def main(cfg: DictConfig) -> Trainer:
             f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
         )
         logging.getLogger('llmfoundry').setLevel(
-            python_log_level.upper())  # Foundry module
+            train_cfg.python_log_level.upper())  # Foundry module
         logging.getLogger(__name__).setLevel(
-            python_log_level.upper())  # Train script
+            train_cfg.python_log_level.upper())  # Train script
 
     # Initialize context
     init_context = process_init_device(model_config, fsdp_config)
@@ -386,19 +388,19 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Build tokenizer
     log.info('Building tokenizer...')
-    tokenizer_name = tokenizer_config['name']
-    tokenizer_kwargs = tokenizer_config.get('kwargs', {})
+    tokenizer_name = train_cfg.tokenizer['name']
+    tokenizer_kwargs = train_cfg.tokenizer.get('kwargs', {})
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
     # Scheduler
-    scheduler_name: str = scheduler_config.pop('name')
-    scheduler = build_scheduler(scheduler_name, scheduler_config)
+    scheduler_name: str = train_cfg.scheduler.pop('name')
+    scheduler = build_scheduler(scheduler_name, train_cfg.scheduler)
 
     # Loggers
     loggers = [
         build_logger(str(name), logger_cfg)
-        for name, logger_cfg in logger_configs.items()
-    ] if logger_configs else []
+        for name, logger_cfg in train_cfg.loggers.items()
+    ] if train_cfg.loggers else []
 
     mosaicml_logger = find_mosaicml_logger(loggers)
     if mosaicml_logger is None:
@@ -407,12 +409,12 @@ def main(cfg: DictConfig) -> Trainer:
             # mosaicml_logger will be None if run isn't on MosaicML platform
             loggers.append(mosaicml_logger)
 
-    if metadata is not None:
+    if train_cfg.metadata is not None:
         # Flatten the metadata for logging
         logged_cfg.pop('metadata', None)
-        logged_cfg.update(metadata, merge=True)
+        logged_cfg.update(train_cfg.metadata, merge=True)
         if mosaicml_logger is not None:
-            mosaicml_logger.log_metrics(metadata)
+            mosaicml_logger.log_metrics(train_cfg.metadata)
             mosaicml_logger._flush_metadata(force_flush=True)
 
     # Profiling
@@ -442,16 +444,16 @@ def main(cfg: DictConfig) -> Trainer:
     # Callbacks
     callbacks: List[Callback] = [
         build_callback(str(name), callback_cfg, logged_cfg)
-        for name, callback_cfg in callback_configs.items()
-    ] if callback_configs else []
+        for name, callback_cfg in train_cfg.callbacks.items()
+    ] if train_cfg.callbacks else []
 
     use_async_eval = any(isinstance(c, AsyncEval) for c in callbacks)
 
     # Algorithms
     algorithms = [
         build_algorithm(str(name), algorithm_cfg)
-        for name, algorithm_cfg in algorithm_configs.items()
-    ] if algorithm_configs else None
+        for name, algorithm_cfg in train_cfg.algorithms.items()
+    ] if train_cfg.algorithms else None
 
     # Dataloaders
     log.info('Building train loader...')
@@ -459,7 +461,7 @@ def main(cfg: DictConfig) -> Trainer:
         train_loader = build_dataloader(
             train_loader_config,
             tokenizer,
-            device_train_batch_size,
+            train_cfg.device_train_batch_size,
         )
     except Exception as e:
         if mosaicml_logger is not None:
@@ -480,13 +482,13 @@ def main(cfg: DictConfig) -> Trainer:
 
     else:
         log.info('Building eval loader...')
-        eval_icl_seq_len: int = icl_seq_len if icl_seq_len else max_seq_len
+        eval_icl_seq_len: int = icl_seq_len if icl_seq_len else train_cfg.max_seq_len
         evaluators, _, eval_gauntlet_callback = build_evaluators(
             eval_loader_config,
             icl_tasks_config,
             eval_gauntlet_config,
             tokenizer=tokenizer,
-            device_eval_batch_size=device_eval_batch_size,
+            device_eval_batch_size=train_cfg.device_eval_batch_size,
             icl_seq_len=eval_icl_seq_len,
             icl_subset_num_batches=icl_subset_num_batches,
         )
@@ -495,9 +497,9 @@ def main(cfg: DictConfig) -> Trainer:
 
     if mosaicml_logger is not None:
         log_train_analytics(mosaicml_logger, model_config, train_loader_config,
-                            eval_loader_config, callback_configs,
-                            tokenizer_name, load_path, icl_tasks_config,
-                            eval_gauntlet_config)
+                            eval_loader_config, train_cfg.callback_configs,
+                            tokenizer_name, train_cfg.load_path,
+                            icl_tasks_config, eval_gauntlet_config)
     # Build Model
     log.info('Initializing model...')
     model = build_composer_model(
@@ -527,8 +529,8 @@ def main(cfg: DictConfig) -> Trainer:
     })
 
     # Optimizer
-    optimizer_name: str = optimizer_config.pop('name')
-    optimizer = build_optimizer(model, optimizer_name, optimizer_config)
+    optimizer_name: str = train_cfg.optimizer.pop('name')
+    optimizer = build_optimizer(model, optimizer_name, train_cfg.optimizer)
 
     # Now add the eval metrics
     try:
@@ -555,38 +557,38 @@ def main(cfg: DictConfig) -> Trainer:
         eval_dataloader=evaluators,
         optimizers=optimizer,
         schedulers=scheduler,
-        max_duration=max_duration,
-        eval_interval=eval_interval,
-        eval_subset_num_batches=eval_subset_num_batches,
-        progress_bar=progress_bar,
-        log_to_console=log_to_console,
-        console_log_interval=console_log_interval,
+        max_duration=train_cfg.max_duration,
+        eval_interval=train_cfg.eval_interval,
+        eval_subset_num_batches=train_cfg.eval_subset_num_batches,
+        progress_bar=train_cfg.progress_bar,
+        log_to_console=train_cfg.log_to_console,
+        console_log_interval=train_cfg.console_log_interval,
         loggers=loggers,
         callbacks=callbacks,
-        precision=precision,
+        precision=train_cfg.precision,
         algorithms=algorithms,
-        device_train_microbatch_size=device_train_microbatch_size,
+        device_train_microbatch_size=train_cfg.device_train_microbatch_size,
         fsdp_config=fsdp_config,
-        save_folder=save_folder,
+        save_folder=train_cfg.save_folder,
         save_filename=save_filename,
         save_latest_filename=save_latest_filename,
-        save_interval=save_interval,
-        save_num_checkpoints_to_keep=save_num_checkpoints_to_keep,
-        save_overwrite=save_overwrite,
-        save_weights_only=save_weights_only,
-        load_path=load_path,
-        load_weights_only=load_weights_only,
-        load_strict_model_weights=load_strict_model_weights,
-        load_ignore_keys=load_ignore_keys,
-        save_ignore_keys=save_ignore_keys,
+        save_interval=train_cfg.save_interval,
+        save_num_checkpoints_to_keep=train_cfg.save_num_checkpoints_to_keep,
+        save_overwrite=train_cfg.save_overwrite,
+        save_weights_only=train_cfg.save_weights_only,
+        load_path=train_cfg.load_path,
+        load_weights_only=train_cfg.load_weights_only,
+        load_strict_model_weights=train_cfg.load_strict_model_weights,
+        load_ignore_keys=train_cfg.load_ignore_keys,
+        save_ignore_keys=train_cfg.save_ignore_keys,
         autoresume=autoresume,
-        python_log_level=python_log_level,
+        python_log_level=train_cfg.python_log_level,
         dist_timeout=dist_timeout,
         profiler=profiler,
-        compile_config=compile_config,
+        compile_config=train_cfg.compile_config,
     )
 
-    if should_log_config:
+    if train_cfg.log_config:
         log.info('Logging config')
         log_config(logged_cfg)
     torch.cuda.empty_cache()

@@ -25,16 +25,6 @@ __all__ = [
 ]
 
 
-def convert_to_dict(value: Optional[Union[ListConfig, DictConfig]]) -> Any:
-    if value is None:
-        return None
-    if not isinstance(value, DictConfig) and not isinstance(value, ListConfig):
-        raise ValueError(
-            f'The value {value} is of type {type(value)} that cannot be \
-                        converted to a dict or list. Please check your yaml.')
-    return om.to_container(value)
-
-
 def pop_config(cfg: DictConfig,
                key: str,
                must_exist: bool = True,

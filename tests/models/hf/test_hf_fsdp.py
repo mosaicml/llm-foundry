@@ -15,7 +15,7 @@ def test_olmo_wraps():
             'pretrained': False,
             'trust_remote_code': False,
             'config_overrides': {
-                'n_layers': 2,
+                'num_hidden_layers': 2,
             }
         },
     }

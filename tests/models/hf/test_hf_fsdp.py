@@ -13,6 +13,7 @@ def test_olmo_wraps():
             'name': 'hf_causal_lm',
             'pretrained_model_name_or_path': 'allenai/OLMo-7B',
             'pretrained': False,
+            'trust_remote_code': False,
             'config_overrides': {
                 'n_layers': 2,
             }

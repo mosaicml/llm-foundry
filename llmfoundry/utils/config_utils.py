@@ -189,6 +189,12 @@ def log_config(cfg: DictConfig) -> None:
 
 
 def parse_source_dataset(cfg: DictConfig):
+    """
+    Parse a run config for dataset information related to training and evaluation stages.
+
+    It supports extracting paths from different sources including local filesystem, remote locations, Hugging Face datasets,
+    Delta tables, and UC volume paths. The function aggregates unique dataset identifiers and their types from the configuration.
+    """
     data_paths = set()
 
     for data_split in ['train', 'eval']:
@@ -234,6 +240,16 @@ def parse_source_dataset(cfg: DictConfig):
 
 
 def log_dataset_uri(cfg: DictConfig) -> mlflow.data.meta_dataset.MetaDataset:
+    """
+    Extracts dataset information from the provided configuration and translates it into 
+    MLFlow-compatible dataset source instances.
+
+    Args:
+        cfg (DictConfig): The run configuration object containing dataset definitions.
+
+    Returns:
+        List[mlflow.data.meta_dataset.MetaDataset]: A list of MetaDataset instances, 
+    """
     # Figure out which data source to use
     data_paths = parse_source_dataset(cfg)
 

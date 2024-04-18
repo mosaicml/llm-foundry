@@ -54,8 +54,8 @@ install_requires = [
     'mosaicml[libcloud,wandb,oci,gcs]>=0.21.2,<0.22',
     'mlflow>=2.12.1,<3',
     'accelerate>=0.25,<0.26',  # for HF inference `device_map`
-    'transformers>=4.39.3,<4.40',
-    'mosaicml-streaming>=0.7.5,<0.8',
+    'transformers>=4.38.2,<4.39',
+    'mosaicml-streaming>=0.7.4,<0.8',
     'torch>=2.2.1,<2.3',
     'datasets>=2.16,<2.17',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
@@ -66,12 +66,13 @@ install_requires = [
     'mosaicml-cli>=0.6.10,<1',
     'onnx==1.14.0',
     'onnxruntime==1.15.1',
+    'cmake>=3.25.0,<=3.26.3',  # required for triton-pre-mlir below
+    # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
+    'triton-pre-mlir@git+https://github.com/vchiley/triton.git@triton_pre_mlir_sm90#subdirectory=python',
     'boto3>=1.21.45,<2',
-    'huggingface-hub>=0.19.0,<1.0',
+    'huggingface-hub>=0.17.0,<1.0',
     'beautifulsoup4>=4.12.2,<5',  # required for model download utils
     'tenacity>=8.2.3,<9',
-    'catalogue>=2,<3',
-    'typer[all]<1',
 ]
 
 extra_deps = {}
@@ -117,15 +118,8 @@ extra_deps['openai'] = [
     'openai==1.3.8',
     'tiktoken==0.4.0',
 ]
-
-extra_deps['megablocks'] = [
-    'megablocks==0.5.1',
-    'grouped-gemm==0.1.4',
-]
-
-extra_deps['all-cpu'] = set(dep for key, deps in extra_deps.items()
-                            for dep in deps
-                            if 'gpu' not in key and 'megablocks' not in key)
+extra_deps['all-cpu'] = set(
+    dep for key, deps in extra_deps.items() for dep in deps if 'gpu' not in key)
 extra_deps['all'] = set(dep for key, deps in extra_deps.items() for dep in deps
                         if key not in {'gpu-flash2', 'all-cpu'})
 extra_deps['all-flash2'] = set(dep for key, deps in extra_deps.items()
@@ -150,7 +144,4 @@ setup(
     install_requires=install_requires,
     extras_require=extra_deps,
     python_requires='>=3.9',
-    entry_points={
-        'console_scripts': ['llmfoundry = llmfoundry.cli.cli:app'],
-    },
 )

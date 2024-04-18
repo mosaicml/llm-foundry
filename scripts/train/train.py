@@ -271,7 +271,7 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Initialize pytorch distributed training process groups
     dist_timeout: Union[int, float] = scfg.dist_timeout
-    dist.initialize_dist(get_device(None), timeout=dist_timeout)
+    # dist.initialize_dist(get_device(None), timeout=dist_timeout)
 
     # Mandatory model training configs
     model_config: DictConfig = DictConfig(scfg.model)

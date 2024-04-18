@@ -5,6 +5,7 @@
 
 import logging
 import os
+import warnings
 from itertools import islice
 from typing import (Any, Callable, Dict, List, Mapping, Optional, Sequence,
                     Union, cast)
@@ -270,7 +271,12 @@ def build_text_dataloader(
     prefetch_factor: int = 2,
     persistent_workers: bool = True,
     timeout: int = 0,
+    **kwargs: Dict[str, Any],
 ) -> DataSpec:
+    for kwarg in kwargs.keys():
+        warnings.warn(
+            f'Unused parameter `{kwarg}` passed to build_text_dataloader. This parameter is ignored. In future releases, this will raise an error.',
+            DeprecationWarning)
     dataset_cfg = dataset
     dataset = None
     assert name == 'text', f'Tried to build text dataloader with cfg.name={name}'

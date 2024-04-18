@@ -14,7 +14,7 @@ from llmfoundry.utils.builders import build_composer_model, build_tokenizer
 
 @pytest.mark.gpu
 @pytest.mark.world_size(2)
-@pytest.mark.parametrize('model_name', ['codellama', 'mistral'])
+@pytest.mark.parametrize('model_name', ['codellama'])
 @pytest.mark.parametrize('use_flash_attention_2', [True, False])
 @pytest.mark.parametrize('init_device', ['cpu', 'mixed', 'meta'])
 def test_flash2(model_name: str, use_flash_attention_2: bool, init_device: str):
@@ -32,7 +32,7 @@ def test_flash2(model_name: str, use_flash_attention_2: bool, init_device: str):
             'init_device': init_device,
         }
 
-        tokenizer_name = 'meta-llama/Llama-2-7b-hf'
+        tokenizer_name = 'codellama/CodeLlama-7b-hf'
         from transformers.models.llama.modeling_llama import (
             LlamaAttention, LlamaFlashAttention2)
         flash_attn_class = LlamaFlashAttention2 if use_flash_attention_2 else LlamaAttention

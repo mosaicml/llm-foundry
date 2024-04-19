@@ -39,7 +39,7 @@ def forbid_config_key(cfg_dict: Dict[str, Any], key: str):
         )
 
 
-def pop_config(cfg: DictConfig,
+def pop_config(cfg: Union[Dict[str, Any], DictConfig],
                key: str,
                must_exist: bool = True,
                default_value: Any = None,

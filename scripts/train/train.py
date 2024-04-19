@@ -97,7 +97,7 @@ class TrainConfig:
     callbacks: Optional[Dict[str, Any]] = None
     algorithms: Optional[Dict[str, Any]] = None
 
-    # checkpoints
+    # Checkpoints
     save_folder: Optional[str] = None
     save_latest_filename: Optional[str] = None
     save_overwrite: bool = False

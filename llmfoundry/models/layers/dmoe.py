@@ -104,11 +104,29 @@ class MLP(torch.nn.Module):
                        device=device))
         self.activation_fn = activation_fn
 
-    def forward(self, x: torch.Tensor, expert_idx: int) -> torch.Tensor:
-        expert_w1 = self.w1.view(self.moe_num_experts, self.ffn_hidden_size,
-                                 self.hidden_size)[expert_idx]
-        expert_w2 = self.w2.view(self.moe_num_experts, self.ffn_hidden_size,
-                                 self.hidden_size)[expert_idx]
+    def chunk_experts(self):
+        """Chunk experts at once.
+
+        By chunking all experts in a single call and passing each chunk from the
+        parent class, we fuse the mask steps to avoid saving extra inputs and
+        increasing memory usage.
+        """
+        w1_chunked = self.w1.view(
+            self.moe_num_experts,
+            self.ffn_hidden_size,
+            self.hidden_size,
+        ).chunk(self.moe_num_experts, dim=0)
+        w2_chunked = self.w2.view(
+            self.moe_num_experts,
+            self.ffn_hidden_size,
+            self.hidden_size,
+        ).chunk(self.moe_num_experts, dim=0)
+        return [(w1.squeeze(dim=0), w2.squeeze(dim=0))
+                for w1, w2 in zip(w1_chunked, w2_chunked)]
+
+    def forward(self, x: torch.Tensor,
+                chunked_experts: tuple[torch.tensor]) -> torch.Tensor:
+        expert_w1, expert_w2 = chunked_experts
 
         before_activation = x @ expert_w1.t()
         layer_1_output = self.activation_fn(before_activation)
@@ -145,13 +163,34 @@ class GLU(torch.nn.Module):
                        device=device))
         self.activation_fn = activation_fn
 
-    def forward(self, x: torch.Tensor, expert_idx: torch.Tensor):
-        expert_w1 = self.w1.view(self.moe_num_experts, self.ffn_hidden_size,
-                                 self.hidden_size)[expert_idx]
-        expert_v1 = self.v1.view(self.moe_num_experts, self.ffn_hidden_size,
-                                 self.hidden_size)[expert_idx]
-        expert_w2 = self.w2.view(self.moe_num_experts, self.ffn_hidden_size,
-                                 self.hidden_size)[expert_idx]
+    def chunk_experts(self):
+        """Chunk experts at once.
+
+        By chunking all experts in a single call and passing each chunk from the
+        parent class, we fuse the mask steps to avoid saving extra inputs and
+        increasing memory usage.
+        """
+        w1_chunked = self.w1.view(
+            self.moe_num_experts,
+            self.ffn_hidden_size,
+            self.hidden_size,
+        ).chunk(self.moe_num_experts, dim=0)
+        v1_chunked = self.v1.view(
+            self.moe_num_experts,
+            self.ffn_hidden_size,
+            self.hidden_size,
+        ).chunk(self.moe_num_experts, dim=0)
+        w2_chunked = self.w2.view(
+            self.moe_num_experts,
+            self.ffn_hidden_size,
+            self.hidden_size,
+        ).chunk(self.moe_num_experts, dim=0)
+        return [(w1.squeeze(dim=0), v1.squeeze(dim=0), w2.squeeze(dim=0))
+                for w1, v1, w2 in zip(w1_chunked, v1_chunked, w2_chunked)]
+
+    def forward(self, x: torch.Tensor,
+                chunked_experts: tuple[torch.tensor]) -> torch.Tensor:
+        expert_w1, expert_v1, expert_w2 = chunked_experts
 
         x1 = x.matmul(expert_w1.t())
         x2 = x.matmul(expert_v1.t())
@@ -201,6 +240,7 @@ class DroplessMLP(torch.nn.Module):
 
         expert_mask = torch.nn.functional.one_hot(
             top_experts, num_classes=self.moe_num_experts).permute(2, 1, 0)
+        chunked_experts = self.mlp.chunk_experts()
         for expert_idx in range(0, self.moe_num_experts):
             topk_idx, token_idx = torch.where(expert_mask[expert_idx])
             if token_idx.shape[0] == 0:
@@ -210,7 +250,7 @@ class DroplessMLP(torch.nn.Module):
             topk_list = topk_idx.tolist()
 
             expert_tokens = x[None, token_list].reshape(-1, hidden_size)
-            mlp_output = self.mlp(expert_tokens, expert_idx)
+            mlp_output = self.mlp(expert_tokens, chunked_experts[expert_idx])
             expert_out = mlp_output * expert_weights[token_list, topk_list,
                                                      None]
 

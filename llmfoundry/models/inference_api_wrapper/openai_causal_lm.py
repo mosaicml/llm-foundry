@@ -12,9 +12,6 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 import torch
 from composer.core.types import Batch
 from composer.utils.import_helpers import MissingConditionalImportError
-from openai.types.chat.chat_completion import ChatCompletion
-from openai.types.completion import Completion
-from openai.types.completion_choice import Logprobs
 from omegaconf import DictConfig
 from transformers import AutoTokenizer
 
@@ -28,8 +25,13 @@ __all__ = [
     'OpenAIChatAPIEvalWrapper',
 ]
 
-MAX_RETRIES = 100
 
+if TYPE_CHECKING:
+    from openai.types.chat.chat_completion import ChatCompletion
+    from openai.types.completion import Completion
+    from openai.types.completion_choice import Logprobs
+
+MAX_RETRIES = 100
 
 class OpenAIEvalInterface(InferenceAPIEvalWrapper):
 

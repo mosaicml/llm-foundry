@@ -5,12 +5,11 @@ import logging
 import os
 import random
 from time import sleep
-from typing import Any, List, Optional, Union
+from typing import TYPE_CHECKING, Any, List, Optional, Union
 
 from composer.core.types import Batch
 from composer.utils.import_helpers import MissingConditionalImportError
 from omegaconf import DictConfig
-from openai.types.chat.chat_completion import ChatCompletion
 from transformers import AutoTokenizer
 
 log = logging.getLogger(__name__)
@@ -19,6 +18,9 @@ from transformers import AutoTokenizer
 
 from llmfoundry.models.inference_api_wrapper.interface import \
     InferenceAPIEvalWrapper
+
+if TYPE_CHECKING:
+    from openai.types.chat.chat_completion import ChatCompletion
 
 MAX_RETRIES = 3
 
@@ -65,7 +67,7 @@ class GeminiChatAPIEvalrapper(InferenceAPIEvalWrapper):
             self,
             prompt: str,  #
             num_tokens: int,
-            generation_kwargs: Optional[dict] = None) -> ChatCompletion:
+            generation_kwargs: Optional[dict] = None) -> 'ChatCompletion':
         if generation_kwargs is None:
             generation_kwargs = {}
         if isinstance(prompt, str):
@@ -81,7 +83,7 @@ class GeminiChatAPIEvalrapper(InferenceAPIEvalWrapper):
         else:
             raise ValueError(f'Prompt must be str: {prompt}')
 
-    def completion_to_string(self, completion: ChatCompletion):
+    def completion_to_string(self, completion: 'ChatCompletion'):
         try:
             # sometimes gemini will block outputs due to content filters
             return [completion.text]

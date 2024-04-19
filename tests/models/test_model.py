@@ -35,6 +35,7 @@ from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils import build_tokenizer
 from llmfoundry.utils.builders import build_composer_model
+from llmfoundry.utils.config_utils import to_str_dict
 
 
 def get_config(
@@ -89,9 +90,10 @@ def _get_objs(request: pytest.FixtureRequest,
     tokenizer = build_tokenizer(test_cfg.tokenizer.name,
                                 tokenizer_cfg.get('kwargs', {}))
 
+    name = test_cfg.model.pop('name')
     model = build_composer_model(
-        name=test_cfg.model.name,
-        cfg=test_cfg.model,
+        name=name,
+        cfg=to_str_dict(test_cfg.model),
         tokenizer=tokenizer,
     )
 
@@ -291,9 +293,10 @@ def test_full_forward_and_backward_gpt2_small(batch_size: int = 2):
     tokenizer = build_tokenizer(neo_cfg.tokenizer.name,
                                 tokenizer_cfg.get('kwargs', {}))
 
+    name = neo_cfg.model.pop('name')
     model = build_composer_model(
-        name=neo_cfg.model.name,
-        cfg=neo_cfg.model,
+        name=name,
+        cfg=to_str_dict(neo_cfg.model),
         tokenizer=tokenizer,
     ).to(device)
 
@@ -340,9 +343,10 @@ def test_full_forward_and_backward_t5_small(batch_size: int = 2):
     tokenizer = build_tokenizer(t5_cfg.tokenizer.name,
                                 tokenizer_cfg.get('kwargs', {}))
 
+    name = t5_cfg.model.pop('name')
     model = build_composer_model(
-        name=t5_cfg.model.name,
-        cfg=t5_cfg.model,
+        name=name,
+        cfg=to_str_dict(t5_cfg.model),
         tokenizer=tokenizer,
     ).to(device)
 
@@ -417,9 +421,10 @@ def test_determinism(attn_impl: str, precision: torch.dtype, ffn_type: str,
     tokenizer = build_tokenizer(test_cfg.tokenizer.name,
                                 tokenizer_cfg.get('kwargs', {}))
 
+    name = test_cfg.model.pop('name')
     model_1 = build_composer_model(
-        name=test_cfg.model.name,
-        cfg=test_cfg.model,
+        name=name,
+        cfg=to_str_dict(test_cfg.model),
         tokenizer=tokenizer,
     )
     model_2 = copy.deepcopy(model_1)
@@ -487,9 +492,10 @@ def test_loss_fn():
     tokenizer = build_tokenizer(test_cfg.tokenizer.name,
                                 tokenizer_cfg.get('kwargs', {}))
 
+    name = test_cfg.model.pop('name')
     model_1 = build_composer_model(
-        name=test_cfg.model.name,
-        cfg=test_cfg.model,
+        name=name,
+        cfg=to_str_dict(test_cfg.model),
         tokenizer=tokenizer,
     )
     model_2 = copy.deepcopy(model_1)
@@ -573,9 +579,10 @@ def test_loss_reduction(loss_fn_config: str):
     tokenizer = build_tokenizer(test_cfg.tokenizer.name,
                                 tokenizer_cfg.get('kwargs', {}))
 
+    name = test_cfg.model.pop('name')
     model_1 = build_composer_model(
-        name=test_cfg.model.name,
-        cfg=test_cfg.model,
+        name=name,
+        cfg=to_str_dict(test_cfg.model),
         tokenizer=tokenizer,
     )
     model_2 = copy.deepcopy(model_1)

@@ -105,7 +105,8 @@ def evaluate_model(
 
     init_context = process_init_device(DictConfig(model), fsdp_config)
 
-    composer_model = build_composer_model(name=model['name'],
+    name = model.pop('name')
+    composer_model = build_composer_model(name=name,
                                           tokenizer=tokenizer,
                                           init_context=init_context,
                                           cfg=model)

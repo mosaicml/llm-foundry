@@ -5,7 +5,6 @@ import contextlib
 
 import pytest
 from composer.core.precision import get_precision_context
-from omegaconf import OmegaConf as om
 
 from llmfoundry.models.hf.hf_fsdp import rgetattr
 from llmfoundry.models.layers.attention import is_flash_v2_installed
@@ -43,8 +42,6 @@ def test_flash2(model_name: str, use_flash_attention_2: bool, init_device: str):
     if use_flash_attention_2:
         model_cfg['use_flash_attention_2'] = True
 
-    model_cfg = om.create(model_cfg)
-
     tokenizer = build_tokenizer(
         tokenizer_name=tokenizer_name,
         tokenizer_kwargs={'model_max_length': 10},
@@ -57,8 +54,9 @@ def test_flash2(model_name: str, use_flash_attention_2: bool, init_device: str):
     ) and use_flash_attention_2 else contextlib.nullcontext()
 
     with error_context:
+        name = model_cfg.pop('name')
         model = build_composer_model(
-            name=model_cfg['name'],
+            name=name,
             cfg=model_cfg,
             tokenizer=tokenizer,
         )

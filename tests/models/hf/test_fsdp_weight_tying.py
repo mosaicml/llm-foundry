@@ -10,6 +10,7 @@ from composer.models.huggingface import maybe_get_underlying_model
 from omegaconf import OmegaConf as om
 
 from llmfoundry.utils.builders import build_composer_model, build_tokenizer
+from llmfoundry.utils.config_utils import to_str_dict
 
 
 @pytest.mark.world_size(2)
@@ -67,9 +68,10 @@ def test_fsdp_weight_tying(peft_config: Optional[dict], tmp_path: pathlib.Path,
         tokenizer_kwargs={'model_max_length': 32},
     )
 
+    name = model_cfg.pop('name')
     original_model = build_composer_model(
-        name=model_cfg['name'],
-        cfg=model_cfg,
+        name=name,
+        cfg=to_str_dict(model_cfg),
         tokenizer=tokenizer,
     )
 

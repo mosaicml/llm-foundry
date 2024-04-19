@@ -13,6 +13,7 @@ from composer.loggers import InMemoryLogger
 
 from llmfoundry.utils import build_tokenizer
 from llmfoundry.utils.builders import build_composer_model
+from llmfoundry.utils.config_utils import to_str_dict
 from scripts.eval.eval import main  # noqa: E402
 from tests.data_utils import (create_arxiv_dataset, create_c4_dataset_xxsmall,
                               gpt_tiny_cfg)
@@ -47,9 +48,10 @@ def mock_saved_model_path(eval_cfg: Union[om.ListConfig, om.DictConfig]):
     tokenizer = build_tokenizer(model_cfg.tokenizer.name,
                                 model_cfg.tokenizer.get('kwargs', {}))
     # build model
-    model = build_composer_model(name=model_cfg.model.name,
+    name = model_cfg.model.pop('name')
+    model = build_composer_model(name=name,
                                  tokenizer=tokenizer,
-                                 cfg=model_cfg.model)
+                                 cfg=to_str_dict(model_cfg.model))
 
     # create mocked save checkpoint
     trainer = Trainer(model=model, device=device)

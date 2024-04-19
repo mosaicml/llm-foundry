@@ -28,7 +28,7 @@ from llmfoundry.data.finetuning import build_finetuning_dataloader
 from llmfoundry.models.mpt import MPTConfig
 from llmfoundry.utils.builders import (build_composer_model, build_optimizer,
                                        build_tokenizer)
-from llmfoundry.utils.config_utils import process_init_device
+from llmfoundry.utils.config_utils import process_init_device, to_str_dict
 from scripts.inference.convert_composer_to_hf import convert_composer_to_hf
 from tests.data_utils import make_tiny_ft_dataset
 
@@ -774,7 +774,8 @@ def test_huggingface_conversion_callback(
         **dataloader_cfg,
     )
 
-    original_model = build_composer_model(model_cfg['name'],
+    name = model_cfg.pop('name')
+    original_model = build_composer_model(name,
                                           tokenizer=tokenizer,
                                           cfg=model_cfg)
     optimizer_name = optimizer_config.pop('name')
@@ -871,10 +872,11 @@ def test_convert_and_generate(model: str, tie_word_embeddings: bool,
     om_cfg['model']['init_device'] = 'cpu'
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         om_cfg.tokenizer.name, use_auth_token=model == 'llama2')
+    name = om_cfg.model.pop('name')
     original_model = build_composer_model(
-        name=om_cfg['model'].name,
+        name=name,
         tokenizer=tokenizer,
-        cfg=om_cfg['model'],
+        cfg=to_str_dict(om_cfg['model']),
     )
     trainer = Trainer(model=original_model,
                       device='cpu' if not model == 'mptmoe' else 'gpu')
@@ -943,10 +945,11 @@ def test_convert_and_generate_meta(tie_word_embeddings: str,
     om_cfg['tie_word_embeddings'] = tie_word_embeddings
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         om_cfg.tokenizer.name)
+    name = om_cfg.model.pop('name')
     original_model = build_composer_model(
-        name=om_cfg['model'].name,
+        name=name,
         tokenizer=tokenizer,
-        cfg=om_cfg['model'],
+        cfg=to_str_dict(om_cfg['model']),
     )
     trainer = Trainer(model=original_model,
                       device='cpu' if not 'moe' in conf_path else 'gpu')
@@ -1153,11 +1156,12 @@ def test_mptmoe_huggingface_conversion_callback(
     optimizer_name = optimizer_config.pop('name')
 
     init_context = process_init_device(model_cfg, fsdp_config)
+    name = model_cfg.pop('name')
     original_model = build_composer_model(
-        name=model_cfg.name,
+        name=name,
         tokenizer=tokenizer,
         init_context=init_context,
-        cfg=model_cfg,
+        cfg=to_str_dict(model_cfg),
     )
 
     optimizer = build_optimizer(original_model, optimizer_name,

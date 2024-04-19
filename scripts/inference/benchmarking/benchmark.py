@@ -64,8 +64,9 @@ def main(config: DictConfig):
         tokenizer_name=tokenizer_name,
         tokenizer_kwargs=tokenizer_kwargs,
     )
+    name = config.model.pop('name')
     composer_model = build_composer_model(
-        name=config.model.name,
+        name=name,
         tokenizer=tokenizer,
         cfg=config.model,
     )

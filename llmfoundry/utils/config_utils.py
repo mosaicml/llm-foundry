@@ -5,7 +5,7 @@ import contextlib
 import logging
 import math
 import warnings
-from typing import Any, Dict, Literal, Mapping, Optional, Tuple, Union
+from typing import Any, Dict, Literal, Mapping, Optional, Tuple, Union, TYPE_CHECKING
 
 from composer.utils import dist, parse_uri
 from omegaconf import DictConfig, ListConfig
@@ -18,6 +18,8 @@ try:
     import mlflow
 except ImportError:
     mlflow = None
+    if TYPE_CHECKING: # for pyright
+        import mlflow
 
 log = logging.getLogger(__name__)
 

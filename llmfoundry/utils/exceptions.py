@@ -204,3 +204,13 @@ class OutputFolderNotEmptyError(FileExistsError):
         self.output_folder = output_folder
         message = f'{output_folder} is not empty. Please remove or empty it and retry.'
         super().__init__(message)
+
+
+class MisconfiguredHfDatasetError(ValueError):
+    """Error thrown when a HuggingFace dataset is misconfigured."""
+
+    def __init__(self, dataset_name: str, split: str) -> None:
+        self.dataset_name = dataset_name
+        self.split = split
+        message = f'Your dataset (name={dataset_name}, split={split}) is misconfigured. Please check your dataset config.'
+        super().__init__(message)

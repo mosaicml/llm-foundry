@@ -8,7 +8,6 @@ from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Tuple
 import numpy as np
 import torch
 from composer.utils import dist
-from omegaconf import DictConfig
 from transformers import PreTrainedTokenizerBase
 
 log = logging.getLogger(__name__)

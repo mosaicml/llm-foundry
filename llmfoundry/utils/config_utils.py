@@ -14,6 +14,11 @@ from omegaconf import OmegaConf as om
 from llmfoundry.layers_registry import ffns_with_megablocks
 from llmfoundry.models.utils import init_empty_weights
 
+try:
+    import mlflow
+except ImportError:
+    mlflow = None
+
 log = logging.getLogger(__name__)
 
 __all__ = [
@@ -178,10 +183,8 @@ def log_config(cfg: DictConfig) -> None:
             wandb.config.update(om.to_container(cfg, resolve=True))
 
     if 'mlflow' in cfg.get('loggers', {}):
-        try:
-            import mlflow
-        except ImportError as e:
-            raise e
+        if not mlflow:
+            raise ImportError("MLflow is required but not installed.")
         if mlflow.active_run():
             mlflow.log_params(params=om.to_container(cfg, resolve=True))
             log_dataset_uri(cfg)
@@ -235,6 +238,9 @@ def parse_source_dataset(cfg: DictConfig):
 
 def log_dataset_uri(cfg: DictConfig) -> mlflow.data.meta_dataset.MetaDataset:
     """Logs dataset tracking information to MLflow."""
+    if mlflow is None:
+        log.warning("MLflow is not installed. Skipping dataset logging.")
+        return None
     # Figure out which data source to use
     data_paths = parse_source_dataset(cfg)
 

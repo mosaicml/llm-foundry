@@ -114,7 +114,7 @@ def process_init_device(model_cfg: DictConfig, fsdp_config: Optional[Dict]):
         assert model_cfg.init_device in ['meta', 'cpu', 'mixed']
         if fsdp_config is None and model_cfg.init_device == 'meta':
             warnings.warn(
-                "Using `cfg.model.init_device='meta'` is only valid when using FSDP! " +\
+                'Using `cfg.model.init_device='meta'` is only valid when using FSDP! ' +\
                 "Reverting to `cfg.model.init_device='cpu'`.")
             model_cfg.init_device = 'cpu'
         if model_cfg.init_device == 'meta':
@@ -212,7 +212,7 @@ def parse_source_dataset(cfg: DictConfig):
                                                               {}).get('hf_name')
             backend, _, _ = parse_uri(hf_path)
             if backend:
-                hf_path = f'{hf_path.rstrip('/')}/{split}' if split else hf_path
+                hf_path = f'{hf_path.rstrip("/")}/{split}' if split else hf_path
                 data_paths.add((backend, hf_path, data_split))
             else:
                 data_paths.add(('hf', hf_path, data_split))
@@ -222,7 +222,7 @@ def parse_source_dataset(cfg: DictConfig):
             remote_path = cfg.get(f'{data_split}_loader',
                                   {}).get('dataset', {}).get('remote', None)
             backend, _, _ = parse_uri(remote_path)
-            remote_path = f'{remote_path.rstrip('/')}/{split}/' if split else remote_path
+            remote_path = f'{remote_path.rstrip("/")}/{split}/' if split else remote_path
             data_paths.add((backend, remote_path, data_split))
         # check for local path
         elif cfg.get(f'{data_split}_loader', {}).get('dataset',

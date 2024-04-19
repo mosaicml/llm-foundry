@@ -211,6 +211,7 @@ class HuggingFaceCheckpointer(Callback):
                 state,
                 event) and self.last_checkpoint_batch != state.timestamp.batch:
             print('calling save')
+            print(event)
             self._save_checkpoint(state, logger)
         elif event == Event.INIT:
             if not isinstance(state.model, HuggingFaceModel):

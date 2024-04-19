@@ -5,7 +5,6 @@
 
 import logging
 import os
-import warnings
 from itertools import islice
 from typing import (Any, Callable, Dict, List, Mapping, Optional, Sequence,
                     Union, cast)
@@ -246,10 +245,7 @@ class ConcatenatedSequenceCollatorWrapper:
         return torch.cat([left_zeros, cumulative_sep[:, :-1]], dim=1)
 
 
-def build_streams(
-        streams: Optional[Dict[str, Any]] = None,
-        **dataset_cfg_rest: DictConfig  # unused
-):
+def build_streams(streams: Optional[Dict[str, Any]] = None,):
     streams_dict = streams
     # build streams
     streams_ret: List = []
@@ -262,7 +258,6 @@ def build_streams(
 
 
 def build_text_dataloader(
-    name: str,
     tokenizer: PreTrainedTokenizerBase,
     device_batch_size: int,
     dataset: DictConfig,
@@ -272,14 +267,8 @@ def build_text_dataloader(
     prefetch_factor: int = 2,
     persistent_workers: bool = True,
     timeout: int = 0,
-    **kwargs: Dict[str, Any],
 ) -> DataSpec:
-    for kwarg in kwargs.keys():
-        warnings.warn(
-            f'Unused parameter `{kwarg}` passed to build_text_dataloader. This parameter is ignored. In future releases, this will raise an error.',
-            DeprecationWarning)
     dataset_cfg = dataset
-    assert name == 'text', f'Tried to build text dataloader with cfg.name={name}'
 
     # get kwargs
     mlm_probability = dataset_cfg.pop('mlm_probability', None)
@@ -314,7 +303,7 @@ def build_text_dataloader(
                 ' To override this error, set the override_bos_token_id_mismatch_error flag to True in the dataset config section of the YAML.'
             )
 
-    streams = build_streams(**dataset_cfg)
+    streams = build_streams(streams=dataset_cfg.streams)
 
     # build dataset potentially with streams
     text_dataset = StreamingTextDataset(

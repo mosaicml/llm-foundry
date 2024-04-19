@@ -184,7 +184,7 @@ def log_config(cfg: DictConfig) -> None:
 
     if 'mlflow' in cfg.get('loggers', {}):
         if not mlflow:
-            raise ImportError("MLflow is required but not installed.")
+            raise ImportError('MLflow is required but not installed.')
         if mlflow.active_run():
             mlflow.log_params(params=om.to_container(cfg, resolve=True))
             log_dataset_uri(cfg)
@@ -212,7 +212,7 @@ def parse_source_dataset(cfg: DictConfig):
                                                               {}).get('hf_name')
             backend, _, _ = parse_uri(hf_path)
             if backend:
-                hf_path = f'{hf_path.rstrip("/")}/{split}' if split else hf_path
+                hf_path = f'{hf_path.rstrip('/')}/{split}' if split else hf_path
                 data_paths.add((backend, hf_path, data_split))
             else:
                 data_paths.add(('hf', hf_path, data_split))
@@ -222,7 +222,7 @@ def parse_source_dataset(cfg: DictConfig):
             remote_path = cfg.get(f'{data_split}_loader',
                                   {}).get('dataset', {}).get('remote', None)
             backend, _, _ = parse_uri(remote_path)
-            remote_path = f'{remote_path.rstrip("/")}/{split}/' if split else remote_path
+            remote_path = f'{remote_path.rstrip('/')}/{split}/' if split else remote_path
             data_paths.add((backend, remote_path, data_split))
         # check for local path
         elif cfg.get(f'{data_split}_loader', {}).get('dataset',
@@ -239,7 +239,7 @@ def parse_source_dataset(cfg: DictConfig):
 def log_dataset_uri(cfg: DictConfig) -> mlflow.data.meta_dataset.MetaDataset:
     """Logs dataset tracking information to MLflow."""
     if mlflow is None:
-        log.warning("MLflow is not installed. Skipping dataset logging.")
+        log.warning('MLflow is not installed. Skipping dataset logging.')
         return None
     # Figure out which data source to use
     data_paths = parse_source_dataset(cfg)

@@ -12,8 +12,7 @@ mlflow = pytest.importorskip('mlflow')
 
 
 def create_config(**kwargs):
-    """Helper function to create OmegaConf configurations based on input
-    kwargs."""
+    """Helper function to create OmegaConf configurations."""
     return OmegaConf.create(kwargs)
 
 

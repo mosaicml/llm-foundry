@@ -85,7 +85,7 @@ class TrainConfig:
     icl_subset_num_batches: Optional[int] = None
     icl_seq_len: Optional[int] = None
 
-    # logging
+    # Logging
     loggers: Optional[Dict[str, Any]] = None
     progress_bar: bool = False
     log_to_console: bool = True
@@ -93,7 +93,7 @@ class TrainConfig:
     console_log_interval: Union[int, str] = '1ba'
     log_config: bool = True
 
-    # callbacks
+    # Callbacks
     callbacks: Optional[Dict[str, Any]] = None
     algorithms: Optional[Dict[str, Any]] = None
 
@@ -111,30 +111,30 @@ class TrainConfig:
     load_ignore_keys: Optional[List[str]] = None
     save_ignore_keys: Optional[List[str]] = None
 
-    # dataloader
+    # Dataloader
     device_train_microbatch_size: Union[str, int] = 'auto'
     data_local: Optional[str] = None
     data_remote: Optional[str] = None
 
-    # eval dataloader
+    # Eval dataloader
     eval_subset_num_batches: int = -1
     eval_first: bool = False
     compile_config: Optional[Dict[str, Any]] = None
 
-    # metadata
+    # Metadata
     metadata: Optional[Dict[str, Any]] = None
     run_name: Optional[str] = None
 
-    # resumption
+    # Resumption
     autoresume: bool = False
 
-    # gradient accumulation
+    # Gradient accumulation
     device_train_grad_accum: Optional[int] = None
 
-    # profiling
+    # Profiling
     profiler: Optional[Dict[str, Any]] = None
 
-    # ignore keys
+    # Ignore keys
     global_seed: Optional[int] = None
     global_train_batch_size: Optional[int] = None
     n_gpus: Optional[int] = None
@@ -146,11 +146,11 @@ TRAIN_CONFIG_KEYS = set(field.name for field in fields(TrainConfig))
 
 def validate_config(train_config: TrainConfig):
     """Validates compatible model and dataloader selection."""
-    # check for missing mandatory fields
+    # Check for missing mandatory fields
     for field in TRAIN_CONFIG_KEYS:
         _ = getattr(train_config, field)
 
-    # validate the rest of the config
+    # Validate the rest of the config
     loaders = [train_config.train_loader]
     if train_config.eval_loaders is not None:
         for loader in (train_config.eval_loaders or []):  # pyright

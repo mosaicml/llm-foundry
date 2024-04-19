@@ -452,7 +452,7 @@ def _build_collate_fn(
     tokenizer: PreTrainedTokenizerBase,
     device_batch_size: int,
 ) -> Tuple[Union[Seq2SeqFinetuningCollator, BinPackCollator], int]:
-    # these `.get` calls are safe because the dataset_cfg is validated for extra keys
+    # These `.get` calls are safe because the dataset_cfg is validated for extra keys
     dataset_cfg = dataloader_cfg.dataset
     target_responses = dataset_cfg.get('target_responses',
                                        _DEFAULT_TARGET_RESPONSES)

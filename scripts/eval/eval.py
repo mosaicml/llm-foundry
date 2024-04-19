@@ -175,38 +175,38 @@ class EvalConfig:
     # Eval Config optional parameters:
     code_paths: Optional[List[str]] = None
 
-    # eval hyperparameters
+    # Eval hyperparameters
     eval_gauntlet: Optional[Dict[str, Any]] = None
     eval_gauntlet_str: Optional[str] = None
     eval_loader: Optional[Dict[str, Any]] = None
     eval_loaders: Optional[List[Dict[str, Any]]] = None
     eval_subset_num_batches: int = -1
     icl_subset_num_batches: Optional[int] = None
-    # one of icl_tasks or icl_tasks_str must be specified
+    # One of icl_tasks or icl_tasks_str must be specified
     icl_tasks: Optional[List[Dict[str, Any]]] = None
     icl_tasks_str: Optional[str] = None
 
-    # loggirg parameters
+    # Logging parameters
     python_log_level: Optional[str] = None
     loggers: Optional[Dict[str, Any]] = None
     log_config: bool = True
 
-    # model/run parameters
+    # Model/run parameters
     seed: int = 17
     precision: str = 'amp_bf16'
     run_name: Optional[str] = None
     model_name_or_path: Optional[str] = None
     metadata: Optional[Dict[str, str]] = None
 
-    # distributed parameters
+    # Distributed parameters
     dist_timeout: Union[float, int] = 600.0
     fsdp_config: Optional[Dict[str, Any]] = None
 
-    # callback parameters
+    # Callback parameters
     callbacks: Optional[Dict[str, Any]] = None
 
-    # variables to ignore
-    variables: Optional[Dict[str, Any]] = None  # variables to ignore
+    # Variables to ignore
+    variables: Optional[Dict[str, Any]] = None
 
 
 EVAL_CONFIG_KEYS = set(field.name for field in fields(EvalConfig))
@@ -219,7 +219,7 @@ def _make_eval_and_log_config(cfg: DictConfig) -> Tuple[DictConfig, EvalConfig]:
     assert all(isinstance(k, str) for k in unstructured_config.keys())
     unstructured_config = {str(k): v for k, v in unstructured_config.items()}
 
-    # flatten union types before creating structured config:
+    # Flatten union types before creating structured config:
     if 'eval_gauntlet' in unstructured_config:
         if isinstance(unstructured_config['eval_gauntlet'], str):
             unstructured_config['eval_gauntlet_str'] = unstructured_config.pop(
@@ -305,13 +305,13 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
         logging.getLogger('llmfoundry').setLevel(
             eval_config.python_log_level.upper())
 
-    # default argument values for evaluate_model
+    # Default argument values for evaluate_model
     eval_gauntlet_df = None
     models_df = None
     composite_scores = None
     trainers = []
 
-    # build loggers
+    # Build loggers
     loggers: List[LoggerDestination] = [
         build_logger(name, logger_cfg)
         for name, logger_cfg in (eval_config.loggers or {}).items()

@@ -288,7 +288,6 @@ class HuggingFaceCheckpointer(Callback):
         Returns:
             Tuple[PreTrainedModel, PreTrainedTokenizerBase]: The transformed model and tokenizer.
         """
-
         return model, tokenizer
 
     def _save_checkpoint(self, state: State, logger: Logger):

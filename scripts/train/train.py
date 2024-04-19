@@ -71,7 +71,7 @@ class TrainConfig:
     expandable_segments: bool = False
     cuda_load_lazy: bool = False
 
-    # distributed training parameters
+    # Distributed training parameters
     dist_timeout: Union[int, float] = 600.0
     fsdp_config: Optional[Dict[str, Any]] = None
 

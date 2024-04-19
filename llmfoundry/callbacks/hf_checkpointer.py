@@ -14,6 +14,7 @@ from multiprocessing.context import SpawnProcess
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
+import pandas as pd
 import torch
 import torch.nn as nn
 from composer.core import Callback, Event, State, Time, TimeUnit
@@ -162,25 +163,23 @@ class HuggingFaceCheckpointer(Callback):
 
             # Both the metadata and the task are needed in order for mlflow
             # and databricks optimized model serving to work
-            passed_metadata = mlflow_logging_config.get('metadata', {})
+            passed_metadata = mlflow_logging_config.get('metadata', None)
             mlflow_logging_config['metadata'] = passed_metadata
             mlflow_logging_config.setdefault('task', 'llm/v1/completions')
 
-            default_input_example = {
-                'prompt': np.array(['What is Machine Learning?'])
-            }
+            default_input_example = pd.DataFrame(
+                {'prompt': np.array(['What is Machine Learning?'])})
             is_chat = mlflow_logging_config['task'].endswith(
-                'chat') or mlflow_logging_config['metadata'].get(
+                'chat') or mlflow_logging_config.get('metadata', {}).get(
                     'task', '').endswith('chat')
             if is_chat:
-                default_input_example = {
+                default_input_example = pd.DataFrame({
                     'messages':
                         np.array([{
                             'role': 'user',
                             'content': 'What is Machine Learning?'
                         }])
-                }
-                mlflow_logging_config.setdefault('example_no_conversion', True)
+                })
             mlflow_logging_config.setdefault('input_example',
                                              default_input_example)
 
@@ -210,9 +209,6 @@ class HuggingFaceCheckpointer(Callback):
         if state.get_elapsed_duration() is not None and self.check_interval(
                 state,
                 event) and self.last_checkpoint_batch != state.timestamp.batch:
-            print('calling save')
-            print(event)
-            print(state.timestamp, state.max_duration)
             self._save_checkpoint(state, logger)
         elif event == Event.INIT:
             if not isinstance(state.model, HuggingFaceModel):

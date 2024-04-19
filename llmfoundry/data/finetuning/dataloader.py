@@ -141,7 +141,7 @@ def build_finetuning_dataloader(
         given a starting workload YAML.
     """
     dataset_cfg = dataset
-    _validate_config(dataset_cfg)
+    _validate_config(**dataset_cfg)
 
     # Use EOS as the pad token if none exists
     if tokenizer.pad_token is None:  # type: ignore (sometimes it's none and that's ok)

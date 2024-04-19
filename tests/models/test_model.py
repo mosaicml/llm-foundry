@@ -766,7 +766,7 @@ def test_mpt_creation(norm_type: str, no_bias: bool, tie_word_embeddings: bool,
     assert mpt.config.d_model == 128
     assert mpt.config.n_heads == 4
     assert mpt.config.n_layers == 2
-    if ffn_hidden_size is None:  # type: ignore (sometimes it may not be none)
+    if ffn_hidden_size is None:
         assert mpt.config.expansion_ratio == expansion_ratio
     else:
         assert mpt.config.ffn_config['ffn_hidden_size'] == ffn_hidden_size

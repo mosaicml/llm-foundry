@@ -42,6 +42,7 @@ from typing import (Any, Callable, Dict, List, Literal, Optional, Sequence,
                     Tuple, Union, cast)
 
 import datasets as hf_datasets
+import datasets.exceptions as hf_exceptions
 import huggingface_hub as hf_hub
 import numpy as np
 from composer.utils import dist
@@ -61,6 +62,7 @@ from llmfoundry.utils.exceptions import (ConsecutiveRepeatedChatRolesError,
                                          InvalidPromptTypeError,
                                          InvalidResponseTypeError,
                                          InvalidRoleError,
+                                         MisconfiguredHfDatasetError,
                                          NotEnoughChatDataError,
                                          TooManyKeysInExampleError,
                                          UnableToProcessPromptResponseError,
@@ -838,6 +840,10 @@ class DatasetConstructor:
         if dist.get_local_rank() == 0:
             os.remove(signal_file_path)
 
+        if isinstance(error, hf_exceptions.DatasetGenerationError):
+            log.error('Huggingface DatasetGenerationError during data prep.')
+            raise MisconfiguredHfDatasetError(dataset_name=dataset_name,
+                                              split=split)
         if error is not None:
             log.error('Error during data prep')
             raise error

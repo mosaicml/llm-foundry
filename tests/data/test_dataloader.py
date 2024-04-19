@@ -42,6 +42,7 @@ from llmfoundry.utils.exceptions import (ConsecutiveRepeatedChatRolesError,
                                          InvalidPromptTypeError,
                                          InvalidResponseTypeError,
                                          InvalidRoleError,
+                                         MisconfiguredHfDatasetError,
                                          NotEnoughDatasetSamplesError,
                                          TooManyKeysInExampleError,
                                          UnknownExampleTypeError)
@@ -266,6 +267,47 @@ def test_sequence_id_wrapper(eos_token_id: Optional[int],
                            torch.Tensor([[0, 0, 0, 1, 1, 1, 2, 2, 2]]))
     else:
         raise NotImplementedError()
+
+
+def test_invalid_jsonl_data():
+    max_seq_len = 2
+    decoder_only_format = True
+    packing_ratio = 'auto'
+    allow_pad_trimming = False
+    cfg = {
+        'name': 'finetuning',
+        'dataset': {
+            'hf_name': 'iamroot/chat_malformatted_examples',
+            'split': 'train',
+            'max_seq_len': max_seq_len,
+            'decoder_only_format': decoder_only_format,
+            'allow_pad_trimming': allow_pad_trimming,
+            'packing_ratio': packing_ratio,
+            'shuffle': True,
+        },
+        'drop_last': False,
+        'num_workers': 0,
+        'pin_memory': False,
+        'prefetch_factor': None,
+        'persistent_workers': False,
+        'timeout': 0
+    }
+
+    cfg = om.create(cfg)
+
+    tokenizer = build_tokenizer(
+        tokenizer_name='gpt2',
+        tokenizer_kwargs={'model_max_length': max_seq_len})
+
+    device_batch_size = 2
+
+    expected_keys = ['input_ids', 'attention_mask', 'labels']
+    if not decoder_only_format:
+        expected_keys += ['decoder_attention_mask', 'decoder_input_ids']
+
+    with pytest.raises(MisconfiguredHfDatasetError):
+        build_finetuning_dataloader(cfg, tokenizer,
+                                    device_batch_size).dataloader
 
 
 @pytest.mark.parametrize('use_chat_formatting', [True, False])

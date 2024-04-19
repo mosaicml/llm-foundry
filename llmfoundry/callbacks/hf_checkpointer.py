@@ -169,9 +169,10 @@ class HuggingFaceCheckpointer(Callback):
 
             default_input_example = pd.DataFrame(
                 {'prompt': np.array(['What is Machine Learning?'])})
-            is_chat = mlflow_logging_config['task'].endswith(
-                'chat') or mlflow_logging_config.get('metadata', {}).get(
-                    'task', '').endswith('chat')
+            is_chat = mlflow_logging_config['task'].endswith('chat') or (
+                mlflow_logging_config['metadata'] is not None and
+                mlflow_logging_config['metadata'].get('task',
+                                                      '').endswith('chat'))
             if is_chat:
                 default_input_example = pd.DataFrame({
                     'messages':

@@ -104,7 +104,7 @@ def build_eval_loaders(
         eval_dataloader = build_dataloader(eval_config, tokenizer,
                                            device_eval_batch_size)
         eval_loader: Evaluator = Evaluator(
-            label=f"eval/{label}" if is_multi_eval else 'eval',
+            label=f'eval/{label}' if is_multi_eval else 'eval',
             dataloader=eval_dataloader,
             # Load the eval data to fail fast. metrics will get added
             # later in add_metrics_to_eval_loaders, after the model is loaded
@@ -150,6 +150,7 @@ def build_icl_data_and_gauntlet(
         if isinstance(eval_gauntlet_config, str):
             with open(eval_gauntlet_config, 'r') as icl_f:
                 eval_gauntlet_cfg = om.load(icl_f)
+                assert isinstance(eval_gauntlet_cfg, dict)
             eval_gauntlet = to_str_dict(eval_gauntlet_cfg['eval_gauntlet'])
         elif isinstance(eval_gauntlet_config, dict):  # pyright: ignore
             eval_gauntlet = eval_gauntlet_config

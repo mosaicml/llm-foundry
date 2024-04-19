@@ -284,9 +284,7 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     assert icl_tasks is not None, 'icl_tasks must be specified in the config'
 
     # Optional Evaluation Parameters with default values
-    eval_loader_config = DictConfig(
-        eval_config.eval_loader) if eval_config.eval_loader else ListConfig(
-            eval_config.eval_loaders) if eval_config.eval_loaders else None
+    eval_loader_config = eval_config.eval_loader if eval_config.eval_loader else eval_config.eval_loaders
     default_run_name: str = os.environ.get('RUN_NAME', 'llm')
     run_name = eval_config.run_name if eval_config.run_name else default_run_name
 

@@ -210,6 +210,7 @@ class HuggingFaceCheckpointer(Callback):
         if state.get_elapsed_duration() is not None and self.check_interval(
                 state,
                 event) and self.last_checkpoint_batch != state.timestamp.batch:
+            print('calling save')
             self._save_checkpoint(state, logger)
         elif event == Event.INIT:
             if not isinstance(state.model, HuggingFaceModel):
@@ -254,6 +255,7 @@ class HuggingFaceCheckpointer(Callback):
 
     def _is_last_batch(self, state: State):
         elapsed_duration = state.get_elapsed_duration()
+        print(elapsed_duration)
         if elapsed_duration is not None and elapsed_duration >= 1.0:
             return True
 

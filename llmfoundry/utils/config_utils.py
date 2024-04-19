@@ -32,6 +32,13 @@ def to_str_dict(cfg: DictConfig) -> Dict[str, Any]:
     return {str(k): v for k, v in cfg_dict.items()}
 
 
+def forbid_config_key(cfg_dict: Dict[str, Any], key: str):
+    if key in cfg_dict:
+        raise ValueError(
+            f'Config key `{key}` should not be set. Please remove it from the config.'
+        )
+
+
 def pop_config(cfg: DictConfig,
                key: str,
                must_exist: bool = True,

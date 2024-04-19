@@ -35,8 +35,8 @@ from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_composer_model, build_evaluators,
                                        build_logger, build_optimizer,
                                        build_scheduler, build_tokenizer)
-from llmfoundry.utils.config_utils import (log_config, pop_config,
-                                           process_init_device,
+from llmfoundry.utils.config_utils import (forbid_config_key, log_config,
+                                           pop_config, process_init_device,
                                            update_batch_size_info)
 from llmfoundry.utils.registry_utils import import_file
 
@@ -77,11 +77,12 @@ class TrainConfig:
 
     # Evaluation parameters
     eval_loader: Optional[Dict[str, Any]] = None
-    eval_loaders: Optional[List[Dict[str, Any]]] = None
+    eval_loaders: Optional[List[Dict[
+        str, Any]]] = None  # should not be set by the user
     icl_tasks: Optional[List[Dict[str, Any]]] = None
-    icl_tasks_str: Optional[str] = None
+    icl_tasks_str: Optional[str] = None  # should not be set by the user
     eval_gauntlet: Optional[Dict[str, Any]] = None
-    eval_gauntlet_str: Optional[str] = None
+    eval_gauntlet_str: Optional[str] = None  # should not be set by the user
     icl_subset_num_batches: Optional[int] = None
     icl_seq_len: Optional[int] = None
 
@@ -160,7 +161,6 @@ def validate_config(train_config: TrainConfig):
                             `label` attribute.')
             loaders.append(loader)
     if train_config.eval_loader is not None:
-        assert train_config.eval_loaders is None, 'Only one of `eval_loader` or `eval_loaders` should be provided.'
         loaders.append(train_config.eval_loader)
     for loader in loaders:
         if loader['name'] == 'text':
@@ -187,7 +187,9 @@ def validate_config(train_config: TrainConfig):
     if (train_config.model.get('fc_type', 'torch') == 'te' or
             'te' in train_config.model.get('ffn_config', {}).get(
                 'ffn_type', 'mptmlp')):
-        fsdp_config = train_config.fsdp_config or DictConfig({})
+        if train_config.fsdp_config is None:
+            train_config.fsdp_config = {}
+        fsdp_config = train_config.fsdp_config
         act_ckpt = fsdp_config.get('activation_checkpointing',
                                    False) if fsdp_config else False
         act_ckpt_reentrant = fsdp_config.get(
@@ -198,9 +200,8 @@ def validate_config(train_config: TrainConfig):
                 + '`activation_checkpointing_reentrant = True`. ' +
                 'Setting cfg.fsdp_config.activation_checkpointing_reentrant=False.'
             )
-            if train_config.fsdp_config is not None:
-                train_config.fsdp_config[
-                    'activation_checkpointing_reentrant'] = False
+            train_config.fsdp_config[
+                'activation_checkpointing_reentrant'] = False
 
     if train_config.model.get('ffn_config', {}).get('ffn_type',
                                                     'mptmlp') == 'te_ln_mlp':
@@ -239,14 +240,12 @@ def _make_train_and_log_config(
 
     # Structured config does not support unions of containers, so separate single and plural containers
     if (loader := unstructured_config.get('eval_loader', None)) is not None:
+        forbid_config_key(unstructured_config, 'eval_loaders')
         if isinstance(loader, list):
-            if 'eval_loaders' in unstructured_config:
-                raise ValueError(
-                    'Only one of `eval_loader` or `eval_loaders` should be provided.'
-                )
             unstructured_config['eval_loaders'] = unstructured_config.pop(
                 'eval_loader')
     if (tasks := unstructured_config.get('icl_tasks', None)) is not None:
+        forbid_config_key(unstructured_config, 'icl_tasks_str')
         if isinstance(tasks, str):
             if 'icl_tasks_str' in unstructured_config:
                 raise ValueError(
@@ -255,6 +254,7 @@ def _make_train_and_log_config(
             unstructured_config['icl_tasks_str'] = unstructured_config.pop(
                 'icl_tasks')
     if (gauntlet := unstructured_config.get('eval_gauntlet', None)) is not None:
+        forbid_config_key(unstructured_config, 'eval_gauntlet_str')
         if isinstance(gauntlet, str):
             if 'eval_gauntlet_str' in unstructured_config:
                 raise ValueError(

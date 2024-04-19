@@ -212,5 +212,5 @@ class MisconfiguredHfDatasetError(ValueError):
     def __init__(self, dataset_name: str, split: str) -> None:
         self.dataset_name = dataset_name
         self.split = split
-        message = f'Your dataset (name={dataset_name}, split={split}) is misconfigured. Please check your dataset config.'
+        message = f'Your dataset (name={dataset_name}, split={split}) is misconfigured. Please check your dataset format and make sure you can load your dataset locally.'
         super().__init__(message)

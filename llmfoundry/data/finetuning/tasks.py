@@ -154,8 +154,9 @@ def _validate_chat_formatted_example(example: ChatFormattedDict):
     role_key = _get_key(last_message, _ALLOWED_ROLE_KEYS)
     last_role = last_message[role_key]
     if last_role not in _ALLOWED_LAST_MESSAGE_ROLES:
-        raise InvalidLastChatMessageRoleError(last_role,
-                                              _ALLOWED_LAST_MESSAGE_ROLES)
+        pass
+        # raise InvalidLastChatMessageRoleError(last_role,
+        #                                       _ALLOWED_LAST_MESSAGE_ROLES)
 
     last_message_role = None
     for message in messages:
@@ -169,7 +170,8 @@ def _validate_chat_formatted_example(example: ChatFormattedDict):
             raise InvalidContentTypeError(type(message[content_key]))
         if last_message_role is not None and last_message_role == message[
                 role_key]:
-            raise ConsecutiveRepeatedChatRolesError(last_message_role)
+            pass
+            # raise ConsecutiveRepeatedChatRolesError(last_message_role)
         last_message_role = message[role_key]
 
 

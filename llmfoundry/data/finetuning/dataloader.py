@@ -303,7 +303,7 @@ def build_finetuning_dataloader(
 
 def _validate_config(
     max_seq_len: int,
-    decoder_only_format: bool,
+    decoder_only_format: bool = False,
     hf_name: Optional[str] = None,
     local: Optional[str] = None,
     remote: Optional[str] = None,
@@ -329,29 +329,13 @@ def _validate_config(
     """
     # Check for extraneous keys in the dataset config
     allowed_additional_kwargs = {
-        'local',
-        'remote',
-        'split',
-        'download_retry',
-        'download_timeout',
-        'validate_hash',
-        'keep_zip',
-        'epoch_size',
-        'predownload',
-        'cache_limit',
-        'partition_algo',
-        'num_canonical_nodes',
-        'batch_size',
-        'shuffle',
-        'shuffle_algo',
-        'shuffle_seed',
-        'shuffle_block_size',
-        'sampling_method',
-        'sampling_granularity',
-        'batching_method',
-        'max_seq_len',
-        'allow_unsafe_types',
-        'replication',
+        'local', 'remote', 'split', 'download_retry', 'download_timeout',
+        'validate_hash', 'keep_zip', 'epoch_size', 'predownload', 'cache_limit',
+        'partition_algo', 'num_canonical_nodes', 'batch_size', 'shuffle',
+        'shuffle_algo', 'shuffle_seed', 'shuffle_block_size', 'sampling_method',
+        'sampling_granularity', 'batching_method', 'max_seq_len',
+        'allow_unsafe_types', 'replication', 'packing_ratio',
+        'allow_pad_trimming'
     }
     if not set(kwargs.keys()).issubset(allowed_additional_kwargs):
         raise ValueError(
@@ -532,12 +516,12 @@ def _build_collate_fn(
     device_batch_size: int,
 ) -> Tuple[Union[Seq2SeqFinetuningCollator, BinPackCollator], int]:
     # These `.get` calls are safe because the dataset_cfg is validated for extra keys
-    dataset_cfg = dataloader_cfg.dataset
+    dataset_cfg = dataloader_cfg['dataset']
     target_responses = dataset_cfg.get('target_responses',
                                        _DEFAULT_TARGET_RESPONSES)
     target_prompts = dataset_cfg.get('target_prompts', _DEFAULT_TARGET_PROMPTS)
-    max_seq_len = dataset_cfg.max_seq_len
-    decoder_only_format = dataset_cfg.decoder_only_format
+    max_seq_len = dataset_cfg['max_seq_len']
+    decoder_only_format = dataset_cfg['decoder_only_format']
     allow_pad_trimming = dataset_cfg.get('allow_pad_trimming', False)
 
     collate_fn = Seq2SeqFinetuningCollator(

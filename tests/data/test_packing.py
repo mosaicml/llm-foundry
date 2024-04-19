@@ -197,7 +197,7 @@ def test_packing_with_dataloader(packing_ratio: Any):
     """Tests that packing works with a dataloader."""
     reproducibility.seed_all(17)
     tokenizer = build_tokenizer('gpt2', {})
-    cfg = DictConfig({
+    cfg = {
         'name': 'finetuning',
         'dataset': {
             'hf_name': 'tatsu-lab/alpaca',
@@ -216,7 +216,7 @@ def test_packing_with_dataloader(packing_ratio: Any):
         'prefetch_factor': None,
         'persistent_workers': False,
         'timeout': 0,
-    })
+    }
 
     loader = build_finetuning_dataloader(**cfg,
                                          tokenizer=tokenizer,

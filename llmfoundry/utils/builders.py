@@ -98,10 +98,13 @@ def build_eval_loaders(
         is_multi_eval = False
 
     for eval_config in eval_configs:
+        label = None
+        if 'label' in eval_config:
+            label = eval_config.pop('label')
         eval_dataloader = build_dataloader(eval_config, tokenizer,
                                            device_eval_batch_size)
         eval_loader: Evaluator = Evaluator(
-            label=f"eval/{eval_config['label']}" if is_multi_eval else 'eval',
+            label=f"eval/{label}" if is_multi_eval else 'eval',
             dataloader=eval_dataloader,
             # Load the eval data to fail fast. metrics will get added
             # later in add_metrics_to_eval_loaders, after the model is loaded

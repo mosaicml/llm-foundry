@@ -665,13 +665,12 @@ def test_opt_wrapping(peft_config: Optional[dict[str, str]]):
     if peft_config is not None:
         conf['model']['peft_config'] = peft_config
 
-    config = DictConfig(conf)
-
-    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(config.tokenizer)
-    tokenizer = build_tokenizer(config.tokenizer.name,
+    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(conf['tokenizer'])
+    tokenizer = build_tokenizer(conf['tokenizer']['name'],
                                 tokenizer_cfg.get('kwargs', {}))
 
-    model = ComposerHFCausalLM(**config.model, tokenizer=tokenizer)
+    conf['model'].pop('name')
+    model = ComposerHFCausalLM(**conf['model'], tokenizer=tokenizer)
 
     # check that all the modules we except are blocked from FSDP wrapping
     underlying_model = maybe_get_underlying_model(model.model)

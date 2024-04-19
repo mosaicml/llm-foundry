@@ -303,7 +303,8 @@ def build_text_dataloader(
                 ' To override this error, set the override_bos_token_id_mismatch_error flag to True in the dataset config section of the YAML.'
             )
 
-    streams = build_streams(streams=dataset_cfg.streams)
+    streams = build_streams(streams=dataset_cfg.pop('streams') if 'streams' in
+                            dataset_cfg else None)
 
     # build dataset potentially with streams
     text_dataset = StreamingTextDataset(

@@ -19,10 +19,8 @@ def test_olmo_wraps():
         },
     }
 
-    config = DictConfig(conf)
-
-    config.model.pop('name')
-    model = ComposerHFCausalLM(**config.model, tokenizer=None)
+    conf['model'].pop('name')
+    model = ComposerHFCausalLM(**conf['model'], tokenizer=None)
 
     # check that all the modules we except are blocked from FSDP wrapping
     underlying_model = maybe_get_underlying_model(model.model)

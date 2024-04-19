@@ -396,7 +396,7 @@ def profile_packing(
         'prefetch_factor': None,
         'persistent_workers': False,
     })
-    dataloader_cfg['dataset_cfg']['packing_ratio'] = 1.0
+    dataloader_cfg['dataset']['packing_ratio'] = 1.0
 
     # If streaming dataset, use a temporary local folder for profiling
     local_rank_zero = dist.get_global_rank() - dist.get_local_rank()

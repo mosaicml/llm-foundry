@@ -214,8 +214,8 @@ def _parse_source_dataset(cfg: DictConfig) -> Set[Tuple[str, str, str]]:
         if source_dataset_path and len(source_dataset_path.split('.')) >= 3:
             data_paths.add(('delta_table', source_dataset_path, data_split))
         # Check for UC volume
-        elif source_dataset_path and source_dataset_path.startswith('/Volumes'):
-            data_paths.add(('uc_volume', source_dataset_path, data_split))
+        elif source_dataset_path and source_dataset_path.startswith('dbfs:'):
+            data_paths.add(('uc_volume', source_dataset_path[len('dbfs:'), ], data_split))
         # Check for HF path
         elif 'hf_name' in data_set:
             hf_path = data_set['hf_name']
@@ -231,8 +231,11 @@ def _parse_source_dataset(cfg: DictConfig) -> Set[Tuple[str, str, str]]:
         elif 'remote' in data_set:
             remote_path = data_set['remote']
             backend, _, _ = parse_uri(remote_path)
-            remote_path = f'{remote_path.rstrip("/")}/{cfg_split}/' if cfg_split else remote_path
-            data_paths.add((backend, remote_path, data_split))
+            if backend:
+                remote_path = f'{remote_path.rstrip("/")}/{cfg_split}/' if cfg_split else remote_path
+                data_paths.add((backend, remote_path, data_split))
+            else:
+                data_paths.add(('local', remote_path, data_split))
         # check for local path
         elif 'local' in data_set:
             local_path = data_set['local']

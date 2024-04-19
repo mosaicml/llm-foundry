@@ -29,7 +29,6 @@ from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.eval.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
-from llmfoundry.utils.config_utils import to_str_dict
 from llmfoundry.utils.registry_utils import construct_from_registry
 from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
@@ -165,7 +164,7 @@ def build_icl_data_and_gauntlet(
 
 def build_composer_model(
     name: str,
-    cfg: Union[Dict[str, Any], DictConfig],
+    cfg: Dict[str, Any],
     tokenizer: PreTrainedTokenizerBase,
     init_context: Optional[ContextManager] = None,
     master_weights_dtype: Optional[str] = None,
@@ -185,14 +184,6 @@ def build_composer_model(
     if init_context is None:
         init_context = contextlib.nullcontext()
 
-    if isinstance(cfg, DictConfig):
-        model_cfg = to_str_dict(cfg)  # pyright
-    elif isinstance(cfg, dict):
-        model_cfg = {str(k): v for k, v in cfg.items()}
-    else:
-        raise ValueError(
-            f'Invalid type for cfg: {type(cfg)}. Must be DictConfig or Dict.')
-
     with init_context:
         model = construct_from_registry(
             name=name,
@@ -200,7 +191,7 @@ def build_composer_model(
             pre_validation_function=ComposerModel,
             post_validation_function=None,
             kwargs={
-                **model_cfg, 'tokenizer': tokenizer
+                **cfg, 'tokenizer': tokenizer
             },
         )
 

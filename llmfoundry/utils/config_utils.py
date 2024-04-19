@@ -113,22 +113,22 @@ def update_batch_size_info(cfg: Dict[str, Any]) -> Dict[str, Any]:
     return cfg
 
 
-def process_init_device(model_cfg: DictConfig, fsdp_config: Optional[Dict]):
+def process_init_device(model_cfg: Dict[str, Any], fsdp_config: Optional[Dict]):
     # Restrict model init_device to 'meta' and 'cpu',
     # using 'cuda' vs. 'cuda:id' is tricky and can lead to common user errors
     # when multiple GPUs are available.
     # Also 'meta' is only valid when using FSDP
     init_context = contextlib.nullcontext()
     if 'init_device' in model_cfg:
-        assert model_cfg.init_device in ['meta', 'cpu', 'mixed']
-        if fsdp_config is None and model_cfg.init_device == 'meta':
+        assert model_cfg['init_device'] in ['meta', 'cpu', 'mixed']
+        if fsdp_config is None and model_cfg['init_device'] == 'meta':
             warnings.warn(
                 "Using `cfg.model.init_device='meta'` is only valid when using FSDP! " +\
                 "Reverting to `cfg.model.init_device='cpu'`.")
-            model_cfg.init_device = 'cpu'
-        if model_cfg.init_device == 'meta':
+            model_cfg['init_device'] = 'cpu'
+        if model_cfg['init_device'] == 'meta':
             init_context = init_empty_weights()
-        if model_cfg.init_device == 'mixed':
+        if model_cfg['init_device'] == 'mixed':
             if fsdp_config is None:
                 raise NotImplementedError(
                     'Using init_device `mixed` is only supported with FSDP. ' +
@@ -153,7 +153,7 @@ def process_init_device(model_cfg: DictConfig, fsdp_config: Optional[Dict]):
             raise ValueError(
                 'device_mesh must be specified in fsdp_config when using MoE with moe_world_size > 1.'
             )
-        model_cfg.ffn_config.device_mesh = fsdp_config['device_mesh']
+        model_cfg['ffn_config']['device_mesh'] = fsdp_config['device_mesh']
 
     # No mixed precision needed for weights when they're already 16 bits
     master_dtype = model_cfg.get('master_weights_dtype')

@@ -356,8 +356,8 @@ def main(cfg: DictConfig) -> Trainer:
     dist.initialize_dist(get_device(None), timeout=dist_timeout)
 
     # Mandatory model training configs
-    model_config: DictConfig = DictConfig(train_cfg.model)
-    train_loader_config: DictConfig = DictConfig(train_cfg.train_loader)
+    model_config = train_cfg.model
+    train_loader_config = train_cfg.train_loader
 
     # Optional fsdp data, fine-tuning, and eval configs
     fsdp_config: Optional[Dict[str, Any]] = train_cfg.fsdp_config
@@ -535,8 +535,9 @@ def main(cfg: DictConfig) -> Trainer:
                             icl_tasks_config, eval_gauntlet_config)
     # Build Model
     log.info('Initializing model...')
+    name = model_config.pop('name')
     model = build_composer_model(
-        name=model_config.name,
+        name=name,
         tokenizer=tokenizer,
         init_context=init_context,
         master_weights_dtype=model_config.get('master_weights_dtype', None),

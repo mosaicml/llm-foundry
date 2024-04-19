@@ -7,7 +7,8 @@ from unittest.mock import patch
 import pytest
 from omegaconf import OmegaConf
 
-from llmfoundry.utils.config_utils import _log_dataset_uri, _parse_source_dataset
+from llmfoundry.utils.config_utils import (_log_dataset_uri,
+                                           _parse_source_dataset)
 
 mlflow = pytest.importorskip('mlflow')
 

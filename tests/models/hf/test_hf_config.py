@@ -46,8 +46,9 @@ def test_remote_code_false_mpt(
     with pytest.raises(
             ValueError,
             match='trust_remote_code must be set to True for MPT models.'):
+        name = test_cfg.model.pop('name')
         _ = build_composer_model(
-            name=test_cfg.model.name,
+            name=name,
             cfg=test_cfg.model,
             tokenizer=tokenizer,
         )
@@ -162,8 +163,9 @@ def test_hf_config_override(
     })
     hf_model_config.model = model_cfg
 
+    name = hf_model_config.model.pop('name')
     hf_model = build_composer_model(
-        name=hf_model_config.model.name,
+        name=name,
         cfg=hf_model_config.model,
         tokenizer=tokenizer,
     )
@@ -197,8 +199,9 @@ def test_rope_scaling_override():
     }
     model_cfg = om.create(model_cfg)
 
+    name = model_cfg.pop('name')
     model = build_composer_model(
-        name=model_cfg.name,
+        name=name,
         cfg=model_cfg,
         tokenizer=None,  # type: ignore
     )
@@ -224,8 +227,9 @@ def test_nested_override():
     }
     model_cfg = om.create(model_cfg)
 
+    name = model_cfg.pop('name')
     model = build_composer_model(
-        name=model_cfg.name,
+        name=name,
         cfg=model_cfg,
         tokenizer=None,  # type: ignore
     )

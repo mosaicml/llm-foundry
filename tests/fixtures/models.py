@@ -15,8 +15,9 @@ from llmfoundry.utils.builders import build_composer_model, build_tokenizer
 
 
 def _build_model(config: DictConfig, tokenizer: PreTrainedTokenizerBase):
+    name = config.pop('name')
     model = build_composer_model(
-        name=config.name,
+        name=name,
         cfg=config,
         tokenizer=tokenizer,
     )

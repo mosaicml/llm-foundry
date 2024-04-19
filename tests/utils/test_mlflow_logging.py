@@ -17,23 +17,23 @@ def create_config(**kwargs: Any):
     return OmegaConf.create(kwargs)
 
 
-def test_parse_source_dataset_delta_table():
+def test__parse_source_dataset_delta_table():
     cfg = create_config(source_dataset_train='db.schema.train_table',
                         source_dataset_eval='db.schema.eval_table')
     expected = {('delta_table', 'db.schema.train_table', 'train'),
                 ('delta_table', 'db.schema.eval_table', 'eval')}
-    assert parse_source_dataset(cfg) == expected
+    assert _parse_source_dataset(cfg) == expected
 
 
-def test_parse_source_dataset_uc_volume():
+def test__parse_source_dataset_uc_volume():
     cfg = create_config(source_dataset_train='/Volumes/train_data',
                         source_dataset_eval='/Volumes/eval_data')
     expected = {('uc_volume', '/Volumes/train_data', 'train'),
                 ('uc_volume', '/Volumes/eval_data', 'eval')}
-    assert parse_source_dataset(cfg) == expected
+    assert _parse_source_dataset(cfg) == expected
 
 
-def test_parse_source_dataset_hf():
+def test__parse_source_dataset_hf():
     cfg = create_config(
         train_loader={'dataset': {
             'hf_name': 'huggingface/train_dataset'
@@ -43,10 +43,10 @@ def test_parse_source_dataset_hf():
         }})
     expected = {('hf', 'huggingface/train_dataset', 'train'),
                 ('hf', 'huggingface/eval_dataset', 'eval')}
-    assert parse_source_dataset(cfg) == expected
+    assert _parse_source_dataset(cfg) == expected
 
 
-def test_parse_source_dataset_remote():
+def test__parse_source_dataset_remote():
     cfg = create_config(
         train_loader={'dataset': {
             'remote': 'https://remote/train_dataset'
@@ -56,10 +56,10 @@ def test_parse_source_dataset_remote():
         }})
     expected = {('https', 'https://remote/train_dataset', 'train'),
                 ('https', 'https://remote/eval_dataset', 'eval')}
-    assert parse_source_dataset(cfg) == expected
+    assert _parse_source_dataset(cfg) == expected
 
 
-def test_parse_source_dataset_local():
+def test__parse_source_dataset_local():
     cfg = create_config(
         train_loader={'dataset': {
             'local': '/local/train_dataset'
@@ -69,11 +69,11 @@ def test_parse_source_dataset_local():
         }})
     expected = {('local', '/local/train_dataset', 'train'),
                 ('local', '/local/eval_dataset', 'eval')}
-    assert parse_source_dataset(cfg) == expected
+    assert _parse_source_dataset(cfg) == expected
 
 
 @pytest.mark.usefixtures('mock_mlflow_classes')
-def test_log_dataset_uri_all_sources():
+def test__log_dataset_uri_all_sources():
     cfg = create_config(
         train_loader={'dataset': {
             'hf_name': 'huggingface/train_dataset'
@@ -86,7 +86,7 @@ def test_log_dataset_uri_all_sources():
 
     with patch('mlflow.data.meta_dataset.MetaDataset'):
         with patch('mlflow.log_input') as mock_log_input:
-            log_dataset_uri(cfg)
+            _log_dataset_uri(cfg)
             assert mock_log_input.call_count == 2
 
 

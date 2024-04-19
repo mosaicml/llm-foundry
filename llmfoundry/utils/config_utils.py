@@ -18,8 +18,6 @@ try:
     import mlflow
 except ImportError:
     mlflow = None
-    if TYPE_CHECKING: # for pyright
-        import mlflow
 
 log = logging.getLogger(__name__)
 
@@ -238,7 +236,7 @@ def parse_source_dataset(cfg: DictConfig):
     return data_paths
 
 
-def log_dataset_uri(cfg: DictConfig) -> Optional[mlflow.data.meta_dataset.MetaDataset]:
+def log_dataset_uri(cfg: DictConfig):
     """Logs dataset tracking information to MLflow."""
     if mlflow is None:
         log.warning('MLflow is not installed. Skipping dataset logging.')

@@ -59,11 +59,7 @@ def evaluate_model(
     logged_config: DictConfig,
     should_log_config: bool = True,
     load_path: Optional[str] = None,
-    **kwargs: Dict[str, Any],
 ):
-    model_extra_params = kwargs
-    warnings.warn(f'Extra parameters: {model_extra_params}')
-
     log.info(f'Evaluating model: {model_name}')
     # Build tokenizer and model
     tokenizer_cfg = tokenizer
@@ -103,7 +99,7 @@ def evaluate_model(
             'The FSDP config block is not supported when loading ' +
             'Hugging Face models in 8bit.')
 
-    init_context = process_init_device(DictConfig(model), fsdp_config)
+    init_context = process_init_device(model, fsdp_config)
 
     name = model.pop('name')
     composer_model = build_composer_model(name=name,
@@ -189,7 +185,7 @@ class EvalConfig:
     icl_tasks_str: Optional[str] = None
 
     # Logging parameters
-    python_log_level: Optional[str] = None
+    python_log_level: str = 'debug'
     loggers: Optional[Dict[str, Any]] = None
     log_config: bool = True
 
@@ -299,15 +295,14 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     reproducibility.seed_all(eval_config.seed)
     dist.initialize_dist(get_device(None), timeout=eval_config.dist_timeout)
 
-    if eval_config.python_log_level is not None:
-        logging.basicConfig(
-            # Example of format string
-            # 2022-06-29 11:22:26,152: rank0[822018][MainThread]: INFO: Message here
-            format=
-            f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
-        )
-        logging.getLogger('llmfoundry').setLevel(
-            eval_config.python_log_level.upper())
+    logging.basicConfig(
+        # Example of format string
+        # 2022-06-29 11:22:26,152: rank0[822018][MainThread]: INFO: Message here
+        format=
+        f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
+    )
+    logging.getLogger('llmfoundry').setLevel(
+        eval_config.python_log_level.upper())
 
     # Default argument values for evaluate_model
     eval_gauntlet_df = None

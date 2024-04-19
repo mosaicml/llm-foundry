@@ -100,8 +100,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                 'use_flash_attention_2 is set to True, but flash-attention 2 is not installed. '
                 + 'Please `pip install llm-foundry[gpu]`.')
 
-        peft_config_dict = peft_config
-        if peft_config_dict is not None and not peft_installed:
+        if peft_config is not None and not peft_installed:
             raise ValueError(
                 'PEFT is not installed, but peft_config was passed. Please install LLM Foundry with the peft extra to use peft_config.'
             )
@@ -248,8 +247,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             model.tie_weights()
 
         peft_config = None
-        if peft_config_dict is not None:
-            peft_config = self._get_peft_config(peft_config_dict)
+        if peft_config is not None:
+            peft_config = self._get_peft_config(peft_config)
 
         if pretrained_lora_id_or_path is not None:
             if not peft_installed:

@@ -306,8 +306,9 @@ def test_invalid_jsonl_data():
         expected_keys += ['decoder_attention_mask', 'decoder_input_ids']
 
     with pytest.raises(MisconfiguredHfDatasetError):
-        build_finetuning_dataloader(cfg, tokenizer,
-                                    device_batch_size).dataloader
+        build_finetuning_dataloader(
+            **cfg, tokenizer=tokenizer,
+            device_batch_size=device_batch_size).dataloader
 
 
 @pytest.mark.parametrize('use_chat_formatting', [True, False])
@@ -1149,12 +1150,12 @@ def test_token_counting_func_dataloader_setting(
 
 
 def test_build_unknown_dataloader():
-    cfg = DictConfig({
+    cfg = {
         'name': 'unknown',
-    })
+    }
     tokenizer = MagicMock()
     with pytest.raises(catalogue.RegistryError):
-        _ = build_dataloader(cfg, tokenizer, 2)
+        _ = build_dataloader(**cfg, tokenizer=tokenizer, device_batch_size=2)
 
 
 invalid_conversation_params_sharegpt = [

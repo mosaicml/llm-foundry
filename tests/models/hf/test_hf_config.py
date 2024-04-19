@@ -156,18 +156,18 @@ def test_hf_config_override(
 
     # load hf causal lm model with config_overrides
     hf_model_config = deepcopy(test_cfg)
-    model_cfg = {
+    model_cfg = om.create({
         'name': 'hf_causal_lm',
         'pretrained_model_name_or_path': save_path,
         'pretrained': False,
         'config_overrides': model_cfg_overrides,
-    }
+    })
     hf_model_config.model = model_cfg
 
     name = hf_model_config.model.pop('name')
     hf_model = build_composer_model(
         name=name,
-        cfg=hf_model_config.model,
+        cfg=to_str_dict(hf_model_config.model),
         tokenizer=tokenizer,
     )
 

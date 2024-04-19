@@ -16,7 +16,7 @@ from composer.core.callback import Callback
 from composer.profiler import (JSONTraceHandler, Profiler, TraceHandler,
                                cyclic_schedule)
 from composer.utils import dist, get_device, reproducibility
-from omegaconf import DictConfig, ListConfig
+from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from rich.traceback import install
 
@@ -362,16 +362,9 @@ def main(cfg: DictConfig) -> Trainer:
     # Optional fsdp data, fine-tuning, and eval configs
     fsdp_config: Optional[Dict[str, Any]] = train_cfg.fsdp_config
 
-    eval_loader_config = DictConfig(
-        train_cfg.eval_loader
-    ) if train_cfg.eval_loader is not None else ListConfig(
-        train_cfg.eval_loaders) if train_cfg.eval_loaders is not None else None
-    icl_tasks_config = ListConfig(
-        train_cfg.icl_tasks
-    ) if train_cfg.icl_tasks is not None else train_cfg.icl_tasks_str
-    eval_gauntlet_config = DictConfig(
-        train_cfg.eval_gauntlet
-    ) if train_cfg.eval_gauntlet is not None else train_cfg.eval_gauntlet_str
+    eval_loader_config = train_cfg.eval_loader if train_cfg.eval_loader is not None else train_cfg.eval_loaders
+    icl_tasks_config = train_cfg.icl_tasks
+    eval_gauntlet_config = train_cfg.eval_gauntlet
 
     # Optional parameters will be set to default values if not specified.
     default_run_name: str = os.environ.get('RUN_NAME', 'llm')

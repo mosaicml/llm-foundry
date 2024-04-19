@@ -747,7 +747,6 @@ def test_huggingface_conversion_callback(
         model, max_seq_len, tie_word_embeddings)
     assert model_cfg is not None
     assert tokenizer_name is not None
-    model_cfg = om.create(model_cfg)
     if peft_config is not None:
         model_cfg['peft_config'] = peft_config
 
@@ -1094,7 +1093,6 @@ def test_mptmoe_huggingface_conversion_callback(
     tokenizer_name = 'EleutherAI/gpt-neox-20b'
     assert model_cfg is not None
     assert tokenizer_name is not None
-    model_cfg = om.create(model_cfg)
 
     fsdp_config = {
         'sharding_strategy': sharding_strategy,
@@ -1161,7 +1159,7 @@ def test_mptmoe_huggingface_conversion_callback(
         name=name,
         tokenizer=tokenizer,
         init_context=init_context,
-        cfg=to_str_dict(model_cfg),
+        cfg=model_cfg,
     )
 
     optimizer = build_optimizer(original_model, optimizer_name,

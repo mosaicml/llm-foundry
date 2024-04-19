@@ -1,10 +1,10 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+from typing import Any
 from unittest.mock import patch
 
 import pytest
-from typing import Any
 from omegaconf import OmegaConf
 
 from llmfoundry.utils.config_utils import log_dataset_uri, parse_source_dataset

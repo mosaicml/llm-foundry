@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import logging
 import os
-from typing import Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 import torch
 from composer.core.data_spec import DataSpec
@@ -34,7 +34,7 @@ _DEFAULT_TARGET_PROMPTS = 'none'
 def build_finetuning_dataloader(
     tokenizer: PreTrainedTokenizerBase,
     device_batch_size: int,
-    dataset: DictConfig,
+    dataset: Dict[str, Any],
     num_workers: int,
     drop_last: bool = False,
     pin_memory: bool = True,
@@ -276,7 +276,45 @@ def build_finetuning_dataloader(
     return DataSpec(dataloader=dl, get_num_tokens_in_batch=token_counting_func)
 
 
-def _validate_config(dataset_cfg: DictConfig) -> None:
+# local=dataset_cfg.get('local', None),
+# remote=dataset_cfg.get('remote', None),
+# split=dataset_cfg.get('split', None),
+# download_retry=dataset_cfg.get('download_retry', 2),
+# download_timeout=dataset_cfg.get('download_timeout', 60),
+# validate_hash=dataset_cfg.get('validate_hash', None),
+# keep_zip=dataset_cfg.get('keep_zip', False),
+# epoch_size=dataset_cfg.get('epoch_size', None),
+# predownload=dataset_cfg.get('predownload', None),
+# cache_limit=dataset_cfg.get('cache_limit', None),
+# partition_algo=dataset_cfg.get('partition_algo', 'relaxed'),
+# num_canonical_nodes=dataset_cfg.get('num_canonical_nodes', None),
+# batch_size=device_batch_size,
+# shuffle=dataset_cfg.get('shuffle', False),
+# shuffle_algo=dataset_cfg.get('shuffle_algo', 'py1e'),
+# shuffle_seed=dataset_cfg.get('shuffle_seed', 9176),
+# shuffle_block_size=dataset_cfg.get('shuffle_block_size', None),
+# sampling_method=dataset_cfg.get('sampling_method', 'balanced'),
+# sampling_granularity=dataset_cfg.get('sampling_granularity', 1),
+# batching_method=dataset_cfg.get('batching_method', 'random'),
+# max_seq_len=dataset_cfg.max_seq_len,
+# allow_unsafe_types=dataset_cfg.get('allow_unsafe_types', False),
+# replication=dataset_cfg.get('replication', None),
+
+
+def _validate_config(
+    max_seq_len: int,
+    decoder_only_format: bool,
+    hf_name: Optional[str] = None,
+    local: Optional[str] = None,
+    remote: Optional[str] = None,
+    hf_kwargs: Optional[Dict[str, Any]] = None,
+    preprocessing_fn: Optional[str] = None,
+    safe_load: Optional[bool] = False,
+    streams: Optional[Dict[str, Any]] = None,
+    target_prompts: Optional[str] = None,
+    target_responses: Optional[str] = None,
+    **kwargs: Dict[str, Any],
+) -> None:
     """Validates the dataset configuration.
 
     Makes sure that the dataset is properly configured for either
@@ -289,13 +327,46 @@ def _validate_config(dataset_cfg: DictConfig) -> None:
     Raises:
         ValueError: If the dataset configuration does not meet the requirements.
     """
-    if dataset_cfg.get('hf_name') is not None:
+    # Check for extraneous keys in the dataset config
+    allowed_additional_kwargs = {
+        'local',
+        'remote',
+        'split',
+        'download_retry',
+        'download_timeout',
+        'validate_hash',
+        'keep_zip',
+        'epoch_size',
+        'predownload',
+        'cache_limit',
+        'partition_algo',
+        'num_canonical_nodes',
+        'batch_size',
+        'shuffle',
+        'shuffle_algo',
+        'shuffle_seed',
+        'shuffle_block_size',
+        'sampling_method',
+        'sampling_granularity',
+        'batching_method',
+        'max_seq_len',
+        'allow_unsafe_types',
+        'replication',
+    }
+    if not set(kwargs.keys()).issubset(allowed_additional_kwargs):
+        raise ValueError(
+            'The dataset config contains the following extraneous keys: ' +\
+            ', '.join(set(kwargs.keys()) - allowed_additional_kwargs)
+        )
+
+    if hf_name is not None:
         # Using the HuggingFace dataset codepath
         illegal_keys = ['local', 'remote']
         discovered_illegal_keys = []
-        for key in illegal_keys:
-            if dataset_cfg.get(key) is not None:
-                discovered_illegal_keys.append('`' + key + '`')
+        if local is not None:
+            discovered_illegal_keys.append('`local`')
+        if remote is not None:
+            discovered_illegal_keys.append('`remote`')
         if discovered_illegal_keys:
             raise ValueError(
                 'The dataset config sets a value for `hf_name` as well as the ' +\
@@ -303,12 +374,17 @@ def _validate_config(dataset_cfg: DictConfig) -> None:
                 'Those keys are used when building from a streaming dataset, but ' +\
                 'setting `hf_name` instructs the dataset to build from a HuggingFace dataset.'
             )
-    elif dataset_cfg.get('remote') is not None:
+    elif remote is not None:
         # Using the streaming dataset codepath
-        illegal_keys = ['hf_name', 'hf_kwargs', 'preprocessing_fn', 'safe_load']
+        illegal_keys = {
+            'hf_name': hf_name,
+            'hf_kwargs': hf_kwargs,
+            'preprocessing_fn': preprocessing_fn,
+            'safe_load': safe_load
+        }
         discovered_illegal_keys = []
-        for key in illegal_keys:
-            if dataset_cfg.get(key) is not None:
+        for key, value in illegal_keys.items():
+            if value is not None:
                 discovered_illegal_keys.append('`' + key + '`')
         if discovered_illegal_keys:
             raise ValueError(
@@ -317,17 +393,22 @@ def _validate_config(dataset_cfg: DictConfig) -> None:
                 'Those keys are used when building from a HuggingFace dataset, but ' +\
                 'setting `remote` instructs the dataset to build from a streaming dataset.'
             )
-        if dataset_cfg.get('local') is None:
+        if local is None:
             raise ValueError(
                 'Using a streaming dataset requires setting both `remote` and `local`, ' +\
                 'but dataset.local is None.'
             )
-    elif dataset_cfg.get('streams') is not None:
+    elif streams is not None:
         # Using the streaming dataset codepath
-        illegal_keys = ['hf_name', 'hf_kwargs', 'preprocessing_fn', 'safe_load']
+        illegal_keys = {
+            'hf_name': hf_name,
+            'hf_kwargs': hf_kwargs,
+            'preprocessing_fn': preprocessing_fn,
+            'safe_load': safe_load
+        }
         discovered_illegal_keys = []
-        for key in illegal_keys:
-            if dataset_cfg.get(key) is not None:
+        for key, value in illegal_keys.items():
+            if value is not None:
                 discovered_illegal_keys.append('`' + key + '`')
         if discovered_illegal_keys:
             raise ValueError(
@@ -336,10 +417,10 @@ def _validate_config(dataset_cfg: DictConfig) -> None:
                 'Those keys are used when building from a HuggingFace dataset, but ' +\
                 'setting `streams` instructs the dataset to build from a streaming dataset.'
             )
-        illegal_keys = ['remote', 'local']
+        illegal_keys = {'remote': remote, 'local': local}
         discovered_illegal_keys = []
-        for key in illegal_keys:
-            if dataset_cfg.get(key) is not None:
+        for key, value in illegal_keys.items():
+            if value is not None:
                 discovered_illegal_keys.append('`' + key + '`')
         if discovered_illegal_keys:
             raise ValueError(
@@ -355,17 +436,15 @@ def _validate_config(dataset_cfg: DictConfig) -> None:
             'dataset, or set `remote` to use a streaming dataset, or set ' +\
             '`streams` to use multiple streaming datasets,  but all were None.'
         )
-    if dataset_cfg.get('max_seq_len') is None:
-        raise ValueError(
-            'In the dataset config, you must set the `max_seq_len`')
 
     # Raise an error if the target_prompts + target_responses + decoder_only_format settings
     # are invalid
-    target_responses = str(
-        dataset_cfg.get('target_responses', _DEFAULT_TARGET_RESPONSES)).lower()
-    target_prompts = str(
-        dataset_cfg.get('target_prompts', _DEFAULT_TARGET_PROMPTS)).lower()
-    decoder_only_format = dataset_cfg.decoder_only_format
+    if target_prompts is None:
+        target_prompts = _DEFAULT_TARGET_PROMPTS
+    if target_responses is None:
+        target_responses = _DEFAULT_TARGET_RESPONSES
+    target_prompts, target_responses = target_prompts.lower(
+    ), target_responses.lower()
     validate_target_settings(target_prompts, target_responses,
                              decoder_only_format)
 

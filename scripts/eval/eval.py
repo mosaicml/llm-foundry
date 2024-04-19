@@ -249,7 +249,6 @@ def _make_eval_and_log_config(cfg: DictConfig) -> Tuple[DictConfig, EvalConfig]:
         warnings.warn(
             f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary. Interpreting {key} as a variable for logging purposes. Top-level variables are deprecated and will not be supported in future releases.',
             DeprecationWarning)
-        # TODO (milo): delete the below line once we deprecate variables at the top level.
         unstructured_config['variables'][key] = unstructured_config.pop(key)
 
     eval_config: EvalConfig = om.structured(EvalConfig(**unstructured_config))

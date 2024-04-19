@@ -109,7 +109,7 @@ dataloaders = create_registry(
     'dataloaders',
     generic_type=Callable[
         ...,
-        DataSpec],  # the arguments to the dataloader may vary depending on the contents of the config.
+        DataSpec],  # The arguments to the dataloader may vary depending on the contents of the config.
     entry_points=True,
     description=_dataloaders_description)
 

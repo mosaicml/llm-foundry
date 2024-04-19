@@ -3,7 +3,7 @@
 
 import logging
 import tempfile
-from typing import Callable, Dict, Iterable, List, Literal, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Tuple
 
 import numpy as np
 import torch
@@ -361,7 +361,7 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
 
 
 def profile_packing(
-    dataloader_cfg: DictConfig,
+    dataloader_cfg: Dict[str, Any],
     tokenizer: PreTrainedTokenizerBase,
     min_ratio: float,
     max_ratio: float,
@@ -385,7 +385,7 @@ def profile_packing(
 
     from llmfoundry.data.dataloader import build_dataloader
 
-    dataset_cfg = dataloader_cfg.dataset
+    dataset_cfg = dataloader_cfg['dataset']
     max_seq_len = dataset_cfg.get('max_seq_len')
     max_leftovers_to_keep = dataset_cfg.get('max_leftovers_to_keep', None)
 
@@ -397,22 +397,22 @@ def profile_packing(
         'prefetch_factor': None,
         'persistent_workers': False,
     })
-    dataloader_cfg.dataset.packing_ratio = 1.0
+    dataloader_cfg['dataset_cfg']['packing_ratio'] = 1.0
 
     # If streaming dataset, use a temporary local folder for profiling
     local_rank_zero = dist.get_global_rank() - dist.get_local_rank()
-    if dataloader_cfg.dataset.get('remote') is not None:
+    if dataloader_cfg['dataset'].get('remote') is not None:
         tmp_path_to_broadcast = tempfile.TemporaryDirectory().name
         gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
         tmp_path = gathered_paths[local_rank_zero]
-        dataloader_cfg.dataset.local = tmp_path
+        dataloader_cfg['dataset']['local'] = tmp_path
 
-    if dataloader_cfg.dataset.get('streams') is not None:
-        for stream_config in dataloader_cfg.dataset.streams.values():
+    if dataloader_cfg['dataset'].get('streams') is not None:
+        for stream_config in dataloader_cfg['dataset']['streams'].values():
             tmp_path_to_broadcast = tempfile.TemporaryDirectory().name
             gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
             tmp_path = gathered_paths[local_rank_zero]
-            stream_config.local = tmp_path
+            stream_config['local'] = tmp_path
 
     # Determine the packing_ratio values we'll try
     packing_ratios, raw_batch_sizes = [], []

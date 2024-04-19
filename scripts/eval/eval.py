@@ -262,10 +262,8 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     for code_path in (eval_config.code_paths or []):
         import_file(code_path)
 
-    model_configs = ListConfig(eval_config.models)
-    eval_gauntlet_config = DictConfig(
-        eval_config.eval_gauntlet
-    ) if eval_config.eval_gauntlet else eval_config.eval_gauntlet_str
+    model_configs = eval_config.models
+    eval_gauntlet_config = eval_config.eval_gauntlet if eval_config.eval_gauntlet else eval_config.eval_gauntlet_str
 
     # the below line fixes a strange issue where the fsdp_config is a DictConfig rather than a Dict,
     # despite the type hint being Dict[str, Any] and the `cfg` object being sent to `to_container`.
@@ -280,9 +278,9 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
                   } if fsdp_config else None  # pyright fix
 
     # Mandatory Evaluation Parameters
-    icl_tasks: Union[ListConfig, str, None] = ListConfig(
-        eval_config.icl_tasks
-    ) if eval_config.icl_tasks else eval_config.icl_tasks_str
+    icl_tasks: Union[
+        ListConfig, str,
+        None] = eval_config.icl_tasks if eval_config.icl_tasks else eval_config.icl_tasks_str
     assert icl_tasks is not None, 'icl_tasks must be specified in the config'
 
     # Optional Evaluation Parameters with default values

@@ -22,13 +22,14 @@ def build_dataloader(cfg: Dict[str, Any], tokenizer: PreTrainedTokenizerBase,
         device_batch_size (int): The size of the batches (number of examples)
             that the dataloader will produce.
     """
+    name = cfg.pop('name')
     kwargs: Dict[str, Any] = {
         **cfg, 'tokenizer': tokenizer,
         'device_batch_size': device_batch_size
     }
 
     return construct_from_registry(
-        name=cfg.name,
+        name=name,
         registry=registry.dataloaders,
         partial_function=False,
         pre_validation_function=None,

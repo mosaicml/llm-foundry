@@ -195,14 +195,14 @@ def build_finetuning_dataloader(
             sampling_method=dataset_cfg.get('sampling_method', 'balanced'),
             sampling_granularity=dataset_cfg.get('sampling_granularity', 1),
             batching_method=dataset_cfg.get('batching_method', 'random'),
-            max_seq_len=dataset_cfg.max_seq_len,
+            max_seq_len=dataset_cfg['max_seq_len'],
             allow_unsafe_types=dataset_cfg.get('allow_unsafe_types', False),
             replication=dataset_cfg.get('replication', None),
         )
 
     else:
         # Build HF dataloader
-        dataset_name_or_path = dataset_cfg.hf_name
+        dataset_name_or_path = dataset_cfg['hf_name']
         split = dataset_cfg.get('split')
         if split is None:
             raise MissingHuggingFaceURLSplitError()
@@ -228,14 +228,14 @@ def build_finetuning_dataloader(
             dataset_name=dataset_name_or_path,
             split=split,
             safe_load=dataset_cfg.get('safe_load', False),
-            max_seq_len=dataset_cfg.max_seq_len,
+            max_seq_len=dataset_cfg['max_seq_len'],
             preprocessing_fn=preprocessing_fn,
             tokenizer=tokenizer,
             target_prompts=dataset_cfg.get('target_prompts',
                                            _DEFAULT_TARGET_PROMPTS),
             target_responses=dataset_cfg.get('target_responses',
                                              _DEFAULT_TARGET_RESPONSES),
-            decoder_only_format=dataset_cfg.decoder_only_format,
+            decoder_only_format=dataset_cfg['decoder_only_format'],
             hf_kwargs=dataset_cfg.get('hf_kwargs', {}))
 
         # Ensure dataset is large enough.
@@ -246,7 +246,7 @@ def build_finetuning_dataloader(
                 full_dataset_size = len(streaming_dataset)
                 if full_dataset_size < minimum_dataset_size:
                     raise NotEnoughDatasetSamplesError(
-                        dataset_name=dataset_cfg.hf_name,
+                        dataset_name=dataset_cfg['hf_name'],
                         split=split,
                         dataloader_batch_size=dataloader_batch_size,
                         world_size=world_size,
@@ -255,7 +255,7 @@ def build_finetuning_dataloader(
         # Initialize sampler.
         sampler = dist.get_sampler(streaming_dataset,
                                    drop_last=drop_last,
-                                   shuffle=dataset_cfg.shuffle)
+                                   shuffle=dataset_cfg['shuffle'])
 
     assert streaming_dataset is not None  # for pyright
     dl = DataLoader(

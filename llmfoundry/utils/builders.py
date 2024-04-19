@@ -29,6 +29,7 @@ from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.eval.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
+from llmfoundry.utils.config_utils import to_str_dict
 from llmfoundry.utils.registry_utils import construct_from_registry
 from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
@@ -50,9 +51,9 @@ __all__ = [
 
 
 def build_evaluators(
-    eval_loader_config: Optional[Union[DictConfig, ListConfig]],
-    icl_tasks_config: Optional[Union[str, ListConfig]],
-    eval_gauntlet_config: Optional[Union[str, DictConfig]],
+    eval_loader_config: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]],
+    icl_tasks_config: Optional[Union[str, List[Dict[str, Any]]]],
+    eval_gauntlet_config: Optional[Union[str, Dict[str, Any]]],
     *,
     tokenizer: PreTrainedTokenizerBase,
     device_eval_batch_size: int,
@@ -85,23 +86,23 @@ def build_evaluators(
 
 
 def build_eval_loaders(
-    eval_loader_config: Union[DictConfig, ListConfig],
+    eval_loader_config: Union[Dict[str, Any], List[Dict[str, Any]]],
     tokenizer: PreTrainedTokenizerBase,
     device_eval_batch_size: int,
 ) -> List[Evaluator]:
     evaluators: List[Evaluator] = []
-    if isinstance(eval_loader_config, ListConfig):
-        eval_configs: ListConfig = eval_loader_config
+    if isinstance(eval_loader_config, list):
+        eval_configs = eval_loader_config
         is_multi_eval = True
     else:
-        eval_configs = ListConfig([eval_loader_config])
+        eval_configs = [eval_loader_config]
         is_multi_eval = False
 
     for eval_config in eval_configs:
         eval_dataloader = build_dataloader(eval_config, tokenizer,
                                            device_eval_batch_size)
         eval_loader: Evaluator = Evaluator(
-            label=f'eval/{eval_config.label}' if is_multi_eval else 'eval',
+            label=f"eval/{eval_config['label']}" if is_multi_eval else 'eval',
             dataloader=eval_dataloader,
             # Load the eval data to fail fast. metrics will get added
             # later in add_metrics_to_eval_loaders, after the model is loaded
@@ -129,8 +130,8 @@ def add_metrics_to_eval_loaders(
 
 
 def build_icl_data_and_gauntlet(
-    icl_tasks_config: Union[str, ListConfig],
-    eval_gauntlet_config: Optional[Union[str, DictConfig]],
+    icl_tasks_config: Union[str, List[Dict[str, Any]]],
+    eval_gauntlet_config: Optional[Union[str, Dict[str, Any]]],
     tokenizer: PreTrainedTokenizerBase,
     device_eval_batch_size: int,
     icl_seq_len: int,
@@ -147,15 +148,15 @@ def build_icl_data_and_gauntlet(
         if isinstance(eval_gauntlet_config, str):
             with open(eval_gauntlet_config, 'r') as icl_f:
                 eval_gauntlet_cfg = om.load(icl_f)
-            eval_gauntlet = eval_gauntlet_cfg.eval_gauntlet
-        elif isinstance(eval_gauntlet_config, DictConfig):  # pyright: ignore
+            eval_gauntlet = to_str_dict(eval_gauntlet_cfg['eval_gauntlet'])
+        elif isinstance(eval_gauntlet_config, dict):  # pyright: ignore
             eval_gauntlet = eval_gauntlet_config
         else:
             raise ValueError(
                 f'Got invalid type for eval_gauntlet_config: {type(eval_gauntlet_config)}'
             )
-        eval_gauntlet.logger_keys = logger_keys
-        eval_gauntlet.benchmark_sizes = {
+        eval_gauntlet['logger_keys'] = logger_keys
+        eval_gauntlet['benchmark_sizes'] = {
             e.label: e.dataloader.num_samples for e in icl_evaluators
         }
         eval_gauntlet_cb = EvalGauntlet(**eval_gauntlet)

@@ -215,7 +215,7 @@ def _parse_source_dataset(cfg: DictConfig) -> Set[Tuple[str, str, str]]:
             data_paths.add(('delta_table', source_dataset_path, data_split))
         # Check for UC volume
         elif source_dataset_path and source_dataset_path.startswith('dbfs:'):
-            data_paths.add(('uc_volume', source_dataset_path[len('dbfs:'), ], data_split))
+            data_paths.add(('uc_volume', source_dataset_path[len('dbfs:'):], data_split))
         # Check for HF path
         elif 'hf_name' in data_set:
             hf_path = data_set['hf_name']

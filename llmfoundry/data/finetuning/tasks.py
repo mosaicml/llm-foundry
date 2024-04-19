@@ -841,7 +841,7 @@ class DatasetConstructor:
             os.remove(signal_file_path)
 
         if isinstance(error, hf_exceptions.DatasetGenerationError):
-            log.error('Huggingface DatasetGenerationError during data prep')
+            log.error('Huggingface DatasetGenerationError during data prep.')
             raise MisconfiguredHfDatasetError(dataset_name=dataset_name,
                                               split=split)
         if error is not None:

@@ -222,14 +222,26 @@ def _make_eval_and_log_config(cfg: DictConfig) -> Tuple[DictConfig, EvalConfig]:
     # Flatten union types before creating structured config:
     if 'eval_gauntlet' in unstructured_config:
         if isinstance(unstructured_config['eval_gauntlet'], str):
+            if 'eval_gauntlet_str' in unstructured_config:
+                raise ValueError(
+                    'Cannot specify both eval_gauntlet and eval_gauntlet_str in the config'
+                )
             unstructured_config['eval_gauntlet_str'] = unstructured_config.pop(
                 'eval_gauntlet')
     if (loader := unstructured_config.get('eval_loader', None)) is not None:
         if isinstance(loader, list):
+            if 'eval_loaders' in unstructured_config:
+                raise ValueError(
+                    'Cannot specify both eval_loader and eval_loaders in the config'
+                )
             unstructured_config['eval_loaders'] = unstructured_config.pop(
                 'eval_loader')
     if 'icl_tasks' in unstructured_config:
         if isinstance(unstructured_config['icl_tasks'], str):
+            if 'icl_tasks_str' in unstructured_config:
+                raise ValueError(
+                    'Cannot specify both icl_tasks and icl_tasks_str in the config'
+                )
             unstructured_config['icl_tasks_str'] = unstructured_config.pop(
                 'icl_tasks')
     else:

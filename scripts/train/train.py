@@ -240,14 +240,26 @@ def _make_train_and_log_config(
     # Structured config does not support unions of containers, so separate single and plural containers
     if (loader := unstructured_config.get('eval_loader', None)) is not None:
         if isinstance(loader, list):
+            if 'eval_loaders' in unstructured_config:
+                raise ValueError(
+                    'Only one of `eval_loader` or `eval_loaders` should be provided.'
+                )
             unstructured_config['eval_loaders'] = unstructured_config.pop(
                 'eval_loader')
     if (tasks := unstructured_config.get('icl_tasks', None)) is not None:
         if isinstance(tasks, str):
+            if 'icl_tasks_str' in unstructured_config:
+                raise ValueError(
+                    'Only one of `icl_tasks` or `icl_tasks_str` should be provided.'
+                )
             unstructured_config['icl_tasks_str'] = unstructured_config.pop(
                 'icl_tasks')
     if (gauntlet := unstructured_config.get('eval_gauntlet', None)) is not None:
         if isinstance(gauntlet, str):
+            if 'eval_gauntlet_str' in unstructured_config:
+                raise ValueError(
+                    'Only one of `eval_gauntlet` or `eval_gauntlet_str` should be provided.'
+                )
             unstructured_config['eval_gauntlet_str'] = unstructured_config.pop(
                 'eval_gauntlet')
 

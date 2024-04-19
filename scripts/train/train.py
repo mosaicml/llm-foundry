@@ -362,9 +362,6 @@ def main(cfg: DictConfig) -> Trainer:
     # Optional fsdp data, fine-tuning, and eval configs
     fsdp_config: Optional[Dict[str, Any]] = train_cfg.fsdp_config
 
-    if train_cfg.eval_loader is not None and train_cfg.eval_loaders is not None:
-        raise ValueError(
-            'Only one of `eval_loader` or `eval_loaders` should be provided.')
     eval_loader_config = DictConfig(
         train_cfg.eval_loader
     ) if train_cfg.eval_loader is not None else ListConfig(

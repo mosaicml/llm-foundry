@@ -5,7 +5,7 @@ import contextlib
 import logging
 import math
 import warnings
-from typing import Any, Dict, Literal, Mapping, Optional, Tuple, Union, TYPE_CHECKING
+from typing import Any, Dict, Literal, Mapping, Optional, Tuple, Union
 
 from composer.utils import dist, parse_uri
 from omegaconf import DictConfig, ListConfig

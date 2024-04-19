@@ -52,7 +52,6 @@ from transformers import PreTrainedTokenizerBase
 from llmfoundry.data.finetuning.collator import (_HF_IGNORE_INDEX,
                                                  stitch_turns_decoder_only,
                                                  stitch_turns_encoder_decoder)
-from llmfoundry.utils import exceptions as foundry_exceptions
 # yapf: disable
 from llmfoundry.utils.exceptions import (ConsecutiveRepeatedChatRolesError,
                                          IncorrectMessageKeyQuantityError,
@@ -63,6 +62,7 @@ from llmfoundry.utils.exceptions import (ConsecutiveRepeatedChatRolesError,
                                          InvalidPromptTypeError,
                                          InvalidResponseTypeError,
                                          InvalidRoleError,
+                                         MisconfiguredHfDatasetError,
                                          NotEnoughChatDataError,
                                          TooManyKeysInExampleError,
                                          UnableToProcessPromptResponseError,
@@ -842,8 +842,8 @@ class DatasetConstructor:
 
         if isinstance(error, hf_exceptions.DatasetGenerationError):
             log.error('Huggingface DatasetGenerationError during data prep')
-            raise foundry_exceptions.MisconfiguredHfDatasetError(
-                dataset_name=dataset_name, split=split)
+            raise MisconfiguredHfDatasetError(dataset_name=dataset_name,
+                                              split=split)
         if error is not None:
             log.error('Error during data prep')
             raise error

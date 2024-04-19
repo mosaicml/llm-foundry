@@ -277,8 +277,8 @@ def test_invalid_jsonl_data():
     cfg = {
         'name': 'finetuning',
         'dataset': {
-            'hf_name': 'iamroot/chat_formatted_examples',
-            'split': 'train_corrupted',
+            'hf_name': 'iamroot/chat_malformatted_examples',
+            'split': 'train',
             'max_seq_len': max_seq_len,
             'decoder_only_format': decoder_only_format,
             'allow_pad_trimming': allow_pad_trimming,

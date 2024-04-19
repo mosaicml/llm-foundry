@@ -82,7 +82,7 @@ _ALLOWED_LAST_MESSAGE_ROLES = {'assistant'}
 DOWNLOADED_FT_DATASETS_DIRPATH = os.path.abspath(
     os.path.join(os.path.realpath(__file__), os.pardir, os.pardir, os.pardir,
                  '.downloaded_finetuning'))
-SUPPORTED_EXTENSIONS = ['.csv', '.jsonl', '.parquet']
+SUPPORTED_EXTENSIONS = ['.csv', '.json', '.jsonl', '.parquet']
 
 PromptResponseDict = Mapping[str, str]
 ChatFormattedDict = Mapping[str, List[Dict[str, str]]]

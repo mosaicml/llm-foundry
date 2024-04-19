@@ -21,7 +21,6 @@ from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from streaming import MDSWriter
 
-import llmfoundry.utils.exceptions as llmfoundry_exceptions
 from llmfoundry import build_finetuning_dataloader
 from llmfoundry.data import build_dataloader
 from llmfoundry.data.finetuning.collator import (_HF_IGNORE_INDEX,
@@ -43,6 +42,7 @@ from llmfoundry.utils.exceptions import (ConsecutiveRepeatedChatRolesError,
                                          InvalidPromptTypeError,
                                          InvalidResponseTypeError,
                                          InvalidRoleError,
+                                         MisconfiguredHfDatasetError,
                                          NotEnoughDatasetSamplesError,
                                          TooManyKeysInExampleError,
                                          UnknownExampleTypeError)
@@ -305,7 +305,7 @@ def test_invalid_jsonl_data():
     if not decoder_only_format:
         expected_keys += ['decoder_attention_mask', 'decoder_input_ids']
 
-    with pytest.raises(llmfoundry_exceptions.MisconfiguredHfDatasetError):
+    with pytest.raises(MisconfiguredHfDatasetError):
         build_finetuning_dataloader(cfg, tokenizer,
                                     device_batch_size).dataloader
 

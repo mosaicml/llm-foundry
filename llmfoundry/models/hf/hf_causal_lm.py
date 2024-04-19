@@ -61,7 +61,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         self,
         tokenizer: PreTrainedTokenizerBase,
         pretrained_model_name_or_path: str,
-        pretrained: Optional[bool] = True,
+        pretrained: bool = True,
         pretrained_lora_id_or_path: Optional[str] = None,
         trust_remote_code: bool = True,
         use_auth_token: bool = False,

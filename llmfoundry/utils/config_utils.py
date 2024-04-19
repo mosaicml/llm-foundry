@@ -223,6 +223,8 @@ def _parse_source_dataset(cfg: DictConfig) -> Set[Tuple[str, str, str]]:
             if backend:
                 hf_path = f'{hf_path.rstrip("/")}/{cfg_split}' if cfg_split else hf_path
                 data_paths.add((backend, hf_path, data_split))
+            elif hf_path.startswith('/'):
+                data_paths.add(('local', hf_path, data_split))
             else:
                 data_paths.add(('hf', hf_path, data_split))
         # check for remote path
@@ -236,6 +238,8 @@ def _parse_source_dataset(cfg: DictConfig) -> Set[Tuple[str, str, str]]:
             local_path = data_set['local']
             local_path = f'{local_path.rstrip("/")}/{cfg_split}' if cfg_split else local_path
             data_paths.add(('local', local_path, data_split))
+        else:
+            raise KeyError('DataSource Not Found')
 
     return data_paths
 

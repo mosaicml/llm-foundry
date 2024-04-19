@@ -257,11 +257,17 @@ class HuggingFaceCheckpointer(Callback):
 
     def _is_last_batch(self, state: State):
         elapsed_duration = state.get_elapsed_duration()
-        print(elapsed_duration)
         if elapsed_duration is not None and elapsed_duration >= 1.0:
             return True
 
         assert state.max_duration is not None  # for pyright
+
+        epoch_complete = state.dataloader_len == state.timestamp.batch_in_epoch
+        second_to_last_epoch = state.max_duration.unit == TimeUnit.EPOCH and (
+            state.timestamp.epoch == state.max_duration.value - 1)
+        if self.save_interval.unit == TimeUnit.BATCH and second_to_last_epoch and epoch_complete:
+            return True
+
         # If the save interval is specified as 1dur, and the max duration is in epoch units
         # we need a special case to identify we are on the last batch and should write the mlflow checkpoint
         if self.save_interval.unit == TimeUnit.DURATION and self.save_interval.value == 1 and state.max_duration.unit == TimeUnit.EPOCH:

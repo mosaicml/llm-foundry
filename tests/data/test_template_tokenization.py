@@ -252,7 +252,7 @@ def test_multi_turn_chat_slicing(tokenizer_name: str, messages_format: bool):
 def test_tokenize_no_labels_bos_pr():
     # This tokenizer automatically adds bos tokens
     tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'mistralai/Mixtral-8x7B-v0.1')
+        'ai21labs/Jamba-v0.1', add_bos_token=True)
 
     example = {'prompt': 'prompt', 'response': 'response'}
 
@@ -270,7 +270,7 @@ def test_tokenize_no_labels_bos_pr():
     # This tokenizer does not have the add_bos_token attribute
     tokenizer = transformers.AutoTokenizer.from_pretrained('mosaicml/mpt-7b')
 
-    assert not hasattr(tokenizer, 'add_bos_token')
+    assert not tokenizer.add_bos_token
 
     tokenized_example = tokenize_formatted_example(example, tokenizer)
 

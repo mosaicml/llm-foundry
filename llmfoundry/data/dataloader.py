@@ -6,14 +6,13 @@
 from typing import Any, Dict
 
 from composer import DataSpec
-from omegaconf import DictConfig
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry import registry
 from llmfoundry.utils.registry_utils import construct_from_registry
 
 
-def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
+def build_dataloader(cfg: Dict[str, Any], tokenizer: PreTrainedTokenizerBase,
                      device_batch_size: int) -> DataSpec:
     """Builds a dataloader from a config.
 
@@ -24,8 +23,7 @@ def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
             that the dataloader will produce.
     """
     kwargs: Dict[str, Any] = {
-        **{str(k): v for k, v in cfg.items()},  # pyright
-        'tokenizer': tokenizer,
+        **cfg, 'tokenizer': tokenizer,
         'device_batch_size': device_batch_size
     }
 

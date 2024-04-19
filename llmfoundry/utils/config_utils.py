@@ -270,5 +270,4 @@ def log_dataset_uri(cfg: DictConfig):
             source = mlflow.data.http_dataset_source.HTTPDatasetSource(url=path)
 
         mlflow.log_input(
-            mlflow.data.meta_dataset.MetaDataset(
-                source, name=split))
+            mlflow.data.meta_dataset.MetaDataset(source, name=split))

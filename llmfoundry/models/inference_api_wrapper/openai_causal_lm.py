@@ -60,7 +60,7 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
         else:
             self.model_name = om_model_config['name']
 
-    def completion_to_string(self, completion: Completion):
+    def completion_to_string(self, completion: 'Completion'):
         return [choice.text for choice in completion.choices]
 
     def generate_completion(self,
@@ -81,7 +81,7 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
         prompt: Union[str, List],
         num_tokens: int,
         generation_kwargs: Optional[dict] = None
-    ) -> Optional[Union[Completion, ChatCompletion]]:
+    ) -> Optional[Union['Completion', 'ChatCompletion']]:
         if generation_kwargs is None:
             generation_kwargs = {}
         try:
@@ -127,7 +127,7 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
             self,
             prompt: Union[str, List[dict]], #
             num_tokens: int,
-            generation_kwargs: Optional[dict] = None) -> ChatCompletion:
+            generation_kwargs: Optional[dict] = None) -> 'ChatCompletion':
         if generation_kwargs is None:
             generation_kwargs = {}
         if isinstance(prompt, str):
@@ -152,7 +152,7 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
                 temperature=generation_kwargs.get('temperature', 1.0))
 
 
-    def completion_to_string(self, completion: ChatCompletion):
+    def completion_to_string(self, completion: 'ChatCompletion'):
         return [choice.message.content for choice in completion.choices]
 
     def retokenize(self, tokens: List[int], cont_idxs: List[int]):
@@ -318,6 +318,7 @@ class OpenAICausalLMEvalWrapper(OpenAIEvalInterface):
         if completion is None:
             raise ValueError("Couldn't generate model output")
 
+        # TODO: is this the right way to do this type checking here?
         if TYPE_CHECKING:
             assert isinstance(completion, Completion)
             assert isinstance(completion.choices[0].logprobs, Logprobs)

@@ -5,7 +5,7 @@ import contextlib
 import logging
 import math
 import warnings
-from typing import Any, Dict, Literal, Mapping, Optional, Tuple, Union
+from typing import Any, Dict, Literal, Mapping, Optional, Tuple, Union, Set
 
 from composer.utils import dist, parse_uri
 from omegaconf import DictConfig, ListConfig
@@ -190,7 +190,7 @@ def log_config(cfg: DictConfig) -> None:
             _log_dataset_uri(cfg)
 
 
-def _parse_source_dataset(cfg: DictConfig):
+def _parse_source_dataset(cfg: DictConfig) -> Set[Tuple[str]]:
     """Parse a run config for dataset information.
 
     Given a config dictionary, parse through it to determine what the datasource
@@ -199,6 +199,9 @@ def _parse_source_dataset(cfg: DictConfig):
 
     Args:
         cfg (DictConfig): A config dictionary of a run
+
+    Returns:
+        Set[Tuple[str]]: A set of tuples formatted as (data type, path, split)
     """
     data_paths = set()
 
@@ -244,7 +247,7 @@ def _parse_source_dataset(cfg: DictConfig):
     return data_paths
 
 
-def _log_dataset_uri(cfg: DictConfig):
+def _log_dataset_uri(cfg: DictConfig) -> None:
     """Logs dataset tracking information to MLflow.
 
     Args:

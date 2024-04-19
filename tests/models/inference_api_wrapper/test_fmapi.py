@@ -97,7 +97,8 @@ def test_casual_fmapi_wrapper(tmp_path: str):
             'mosaicml/mpt-7b-8k-instruct')
         model = FMAPICasualLMEvalWrapper(om_model_config=DictConfig({
             'local': True,
-            'name': 'mosaicml/mpt-7b-8k-instruct'
+            'name': 'mosaicml/mpt-7b-8k-instruct',
+            'api_key': 'key'
         }),
                                          tokenizer=tokenizer)
         with patch.object(model, 'client') as mock:

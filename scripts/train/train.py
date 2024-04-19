@@ -75,7 +75,7 @@ class TrainConfig:
     dist_timeout: Union[int, float] = 600.0
     fsdp_config: Optional[Dict[str, Any]] = None
 
-    # evaluation parameters
+    # Evaluation parameters
     eval_loader: Optional[Dict[str, Any]] = None
     eval_loaders: Optional[List[Dict[str, Any]]] = None
     icl_tasks: Optional[List[Dict[str, Any]]] = None

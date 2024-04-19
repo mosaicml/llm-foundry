@@ -290,7 +290,7 @@ def _repad(packed_examples: List[Dict[str, torch.Tensor]], max_seq_len: int,
     return batch
 
 
-def auto_packing_ratio(dataloader_cfg: DictConfig,
+def auto_packing_ratio(dataloader_cfg: Dict[str, Any],
                        tokenizer: PreTrainedTokenizerBase,
                        device_batch_size: int,
                        num_packing_ratios: int = 20) -> float:
@@ -324,7 +324,7 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
     reproducibility.seed_all(0)
 
     # If max_seq_len is very small, skip profiling and select packing ratio of 1.
-    dataset_config = dataloader_cfg.dataset
+    dataset_config = dataloader_cfg['dataset']
     max_seq_len = dataset_config.get('max_seq_len')
     if max_seq_len <= 100:
         return 1

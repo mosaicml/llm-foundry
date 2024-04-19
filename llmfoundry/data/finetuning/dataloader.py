@@ -148,7 +148,7 @@ def build_finetuning_dataloader(
         tokenizer.pad_token = tokenizer.eos_token
 
     # this full config is necessary for properly profiling the packing ratio
-    dataloader_cfg = DictConfig({
+    dataloader_cfg = {
         'name': name,
         'dataset': dataset_cfg,
         'drop_last': drop_last,
@@ -157,7 +157,7 @@ def build_finetuning_dataloader(
         'prefetch_factor': prefetch_factor,
         'persistent_workers': persistent_workers,
         'timeout': timeout,
-    })
+    }
     collate_fn, dataloader_batch_size = _build_collate_fn(
         dataloader_cfg=dataloader_cfg,
         tokenizer=tokenizer,
@@ -527,7 +527,7 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
 
 
 def _build_collate_fn(
-    dataloader_cfg: DictConfig,
+    dataloader_cfg: Dict[str, Any],
     tokenizer: PreTrainedTokenizerBase,
     device_batch_size: int,
 ) -> Tuple[Union[Seq2SeqFinetuningCollator, BinPackCollator], int]:

@@ -7,7 +7,6 @@ import math
 import warnings
 from typing import Any, Dict, Literal, Mapping, Optional, Tuple, Union
 
-import mlflow
 from composer.utils import dist, parse_uri
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
@@ -197,20 +196,20 @@ def parse_source_dataset(cfg: DictConfig):
                                                         {}).get('split', None)
         source_dataset_path = cfg.get(f'source_dataset_{data_split}', {})
 
-        # check for Delta table
+        # Check for Delta table
         if source_dataset_path and len(source_dataset_path.split('.')) >= 3:
             data_paths.add(('delta_table', source_dataset_path, data_split))
-        # check for UC volume
+        # Check for UC volume
         elif source_dataset_path and source_dataset_path.startswith('/Volumes'):
             data_paths.add(('uc_volume', source_dataset_path, data_split))
-        # check for HF path
+        # Check for HF path
         elif cfg.get(f'{data_split}_loader', {}).get('dataset',
                                                      {}).get('hf_name'):
             hf_path = cfg.get(f'{data_split}_loader', {}).get('dataset',
                                                               {}).get('hf_name')
             backend, _, _ = parse_uri(hf_path)
             if backend:
-                hf_path = f'{hf_path.rstrip("/")}/{split}/' if split else hf_path
+                hf_path = f'{hf_path.rstrip("/")}/{split}' if split else hf_path
                 data_paths.add((backend, hf_path, data_split))
             else:
                 data_paths.add(('hf', hf_path, data_split))
@@ -235,7 +234,7 @@ def parse_source_dataset(cfg: DictConfig):
 
 
 def log_dataset_uri(cfg: DictConfig) -> mlflow.data.meta_dataset.MetaDataset:
-    """Extracts dataset information from the provided configuration."""
+    """Logs dataset tracking information to MLflow."""
     # Figure out which data source to use
     data_paths = parse_source_dataset(cfg)
 
@@ -262,8 +261,8 @@ def log_dataset_uri(cfg: DictConfig) -> mlflow.data.meta_dataset.MetaDataset:
         else:
             log.info(
                 f'{dataset_type} unknown, defaulting to http dataset source')
-            source = mlflow.data.http_dataset_source.HTTPDatasetSource(uri=path)
+            source = mlflow.data.http_dataset_source.HTTPDatasetSource(url=path)
 
         mlflow.log_input(
             mlflow.data.meta_dataset.MetaDataset(
-                source, name=f'{dataset_type} | {split}'))
+                source, name=split))

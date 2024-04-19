@@ -4,9 +4,9 @@
 from llmfoundry.models.hf import ComposerHFCausalLM, ComposerHFT5
 from llmfoundry.models.inference_api_wrapper import (FMAPICasualLMEvalWrapper,
                                                      FMAPIChatAPIEvalWrapper,
+                                                     GeminiChatAPIEvalrapper,
                                                      OpenAICausalLMEvalWrapper,
-                                                     OpenAIChatAPIEvalWrapper, 
-                                                     GeminiChatAPIEvalrapper)
+                                                     OpenAIChatAPIEvalWrapper)
 from llmfoundry.models.mpt import (ComposerMPTCausalLM, MPTConfig,
                                    MPTForCausalLM, MPTModel, MPTPreTrainedModel)
 from llmfoundry.registry import models

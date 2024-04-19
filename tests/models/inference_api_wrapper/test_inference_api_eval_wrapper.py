@@ -198,7 +198,8 @@ def test_openai_completions_api_eval_wrapper(tmp_path: str,
                     batch,
                     result,
                     metric=model.get_metrics()
-                    ['InContextLearningGenerationExactMatchAccuracy'])  # pyright: ignore
+                    ['InContextLearningGenerationExactMatchAccuracy']
+                )  # pyright: ignore
                 acc = model.get_metrics(
                 )['InContextLearningGenerationExactMatchAccuracy'].compute(  # pyright: ignore
                 )  # pyright: ignore
@@ -265,7 +266,8 @@ def test_chat_api_eval_wrapper(tmp_path: str, openai_api_key_env_var: str):
                     batch,
                     result,
                     metric=chatmodel.get_metrics()
-                    ['InContextLearningGenerationExactMatchAccuracy'])  # pyright: ignore
+                    ['InContextLearningGenerationExactMatchAccuracy']
+                )  # pyright: ignore
                 acc = chatmodel.get_metrics(
                 )['InContextLearningGenerationExactMatchAccuracy'].compute(  # pyright: ignore
                 )  # pyright: ignore

@@ -25,7 +25,6 @@ __all__ = [
     'OpenAIChatAPIEvalWrapper',
 ]
 
-
 if TYPE_CHECKING:
     from openai.types.chat.chat_completion import ChatCompletion
     from openai.types.completion import Completion
@@ -33,9 +32,13 @@ if TYPE_CHECKING:
 
 MAX_RETRIES = 100
 
+
 class OpenAIEvalInterface(InferenceAPIEvalWrapper):
 
-    def __init__(self, om_model_config: DictConfig, tokenizer: AutoTokenizer, api_key: Optional[str] = None) -> None:
+    def __init__(self,
+                 om_model_config: DictConfig,
+                 tokenizer: AutoTokenizer,
+                 api_key: Optional[str] = None) -> None:
         super().__init__(om_model_config, tokenizer)
         try:
             import openai
@@ -45,7 +48,8 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
                 conda_package='openai',
                 conda_channel='conda-forge') from e
         if api_key is None:
-            api_key = os.environ.get(om_model_config.get('api_env_key', 'OPENAI_API_KEY'))
+            api_key = os.environ.get(
+                om_model_config.get('api_env_key', 'OPENAI_API_KEY'))
         base_url = om_model_config.get('base_url')
         if base_url is None:
             # Using OpenAI default, where the API key is required
@@ -119,38 +123,41 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
 
 class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
 
-    def __init__(self, om_model_config: DictConfig, tokenizer: AutoTokenizer,  api_key: Optional[str] = None) -> None:
+    def __init__(self,
+                 om_model_config: DictConfig,
+                 tokenizer: AutoTokenizer,
+                 api_key: Optional[str] = None) -> None:
         super().__init__(om_model_config, tokenizer, api_key)
         self.om_model_config = om_model_config
 
     def generate_completion(
             self,
-            prompt: Union[str, List[dict]], #
+            prompt: Union[str, List[dict]],  #
             num_tokens: int,
             generation_kwargs: Optional[dict] = None) -> 'ChatCompletion':
         if generation_kwargs is None:
             generation_kwargs = {}
         if isinstance(prompt, str):
             messages = [{
-                    'role':
-                        'system',
-                    'content':
-                        self.om_model_config.get('system_role_prompt',
-                                        'Please complete the following text: ')
-                }, {
-                    'role': 'user',
-                    'content': prompt
-                }]
+                'role':
+                    'system',
+                'content':
+                    self.om_model_config.get(
+                        'system_role_prompt',
+                        'Please complete the following text: ')
+            }, {
+                'role': 'user',
+                'content': prompt
+            }]
         elif isinstance(prompt, list):
             messages = prompt
         else:
-            raise ValueError(f"Prompt must be str or list: {prompt}")
+            raise ValueError(f'Prompt must be str or list: {prompt}')
         return self.client.chat.completions.create(
-                model=self.model_name,
-                messages=messages,
-                max_tokens=num_tokens,
-                temperature=generation_kwargs.get('temperature', 1.0))
-
+            model=self.model_name,
+            messages=messages,
+            max_tokens=num_tokens,
+            temperature=generation_kwargs.get('temperature', 1.0))
 
     def completion_to_string(self, completion: 'ChatCompletion'):
         return [choice.message.content for choice in completion.choices]
@@ -305,7 +312,10 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
 
 class OpenAICausalLMEvalWrapper(OpenAIEvalInterface):
 
-    def __init__(self, om_model_config: Dict, tokenizer: AutoTokenizer,  api_key: Optional[str] = None) -> None:
+    def __init__(self,
+                 om_model_config: Dict,
+                 tokenizer: AutoTokenizer,
+                 api_key: Optional[str] = None) -> None:
         super().__init__(om_model_config, tokenizer, api_key)
         self.generate_completion = lambda prompt, num_tokens, generation_kwargs: self.client.completions.create(  # pyright: ignore
             model=self.model_name,
@@ -340,5 +350,3 @@ class OpenAICausalLMEvalWrapper(OpenAIEvalInterface):
                 encoding = self.tokenizer(k)['input_ids']
                 tensor[encoding[0]] = tokenizer_logprobs[k]
             return tensor
-
-

@@ -3,27 +3,23 @@
 
 import logging
 import os
-import google.generativeai as google_genai
-
-from typing import List, Optional, Union
-from omegaconf import DictConfig
-import logging
-import os
 import random
 from time import sleep
-from typing import  Any, Optional
+from typing import Any, List, Optional, Union
 
+import google.generativeai as google_genai
 from composer.core.types import Batch
+from omegaconf import DictConfig
 from openai.types.chat.chat_completion import ChatCompletion
-
 from transformers import AutoTokenizer
 
 log = logging.getLogger(__name__)
 
+from transformers import AutoTokenizer
+
 from llmfoundry.models.inference_api_wrapper.interface import \
     InferenceAPIEvalWrapper
 
-from transformers import AutoTokenizer
 MAX_RETRIES = 3
 
 __all__ = [
@@ -33,18 +29,19 @@ __all__ = [
 log = logging.getLogger(__name__)
 
 
-
 class GeminiChatAPIEvalrapper(InferenceAPIEvalWrapper):
     """Databricks Foundational Model API wrapper for causal LM models."""
 
-    def __init__(self, om_model_config: DictConfig, tokenizer: AutoTokenizer) -> None:
+    def __init__(self, om_model_config: DictConfig,
+                 tokenizer: AutoTokenizer) -> None:
         api_key = om_model_config.pop('api_key', None)
         if api_key is None:
             api_key = os.environ.get('GEMINI_API_KEY')
         google_genai.configure(api_key=api_key)
         super().__init__(om_model_config, tokenizer)
         self.model_cfg = om_model_config
-        self.model = google_genai.GenerativeModel(om_model_config.get('version', ''))
+        self.model = google_genai.GenerativeModel(
+            om_model_config.get('version', ''))
         ignore = [
             google_genai.types.HarmCategory.HARM_CATEGORY_HARASSMENT,
             google_genai.types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
@@ -58,30 +55,30 @@ class GeminiChatAPIEvalrapper(InferenceAPIEvalWrapper):
 
     def generate_completion(
             self,
-            prompt: str, #
+            prompt: str,  #
             num_tokens: int,
             generation_kwargs: Optional[dict] = None) -> ChatCompletion:
         if generation_kwargs is None:
             generation_kwargs = {}
         if isinstance(prompt, str):
-            generation_config=google_genai.types.GenerationConfig(
+            generation_config = google_genai.types.GenerationConfig(
                 candidate_count=1,
                 max_output_tokens=num_tokens,
-                temperature = generation_kwargs.get('temperature', 0)
-            )
-            response = self.model.generate_content(prompt,
-                    safety_settings=self.safety_settings,
-                    generation_config=generation_config)
+                temperature=generation_kwargs.get('temperature', 0))
+            response = self.model.generate_content(
+                prompt,
+                safety_settings=self.safety_settings,
+                generation_config=generation_config)
             return response
         else:
-            raise ValueError(f"Prompt must be str: {prompt}")
+            raise ValueError(f'Prompt must be str: {prompt}')
 
     def completion_to_string(self, completion: ChatCompletion):
         try:
             # sometimes gemini will block outputs due to content filters
             return [completion.text]
         except:
-            return [""]
+            return ['']
 
     def eval_forward(self, batch: Batch, outputs: Optional[Any] = None):
         # Override the base class because Chat's API always strips spacing from model outputs resulting in different tokens
@@ -122,15 +119,13 @@ class GeminiChatAPIEvalrapper(InferenceAPIEvalWrapper):
         else:
             raise ValueError("Only 'generate' tasks are supported.")
 
-    def try_generate_completion(
-        self,
-        prompt: Union[str, List],
-        num_tokens: int,
-        generation_kwargs: Optional[dict] = None
-    ):
+    def try_generate_completion(self,
+                                prompt: Union[str, List],
+                                num_tokens: int,
+                                generation_kwargs: Optional[dict] = None):
         if generation_kwargs is None:
             generation_kwargs = {}
-       
+
         tries = 0
         completion = None
         delay = 1
@@ -138,13 +133,11 @@ class GeminiChatAPIEvalrapper(InferenceAPIEvalWrapper):
             tries += 1
             try:
                 completion = self.generate_completion(prompt, num_tokens,
-                                                      generation_kwargs)                                     
+                                                      generation_kwargs)
                 break
             except Exception as e:
                 delay *= 2 * (1 + random.random())
                 sleep(delay)
                 continue
-                
 
         return completion
-

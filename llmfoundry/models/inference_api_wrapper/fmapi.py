@@ -4,7 +4,6 @@
 import logging
 import os
 import time
-from typing import Dict, Optional
 
 import requests
 from omegaconf import DictConfig

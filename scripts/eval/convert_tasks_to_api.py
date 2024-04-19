@@ -26,16 +26,17 @@ def process_row(sample: dict, task_type: str, task_cfg: DictConfig):
         cont_delim = task_cfg.get('continuation_delimiter', ' ')
         alphabet = ['(A)', '(B)', '(C)', '(D)']
         alphabet = alphabet[0:len(choices)]
-        choices_str = '\n'.join(
-            [f'{a} {c}' for a, c in zip(alphabet, choices)])
+        choices_str = '\n'.join([f'{a} {c}' for a, c in zip(alphabet, choices)])
         if 'Choices' in query:
-            query, orig_choices = query.split('Choices')[0], query.split('Choices')[1]
-            orig_choices = orig_choices.replace('A.', '(A)').replace('B.', '(B)').replace('C.', '(C)').replace('D.', '(D)')
+            query, orig_choices = query.split('Choices')[0], query.split(
+                'Choices')[1]
+            orig_choices = orig_choices.replace('A.', '(A)').replace(
+                'B.', '(B)').replace('C.', '(C)').replace('D.', '(D)')
             choices_str = orig_choices.strip()
-        
+
         query = re.sub('(Question:|Q:) ?', '', query)
         query = re.sub('(Answer:|A:) ?', '', query).strip()
-        context = f'{query}\n{choices_str}' +'\nA:'
+        context = f'{query}\n{choices_str}' + '\nA:'
         if 'Question:' not in context and 'Q:' not in context:
             context = 'Q: ' + context
         answer = alphabet[gold_idx]

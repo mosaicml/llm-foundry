@@ -5,7 +5,7 @@ import contextlib
 import logging
 import math
 import warnings
-from typing import Any, Dict, Literal, Mapping, Optional, Tuple, Union
+from typing import Any, Dict, List, Literal, Mapping, Optional, Tuple, Union
 
 from composer.utils import dist
 from omegaconf import DictConfig, ListConfig
@@ -37,6 +37,21 @@ def forbid_config_key(cfg_dict: Dict[str, Any], key: str):
         raise ValueError(
             f'Config key `{key}` should not be set. Please remove it from the config.'
         )
+
+
+def to_container_recursive(
+    cfg: Union[DictConfig, ListConfig]
+) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
+
+    def rh(x: Any) -> Any:  # recursive helper
+        if isinstance(x, DictConfig):
+            return {k: rh(v) for k, v in x.items()}
+        elif isinstance(x, ListConfig):
+            return [rh(v) for v in x]
+        else:
+            return x
+
+    return rh(cfg)
 
 
 def pop_config(cfg: Union[Dict[str, Any], DictConfig],

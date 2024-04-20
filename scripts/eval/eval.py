@@ -16,7 +16,7 @@ from composer.core import Callback
 from composer.loggers.logger_destination import LoggerDestination
 from composer.trainer import Trainer
 from composer.utils import dist, get_device, reproducibility
-from omegaconf import MISSING, DictConfig, ListConfig
+from omegaconf import MISSING, DictConfig
 from omegaconf import OmegaConf as om
 from rich.traceback import install
 
@@ -29,7 +29,8 @@ from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_evaluators, build_logger,
                                        build_tokenizer)
 from llmfoundry.utils.config_utils import (forbid_config_key, log_config,
-                                           process_init_device)
+                                           process_init_device,
+                                           to_container_recursive)
 from llmfoundry.utils.registry_utils import import_file
 
 log = logging.getLogger(__name__)
@@ -117,9 +118,9 @@ def evaluate_model(
         eval_gauntlet_df = pd.DataFrame(
             columns=['model_name'] +
             [avg for avg in eval_gauntlet_callback.averages] +
-            [t.name for t in eval_gauntlet_callback.categories])
+            [t['name'] for t in eval_gauntlet_callback.categories])
 
-    if model['name'] == 'mpt_causal_lm' and load_path is None:
+    if name == 'mpt_causal_lm' and load_path is None:
         raise ValueError(
             'MPT causal LMs require a load_path to the checkpoint for model evaluation.'
             +
@@ -263,14 +264,19 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
         import_file(code_path)
 
     model_configs = eval_config.models
-    eval_gauntlet_config = eval_config.eval_gauntlet if eval_config.eval_gauntlet else eval_config.eval_gauntlet_str
+    eval_gauntlet_config = to_container_recursive(
+        eval_config.eval_gauntlet) or eval_config.eval_gauntlet_str
+    assert eval_gauntlet_config is None or isinstance(
+        eval_gauntlet_config, dict
+    ) or isinstance(
+        eval_gauntlet_config, str
+    ), f'eval_gauntlet_config must be a dict or a string but is {type(eval_gauntlet_config)}, {eval_gauntlet_config=}'
 
     # the below line fixes a strange issue where the fsdp_config is a DictConfig rather than a Dict,
     # despite the type hint being Dict[str, Any] and the `cfg` object being sent to `to_container`.
     # I think it might be rewrapped in DictConfig during the `structured` call in `_make_eval_and_log_config`.
     # this redundant check is necessary to avoid a pyright error.
-    fsdp_config = om.to_container(
-        eval_config.fsdp_config) if eval_config.fsdp_config else None
+    fsdp_config = to_container_recursive(eval_config.fsdp_config)
     assert isinstance(
         fsdp_config, Dict
     ) or fsdp_config is None, f'fsdp_config must be a Dict or None but is {type(fsdp_config)}'
@@ -278,18 +284,23 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
                   } if fsdp_config else None  # pyright fix
 
     # Mandatory Evaluation Parameters
-    icl_tasks: Union[
-        ListConfig, str,
-        None] = eval_config.icl_tasks if eval_config.icl_tasks else eval_config.icl_tasks_str
+    icl_tasks = to_container_recursive(
+        eval_config.icl_tasks) or eval_config.icl_tasks_str
+    assert isinstance(icl_tasks, list) or isinstance(
+        icl_tasks, str
+    ), f'icl_tasks must be a list or a string but is {type(icl_tasks)}, {icl_tasks=}'
     assert icl_tasks is not None, 'icl_tasks must be specified in the config'
 
     # Optional Evaluation Parameters with default values
-    eval_loader_config = eval_config.eval_loader if eval_config.eval_loader else eval_config.eval_loaders
+    eval_loader_config = to_container_recursive(
+        eval_config.eval_loader
+    ) if eval_config.eval_loader else to_container_recursive(
+        eval_config.eval_loaders)
     default_run_name: str = os.environ.get('RUN_NAME', 'llm')
     run_name = eval_config.run_name if eval_config.run_name else default_run_name
 
     reproducibility.seed_all(eval_config.seed)
-    dist.initialize_dist(get_device(None), timeout=eval_config.dist_timeout)
+    # dist.initialize_dist(get_device(None), timeout=eval_config.dist_timeout)
 
     logging.basicConfig(
         # Example of format string
@@ -356,8 +367,8 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
         benchmark_to_taxonomy = {}
         if eval_gauntlet_callback is not None:
             for t in eval_gauntlet_callback.categories:
-                for b in t.benchmarks:
-                    benchmark_to_taxonomy[b.name] = t.name
+                for b in t['benchmarks']:
+                    benchmark_to_taxonomy[b['name']] = t['name']
 
         assert 'model_name' in model_cfg, 'model_name must be specified in model config'
         model_results = calculate_markdown_results(logger_keys, trainer,

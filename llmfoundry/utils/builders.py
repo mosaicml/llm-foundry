@@ -500,7 +500,8 @@ def build_icl_evaluators(
                     'InContextLearningMultipleChoiceAccuracy'
                 ]
             elif icl_cfg[
-                    'icl_task_type'] == 'generation_task_with_answers' or icl_cfg.icl_task_type == 'question_answering':
+                    'icl_task_type'] == 'generation_task_with_answers' or icl_cfg[
+                        'icl_task_type'] == 'question_answering':
                 if icl_cfg['icl_task_type'] == 'question_answering':
                     warnings.warn(
                         VersionedDeprecationWarning(
@@ -513,7 +514,7 @@ def build_icl_evaluators(
                 icl_cfg['metric_names'] = ['InContextLearningCodeEvalAccuracy']
             else:
                 raise ValueError(
-                    f'No metric_names defined, unable to build default metrics for icl_task_type={icl_cfg.icl_task_type}.'
+                    f'No metric_names defined, unable to build default metrics for icl_task_type={icl_cfg["icl_task_type"]}.'
                 )
 
         if 'prompt_string' not in icl_cfg:
@@ -539,7 +540,8 @@ def build_icl_evaluators(
                 'Please use generation_kwargs.num_beams instead.')
 
     for icl_cfg in icl_tasks_list:
-        assert isinstance(icl_cfg, dict)
+        assert isinstance(
+            icl_cfg, dict), f'Expected dict, got {type(icl_cfg)}, {icl_cfg=}'
         _validate_cfg(icl_cfg)
         for num_fewshot in list(icl_cfg['num_fewshot']):
             if tokenizer.pad_token_id is None:
@@ -585,9 +587,8 @@ def build_icl_evaluators(
                 generation_kwargs=icl_cfg.get('generation_kwargs', {}),
                 early_stopping_criteria=early_stopping_criteria,
                 do_normalization=icl_cfg.get('do_normalization', True))
-            if hasattr(icl_cfg, 'has_categories'
-                      ) and icl_cfg['has_categories'] and isinstance(
-                          dataloaders, dict):
+            if 'has_categories' in icl_cfg and icl_cfg[
+                    'has_categories'] and isinstance(dataloaders, dict):
                 for category in dataloaders.keys():
                     logger_keys.extend([
                         f'metrics/{label}/{category}/{m}' for m in metric_names

@@ -17,6 +17,11 @@ try:
 except:
     unpad_input, pad_input = None, None
 
+__all__ = [
+    'MPTBlock',
+    'FusedNormAttentionNorm',
+]
+
 attn_config_defaults: Dict = {
     'attn_type': 'multihead_attention',
     'attn_pdrop': 0.0,

@@ -13,7 +13,13 @@ from typing import (Any, Callable, Dict, Generic, Optional, Sequence, Type,
 
 import catalogue
 
-__all__ = ['TypedRegistry', 'create_registry', 'construct_from_registry']
+__all__ = [
+    'TypedRegistry',
+    'create_registry',
+    'construct_from_registry',
+    'import_file',
+    'save_registry',
+]
 
 T = TypeVar('T')
 TypeBoundT = TypeVar('TypeBoundT', bound=Type)

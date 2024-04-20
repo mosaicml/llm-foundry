@@ -18,6 +18,11 @@ from torch.distributed._tensor import DTensor
 
 from llmfoundry.layers_registry import ffns_with_megablocks
 
+__all__ = [
+    'mpt_get_active_params',
+    'mpt_get_total_params',
+]
+
 
 def module_n_params(module: nn.Module) -> int:
     """Gets the number of parameters in this module excluding child modules.

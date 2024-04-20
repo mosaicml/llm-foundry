@@ -21,8 +21,7 @@ from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from streaming import MDSWriter
 
-from llmfoundry import build_finetuning_dataloader
-from llmfoundry.data import build_dataloader
+from llmfoundry.data import build_dataloader, build_finetuning_dataloader
 from llmfoundry.data.finetuning.collator import (_HF_IGNORE_INDEX,
                                                  validate_target_settings)
 from llmfoundry.data.finetuning.tasks import (DOWNLOADED_FT_DATASETS_DIRPATH,

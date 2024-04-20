@@ -14,6 +14,12 @@ from transformers.models.opt.modeling_opt import OPTDecoder
 if TYPE_CHECKING:
     from peft import PeftModel
 
+__all__ = [
+    'prepare_hf_model_for_fsdp',
+    'prepare_hf_causal_lm_model_for_fsdp',
+    'prepare_hf_enc_dec_model_for_fsdp',
+]
+
 
 # helper functions
 def rhasattr(obj: Any, attr: str) -> bool:

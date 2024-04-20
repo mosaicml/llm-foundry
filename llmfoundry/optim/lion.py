@@ -11,6 +11,10 @@ from torch.optim.optimizer import Optimizer
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    'DecoupledLionW',
+]
+
 
 class DecoupledLionW(Optimizer):
     metric_functions = {

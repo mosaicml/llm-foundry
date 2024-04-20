@@ -9,6 +9,8 @@ from composer.core import Callback, State
 from composer.loggers import Logger
 from composer.utils import dist
 
+__all__ = ['MegaBlocksMoE_TokPerExpert']
+
 
 class MegaBlocksMoE_TokPerExpert(Callback):
     """Log tokens per expert for MegaBlocks MoE.

@@ -256,7 +256,7 @@ def prepare_hf_enc_dec_model_for_fsdp(model: PreTrainedModel,
     if encoder_block_type == decoder_block_type:
         return
 
-    # need to wrap encoder blocks separately for ProhpetNet and Marian
+    # need to wrap encoder blocks separately for ProphetNet and Marian
     model.fsdp_wrap_fn = lambda module: isinstance(module, encoder_block_type)
     model.activation_checkpointing_fn = lambda module: isinstance(
         module, encoder_block_type)

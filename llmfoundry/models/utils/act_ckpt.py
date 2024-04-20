@@ -110,7 +110,7 @@ def get_target_block_list(target_blocks: Any, max_block_idx: int) -> list:
             candidate_block_ids.extend(to_add)
     else:
         raise ValueError(
-            f'target_blocks must be either a single intege, or a list of integers, or a comma separated string made of "first-n", "last-m", "middle-k", "range-i-j", or a list of mixed integers and before-mentioned strings, but got {type(target_blocks)}'
+            f'target_blocks must be either a single integer, or a list of integers, or a comma separated string made of "first-n", "last-m", "middle-k", "range-i-j", or a list of mixed integers and before-mentioned strings, but got {type(target_blocks)}'
         )
 
     candidate_block_ids = list(set(candidate_block_ids))

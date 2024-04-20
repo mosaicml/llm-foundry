@@ -19,6 +19,8 @@ new_files_warning_filter = SpecificWarningFilter(
 
 hf_dynamic_modules_logger.addFilter(new_files_warning_filter)
 
+from llmfoundry import (algorithms, callbacks, cli, data, eval, interfaces,
+                        loggers, metrics, models, optim, tokenizers, utils)
 from llmfoundry.data import StreamingFinetuningDataset, StreamingTextDataset
 from llmfoundry.eval import InContextLearningDataset, InContextLearningMetric
 from llmfoundry.models.hf import ComposerHFCausalLM
@@ -38,6 +40,18 @@ __all__ = [
     'MPTForCausalLM',
     'ComposerMPTCausalLM',
     'DecoupledLionW',
+    'algorithms',
+    'callbacks',
+    'cli',
+    'data',
+    'eval',
+    'interfaces',
+    'loggers',
+    'metrics',
+    'models',
+    'optim',
+    'tokenizers',
+    'utils',
 ]
 
 __version__ = '0.7.0'

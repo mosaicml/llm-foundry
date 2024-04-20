@@ -66,6 +66,11 @@ def evaluate_model(
     tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
+    if fsdp_config and model_cfg.model.get('load_in_8bit', False):
+        raise ValueError(
+            'The FSDP config block is not supported when loading ' +
+            'Hugging Face models in 8bit.')
+
     evaluators, logger_keys, eval_gauntlet_callback = build_evaluators(
         eval_loader_config,
         icl_tasks,
@@ -99,7 +104,6 @@ def evaluate_model(
             'Hugging Face models in 8bit.')
 
     init_context = process_init_device(model_cfg.model, fsdp_config)
-
     composer_model = build_composer_model(
         name=model_cfg.model.name,
         cfg=model_cfg.model,

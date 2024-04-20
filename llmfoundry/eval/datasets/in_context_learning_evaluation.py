@@ -46,7 +46,6 @@ __all__ = [
 
 class InContextLearningDataset(Dataset):
     r"""A base dataset that constructs batches for in-context learning task.
-
     evaluations. The dataset format is expected to be a local jsonl file, a
     cloud link to a jsonl file, or a Hugging Face dataset link. 'context' refers
     to the input a model will recieve before generating an output. For example,

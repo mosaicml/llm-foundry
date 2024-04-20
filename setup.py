@@ -114,8 +114,7 @@ extra_deps['olmo'] = [
 ]
 
 extra_deps['openai'] = [
-    'openai==1.3.8',
-    'tiktoken==0.4.0',
+    'openai==1.3.8', 'tiktoken==0.4.0', 'google-generativeai'
 ]
 
 extra_deps['megablocks'] = [

@@ -35,7 +35,7 @@ from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils import build_tokenizer
 from llmfoundry.utils.builders import build_composer_model
-from llmfoundry.utils.config_utils import to_str_dict
+from llmfoundry.utils.config_utils import to_dict_recursive
 
 
 def get_config(
@@ -50,7 +50,7 @@ def get_config(
 
 def _load_tokenizer_cfg(cfg: Union[Dict[str, Any], DictConfig]) -> Dict:
     if isinstance(cfg, DictConfig):
-        config = to_str_dict(cfg)
+        config = to_dict_recursive(cfg)
     else:
         assert isinstance(cfg, dict)
         config = cfg
@@ -96,7 +96,7 @@ def _get_objs(request: pytest.FixtureRequest,
     name = test_cfg.model.pop('name')
     model = build_composer_model(
         name=name,
-        cfg=to_str_dict(test_cfg.model),
+        cfg=to_dict_recursive(test_cfg.model),
         tokenizer=tokenizer,
     )
 
@@ -299,7 +299,7 @@ def test_full_forward_and_backward_gpt2_small(batch_size: int = 2):
     name = neo_cfg.model.pop('name')
     model = build_composer_model(
         name=name,
-        cfg=to_str_dict(neo_cfg.model),
+        cfg=to_dict_recursive(neo_cfg.model),
         tokenizer=tokenizer,
     ).to(device)
 
@@ -349,7 +349,7 @@ def test_full_forward_and_backward_t5_small(batch_size: int = 2):
     name = t5_cfg.model.pop('name')
     model = build_composer_model(
         name=name,
-        cfg=to_str_dict(t5_cfg.model),
+        cfg=to_dict_recursive(t5_cfg.model),
         tokenizer=tokenizer,
     ).to(device)
 
@@ -427,7 +427,7 @@ def test_determinism(attn_impl: str, precision: torch.dtype, ffn_type: str,
     name = test_cfg.model.pop('name')
     model_1 = build_composer_model(
         name=name,
-        cfg=to_str_dict(test_cfg.model),
+        cfg=to_dict_recursive(test_cfg.model),
         tokenizer=tokenizer,
     )
     model_2 = copy.deepcopy(model_1)
@@ -498,7 +498,7 @@ def test_loss_fn():
     name = test_cfg.model.pop('name')
     model_1 = build_composer_model(
         name=name,
-        cfg=to_str_dict(test_cfg.model),
+        cfg=to_dict_recursive(test_cfg.model),
         tokenizer=tokenizer,
     )
     model_2 = copy.deepcopy(model_1)
@@ -585,7 +585,7 @@ def test_loss_reduction(loss_fn_config: str):
     name = test_cfg.model.pop('name')
     model_1 = build_composer_model(
         name=name,
-        cfg=to_str_dict(test_cfg.model),
+        cfg=to_dict_recursive(test_cfg.model),
         tokenizer=tokenizer,
     )
     model_2 = copy.deepcopy(model_1)

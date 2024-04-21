@@ -28,7 +28,7 @@ from llmfoundry.data.finetuning import build_finetuning_dataloader
 from llmfoundry.models.mpt import MPTConfig
 from llmfoundry.utils.builders import (build_composer_model, build_optimizer,
                                        build_tokenizer)
-from llmfoundry.utils.config_utils import process_init_device, to_str_dict
+from llmfoundry.utils.config_utils import process_init_device, to_dict_recursive
 from scripts.inference.convert_composer_to_hf import convert_composer_to_hf
 from tests.data_utils import make_tiny_ft_dataset
 
@@ -875,7 +875,7 @@ def test_convert_and_generate(model: str, tie_word_embeddings: bool,
     original_model = build_composer_model(
         name=name,
         tokenizer=tokenizer,
-        cfg=to_str_dict(om_cfg['model']),
+        cfg=to_dict_recursive(om_cfg['model']),
     )
     trainer = Trainer(model=original_model,
                       device='cpu' if not model == 'mptmoe' else 'gpu')
@@ -948,7 +948,7 @@ def test_convert_and_generate_meta(tie_word_embeddings: str,
     original_model = build_composer_model(
         name=name,
         tokenizer=tokenizer,
-        cfg=to_str_dict(om_cfg['model']),
+        cfg=to_dict_recursive(om_cfg['model']),
     )
     trainer = Trainer(model=original_model,
                       device='cpu' if not 'moe' in conf_path else 'gpu')

@@ -25,7 +25,7 @@ __all__ = [
 ]
 
 
-def to_str_dict(cfg: DictConfig) -> Dict[str, Any]:
+def to_dict_recursive(cfg: DictConfig) -> Dict[str, Any]:
     """Converts a DictConfig to a dictionary with string keys."""
     cfg_dict = om.to_container(cfg, resolve=True)
     assert isinstance(cfg_dict, dict)

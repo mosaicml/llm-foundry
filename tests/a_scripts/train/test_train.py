@@ -11,7 +11,8 @@ from composer.loggers import InMemoryLogger
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 
-from llmfoundry.utils.config_utils import to_str_dict, update_batch_size_info
+from llmfoundry.utils.config_utils import (to_dict_recursive,
+                                           update_batch_size_info)
 from scripts.train.train import TrainConfig, main, validate_config  # noqa: E402
 from tests.data_utils import create_c4_dataset_xxsmall, gpt_tiny_cfg
 from tests.fixtures.autouse import REPO_DIR
@@ -155,7 +156,7 @@ def test_validate_config():
         test_cfg: DictConfig = om.load(f)  # type: ignore
     test_cfg.model.ffn_config.moe_world_size = 4
     test_cfg.fsdp_config.use_orig_params = False
-    test_cfg_dict = to_str_dict(test_cfg)
+    test_cfg_dict = to_dict_recursive(test_cfg)
     test_cfg_dict = update_batch_size_info(test_cfg_dict)
     with pytest.raises(
             ValueError,

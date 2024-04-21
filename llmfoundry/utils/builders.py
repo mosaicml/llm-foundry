@@ -29,7 +29,7 @@ from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.eval.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
-from llmfoundry.utils.config_utils import to_str_dict
+from llmfoundry.utils.config_utils import to_dict_recursive
 from llmfoundry.utils.registry_utils import construct_from_registry
 from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
@@ -156,7 +156,8 @@ def build_icl_data_and_gauntlet(
             with open(eval_gauntlet_config, 'r') as icl_f:
                 eval_gauntlet_cfg = om.load(icl_f)
                 assert isinstance(eval_gauntlet_cfg, DictConfig)
-            eval_gauntlet = to_str_dict(eval_gauntlet_cfg['eval_gauntlet'])
+            eval_gauntlet = to_dict_recursive(
+                eval_gauntlet_cfg['eval_gauntlet'])
         elif isinstance(eval_gauntlet_config, dict):  # pyright: ignore
             eval_gauntlet = eval_gauntlet_config
         else:
@@ -483,7 +484,7 @@ def build_icl_evaluators(
         log.info(f'Extracting ICL task config from path: {icl_tasks}')
         with open(icl_tasks, 'r') as icl_f:
             icl_task_cfg = om.load(icl_f)
-        icl_tasks_list = to_str_dict(icl_task_cfg.icl_tasks)
+        icl_tasks_list = to_dict_recursive(icl_task_cfg.icl_tasks)
     else:
         icl_tasks_list = icl_tasks
 

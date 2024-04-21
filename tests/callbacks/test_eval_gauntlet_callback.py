@@ -70,8 +70,9 @@ def test_gauntlet_callback(averages: Optional[dict]):
               num_fewshot: [0]
               icl_task_type: language_modeling
             """)
-    icl_task_config: List[om.DictConfig] = list(icl_task_config)  # type: ignore
-    assert all(isinstance(c, om.DictConfig) for c in icl_task_config)
+    icl_task_config_list: List[om.DictConfig] = list(
+        icl_task_config)  # type: ignore
+    assert all(isinstance(c, om.DictConfig) for c in icl_task_config_list)
 
     eval_gauntlet_config = om.OmegaConf.create("""
                 weighting: EQUAL
@@ -97,7 +98,7 @@ def test_gauntlet_callback(averages: Optional[dict]):
 
     # test loading functionality
     _, _, eval_gauntlet_callback = build_icl_data_and_gauntlet(
-        [to_str_dict(c) for c in icl_task_config],
+        [to_str_dict(c) for c in icl_task_config_list],
         to_str_dict(eval_gauntlet_config), tokenizer, 4, 1024, 1)
     assert eval_gauntlet_callback is not None
     state = MockState(eval_gauntlet_callback.logger_keys)

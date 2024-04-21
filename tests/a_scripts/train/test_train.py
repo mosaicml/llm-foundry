@@ -13,8 +13,7 @@ from omegaconf import OmegaConf as om
 
 from llmfoundry.utils.config_utils import to_str_dict, update_batch_size_info
 from scripts.train.train import TrainConfig, main, validate_config  # noqa: E402
-from tests.data_utils import (create_arxiv_dataset, create_c4_dataset_xxsmall,
-                              gpt_tiny_cfg)
+from tests.data_utils import create_c4_dataset_xxsmall, gpt_tiny_cfg
 from tests.fixtures.autouse import REPO_DIR
 
 

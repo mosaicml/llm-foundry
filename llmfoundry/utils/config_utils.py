@@ -25,13 +25,6 @@ __all__ = [
 ]
 
 
-def to_dict_recursive(cfg: DictConfig) -> Dict[str, Any]:
-    """Converts a DictConfig to a dictionary with string keys."""
-    cfg_dict = om.to_container(cfg, resolve=True)
-    assert isinstance(cfg_dict, dict)
-    return {str(k): v for k, v in cfg_dict.items()}
-
-
 def forbid_config_key(cfg_dict: Dict[str, Any], key: str):
     if key in cfg_dict:
         raise ValueError(

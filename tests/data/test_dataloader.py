@@ -1136,6 +1136,7 @@ def test_token_counting_func_dataloader_setting(
         ds_mock.tokenizer = gptt
         monkeypatch.setattr('llmfoundry.data.text_data.StreamingTextDataset',
                             lambda *args, **kwargs: ds_mock)
+        cfg.pop('name')
         dl = build_text_dataloader(**cfg,
                                    tokenizer=gptt,
                                    device_batch_size=batch_size)

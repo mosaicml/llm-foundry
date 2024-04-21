@@ -39,6 +39,28 @@ def forbid_config_key(cfg_dict: Dict[str, Any], key: str):
         )
 
 
+def to_dict_recursive(
+    cfg: Optional[Union[DictConfig, ListConfig, Dict[str, Any],
+                        List[Dict[str, Any]]]]
+) -> Dict[str, Any]:
+    maybe_dict = to_container_recursive(cfg)
+    if isinstance(maybe_dict, dict):
+        return maybe_dict
+    else:
+        raise ValueError(f'Expected a dict-like type, got {type(maybe_dict)}')
+
+
+def to_list_recursive(
+    cfg: Optional[Union[DictConfig, ListConfig, Dict[str, Any],
+                        List[Dict[str, Any]]]]
+) -> List[Dict[str, Any]]:
+    maybe_list = to_container_recursive(cfg)
+    if isinstance(maybe_list, list):
+        return maybe_list
+    else:
+        raise ValueError(f'Expected a list-like type, got {type(maybe_list)}')
+
+
 def to_container_recursive(
     cfg: Optional[Union[DictConfig, ListConfig, Dict[str, Any],
                         List[Dict[str, Any]]]]

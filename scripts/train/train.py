@@ -364,7 +364,7 @@ def main(cfg: DictConfig) -> Trainer:
     fsdp_config: Optional[Dict[str, Any]] = to_dict_recursive(
         train_cfg.fsdp_config) if train_cfg.fsdp_config is not None else None
 
-    eval_loader_config: Optional[Dict[str, Any]] = to_dict_recursive(
+    eval_loader_config = to_dict_recursive(
         train_cfg.eval_loader
     ) if train_cfg.eval_loader is not None else to_list_recursive(
         train_cfg.eval_loaders)

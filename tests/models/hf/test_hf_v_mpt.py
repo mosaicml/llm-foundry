@@ -113,6 +113,7 @@ def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
 
     print(model_cfg)
     name = model_cfg.pop('name')
+    model_cfg.pop('device')
     model = build_composer_model(
         name=name,
         cfg=to_str_dict(model_cfg),

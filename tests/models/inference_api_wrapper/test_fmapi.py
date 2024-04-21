@@ -88,7 +88,7 @@ def mock_create(**kwargs: Dict[str, str]):
         return MockCompletion(' ')
 
 
-def test_casual_fmapi_wrapper(tmp_path: str):
+def test_causal_fmapi_wrapper(tmp_path: str):
     # patch block_until_ready
     with patch.object(FMAPIEvalInterface, 'block_until_ready') as mock:
 
@@ -105,7 +105,8 @@ def test_casual_fmapi_wrapper(tmp_path: str):
             mock.completions.create = mock_create
 
             task_cfg = load_icl_config()
-            evaluators, _ = build_icl_evaluators(task_cfg.icl_tasks,
+            evaluators, _ = build_icl_evaluators(to_list_recursive(
+                task_cfg.icl_tasks),
                                                  tokenizer,
                                                  1024,
                                                  2,

@@ -367,7 +367,7 @@ def main(cfg: DictConfig) -> Trainer:
     eval_loader_config = to_dict_recursive(
         train_cfg.eval_loader
     ) if train_cfg.eval_loader is not None else to_list_recursive(
-        train_cfg.eval_loaders)
+        train_cfg.eval_loaders) if train_cfg.eval_loaders is not None else None
     icl_tasks_config = to_list_recursive(train_cfg.icl_tasks)
     eval_gauntlet_config = to_dict_recursive(train_cfg.eval_gauntlet)
 

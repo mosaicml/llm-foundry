@@ -50,9 +50,11 @@ def get_config(
 
 def _load_tokenizer_cfg(cfg: Union[Dict[str, Any], DictConfig]) -> Dict:
     if isinstance(cfg, DictConfig):
-        cfg = om.to_container(cfg, resolve=True)
-    assert isinstance(cfg, Dict)
-    return cfg
+        config = to_str_dict(cfg)
+    else:
+        assert isinstance(cfg, dict)
+        config = cfg
+    return config
 
 
 def _get_objs(request: pytest.FixtureRequest,

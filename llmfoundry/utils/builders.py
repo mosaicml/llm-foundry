@@ -94,9 +94,13 @@ def build_eval_loaders(
     if isinstance(eval_loader_config, list):
         eval_configs = eval_loader_config
         is_multi_eval = True
-    else:
+    elif isinstance(eval_loader_config, dict):
         eval_configs = [eval_loader_config]
         is_multi_eval = False
+    else:
+        raise ValueError(
+            f'Got invalid type for eval_loader_config: {type(eval_loader_config)}, {eval_loader_config=}'
+        )
 
     for eval_config in eval_configs:
         label = None

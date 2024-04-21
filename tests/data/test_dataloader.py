@@ -227,6 +227,7 @@ def test_correct_padding(tokenizer_name: str,
     )
 
     # Dataloaders
+    test_cfg.eval_loader.pop('name')
     eval_loader = build_text_dataloader(
         **test_cfg.eval_loader,
         tokenizer=tokenizer,

@@ -109,8 +109,6 @@ def test_train_multi_eval(tmp_path: pathlib.Path):
     first_eval_loader.label = 'c4'
     # Create second eval dataloader using the arxiv dataset.
     second_eval_loader = copy.deepcopy(first_eval_loader)
-    arxiv_dataset_name = create_arxiv_dataset(tmp_path)
-    second_eval_loader.data_local = arxiv_dataset_name
     second_eval_loader.label = 'arxiv'
     test_cfg.eval_loader = om.create([first_eval_loader, second_eval_loader])
     test_cfg.eval_subset_num_batches = 1  # -1 to evaluate on all batches

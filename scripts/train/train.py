@@ -37,6 +37,7 @@ from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_scheduler, build_tokenizer)
 from llmfoundry.utils.config_utils import (forbid_config_key, log_config,
                                            pop_config, process_init_device,
+                                           to_container_recursive,
                                            update_batch_size_info)
 from llmfoundry.utils.registry_utils import import_file
 
@@ -356,15 +357,19 @@ def main(cfg: DictConfig) -> Trainer:
     dist.initialize_dist(get_device(None), timeout=dist_timeout)
 
     # Mandatory model training configs
-    model_config = train_cfg.model
-    train_loader_config = train_cfg.train_loader
+    model_config = to_container_recursive(train_cfg.model)
+    train_loader_config = to_container_recursive(train_cfg.train_loader)
 
     # Optional fsdp data, fine-tuning, and eval configs
-    fsdp_config: Optional[Dict[str, Any]] = train_cfg.fsdp_config
+    fsdp_config: Optional[Dict[str, Any]] = to_container_recursive(
+        train_cfg.fsdp_config)
 
-    eval_loader_config = train_cfg.eval_loader if train_cfg.eval_loader is not None else train_cfg.eval_loaders
-    icl_tasks_config = train_cfg.icl_tasks
-    eval_gauntlet_config = train_cfg.eval_gauntlet
+    eval_loader_config: Optional[Dict[str, Any]] = to_container_recursive(
+        train_cfg.eval_loader
+    ) if train_cfg.eval_loader is not None else to_container_recursive(
+        train_cfg.eval_loaders)
+    icl_tasks_config = to_container_recursive(train_cfg.icl_tasks)
+    eval_gauntlet_config = to_container_recursive(train_cfg.eval_gauntlet)
 
     # Optional parameters will be set to default values if not specified.
     default_run_name: str = os.environ.get('RUN_NAME', 'llm')
@@ -442,7 +447,7 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Profiling
     profiler: Optional[Profiler] = None
-    profiler_cfg = train_cfg.profiler
+    profiler_cfg = to_container_recursive(train_cfg.profiler)
     if profiler_cfg:
         profiler_schedule_cfg: Dict = pop_config(profiler_cfg,
                                                  'schedule',

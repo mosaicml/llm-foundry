@@ -18,6 +18,7 @@ from llmfoundry.data.finetuning.tasks import (DOWNLOADED_FT_DATASETS_DIRPATH,
                                               dataset_constructor)
 from llmfoundry.data.packing import BinPackCollator, auto_packing_ratio
 from llmfoundry.data.text_data import build_streams, get_tokens_per_batch_func
+from llmfoundry.utils.config_utils import to_str_dict
 from llmfoundry.utils.exceptions import (MissingHuggingFaceURLSplitError,
                                          NotEnoughDatasetSamplesError)
 
@@ -169,7 +170,11 @@ def build_finetuning_dataloader(
     if dataset_cfg.get('remote') is not None or dataset_cfg.get(
             'streams') is not None:
         # Build streaming dataloader
-        streams = build_streams(**dataset_cfg)
+        streams_cfg = dataset_cfg.get('streams', None)
+        streams_cfg = to_str_dict(
+            streams_cfg) if streams_cfg is not None else None
+        streams = build_streams(
+            streams_cfg) if streams_cfg is not None else None
 
         # note: we don't need to use ** here because we're setting default values for almost all arguments
         streaming_dataset = dataset_constructor.build_from_streaming(
@@ -309,7 +314,7 @@ def _validate_config(
     remote: Optional[str] = None,
     hf_kwargs: Optional[Dict[str, Any]] = None,
     preprocessing_fn: Optional[str] = None,
-    safe_load: Optional[bool] = False,
+    safe_load: Optional[bool] = None,
     streams: Optional[Dict[str, Any]] = None,
     target_prompts: Optional[str] = None,
     target_responses: Optional[str] = None,

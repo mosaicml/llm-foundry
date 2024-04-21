@@ -368,8 +368,11 @@ def main(cfg: DictConfig) -> Trainer:
         train_cfg.eval_loader
     ) if train_cfg.eval_loader is not None else to_list_recursive(
         train_cfg.eval_loaders) if train_cfg.eval_loaders is not None else None
-    icl_tasks_config = to_list_recursive(train_cfg.icl_tasks)
-    eval_gauntlet_config = to_dict_recursive(train_cfg.eval_gauntlet)
+    icl_tasks_config = to_list_recursive(
+        train_cfg.icl_tasks) if train_cfg.icl_tasks is not None else None
+    eval_gauntlet_config = to_dict_recursive(
+        train_cfg.eval_gauntlet
+    ) if train_cfg.eval_gauntlet is not None else None
 
     # Optional parameters will be set to default values if not specified.
     default_run_name: str = os.environ.get('RUN_NAME', 'llm')
@@ -447,7 +450,8 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Profiling
     profiler: Optional[Profiler] = None
-    profiler_cfg = to_dict_recursive(train_cfg.profiler)
+    profiler_cfg = to_dict_recursive(
+        train_cfg.profiler) if train_cfg.profiler is not None else None
     if profiler_cfg:
         profiler_schedule_cfg: Dict = pop_config(profiler_cfg,
                                                  'schedule',

@@ -704,6 +704,7 @@ def test_lora_id():
     tokenizer = build_tokenizer(config.tokenizer.name,
                                 tokenizer_cfg.get('kwargs', {}))
 
+    config.model.pop('name')
     model = ComposerHFCausalLM(**config.model, tokenizer=tokenizer)
 
     assert isinstance(model.model, peft.PeftModelForCausalLM)

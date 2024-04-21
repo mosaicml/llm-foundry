@@ -39,10 +39,7 @@ def forbid_config_key(cfg_dict: Dict[str, Any], key: str):
         )
 
 
-def to_dict_recursive(
-    cfg: Optional[Union[DictConfig, ListConfig, Dict[str, Any],
-                        List[Dict[str, Any]]]]
-) -> Dict[str, Any]:
+def to_dict_recursive(cfg: Union[DictConfig, Dict[str, Any]]) -> Dict[str, Any]:
     maybe_dict = to_container_recursive(cfg)
     if isinstance(maybe_dict, dict):
         return maybe_dict
@@ -51,9 +48,7 @@ def to_dict_recursive(
 
 
 def to_list_recursive(
-    cfg: Optional[Union[DictConfig, ListConfig, Dict[str, Any],
-                        List[Dict[str, Any]]]]
-) -> List[Dict[str, Any]]:
+        cfg: Union[ListConfig, List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
     maybe_list = to_container_recursive(cfg)
     if isinstance(maybe_list, list):
         return maybe_list

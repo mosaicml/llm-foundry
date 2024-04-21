@@ -12,6 +12,7 @@ from llmfoundry.models.inference_api_wrapper import (OpenAICausalLMEvalWrapper,
                                                      OpenAIChatAPIEvalWrapper)
 from llmfoundry.tokenizers import TiktokenTokenizerWrapper
 from llmfoundry.utils.builders import build_icl_evaluators
+from llmfoundry.utils.config_utils import to_str_dict
 
 
 @pytest.fixture(scope='module')
@@ -106,11 +107,13 @@ def test_openai_api_eval_wrapper(tmp_path: str, openai_api_key_env_var: str):
         mock.completions.create = mock_create
 
         task_cfg = load_icl_config()
-        evaluators, _ = build_icl_evaluators(task_cfg.icl_tasks,
-                                             tokenizer,
-                                             1024,
-                                             2,
-                                             destination_dir=str(tmp_path))
+        evaluators, _ = build_icl_evaluators(
+            to_str_dict(task_cfg.icl_tasks) if isinstance(
+                task_cfg.icl_tasks, dict) else str(task_cfg.icl_tasks),
+            tokenizer,
+            1024,
+            2,
+            destination_dir=str(tmp_path))
 
         batch = next(evaluators[0].dataloader.dataloader.__iter__())
         result = model.eval_forward(batch)
@@ -138,11 +141,13 @@ def test_chat_api_eval_wrapper(tmp_path: str, openai_api_key_env_var: str):
             'Treason!')
 
         task_cfg = load_icl_config()
-        evaluators, _ = build_icl_evaluators(task_cfg.icl_tasks,
-                                             tokenizer,
-                                             1024,
-                                             2,
-                                             destination_dir=str(tmp_path))
+        evaluators, _ = build_icl_evaluators(
+            to_str_dict(task_cfg.icl_tasks) if isinstance(
+                task_cfg.icl_tasks, dict) else str(task_cfg.icl_tasks),
+            tokenizer,
+            1024,
+            2,
+            destination_dir=str(tmp_path))
 
         batch = next(evaluators[0].dataloader.dataloader.__iter__())
         result = chatmodel.eval_forward(batch)

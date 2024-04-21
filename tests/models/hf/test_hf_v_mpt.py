@@ -60,6 +60,7 @@ def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
         tokenizer_kwargs=tokenizer_kwargs,
     )
     name = hf_cfg.model.pop('name')
+    hf_cfg.model.pop('device')
     hf_model = build_composer_model(
         name=name,
         cfg=to_str_dict(hf_cfg.model),

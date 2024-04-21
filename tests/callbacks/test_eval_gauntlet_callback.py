@@ -70,8 +70,8 @@ def test_gauntlet_callback(averages: Optional[dict]):
               num_fewshot: [0]
               icl_task_type: language_modeling
             """)
-    assert isinstance(icl_task_config, om.ListConfig) or isinstance(
-        icl_task_config, str)
+    icl_task_config = list(icl_task_config)
+    assert isinstance(icl_task_config, list(om.DictConfig))
 
     eval_gauntlet_config = om.OmegaConf.create("""
                 weighting: EQUAL

@@ -40,7 +40,7 @@ def forbid_config_key(cfg_dict: Dict[str, Any], key: str):
 
 
 def to_container_recursive(
-    cfg: Union[DictConfig, ListConfig]
+    cfg: Union[DictConfig, ListConfig, Dict[str, Any], List[Dict[str, Any]]]
 ) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
 
     def rh(x: Any) -> Any:  # recursive helper

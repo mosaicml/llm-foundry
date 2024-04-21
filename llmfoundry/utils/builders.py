@@ -17,6 +17,7 @@ from composer.loggers import LoggerDestination
 from composer.models import ComposerModel
 from composer.optim.scheduler import ComposerScheduler
 from composer.utils import dist
+from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from torch.optim.optimizer import Optimizer
 from torchmetrics import Metric
@@ -150,7 +151,7 @@ def build_icl_data_and_gauntlet(
         if isinstance(eval_gauntlet_config, str):
             with open(eval_gauntlet_config, 'r') as icl_f:
                 eval_gauntlet_cfg = om.load(icl_f)
-                assert isinstance(eval_gauntlet_cfg, dict)
+                assert isinstance(eval_gauntlet_cfg, DictConfig)
             eval_gauntlet = to_str_dict(eval_gauntlet_cfg['eval_gauntlet'])
         elif isinstance(eval_gauntlet_config, dict):  # pyright: ignore
             eval_gauntlet = eval_gauntlet_config

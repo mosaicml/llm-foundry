@@ -13,7 +13,6 @@ import torch.nn as nn
 from composer.callbacks import Generate
 from composer.core import Evaluator
 from composer.loggers import WandBLogger
-from omegaconf import DictConfig, ListConfig
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.callbacks import HuggingFaceCheckpointer

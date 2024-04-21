@@ -300,7 +300,7 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     run_name = eval_config.run_name if eval_config.run_name else default_run_name
 
     reproducibility.seed_all(eval_config.seed)
-    # dist.initialize_dist(get_device(None), timeout=eval_config.dist_timeout)
+    dist.initialize_dist(get_device(None), timeout=eval_config.dist_timeout)
 
     logging.basicConfig(
         # Example of format string

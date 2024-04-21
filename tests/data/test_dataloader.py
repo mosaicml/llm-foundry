@@ -1155,7 +1155,7 @@ def test_build_unknown_dataloader():
     }
     tokenizer = MagicMock()
     with pytest.raises(catalogue.RegistryError):
-        _ = build_dataloader(**cfg, tokenizer=tokenizer, device_batch_size=2)
+        _ = build_dataloader(cfg=cfg, tokenizer=tokenizer, device_batch_size=2)
 
 
 invalid_conversation_params_sharegpt = [

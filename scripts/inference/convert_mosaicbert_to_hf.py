@@ -219,7 +219,7 @@ def _convert_composer_to_hf(args: Namespace) -> None:
     loaded_hf_model = AutoModelForMaskedLM.from_pretrained(local_folder_path,config=config,trust_remote_code=True)
 
 
-    loaded_hf_model.save_pretrained(local_folder_path)
+    loaded_hf_model.save_pretrained(local_folder_path, safe_serialization=False)
 
     # Only need to edit files for MPT because it has custom code
     if config.model_type == 'mpt':

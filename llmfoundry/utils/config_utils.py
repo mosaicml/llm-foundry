@@ -202,16 +202,16 @@ def to_container(
     `omegaconf.to_container` does not handle nested DictConfig or ListConfig
     objects, so this function is used to convert them to dicts or lists.
     """
-    if isinstance(cfg, DictConfig):
-        ret = om.to_container(cfg)
-        assert isinstance(ret, dict)
-        return ret
-    elif isinstance(cfg, ListConfig):
-        ret = om.to_container(cfg)
-        assert isinstance(ret, list)
-        return ret
-    else:
-        return cfg
+
+    def rh(x: Any) -> Any:  # recursive helper
+        if isinstance(x, DictConfig):
+            return {k: rh(v) for k, v in x.items()}
+        elif isinstance(x, ListConfig):
+            return [rh(v) for v in x]
+        else:
+            return x
+
+    return rh(cfg)
 
 
 T = TypeVar('T')

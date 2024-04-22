@@ -5,7 +5,7 @@ import contextlib
 import logging
 import math
 import warnings
-from typing import Any, Dict, Literal, Mapping, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Literal, Mapping, Optional, Tuple, Union
 
 from composer.utils import dist, parse_uri
 from omegaconf import DictConfig, ListConfig
@@ -190,56 +190,88 @@ def log_config(cfg: DictConfig) -> None:
             _log_dataset_uri(cfg)
 
 
-def _parse_source_dataset(cfg: DictConfig) -> Set[Tuple[str, str, str]]:
+def _parse_source_dataset(cfg: DictConfig) -> List[Tuple[str, str, str]]:
     """Parse a run config for dataset information.
 
     Given a config dictionary, parse through it to determine what the datasource
-    should be catagorized as. Possible data sources are Delta Tables, UC Volumes,
+    should be categorized as. Possible data sources are Delta Tables, UC Volumes,
     HuggingFace paths, remote storage, or local storage.
 
     Args:
         cfg (DictConfig): A config dictionary of a run
 
     Returns:
-        Set[Tuple[str]]: A set of tuples formatted as (data type, path, split)
+        List[Tuple[str, str, str]]: A list of tuples formatted as (data type, path, split)
     """
-    data_paths = set()
+    data_paths = []
 
-    for data_split in ['train', 'eval']:
-        data_set = cfg.get(f'{data_split}_loader', {}).get('dataset', {})
-        cfg_split = data_set.get('split', None)
-        source_dataset_path = cfg.get(f'source_dataset_{data_split}', {})
+    # Handle train loader if it exists
+    train_data_set = cfg.get('train_loader', {}).get('dataset', {})
+    train_split = train_data_set.get('split', None)
+    train_source_path = cfg.get('source_dataset_train', None)
+    _process_data_source(train_source_path, train_data_set, train_split,
+                         'train', data_paths)
 
-        # Check for Delta table
-        if source_dataset_path and len(source_dataset_path.split('.')) >= 3:
-            data_paths.add(('delta_table', source_dataset_path, data_split))
-        # Check for UC volume
-        elif source_dataset_path and source_dataset_path.startswith('dbfs:'):
-            data_paths.add(('uc_volume', source_dataset_path[len('dbfs:'):], data_split))
-        # Check for HF path
-        elif 'hf_name' in data_set:
-            hf_path = data_set['hf_name']
-            backend, _, _ = parse_uri(hf_path)
-            if backend:
-                hf_path = f'{hf_path.rstrip("/")}/{cfg_split}' if cfg_split else hf_path
-                data_paths.add((backend, hf_path, data_split))
-            elif hf_path.startswith('/'):
-                data_paths.add(('local', hf_path, data_split))
-            else:
-                data_paths.add(('hf', hf_path, data_split))
-        # check for remote path
-        elif 'remote' in data_set:
-            remote_path = data_set['remote']
-            backend, _, _ = parse_uri(remote_path)
-            if backend:
-                remote_path = f'{remote_path.rstrip("/")}/{cfg_split}/' if cfg_split else remote_path
-                data_paths.add((backend, remote_path, data_split))
-            else:
-                data_paths.add(('local', remote_path, data_split))
-        else:
-            raise KeyError('DataSource Not Found')
+    # Handle eval_loader which might be a list or a single dictionary
+    eval_data_loaders = cfg.get('eval_loader', {})
+    if not isinstance(eval_data_loaders, ListConfig):
+        eval_data_loaders = [eval_data_loaders
+                            ]  # Normalize to list if it's a single dictionary
+
+    for eval_data_loader in eval_data_loaders:
+        eval_data_set = eval_data_loader.get('dataset', {})
+        eval_split = eval_data_set.get('split', None)
+        eval_source_path = cfg.get('source_dataset_eval', None)
+        _process_data_source(eval_source_path, eval_data_set, eval_split,
+                             'eval', data_paths)
 
     return data_paths
+
+
+def _process_data_source(source_dataset_path: Optional[str],
+                         data_set: Dict[str, str], cfg_split: Optional[str],
+                         true_split: str, data_paths: List[Tuple[str, str,
+                                                                 str]]):
+    """Add a data source by mutating data_paths.
+
+    Given various dataset attributes, attempt to determine what type of dataset is being added, and parse
+    the dataset accordingly.
+
+    source_dataset_path (Optional[str]): The source dataset in a cfg metadata
+    data_set (Dict[str, str]): The dataset from cfg
+    cfg_split (str): The split listed for the dataset in cfg
+    true_split (str): The split of the dataset to be added
+    data_paths (List[Tuple[str, str, str]]): A list of tuples formatted as (data type, path, split)
+    """
+    # Check for Delta table
+    if source_dataset_path and len(source_dataset_path.split('.')) >= 3:
+        data_paths.append(('delta_table', source_dataset_path, true_split))
+    # Check for UC volume
+    elif source_dataset_path and source_dataset_path.startswith('dbfs:'):
+        data_paths.append(
+            ('uc_volume', source_dataset_path[len('dbfs:'):], true_split))
+    # Check for HF path
+    elif 'hf_name' in data_set:
+        hf_path = data_set['hf_name']
+        backend, _, _ = parse_uri(hf_path)
+        if backend:
+            hf_path = f'{hf_path.rstrip("/")}/{cfg_split}' if cfg_split else hf_path
+            data_paths.append((backend, hf_path, true_split))
+        elif hf_path.startswith('/'):
+            data_paths.append(('local', hf_path, true_split))
+        else:
+            data_paths.append(('hf', hf_path, true_split))
+    # check for remote path
+    elif 'remote' in data_set:
+        remote_path = data_set['remote']
+        backend, _, _ = parse_uri(remote_path)
+        if backend:
+            remote_path = f'{remote_path.rstrip("/")}/{cfg_split}/' if cfg_split else remote_path
+            data_paths.append((backend, remote_path, true_split))
+        else:
+            data_paths.append(('local', remote_path, true_split))
+    else:
+        log.warning('DataSource Not Found.')
 
 
 def _log_dataset_uri(cfg: DictConfig) -> None:
@@ -257,6 +289,8 @@ def _log_dataset_uri(cfg: DictConfig) -> None:
     dataset_source_mapping = {
         's3': mlflow.data.http_dataset_source.HTTPDatasetSource,
         'oci': mlflow.data.http_dataset_source.HTTPDatasetSource,
+        'azure': mlflow.data.http_dataset_source.HTTPDatasetSource,
+        'gs': mlflow.data.http_dataset_source.HTTPDatasetSource,
         'https': mlflow.data.http_dataset_source.HTTPDatasetSource,
         'hf': mlflow.data.huggingface_dataset_source.HuggingFaceDatasetSource,
         'delta_table': mlflow.data.delta_dataset_source.DeltaDatasetSource,

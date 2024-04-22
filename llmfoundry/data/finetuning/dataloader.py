@@ -53,18 +53,17 @@ def build_finetuning_dataloader(
     on which you intend to use, as explained below.
 
     Args:
-        cfg (DictConfig): An omegaconf dictionary used to configure the loader:
-            cfg.name (str): The type of dataloader to build. Must = "finetuning".
-            ---
-            *** HuggingFace dataset config fields ***
-            cfg.dataset.hf_name (str, optional): The name of the HuggingFace dataset
+        name (str): The type of dataloader to build. Must = "finetuning".
+        ---
+        *** HuggingFace dataset config fields ***
+            dataset.hf_name (str, optional): The name of the HuggingFace dataset
                 to use. Can also be a remote http(s) directory or object store bucket
                 containing the file {split}.jsonl in the format (prompt, response),
                 in which case the builder will create a HuggingFace dataset.
-            cfg.dataset.hf_kwargs (DictConfig, optional): Additional kwargs to
+            dataset.hf_kwargs (DictConfig, optional): Additional kwargs to
                 pass to `datasets.load_dataset`, which can be used to load
                 a dataset from local files.
-            cfg.dataset.preprocessing_fn (str, optional): The name/import path of
+            dataset.preprocessing_fn (str, optional): The name/import path of
                 the preprocessing function to use for formatting the data examples.
                 If ``None`` (default), the builder will use the preprocessing function
                     registered under `hf_name` (see `tasks.py`), if one exists,
@@ -76,30 +75,30 @@ def build_finetuning_dataloader(
                     `from import.path import function_name` and use the imported
                     function as the preprocessing function.
             *** Streaming dataset config fields ***
-            cfg.dataset.remote (str, optional): Location of a MDS-formatted
+            dataset.remote (str, optional): Location of a MDS-formatted
                 streaming dataset to use. Setting this will tell the builder
                 to create a streaming dataset rather than a HuggingFace dataset.
-            cfg.dataset.local (str, optional): Local path where remote data
+            dataset.local (str, optional): Local path where remote data
                 will be streamed to. Only valid if `cfg.dataset.remote` has
                 also been set.
             *** Shared dataset configs fields ***
-            cfg.dataset.max_seq_len (int): The maximum length of sequences
+            dataset.max_seq_len (int): The maximum length of sequences
                 in the batch. See :class:`Seq2SeqFinetuningCollator` docstring
                 for details.
-            cfg.dataset.decoder_only_format (bool): Whether to format the
+            dataset.decoder_only_format (bool): Whether to format the
                 examples for a decoder-only model. See :class:`Seq2SeqFinetuningCollator`
                 docstring for details.
-            cfg.dataset.target_responses (str): Which responses are used as training targets.
+            dataset.target_responses (str): Which responses are used as training targets.
                 Defaults to "last", meaning only the final response in multi-turn examples
                 will serve as training targets. See :class:`Seq2SeqFinetuningCollator` docstring for
                 details.
-            cfg.dataset.target_prompts (str): Which prompts are used as training targets.
+            dataset.target_prompts (str): Which prompts are used as training targets.
                 Defaults to "none", meaning prompts are never used as training targets.
                 See :class:`Seq2SeqFinetuningCollator` docstring for details.
-            cfg.dataset.allow_pad_trimming (bool, optional): Whether to allow
+            dataset.allow_pad_trimming (bool, optional): Whether to allow
                 the collator to trim padding. See :class:`Seq2SeqFinetuningCollator`
                 docstring for details. Default: ``False``.
-            cfg.dataset.packing_ratio (Optional[float, Literal['auto']]): If provided, this invokes
+            dataset.packing_ratio (Optional[float, Literal['auto']]): If provided, this invokes
                 a collator wrapper that packs device_batch_size*packing_ratio
                 raw examples into device_batch_size packed examples. This helps
                 minimize padding while preserving sequence integrity.
@@ -119,19 +118,19 @@ def build_finetuning_dataloader(
                     statistics, max_seq_len, and tolerance for discarding samples!
                     The script `scripts/misc/profile_packing.py` can help
                     you choose the best packing_ratio.
-            cfg.dataset.shuffle (bool): Whether to shuffle the dataset.
+            dataset.shuffle (bool): Whether to shuffle the dataset.
             ___
             See :class:`StreamingFinetuningDataset` for info on other standard config
-                options within `cfg.dataset` that will be passed as kwargs if
+                options within `dataset` that will be passed as kwargs if
                 using the streaming codepath.
             ---
-            See :class:`DataLoader` for standard argument options to the pytorch
-                dataloader, such as `cfg.drop_last`, `cfg.num_workers`, etc.
         tokenizer (transformers.PreTrainedTokenizer): The tokenizer used to
             prepare the data from raw text. Any missing sentinel tokens will
             be added by the collator.
         device_batch_size (int): The size of the batches (number of examples)
             that the dataloader will produce.
+        See :class:`DataLoader` for standard argument options to the pytorch
+            dataloader, such as `drop_last`, `num_workers`, etc.
 
     Returns:
         A pytorch dataloader

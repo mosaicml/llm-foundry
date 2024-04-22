@@ -28,18 +28,17 @@ class ComposerHFT5(HuggingFaceModelWithFSDP):
         will expand support to more general classes of HF Encoder-Decoder models.
 
     Args:
-        cfg (DictConfig): An omegaconf dictionary used to configure the model:
-            cfg.pretrained_model_name_or_path (str): The name of or local path to
-                the HF model (e.g., `t5-base` to instantiate a T5 using the base config).
-            cfg.config_overrides (dict, optional): An optional dictionary of keyword
-                arguments that override the default configuration associated with
-                cfg.pretrained_model_name_or_path. Default: ``{}``.
-            cfg.pretrained (bool): Whether to instantiate the model with pre-trained
-                weights coming from cfg.pretrained_model_name_or_path. If ``True``,
-                cfg.config_overrides must be compatible with the pre-trained weights.
-            cfg.init_device ('cpu' | 'meta'): Which device, 'cpu' or 'meta', to
-                initialize the model on. Currently, `meta` is only supported when
-                cfg.pretrained is ``False``. Default: ``'cpu'``.
+        pretrained_model_name_or_path (str): The name of or local path to
+            the HF model (e.g., `t5-base` to instantiate a T5 using the base config).
+        config_overrides (dict, optional): An optional dictionary of keyword
+            arguments that override the default configuration associated with
+            cfg.pretrained_model_name_or_path. Default: ``{}``.
+        pretrained (bool): Whether to instantiate the model with pre-trained
+            weights coming from cfg.pretrained_model_name_or_path. If ``True``,
+            cfg.config_overrides must be compatible with the pre-trained weights.
+        init_device ('cpu' | 'meta'): Which device, 'cpu' or 'meta', to
+            initialize the model on. Currently, `meta` is only supported when
+            cfg.pretrained is ``False``. Default: ``'cpu'``.
         tokenizer (PreTrainedTokenizer): The tokenizer that the model will use.
     """
 

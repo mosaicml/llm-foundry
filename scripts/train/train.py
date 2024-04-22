@@ -231,7 +231,7 @@ def validate_config(train_config: TrainConfig):
             )
 
 
-def _log_num_params(model: ComposerModel, logged_cfg: DictConfig):
+def _log_num_params(model: ComposerModel, logged_cfg: Dict[str, Any]):
     # Log number of parameters
     if hasattr(model, 'n_total_params'):
         n_params = model.n_total_params
@@ -252,7 +252,7 @@ def _log_num_params(model: ComposerModel, logged_cfg: DictConfig):
 
 
 def main(cfg: DictConfig) -> Trainer:
-    cfgs: Tuple[DictConfig, TrainConfig] = make_dataclass_and_log_config(
+    cfgs: Tuple[Dict[str, Any], TrainConfig] = make_dataclass_and_log_config(
         cfg,
         TrainConfig,
         TRAIN_CONFIG_KEYS,

@@ -56,7 +56,7 @@ def evaluate_model(
     icl_subset_num_batches: Optional[int],
     callback_configs: Optional[Dict[str, Any]],
     metadata: Optional[Dict[str, str]],
-    logged_config: DictConfig,
+    logged_config: Dict[str, Any],
     should_log_config: bool = True,
     load_path: Optional[str] = None,
 ):
@@ -211,7 +211,7 @@ EVAL_CONFIG_KEYS = set(field.name for field in fields(EvalConfig))
 
 
 def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
-    cfgs: Tuple[DictConfig, EvalConfig] = make_dataclass_and_log_config(
+    cfgs: Tuple[Dict[str, Any], EvalConfig] = make_dataclass_and_log_config(
         cfg, EvalConfig, EVAL_CONFIG_KEYS)
     logged_cfg, eval_config = cfgs
 

@@ -7,7 +7,7 @@ import logging
 import math
 import warnings
 from typing import (Any, Callable, Dict, List, Literal, Mapping, Optional, Set,
-                    Tuple, Union)
+                    Tuple, TypeVar, Union)
 
 from composer.utils import dist
 from omegaconf import DictConfig, ListConfig
@@ -55,6 +55,11 @@ def to_container_recursive(
     cfg: Optional[Union[DictConfig, ListConfig, Dict[str, Any],
                         List[Dict[str, Any]]]]
 ) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
+    """Converts a DictConfig or ListConfig to a dict or list recursively.
+
+    `omegaconf.to_container` does not handle nested DictConfig or ListConfig
+    objects, so this function is used to convert them to dicts or lists.
+    """
 
     def rh(x: Any) -> Any:  # recursive helper
         if isinstance(x, DictConfig):
@@ -67,11 +72,16 @@ def to_container_recursive(
     return rh(cfg)
 
 
+T = TypeVar('T')
+
+
 def make_dataclass_and_log_config(
-    cfg: DictConfig, dataclass_constructor: Callable[..., Any],
+    cfg: DictConfig,
+    dataclass_constructor: Callable[..., T],
     dataclass_fields: Set[str],
-    transforms: Optional[List[Callable[[Dict[str, Any]], Dict[str, Any]]]]
-) -> Tuple[DictConfig, Any]:
+    transforms: Optional[List[Callable[[Dict[str, Any]], Dict[str,
+                                                              Any]]]] = None
+) -> Tuple[Dict[str, Any], T]:
     """Converts a DictConfig to a dataclass and creates a logged config."""
     # Resolve all interpolation variables as early as possible
     unstructured_config = om.to_container(cfg, resolve=True)
@@ -111,7 +121,7 @@ def make_dataclass_and_log_config(
         unstructured_config['variables'][key] = unstructured_config.pop(key)
 
     # Create copy of config for logging
-    logged_cfg: DictConfig = copy.deepcopy(DictConfig(unstructured_config))
+    logged_cfg: Dict[str, Any] = copy.deepcopy(unstructured_config)
 
     # apply transforms to the unstructured config before constructing dataclass
     for transform in transforms or []:
@@ -119,10 +129,10 @@ def make_dataclass_and_log_config(
 
     logged_cfg.update(unstructured_config, merge=True)
 
-    eval_config: DictConfig = om.structured(
+    dataclass_config: T = om.structured(
         dataclass_constructor(**unstructured_config))
 
-    return logged_cfg, eval_config
+    return logged_cfg, dataclass_config
 
 
 def pop_config(cfg: Union[Dict[str, Any], DictConfig],
@@ -262,7 +272,7 @@ def process_init_device(model_cfg: Dict[str, Any], fsdp_config: Optional[Dict]):
     return init_context
 
 
-def log_config(cfg: DictConfig) -> None:
+def log_config(cfg: Dict[str, Any]) -> None:
     """Logs the current config and updates the wandb and mlflow configs.
 
     This function can be called multiple times to update the wandb and MLflow
@@ -275,7 +285,7 @@ def log_config(cfg: DictConfig) -> None:
         except ImportError as e:
             raise e
         if wandb.run:
-            wandb.config.update(om.to_container(cfg, resolve=True))
+            wandb.config.update(cfg)
 
     if 'mlflow' in cfg.get('loggers', {}):
         try:
@@ -283,4 +293,4 @@ def log_config(cfg: DictConfig) -> None:
         except ImportError as e:
             raise e
         if mlflow.active_run():
-            mlflow.log_params(params=om.to_container(cfg, resolve=True))
+            mlflow.log_params(params=cfg)

@@ -32,28 +32,27 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
     """Configures a :class:`.HuggingFaceModel` around a Causal LM.
 
     Args:
-        om_model_config (DictConfig): An OmegaConf DictConfig specifying the configuration options
-            cfg.pretrained_model_name_or_path (str): The name of or local path to
-                the HF Causal LM (e.g., `gpt2` to instantiate a GPT2LMHeadModel).
-            cfg.config_overrides (dict, optional): An optional dictionary of keyword
-                arguments that override the default configuration associated with
-                cfg.pretrained_model_name_or_path.
-            cfg.pretrained (bool): Whether to instantiate the model with pre-trained
-                weights coming from cfg.pretrained_model_name_or_path. If ``True``,
-                cfg.config_overrides must be compatible with the pre-trained weights.
-            cfg.init_device ('cpu' | 'meta'): Which device, 'cpu' or 'meta', to
-                initialize the model on. Currently, `meta` is only supported when
-                cfg.pretrained is ``False``. Default: ``'cpu'``.
-            cfg.peft_config (dict, optional): An optional dictionary of keyword arguments to be
-                passed to the PeftConfig constructor. If provided, the model will be wrapped in a PeftModel.
-            cfg.trust_remote_code (bool, optional): Whether to trust remote code when loading from Hugging Face
-                Hub. Default: ``True``.
-            cfg.use_auth_token (bool, optional): Whether to use the Hugging Face authentication token when
-                loading from Hugging Face Hub. Default: ``False``.
-            cfg.use_train_metrics (bool, optional): Whether to use training metrics. Default: ``True``.
-            cfg.load_in_8bit (bool, optional): Whether to load the model in 8-bit mode. Default: ``False``.
-            cfg.init_device (str, optional): Which device to initialize the model on. Default: ``'cpu'``.
-            cfg.use_flash_attention_2 (bool, optional): Whether to use flash-attention 2. Default: ``False``.
+        pretrained_model_name_or_path (str): The name of or local path to
+            the HF Causal LM (e.g., `gpt2` to instantiate a GPT2LMHeadModel).
+        config_overrides (dict, optional): An optional dictionary of keyword
+            arguments that override the default configuration associated with
+            cfg.pretrained_model_name_or_path.
+        pretrained (bool): Whether to instantiate the model with pre-trained
+            weights coming from cfg.pretrained_model_name_or_path. If ``True``,
+            cfg.config_overrides must be compatible with the pre-trained weights.
+        init_device ('cpu' | 'meta'): Which device, 'cpu' or 'meta', to
+            initialize the model on. Currently, `meta` is only supported when
+            cfg.pretrained is ``False``. Default: ``'cpu'``.
+        peft_config (dict, optional): An optional dictionary of keyword arguments to be
+            passed to the PeftConfig constructor. If provided, the model will be wrapped in a PeftModel.
+        trust_remote_code (bool, optional): Whether to trust remote code when loading from Hugging Face
+            Hub. Default: ``True``.
+        use_auth_token (bool, optional): Whether to use the Hugging Face authentication token when
+            loading from Hugging Face Hub. Default: ``False``.
+        use_train_metrics (bool, optional): Whether to use training metrics. Default: ``True``.
+        load_in_8bit (bool, optional): Whether to load the model in 8-bit mode. Default: ``False``.
+        init_device (str, optional): Which device to initialize the model on. Default: ``'cpu'``.
+        use_flash_attention_2 (bool, optional): Whether to use flash-attention 2. Default: ``False``.
         tokenizer (PreTrainedTokenizer): The tokenizer that the model will use.
     """
 

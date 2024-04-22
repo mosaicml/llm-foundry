@@ -29,7 +29,8 @@ from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
 from llmfoundry.utils.config_utils import (log_config,
                                            make_dataclass_and_log_config,
                                            process_init_device,
-                                           to_container_recursive)
+                                           to_container_recursive,
+                                           to_list_recursive)
 from llmfoundry.utils.registry_utils import import_file
 
 log = logging.getLogger(__name__)
@@ -218,7 +219,7 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     for code_path in (eval_config.code_paths or []):
         import_file(code_path)
 
-    model_configs = eval_config.models
+    model_configs = to_list_recursive(eval_config.models)
     eval_gauntlet_config = to_container_recursive(
         eval_config.eval_gauntlet) or eval_config.eval_gauntlet_str
     assert eval_gauntlet_config is None or isinstance(

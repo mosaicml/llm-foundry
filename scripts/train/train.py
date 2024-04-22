@@ -409,19 +409,23 @@ def main(cfg: DictConfig) -> Trainer:
                             trace_handlers=profiler_trace_handlers,
                             schedule=profiler_schedule)
 
+    callback_configs = to_dict_recursive(
+        train_cfg.callbacks) if train_cfg.callbacks is not None else {}
     # Callbacks
     callbacks: List[Callback] = [
         build_callback(str(name), callback_cfg, logged_cfg)
-        for name, callback_cfg in train_cfg.callbacks.items()
-    ] if train_cfg.callbacks else []
+        for name, callback_cfg in callback_configs.items()
+    ]
 
     use_async_eval = any(isinstance(c, AsyncEval) for c in callbacks)
 
+    algorithm_configs = to_dict_recursive(
+        train_cfg.algorithms) if train_cfg.algorithms is not None else {}
     # Algorithms
     algorithms = [
         build_algorithm(str(name), algorithm_cfg)
-        for name, algorithm_cfg in train_cfg.algorithms.items()
-    ] if train_cfg.algorithms else None
+        for name, algorithm_cfg in algorithm_configs.items()
+    ]
 
     # Dataloaders
     log.info('Building train loader...')

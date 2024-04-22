@@ -10,7 +10,7 @@ from typing import (Any, Callable, Dict, List, Literal, Mapping, Optional, Set,
                     Tuple, TypeVar, Union)
 
 from composer.utils import dist
-from omegaconf import DictConfig, ListConfig
+from omegaconf import DictConfig, ListConfig, MissingMandatoryValue
 from omegaconf import OmegaConf as om
 
 from llmfoundry.layers_registry import ffns_with_megablocks
@@ -107,7 +107,8 @@ def make_dataclass_and_log_config(
                 'icl_tasks')
     else:
         if icl_tasks_required:
-            raise ValueError('icl_tasks must be specified in the config')
+            raise MissingMandatoryValue(
+                'icl_tasks must be specified in the config')
 
     # Create copy of config for logging
     logged_cfg: Dict[str, Any] = copy.deepcopy(unstructured_config)

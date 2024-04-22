@@ -13,7 +13,7 @@ from transformers import AutoTokenizer
 
 from llmfoundry.eval.metrics.nlp import InContextLearningLMAccuracy
 from llmfoundry.utils.builders import build_icl_data_and_gauntlet
-from llmfoundry.utils.config_utils import to_dict_recursive
+from llmfoundry.utils.config_utils import to_dict_container
 
 
 @pytest.fixture(autouse=True)
@@ -98,8 +98,8 @@ def test_gauntlet_callback(averages: Optional[dict]):
 
     # test loading functionality
     _, _, eval_gauntlet_callback = build_icl_data_and_gauntlet(
-        [to_dict_recursive(c) for c in icl_task_config_list],
-        to_dict_recursive(eval_gauntlet_config), tokenizer, 4, 1024, 1)
+        [to_dict_container(c) for c in icl_task_config_list],
+        to_dict_container(eval_gauntlet_config), tokenizer, 4, 1024, 1)
     assert eval_gauntlet_callback is not None
     state = MockState(eval_gauntlet_callback.logger_keys)
     logger = MockLogger(state)

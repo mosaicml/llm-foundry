@@ -28,9 +28,8 @@ from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
 from llmfoundry.utils.config_utils import (EVAL_CONFIG_KEYS, EvalConfig,
                                            log_config,
                                            make_dataclass_and_log_config,
-                                           process_init_device,
-                                           to_container_recursive,
-                                           to_list_recursive)
+                                           process_init_device, to_container,
+                                           to_list_container)
 from llmfoundry.utils.registry_utils import import_file
 
 log = logging.getLogger(__name__)
@@ -173,8 +172,8 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     for code_path in (eval_config.code_paths or []):
         import_file(code_path)
 
-    model_configs = to_list_recursive(eval_config.models)
-    eval_gauntlet_config = to_container_recursive(
+    model_configs = to_list_container(eval_config.models)
+    eval_gauntlet_config = to_container(
         eval_config.eval_gauntlet) or eval_config.eval_gauntlet_str
     assert eval_gauntlet_config is None or isinstance(
         eval_gauntlet_config, dict
@@ -186,7 +185,7 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     # despite the type hint being Dict[str, Any] and the `cfg` object being sent to `to_container`.
     # I think it might be rewrapped in DictConfig during the `structured` call in `_make_eval_and_log_config`.
     # this redundant check is necessary to avoid a pyright error.
-    fsdp_config = to_container_recursive(eval_config.fsdp_config)
+    fsdp_config = to_container(eval_config.fsdp_config)
     assert isinstance(
         fsdp_config, Dict
     ) or fsdp_config is None, f'fsdp_config must be a Dict or None but is {type(fsdp_config)}'
@@ -194,18 +193,16 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
                   } if fsdp_config else None  # pyright fix
 
     # Mandatory Evaluation Parameters
-    icl_tasks = to_container_recursive(
-        eval_config.icl_tasks) or eval_config.icl_tasks_str
+    icl_tasks = to_container(eval_config.icl_tasks) or eval_config.icl_tasks_str
     assert isinstance(icl_tasks, list) or isinstance(
         icl_tasks, str
     ), f'icl_tasks must be a list or a string but is {type(icl_tasks)}, {icl_tasks=}'
     assert icl_tasks is not None, 'icl_tasks must be specified in the config'
 
     # Optional Evaluation Parameters with default values
-    eval_loader_config = to_container_recursive(
-        eval_config.eval_loader
-    ) if eval_config.eval_loader else to_container_recursive(
-        eval_config.eval_loaders)
+    eval_loader_config = to_container(
+        eval_config.eval_loader) if eval_config.eval_loader else to_container(
+            eval_config.eval_loaders)
     default_run_name: str = os.environ.get('RUN_NAME', 'llm')
     run_name = eval_config.run_name if eval_config.run_name else default_run_name
 

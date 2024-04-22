@@ -16,7 +16,7 @@ from transformers import AutoModelForCausalLM, PretrainedConfig
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils import build_tokenizer
 from llmfoundry.utils.builders import build_composer_model
-from llmfoundry.utils.config_utils import to_dict_recursive
+from llmfoundry.utils.config_utils import to_dict_container
 
 
 def test_remote_code_false_mpt(
@@ -49,7 +49,7 @@ def test_remote_code_false_mpt(
         name = test_cfg.model.pop('name')
         _ = build_composer_model(
             name=name,
-            cfg=to_dict_recursive(test_cfg.model),
+            cfg=to_dict_container(test_cfg.model),
             tokenizer=tokenizer,
         )
 
@@ -142,7 +142,7 @@ def test_hf_config_override(
     name = test_cfg.model.pop('name')
     model = build_composer_model(
         name=name,
-        cfg=to_dict_recursive(test_cfg.model),
+        cfg=to_dict_container(test_cfg.model),
         tokenizer=tokenizer,
     )
 
@@ -167,7 +167,7 @@ def test_hf_config_override(
     name = hf_model_config.model.pop('name')
     hf_model = build_composer_model(
         name=name,
-        cfg=to_dict_recursive(hf_model_config.model),
+        cfg=to_dict_container(hf_model_config.model),
         tokenizer=tokenizer,
     )
 

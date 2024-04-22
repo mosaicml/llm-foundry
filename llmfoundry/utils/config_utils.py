@@ -176,24 +176,24 @@ def forbid_config_key(cfg_dict: Dict[str, Any], key: str):
         )
 
 
-def to_dict_recursive(cfg: Union[DictConfig, Dict[str, Any]]) -> Dict[str, Any]:
-    maybe_dict = to_container_recursive(cfg)
+def to_dict_container(cfg: Union[DictConfig, Dict[str, Any]]) -> Dict[str, Any]:
+    maybe_dict = to_container(cfg)
     if isinstance(maybe_dict, dict):
         return maybe_dict
     else:
         raise ValueError(f'Expected a dict-like type, got {type(maybe_dict)}')
 
 
-def to_list_recursive(
+def to_list_container(
         cfg: Union[ListConfig, List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
-    maybe_list = to_container_recursive(cfg)
+    maybe_list = to_container(cfg)
     if isinstance(maybe_list, list):
         return maybe_list
     else:
         raise ValueError(f'Expected a list-like type, got {type(maybe_list)}')
 
 
-def to_container_recursive(
+def to_container(
     cfg: Optional[Union[DictConfig, ListConfig, Dict[str, Any],
                         List[Dict[str, Any]]]]
 ) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
@@ -202,22 +202,16 @@ def to_container_recursive(
     `omegaconf.to_container` does not handle nested DictConfig or ListConfig
     objects, so this function is used to convert them to dicts or lists.
     """
-
-    def rh(x: Any) -> Any:  # recursive helper
-        if isinstance(x, DictConfig):
-            ret = om.to_container(x)
-            assert isinstance(ret, dict)
-            return ret
-            # return {k: rh(v) for k, v in x.items()}
-        elif isinstance(x, ListConfig):
-            # return [rh(v) for v in x]
-            ret = om.to_container(x)
-            assert isinstance(ret, list)
-            return ret
-        else:
-            return x
-
-    return rh(cfg)
+    if isinstance(cfg, DictConfig):
+        ret = om.to_container(cfg)
+        assert isinstance(ret, dict)
+        return ret
+    elif isinstance(cfg, ListConfig):
+        ret = om.to_container(cfg)
+        assert isinstance(ret, list)
+        return ret
+    else:
+        return cfg
 
 
 T = TypeVar('T')

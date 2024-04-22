@@ -12,7 +12,7 @@ from llmfoundry.models.inference_api_wrapper import (OpenAICausalLMEvalWrapper,
                                                      OpenAIChatAPIEvalWrapper)
 from llmfoundry.tokenizers import TiktokenTokenizerWrapper
 from llmfoundry.utils.builders import build_icl_evaluators
-from llmfoundry.utils.config_utils import to_list_recursive
+from llmfoundry.utils.config_utils import to_list_container
 
 
 @pytest.fixture(scope='module')
@@ -107,7 +107,7 @@ def test_openai_api_eval_wrapper(tmp_path: str, openai_api_key_env_var: str):
         mock.completions.create = mock_create
 
         task_cfg = load_icl_config()
-        evaluators, _ = build_icl_evaluators(to_list_recursive(
+        evaluators, _ = build_icl_evaluators(to_list_container(
             task_cfg.icl_tasks),
                                              tokenizer,
                                              1024,
@@ -140,7 +140,7 @@ def test_chat_api_eval_wrapper(tmp_path: str, openai_api_key_env_var: str):
             'Treason!')
 
         task_cfg = load_icl_config()
-        evaluators, _ = build_icl_evaluators(to_list_recursive(
+        evaluators, _ = build_icl_evaluators(to_list_container(
             task_cfg.icl_tasks),
                                              tokenizer,
                                              1024,

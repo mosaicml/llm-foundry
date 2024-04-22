@@ -36,7 +36,7 @@ from llmfoundry.utils.config_utils import (TRAIN_CONFIG_KEYS, TrainConfig,
                                            log_config,
                                            make_dataclass_and_log_config,
                                            pop_config, process_init_device,
-                                           to_dict_recursive, to_list_recursive,
+                                           to_dict_container, to_list_container,
                                            update_batch_size_info)
 from llmfoundry.utils.registry_utils import import_file
 
@@ -200,20 +200,20 @@ def main(cfg: DictConfig) -> Trainer:
     dist.initialize_dist(get_device(None), timeout=dist_timeout)
 
     # Mandatory model training configs
-    model_config = to_dict_recursive(train_cfg.model)
-    train_loader_config = to_dict_recursive(train_cfg.train_loader)
+    model_config = to_dict_container(train_cfg.model)
+    train_loader_config = to_dict_container(train_cfg.train_loader)
 
     # Optional fsdp data, fine-tuning, and eval configs
-    fsdp_config: Optional[Dict[str, Any]] = to_dict_recursive(
+    fsdp_config: Optional[Dict[str, Any]] = to_dict_container(
         train_cfg.fsdp_config) if train_cfg.fsdp_config is not None else None
 
-    eval_loader_config = to_dict_recursive(
+    eval_loader_config = to_dict_container(
         train_cfg.eval_loader
-    ) if train_cfg.eval_loader is not None else to_list_recursive(
+    ) if train_cfg.eval_loader is not None else to_list_container(
         train_cfg.eval_loaders) if train_cfg.eval_loaders is not None else None
-    icl_tasks_config = to_list_recursive(
+    icl_tasks_config = to_list_container(
         train_cfg.icl_tasks) if train_cfg.icl_tasks is not None else None
-    eval_gauntlet_config = to_dict_recursive(
+    eval_gauntlet_config = to_dict_container(
         train_cfg.eval_gauntlet
     ) if train_cfg.eval_gauntlet is not None else None
 
@@ -293,7 +293,7 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Profiling
     profiler: Optional[Profiler] = None
-    profiler_cfg = to_dict_recursive(
+    profiler_cfg = to_dict_container(
         train_cfg.profiler) if train_cfg.profiler is not None else None
     if profiler_cfg:
         profiler_schedule_cfg: Dict = pop_config(profiler_cfg,
@@ -313,7 +313,7 @@ def main(cfg: DictConfig) -> Trainer:
                             trace_handlers=profiler_trace_handlers,
                             schedule=profiler_schedule)
 
-    callback_configs = to_dict_recursive(
+    callback_configs = to_dict_container(
         train_cfg.callbacks) if train_cfg.callbacks is not None else {}
     # Callbacks
     callbacks: List[Callback] = [
@@ -323,7 +323,7 @@ def main(cfg: DictConfig) -> Trainer:
 
     use_async_eval = any(isinstance(c, AsyncEval) for c in callbacks)
 
-    algorithm_configs = to_dict_recursive(
+    algorithm_configs = to_dict_container(
         train_cfg.algorithms) if train_cfg.algorithms is not None else {}
     # Algorithms
     algorithms = [
@@ -393,7 +393,7 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Optimizer
     optimizer_name: str = train_cfg.optimizer.pop('name')
-    optimizer_cfg = to_dict_recursive(train_cfg.optimizer)
+    optimizer_cfg = to_dict_container(train_cfg.optimizer)
     optimizer = build_optimizer(model, optimizer_name, optimizer_cfg)
 
     # Now add the eval metrics
@@ -411,7 +411,7 @@ def main(cfg: DictConfig) -> Trainer:
             mosaicml_logger.log_exception(e)
         raise e
 
-    compile_config = to_dict_recursive(
+    compile_config = to_dict_container(
         train_cfg.compile_config
     ) if train_cfg.compile_config is not None else None
     # Build the Trainer

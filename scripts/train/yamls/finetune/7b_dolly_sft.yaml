@@ -6,11 +6,13 @@
 
 variables:
   global_seed: 17
+  max_seq_len: 2048
+  run_name:  # If left blank, will be read from env var $RUN_NAME
 
-max_seq_len: 2048
+max_seq_len: ${variables.max_seq_len}
 
 # Run Name
-run_name:  # If left blank, will be read from env var $RUN_NAME
+run_name: ${variables.run_name}
 
 # Model
 model:
@@ -20,7 +22,7 @@ model:
   n_heads: 32
   n_layers: 32
   expansion_ratio: 4
-  max_seq_len: ${max_seq_len}
+  max_seq_len: ${variables.max_seq_len}
   vocab_size: 50368
   attn_config:
     attn_impl: flash
@@ -31,7 +33,7 @@ model:
 tokenizer:
   name: EleutherAI/gpt-neox-20b
   kwargs:
-    model_max_length: ${max_seq_len}
+    model_max_length: ${variables.max_seq_len}
 
 # Dataloaders
 train_loader:
@@ -39,7 +41,7 @@ train_loader:
   dataset:
     hf_name: HuggingFaceH4/databricks_dolly_15k
     split: train
-    max_seq_len: ${max_seq_len}
+    max_seq_len: ${variables.max_seq_len}
     allow_pad_trimming: false
     decoder_only_format: true
     shuffle: true
@@ -87,7 +89,7 @@ eval_interval: 1  # this is the only allowed value for no eval
 global_train_batch_size: 64  # assuming 8 gpus
 
 # System
-seed: ${global_seed}
+seed: ${variables.global_seed}
 device_eval_batch_size: 8
 device_train_microbatch_size: 8
 # device_train_microbatch_size: auto

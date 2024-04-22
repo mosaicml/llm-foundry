@@ -2,9 +2,13 @@ variables:
   # Run Name
   run_name:  # If left blank, will be read from env var $RUN_NAME
 
-# Note: This requires ~64x80GB GPUs
-max_seq_len: 4096
-icl_seq_len: 1024
+  # Note: This requires ~64x80GB GPUs
+  max_seq_len: 4096
+  icl_seq_len: 1024
+
+run_name: ${variables.run_name}
+max_seq_len: ${variables.max_seq_len}
+icl_seq_len: ${variables.icl_seq_len}
 
 # Model
 model:
@@ -20,7 +24,7 @@ model:
 tokenizer:
   name: databricks/dbrx-instruct
   kwargs:
-    model_max_length: ${max_seq_len}
+    model_max_length: ${variables.max_seq_len}
     trust_remote_code: true
 
 # Dataloaders
@@ -30,7 +34,7 @@ train_loader:
     split: train
     hf_name: mosaicml/dolly_hhrlhf
     shuffle: true
-    max_seq_len: ${max_seq_len}
+    max_seq_len: ${variables.max_seq_len}
     eos_token_id: 0
     packing_ratio: auto
     allow_pad_trimming: false
@@ -47,7 +51,7 @@ eval_loader:
     split: test
     hf_name: mosaicml/dolly_hhrlhf
     shuffle: false
-    max_seq_len: ${max_seq_len}
+    max_seq_len: ${variables.max_seq_len}
     packing_ratio: null
     allow_pad_trimming: false
     decoder_only_format: true

@@ -1,13 +1,16 @@
 variables:
   global_seed: 17
 
-max_seq_len: 512
+  max_seq_len: 512
 
-data_local: ./my_data
-data_remote:  # If blank, files must be present in data_local
+  data_local: ./my_data
+  data_remote:  # If blank, files must be present in data_local
 
-# Run Name
-run_name:  # If left blank, will be read from env var $RUN_NAME
+  # Run Name
+  run_name:  # If left blank, will be read from env var $RUN_NAME
+
+max_seq_len: ${variables.max_seq_len}
+run_name: ${variables.run_name}
 
 # Model
 model:
@@ -19,7 +22,7 @@ model:
 tokenizer:
   name: gpt2
   kwargs:
-    model_max_length: ${max_seq_len}
+    model_max_length: ${variables.max_seq_len}
 
 # Dataloaders
 train_loader:
@@ -28,12 +31,12 @@ train_loader:
     ############
     streams:
       my_data:
-        remote: ${data_remote}
-        local: ${data_local}
+        remote: ${variables.data_remote}
+        local: ${variables.data_local}
         split: train
     ############
     shuffle: true
-    max_seq_len: ${max_seq_len}
+    max_seq_len: ${variables.max_seq_len}
     decoder_only_format: true
   drop_last: true
   num_workers: 8
@@ -65,7 +68,7 @@ eval_subset_num_batches: -1
 global_train_batch_size: 8
 
 # System
-seed: ${global_seed}
+seed: ${variables.global_seed}
 device_eval_batch_size: 8
 device_train_microbatch_size: 8
 # device_train_microbatch_size: auto

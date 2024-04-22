@@ -2,10 +2,15 @@ variables:
   tokenizer_name: mosaicml/mpt-30b
   global_seed: 17
 
-max_seq_len: 8192
+  max_seq_len: 8192
 
-# Run Name
-run_name:  # If left blank, will be read from env var $COMPOSER_RUN_NAME
+  # Run Name
+  run_name:  # If left blank, will be read from env var $COMPOSER_RUN_NAME
+
+  icl_max_seq_len: 2048
+
+max_seq_len: ${variables.max_seq_len}
+run_name: ${variables.run_name}
 
 # Model
 model:
@@ -14,7 +19,7 @@ model:
   pretrained_model_name_or_path: mosaicml/mpt-30b
   init_device: mixed
   config_overrides:
-    max_seq_len: ${max_seq_len}
+    max_seq_len: ${variables.max_seq_len}
     attn_config:
       attn_impl: flash
       # Note: we still use packing, but turn this off for memory.
@@ -23,9 +28,9 @@ model:
 
 # Tokenizer
 tokenizer:
-  name: ${tokenizer_name}
+  name: ${variables.tokenizer_name}
   kwargs:
-    model_max_length: ${max_seq_len}
+    model_max_length: ${variables.max_seq_len}
 
 # Dataloaders
 train_loader:
@@ -33,7 +38,7 @@ train_loader:
   dataset:
     hf_name: mosaicml/instruct-v3
     split: train
-    max_seq_len: ${max_seq_len}
+    max_seq_len: ${variables.max_seq_len}
     allow_pad_trimming: false
     decoder_only_format: true
     packing_ratio: 9
@@ -50,7 +55,7 @@ eval_loader:
   dataset:
     hf_name: mosaicml/instruct-v3
     split: test
-    max_seq_len: ${max_seq_len}
+    max_seq_len: ${variables.max_seq_len}
     allow_pad_trimming: false
     decoder_only_format: true
     packing_ratio: 9
@@ -89,7 +94,7 @@ eval_first: true
 global_train_batch_size: 72
 
 # System
-seed: ${global_seed}
+seed: ${variables.global_seed}
 device_eval_batch_size: 4
 device_train_microbatch_size: 1
 precision: amp_bf16
@@ -122,7 +127,7 @@ callbacks:
 # save_interval: 3ep
 # save_num_checkpoints_to_keep: 1
 
-icl_max_seq_len: 2048
+icl_max_seq_len: ${variables.icl_max_seq_len}
 
 # YOU MUST ADD YOUR OWN DATASET URIs
 # this section can be removed if you do not want to track these metrics
@@ -133,7 +138,7 @@ icl_tasks:
   num_fewshot:
   - 0
   batch_size: 4
-  max_seq_len: ${icl_max_seq_len}
+  max_seq_len: ${variables.icl_max_seq_len}
   icl_task_type: multiple_choice
   metric_names:
   - InContextLearningMultipleChoiceAccuracy
@@ -146,7 +151,7 @@ icl_tasks:
   num_fewshot:
   - 0
   batch_size: 4
-  max_seq_len: ${icl_max_seq_len}
+  max_seq_len: ${variables.icl_max_seq_len}
   icl_task_type: multiple_choice
   metric_names:
   - InContextLearningMultipleChoiceAccuracy
@@ -159,7 +164,7 @@ icl_tasks:
   num_fewshot:
   - 0
   batch_size: 4
-  max_seq_len: ${icl_max_seq_len}
+  max_seq_len: ${variables.icl_max_seq_len}
   icl_task_type: multiple_choice
   metric_names:
   - InContextLearningMultipleChoiceAccuracy

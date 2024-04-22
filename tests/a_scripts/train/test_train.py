@@ -158,15 +158,16 @@ def test_validate_config():
         test_cfg: DictConfig = om.load(f)  # type: ignore
     test_cfg.model.ffn_config.moe_world_size = 4
     test_cfg.fsdp_config.use_orig_params = False
-    test_cfg_dict = to_dict_recursive(test_cfg)
-    test_cfg_dict = update_batch_size_info(test_cfg_dict)
     with pytest.raises(
             ValueError,
             match=
             'MoEs with expert parallelism (.*) require `use_orig_params=True`.'
     ):
-        _, cfg_obj = make_dataclass_and_log_config(test_cfg_dict, TrainConfig,
-                                                   TRAIN_CONFIG_KEYS)
+        _, cfg_obj = make_dataclass_and_log_config(
+            test_cfg,
+            TrainConfig,
+            TRAIN_CONFIG_KEYS,
+            transforms=[update_batch_size_info])
         validate_config(cfg_obj)
 
 

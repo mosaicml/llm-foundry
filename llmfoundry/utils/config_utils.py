@@ -2,10 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import contextlib
+import copy
 import logging
 import math
 import warnings
-from typing import Any, Dict, List, Literal, Mapping, Optional, Tuple, Union
+from typing import (Any, Callable, Dict, List, Literal, Mapping, Optional, Set,
+                    Tuple, Union)
 
 from composer.utils import dist
 from omegaconf import DictConfig, ListConfig
@@ -63,6 +65,64 @@ def to_container_recursive(
             return x
 
     return rh(cfg)
+
+
+def make_dataclass_and_log_config(
+    cfg: DictConfig, dataclass_constructor: Callable[..., Any],
+    dataclass_fields: Set[str],
+    transforms: Optional[List[Callable[[Dict[str, Any]], Dict[str, Any]]]]
+) -> Tuple[DictConfig, Any]:
+    """Converts a DictConfig to a dataclass and creates a logged config."""
+    # Resolve all interpolation variables as early as possible
+    unstructured_config = om.to_container(cfg, resolve=True)
+    assert isinstance(unstructured_config, dict)
+    assert all(isinstance(k, str) for k in unstructured_config.keys())
+    unstructured_config = {str(k): v for k, v in unstructured_config.items()}
+
+    # Flatten union types before creating structured config:
+    if 'eval_gauntlet' in unstructured_config:
+        forbid_config_key(unstructured_config, 'eval_gauntlet_str')
+        if isinstance(unstructured_config['eval_gauntlet'], str):
+            unstructured_config['eval_gauntlet_str'] = unstructured_config.pop(
+                'eval_gauntlet')
+    if (loader := unstructured_config.get('eval_loader', None)) is not None:
+        forbid_config_key(unstructured_config, 'eval_loaders')
+        if isinstance(loader, list):
+            unstructured_config['eval_loaders'] = unstructured_config.pop(
+                'eval_loader')
+    if 'icl_tasks' in unstructured_config:
+        forbid_config_key(unstructured_config, 'icl_tasks_str')
+        if isinstance(unstructured_config['icl_tasks'], str):
+            unstructured_config['icl_tasks_str'] = unstructured_config.pop(
+                'icl_tasks')
+    else:
+        raise ValueError('icl_tasks must be specified in the config')
+
+    arg_config_keys = set(unstructured_config.keys())
+    extraneous_keys = set.difference(arg_config_keys, dataclass_fields)
+
+    if 'variables' not in unstructured_config:
+        unstructured_config['variables'] = {}
+
+    for key in extraneous_keys:
+        warnings.warn(
+            f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary. Interpreting {key} as a variable for logging purposes. Top-level variables are deprecated and will not be supported in future releases.',
+            DeprecationWarning)
+        unstructured_config['variables'][key] = unstructured_config.pop(key)
+
+    # Create copy of config for logging
+    logged_cfg: DictConfig = copy.deepcopy(DictConfig(unstructured_config))
+
+    # apply transforms to the unstructured config before constructing dataclass
+    for transform in transforms or []:
+        unstructured_config = transform(unstructured_config)
+
+    logged_cfg.update(unstructured_config, merge=True)
+
+    eval_config: DictConfig = om.structured(
+        dataclass_constructor(**unstructured_config))
+
+    return logged_cfg, eval_config
 
 
 def pop_config(cfg: Union[Dict[str, Any], DictConfig],

@@ -1,12 +1,10 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-import copy
 import logging
 import os
 import sys
 import time
-import warnings
 from dataclasses import dataclass, fields
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -28,7 +26,8 @@ from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_callback, build_composer_model,
                                        build_evaluators, build_logger,
                                        build_tokenizer)
-from llmfoundry.utils.config_utils import (forbid_config_key, log_config,
+from llmfoundry.utils.config_utils import (log_config,
+                                           make_dataclass_and_log_config,
                                            process_init_device,
                                            to_container_recursive)
 from llmfoundry.utils.registry_utils import import_file
@@ -211,53 +210,10 @@ class EvalConfig:
 EVAL_CONFIG_KEYS = set(field.name for field in fields(EvalConfig))
 
 
-def _make_eval_and_log_config(cfg: DictConfig) -> Tuple[DictConfig, EvalConfig]:
-    # Resolve all interpolation variables as early as possible
-    unstructured_config = om.to_container(cfg, resolve=True)
-    assert isinstance(unstructured_config, dict)
-    assert all(isinstance(k, str) for k in unstructured_config.keys())
-    unstructured_config = {str(k): v for k, v in unstructured_config.items()}
-
-    # Flatten union types before creating structured config:
-    if 'eval_gauntlet' in unstructured_config:
-        forbid_config_key(unstructured_config, 'eval_gauntlet_str')
-        if isinstance(unstructured_config['eval_gauntlet'], str):
-            unstructured_config['eval_gauntlet_str'] = unstructured_config.pop(
-                'eval_gauntlet')
-    if (loader := unstructured_config.get('eval_loader', None)) is not None:
-        forbid_config_key(unstructured_config, 'eval_loaders')
-        if isinstance(loader, list):
-            unstructured_config['eval_loaders'] = unstructured_config.pop(
-                'eval_loader')
-    if 'icl_tasks' in unstructured_config:
-        forbid_config_key(unstructured_config, 'icl_tasks_str')
-        if isinstance(unstructured_config['icl_tasks'], str):
-            unstructured_config['icl_tasks_str'] = unstructured_config.pop(
-                'icl_tasks')
-    else:
-        raise ValueError('icl_tasks must be specified in the config')
-
-    arg_config_keys = set(unstructured_config.keys())
-    extraneous_keys = set.difference(arg_config_keys, EVAL_CONFIG_KEYS)
-
-    if 'variables' not in unstructured_config:
-        unstructured_config['variables'] = {}
-
-    for key in extraneous_keys:
-        warnings.warn(
-            f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary. Interpreting {key} as a variable for logging purposes. Top-level variables are deprecated and will not be supported in future releases.',
-            DeprecationWarning)
-        unstructured_config['variables'][key] = unstructured_config.pop(key)
-
-    eval_config: EvalConfig = om.structured(EvalConfig(**unstructured_config))
-    # Create copy of config for logging
-    logged_cfg: DictConfig = copy.deepcopy(DictConfig(unstructured_config))
-
-    return logged_cfg, eval_config
-
-
 def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
-    logged_cfg, eval_config = _make_eval_and_log_config(cfg)
+    cfgs: Tuple[DictConfig, EvalConfig] = make_dataclass_and_log_config(
+        cfg, EvalConfig, EVAL_CONFIG_KEYS)
+    logged_cfg, eval_config = cfgs
 
     # Run user provided code if specified
     for code_path in (eval_config.code_paths or []):

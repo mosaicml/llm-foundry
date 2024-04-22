@@ -1,6 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-import copy
 import gc
 import logging
 import os
@@ -35,7 +34,8 @@ from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_composer_model, build_evaluators,
                                        build_logger, build_optimizer,
                                        build_scheduler, build_tokenizer)
-from llmfoundry.utils.config_utils import (forbid_config_key, log_config,
+from llmfoundry.utils.config_utils import (log_config,
+                                           make_dataclass_and_log_config,
                                            pop_config, process_init_device,
                                            to_dict_recursive, to_list_recursive,
                                            update_batch_size_info)
@@ -231,65 +231,6 @@ def validate_config(train_config: TrainConfig):
             )
 
 
-def _make_train_and_log_config(
-        cfg: DictConfig) -> Tuple[DictConfig, TrainConfig]:
-    # Resolve all interpolation variables as early as possible
-    unstructured_config = om.to_container(cfg, resolve=True)
-    assert isinstance(unstructured_config, dict)
-    assert all(isinstance(k, str) for k in unstructured_config.keys())
-    unstructured_config = {str(k): v for k, v in unstructured_config.items()}
-
-    # Structured config does not support unions of containers, so separate single and plural containers
-    if (loader := unstructured_config.get('eval_loader', None)) is not None:
-        forbid_config_key(unstructured_config, 'eval_loaders')
-        if isinstance(loader, list):
-            unstructured_config['eval_loaders'] = unstructured_config.pop(
-                'eval_loader')
-    if (tasks := unstructured_config.get('icl_tasks', None)) is not None:
-        forbid_config_key(unstructured_config, 'icl_tasks_str')
-        if isinstance(tasks, str):
-            if 'icl_tasks_str' in unstructured_config:
-                raise ValueError(
-                    'Only one of `icl_tasks` or `icl_tasks_str` should be provided.'
-                )
-            unstructured_config['icl_tasks_str'] = unstructured_config.pop(
-                'icl_tasks')
-    if (gauntlet := unstructured_config.get('eval_gauntlet', None)) is not None:
-        forbid_config_key(unstructured_config, 'eval_gauntlet_str')
-        if isinstance(gauntlet, str):
-            if 'eval_gauntlet_str' in unstructured_config:
-                raise ValueError(
-                    'Only one of `eval_gauntlet` or `eval_gauntlet_str` should be provided.'
-                )
-            unstructured_config['eval_gauntlet_str'] = unstructured_config.pop(
-                'eval_gauntlet')
-
-    arg_config_keys = set(unstructured_config.keys())
-    extraneous_keys = set.difference(arg_config_keys, TRAIN_CONFIG_KEYS)
-
-    if 'variables' not in unstructured_config:
-        unstructured_config['variables'] = {}
-
-    for key in extraneous_keys:
-        warnings.warn(
-            f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary. Interpreting {key} as a variable for logging purposes. Top-level variables are deprecated and will not be supported in future releases.',
-            DeprecationWarning)
-        # TODO (milo): delete the below line once we deprecate variables at the top level.
-        unstructured_config['variables'][key] = unstructured_config.pop(key)
-
-    # Create copy of config for logging
-    logged_cfg: DictConfig = copy.deepcopy(DictConfig(unstructured_config))
-
-    # Get global and device batch size information from distributed/single node setting
-    unstructured_config = update_batch_size_info(unstructured_config)
-    logged_cfg.update(unstructured_config, merge=True)
-
-    train_cfg: TrainConfig = om.structured(
-        TrainConfig(**unstructured_config)
-    )  # type: ignore (TrainConfig does expect arguments, the type checker is wrong here)
-    return logged_cfg, train_cfg
-
-
 def _log_num_params(model: ComposerModel, logged_cfg: DictConfig):
     # Log number of parameters
     if hasattr(model, 'n_total_params'):
@@ -311,7 +252,12 @@ def _log_num_params(model: ComposerModel, logged_cfg: DictConfig):
 
 
 def main(cfg: DictConfig) -> Trainer:
-    logged_cfg, train_cfg = _make_train_and_log_config(cfg)
+    cfgs: Tuple[DictConfig, TrainConfig] = make_dataclass_and_log_config(
+        cfg,
+        TrainConfig,
+        TRAIN_CONFIG_KEYS,
+        transforms=[update_batch_size_info])
+    logged_cfg, train_cfg = cfgs
 
     code_paths = train_cfg.code_paths if train_cfg.code_paths else []
     # Import any user provided code

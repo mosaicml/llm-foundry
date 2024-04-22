@@ -17,10 +17,9 @@ from transformers import PretrainedConfig, PreTrainedTokenizerBase
 from llmfoundry import MPTConfig, MPTForCausalLM
 from llmfoundry.utils import get_hf_tokenizer_from_composer_state_dict
 from llmfoundry.utils.checkpoint_conversion_helpers import load_tokenizer
+from llmfoundry.utils.config_utils import EvalConfig, TrainConfig
 from llmfoundry.utils.huggingface_hub_utils import \
     edit_files_for_hf_compatibility
-from scripts.eval.eval import EvalConfig
-from scripts.train.train import TrainConfig
 
 
 def write_huggingface_pretrained_from_composer_checkpoint(

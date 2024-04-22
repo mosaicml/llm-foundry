@@ -6,7 +6,6 @@ import os
 import sys
 import time
 import warnings
-from dataclasses import dataclass, fields
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
@@ -24,7 +23,6 @@ from llmfoundry.utils import (find_mosaicml_logger, log_train_analytics,
                               maybe_create_mosaicml_logger)
 
 install()
-from omegaconf import MISSING
 
 from llmfoundry.callbacks import AsyncEval
 from llmfoundry.data.dataloader import build_dataloader
@@ -34,7 +32,8 @@ from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_composer_model, build_evaluators,
                                        build_logger, build_optimizer,
                                        build_scheduler, build_tokenizer)
-from llmfoundry.utils.config_utils import (log_config,
+from llmfoundry.utils.config_utils import (TRAIN_CONFIG_KEYS, TrainConfig,
+                                           log_config,
                                            make_dataclass_and_log_config,
                                            pop_config, process_init_device,
                                            to_dict_recursive, to_list_recursive,
@@ -42,101 +41,6 @@ from llmfoundry.utils.config_utils import (log_config,
 from llmfoundry.utils.registry_utils import import_file
 
 log = logging.getLogger(__name__)
-
-
-@dataclass
-class TrainConfig:
-    """Dataclass for training configuration."""
-
-    # Mandatory model training parameters
-    model: Dict[str, Any] = MISSING
-    tokenizer: Dict[str, Any] = MISSING
-    optimizer: Dict[str, Any] = MISSING
-    scheduler: Dict[str, Any] = MISSING
-    train_loader: Dict[str, Any] = MISSING
-    device_train_batch_size: int = MISSING
-    device_eval_batch_size: int = MISSING
-    max_duration: Union[int, str] = MISSING
-    eval_interval: Union[int, str] = MISSING
-    precision: str = 'amp_bf16'
-    max_seq_len: int = MISSING
-    seed: int = MISSING
-
-    # Optional model training parameters
-
-    # Code paths to import
-    code_paths: Optional[List[str]] = None
-
-    # Cuda allocation configuration
-    max_split_size_mb: Optional[int] = None
-    expandable_segments: bool = False
-    cuda_load_lazy: bool = False
-
-    # Distributed training parameters
-    dist_timeout: Union[int, float] = 600.0
-    fsdp_config: Optional[Dict[str, Any]] = None
-
-    # Evaluation parameters
-    eval_loader: Optional[Dict[str, Any]] = None
-    eval_loaders: Optional[List[Dict[
-        str, Any]]] = None  # should not be set by the user
-    icl_tasks: Optional[List[Dict[str, Any]]] = None
-    icl_tasks_str: Optional[str] = None  # should not be set by the user
-    eval_gauntlet: Optional[Dict[str, Any]] = None
-    eval_gauntlet_str: Optional[str] = None  # should not be set by the user
-    icl_subset_num_batches: Optional[int] = None
-    icl_seq_len: Optional[int] = None
-
-    # Logging
-    loggers: Optional[Dict[str, Any]] = None
-    progress_bar: bool = False
-    log_to_console: bool = True
-    python_log_level: Optional[str] = 'debug'
-    console_log_interval: Union[int, str] = '1ba'
-    log_config: bool = True
-
-    # Callbacks
-    callbacks: Optional[Dict[str, Any]] = None
-    algorithms: Optional[Dict[str, Any]] = None
-
-    # Checkpoints
-    save_folder: Optional[str] = None
-    save_latest_filename: Optional[str] = None
-    save_overwrite: bool = False
-    save_weights_only: bool = False
-    save_filename: Optional[str] = None
-    save_interval: Union[str, int] = '1000ba'
-    save_num_checkpoints_to_keep: int = -1
-    load_path: Optional[str] = None
-    load_weights_only: bool = False
-    load_strict_model_weights: bool = True
-    load_ignore_keys: Optional[List[str]] = None
-    save_ignore_keys: Optional[List[str]] = None
-
-    # Dataloader
-    device_train_microbatch_size: Union[str, int] = 'auto'
-    global_train_batch_size: Optional[int] = None
-
-    # Eval dataloader
-    eval_subset_num_batches: int = -1
-    eval_first: bool = False
-    compile_config: Optional[Dict[str, Any]] = None
-
-    # Metadata
-    metadata: Optional[Dict[str, Any]] = None
-    run_name: Optional[str] = None
-
-    # Resumption
-    autoresume: bool = False
-
-    # Profiling
-    profiler: Optional[Dict[str, Any]] = None
-
-    # Variables to ignore
-    variables: Optional[Dict[str, Any]] = None
-
-
-TRAIN_CONFIG_KEYS = set(field.name for field in fields(TrainConfig))
 
 
 def validate_config(train_config: TrainConfig):

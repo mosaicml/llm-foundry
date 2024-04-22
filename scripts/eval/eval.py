@@ -5,7 +5,6 @@ import logging
 import os
 import sys
 import time
-from dataclasses import dataclass, fields
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
@@ -14,7 +13,7 @@ from composer.core import Callback
 from composer.loggers.logger_destination import LoggerDestination
 from composer.trainer import Trainer
 from composer.utils import dist, get_device, reproducibility
-from omegaconf import MISSING, DictConfig
+from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from rich.traceback import install
 
@@ -26,7 +25,8 @@ from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_callback, build_composer_model,
                                        build_evaluators, build_logger,
                                        build_tokenizer)
-from llmfoundry.utils.config_utils import (log_config,
+from llmfoundry.utils.config_utils import (EVAL_CONFIG_KEYS, EvalConfig,
+                                           log_config,
                                            make_dataclass_and_log_config,
                                            process_init_device,
                                            to_container_recursive,
@@ -162,52 +162,6 @@ def evaluate_model(
 
     log.info(f'Ran {model_name} eval in: {b-a} seconds')
     return (trainer, logger_keys, eval_gauntlet_callback, eval_gauntlet_df)
-
-
-@dataclass
-class EvalConfig:
-    # Eval Config required parameters:
-    models: List[Dict[str, Any]] = MISSING
-    max_seq_len: int = MISSING
-    device_eval_batch_size: int = MISSING
-
-    # Eval Config optional parameters:
-    code_paths: Optional[List[str]] = None
-
-    # Eval hyperparameters
-    eval_gauntlet: Optional[Dict[str, Any]] = None
-    eval_gauntlet_str: Optional[str] = None
-    eval_loader: Optional[Dict[str, Any]] = None
-    eval_loaders: Optional[List[Dict[str, Any]]] = None
-    eval_subset_num_batches: int = -1
-    icl_subset_num_batches: Optional[int] = None
-    # One of icl_tasks or icl_tasks_str must be specified
-    icl_tasks: Optional[List[Dict[str, Any]]] = None
-    icl_tasks_str: Optional[str] = None
-
-    # Logging parameters
-    python_log_level: str = 'debug'
-    loggers: Optional[Dict[str, Any]] = None
-    log_config: bool = True
-
-    # Model/run parameters
-    seed: int = 17
-    precision: str = 'amp_bf16'
-    run_name: Optional[str] = None
-    metadata: Optional[Dict[str, str]] = None
-
-    # Distributed parameters
-    dist_timeout: Union[float, int] = 600.0
-    fsdp_config: Optional[Dict[str, Any]] = None
-
-    # Callback parameters
-    callbacks: Optional[Dict[str, Any]] = None
-
-    # Variables to ignore
-    variables: Optional[Dict[str, Any]] = None
-
-
-EVAL_CONFIG_KEYS = set(field.name for field in fields(EvalConfig))
 
 
 def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:

@@ -6,11 +6,12 @@ import copy
 import logging
 import math
 import warnings
+from dataclasses import dataclass, fields
 from typing import (Any, Callable, Dict, List, Literal, Mapping, Optional, Set,
                     Tuple, TypeVar, Union)
 
 from composer.utils import dist
-from omegaconf import DictConfig, ListConfig, MissingMandatoryValue
+from omegaconf import MISSING, DictConfig, ListConfig, MissingMandatoryValue
 from omegaconf import OmegaConf as om
 
 from llmfoundry.layers_registry import ffns_with_megablocks
@@ -25,6 +26,147 @@ __all__ = [
     'process_init_device',
     'log_config',
 ]
+
+
+@dataclass
+class EvalConfig:
+    # Eval Config required parameters:
+    models: List[Dict[str, Any]] = MISSING
+    max_seq_len: int = MISSING
+    device_eval_batch_size: int = MISSING
+
+    # Eval Config optional parameters:
+    code_paths: Optional[List[str]] = None
+
+    # Eval hyperparameters
+    eval_gauntlet: Optional[Dict[str, Any]] = None
+    eval_gauntlet_str: Optional[str] = None
+    eval_loader: Optional[Dict[str, Any]] = None
+    eval_loaders: Optional[List[Dict[str, Any]]] = None
+    eval_subset_num_batches: int = -1
+    icl_subset_num_batches: Optional[int] = None
+    # One of icl_tasks or icl_tasks_str must be specified
+    icl_tasks: Optional[List[Dict[str, Any]]] = None
+    icl_tasks_str: Optional[str] = None
+
+    # Logging parameters
+    python_log_level: str = 'debug'
+    loggers: Optional[Dict[str, Any]] = None
+    log_config: bool = True
+
+    # Model/run parameters
+    seed: int = 17
+    precision: str = 'amp_bf16'
+    run_name: Optional[str] = None
+    metadata: Optional[Dict[str, str]] = None
+
+    # Distributed parameters
+    dist_timeout: Union[float, int] = 600.0
+    fsdp_config: Optional[Dict[str, Any]] = None
+
+    # Callback parameters
+    callbacks: Optional[Dict[str, Any]] = None
+
+    # Variables to ignore
+    variables: Optional[Dict[str, Any]] = None
+
+
+EVAL_CONFIG_KEYS = set(field.name for field in fields(EvalConfig))
+
+
+@dataclass
+class TrainConfig:
+    """Dataclass for training configuration."""
+
+    # Mandatory model training parameters
+    model: Dict[str, Any] = MISSING
+    tokenizer: Dict[str, Any] = MISSING
+    optimizer: Dict[str, Any] = MISSING
+    scheduler: Dict[str, Any] = MISSING
+    train_loader: Dict[str, Any] = MISSING
+    device_train_batch_size: int = MISSING
+    device_eval_batch_size: int = MISSING
+    max_duration: Union[int, str] = MISSING
+    eval_interval: Union[int, str] = MISSING
+    precision: str = 'amp_bf16'
+    max_seq_len: int = MISSING
+    seed: int = MISSING
+
+    # Optional model training parameters
+
+    # Code paths to import
+    code_paths: Optional[List[str]] = None
+
+    # Cuda allocation configuration
+    max_split_size_mb: Optional[int] = None
+    expandable_segments: bool = False
+    cuda_load_lazy: bool = False
+
+    # Distributed training parameters
+    dist_timeout: Union[int, float] = 600.0
+    fsdp_config: Optional[Dict[str, Any]] = None
+
+    # Evaluation parameters
+    eval_loader: Optional[Dict[str, Any]] = None
+    eval_loaders: Optional[List[Dict[
+        str, Any]]] = None  # should not be set by the user
+    icl_tasks: Optional[List[Dict[str, Any]]] = None
+    icl_tasks_str: Optional[str] = None  # should not be set by the user
+    eval_gauntlet: Optional[Dict[str, Any]] = None
+    eval_gauntlet_str: Optional[str] = None  # should not be set by the user
+    icl_subset_num_batches: Optional[int] = None
+    icl_seq_len: Optional[int] = None
+
+    # Logging
+    loggers: Optional[Dict[str, Any]] = None
+    progress_bar: bool = False
+    log_to_console: bool = True
+    python_log_level: Optional[str] = 'debug'
+    console_log_interval: Union[int, str] = '1ba'
+    log_config: bool = True
+
+    # Callbacks
+    callbacks: Optional[Dict[str, Any]] = None
+    algorithms: Optional[Dict[str, Any]] = None
+
+    # Checkpoints
+    save_folder: Optional[str] = None
+    save_latest_filename: Optional[str] = None
+    save_overwrite: bool = False
+    save_weights_only: bool = False
+    save_filename: Optional[str] = None
+    save_interval: Union[str, int] = '1000ba'
+    save_num_checkpoints_to_keep: int = -1
+    load_path: Optional[str] = None
+    load_weights_only: bool = False
+    load_strict_model_weights: bool = True
+    load_ignore_keys: Optional[List[str]] = None
+    save_ignore_keys: Optional[List[str]] = None
+
+    # Dataloader
+    device_train_microbatch_size: Union[str, int] = 'auto'
+    global_train_batch_size: Optional[int] = None
+
+    # Eval dataloader
+    eval_subset_num_batches: int = -1
+    eval_first: bool = False
+    compile_config: Optional[Dict[str, Any]] = None
+
+    # Metadata
+    metadata: Optional[Dict[str, Any]] = None
+    run_name: Optional[str] = None
+
+    # Resumption
+    autoresume: bool = False
+
+    # Profiling
+    profiler: Optional[Dict[str, Any]] = None
+
+    # Variables to ignore
+    variables: Optional[Dict[str, Any]] = None
+
+
+TRAIN_CONFIG_KEYS = set(field.name for field in fields(TrainConfig))
 
 
 def forbid_config_key(cfg_dict: Dict[str, Any], key: str):

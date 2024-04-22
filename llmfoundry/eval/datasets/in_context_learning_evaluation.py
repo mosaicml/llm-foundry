@@ -1475,7 +1475,7 @@ def build_icl_dataloader(
             warnings.warn(
                 VersionedDeprecationWarning(
                     "ICL task type 'question_answering' is now deprecated. Use identifier 'generation_task_with_answers'",
-                    'v0.7.0'))
+                    'v0.9.0'))
         dataset = InContextLearningGenerationTaskWithAnswersDataset(
             dataset_uri=dataset_uri,
             tokenizer=tokenizer,
@@ -1500,7 +1500,7 @@ def build_icl_dataloader(
         warnings.warn(
             VersionedDeprecationWarning(
                 "ICL task type 'code_evaluation' is deprecated and will no longer be supported. ",
-                'v0.7.0'))
+                'v0.9.0'))
         dataset = InContextLearningCodeEvalDataset(
             dataset_uri=dataset_uri,
             tokenizer=tokenizer,

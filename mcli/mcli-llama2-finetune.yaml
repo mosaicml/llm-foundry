@@ -21,8 +21,8 @@ compute:
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:
-  tokenizer_name: meta-llama/Llama-2-7b-hf
-  max_seq_len: 4096
+  tokenizer_name: meta-llama/Llama-2-7b-hf # Change the name for Llama 3, e.g. meta-llama/Meta-Llama-3-70B
+  max_seq_len: 4096 # Change the sequence length for Llama 3, e.g. 8192
   global_seed: 17
 
   # Run Name
@@ -34,7 +34,7 @@ parameters:
   model:
     name: hf_causal_lm
     init_device: mixed
-    pretrained_model_name_or_path: meta-llama/Llama-2-7b-hf
+    pretrained_model_name_or_path: meta-llama/Llama-2-7b-hf # Change the name for Llama 3, e.g. meta-llama/Meta-Llama-3-70B
     pretrained: true
     # Note: you must have set the HUGGING_FACE_HUB_TOKEN environment variable and have access to the llama2 models
     use_auth_token: true

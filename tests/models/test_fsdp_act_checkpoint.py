@@ -48,7 +48,7 @@ def test_fsdp_act_checkpoint(activation_checkpointing: bool,
         'activation_cpu_offload': False,
     }
 
-    model = ComposerMPTCausalLM(model_cfg)
+    model = ComposerMPTCausalLM(**model_cfg)
     model = device.module_to_device(model)
 
     trainer = Trainer(

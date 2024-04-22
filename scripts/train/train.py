@@ -129,9 +129,6 @@ class TrainConfig:
     # Resumption
     autoresume: bool = False
 
-    # Gradient accumulation
-    device_train_grad_accum: Optional[int] = None
-
     # Profiling
     profiler: Optional[Dict[str, Any]] = None
 

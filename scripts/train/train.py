@@ -115,6 +115,7 @@ class TrainConfig:
 
     # Dataloader
     device_train_microbatch_size: Union[str, int] = 'auto'
+    global_train_batch_size: Optional[int] = None
 
     # Eval dataloader
     eval_subset_num_batches: int = -1

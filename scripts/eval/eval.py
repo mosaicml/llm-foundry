@@ -212,7 +212,7 @@ EVAL_CONFIG_KEYS = set(field.name for field in fields(EvalConfig))
 
 def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     cfgs: Tuple[Dict[str, Any], EvalConfig] = make_dataclass_and_log_config(
-        cfg, EvalConfig, EVAL_CONFIG_KEYS)
+        cfg, EvalConfig, EVAL_CONFIG_KEYS, icl_tasks_required=True)
     logged_cfg, eval_config = cfgs
 
     # Run user provided code if specified

@@ -76,12 +76,12 @@ T = TypeVar('T')
 
 
 def make_dataclass_and_log_config(
-    cfg: DictConfig,
-    dataclass_constructor: Callable[..., T],
-    dataclass_fields: Set[str],
-    transforms: Optional[List[Callable[[Dict[str, Any]], Dict[str,
-                                                              Any]]]] = None
-) -> Tuple[Dict[str, Any], T]:
+        cfg: DictConfig,
+        dataclass_constructor: Callable[..., T],
+        dataclass_fields: Set[str],
+        transforms: Optional[List[Callable[[Dict[str, Any]],
+                                           Dict[str, Any]]]] = None,
+        icl_tasks_required: bool = False) -> Tuple[Dict[str, Any], T]:
     """Converts a DictConfig to a dataclass and creates a logged config."""
     # Resolve all interpolation variables as early as possible
     unstructured_config = om.to_container(cfg, resolve=True)
@@ -106,7 +106,8 @@ def make_dataclass_and_log_config(
             unstructured_config['icl_tasks_str'] = unstructured_config.pop(
                 'icl_tasks')
     else:
-        raise ValueError('icl_tasks must be specified in the config')
+        if icl_tasks_required:
+            raise ValueError('icl_tasks must be specified in the config')
 
     arg_config_keys = set(unstructured_config.keys())
     extraneous_keys = set.difference(arg_config_keys, dataclass_fields)

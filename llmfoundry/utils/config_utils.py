@@ -109,6 +109,15 @@ def make_dataclass_and_log_config(
         if icl_tasks_required:
             raise ValueError('icl_tasks must be specified in the config')
 
+    # Create copy of config for logging
+    logged_cfg: Dict[str, Any] = copy.deepcopy(unstructured_config)
+
+    # apply transforms to the unstructured config before constructing dataclass
+    for transform in transforms or []:
+        unstructured_config = transform(unstructured_config)
+
+    logged_cfg.update(unstructured_config, merge=True)
+
     arg_config_keys = set(unstructured_config.keys())
     extraneous_keys = set.difference(arg_config_keys, dataclass_fields)
 
@@ -120,15 +129,6 @@ def make_dataclass_and_log_config(
             f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary. Interpreting {key} as a variable for logging purposes. Top-level variables are deprecated and will not be supported in future releases.',
             category=DeprecationWarning)
         unstructured_config['variables'][key] = unstructured_config.pop(key)
-
-    # Create copy of config for logging
-    logged_cfg: Dict[str, Any] = copy.deepcopy(unstructured_config)
-
-    # apply transforms to the unstructured config before constructing dataclass
-    for transform in transforms or []:
-        unstructured_config = transform(unstructured_config)
-
-    logged_cfg.update(unstructured_config, merge=True)
 
     dataclass_config: T = om.structured(
         dataclass_constructor(**unstructured_config))

@@ -246,9 +246,9 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         if model.config.tie_word_embeddings and resolved_init_device == 'meta':
             model.tie_weights()
 
-        peft_config = None
+        peft_config_object = None
         if peft_config is not None:
-            peft_config = self._get_peft_config(peft_config)
+            peft_config_object = self._get_peft_config(peft_config)
 
         if pretrained_lora_id_or_path is not None:
             if not peft_installed:
@@ -266,7 +266,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             metrics=train_metrics,
             eval_metrics=eval_metrics,
             init_device=init_device,
-            peft_config=peft_config,
+            peft_config=peft_config_object,
         )
 
     @staticmethod

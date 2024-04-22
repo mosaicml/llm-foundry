@@ -7,10 +7,8 @@ from typing import Optional
 import pytest
 from composer import Trainer
 from composer.models.huggingface import maybe_get_underlying_model
-from omegaconf import OmegaConf as om
 
 from llmfoundry.utils.builders import build_composer_model, build_tokenizer
-from llmfoundry.utils.config_utils import to_dict_recursive
 
 
 @pytest.mark.world_size(2)
@@ -48,7 +46,6 @@ def test_fsdp_weight_tying(peft_config: Optional[dict], tmp_path: pathlib.Path,
 
     assert model_cfg is not None
     assert tokenizer_name is not None
-    model_cfg = om.create(model_cfg)
     if peft_config is not None:
         model_cfg['peft_config'] = peft_config
 
@@ -71,12 +68,12 @@ def test_fsdp_weight_tying(peft_config: Optional[dict], tmp_path: pathlib.Path,
     name = model_cfg.pop('name')
     original_model = build_composer_model(
         name=name,
-        cfg=to_dict_recursive(model_cfg),
+        cfg=model_cfg,
         tokenizer=tokenizer,
     )
 
     underlying_model = maybe_get_underlying_model(original_model.model)
-    lm_head = underlying_model.lm_head if peft_config is None else underlying_model.lm_head
+    lm_head = underlying_model.lm_head
     embedding_layer = underlying_model.model.embed_tokens if peft_config is None else underlying_model.model.embed_tokens
 
     lm_head_id = id(lm_head.weight)
@@ -93,8 +90,8 @@ def test_fsdp_weight_tying(peft_config: Optional[dict], tmp_path: pathlib.Path,
     )
 
     model = trainer.state.model
-    lm_head = model.lm_head if peft_config is None else model.base_model.lm_head
-    embedding_layer = model.embed_tokens if peft_config is None else model.base_model.model.embed_tokens
+    lm_head = model.model.lm_head if peft_config is None else model.model.base_model.model.lm_head
+    embedding_layer = model.model.model.embed_tokens if peft_config is None else model.model.base_model.model.model.embed_tokens
 
     lm_head_id = id(lm_head.weight)
     embedding_layer_id = id(embedding_layer.weight)

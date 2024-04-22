@@ -99,7 +99,8 @@ def test_lora_mixed_init(peft_config: Optional[dict], tmp_path: pathlib.Path,
     )
 
     model = trainer.state.model
-    underlying_model = model.base_model
+    underlying_model = model.model.base_model.model.model
+    # assert False, f"underlying_model: {underlying_model}"
     lora_A = underlying_model.layers[0].self_attn.q_proj.lora_A['default']
     lora_B = underlying_model.layers[0].self_attn.q_proj.lora_B['default']
 

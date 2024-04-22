@@ -197,7 +197,7 @@ def main():
         type=int,
         default=0,
         choices=[0, 1, 2],
-        help='Whether to compute the cumulative log probsbility of sentences.' +
+        help='Whether to compute the cumulative log probability of sentences.' +
         ' 0: do not return the cumulative log probs' +
         ' 1: return the cumulative log probs of generated sequences' +
         ' 2: return the cumulative log probs of sequences')

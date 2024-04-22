@@ -5,6 +5,30 @@
 from collections.abc import Mapping
 from typing import Any, Dict, List
 
+__all__ = [
+    'MissingHuggingFaceURLSplitError',
+    'NotEnoughDatasetSamplesError',
+    'UnknownExampleTypeError',
+    'TooManyKeysInExampleError',
+    'NotEnoughChatDataError',
+    'ConsecutiveRepeatedChatRolesError',
+    'InvalidLastChatMessageRoleError',
+    'IncorrectMessageKeyQuantityError',
+    'InvalidRoleError',
+    'InvalidContentTypeError',
+    'InvalidPromptTypeError',
+    'InvalidResponseTypeError',
+    'InvalidPromptResponseKeysError',
+    'InvalidFileExtensionError',
+    'UnableToProcessPromptResponseError',
+    'ClusterDoesNotExistError',
+    'FailedToCreateSQLConnectionError',
+    'FailedToConnectToDatabricksError',
+    'InputFolderMissingDataError',
+    'OutputFolderNotEmptyError',
+    'MisconfiguredHfDatasetError',
+]
+
 
 # Finetuning dataloader exceptions
 class MissingHuggingFaceURLSplitError(ValueError):

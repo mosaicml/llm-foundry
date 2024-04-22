@@ -59,7 +59,7 @@ def parse_args() -> Namespace:
         '--skip-preprocessing',
         action='store_true',
         help=
-        'Whether to skip preprocesing (e.g., if the dataset is already formatted correctly)'
+        'Whether to skip preprocessing (e.g., if the dataset is already formatted correctly)'
     )
     parser.add_argument(
         '--out_root',

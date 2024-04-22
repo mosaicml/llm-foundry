@@ -10,6 +10,13 @@ from composer.loggers.mosaicml_logger import (MOSAICML_ACCESS_TOKEN_ENV_VAR,
                                               MOSAICML_PLATFORM_ENV_VAR)
 from omegaconf import DictConfig, ListConfig
 
+__all__ = [
+    'maybe_create_mosaicml_logger',
+    'find_mosaicml_logger',
+    'log_eval_analytics',
+    'log_train_analytics',
+]
+
 _MODEL_KEYS_TO_LOG = [
     'pretrained_model_name_or_path',
     'pretrained',

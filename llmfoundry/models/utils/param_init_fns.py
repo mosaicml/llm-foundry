@@ -26,6 +26,10 @@ try:
 except:
     megablocks = None
 
+__all__ = [
+    'generic_param_init_fn_',
+]
+
 
 def torch_default_param_init_fn_(
     module: nn.Module,

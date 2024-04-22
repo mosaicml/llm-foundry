@@ -35,6 +35,8 @@ from llmfoundry.utils.huggingface_hub_utils import \
 
 log = logging.getLogger(__name__)
 
+__all__ = ['HuggingFaceCheckpointer']
+
 _LICENSE_FILE_PATTERN = re.compile(r'license(\.[a-z]+|$)', re.IGNORECASE)
 
 

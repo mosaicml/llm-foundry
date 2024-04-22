@@ -14,6 +14,12 @@ from transformers.models.opt.modeling_opt import OPTDecoder
 if TYPE_CHECKING:
     from peft import PeftModel
 
+__all__ = [
+    'prepare_hf_model_for_fsdp',
+    'prepare_hf_causal_lm_model_for_fsdp',
+    'prepare_hf_enc_dec_model_for_fsdp',
+]
+
 
 # helper functions
 def rhasattr(obj: Any, attr: str) -> bool:
@@ -250,7 +256,7 @@ def prepare_hf_enc_dec_model_for_fsdp(model: PreTrainedModel,
     if encoder_block_type == decoder_block_type:
         return
 
-    # need to wrap encoder blocks separately for ProhpetNet and Marian
+    # need to wrap encoder blocks separately for ProphetNet and Marian
     model.fsdp_wrap_fn = lambda module: isinstance(module, encoder_block_type)
     model.activation_checkpointing_fn = lambda module: isinstance(
         module, encoder_block_type)

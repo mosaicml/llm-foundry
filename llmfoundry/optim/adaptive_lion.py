@@ -13,6 +13,11 @@ from llmfoundry.optim.outlier_detection import OutlierDetector
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    'DecoupledAdaLRLion',
+    'DecoupledClipLion',
+]
+
 
 class DecoupledAdaLRLion(Optimizer):
     """DecoupledAdaLRLion.

@@ -49,7 +49,7 @@ In order to do ICL evaluation you must specify a set of benchmarks you'd like to
 
 
 #### ICL task YAML format
-Your YAML must have a config section entitled `icl_tasks` specifying the benchmarks to evaluate againts, this can either be a list of dictionaries of the form
+Your YAML must have a config section entitled `icl_tasks` specifying the benchmarks to evaluate against, this can either be a list of dictionaries of the form
 
 ```jsx
 icl_tasks:

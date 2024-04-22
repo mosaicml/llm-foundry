@@ -21,7 +21,9 @@ with open(os.path.join(_PACKAGE_REAL_PATH, '__init__.py')) as f:
     content = f.read()
 # regex: '__version__', whitespace?, '=', whitespace, quote, version, quote
 # we put parens around the version so that it becomes elem 1 of the match
-expr = re.compile(r"""^__version__\W+=\W+['"]([0-9\.]*)['"]""", re.MULTILINE)
+expr = re.compile(
+    r"""^__version__\s*=\s*['"]([0-9]+\.[0-9]+\.[0-9]+(?:\.\w+)?)['"]""",
+    re.MULTILINE)
 repo_version = expr.findall(content)[0]
 
 # Use repo README for PyPi description

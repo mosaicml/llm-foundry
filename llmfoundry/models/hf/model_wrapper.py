@@ -19,6 +19,8 @@ from llmfoundry.models.hf.hf_fsdp import prepare_hf_model_for_fsdp
 if TYPE_CHECKING:
     from peft import PeftConfig
 
+__all__ = ['HuggingFaceModelWithFSDP']
+
 # HuggingFace hardcodes the ignore index to -100
 _HF_IGNORE_INDEX = -100
 

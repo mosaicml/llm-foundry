@@ -10,6 +10,12 @@ from llmfoundry.layers_registry import (attention_classes, ffns,
                                         norms)
 from llmfoundry.models.layers.blocks import FusedNormAttentionNorm, MPTBlock
 
+__all__ = [
+    'build_act_ckpt_mod_to_blocks',
+    'pass_on_block_idx',
+    'check_mapping_blocks_overlap',
+]
+
 
 def pass_on_block_idx(parent: torch.nn.Module):
     if not hasattr(parent, 'block_idx') or not hasattr(parent, 'max_block_idx'):
@@ -104,7 +110,7 @@ def get_target_block_list(target_blocks: Any, max_block_idx: int) -> list:
             candidate_block_ids.extend(to_add)
     else:
         raise ValueError(
-            f'target_blocks must be either a single intege, or a list of integers, or a comma separated string made of "first-n", "last-m", "middle-k", "range-i-j", or a list of mixed integers and before-mentioned strings, but got {type(target_blocks)}'
+            f'target_blocks must be either a single integer, or a list of integers, or a comma separated string made of "first-n", "last-m", "middle-k", "range-i-j", or a list of mixed integers and before-mentioned strings, but got {type(target_blocks)}'
         )
 
     candidate_block_ids = list(set(candidate_block_ids))

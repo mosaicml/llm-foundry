@@ -10,6 +10,13 @@ from llmfoundry.layers_registry import (attention_classes, fcs, ffns,
                                         norms)
 from llmfoundry.utils.registry_utils import construct_from_registry
 
+__all__ = [
+    'build_attention_layer',
+    'build_ffn',
+    'build_fc',
+    'build_norm',
+]
+
 
 def build_norm(
     name: str,

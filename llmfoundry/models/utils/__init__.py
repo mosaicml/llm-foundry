@@ -1,6 +1,9 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+from llmfoundry.models.utils.act_ckpt import (build_act_ckpt_mod_to_blocks,
+                                              check_mapping_blocks_overlap,
+                                              pass_on_block_idx)
 from llmfoundry.models.utils.config_moe_args import config_moe_args
 from llmfoundry.models.utils.meta_init_context import (init_empty_weights,
                                                        init_on_device)
@@ -15,4 +18,7 @@ __all__ = [
     'config_moe_args',
     'mpt_get_active_params',
     'mpt_get_total_params',
+    'build_act_ckpt_mod_to_blocks',
+    'pass_on_block_idx',
+    'check_mapping_blocks_overlap',
 ]

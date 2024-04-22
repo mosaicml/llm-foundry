@@ -12,7 +12,6 @@ from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 
 from llmfoundry.utils.config_utils import (make_dataclass_and_log_config,
-                                           to_dict_recursive,
                                            update_batch_size_info)
 from scripts.train.train import TrainConfig  # noqa: E402
 from scripts.train.train import TRAIN_CONFIG_KEYS, main, validate_config

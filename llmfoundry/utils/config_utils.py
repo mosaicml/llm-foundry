@@ -205,9 +205,15 @@ def to_container_recursive(
 
     def rh(x: Any) -> Any:  # recursive helper
         if isinstance(x, DictConfig):
-            return {k: rh(v) for k, v in x.items()}
+            ret = om.to_container(x)
+            assert isinstance(ret, dict)
+            return ret
+            # return {k: rh(v) for k, v in x.items()}
         elif isinstance(x, ListConfig):
-            return [rh(v) for v in x]
+            # return [rh(v) for v in x]
+            ret = om.to_container(x)
+            assert isinstance(ret, list)
+            return ret
         else:
             return x
 

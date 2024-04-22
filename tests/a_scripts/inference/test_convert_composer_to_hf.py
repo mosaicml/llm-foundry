@@ -512,9 +512,10 @@ def _assert_mlflow_logger_calls(mlflow_logger_mock: MagicMock,
                 'metadata': {},
             }
         else:
+            import numpy as np
+
             default_input_example = {
-                'columns': ['prompt'],
-                'data': [['What is Machine Learning?']]
+                'prompt': np.array(['What is Machine Learning?'])
             }
 
             expectation = {

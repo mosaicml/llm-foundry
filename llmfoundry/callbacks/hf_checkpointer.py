@@ -14,6 +14,7 @@ from multiprocessing.context import SpawnProcess
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
+import numpy as np
 import torch
 import torch.nn as nn
 from composer.core import Callback, Event, State, Time, TimeUnit
@@ -167,8 +168,7 @@ class HuggingFaceCheckpointer(Callback):
             mlflow_logging_config.setdefault('task', 'llm/v1/completions')
 
             default_input_example = {
-                'columns': ['prompt'],
-                'data': [['What is Machine Learning?']]
+                'prompt': np.array(['What is Machine Learning?'])
             }
             is_chat = mlflow_logging_config['task'].endswith('chat') or (
                 mlflow_logging_config['metadata'] is not None and
@@ -183,6 +183,7 @@ class HuggingFaceCheckpointer(Callback):
                         }]
                     }
                 }
+                mlflow_logging_config.setdefault('example_no_conversion', True)
             mlflow_logging_config.setdefault('input_example',
                                              default_input_example)
 

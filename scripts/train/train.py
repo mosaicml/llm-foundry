@@ -115,8 +115,6 @@ class TrainConfig:
 
     # Dataloader
     device_train_microbatch_size: Union[str, int] = 'auto'
-    data_local: Optional[str] = None
-    data_remote: Optional[str] = None
 
     # Eval dataloader
     eval_subset_num_batches: int = -1
@@ -136,10 +134,7 @@ class TrainConfig:
     # Profiling
     profiler: Optional[Dict[str, Any]] = None
 
-    # Ignore keys
-    global_seed: Optional[int] = None
-    global_train_batch_size: Optional[int] = None
-    n_gpus: Optional[int] = None
+    # Variables to ignore
     variables: Optional[Dict[str, Any]] = None
 
 

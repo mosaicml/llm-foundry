@@ -193,7 +193,6 @@ class EvalConfig:
     seed: int = 17
     precision: str = 'amp_bf16'
     run_name: Optional[str] = None
-    model_name_or_path: Optional[str] = None
     metadata: Optional[Dict[str, str]] = None
 
     # Distributed parameters

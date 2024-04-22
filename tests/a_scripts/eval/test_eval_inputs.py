@@ -38,7 +38,8 @@ class TestHuggingFaceEvalYAMLInputs:
         mandatory_configs = ['models', 'icl_tasks']
         for p in mandatory_params + mandatory_configs:
             with pytest.raises((omegaconf.errors.ConfigKeyError,
-                                omegaconf.errors.InterpolationKeyError)):
+                                omegaconf.errors.InterpolationKeyError,
+                                omegaconf.errors.MissingMandatoryValue)):
                 cfg[p + '-mispelled'] = cfg.pop(p)
                 main(cfg)
                 cfg[p] = cfg.pop(p + '-mispelled')

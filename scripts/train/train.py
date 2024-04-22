@@ -380,6 +380,7 @@ def main(cfg: DictConfig) -> Trainer:
     log.info('Initializing model...')
     name = model_config.pop('name')
     assert isinstance(name, str)
+    assert isinstance(model_config, dict)
     model = build_composer_model(
         name=name,
         tokenizer=tokenizer,
@@ -392,7 +393,8 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Optimizer
     optimizer_name: str = train_cfg.optimizer.pop('name')
-    optimizer = build_optimizer(model, optimizer_name, train_cfg.optimizer)
+    optimizer_cfg = to_dict_recursive(train_cfg.optimizer)
+    optimizer = build_optimizer(model, optimizer_name, optimizer_cfg)
 
     # Now add the eval metrics
     try:
@@ -409,6 +411,9 @@ def main(cfg: DictConfig) -> Trainer:
             mosaicml_logger.log_exception(e)
         raise e
 
+    compile_config = to_dict_recursive(
+        train_cfg.compile_config
+    ) if train_cfg.compile_config is not None else None
     # Build the Trainer
     log.info('Building trainer...')
     trainer = Trainer(
@@ -447,7 +452,7 @@ def main(cfg: DictConfig) -> Trainer:
         python_log_level=train_cfg.python_log_level,
         dist_timeout=dist_timeout,
         profiler=profiler,
-        compile_config=train_cfg.compile_config,
+        compile_config=compile_config,
     )
 
     if train_cfg.log_config:

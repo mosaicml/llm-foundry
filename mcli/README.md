@@ -23,4 +23,4 @@ All the details of multi-gpu and multi-node orchestration are handled automatica
 
 ## Using the MosaicML Python SDK to launch runs
 You can also use the [Python SDK](https://mcli.docs.mosaicml.com/en/stable/python/hello_world.html) to launch MosaicML platform jobs.
-This can be used to programatically sweep hyperparameters or orchestrate training runs within a larger pipeline.
+This can be used to programmatically sweep hyperparameters or orchestrate training runs within a larger pipeline.

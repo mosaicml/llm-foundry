@@ -20,6 +20,8 @@ from llmfoundry.utils.warnings import experimental_class
 
 log = logging.getLogger(__name__)
 
+__all__ = ['CurriculumLearning']
+
 
 @experimental_class('CurriculumLearning callback')
 class CurriculumLearning(CallbackWithConfig):

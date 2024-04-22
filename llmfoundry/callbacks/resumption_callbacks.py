@@ -7,6 +7,8 @@ from typing import List
 from composer.core import Callback, State
 from composer.loggers import Logger
 
+from llmfoundry.utils.warnings import experimental_class
+
 __all__ = [
     'GlobalLRScaling',
     'LayerFreezing',
@@ -15,6 +17,7 @@ __all__ = [
 log = logging.getLogger(__name__)
 
 
+@experimental_class('GlobalLRScaling')
 class GlobalLRScaling(Callback):
     """GlobalLRScaling.
 
@@ -52,6 +55,7 @@ class GlobalLRScaling(Callback):
             ]
 
 
+@experimental_class('LayerFreezing')
 class LayerFreezing(Callback):
     """LayerFreezing.
 

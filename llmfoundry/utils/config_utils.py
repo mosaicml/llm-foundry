@@ -202,16 +202,18 @@ def to_container(
     `omegaconf.to_container` does not handle nested DictConfig or ListConfig
     objects, so this function is used to convert them to dicts or lists.
     """
-
-    def rh(x: Any) -> Any:  # recursive helper
-        if isinstance(x, DictConfig):
-            return {k: rh(v) for k, v in x.items()}
-        elif isinstance(x, ListConfig):
-            return [rh(v) for v in x]
-        else:
-            return x
-
-    return rh(cfg)
+    if isinstance(cfg, DictConfig):
+        ret = om.to_container(cfg, resolve=True)
+        assert isinstance(ret, dict)
+        return ret
+        # return {k: rh(v) for k, v in cfg.items()}
+    elif isinstance(cfg, ListConfig):
+        # return [rh(v) for v in cfg]
+        ret = om.to_container(cfg, resolve=True)
+        assert isinstance(ret, list)
+        return ret
+    else:
+        return cfg
 
 
 T = TypeVar('T')
@@ -438,3 +440,21 @@ def log_config(cfg: Dict[str, Any]) -> None:
             raise e
         if mlflow.active_run():
             mlflow.log_params(params=cfg)
+
+
+if __name__ == '__main__':
+    my_dict_config = DictConfig({
+        'a': 1,
+        'b': 2,
+        'c': None,
+        'd': {
+            'e': 3,
+            'f': 4,
+            'g': None
+        }
+    })
+
+    print(to_dict_container(my_dict_config))
+    print(om.to_container(my_dict_config))
+    assert to_dict_container(my_dict_config) == om.to_container(
+        my_dict_config)  # passes

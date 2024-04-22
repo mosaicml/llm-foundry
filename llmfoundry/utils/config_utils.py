@@ -206,9 +206,7 @@ def to_container(
         ret = om.to_container(cfg, resolve=True)
         assert isinstance(ret, dict)
         return ret
-        # return {k: rh(v) for k, v in cfg.items()}
     elif isinstance(cfg, ListConfig):
-        # return [rh(v) for v in cfg]
         ret = om.to_container(cfg, resolve=True)
         assert isinstance(ret, list)
         return ret

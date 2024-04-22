@@ -176,14 +176,11 @@ class HuggingFaceCheckpointer(Callback):
                                                       '').endswith('chat'))
             if is_chat:
                 default_input_example = {
-                    'inputs': {
-                        'messages': [{
-                            'role': 'user',
-                            'content': 'What is Machine Learning?'
-                        }]
-                    }
+                    'messages': [{
+                        'role': 'user',
+                        'content': 'What is Machine Learning?'
+                    }]
                 }
-                mlflow_logging_config.setdefault('example_no_conversion', True)
             mlflow_logging_config.setdefault('input_example',
                                              default_input_example)
 

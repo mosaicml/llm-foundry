@@ -3,8 +3,11 @@ variables:
   model_name_or_path: EleutherAI/gpt-neo-125m
   # otherwise, write a block for each model you want to test in the `models` section
 
-precision: fp32
-max_seq_len: 1024
+  precision: fp32
+  max_seq_len: 1024
+
+precision: ${variables.precision}
+max_seq_len: ${variables.max_seq_len}
 
 models:
 -

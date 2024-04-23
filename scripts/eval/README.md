@@ -193,7 +193,7 @@ Question: What star sign is Jamie Lee Curtis? Answer:
 
 The model would then be expected to generate a series of tokens beginning with either of the aliases: `Scorpio/Skorpio`.
 
-Below is a complete YAML section that works with the TriviaQA dataset in [`scripts/eval/local_data/triviaqa.jsonl`](https://github.com/mosaicml/llm-foundry/blob/main/scripts/eval/local_data/triviaqa.jsonl):
+Below is a complete YAML section that works with the TriviaQA dataset in [`scripts/eval/local_data/world_knowledge/triviaqa.jsonl`](https://github.com/mosaicml/llm-foundry/blob/main/scripts/eval/local_data/world_knowledge/triviaqa.jsonl):
 
 >
     label: triviaqa
@@ -237,7 +237,7 @@ He took another step, but he was still in the
 
 The model would then be expected output “ glen”.
 
-Below is a YAML section that works with the Lambada OpenAI dataset in [`scripts/eval/local_data/lambada_openai.jsonl`](https://github.com/mosaicml/llm-foundry/blob/main/scripts/eval/local_data/lambada_openai.jsonl):
+Below is a YAML section that works with the Lambada OpenAI dataset in [`scripts/eval/local_data/language_understanding/lambada_openai.jsonl`](https://github.com/mosaicml/llm-foundry/blob/main/scripts/eval/local_data/language_understanding/lambada_openai.jsonl):
 
 >
     label: lambada_openai
@@ -281,7 +281,7 @@ The MC task expects a **prompt string**, a **continuation delimiter** to separat
 
 The model would be deemed correct if it assigns the lowest per token perplexity to the sequence " lifts his body above the height of a pole."
 
-Below is a YAML section that works with the HellaSwag dataset in [`scripts/eval/local_data/hellaswag.jsonl`](https://raw.githubusercontent.com/mosaicml/llm-foundry/main/scripts/eval/local_data/hellaswag.jsonl):
+Below is a YAML section that works with the HellaSwag dataset in [`scripts/eval/local_data/language_understanding/hellaswag.jsonl`](https://raw.githubusercontent.com/mosaicml/llm-foundry/main/scripts/eval/local_data/language_understanding/hellaswag.jsonl):
 
 >
     label: hellaswag
@@ -327,7 +327,7 @@ The Schema task expects a **prompt string**, a **continuation delimiter** to sep
 
 The model would be assigned correct if per token perplexity of the sequence " was so upset" is lower in the second version than it is in the first version.
 
-Below is a YAML section that works with the Winograd dataset in [`scripts/eval/local_data/winograd_wsc.jsonl`](https://github.com/mosaicml/llm-foundry/blob/main/scripts/eval/local_data/winograd_wsc.jsonl):
+Below is a YAML section that works with the Winograd dataset in [`scripts/eval/local_data/language_understanding/winograd_wsc.jsonl`](https://github.com/mosaicml/llm-foundry/blob/main/scripts/eval/local_data/language_understanding/winograd_wsc.jsonl):
 
 >
     label: winograd

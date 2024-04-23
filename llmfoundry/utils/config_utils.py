@@ -88,9 +88,11 @@ class TrainConfig:
     device_eval_batch_size: int = MISSING
     max_duration: Union[int, str] = MISSING
     eval_interval: Union[int, str] = MISSING
-    precision: str = 'amp_bf16'
     max_seq_len: int = MISSING
     seed: int = MISSING
+
+    # Precision
+    precision: str = 'amp_bf16'
 
     # Code paths to import
     code_paths: Optional[List[str]] = None

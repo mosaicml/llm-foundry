@@ -303,7 +303,7 @@ def main(cfg: DictConfig) -> Trainer:
                             trace_handlers=profiler_trace_handlers,
                             schedule=profiler_schedule)
 
-    callback_configs = train_cfg.callbacks
+    callback_configs = train_cfg.callbacks or {}
 
     # Callbacks
     callbacks: List[Callback] = [
@@ -313,7 +313,7 @@ def main(cfg: DictConfig) -> Trainer:
 
     use_async_eval = any(isinstance(c, AsyncEval) for c in callbacks)
 
-    algorithm_configs = train_cfg.algorithms
+    algorithm_configs = train_cfg.algorithms or {}
 
     # Algorithms
     algorithms = [

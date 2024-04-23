@@ -275,6 +275,9 @@ def make_dataclass_and_log_config(
 
     dataclass_dict_config: DictConfig = om.structured(
         dataclass_constructor(**unstructured_config))
+
+    # Convert DictConfig to dict for dataclass constructor so that child
+    # configs are not DictConfigs
     dataclass_config: T = dataclass_constructor(
         **to_dict_container(dataclass_dict_config))
 

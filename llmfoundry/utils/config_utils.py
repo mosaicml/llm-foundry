@@ -205,13 +205,13 @@ def to_container(
     if isinstance(cfg, DictConfig):
         ret = om.to_container(cfg, resolve=True)
         assert isinstance(ret, dict)
-        return ret
+        return ret  # type: ignore (return type is correct and converting all keys to str would be unnecessarily costly)
     elif isinstance(cfg, ListConfig):
         ret = om.to_container(cfg, resolve=True)
         assert isinstance(ret, list)
-        return ret
+        return ret  # type: ignore (see above)
     else:
-        return cfg
+        return cfg  # type: ignore (dicts and lists are already in the correct format)
 
 
 T = TypeVar('T')

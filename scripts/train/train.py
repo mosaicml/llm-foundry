@@ -89,7 +89,8 @@ def validate_config(train_config: TrainConfig):
         act_ckpt = fsdp_config.get('activation_checkpointing',
                                    False) if fsdp_config else False
         act_ckpt_reentrant = fsdp_config.get(
-            'activation_checkpointing_reentrant', False)
+            'activation_checkpointing_reentrant',
+            False) if fsdp_config else False
         if fsdp_config is not None and act_ckpt == True and act_ckpt_reentrant == True:
             warnings.warn(
                 '`te.Linear` layers do not support activation_checkpointing with '

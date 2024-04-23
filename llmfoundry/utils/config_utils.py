@@ -4,20 +4,17 @@
 import contextlib
 import logging
 import math
+import os
 import warnings
 from typing import Any, Dict, List, Literal, Mapping, Optional, Tuple, Union
 
+import mlflow
 from composer.utils import dist, parse_uri
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 
 from llmfoundry.layers_registry import ffns_with_megablocks
 from llmfoundry.models.utils import init_empty_weights
-
-try:
-    import mlflow
-except ImportError:
-    mlflow = None
 
 log = logging.getLogger(__name__)
 
@@ -182,12 +179,9 @@ def log_config(cfg: DictConfig) -> None:
         if wandb.run:
             wandb.config.update(om.to_container(cfg, resolve=True))
 
-    if 'mlflow' in cfg.get('loggers', {}):
-        if not mlflow:
-            raise ImportError('MLflow is required but not installed.')
-        if mlflow.active_run():
-            mlflow.log_params(params=om.to_container(cfg, resolve=True))
-            _log_dataset_uri(cfg)
+    if 'mlflow' in cfg.get('loggers', {}) and mlflow.active_run():
+        mlflow.log_params(params=om.to_container(cfg, resolve=True))
+        _log_dataset_uri(cfg)
 
 
 def _parse_source_dataset(cfg: DictConfig) -> List[Tuple[str, str, str]]:
@@ -206,11 +200,11 @@ def _parse_source_dataset(cfg: DictConfig) -> List[Tuple[str, str, str]]:
     data_paths = []
 
     # Handle train loader if it exists
-    train_data_set = cfg.get('train_loader', {}).get('dataset', {})
-    train_split = train_data_set.get('split', None)
+    train_dataset = cfg.get('train_loader', {}).get('dataset', {})
+    train_split = train_dataset.get('split', None)
     train_source_path = cfg.get('source_dataset_train', None)
-    _process_data_source(train_source_path, train_data_set, train_split,
-                         'train', data_paths)
+    _process_data_source(train_source_path, train_dataset, train_split, 'train',
+                         data_paths)
 
     # Handle eval_loader which might be a list or a single dictionary
     eval_data_loaders = cfg.get('eval_loader', {})
@@ -219,17 +213,17 @@ def _parse_source_dataset(cfg: DictConfig) -> List[Tuple[str, str, str]]:
                             ]  # Normalize to list if it's a single dictionary
 
     for eval_data_loader in eval_data_loaders:
-        eval_data_set = eval_data_loader.get('dataset', {})
-        eval_split = eval_data_set.get('split', None)
+        eval_dataset = eval_data_loader.get('dataset', {})
+        eval_split = eval_dataset.get('split', None)
         eval_source_path = cfg.get('source_dataset_eval', None)
-        _process_data_source(eval_source_path, eval_data_set, eval_split,
-                             'eval', data_paths)
+        _process_data_source(eval_source_path, eval_dataset, eval_split, 'eval',
+                             data_paths)
 
     return data_paths
 
 
 def _process_data_source(source_dataset_path: Optional[str],
-                         data_set: Dict[str, str], cfg_split: Optional[str],
+                         dataset: Dict[str, str], cfg_split: Optional[str],
                          true_split: str, data_paths: List[Tuple[str, str,
                                                                  str]]):
     """Add a data source by mutating data_paths.
@@ -237,33 +231,34 @@ def _process_data_source(source_dataset_path: Optional[str],
     Given various dataset attributes, attempt to determine what type of dataset is being added, and parse
     the dataset accordingly.
 
-    source_dataset_path (Optional[str]): The source dataset in a cfg metadata
-    data_set (Dict[str, str]): The dataset from cfg
-    cfg_split (str): The split listed for the dataset in cfg
-    true_split (str): The split of the dataset to be added
-    data_paths (List[Tuple[str, str, str]]): A list of tuples formatted as (data type, path, split)
+    Args:
+        source_dataset_path (Optional[str]): The source dataset in cfg metadata
+        dataset (Dict[str, str]): The dataset from cfg
+        cfg_split (str): The split listed for the dataset in cfg
+        true_split (str): The split of the dataset to be added (i.e. train or eval)
+        data_paths (List[Tuple[str, str, str]]): A list of tuples formatted as (data type, path, split)
     """
     # Check for Delta table
-    if source_dataset_path and len(source_dataset_path.split('.')) >= 3:
+    if source_dataset_path and len(source_dataset_path.split('.')) == 3:
         data_paths.append(('delta_table', source_dataset_path, true_split))
     # Check for UC volume
     elif source_dataset_path and source_dataset_path.startswith('dbfs:'):
         data_paths.append(
             ('uc_volume', source_dataset_path[len('dbfs:'):], true_split))
     # Check for HF path
-    elif 'hf_name' in data_set:
-        hf_path = data_set['hf_name']
+    elif 'hf_name' in dataset:
+        hf_path = dataset['hf_name']
         backend, _, _ = parse_uri(hf_path)
         if backend:
             hf_path = f'{hf_path.rstrip("/")}/{cfg_split}' if cfg_split else hf_path
             data_paths.append((backend, hf_path, true_split))
-        elif hf_path.startswith('/'):
+        elif os.path.exists(hf_path):
             data_paths.append(('local', hf_path, true_split))
         else:
             data_paths.append(('hf', hf_path, true_split))
-    # check for remote path
-    elif 'remote' in data_set:
-        remote_path = data_set['remote']
+    # Check for remote path
+    elif 'remote' in dataset:
+        remote_path = dataset['remote']
         backend, _, _ = parse_uri(remote_path)
         if backend:
             remote_path = f'{remote_path.rstrip("/")}/{cfg_split}/' if cfg_split else remote_path
@@ -280,9 +275,6 @@ def _log_dataset_uri(cfg: DictConfig) -> None:
     Args:
         cfg (DictConfig): A config dictionary of a run
     """
-    if mlflow is None:
-        raise ImportError('MLflow is not installed. Skipping dataset logging.')
-
     # Figure out which data source to use
     data_paths = _parse_source_dataset(cfg)
 

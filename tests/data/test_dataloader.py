@@ -1119,7 +1119,7 @@ def test_token_counting_func_dataloader_setting(
                                          device_batch_size=batch_size,
                                          **cfg)
     elif dataloader_type == 'text':
-        cfg = DictConfig({
+        cfg = {
             'name': 'text',
             'dataset': {
                 'local': 'dummy-path',
@@ -1130,7 +1130,7 @@ def test_token_counting_func_dataloader_setting(
                 'shuffle_seed': 0,
             },
             **common_args
-        })
+        }
         ds_mock = MagicMock()
         ds_mock.tokenizer = gptt
         monkeypatch.setattr('llmfoundry.data.text_data.StreamingTextDataset',
@@ -1141,8 +1141,6 @@ def test_token_counting_func_dataloader_setting(
                                    device_batch_size=batch_size)
     else:
         raise NotImplementedError()
-
-    cfg = om.create(cfg)
 
     batch_collated = dl.dataloader.collate_fn(batch_tokenized)  # type: ignore
     actual_token_count = dl.get_num_tokens_in_batch(batch_collated)

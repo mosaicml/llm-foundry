@@ -14,7 +14,6 @@ import torch
 import transformers
 from composer.core.data_spec import DataSpec
 from composer.core.types import Batch
-from omegaconf import OmegaConf as om
 from streaming import Stream, StreamingDataset
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
@@ -274,6 +273,7 @@ def build_text_dataloader(
     persistent_workers: bool = True,
     timeout: int = 0,
 ) -> DataSpec:
+
     dataset_cfg = dataset
 
     # get kwargs
@@ -450,7 +450,6 @@ if __name__ == '__main__':
         'drop_last': False,
         'num_workers': 4,
     }
-    cfg = om.create(cfg)
     device_batch_size = 2
 
     tokenizer_name = args.tokenizer

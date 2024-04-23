@@ -103,7 +103,7 @@ def build_eval_loaders(
         )
 
     for eval_config in eval_configs:
-        label = eval_config.pop('label')
+        label = eval_config.pop('label') if is_multi_eval else None
         eval_dataloader = build_dataloader(eval_config, tokenizer,
                                            device_eval_batch_size)
         eval_loader: Evaluator = Evaluator(

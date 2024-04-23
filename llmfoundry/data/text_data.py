@@ -14,7 +14,6 @@ import torch
 import transformers
 from composer.core.data_spec import DataSpec
 from composer.core.types import Batch
-from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from streaming import Stream, StreamingDataset
 from torch.utils.data import DataLoader
@@ -267,7 +266,7 @@ def build_streams(streams: Optional[Dict[str, Any]] = None,):
 def build_text_dataloader(
     tokenizer: PreTrainedTokenizerBase,
     device_batch_size: int,
-    dataset: DictConfig,
+    dataset: Dict[str, Any],
     drop_last: bool,
     num_workers: int,
     pin_memory: bool = True,

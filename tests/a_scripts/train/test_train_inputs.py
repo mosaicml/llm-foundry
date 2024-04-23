@@ -79,7 +79,8 @@ class TestTrainingYAMLInputs:
         for param in mandatory_params:
             orig_param = cfg.pop(param)
             with pytest.raises(
-                (TypeError, NameError, omegaconf.errors.InterpolationKeyError)):
+                (TypeError, NameError, omegaconf.errors.InterpolationKeyError,
+                 omegaconf.errors.MissingMandatoryValue)):
                 main(cfg)
             cfg[param] = orig_param
 

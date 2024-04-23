@@ -6,12 +6,12 @@ import copy
 import logging
 import math
 import warnings
-from dataclasses import MISSING, dataclass, fields
+from dataclasses import dataclass, fields
 from typing import (Any, Callable, Dict, List, Literal, Mapping, Optional, Set,
                     Tuple, TypeVar, Union)
 
 from composer.utils import dist
-from omegaconf import DictConfig, ListConfig, MissingMandatoryValue
+from omegaconf import MISSING, DictConfig, ListConfig, MissingMandatoryValue
 from omegaconf import OmegaConf as om
 
 from llmfoundry.layers_registry import ffns_with_megablocks
@@ -273,7 +273,10 @@ def make_dataclass_and_log_config(
             category=DeprecationWarning)
         unstructured_config['variables'][key] = unstructured_config.pop(key)
 
-    dataclass_config: T = dataclass_constructor(**unstructured_config)
+    dataclass_dict_config: DictConfig = om.structured(
+        dataclass_constructor(**unstructured_config))
+    dataclass_config: T = dataclass_constructor(
+        **to_dict_container(dataclass_dict_config))
 
     return logged_cfg, dataclass_config
 

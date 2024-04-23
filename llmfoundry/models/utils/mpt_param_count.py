@@ -16,6 +16,13 @@ from typing import Union
 from torch import Tensor, nn
 from torch.distributed._tensor import DTensor
 
+from llmfoundry.layers_registry import ffns_with_megablocks
+
+__all__ = [
+    'mpt_get_active_params',
+    'mpt_get_total_params',
+]
+
 
 def module_n_params(module: nn.Module) -> int:
     """Gets the number of parameters in this module excluding child modules.
@@ -127,7 +134,7 @@ def megablocks_n_active_params(mpt_model) -> int:  # type: ignore
 
 
 def mpt_get_total_params(mpt_model) -> int:  # type: ignore
-    """Calculates the total paramter count of an MPT model.
+    """Calculates the total parameter count of an MPT model.
 
     Note: Must be called before model parameters are sharded by FSDP.
 
@@ -138,14 +145,14 @@ def mpt_get_total_params(mpt_model) -> int:  # type: ignore
     Returns:
         An int for the total number of parameters in this MPT model.
     """
-    if mpt_model.config.ffn_config['ffn_type'] in ('mb_moe', 'mb_dmoe'):
+    if mpt_model.config.ffn_config['ffn_type'] in ffns_with_megablocks:
         return megablocks_n_total_params(mpt_model)
     else:
         return sum(p.numel() for p in mpt_model.parameters())
 
 
 def mpt_get_active_params(mpt_model) -> int:  # type: ignore
-    """Calculates the total paramter count of an MPT model.
+    """Calculates the total parameter count of an MPT model.
 
     Note: Must be called before model parameters are sharded by FSDP.
 
@@ -156,7 +163,7 @@ def mpt_get_active_params(mpt_model) -> int:  # type: ignore
     Returns:
         An int for the active number of parameters in this MPT model.
     """
-    if mpt_model.config.ffn_config['ffn_type'] in ('mb_moe', 'mb_dmoe'):
+    if mpt_model.config.ffn_config['ffn_type'] in ffns_with_megablocks:
         params = megablocks_n_active_params(mpt_model)
     else:
         params = sum(p.numel() for p in mpt_model.parameters())

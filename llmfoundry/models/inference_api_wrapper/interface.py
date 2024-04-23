@@ -5,13 +5,15 @@ from typing import Any, Optional
 
 import torch
 from composer.core.types import Batch
-from composer.metrics import InContextLearningMetric
 from composer.models import ComposerModel
 from omegaconf import DictConfig
 from torchmetrics import Metric
 from transformers import AutoTokenizer
 
+from llmfoundry.eval.metrics import InContextLearningMetric
 from llmfoundry.metrics import DEFAULT_CAUSAL_LM_EVAL_METRICS
+
+__all__ = ['InferenceAPIEvalWrapper']
 
 
 class InferenceAPIEvalWrapper(ComposerModel):

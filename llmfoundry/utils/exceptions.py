@@ -5,6 +5,30 @@
 from collections.abc import Mapping
 from typing import Any, Dict, List
 
+__all__ = [
+    'MissingHuggingFaceURLSplitError',
+    'NotEnoughDatasetSamplesError',
+    'UnknownExampleTypeError',
+    'TooManyKeysInExampleError',
+    'NotEnoughChatDataError',
+    'ConsecutiveRepeatedChatRolesError',
+    'InvalidLastChatMessageRoleError',
+    'IncorrectMessageKeyQuantityError',
+    'InvalidRoleError',
+    'InvalidContentTypeError',
+    'InvalidPromptTypeError',
+    'InvalidResponseTypeError',
+    'InvalidPromptResponseKeysError',
+    'InvalidFileExtensionError',
+    'UnableToProcessPromptResponseError',
+    'ClusterDoesNotExistError',
+    'FailedToCreateSQLConnectionError',
+    'FailedToConnectToDatabricksError',
+    'InputFolderMissingDataError',
+    'OutputFolderNotEmptyError',
+    'MisconfiguredHfDatasetError',
+]
+
 
 # Finetuning dataloader exceptions
 class MissingHuggingFaceURLSplitError(ValueError):
@@ -203,4 +227,14 @@ class OutputFolderNotEmptyError(FileExistsError):
     def __init__(self, output_folder: str) -> None:
         self.output_folder = output_folder
         message = f'{output_folder} is not empty. Please remove or empty it and retry.'
+        super().__init__(message)
+
+
+class MisconfiguredHfDatasetError(ValueError):
+    """Error thrown when a HuggingFace dataset is misconfigured."""
+
+    def __init__(self, dataset_name: str, split: str) -> None:
+        self.dataset_name = dataset_name
+        self.split = split
+        message = f'Your dataset (name={dataset_name}, split={split}) is misconfigured. Please check your dataset format and make sure you can load your dataset locally.'
         super().__init__(message)

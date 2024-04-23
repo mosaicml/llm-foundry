@@ -7,6 +7,14 @@ import torch
 
 from llmfoundry.layers_registry import norms
 
+__all__ = [
+    'LPLayerNorm',
+    'LPRMSNorm',
+    'RMSNorm',
+    'TritonRMSNorm',
+    'rms_norm',
+]
+
 norms.register(name='layernorm', func=torch.nn.LayerNorm)
 
 

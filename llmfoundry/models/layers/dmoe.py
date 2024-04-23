@@ -1,9 +1,17 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Callable
+from typing import Callable, Optional
 
 import torch
+
+__all__ = [
+    'dMoE',
+    'LearnedRouter',
+    'MLP',
+    'GLU',
+    'DroplessMLP',
+]
 
 
 # Add option to route tokens uniformly across experts. We use
@@ -24,7 +32,8 @@ class LearnedRouter(torch.nn.Module):
 
     def __init__(self, hidden_size: int, moe_num_experts: int, moe_top_k: int,
                  moe_jitter_eps: float, moe_normalize_expert_weights: bool,
-                 uniform_expert_assignment: bool, device: torch.device) -> None:
+                 uniform_expert_assignment: bool,
+                 device: Optional[torch.device]) -> None:
         super().__init__()
         self.hidden_size: int = hidden_size
         self.moe_num_experts: int = moe_num_experts
@@ -84,7 +93,7 @@ class MLP(torch.nn.Module):
         ffn_hidden_size: int,
         moe_num_experts: int,
         activation_fn: Callable,
-        device: torch.device,
+        device: Optional[torch.device],
     ) -> None:
         super().__init__()
 
@@ -117,9 +126,14 @@ class MLP(torch.nn.Module):
 
 class GLU(torch.nn.Module):
 
-    def __init__(self, hidden_size: int, ffn_hidden_size: int,
-                 moe_num_experts: int, activation_fn: Callable,
-                 device: torch.device):
+    def __init__(
+        self,
+        hidden_size: int,
+        ffn_hidden_size: int,
+        moe_num_experts: int,
+        activation_fn: Callable,
+        device: Optional[torch.device],
+    ):
         super().__init__()
         self.hidden_size = hidden_size
         self.ffn_hidden_size = ffn_hidden_size
@@ -157,9 +171,16 @@ class GLU(torch.nn.Module):
 
 class DroplessMLP(torch.nn.Module):
 
-    def __init__(self, hidden_size: int, ffn_hidden_size: int, mlp_type: str,
-                 moe_num_experts: int, activation_fn: Callable, bias: bool,
-                 device: torch.device):
+    def __init__(
+        self,
+        hidden_size: int,
+        ffn_hidden_size: int,
+        mlp_type: str,
+        moe_num_experts: int,
+        activation_fn: Callable,
+        bias: bool,
+        device: Optional[torch.device],
+    ):
         super().__init__()
         self.moe_num_experts = moe_num_experts
 
@@ -209,12 +230,20 @@ class DroplessMLP(torch.nn.Module):
 
 class dMoE(torch.nn.Module):
 
-    def __init__(self, hidden_size: int, ffn_hidden_size: int,
-                 moe_num_experts: int, moe_top_k: int, mlp_type: str,
-                 activation_fn: Callable, moe_jitter_eps: float,
-                 moe_normalize_expert_weights: bool,
-                 uniform_expert_assignment: bool, bias: bool,
-                 device: torch.device):
+    def __init__(
+        self,
+        hidden_size: int,
+        ffn_hidden_size: int,
+        moe_num_experts: int,
+        moe_top_k: int,
+        mlp_type: str,
+        activation_fn: Callable,
+        moe_jitter_eps: float,
+        moe_normalize_expert_weights: bool,
+        uniform_expert_assignment: bool,
+        bias: bool,
+        device: Optional[torch.device],
+    ):
         super().__init__()
 
         # Token router.

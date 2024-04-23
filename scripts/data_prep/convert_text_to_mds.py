@@ -191,8 +191,8 @@ def get_task_args(
         input_folder (str): Folder of text files to process
         n_groups (int): Number of groups to split the object names into
         tokenizer_name (str): Name of tokenizer to use
-        concat_tokens (int): Concantenate up to this many tokens
-        eos_text (str): Textend to append to each example to separate concatenated samples
+        concat_tokens (int): Concatenate up to this many tokens
+        eos_text (str): Text to append to each example to separate concatenated samples
         bos_text (str): Text to prepend to each example to separate concatenated samples
         no_wrap: (bool): Whether to let text examples wrap across multiple training examples
         compression (str): The compression algorithm to use for MDS writing
@@ -219,7 +219,7 @@ def get_task_args(
 def download_and_convert_starargs(args: Tuple):
     """Helper function to call download_and_convert with star args.
 
-    This helps us use download_and_convert with mutiprocessing.
+    This helps us use download_and_convert with multiprocessing.
     """
     return download_and_convert(*args)
 
@@ -236,15 +236,15 @@ def download_and_convert(
     compression: str,
     trust_remote_code: bool,
 ):
-    """Downloads and converts text fies to MDS format.
+    """Downloads and converts text files to MDS format.
 
     Args:
         file_names (List[str]): Files to process
         output_folder (str): Folder to write MDS shards to
         input_folder (str): Folder of text files to process
         tokenizer_name (str): Name of tokenizer to use
-        concat_tokens (int): Concantenate up to this many tokens
-        eos_text (str): Textend to append to each example to separate concatenated samples
+        concat_tokens (int): Concatenate up to this many tokens
+        eos_text (str): Text to append to each example to separate concatenated samples
         bos_text (str): Text to prepend to each example to separate concatenated samples
         no_wrap: (bool): Whether to let text examples wrap across multiple training examples
         compression (str): The compression algorithm to use for MDS writing
@@ -375,8 +375,8 @@ def convert_text_to_mds(
         tokenizer_name (str): Name of tokenizer to use
         output_folder (str): Folder to write MDS shards to
         input_folder (str): Folder of text files to process
-        concat_tokens (int): Concantenate up to this many tokens
-        eos_text (str): Textend to append to each example to separate concatenated samples
+        concat_tokens (int): Concatenate up to this many tokens
+        eos_text (str): Text to append to each example to separate concatenated samples
         bos_text (str): Text to prepend to each example to separate concatenated samples
         no_wrap: (bool): Whether to let text examples wrap across multiple training examples
         compression (str): The compression algorithm to use for MDS writing

@@ -12,7 +12,8 @@ import torch
 from torch import nn
 from torch.distributed._tensor import DTensor
 
-from llmfoundry.layers_registry import fcs, norms
+from llmfoundry.layers_registry import (fcs, module_init_fns, norms,
+                                        param_init_fns)
 from llmfoundry.models.layers.dmoe import GLU, MLP
 
 try:
@@ -24,6 +25,10 @@ try:
     import megablocks
 except:
     megablocks = None
+
+__all__ = [
+    'generic_param_init_fn_',
+]
 
 
 def torch_default_param_init_fn_(
@@ -53,7 +58,7 @@ def fused_init_helper_(
     Args:
         module (nn.Module): The module to initialize.
         init_fn_ (Callable): Initialization method.
-        name_param (str): Name of parameter to initalize within the module.
+        name_param (str): Name of parameter to initialize within the module.
     """
     _fused = getattr(module, '_fused', None)
     if _fused is None:
@@ -89,7 +94,7 @@ def stacked_init_helper_(
     init_fn_: Callable,
     name_param: str = 'weight',
 ):
-    """Initializes parameters stacked along a new dimention.
+    """Initializes parameters stacked along a new dimension.
 
     Parameter initialization is often based on the parameters shape. If a layer is stacked,
     initialization should be based on the shapes of the original tensor instead of the
@@ -99,7 +104,7 @@ def stacked_init_helper_(
     Args:
         module (nn.Module): The module to initialize.
         init_fn_ (Callable): Initialization method.
-        name_param (str): Name of parameter to initalize within the module.
+        name_param (str): Name of parameter to initialize within the module.
     """
     stack_dim = getattr(module, '_stack_dim', None)
     if stack_dim is None:
@@ -113,12 +118,12 @@ def stacked_param_init_helper(
     init_fn_: Callable,
     stack_dim: int,
 ):
-    """Initialize parameters stacked along a new dimention.
+    """Initialize parameters stacked along a new dimension.
 
     Args:
         param (torch.Tensor): Tensor to initialize.
         init_fn_ (Callable): Initialization method.
-        stack_dim (int): Dimention along with parameters are stacked
+        stack_dim (int): Dimension along with parameters are stacked
     """
     p_ndims = param.ndim
 
@@ -145,6 +150,221 @@ def _flip_fan_mode(init_fn_: Callable):
         elif _init_fn_.keywords['mode'] == 'fan_out':
             _init_fn_.keywords['mode'] = 'fan_in'
     return _init_fn_
+
+
+def fc_init(
+    module: nn.Module,
+    init_fn_: Callable,
+    init_div_is_residual: Union[int, float, str, bool],
+    div_is_residual: Optional[float],
+    **kwargs: Any,
+) -> bool:
+    del kwargs  # unused, just to capture any extra args
+
+    if isinstance(module, tuple(set([fcs.get(n) for n in fcs.get_all()]))):
+        # Linear
+        if hasattr(module, '_fused'):
+            fused_init_helper_(module, init_fn_)
+        else:
+            init_fn_(module.weight)
+        if module.bias is not None:
+            assert isinstance(module.bias, torch.Tensor)
+            torch.nn.init.zeros_(module.bias)
+
+        if init_div_is_residual is not False and getattr(
+                module, '_is_residual', False):
+            with torch.no_grad():
+                module.weight.div_(div_is_residual)  # type: ignore
+        return True
+
+    return False
+
+
+def embedding_init(
+    module: nn.Module,
+    init_fn_: Callable,
+    emb_init_std: Optional[float],
+    emb_init_uniform_lim: Optional[Union[Tuple[float, float], float]],
+    **kwargs: Any,
+) -> bool:
+    del kwargs  # unused, just to capture any extra args
+
+    if isinstance(module, nn.Embedding):
+        # Embedding
+        if emb_init_std is not None:
+            std = emb_init_std
+            if std == 0:
+                warnings.warn(f'Embedding layer initialized to 0.')
+            emb_init_fn_ = partial(torch.nn.init.normal_, mean=0.0, std=std)
+        elif emb_init_uniform_lim is not None:
+            lim = emb_init_uniform_lim
+            if isinstance(lim, Sequence):
+                if len(lim) > 2:
+                    raise ValueError(
+                        f'Uniform init requires a min and a max limit. User input: {lim}.'
+                    )
+                if lim[0] == lim[1]:
+                    warnings.warn(f'Embedding layer initialized to {lim[0]}.')
+            else:
+                if lim == 0:
+                    warnings.warn(f'Embedding layer initialized to 0.')
+                lim = [-lim, lim]
+            a, b = lim
+            emb_init_fn_ = partial(torch.nn.init.uniform_, a=a, b=b)
+        else:
+            emb_init_fn_ = init_fn_
+
+        emb_init_fn_(module.weight)
+
+        return True
+
+    return False
+
+
+def norm_init(
+    module: nn.Module,
+    **kwargs: Any,
+) -> bool:
+    del kwargs  # unused, just to capture any extra args
+
+    if isinstance(module,
+                  tuple(set([norms.get(name) for name in norms.get_all()]))):
+        # Norm
+        if hasattr(module, 'weight') and isinstance(module.weight,
+                                                    torch.Tensor):
+            torch.nn.init.ones_(module.weight)
+        if hasattr(module, 'bias') and isinstance(module.bias, torch.Tensor):
+            torch.nn.init.zeros_(module.bias)
+
+        return True
+
+    return False
+
+
+def multihead_attention_init(
+    module: nn.Module,
+    init_fn_: Callable,
+    d_model: Optional[int],
+    init_div_is_residual: Union[int, float, str, bool],
+    div_is_residual: float,
+    **kwargs: Any,
+) -> bool:
+    del kwargs  # unused, just to capture any extra args
+
+    if isinstance(module, nn.MultiheadAttention):
+        # torch's MultiheadAttention
+        if module._qkv_same_embed_dim:
+            assert module.in_proj_weight is not None
+            assert module.q_proj_weight is None and module.k_proj_weight is None and module.v_proj_weight is None
+            assert d_model is not None
+            # in_proj_weight is actually 3 layers and should be split up for width based init
+            _d = d_model
+            splits = (0, _d, 2 * _d, 3 * _d)
+            for s, e in zip(splits[:-1], splits[1:]):
+                init_fn_(module.in_proj_weight[s:e])
+        else:
+            assert module.q_proj_weight is not None and module.k_proj_weight is not None and module.v_proj_weight is not None
+            assert module.in_proj_weight is None
+            init_fn_(module.q_proj_weight)
+            init_fn_(module.k_proj_weight)
+            init_fn_(module.v_proj_weight)
+
+        # bias
+        if module.in_proj_bias is not None:
+            torch.nn.init.zeros_(module.in_proj_bias)
+        if module.bias_k is not None:
+            torch.nn.init.zeros_(module.bias_k)
+        if module.bias_v is not None:
+            torch.nn.init.zeros_(module.bias_v)
+
+        # out proj
+        init_fn_(module.out_proj.weight)
+        if init_div_is_residual is not False and getattr(
+                module.out_proj, '_is_residual', False):
+            with torch.no_grad():
+                module.out_proj.weight.div_(div_is_residual)
+        if module.out_proj.bias is not None:
+            torch.nn.init.zeros_(module.out_proj.bias)
+
+        return True
+
+    return False
+
+
+def te_layernorm_mlp_init(
+    module: nn.Module,
+    init_fn_: Callable,
+    **kwargs: Any,
+) -> bool:
+    del kwargs  # unused, just to capture any extra args
+
+    if te is not None and isinstance(module, te.LayerNormMLP):
+        if isinstance(module.layer_norm_weight, torch.Tensor):
+            torch.nn.init.ones_(module.layer_norm_weight)
+        if isinstance(module.layer_norm_bias, torch.Tensor):
+            torch.nn.init.zeros_(module.layer_norm_bias)
+
+        init_fn_(module.fc1_weight)
+        if module.fc1_bias is not None:
+            assert isinstance(module.fc1_bias, torch.Tensor)
+            torch.nn.init.zeros_(module.fc1_bias)
+        init_fn_(module.fc2_weight)
+        if module.fc2_bias is not None:
+            assert isinstance(module.fc2_bias, torch.Tensor)
+            torch.nn.init.zeros_(module.fc2_bias)
+
+        with torch.no_grad():
+            module.fc2_weight.div_(div_is_residual)  # type: ignore
+
+        return True
+
+    return False
+
+
+def moe_init(
+    module: nn.Module,
+    init_fn_: Callable,
+    init_div_is_residual: Union[int, float, str, bool],
+    div_is_residual: float,
+    **kwargs: Any,
+) -> bool:
+    if megablocks is not None and isinstance(module, (
+            megablocks.layers.moe.MoE,
+            megablocks.layers.dmoe.dMoE,
+            megablocks.layers.moe.ParallelMLP,
+            megablocks.layers.dmoe.ParallelDroplessMLP,
+    )):
+        if hasattr(module, 'bias') and module.bias is not None:
+            # Initialize bias to 0
+            torch.nn.init.zeros_(module.bias)  # type: ignore
+        return True
+    elif megablocks is not None and isinstance(module,
+                                               megablocks.layers.glu.SparseGLU):
+        _megablocks_sparse_glu_generic_param_init_fn_(
+            module, init_fn_, bool(init_div_is_residual), div_is_residual)
+        return True
+    elif megablocks is not None and isinstance(module,
+                                               megablocks.layers.mlp.SparseMLP):
+        _megablocks_sparse_mlp_generic_param_init_fn_(
+            module, init_fn_, bool(init_div_is_residual), div_is_residual)
+        return True
+    elif megablocks is not None and isinstance(module,
+                                               megablocks.layers.mlp.MLP):
+        _megablocks_mlp_generic_param_init_fn_(module, init_fn_,
+                                               bool(init_div_is_residual),
+                                               div_is_residual)
+        return True
+    elif isinstance(module, GLU):
+        init_fn_(module.w1)
+        init_fn_(module.v1)
+        init_fn_(module.w2)
+        return True
+    elif isinstance(module, MLP):
+        init_fn_(module.w1)
+        init_fn_(module.w2)
+        return True
+
+    return False
 
 
 def generic_param_init_fn_(
@@ -181,145 +401,32 @@ def generic_param_init_fn_(
             f'Expected init_div_is_residual to be boolean or numeric, got {init_div_is_residual}'
         )
 
-    if isinstance(module, tuple(set([fcs.get(n) for n in fcs.get_all()]))):
-        # Linear
-        if hasattr(module, '_fused'):
-            fused_init_helper_(module, init_fn_)
-        else:
-            init_fn_(module.weight)
-        if module.bias is not None:
-            assert isinstance(module.bias, torch.Tensor)
-            torch.nn.init.zeros_(module.bias)
+    all_module_init_fns = [
+        module_init_fns.get(name) for name in module_init_fns.get_all()
+    ]
+    did_init = False
+    for module_init_fn in all_module_init_fns:
+        did_init = module_init_fn(
+            module=module,
+            init_fn_=init_fn_,
+            d_model=d_model,
+            init_div_is_residual=init_div_is_residual,
+            div_is_residual=div_is_residual,
+            emb_init_std=emb_init_std,
+            emb_init_uniform_lim=emb_init_uniform_lim,
+        )
 
-        if init_div_is_residual is not False and getattr(
-                module, '_is_residual', False):
-            with torch.no_grad():
-                module.weight.div_(div_is_residual)  # type: ignore
+        if did_init:
+            break
 
-    elif isinstance(module, nn.Embedding):
-        # Embedding
-        if emb_init_std is not None:
-            std = emb_init_std
-            if std == 0:
-                warnings.warn(f'Embedding layer initialized to 0.')
-            emb_init_fn_ = partial(torch.nn.init.normal_, mean=0.0, std=std)
-        elif emb_init_uniform_lim is not None:
-            lim = emb_init_uniform_lim
-            if isinstance(lim, Sequence):
-                if len(lim) > 2:
-                    raise ValueError(
-                        f'Uniform init requires a min and a max limit. User input: {lim}.'
-                    )
-                if lim[0] == lim[1]:
-                    warnings.warn(f'Embedding layer initialized to {lim[0]}.')
-            else:
-                if lim == 0:
-                    warnings.warn(f'Embedding layer initialized to 0.')
-                lim = [-lim, lim]
-            a, b = lim
-            emb_init_fn_ = partial(torch.nn.init.uniform_, a=a, b=b)
-        else:
-            emb_init_fn_ = init_fn_
-
-        emb_init_fn_(module.weight)
-
-    elif isinstance(module,
-                    tuple(set([norms.get(name) for name in norms.get_all()]))):
-        # Norm
-        if hasattr(module, 'weight') and isinstance(module.weight,
-                                                    torch.Tensor):
-            torch.nn.init.ones_(module.weight)
-        if hasattr(module, 'bias') and isinstance(module.bias, torch.Tensor):
-            torch.nn.init.zeros_(module.bias)
-
-    elif isinstance(module, nn.MultiheadAttention):
-        # torch's MultiheadAttention
-        if module._qkv_same_embed_dim:
-            assert module.in_proj_weight is not None
-            assert module.q_proj_weight is None and module.k_proj_weight is None and module.v_proj_weight is None
-            assert d_model is not None
-            # in_proj_weight is actually 3 layers and should be split up for width based init
-            _d = d_model
-            splits = (0, _d, 2 * _d, 3 * _d)
-            for s, e in zip(splits[:-1], splits[1:]):
-                init_fn_(module.in_proj_weight[s:e])
-        else:
-            assert module.q_proj_weight is not None and module.k_proj_weight is not None and module.v_proj_weight is not None
-            assert module.in_proj_weight is None
-            init_fn_(module.q_proj_weight)
-            init_fn_(module.k_proj_weight)
-            init_fn_(module.v_proj_weight)
-
-        # bias
-        if module.in_proj_bias is not None:
-            torch.nn.init.zeros_(module.in_proj_bias)
-        if module.bias_k is not None:
-            torch.nn.init.zeros_(module.bias_k)
-        if module.bias_v is not None:
-            torch.nn.init.zeros_(module.bias_v)
-
-        # out proj
-        init_fn_(module.out_proj.weight)
-        if init_div_is_residual is not False and getattr(
-                module.out_proj, '_is_residual', False):
-            with torch.no_grad():
-                module.out_proj.weight.div_(div_is_residual)
-        if module.out_proj.bias is not None:
-            torch.nn.init.zeros_(module.out_proj.bias)
-
-    elif te is not None and isinstance(module, te.LayerNormMLP):
-        if isinstance(module.layer_norm_weight, torch.Tensor):
-            torch.nn.init.ones_(module.layer_norm_weight)
-        if isinstance(module.layer_norm_bias, torch.Tensor):
-            torch.nn.init.zeros_(module.layer_norm_bias)
-
-        init_fn_(module.fc1_weight)
-        if module.fc1_bias is not None:
-            assert isinstance(module.fc1_bias, torch.Tensor)
-            torch.nn.init.zeros_(module.fc1_bias)
-        init_fn_(module.fc2_weight)
-        if module.fc2_bias is not None:
-            assert isinstance(module.fc2_bias, torch.Tensor)
-            torch.nn.init.zeros_(module.fc2_bias)
-
-        with torch.no_grad():
-            module.fc2_weight.div_(div_is_residual)  # type: ignore
-
-    elif megablocks is not None and isinstance(module, (
-            megablocks.layers.moe.MoE,
-            megablocks.layers.dmoe.dMoE,
-            megablocks.layers.moe.ParallelMLP,
-            megablocks.layers.dmoe.ParallelDroplessMLP,
-    )):
-        if hasattr(module, 'bias') and module.bias is not None:
-            # Initialize bias to 0
-            torch.nn.init.zeros_(module.bias)  # type: ignore
-    elif megablocks is not None and isinstance(module,
-                                               megablocks.layers.glu.SparseGLU):
-        _megablocks_sparse_glu_generic_param_init_fn_(
-            module, init_fn_, bool(init_div_is_residual), div_is_residual)
-    elif megablocks is not None and isinstance(module,
-                                               megablocks.layers.mlp.SparseMLP):
-        _megablocks_sparse_mlp_generic_param_init_fn_(
-            module, init_fn_, bool(init_div_is_residual), div_is_residual)
-    elif megablocks is not None and isinstance(module,
-                                               megablocks.layers.mlp.MLP):
-        _megablocks_mlp_generic_param_init_fn_(module, init_fn_,
-                                               bool(init_div_is_residual),
-                                               div_is_residual)
-    elif isinstance(module, GLU):
-        init_fn_(module.w1)
-        init_fn_(module.v1)
-        init_fn_(module.w2)
-    elif isinstance(module, MLP):
-        init_fn_(module.w1)
-        init_fn_(module.w2)
-    else:
+    if not did_init:
         for _ in module.parameters(recurse=False):
             # raise error if uninitialized module has any parameters
             raise NotImplementedError(
-                f'{module.__class__.__name__} parameters are not initialized by param_init_fn.'
-            )
+                f'{module.__class__.__name__} parameters are not initialized by any of the registered module_init_fns. '
+                +
+                'Please add an appropriate module_init_fn to the registry. Currently registered module_init_fns are: '
+                + ', '.join(module_init_fns.get_all()))
 
 
 def _megablocks_sparse_mlp_generic_param_init_fn_(
@@ -725,13 +832,18 @@ def xavier_normal_param_init_fn_(
     )
 
 
-MODEL_INIT_REGISTRY = {
-    'default_': torch_default_param_init_fn_,
-    'baseline_': baseline_param_init_fn_,
-    'kaiming_uniform_': kaiming_uniform_param_init_fn_,
-    'kaiming_normal_': kaiming_normal_param_init_fn_,
-    'neox_init_': neox_param_init_fn_,
-    'small_init_': small_param_init_fn_,
-    'xavier_uniform_': xavier_uniform_param_init_fn_,
-    'xavier_normal_': xavier_normal_param_init_fn_,
-}
+param_init_fns.register('default_', func=torch_default_param_init_fn_)
+param_init_fns.register('baseline_', func=baseline_param_init_fn_)
+param_init_fns.register('kaiming_uniform_', func=kaiming_uniform_param_init_fn_)
+param_init_fns.register('kaiming_normal_', func=kaiming_normal_param_init_fn_)
+param_init_fns.register('neox_init_', func=neox_param_init_fn_)
+param_init_fns.register('small_init_', func=small_param_init_fn_)
+param_init_fns.register('xavier_uniform_', func=xavier_uniform_param_init_fn_)
+param_init_fns.register('xavier_normal_', func=xavier_normal_param_init_fn_)
+
+module_init_fns.register('fc', func=fc_init)
+module_init_fns.register('embedding', func=embedding_init)
+module_init_fns.register('norm', func=norm_init)
+module_init_fns.register('multihead_attention', func=multihead_attention_init)
+module_init_fns.register('te_layernorm_mlp', func=te_layernorm_mlp_init)
+module_init_fns.register('moe', func=moe_init)

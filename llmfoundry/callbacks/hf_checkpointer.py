@@ -12,8 +12,9 @@ import tempfile
 import time
 from multiprocessing.context import SpawnProcess
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
+import numpy as np
 import torch
 import torch.nn as nn
 from composer.core import Callback, Event, State, Time, TimeUnit
@@ -34,6 +35,8 @@ from llmfoundry.utils.huggingface_hub_utils import \
     edit_files_for_hf_compatibility
 
 log = logging.getLogger(__name__)
+
+__all__ = ['HuggingFaceCheckpointer']
 
 _LICENSE_FILE_PATTERN = re.compile(r'license(\.[a-z]+|$)', re.IGNORECASE)
 
@@ -158,8 +161,6 @@ class HuggingFaceCheckpointer(Callback):
         if mlflow_logging_config is None:
             mlflow_logging_config = {}
         if self.mlflow_registered_model_name is not None:
-            import numpy as np
-
             # Both the metadata and the task are needed in order for mlflow
             # and databricks optimized model serving to work
             passed_metadata = mlflow_logging_config.get('metadata', {})
@@ -169,18 +170,17 @@ class HuggingFaceCheckpointer(Callback):
             default_input_example = {
                 'prompt': np.array(['What is Machine Learning?'])
             }
-            is_chat = mlflow_logging_config['task'].endswith(
-                'chat') or mlflow_logging_config['metadata'].get(
-                    'task', '').endswith('chat')
+            is_chat = mlflow_logging_config['task'].endswith('chat') or (
+                mlflow_logging_config['metadata'] is not None and
+                mlflow_logging_config['metadata'].get('task',
+                                                      '').endswith('chat'))
             if is_chat:
                 default_input_example = {
-                    'messages':
-                        np.array([{
-                            'role': 'user',
-                            'content': 'What is Machine Learning?'
-                        }])
+                    'messages': [{
+                        'role': 'user',
+                        'content': 'What is Machine Learning?'
+                    }]
                 }
-                mlflow_logging_config.setdefault('example_no_conversion', True)
             mlflow_logging_config.setdefault('input_example',
                                              default_input_example)
 
@@ -258,6 +258,16 @@ class HuggingFaceCheckpointer(Callback):
             return True
 
         assert state.max_duration is not None  # for pyright
+
+        epoch_complete = state.dataloader_len == state.timestamp.batch_in_epoch
+        second_to_last_epoch = state.max_duration.unit == TimeUnit.EPOCH and (
+            state.timestamp.epoch == state.max_duration.value - 1)
+        # If the save interval is specified as exactly the same number of batches as the total duration,
+        # but the max duration is specified in epochs, we need a special case to identify we are on the last batch
+        # and should write the mlflow checkpoint. This should occur on the last batch of the final epoch.
+        if self.save_interval.unit == TimeUnit.BATCH and second_to_last_epoch and epoch_complete:
+            return True
+
         # If the save interval is specified as 1dur, and the max duration is in epoch units
         # we need a special case to identify we are on the last batch and should write the mlflow checkpoint
         if self.save_interval.unit == TimeUnit.DURATION and self.save_interval.value == 1 and state.max_duration.unit == TimeUnit.EPOCH:
@@ -272,6 +282,23 @@ class HuggingFaceCheckpointer(Callback):
         x = torch.tensor(1 if not_done else 0).to(device='cuda')
         dist.all_reduce(x, reduce_operation='MAX')
         return x.item() == 0
+
+    def transform_model_and_tokenizer(
+        self, model: PreTrainedModel, tokenizer: PreTrainedTokenizerBase
+    ) -> Tuple[PreTrainedModel, PreTrainedTokenizerBase]:
+        """Transform the model and tokenizer before saving.
+
+        This allows a subclass to modify the model and tokenizer before saving. The base class implementation will
+        make no modifications.
+
+        Args:
+            model (PreTrainedModel): The model to be transformed.
+            tokenizer (PreTrainedTokenizerBase): The tokenizer to be transformed.
+
+        Returns:
+            Tuple[PreTrainedModel, PreTrainedTokenizerBase]: The transformed model and tokenizer.
+        """
+        return model, tokenizer
 
     def _save_checkpoint(self, state: State, logger: Logger):
         del logger  # unused
@@ -404,6 +431,10 @@ class HuggingFaceCheckpointer(Callback):
             # is loaded properly even though the model is initially on meta device.
             new_model_instance.load_state_dict(state_dict, assign=True)
             del state_dict
+
+            # Transform the model and tokenizer before saving
+            new_model_instance, original_tokenizer = self.transform_model_and_tokenizer(
+                new_model_instance, original_tokenizer)
 
             log.debug('Saving Hugging Face checkpoint to disk')
             new_model_instance.save_pretrained(temp_save_dir)

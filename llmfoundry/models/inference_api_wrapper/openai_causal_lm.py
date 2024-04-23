@@ -23,6 +23,7 @@ from llmfoundry.models.inference_api_wrapper.interface import \
 __all__ = [
     'OpenAICausalLMEvalWrapper',
     'OpenAIChatAPIEvalWrapper',
+    'OpenAIEvalInterface',
 ]
 
 if TYPE_CHECKING:

@@ -276,6 +276,10 @@ def make_dataclass_and_log_config(
     dataclass_dict_config: DictConfig = om.structured(
         dataclass_constructor(**unstructured_config))
 
+    # Error on missing mandatory values:
+    for key in dataclass_fields:
+        _ = dataclass_dict_config[key]
+
     # Convert DictConfig to dict for dataclass constructor so that child
     # configs are not DictConfigs
     dataclass_config: T = dataclass_constructor(

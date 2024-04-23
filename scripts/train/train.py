@@ -44,10 +44,6 @@ log = logging.getLogger(__name__)
 
 def validate_config(train_config: TrainConfig):
     """Validates compatible model and dataloader selection."""
-    # Check for missing mandatory fields and throw error early.
-    for field in TRAIN_CONFIG_KEYS:
-        _ = getattr(train_config, field)
-
     # Validate the rest of the config
     loaders = [train_config.train_loader]
     if train_config.eval_loaders is not None:

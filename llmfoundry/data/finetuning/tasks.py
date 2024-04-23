@@ -72,7 +72,12 @@ from llmfoundry.utils.logging_utils import SpecificWarningFilter
 
 log = logging.getLogger(__name__)
 
-__all__ = ['dataset_constructor']
+__all__ = [
+    'dataset_constructor',
+    'tokenize_formatted_example',
+    'is_valid_ift_example',
+    'StreamingFinetuningDataset',
+]
 
 _ALLOWED_RESPONSE_KEYS = {'response', 'completion'}
 _ALLOWED_PROMPT_KEYS = {'prompt'}

@@ -18,6 +18,18 @@ from llmfoundry.layers_registry import (attention_classes,
                                         attention_implementations)
 from llmfoundry.models.layers.layer_builders import build_fc, build_norm
 
+__all__ = [
+    'scaled_multihead_dot_product_attention',
+    'flash_attn_fn',
+    'MultiheadAttention',
+    'MultiQueryAttention',
+    'GroupedQueryAttention',
+    'attn_bias_shape',
+    'build_attn_bias',
+    'build_alibi_bias',
+    'check_alibi_support',
+]
+
 
 def is_flash_v2_installed(v2_version: str = '2.0.0'):
     assert version.parse(v2_version) >= version.parse('2.0.0')

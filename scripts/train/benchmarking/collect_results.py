@@ -150,8 +150,8 @@ def parse_run(run: msdk.Run) -> Dict[str, Any]:
     d_model = run.submitted_config.parameters['model']['d_model']
     n_layers = run.submitted_config.parameters['model']['n_layers']
 
-    # mfu is approximated using thoughtput and param count
-    # the number of paramters is approximately the number of multiply-accumulates (MAC) in the network
+    # mfu is approximated using throughput and param count
+    # the number of parameters is approximately the number of multiply-accumulates (MAC) in the network
     # each MAC has 2 FLOPs - we multiply by 2 ie 2 * n_param
     # there are 3 passes of a NN (fwd, bwd, delta) - we multiply by 3 ie 2 * 3 * n_param
     # this gets us FLOPs / token

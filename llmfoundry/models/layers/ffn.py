@@ -32,6 +32,17 @@ except ModuleNotFoundError:
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    'MPTMLP',
+    'MPTGLU',
+    'build_mptglu',
+    'build_mptmlp',
+    'build_te_ln_mlp',
+    'build_torch_dmoe',
+    'build_mb_moe',
+    'build_mb_dmoe',
+]
+
 _FFN_ACT_FN_DEFAULT = {
     'name': 'gelu',
     'approximate': 'none',

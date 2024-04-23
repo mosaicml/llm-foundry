@@ -5,6 +5,14 @@ from typing import Callable, Optional
 
 import torch
 
+__all__ = [
+    'dMoE',
+    'LearnedRouter',
+    'MLP',
+    'GLU',
+    'DroplessMLP',
+]
+
 
 # Add option to route tokens uniformly across experts. We use
 # a custom autograd op router backwards is still run for benchmarking.

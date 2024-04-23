@@ -27,6 +27,8 @@ from mcli import Run, RunConfig, create_run, get_run
 
 log = logging.getLogger(__name__)
 
+__all__ = ['AsyncEval']
+
 REQUIRED_PARAMS_FOR_EVAL = {
     'device_eval_batch_size',
     'icl_tasks',  # only required for eval, may not be specified in pure training

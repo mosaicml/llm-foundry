@@ -662,7 +662,7 @@ class InContextLearningMCExpectedCalibrationError(
     def update(self, batch: dict, outputs: torch.Tensor, labels: torch.Tensor):
 
         outputs = torch.softmax(outputs, dim=2)
-        probabilites = []
+        probabilities = []
         for batch_idx, cont_idx in enumerate(batch['continuation_indices']):
             cont_tok_logits = outputs[batch_idx].index_select(dim=0,
                                                               index=cont_idx -
@@ -671,11 +671,11 @@ class InContextLearningMCExpectedCalibrationError(
                                                            index=cont_idx - 1)
             probability = cont_tok_logits.index_select(
                 dim=1, index=cont_tok_targ).diagonal().mean()
-            probabilites.append(probability)
+            probabilities.append(probability)
 
         for (start, end), gold_idx in zip(batch['choice_groupings'],
                                           batch['gold_indices']):
-            subset = probabilites[start:end]
+            subset = probabilities[start:end]
             idx_max = subset.index(max(subset))
             confidence = torch.tensor(subset).max() / torch.tensor(subset).sum()
 

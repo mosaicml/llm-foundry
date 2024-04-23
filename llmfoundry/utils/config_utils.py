@@ -253,7 +253,7 @@ def make_dataclass_and_log_config(
     # Create copy of config for logging
     logged_cfg: Dict[str, Any] = copy.deepcopy(unstructured_config)
 
-    # apply transforms to the unstructured config before constructing dataclass
+    # Apply transforms to the unstructured config before constructing dataclass
     for transform in transforms or []:
         unstructured_config = transform(unstructured_config)
 

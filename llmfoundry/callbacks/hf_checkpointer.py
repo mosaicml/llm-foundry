@@ -262,6 +262,9 @@ class HuggingFaceCheckpointer(Callback):
         epoch_complete = state.dataloader_len == state.timestamp.batch_in_epoch
         second_to_last_epoch = state.max_duration.unit == TimeUnit.EPOCH and (
             state.timestamp.epoch == state.max_duration.value - 1)
+        # If the save interval is specified as exactly the same number of batches as the total duration,
+        # but the max duration is specified in epochs, we need a special case to identify we are on the last batch
+        # and should write the mlflow checkpoint. This should occur on the last batch of the final epoch.
         if self.save_interval.unit == TimeUnit.BATCH and second_to_last_epoch and epoch_complete:
             return True
 

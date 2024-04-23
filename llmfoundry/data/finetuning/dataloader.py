@@ -280,31 +280,6 @@ def build_finetuning_dataloader(
     return DataSpec(dataloader=dl, get_num_tokens_in_batch=token_counting_func)
 
 
-# local=dataset_cfg.get('local', None),
-# remote=dataset_cfg.get('remote', None),
-# split=dataset_cfg.get('split', None),
-# download_retry=dataset_cfg.get('download_retry', 2),
-# download_timeout=dataset_cfg.get('download_timeout', 60),
-# validate_hash=dataset_cfg.get('validate_hash', None),
-# keep_zip=dataset_cfg.get('keep_zip', False),
-# epoch_size=dataset_cfg.get('epoch_size', None),
-# predownload=dataset_cfg.get('predownload', None),
-# cache_limit=dataset_cfg.get('cache_limit', None),
-# partition_algo=dataset_cfg.get('partition_algo', 'relaxed'),
-# num_canonical_nodes=dataset_cfg.get('num_canonical_nodes', None),
-# batch_size=device_batch_size,
-# shuffle=dataset_cfg.get('shuffle', False),
-# shuffle_algo=dataset_cfg.get('shuffle_algo', 'py1e'),
-# shuffle_seed=dataset_cfg.get('shuffle_seed', 9176),
-# shuffle_block_size=dataset_cfg.get('shuffle_block_size', None),
-# sampling_method=dataset_cfg.get('sampling_method', 'balanced'),
-# sampling_granularity=dataset_cfg.get('sampling_granularity', 1),
-# batching_method=dataset_cfg.get('batching_method', 'random'),
-# max_seq_len=dataset_cfg.max_seq_len,
-# allow_unsafe_types=dataset_cfg.get('allow_unsafe_types', False),
-# replication=dataset_cfg.get('replication', None),
-
-
 def _validate_config(
     max_seq_len: int,
     decoder_only_format: bool = False,

@@ -79,9 +79,6 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         additional_train_metrics = additional_train_metrics or []
         additional_eval_metrics = additional_eval_metrics or []
 
-        pretrained_model_name_or_path = pretrained_model_name_or_path
-        pretrained_lora_id_or_path = pretrained_lora_id_or_path
-
         if not trust_remote_code and pretrained_model_name_or_path.startswith(
                 'mosaicml/mpt'):
             raise ValueError(

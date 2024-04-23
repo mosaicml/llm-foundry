@@ -92,8 +92,6 @@ class TrainConfig:
     max_seq_len: int = MISSING
     seed: int = MISSING
 
-    # Optional model training parameters
-
     # Code paths to import
     code_paths: Optional[List[str]] = None
 
@@ -197,7 +195,7 @@ def to_container(
     cfg: Optional[Union[DictConfig, ListConfig, Dict[str, Any],
                         List[Dict[str, Any]]]]
 ) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
-    """Converts a DictConfig or ListConfig to a dict or list recursively.
+    """Converts a DictConfig or ListConfig to a dict or list.
 
     `omegaconf.to_container` does not handle nested DictConfig or ListConfig
     objects, so this function is used to convert them to dicts or lists.
@@ -269,7 +267,7 @@ def make_dataclass_and_log_config(
 
     for key in extraneous_keys:
         warnings.warn(
-            f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary. Interpreting {key} as a variable for logging purposes. Top-level variables are deprecated and will not be supported in future releases.',
+            f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary. Interpreting {key} as a variable for logging purposes. Top-level variables are deprecated and will not be supported in future releases. Please place any variables under the `variables` key.',
             category=DeprecationWarning)
         unstructured_config['variables'][key] = unstructured_config.pop(key)
 
@@ -438,21 +436,3 @@ def log_config(cfg: Dict[str, Any]) -> None:
             raise e
         if mlflow.active_run():
             mlflow.log_params(params=cfg)
-
-
-if __name__ == '__main__':
-    my_dict_config = DictConfig({
-        'a': 1,
-        'b': 2,
-        'c': None,
-        'd': {
-            'e': 3,
-            'f': 4,
-            'g': None
-        }
-    })
-
-    print(to_dict_container(my_dict_config))
-    print(om.to_container(my_dict_config))
-    assert to_dict_container(my_dict_config) == om.to_container(
-        my_dict_config)  # passes

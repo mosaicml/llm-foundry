@@ -57,6 +57,7 @@ class ComposerHFT5(HuggingFaceModelWithFSDP):
         from llmfoundry.utils.builders import build_metric
 
         config_overrides = config_overrides or {}
+        additional_train_metrics = additional_train_metrics or []
 
         config = AutoConfig.from_pretrained(
             pretrained_model_name_or_path,
@@ -65,7 +66,7 @@ class ComposerHFT5(HuggingFaceModelWithFSDP):
         )
 
         # set config overrides
-        for k, v in (config_overrides or {}).items():
+        for k, v in config_overrides.items():
             if not hasattr(config, k):
                 raise ValueError(
                     f'config does not have attribute "{k}" to override ({k}: {v}).'
@@ -86,8 +87,6 @@ class ComposerHFT5(HuggingFaceModelWithFSDP):
         if not config.is_encoder_decoder:
             raise ValueError(f'Model type "hf_t5" currently only supports T5 models ' +\
                              f'using configs where `is_encoder_decoder` is ``True``.')
-
-        init_device = init_device
 
         # Get the device we want to initialize, and use the
         # resolved version to initialize the HF model
@@ -116,8 +115,8 @@ class ComposerHFT5(HuggingFaceModelWithFSDP):
                 f'init_device="{init_device}" must be either "cpu" or "meta".')
 
         metrics = [
-            build_metric(metric, {}) for metric in DEFAULT_ENC_DEC_METRICS +
-            (additional_train_metrics or [])
+            build_metric(metric, {})
+            for metric in DEFAULT_ENC_DEC_METRICS + additional_train_metrics
         ]
 
         composer_model = super().__init__(model=model,

@@ -45,7 +45,7 @@ log = logging.getLogger(__name__)
 
 def validate_config(train_config: TrainConfig):
     """Validates compatible model and dataloader selection."""
-    # Check for missing mandatory fields
+    # Check for missing mandatory fields and throw error early.
     for field in TRAIN_CONFIG_KEYS:
         _ = getattr(train_config, field)
 
@@ -85,19 +85,18 @@ def validate_config(train_config: TrainConfig):
     if (train_config.model.get('fc_type', 'torch') == 'te' or
             'te' in train_config.model.get('ffn_config', {}).get(
                 'ffn_type', 'mptmlp')):
-        if train_config.fsdp_config is None:
-            train_config.fsdp_config = {}
         fsdp_config = train_config.fsdp_config
         act_ckpt = fsdp_config.get('activation_checkpointing',
                                    False) if fsdp_config else False
         act_ckpt_reentrant = fsdp_config.get(
             'activation_checkpointing_reentrant', False)
-        if act_ckpt == True and act_ckpt_reentrant == True:
+        if fsdp_config is not None and act_ckpt == True and act_ckpt_reentrant == True:
             warnings.warn(
                 '`te.Linear` layers do not support activation_checkpointing with '
                 + '`activation_checkpointing_reentrant = True`. ' +
                 'Setting cfg.fsdp_config.activation_checkpointing_reentrant=False.'
             )
+            assert train_config.fsdp_config is not None  # pyright (this is known because fsdp_config is not None)
             train_config.fsdp_config[
                 'activation_checkpointing_reentrant'] = False
 
@@ -149,17 +148,17 @@ def _log_num_params(model: ComposerModel, logged_cfg: Dict[str, Any]):
 
 
 def main(cfg: DictConfig) -> Trainer:
+    code_paths = cfg.get('code_paths', [])
+    # Import any user provided code
+    for code_path in code_paths:
+        import_file(code_path)
+
     cfgs: Tuple[Dict[str, Any], TrainConfig] = make_dataclass_and_log_config(
         cfg,
         TrainConfig,
         TRAIN_CONFIG_KEYS,
         transforms=[update_batch_size_info])
     logged_cfg, train_cfg = cfgs
-
-    code_paths = train_cfg.code_paths if train_cfg.code_paths else []
-    # Import any user provided code
-    for code_path in code_paths:
-        import_file(code_path)
 
     # Filter deprecation warning from torch internal usage
     warnings.filterwarnings(

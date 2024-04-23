@@ -164,13 +164,13 @@ def evaluate_model(
 
 
 def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
+    # Run user provided code if specified
+    for code_path in cfg.get('code_paths', []):
+        import_file(code_path)
+
     cfgs: Tuple[Dict[str, Any], EvalConfig] = make_dataclass_and_log_config(
         cfg, EvalConfig, EVAL_CONFIG_KEYS, icl_tasks_required=True)
     logged_cfg, eval_config = cfgs
-
-    # Run user provided code if specified
-    for code_path in (eval_config.code_paths or []):
-        import_file(code_path)
 
     model_configs = to_list_container(eval_config.models)
     eval_gauntlet_config = to_container(

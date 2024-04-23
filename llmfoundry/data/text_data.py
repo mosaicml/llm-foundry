@@ -248,7 +248,7 @@ class ConcatenatedSequenceCollatorWrapper:
 def build_streams(streams: Optional[Dict[str, Any]] = None,):
     streams_dict = streams
     # build streams
-    streams_ret: List = []
+    streams_ret = []
     if streams_dict is not None:
         for _, stream in streams_dict.items():
             # stream is the streams kwargs

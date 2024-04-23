@@ -11,6 +11,11 @@ import numpy as np
 from torch.utils.data import IterableDataset
 from transformers import PreTrainedTokenizerBase
 
+__all__ = [
+    'ConcatTokensDataset',
+    'NoConcatDataset',
+]
+
 
 class NoConcatDataset(IterableDataset):
     """An IterableDataset that returns text samples for MDSWriter.

@@ -12,6 +12,10 @@ from torch import distributed
 from llmfoundry.layers_registry import ffns_with_megablocks
 from llmfoundry.models.layers.ffn import resolve_ffn_hidden_size
 
+__all__ = [
+    'config_moe_args',
+]
+
 
 def create_process_group_ranks(ranks: tuple[int]):
     """Creates a new distributed group.
@@ -70,7 +74,7 @@ def config_megablocks_moe_args(
     groups can be initialized and shared across all blocks in the network.
 
     Args:
-        ffn_config (dict): FFN configuation before the MegaBlocks MoE is configured.
+        ffn_config (dict): FFN configuration before the MegaBlocks MoE is configured.
         d_model (int): Hidden size of the network.
         expansion_ratio (Union[int, float]): Expansion ratio in FFN.
         n_layers (int): Number of blocks used in the network.
@@ -170,7 +174,7 @@ def config_moe_args(
     """Configures `ffn_config` for MoE.
 
     Args:
-        ffn_config (dict): FFN configuation before the MoE is configured.
+        ffn_config (dict): FFN configuration before the MoE is configured.
         d_model (int): Hidden size of the network.
         expansion_ratio (int, float): Expansion ratio in FFN.
         n_layers (int): Number of blocks used in the network.

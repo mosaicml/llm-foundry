@@ -6,6 +6,9 @@ from typing import Any, Callable, Type, TypeVar, cast
 
 __all__ = [
     'VersionedDeprecationWarning',
+    'ExperimentalWarning',
+    'experimental_function',
+    'experimental_class',
 ]
 
 

@@ -160,7 +160,7 @@ def export_to_onnx(
             atol=1e-2,
             msg=f'output mismatch between the orig and onnx exported model',
         )
-        print('exported model ouptut matches with unexported model!!')
+        print('exported model output matches with unexported model!!')
 
     if save_object_store is not None:
         print('Uploading files to object storage...')

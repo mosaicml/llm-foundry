@@ -22,6 +22,13 @@ from transformers import PreTrainedTokenizerBase
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    'StreamingTextDataset',
+    'build_text_dataloader',
+    'ConcatenatedSequenceCollatorWrapper',
+    'get_tokens_per_batch_func',
+]
+
 
 class StreamingTextDataset(StreamingDataset):
     """Generic text dataset using MosaicML's StreamingDataset.

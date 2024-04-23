@@ -10,6 +10,10 @@ from transformers import PreTrainedTokenizerBase
 from llmfoundry import registry
 from llmfoundry.utils.registry_utils import construct_from_registry
 
+__all__ = [
+    'build_dataloader',
+]
+
 
 def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
                      device_batch_size: int) -> DataSpec:

@@ -35,6 +35,7 @@ log = logging.getLogger(__name__)
 _MAX_ANSWER_BUFFER_LENGTH = 10
 
 __all__ = [
+    'InContextLearningDataset',
     'InContextLearningLMTaskDataset',
     'InContextLearningMultipleChoiceTaskDataset',
     'InContextLearningSchemaTaskDataset',
@@ -49,7 +50,7 @@ class InContextLearningDataset(Dataset):
 
     evaluations. The dataset format is expected to be a local jsonl file, a
     cloud link to a jsonl file, or a Hugging Face dataset link. 'context' refers
-    to the input a model will recieve before generating an output. For example,
+    to the input a model will receive before generating an output. For example,
     the question in question answering tasks, the preceding text in a language
     modeling task, or the document and question regarding the document in a
     document understanding task. 'example' refers to a loaded dictionary,
@@ -99,7 +100,7 @@ class InContextLearningDataset(Dataset):
         base_mapping (Dict): A mapping of batch keys to dataset columns, used to create batches. See above for more details.
         hf_loading_vars (Dict): A dictionary containing keyword arguments to be passed into `load_dataset` if dataset is being pulled from HF.
         hf_parsing_map (Dict): A dictionary containing a mapping from HF columns to ICL dataset keys. The dictionary should be formatted {icl_key:[hf_key1, hf_key1]}.
-            Column contents will be concatenated with ' ' seperating them. If not included, will load the columns already present in the HF dataset.
+            Column contents will be concatenated with ' ' separating them. If not included, will load the columns already present in the HF dataset.
         generation_kwargs (Dict): A dictionary containing keyword arguments to be passed along to the model's generate function.
         static_keys (List): A list of the key values which will be broadcast across a batch (e.g. it is the same for each batch element).
         list_keys (List): A list of the batch keys whose values are lists which will be split using list methods during calls to split_batch.
@@ -260,7 +261,7 @@ class InContextLearningDataset(Dataset):
         """Formats the fewshot prompt for test example `example_idx`.
 
         Randomly selects `num_fewshot` samples from the dataset (excluding the example at `example_idx`) and constructs
-        contextes with answers appended.
+        contexts with answers appended.
 
         Returns the formatted prompt_string + concatenated list of formatted few shot examples as a string.
 
@@ -360,7 +361,7 @@ class InContextLearningDataset(Dataset):
 
         Args:
             prompt_and_fewshot (str): The collection of the prompt and fewshot examples that belongs before the example's context
-            ctxt (str): The specific example's derrived context
+            ctxt (str): The specific example's derived context
             example (Dict): The example as a dictionary. Used for additional processing in inherited classes.
 
         Returns:
@@ -642,7 +643,7 @@ class InContextLearningGenerationTaskWithAnswersDataset(InContextLearningDataset
 
         Args:
             prompt_and_fewshot (str): The collection of the prompt and fewshot examples that belongs before the example's context
-            ctx (str): The specific example's derrived context
+            ctx (str): The specific example's derived context
             example (Dict): The example as a dictionary.
 
         Returns:
@@ -670,10 +671,10 @@ class InContextLearningGenerationTaskWithAnswersDataset(InContextLearningDataset
                     )
                 else:
                     response = answer
-                tokenized_repsonse = self.tokenizer(response)['input_ids']
-                assert isinstance(tokenized_repsonse, list)
+                tokenized_response = self.tokenizer(response)['input_ids']
+                assert isinstance(tokenized_response, list)
                 max_answer_length = max(max_answer_length,
-                                        len(tokenized_repsonse))
+                                        len(tokenized_response))
         max_answer_length = max_answer_length + (
             _MAX_ANSWER_BUFFER_LENGTH if len(self.cot_delimiter) > 0 else 0)
         return max_answer_length
@@ -816,7 +817,7 @@ class InContextLearningMultipleChoiceTaskDataset(InContextLearningDataset):
 
         Args:
             prompt_and_fewshot (str): The collection of the prompt and fewshot examples that belongs before the example's context
-            ctx (str): The specific example's derrived context
+            ctx (str): The specific example's derived context
             example (Dict): The example as a dictionary.
 
         Returns:
@@ -1043,7 +1044,7 @@ class InContextLearningSchemaTaskDataset(
                                      preceding_text: str = '') -> List[str]:
         """Takes a example and constructs all contexts.
 
-        Optionally, appends this to preceeding text (such as a prompt or fewshot examples).
+        Optionally, appends this to preceding text (such as a prompt or fewshot examples).
 
         Args:
             example (Dict): The example from which to construct the context
@@ -1078,7 +1079,7 @@ class InContextLearningSchemaTaskDataset(
 
         with prompt and fewshot examples.
 
-        Each task consists of multiple contexts and a single, correct continuation. Will preprend fewshot examples and
+        Each task consists of multiple contexts and a single, correct continuation. Will prepend fewshot examples and
         prompt if present.
 
         Args:
@@ -1105,7 +1106,7 @@ class InContextLearningSchemaTaskDataset(
 
         Args:
             prompt_and_fewshot (str): The collection of the prompt and fewshot examples that belongs before the example's context
-            ctx (str): The specific example's derrived context
+            ctx (str): The specific example's derived context
             example (Dict): The example as a dictionary.
 
         Returns:
@@ -1182,8 +1183,8 @@ class InContextLearningCodeEvalDataset(InContextLearningDataset):
     - test_outputs: List of test outputs
     - languages:  List of languages
     - pass_at_k: Passed value for pass_at_k
-    - generation_kwargs: Dictionary of kwargs neeeded for generation. Includes the following, which will be individually overwritten
-      by keys in generaiton_kwargs if set (see https://huggingface.co/docs/transformers/main_classes/text_generation#transformers.GenerationConfig
+    - generation_kwargs: Dictionary of kwargs needed for generation. Includes the following, which will be individually overwritten
+      by keys in generation_kwargs if set (see https://huggingface.co/docs/transformers/main_classes/text_generation#transformers.GenerationConfig
       for more details):
 
         - pad_token_id: ID for padding token, derived automatically
@@ -1405,14 +1406,14 @@ def build_icl_dataloader(
         do_normalization: bool = True) -> DataSpec:
     """Factory method that builds the specific dataset for the specified.
 
-    icl_task_type. See documentation for `get_icl_task_dataloader` for arugment
+    icl_task_type. See documentation for `get_icl_task_dataloader` for argument
     documentation.
 
     When writing a dataset for a new task, here you will need to:
         1. add the dataset to the factory and choose an appropriate string
         2. set the batch size for that task (see InContextLearningMultipleChoiceTaskDataset for why
             this might be different)
-        3. set the `split_batch` funciton if necessary
+        3. set the `split_batch` function if necessary
     """
     if icl_task_type == 'multiple_choice':
         dataset = InContextLearningMultipleChoiceTaskDataset(
@@ -1475,7 +1476,7 @@ def build_icl_dataloader(
             warnings.warn(
                 VersionedDeprecationWarning(
                     "ICL task type 'question_answering' is now deprecated. Use identifier 'generation_task_with_answers'",
-                    'v0.7.0'))
+                    'v0.9.0'))
         dataset = InContextLearningGenerationTaskWithAnswersDataset(
             dataset_uri=dataset_uri,
             tokenizer=tokenizer,
@@ -1500,7 +1501,7 @@ def build_icl_dataloader(
         warnings.warn(
             VersionedDeprecationWarning(
                 "ICL task type 'code_evaluation' is deprecated and will no longer be supported. ",
-                'v0.7.0'))
+                'v0.9.0'))
         dataset = InContextLearningCodeEvalDataset(
             dataset_uri=dataset_uri,
             tokenizer=tokenizer,
@@ -1712,9 +1713,9 @@ def get_icl_task_dataloader(
         has_categories: (bool): If ``True``, we will search the dataset file for a category key, and partition the dataset into a separate dataloader for each category occurring in the data.
         hf_loading_vars (Dict, default = None): A dictionary containing keyword arguments to be passed into `load_dataset` if dataset is being pulled from HF.
         hf_parsing_map (Dict, default = None): A dictionary containing a mapping from HF columns to ICL dataset keys. The dictionary should be formatted {icl_key:[hf_key1, hf_key1]}.
-            Column contents will be concatenated with ' ' seperating them. If not included, will load the columns already present in the HF dataset.
+            Column contents will be concatenated with ' ' separating them. If not included, will load the columns already present in the HF dataset.
         generation_kwargs (Dict, default = None): A dictionary containing keyword arguments to be passed along to the model's generate function. Overwrites any previously specified generation
-                                                  keyword args in this fucntion (see https://huggingface.co/docs/transformers/main_classes/text_generation#transformers.GenerationConfig
+                                                  keyword args in this function (see https://huggingface.co/docs/transformers/main_classes/text_generation#transformers.GenerationConfig
                                                   for more details)
         early_stopping (List, default = None): A list of strings that, when found in a model's output, will be treated as a stopping criteria at metric computation time.
             Used in generation tasks with CoT

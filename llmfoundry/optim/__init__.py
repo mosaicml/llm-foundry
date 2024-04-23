@@ -26,4 +26,5 @@ __all__ = [
     'DecoupledLionW',
     'DecoupledClipLion',
     'DecoupledAdaLRLion',
+    'InverseSquareRootWithWarmupScheduler',
 ]

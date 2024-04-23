@@ -443,9 +443,7 @@ def build_tokenizer(
             int(1e30),
         )
 
-    if not hasattr(
-            tokenizer, 'eos_token'
-    ) or tokenizer.eos_token is None:  # type: ignore (sometime's it's not none but that's ok too)
+    if not hasattr(tokenizer, 'eos_token') or tokenizer.eos_token is None:
         raise ValueError(
             f'The tokenizer {tokenizer_name} must have an eos_token.')
 

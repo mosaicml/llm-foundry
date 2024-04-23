@@ -168,9 +168,8 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     for code_path in cfg.get('code_paths', []):
         import_file(code_path)
 
-    cfgs: Tuple[Dict[str, Any], EvalConfig] = make_dataclass_and_log_config(
+    logged_cfg, eval_config = make_dataclass_and_log_config(
         cfg, EvalConfig, EVAL_CONFIG_KEYS, icl_tasks_required=True)
-    logged_cfg, eval_config = cfgs
 
     model_configs = to_list_container(eval_config.models)
     eval_gauntlet_config = to_container(

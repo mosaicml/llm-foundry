@@ -6,7 +6,7 @@ import os
 import sys
 import time
 import warnings
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 
 import torch
 from composer import ComposerModel, Trainer
@@ -153,12 +153,11 @@ def main(cfg: DictConfig) -> Trainer:
     for code_path in code_paths:
         import_file(code_path)
 
-    cfgs: Tuple[Dict[str, Any], TrainConfig] = make_dataclass_and_log_config(
+    logged_cfg, train_cfg = make_dataclass_and_log_config(
         cfg,
         TrainConfig,
         TRAIN_CONFIG_KEYS,
         transforms=[update_batch_size_info])
-    logged_cfg, train_cfg = cfgs
 
     # Filter deprecation warning from torch internal usage
     warnings.filterwarnings(

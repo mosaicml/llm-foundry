@@ -10,6 +10,10 @@ from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    'Seq2SeqFinetuningCollator',
+]
+
 # HuggingFace hardcodes the ignore index to -100
 _HF_IGNORE_INDEX = -100
 

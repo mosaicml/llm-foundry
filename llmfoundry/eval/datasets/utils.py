@@ -13,6 +13,14 @@ import transformers
 
 __all__ = [
     'MultiTokenEOSCriteria',
+    'strip_data',
+    'tokenizer_needs_prefix_space',
+    'trim_context',
+    'get_continuation_span',
+    'make_padded_input',
+    'convert_tokens_to_tensors',
+    'get_fewshot_sample_idxs',
+    'stop_sequences_criteria',
 ]
 
 log = logging.getLogger(__name__)
@@ -61,7 +69,7 @@ def trim_context(context_enc: List, continuation_enc: List,
 
     Args:
         context_enc (list): List of tokens in the context
-        continuation_enc (lsit): List of tokens in the continuation
+        continuation_enc (list): List of tokens in the continuation
         max_seq_len (int): Maximum length the model can ingest
 
     Returns:
@@ -229,7 +237,7 @@ class MultiTokenEOSCriteria(transformers.StoppingCriteria):
         self.stop_sequence_ids = tokenizer.encode(stop_sequence,
                                                   add_special_tokens=False)
 
-        # sentence piece tokenizers add a superflous underline token before string-initial \n
+        # sentence piece tokenizers add a superfluous underline token before string-initial \n
         # that throws off our calculation of the stop sequence length
         # so we remove any token ids that produce empty strings
         self.stop_sequence_ids = [

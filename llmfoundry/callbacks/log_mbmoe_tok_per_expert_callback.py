@@ -9,6 +9,8 @@ from composer.core import Callback, State
 from composer.loggers import Logger
 from composer.utils import dist
 
+__all__ = ['MegaBlocksMoE_TokPerExpert']
+
 
 class MegaBlocksMoE_TokPerExpert(Callback):
     """Log tokens per expert for MegaBlocks MoE.
@@ -44,7 +46,7 @@ class MegaBlocksMoE_TokPerExpert(Callback):
 
     Args:
         log_interval (int, optional): The interval on which to log (Default: 10).
-        log_every_layer (bool, optional): Enable logging ever layer's statisictics (True) or log
+        log_every_layer (bool, optional): Enable logging ever layer's statistics (True) or log
             only aggregate statistics (Default: False).
         all_reduce_stats (bool, optional): Enable aggregating statistics across gpus (True) or log
             statistics for GPU 0 (Default: False).

@@ -15,6 +15,8 @@ from composer.loggers.remote_uploader_downloader import RemoteUploaderDownloader
 from composer.utils import (dist, format_name_with_dist_and_time, parse_uri,
                             reproducibility)
 
+__all__ = ['MonolithicCheckpointSaver']
+
 
 class MonolithicCheckpointSaver(Callback):
     """Save a monolithic checkpoint every N batches.

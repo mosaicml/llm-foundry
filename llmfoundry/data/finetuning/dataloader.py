@@ -24,6 +24,10 @@ from llmfoundry.utils.exceptions import (MissingHuggingFaceURLSplitError,
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    'build_finetuning_dataloader',
+]
+
 # HuggingFace hardcodes the ignore index to -100
 _HF_IGNORE_INDEX = -100
 

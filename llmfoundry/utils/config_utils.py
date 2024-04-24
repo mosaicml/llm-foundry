@@ -52,7 +52,7 @@ class EvalConfig:
     icl_tasks_str: Optional[str] = None
 
     # Logging parameters
-    python_log_level: str = 'debug'
+    python_log_level: Optional[str] = 'debug'
     loggers: Optional[Dict[str, Any]] = None
     log_config: bool = True
 

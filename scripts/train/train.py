@@ -220,17 +220,18 @@ def main(cfg: DictConfig) -> Trainer:
     # Initialize pytorch distributed training process groups
     dist_timeout: Union[int, float] = train_cfg.dist_timeout
 
-    # Set logging level
-    logging.basicConfig(
-        # Example of format string
-        # 2022-06-29 11:22:26,152: rank0[822018][MainThread]: INFO: Message here
-        format=
-        f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
-    )
-    logging.getLogger('llmfoundry').setLevel(
-        train_cfg.python_log_level.upper())  # Foundry module
-    logging.getLogger(__name__).setLevel(
-        train_cfg.python_log_level.upper())  # Train script
+    if train_cfg.python_log_level is not None:
+        # Set logging level
+        logging.basicConfig(
+            # Example of format string
+            # 2022-06-29 11:22:26,152: rank0[822018][MainThread]: INFO: Message here
+            format=
+            f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
+        )
+        logging.getLogger('llmfoundry').setLevel(
+            train_cfg.python_log_level.upper())  # Foundry module
+        logging.getLogger(__name__).setLevel(
+            train_cfg.python_log_level.upper())  # Train script
 
     _initialize_gloo_and_nccl(dist_timeout=dist_timeout)
 

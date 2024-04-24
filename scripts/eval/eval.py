@@ -188,14 +188,15 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     reproducibility.seed_all(eval_config.seed)
     dist.initialize_dist(get_device(None), timeout=eval_config.dist_timeout)
 
-    logging.basicConfig(
-        # Example of format string
-        # 2022-06-29 11:22:26,152: rank0[822018][MainThread]: INFO: Message here
-        format=
-        f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
-    )
-    logging.getLogger('llmfoundry').setLevel(
-        eval_config.python_log_level.upper())
+    if eval_config.python_log_level is not None:
+        logging.basicConfig(
+            # Example of format string
+            # 2022-06-29 11:22:26,152: rank0[822018][MainThread]: INFO: Message here
+            format=
+            f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
+        )
+        logging.getLogger('llmfoundry').setLevel(
+            eval_config.python_log_level.upper())
 
     # Default argument values for evaluate_model
     eval_gauntlet_df = None

@@ -44,6 +44,7 @@ from typing import (Any, Callable, Dict, List, Literal, Optional, Sequence,
 import datasets as hf_datasets
 import datasets.exceptions as hf_exceptions
 import huggingface_hub as hf_hub
+from llmfoundry.utils.multiprocessing_utils import set_multiprocessing_start_method
 import numpy as np
 from composer.utils import dist
 from streaming import Stream, StreamingDataset
@@ -818,16 +819,13 @@ class DatasetConstructor:
 
             # Always use spawn as the start method for filtering the dataset.
             # A temporary workaround to avoid indefinite hangs observed occasionally.
-            import multiprocessing
-            original_method_start = multiprocessing.get_start_method()
-            multiprocessing.set_start_method('spawn', force=True)
-            filtered_dataset = tokenized_dataset.filter(
-                partial(is_valid_ift_example, max_seq_len, target_prompts,
-                        target_responses, decoder_only_format),
-                num_proc=num_cpus_to_use,
-                desc='Filtering out long prompts',
-            )
-            multiprocessing.set_start_method(original_method_start, force=True)
+            with set_multiprocessing_start_method('spawn'):
+                filtered_dataset = tokenized_dataset.filter(
+                    partial(is_valid_ift_example, max_seq_len, target_prompts,
+                            target_responses, decoder_only_format),
+                    num_proc=num_cpus_to_use,
+                    desc='Filtering out long prompts',
+                )
 
             examples_removed = len(tokenized_dataset) - len(filtered_dataset)
             if examples_removed > 0:

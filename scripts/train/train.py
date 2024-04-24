@@ -126,7 +126,6 @@ def _initialize_gloo_and_nccl(dist_timeout: Union[int, float]):
     Args:
         dist_timeout (Union[int, float]): Timeout for initializing the process group
     """
-
     # First, initialize with a gloo process group and test a barrier
     log.debug('Initializing dist with cpu...')
     dist.initialize_dist('cpu', timeout=dist_timeout)

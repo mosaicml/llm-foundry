@@ -846,7 +846,7 @@ class DatasetConstructor:
             original_start_method = multiprocessing.get_start_method()
             multiprocessing.set_start_method('spawn', force=True)
             result_queue = Queue()
-            filter_timeout = 60
+            filter_timeout = 240
             filter_process = ForkProcess(
                 target=_filter_dataset,
                 kwargs={

@@ -189,7 +189,7 @@ def main(cfg: DictConfig) -> Trainer:
             python_log_level.upper())  # Train script
         
     # DO NOT MERGE
-    if os.environ['RANK'] == '1':
+    if os.environ['RANK'] == '10':
         os.environ['MASTER_ADDR'] = '127.0.0.1'
 
     # First, initialize with a gloo process group and test a barrier

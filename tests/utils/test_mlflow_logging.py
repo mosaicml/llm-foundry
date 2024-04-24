@@ -5,7 +5,6 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
-from omegaconf import OmegaConf
 
 from llmfoundry.utils.config_utils import (_log_dataset_uri,
                                            _parse_source_dataset)
@@ -16,7 +15,7 @@ from mlflow.data.huggingface_dataset_source import HuggingFaceDatasetSource
 
 def create_config(**kwargs: Any):
     """Helper function to create OmegaConf configurations."""
-    return OmegaConf.create(kwargs)
+    return kwargs
 
 
 def test_parse_source_dataset_delta_table():
@@ -95,7 +94,7 @@ def test_log_dataset_uri():
 
 def test_multiple_eval_datasets():
     # Setup a configuration with multiple evaluation datasets
-    cfg = OmegaConf.create({
+    cfg = {
         'train_loader': {
             'dataset': {
                 'hf_name': 'huggingface/train_dataset',
@@ -110,7 +109,7 @@ def test_multiple_eval_datasets():
                 'hf_name': 'huggingface/eval_dataset2',
             },
         }]
-    })
+    }
 
     expected_data_paths = [('hf', 'huggingface/train_dataset', 'train'),
                            ('hf', 'huggingface/eval_dataset1', 'eval'),

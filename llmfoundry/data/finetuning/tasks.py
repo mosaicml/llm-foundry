@@ -834,6 +834,8 @@ class DatasetConstructor:
                 desc='Tokenizing dataset',
             )
 
+            log.info('Finished tokenizing dataset.')
+
             # Use multiprocessing to introduce a custom timeout for this operation.
             # A temporary workaround to avoid indefinite hangs observed occasionally due to
             # filter_dataset not properly exiting and the dist.barrier() below not timing out.

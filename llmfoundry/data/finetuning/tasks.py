@@ -875,14 +875,20 @@ class DatasetConstructor:
                     'the prompt or response was empty, or the response was all padding tokens.'
                 )
         except Exception as e:
+            if isinstance(e, TimeoutError):
+                log.error('TimeoutError during data prep')
             error = e
         # Now local rank 0 indicates to the other ranks that it is done
         if dist.get_local_rank() == 0:
             log.debug('Local rank 0 finished data prep')
             with open(signal_file_path, 'wb') as f:
+                log.debug('Writing signal file')
                 f.write(b'local_rank0_completed_data_prep')
+            log.debug('Closed signal file')
+            
 
         # All ranks sync up at this barrier, having completed data processing
+        log.debug('At dist barrier')
         dist.barrier()
 
         # Last, local rank 0 cleans up the signal file

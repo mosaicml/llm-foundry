@@ -816,12 +816,18 @@ class DatasetConstructor:
                 desc='Tokenizing dataset',
             )
 
+            # Always use spawn as the start method for filtering the dataset.
+            # A temporary workaround to avoid indefinite hangs observed occasionally.
+            import multiprocessing
+            original_method_start = multiprocessing.get_start_method()
+            multiprocessing.set_start_method('spawn', force=True)
             filtered_dataset = tokenized_dataset.filter(
                 partial(is_valid_ift_example, max_seq_len, target_prompts,
                         target_responses, decoder_only_format),
                 num_proc=num_cpus_to_use,
                 desc='Filtering out long prompts',
             )
+            multiprocessing.set_start_method(original_method_start, force=True)
 
             examples_removed = len(tokenized_dataset) - len(filtered_dataset)
             if examples_removed > 0:

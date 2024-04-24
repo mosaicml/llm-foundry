@@ -821,8 +821,12 @@ class DatasetConstructor:
                 return tokenize_formatted_example(example, tokenizer)
 
             detected_cpu_count = os.cpu_count() or 1
-            detected_cpus_with_margin = detected_cpu_count - 8
+            detected_cpus_with_margin = detected_cpu_count - 20
             num_cpus_to_use = max(1, detected_cpus_with_margin)
+
+            log.debug(f'detected_cpu_count: {detected_cpu_count}')
+            log.debug(f'num_cpus_to_use: {num_cpus_to_use}')
+
 
             columns_to_remove = list(dataset[0].keys())
             tokenized_dataset = dataset.map(
@@ -876,7 +880,7 @@ class DatasetConstructor:
                 )
         except Exception as e:
             if isinstance(e, TimeoutError):
-                log.error('TimeoutError during data prep')
+                raise e
             error = e
         # Now local rank 0 indicates to the other ranks that it is done
         if dist.get_local_rank() == 0:

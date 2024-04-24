@@ -37,10 +37,14 @@ import os
 import warnings
 from collections.abc import Mapping
 from functools import partial
+from multiprocessing import Queue
+from multiprocessing.context import ForkProcess
 from pathlib import Path
 from typing import (Any, Callable, Dict, List, Literal, Optional, Sequence,
                     Tuple, Union, cast)
 
+import Dataset
+import DatasetDict
 import datasets as hf_datasets
 import datasets.exceptions as hf_exceptions
 import huggingface_hub as hf_hub
@@ -432,6 +436,20 @@ def is_valid_ift_example(max_seq_len: int, target_prompts: str,
     return True
 
 
+def _filter_dataset(tokenized_dataset: Dataset | DatasetDict, max_seq_len: int,
+                    target_prompts: str, target_responses: str,
+                    decoder_only_format: bool, num_proc: int, queue: Queue):
+    log.info('Filtering out long prompts from dataset')
+    filtered_dataset = tokenized_dataset.filter(
+        partial(is_valid_ift_example, max_seq_len, target_prompts,
+                target_responses, decoder_only_format),
+        num_proc=num_proc,
+        desc='Filtering out long prompts',
+    )
+    log.info('Finished filtering out long prompts from dataset')
+    queue.put(filtered_dataset)
+
+
 def _stream_remote_local_validate(remote: Optional[str], local: Optional[str],
                                   split: Optional[str]):
     if remote is None or (local == remote):
@@ -815,6 +833,28 @@ class DatasetConstructor:
                 num_proc=num_cpus_to_use,
                 desc='Tokenizing dataset',
             )
+
+            result_queue = Queue()
+            filter_timeout = 600
+            filter_process = ForkProcess(
+                target=_filter_dataset,
+                kwargs={
+                    'tokenized_dataset': tokenized_dataset,
+                    'max_seq_len': max_seq_len,
+                    'target_prompts': target_prompts,
+                    'target_responses': target_responses,
+                    'decoder_only_format': decoder_only_format,
+                    'num_proc': num_cpus_to_use,
+                    'queue': result_queue
+                })
+            filter_process.start()
+            filter_process.join(timeout=filter_timeout)
+            if filter_process.is_alive():
+                raise TimeoutError(
+                    f'Filtering dataset took longer than {filter_timeout} seconds.'
+                )
+
+            filtered_dataset = result_queue.get(timeout=60)
 
             filtered_dataset = tokenized_dataset.filter(
                 partial(is_valid_ift_example, max_seq_len, target_prompts,

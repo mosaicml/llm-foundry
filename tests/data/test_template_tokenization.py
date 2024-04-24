@@ -6,12 +6,12 @@ from unittest.mock import MagicMock
 import pytest
 import transformers
 
-from llmfoundry.data.finetuning.tasks import (_ALLOWED_PROMPT_KEYS,
-                                              _ALLOWED_RESPONSE_KEYS,
-                                              _slice_chat_formatted_example,
+from llmfoundry.data.finetuning.tasks import (_slice_chat_formatted_example,
                                               dataset_constructor,
                                               tokenize_formatted_example)
 from llmfoundry.utils.builders import build_tokenizer
+from llmfoundry.utils.exceptions import (ALLOWED_PROMPT_KEYS,
+                                         ALLOWED_RESPONSE_KEYS)
 
 
 def test_tokenize_chat_example_malformed():
@@ -167,8 +167,8 @@ def test_tokenize_instruct_example_malformed():
 def test_tokenize_instruct_example_well_formed():
     tokenizer = transformers.AutoTokenizer.from_pretrained('gpt2')
 
-    for prompt_key in _ALLOWED_PROMPT_KEYS:
-        for response_key in _ALLOWED_RESPONSE_KEYS:
+    for prompt_key in ALLOWED_PROMPT_KEYS:
+        for response_key in ALLOWED_RESPONSE_KEYS:
 
             example = {prompt_key: 'prompt', response_key: 'response'}
             tokenized_example = tokenize_formatted_example(example, tokenizer)

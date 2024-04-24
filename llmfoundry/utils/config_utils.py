@@ -250,7 +250,7 @@ def _process_data_source(source_dataset_path: Optional[str],
         hf_path = dataset['hf_name']
         backend, _, _ = parse_uri(hf_path)
         if backend:
-            hf_path = f'{hf_path.rstrip("/")}/{cfg_split}' if cfg_split else hf_path
+            hf_path = os.path.join(hf_path, cfg_split) if cfg_split else hf_path
             data_paths.append((backend, hf_path, true_split))
         elif os.path.exists(hf_path):
             data_paths.append(('local', hf_path, true_split))
@@ -261,7 +261,7 @@ def _process_data_source(source_dataset_path: Optional[str],
         remote_path = dataset['remote']
         backend, _, _ = parse_uri(remote_path)
         if backend:
-            remote_path = f'{remote_path.rstrip("/")}/{cfg_split}/' if cfg_split else remote_path
+            remote_path = os.path.join(remote_path, f"{cfg_split}/") if cfg_split else remote_path
             data_paths.append((backend, remote_path, true_split))
         else:
             data_paths.append(('local', remote_path, true_split))

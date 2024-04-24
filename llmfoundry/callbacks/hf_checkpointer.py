@@ -426,6 +426,9 @@ class HuggingFaceCheckpointer(Callback):
                 # initialization cost.
                 with init_empty_weights():
                     new_model_instance = type(original_model)(copied_config)
+                    new_model_instance.generation_config.update(
+                        **original_model.generation_config.to_dict()
+                    )
 
             # Then load the state dict in with "assign" so that the state dict
             # is loaded properly even though the model is initially on meta device.

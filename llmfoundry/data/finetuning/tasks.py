@@ -856,8 +856,10 @@ class DatasetConstructor:
                     'queue': result_queue
                 })
             filter_process.start()
+
             filter_process.join(timeout=filter_timeout)
             if filter_process.is_alive():
+                filter_process.terminate()
                 raise TimeoutError(
                     f'Filtering dataset took longer than {filter_timeout} seconds.'
                 )
@@ -879,8 +881,6 @@ class DatasetConstructor:
                     'the prompt or response was empty, or the response was all padding tokens.'
                 )
         except Exception as e:
-            if isinstance(e, TimeoutError):
-                raise e
             error = e
         # Now local rank 0 indicates to the other ranks that it is done
         if dist.get_local_rank() == 0:
@@ -891,6 +891,9 @@ class DatasetConstructor:
             log.debug('Closed signal file')
             
 
+        if error is not None and isinstance(error, TimeoutError):
+            raise error
+        
         # All ranks sync up at this barrier, having completed data processing
         log.debug('At dist barrier')
         dist.barrier()

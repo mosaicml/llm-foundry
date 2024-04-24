@@ -10,7 +10,7 @@ import warnings
 from typing import Any, Dict, List, Optional, Union
 
 import torch
-import torch.distributed as tdist
+import torch.distributed
 from composer import Trainer
 from composer.core.callback import Callback
 from composer.profiler import (JSONTraceHandler, Profiler, TraceHandler,
@@ -132,7 +132,7 @@ def _initialize_gloo_and_nccl(dist_timeout: Union[int, float]):
     log.debug('Testing barrier with cpu...')
     dist.barrier()
     log.debug('Barrier test passed with cpu. Destroying process group...')
-    tdist.destroy_process_group()
+    torch.distributed.destroy_process_group()
     log.debug('Process group destroyed.')
 
     # Now, initialize with the correct device

@@ -116,8 +116,7 @@ def validate_config(cfg: DictConfig):
 
 
 def _initialize_gloo_and_nccl(dist_timeout: Union[int, float]):
-    """Initialize a GLOO process group (immediately destroyed) and a device
-    process group.
+    """Initialize GLOO process group (then destroyed) and device process group.
 
     We have experienced an issue where the first barrier with NCCL does not timeout properly,
     and can hang forever if something is wrong. To attempt to mitigate this, we will first

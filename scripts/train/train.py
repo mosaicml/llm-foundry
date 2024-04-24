@@ -194,7 +194,7 @@ def main(cfg: DictConfig) -> Trainer:
 
     # DO NOT MERGE
     if os.environ['RANK'] == '10':
-        os.environ['MASTER_ADDR'] = '127.0.0.1'
+        time.sleep(30)
 
     log.debug('Testing barrier with cpu...')
     dist.barrier()

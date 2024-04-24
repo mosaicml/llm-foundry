@@ -261,7 +261,8 @@ def _process_data_source(source_dataset_path: Optional[str],
         remote_path = dataset['remote']
         backend, _, _ = parse_uri(remote_path)
         if backend:
-            remote_path = os.path.join(remote_path, f"{cfg_split}/") if cfg_split else remote_path
+            remote_path = os.path.join(
+                remote_path, f'{cfg_split}/') if cfg_split else remote_path
             data_paths.append((backend, remote_path, true_split))
         else:
             data_paths.append(('local', remote_path, true_split))

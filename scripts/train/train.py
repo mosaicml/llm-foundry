@@ -189,22 +189,22 @@ def main(cfg: DictConfig) -> Trainer:
             python_log_level.upper())  # Train script
 
     # First, initialize with a gloo process group and test a barrier
-    # log.debug('Initializing dist with cpu...')
-    # dist.initialize_dist('cpu', timeout=dist_timeout)
-    # log.debug('Testing barrier with cpu...')
-    # dist.barrier()
-    # log.debug('Barrier test passed with cpu. Destroying process group...')
-    # tdist.destroy_process_group()
-    # log.debug('Process group destroyed.')
-
-    # Now, initialize with the correct device
-    log.debug('Initializing dist with device...')
-    dist.initialize_dist(get_device(None), timeout=dist_timeout)
+    log.debug('Initializing dist with cpu...')
+    dist.initialize_dist('cpu', timeout=dist_timeout)
 
     # DO NOT MERGE
     if os.environ['RANK'] == '10':
         os.environ['MASTER_ADDR'] = '127.0.0.1'
 
+    log.debug('Testing barrier with cpu...')
+    dist.barrier()
+    log.debug('Barrier test passed with cpu. Destroying process group...')
+    tdist.destroy_process_group()
+    log.debug('Process group destroyed.')
+
+    # Now, initialize with the correct device
+    log.debug('Initializing dist with device...')
+    dist.initialize_dist(get_device(None), timeout=dist_timeout)
     log.debug('Testing barrier with device...')
     dist.barrier()
     log.debug('Barrier test passed with device.')

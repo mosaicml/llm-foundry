@@ -839,7 +839,7 @@ class DatasetConstructor:
             # A temporary workaround to avoid indefinite hangs observed occasionally due to
             # datasets filtering not properly exiting and the dist.barrier() below not timing out.
             result_queue = Queue()
-            filter_timeout = 600
+            filter_timeout = 60
             filter_process = ForkProcess(
                 target=_filter_dataset,
                 kwargs={

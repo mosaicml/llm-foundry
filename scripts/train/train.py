@@ -114,7 +114,19 @@ def validate_config(cfg: DictConfig):
                 f'MoEs with expert parallelism (moe_world_size {moe_world_size} > 1) require `use_orig_params=True`.'
             )
 
+
 def _initialize_gloo_and_nccl(dist_timeout: Union[int, float]):
+    """Initialize a GLOO process group (immediately destroyed) and a device
+    process group.
+
+    We have experienced an issue where the first barrier with NCCL does not timeout properly,
+    and can hang forever if something is wrong. To attempt to mitigate this, we will first
+    initialize with a gloo process group and test a barrier, then destroy the process group
+
+    Args:
+        dist_timeout (Union[int, float]): Timeout for initializing the process group
+    """
+
     # First, initialize with a gloo process group and test a barrier
     log.debug('Initializing dist with cpu...')
     dist.initialize_dist('cpu', timeout=dist_timeout)
@@ -130,6 +142,7 @@ def _initialize_gloo_and_nccl(dist_timeout: Union[int, float]):
     log.debug('Testing barrier with device...')
     dist.barrier()
     log.debug('Barrier test passed with device.')
+
 
 def main(cfg: DictConfig) -> Trainer:
     # Run user provided code if specified
@@ -203,10 +216,6 @@ def main(cfg: DictConfig) -> Trainer:
             python_log_level.upper())  # Foundry module
         logging.getLogger(__name__).setLevel(
             python_log_level.upper())  # Train script
-
-    # We have experienced an issue where the first barrier with NCCL does not timeout properly,
-    # and can hang forever if something is wrong. To attempt to mitigate this, we will first
-    # initialize with a gloo process group and test a barrier, then destroy the process group
 
     _initialize_gloo_and_nccl(dist_timeout=dist_timeout)
 

@@ -837,7 +837,7 @@ class DatasetConstructor:
 
             # Use multiprocessing to introduce a custom timeout for this operation.
             # A temporary workaround to avoid indefinite hangs observed occasionally due to
-            # filter_dataset not properly exiting and the dist.barrier() below not timing out.
+            # datasets filtering not properly exiting and the dist.barrier() below not timing out.
             result_queue = Queue()
             filter_timeout = 600
             filter_process = ForkProcess(

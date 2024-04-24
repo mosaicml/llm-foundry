@@ -632,9 +632,6 @@ def main(cfg: DictConfig) -> Trainer:
 
 
 if __name__ == '__main__':
-    # Set default start method to 'spawn' for multiprocessing
-    multiprocessing.set_start_method('spawn')
-
     yaml_path, args_list = sys.argv[1], sys.argv[2:]
 
     # Disable resolving environment variables through omegaconf.

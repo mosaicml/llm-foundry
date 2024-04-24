@@ -175,7 +175,7 @@ def main(cfg: DictConfig) -> Trainer:
                                                  'python_log_level',
                                                  must_exist=False,
                                                  default_value='debug')
-    # set logging level
+    # Set logging level
     if python_log_level is not None:
         logging.basicConfig(
             # Example of format string

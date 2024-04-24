@@ -53,7 +53,10 @@ from llmfoundry.data.finetuning.collator import (_HF_IGNORE_INDEX,
                                                  stitch_turns_decoder_only,
                                                  stitch_turns_encoder_decoder)
 # yapf: disable
-from llmfoundry.utils.exceptions import (ConsecutiveRepeatedChatRolesError,
+from llmfoundry.utils.exceptions import (ALLOWED_MESSAGES_KEYS,
+                                         ALLOWED_PROMPT_KEYS,
+                                         ALLOWED_RESPONSE_KEYS,
+                                         ConsecutiveRepeatedChatRolesError,
                                          IncorrectMessageKeyQuantityError,
                                          InvalidContentTypeError,
                                          InvalidFileExtensionError,
@@ -64,7 +67,6 @@ from llmfoundry.utils.exceptions import (ConsecutiveRepeatedChatRolesError,
                                          InvalidRoleError,
                                          MisconfiguredHfDatasetError,
                                          NotEnoughChatDataError,
-                                         TooManyKeysInExampleError,
                                          UnableToProcessPromptResponseError,
                                          UnknownExampleTypeError)
 #  yapf: enable
@@ -79,9 +81,6 @@ __all__ = [
     'StreamingFinetuningDataset',
 ]
 
-_ALLOWED_RESPONSE_KEYS = {'response', 'completion'}
-_ALLOWED_PROMPT_KEYS = {'prompt'}
-_ALLOWED_MESSAGES_KEYS = {'messages'}
 _ALLOWED_ROLE_KEYS = {'role'}
 _ALLOWED_CONTENT_KEYS = {'content'}
 _ALLOWED_ROLES = {'user', 'assistant', 'system', 'tool'}
@@ -113,11 +112,13 @@ def _get_example_type(example: Example) -> ExampleType:
     if not isinstance(example, Mapping):
         raise TypeError(
             f'Expected example to be a Mapping, but found {type(example)}')
-    if any(allowed_message_key in example
-           for allowed_message_key in _ALLOWED_MESSAGES_KEYS):
+    if (len(example.keys()) == 1 and
+            any(allowed_message_key in example
+                for allowed_message_key in ALLOWED_MESSAGES_KEYS)):
         return 'chat'
-    elif any(p in example for p in _ALLOWED_PROMPT_KEYS) and any(
-            r in example for r in _ALLOWED_RESPONSE_KEYS):
+    elif (len(example.keys()) == 2 and
+          any(p in example for p in ALLOWED_PROMPT_KEYS) and
+          any(r in example for r in ALLOWED_RESPONSE_KEYS)):
         return 'prompt_response'
     else:
         raise UnknownExampleTypeError(example)
@@ -141,8 +142,6 @@ def _get_key(dictionary: Mapping[str, Any], allowed_keys: set[str]):
             f'Expected dictionary to be a mapping, but found {type(dictionary)}'
         )
     desired_keys = allowed_keys.intersection(dictionary.keys())
-    if len(desired_keys) != 1:
-        raise TooManyKeysInExampleError(allowed_keys, desired_keys)
     return list(desired_keys)[0]
 
 
@@ -150,7 +149,7 @@ def _validate_chat_formatted_example(example: ChatFormattedDict):
     if not isinstance(example, Mapping):
         raise TypeError(
             f'Expected example to be a mapping, but found {type(example)}')
-    messages = example[_get_key(example, _ALLOWED_MESSAGES_KEYS)]
+    messages = example[_get_key(example, ALLOWED_MESSAGES_KEYS)]
     if not isinstance(messages, List):
         raise TypeError(
             f'Expected messages to be an iterable, but found {type(messages)}')
@@ -200,7 +199,7 @@ def _slice_chat_formatted_example(
         KeyError: If a message does not have a role or content.
     """
     _validate_chat_formatted_example(example)
-    messages = example[_get_key(example, _ALLOWED_MESSAGES_KEYS)]
+    messages = example[_get_key(example, ALLOWED_MESSAGES_KEYS)]
 
     last_message = messages[-1]
     if last_message['role'] != 'assistant':
@@ -309,14 +308,8 @@ def _tokenize_prompt_response_formatted_example(
         tokenizer: PreTrainedTokenizerBase) -> TokenizedExample:
     """Tokenize a formatted example and validate expected keys."""
     example_keys = set(example.keys())
-    prompt_keys = example_keys.intersection(_ALLOWED_PROMPT_KEYS)
-    response_keys = example_keys.intersection(_ALLOWED_RESPONSE_KEYS)
-
-    if len(prompt_keys) != 1:
-        raise TooManyKeysInExampleError(_ALLOWED_PROMPT_KEYS, prompt_keys)
-
-    if len(response_keys) != 1:
-        raise TooManyKeysInExampleError(_ALLOWED_RESPONSE_KEYS, response_keys)
+    prompt_keys = example_keys.intersection(ALLOWED_PROMPT_KEYS)
+    response_keys = example_keys.intersection(ALLOWED_RESPONSE_KEYS)
 
     prompt_key = prompt_keys.pop()
     response_key = response_keys.pop()
@@ -371,7 +364,7 @@ def tokenize_formatted_example(
         return _tokenize_prompt_response_formatted_example(
             prompt_response_example, tokenizer)
     else:
-        raise UnknownExampleTypeError(example)
+        raise NotImplementedError
 
 
 def is_valid_ift_example(max_seq_len: int, target_prompts: str,

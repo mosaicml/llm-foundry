@@ -191,11 +191,6 @@ def main(cfg: DictConfig) -> Trainer:
     # First, initialize with a gloo process group and test a barrier
     log.debug('Initializing dist with cpu...')
     dist.initialize_dist('cpu', timeout=dist_timeout)
-
-    # DO NOT MERGE
-    if os.environ['RANK'] == '10':
-        time.sleep(30)
-
     log.debug('Testing barrier with cpu...')
     dist.barrier()
     log.debug('Barrier test passed with cpu. Destroying process group...')
@@ -205,6 +200,11 @@ def main(cfg: DictConfig) -> Trainer:
     # Now, initialize with the correct device
     log.debug('Initializing dist with device...')
     dist.initialize_dist(get_device(None), timeout=dist_timeout)
+
+    # DO NOT MERGE
+    if os.environ['RANK'] == '10':
+        time.sleep(30)
+
     log.debug('Testing barrier with device...')
     dist.barrier()
     log.debug('Barrier test passed with device.')

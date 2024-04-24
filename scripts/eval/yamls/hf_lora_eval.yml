@@ -3,10 +3,11 @@ variables:
   # If you are using a seperated lora weight, put it here:
   # lora weights must be compatible with the specified model
   lora_id_or_path: ybelkada/opt-350m-lora  # Example lora weights for opt-350m
+  max_seq_len: 2048
 
 seed: 1
 precision: amp_fp16
-max_seq_len: 2048
+max_seq_len: ${variables.max_seq_len}
 
 models:
 -

@@ -43,13 +43,12 @@ from pathlib import Path
 from typing import (Any, Callable, Dict, List, Literal, Optional, Sequence,
                     Tuple, Union, cast)
 
-import Dataset
-import DatasetDict
 import datasets as hf_datasets
 import datasets.exceptions as hf_exceptions
 import huggingface_hub as hf_hub
 import numpy as np
 from composer.utils import dist
+from datasets import Dataset, DatasetDict
 from streaming import Stream, StreamingDataset
 from transformers import PreTrainedTokenizerBase
 

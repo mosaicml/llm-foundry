@@ -187,14 +187,15 @@ def main(cfg: DictConfig) -> Trainer:
             python_log_level.upper())  # Foundry module
         logging.getLogger(__name__).setLevel(
             python_log_level.upper())  # Train script
-        
-    # DO NOT MERGE
-    if os.environ['RANK'] == '10':
-        os.environ['MASTER_ADDR'] = '127.0.0.1'
 
     # First, initialize with a gloo process group and test a barrier
     log.debug('Initializing dist with cpu...')
     dist.initialize_dist('cpu', timeout=dist_timeout)
+
+    # DO NOT MERGE
+    if os.environ['RANK'] == '10':
+        os.environ['MASTER_ADDR'] = '127.0.0.1'
+
     log.debug('Testing barrier with cpu...')
     dist.barrier()
     log.debug('Barrier test passed with cpu. Destroying process group...')

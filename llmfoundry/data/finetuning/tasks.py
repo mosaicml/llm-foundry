@@ -844,7 +844,7 @@ class DatasetConstructor:
             # datasets filtering not properly exiting and the dist.barrier() below not timing out.
             import multiprocessing
             original_start_method = multiprocessing.get_start_method()
-            multiprocessing.set_start_method('spawn')
+            multiprocessing.set_start_method('spawn', force=True)
             result_queue = Queue()
             filter_timeout = 60
             filter_process = ForkProcess(
@@ -861,7 +861,7 @@ class DatasetConstructor:
             filter_process.start()
 
             filter_process.join(timeout=filter_timeout)
-            multiprocessing.set_start_method(original_start_method)
+            multiprocessing.set_start_method(original_start_method, force=True)
             if filter_process.is_alive():
                 filter_process.terminate()
                 raise TimeoutError(

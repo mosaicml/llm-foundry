@@ -750,7 +750,9 @@ class DatasetConstructor:
         filtered_dataset = None
         try:
             if safe_load:
+                log.info(f"bigning debug rank {torch.distributed.get_rank()}, safe load")
                 if not os.path.isdir(dataset_name):
+                    log.info(f"bigning debug rank {torch.distributed.get_rank()}, not path.isdir")
                     # dataset_name is not a local dir path, download if needed.
                     local_dataset_dir = os.path.join(
                         DOWNLOADED_FT_DATASETS_DIRPATH, dataset_name)
@@ -786,6 +788,7 @@ class DatasetConstructor:
                     raise InvalidFileExtensionError(dataset_name,
                                                     SUPPORTED_EXTENSIONS)
 
+            log.info(f"bigning debug rank {torch.distributed.get_rank()}, loading dataset, {split=}")
             dataset = hf_datasets.load_dataset(dataset_name,
                                                split=split,
                                                **hf_kwargs)
@@ -800,6 +803,7 @@ class DatasetConstructor:
             detected_cpus_with_margin = detected_cpu_count - 8
             num_cpus_to_use = max(1, detected_cpus_with_margin)
 
+            log.info(f"bigning debug rank {torch.distributed.get_rank()}, tokenizing  dataset")
             columns_to_remove = list(dataset[0].keys())
             tokenized_dataset = dataset.map(
                 dataset_mapper,
@@ -815,6 +819,7 @@ class DatasetConstructor:
                 num_proc=num_cpus_to_use,
                 desc='Filtering out long prompts',
             )
+            log.info(f"bigning debug rank {torch.distributed.get_rank()}, filter done, {len(tokenized_dataset)=}, {len(filtered_dataset)=}")
 
             examples_removed = len(tokenized_dataset) - len(filtered_dataset)
             if examples_removed > 0:
@@ -827,12 +832,15 @@ class DatasetConstructor:
             error = e
         # Now local rank 0 indicates to the other ranks that it is done
         if dist.get_local_rank() == 0:
+            log.info(f"bigning debug rank {torch.distributed.get_rank()}, local rank 0 done")
             log.debug('Local rank 0 finished data prep')
             with open(signal_file_path, 'wb') as f:
                 f.write(b'local_rank0_completed_data_prep')
 
         # All ranks sync up at this barrier, having completed data processing
+        log.info(f"bigning debug rank {torch.distributed.get_rank()}, before barrier")
         dist.barrier()
+        log.info(f"bigning debug rank {torch.distributed.get_rank()}, after barrier, {error=}")
 
         # Last, local rank 0 cleans up the signal file
         if dist.get_local_rank() == 0:

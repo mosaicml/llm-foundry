@@ -445,6 +445,7 @@ def _stream_remote_local_validate(remote: Optional[str], local: Optional[str],
 def _wait_and_timeout(timeout: int):
     import time
     time.sleep(timeout)
+    log.error(f'Timed out after {timeout} seconds')
     os.kill(os.getppid(), signal.SIGKILL)
     raise TimeoutError(f'Timed out after {timeout} seconds')    
 

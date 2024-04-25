@@ -446,7 +446,7 @@ def _wait_and_timeout(timeout: int):
     import time
     time.sleep(timeout)
     log.error(f'Timed out after {timeout} seconds')
-    os.kill(os.getppid(), signal.SIGKILL)
+    os.kill(os.getppid(), signal.SIGTERM)
     raise TimeoutError(f'Timed out after {timeout} seconds')    
 
 class StreamingFinetuningDataset(StreamingDataset):

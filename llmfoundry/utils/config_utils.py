@@ -251,12 +251,14 @@ def _process_data_source(source_dataset_path: Optional[str],
         backend, _, _ = parse_uri(hf_path)
         if hf_path.startswith('dbfs:'):
             assert cfg_split
-            possible_files = [f'{cfg_split}.json', f'{cfg_split}.jsonl', f'{cfg_split}.txt', f'{cfg_split}.csv', f'{cfg_split}.parquet']
+            possible_files = [
+                f'{cfg_split}.json', f'{cfg_split}.jsonl', f'{cfg_split}.txt',
+                f'{cfg_split}.csv', f'{cfg_split}.parquet'
+            ]
             for file in possible_files:
                 path = os.path.join(hf_path[len('dbfs:'):], file)
                 if _verify_uc_path(path):
-                    data_paths.append(
-                        ('uc_volume', hf_path[len('dbfs:'):], true_split))
+                    data_paths.append(('uc_volume', path, true_split))
         elif backend:
             hf_path = os.path.join(hf_path, cfg_split) if cfg_split else hf_path
             data_paths.append((backend, hf_path, true_split))
@@ -318,8 +320,10 @@ def _log_dataset_uri(cfg: DictConfig) -> None:
         mlflow.log_input(
             mlflow.data.meta_dataset.MetaDataset(source, name=split))
 
+
 def _verify_uc_path(path: str) -> bool:
     """Verify a UC path exists.
+
     Args:
         path (str): UnityCatalog path
 
@@ -331,21 +335,20 @@ def _verify_uc_path(path: str) -> bool:
 
         w = WorkspaceClient()
     except ImportError:
-        _logger.warning(
-            "Cannot verify the path of `UCVolumeDatasetSource` because of missing"
-            "`databricks-sdk`. Please install `databricks-sdk` via "
-            "`pip install -U databricks-sdk`. This does not block creating "
-            "`UCVolumeDatasetSource`, but your `UCVolumeDatasetSource` might be invalid."
+        log.warning(
+            'Cannot verify the path of `UCVolumeDatasetSource` because of missing' + \
+            '`databricks-sdk`. Please install `databricks-sdk` via ' + \
+            '`pip install -U databricks-sdk`. This does not block creating ' + \
+            '`UCVolumeDatasetSource`, but your `UCVolumeDatasetSource` might be invalid.'
         )
-        return
+        return False
     except Exception:
-        _logger.warning(
-            "Cannot verify the path of `UCVolumeDatasetSource` due to a connection failure "
-            "with Databricks workspace. Please run `mlflow.login()` to log in to Databricks. "
-            "This does not block creating `UCVolumeDatasetSource`, but your "
-            "`UCVolumeDatasetSource` might be invalid."
-        )
-        return
+        log.warning(
+            'Cannot verify the path of `UCVolumeDatasetSource` due to a connection failure ' + \
+            'with Databricks workspace. Please run `mlflow.login()` to log in to Databricks. ' + \
+            'This does not block creating `UCVolumeDatasetSource`, but your ' + \
+            '`UCVolumeDatasetSource` might be invalid.')
+        return False
 
     try:
         w.files.get_metadata(path)

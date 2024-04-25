@@ -821,11 +821,12 @@ class DatasetConstructor:
                 desc='Tokenizing dataset',
             )
 
-            filter_timeout = 60
+            filter_timeout = 20
             from multiprocessing.context import SpawnProcess
             timeout_process = SpawnProcess(target=_wait_and_timeout, args=(filter_timeout,))
             timeout_process.start()
-
+            import time
+            time.sleep(60)
             filtered_dataset = tokenized_dataset.filter(
                 partial(is_valid_ift_example, max_seq_len, target_prompts,
                         target_responses, decoder_only_format),

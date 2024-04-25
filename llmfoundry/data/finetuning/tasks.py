@@ -37,6 +37,7 @@ import os
 import warnings
 from collections.abc import Mapping
 from functools import partial
+import torch
 from pathlib import Path
 from typing import (Any, Callable, Dict, List, Literal, Optional, Sequence,
                     Tuple, Union, cast)

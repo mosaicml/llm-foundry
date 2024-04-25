@@ -250,7 +250,8 @@ def _process_data_source(source_dataset_path: Optional[str],
         hf_path = dataset['hf_name']
         backend, _, _ = parse_uri(hf_path)
         if hf_path.startswith('dbfs:'):
-            data_paths.append(('uc_volume', source_dataset_path[len('dbfs:'):], true_split))
+            data_paths.append(
+                ('uc_volume', hf_path[len('dbfs:'):], true_split))
         elif backend:
             hf_path = os.path.join(hf_path, cfg_split) if cfg_split else hf_path
             data_paths.append((backend, hf_path, true_split))

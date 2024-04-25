@@ -440,6 +440,11 @@ def _stream_remote_local_validate(remote: Optional[str], local: Optional[str],
             if split is not None and split not in contents:
                 raise ValueError(
                     f'Local directory {local} does not contain split {split}')
+            
+def _wait_and_timeout(timeout: int):
+    import time
+    time.sleep(timeout)
+    raise TimeoutError(f'Timed out after {timeout} seconds')    
 
 
 class StreamingFinetuningDataset(StreamingDataset):
@@ -816,12 +821,20 @@ class DatasetConstructor:
                 desc='Tokenizing dataset',
             )
 
+            filter_timeout = 60
+            from multiprocessing.context import SpawnProcess
+            timeout_process = SpawnProcess(target=_wait_and_timeout, args=(filter_timeout,))
+            timeout_process.start()
+
             filtered_dataset = tokenized_dataset.filter(
                 partial(is_valid_ift_example, max_seq_len, target_prompts,
                         target_responses, decoder_only_format),
                 num_proc=num_cpus_to_use,
                 desc='Filtering out long prompts',
             )
+
+            if timeout_process.is_alive():
+                timeout_process.terminate()
 
             examples_removed = len(tokenized_dataset) - len(filtered_dataset)
             if examples_removed > 0:

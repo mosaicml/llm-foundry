@@ -34,6 +34,7 @@ those keys are strings (i.e. text).
 import importlib
 import logging
 import os
+import signal
 import warnings
 from collections.abc import Mapping
 from functools import partial
@@ -444,8 +445,8 @@ def _stream_remote_local_validate(remote: Optional[str], local: Optional[str],
 def _wait_and_timeout(timeout: int):
     import time
     time.sleep(timeout)
+    os.kill(os.getppid(), signal.SIGKILL)
     raise TimeoutError(f'Timed out after {timeout} seconds')    
-
 
 class StreamingFinetuningDataset(StreamingDataset):
     """Finetuning dataset with flexible tokenization using StreamingDataset.

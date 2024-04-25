@@ -451,6 +451,7 @@ def _force_timeout_subprocess(timeout: int):
     def sleep_and_timeout(timeout: int):
         time.sleep(timeout)
         os.kill(os.getpid(), signal.SIGTERM)
+        raise TimeoutError(f'Timed out after {timeout} seconds')  
     
     timeout_process = SpawnProcess(target=sleep_and_timeout, args=(timeout,))
     timeout_process.start()

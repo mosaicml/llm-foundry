@@ -835,7 +835,9 @@ class DatasetConstructor:
             )
 
             
-            with _force_timeout_subprocess(timeout=60):
+            with _force_timeout_subprocess(timeout=20):
+                import time
+                time.sleep(60)
                 filtered_dataset = tokenized_dataset.filter(
                     partial(is_valid_ift_example, max_seq_len, target_prompts,
                             target_responses, decoder_only_format),

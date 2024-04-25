@@ -10,7 +10,6 @@ import warnings
 from typing import Any, Dict, List, Optional, Union
 
 import torch
-import torch.distributed
 from composer import Trainer
 from composer.core.callback import Callback
 from composer.profiler import (JSONTraceHandler, Profiler, TraceHandler,

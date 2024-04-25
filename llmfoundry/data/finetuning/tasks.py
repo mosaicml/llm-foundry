@@ -447,7 +447,7 @@ def _stream_remote_local_validate(remote: Optional[str], local: Optional[str],
             
 def _sleep_and_timeout(timeout: int):
     time.sleep(timeout)
-    os.kill(os.getpid(), signal.SIGTERM)
+    os.kill(os.getpid(), signal.SIGKILL)
     raise TimeoutError(f'Timed out after {timeout} seconds')  
 
 @contextmanager
@@ -835,7 +835,7 @@ class DatasetConstructor:
             )
 
             
-            with _force_timeout_subprocess(timeout=20):
+            with _force_timeout_subprocess(timeout=1):
                 import time
                 time.sleep(60)
                 filtered_dataset = tokenized_dataset.filter(

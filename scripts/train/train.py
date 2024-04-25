@@ -114,6 +114,19 @@ def validate_config(cfg: DictConfig):
             )
 
 
+def _initialize_dist_with_barrier(dist_timeout: Union[int, float]):
+    """Initialize distributed and test setup with a barrier.
+
+    Args:
+        dist_timeout (Union[int, float]): Timeout for initializing the process group
+    """
+    log.debug('Initializing dist with device...')
+    dist.initialize_dist(get_device(None), timeout=dist_timeout)
+    log.debug('Testing barrier with device...')
+    dist.barrier()
+    log.debug('Barrier test passed with device.')
+
+
 def main(cfg: DictConfig) -> Trainer:
     # Run user provided code if specified
     code_paths = pop_config(cfg,
@@ -170,7 +183,24 @@ def main(cfg: DictConfig) -> Trainer:
                                                  'dist_timeout',
                                                  must_exist=False,
                                                  default_value=600.0)
-    dist.initialize_dist(get_device(None), timeout=dist_timeout)
+    python_log_level: Optional[str] = pop_config(cfg,
+                                                 'python_log_level',
+                                                 must_exist=False,
+                                                 default_value='debug')
+    # Set logging level
+    if python_log_level is not None:
+        logging.basicConfig(
+            # Example of format string
+            # 2022-06-29 11:22:26,152: rank0[822018][MainThread]: INFO: Message here
+            format=
+            f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
+        )
+        logging.getLogger('llmfoundry').setLevel(
+            python_log_level.upper())  # Foundry module
+        logging.getLogger(__name__).setLevel(
+            python_log_level.upper())  # Train script
+
+    _initialize_dist_with_barrier(dist_timeout=dist_timeout)
 
     # Get global and device batch size information from distributed/single node setting
     cfg = update_batch_size_info(cfg)
@@ -298,10 +328,6 @@ def main(cfg: DictConfig) -> Trainer:
                                       'log_to_console',
                                       must_exist=False,
                                       default_value=True)
-    python_log_level: Optional[str] = pop_config(cfg,
-                                                 'python_log_level',
-                                                 must_exist=False,
-                                                 default_value='debug')
     console_log_interval: Union[int, str] = pop_config(cfg,
                                                        'console_log_interval',
                                                        must_exist=False,
@@ -390,19 +416,6 @@ def main(cfg: DictConfig) -> Trainer:
         warnings.warn(
             'FSDP is not applicable for single-GPU training. Reverting to DDP.')
         fsdp_config = None
-
-    # set logging level
-    if python_log_level is not None:
-        logging.basicConfig(
-            # Example of format string
-            # 2022-06-29 11:22:26,152: rank0[822018][MainThread]: INFO: Message here
-            format=
-            f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
-        )
-        logging.getLogger('llmfoundry').setLevel(
-            python_log_level.upper())  # Foundry module
-        logging.getLogger(__name__).setLevel(
-            python_log_level.upper())  # Train script
 
     # Initialize context
     init_context = process_init_device(model_config, fsdp_config)

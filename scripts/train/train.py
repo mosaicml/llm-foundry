@@ -115,26 +115,12 @@ def validate_config(cfg: DictConfig):
             )
 
 
-def _initialize_gloo_and_nccl(dist_timeout: Union[int, float]):
-    """Initialize GLOO process group (then destroyed) and device process group.
-
-    We have experienced an issue where the first barrier with NCCL does not timeout properly,
-    and can hang forever if something is wrong. To attempt to mitigate this, we will first
-    initialize with a gloo process group and test a barrier, then destroy the process group
+def _initialize_dist_with_barrier(dist_timeout: Union[int, float]):
+    """Initialize distributed and test setup with a barrier.
 
     Args:
         dist_timeout (Union[int, float]): Timeout for initializing the process group
     """
-    # First, initialize with a gloo process group and test a barrier
-    log.debug('Initializing dist with cpu...')
-    dist.initialize_dist('cpu', timeout=dist_timeout)
-    log.debug('Testing barrier with cpu...')
-    dist.barrier()
-    log.debug('Barrier test passed with cpu. Destroying process group...')
-    torch.distributed.destroy_process_group()
-    log.debug('Process group destroyed.')
-
-    # Now, initialize with the correct device
     log.debug('Initializing dist with device...')
     dist.initialize_dist(get_device(None), timeout=dist_timeout)
     log.debug('Testing barrier with device...')
@@ -215,7 +201,7 @@ def main(cfg: DictConfig) -> Trainer:
         logging.getLogger(__name__).setLevel(
             python_log_level.upper())  # Train script
 
-    _initialize_gloo_and_nccl(dist_timeout=dist_timeout)
+    _initialize_dist_with_barrier(dist_timeout=dist_timeout)
 
     # Get global and device batch size information from distributed/single node setting
     cfg = update_batch_size_info(cfg)

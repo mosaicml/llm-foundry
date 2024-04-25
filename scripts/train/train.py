@@ -144,6 +144,19 @@ def _log_num_params(model: ComposerModel, logged_cfg: Dict[str, Any]):
     })
 
 
+def _initialize_dist_with_barrier(dist_timeout: Union[int, float]):
+    """Initialize distributed and test setup with a barrier.
+
+    Args:
+        dist_timeout (Union[int, float]): Timeout for initializing the process group
+    """
+    log.debug('Initializing dist with device...')
+    dist.initialize_dist(get_device(None), timeout=dist_timeout)
+    log.debug('Testing barrier with device...')
+    dist.barrier()
+    log.debug('Barrier test passed with device.')
+
+
 def main(cfg: DictConfig) -> Trainer:
     code_paths = cfg.get('code_paths', [])
     # Import any user provided code
@@ -190,10 +203,6 @@ def main(cfg: DictConfig) -> Trainer:
     seed: int = train_cfg.seed
     reproducibility.seed_all(seed)
 
-    # Initialize pytorch distributed training process groups
-    dist_timeout: Union[int, float] = train_cfg.dist_timeout
-    dist.initialize_dist(get_device(None), timeout=dist_timeout)
-
     if train_cfg.python_log_level is not None:
         # Set logging level
         logging.basicConfig(
@@ -206,6 +215,10 @@ def main(cfg: DictConfig) -> Trainer:
             train_cfg.python_log_level.upper())  # Foundry module
         logging.getLogger(__name__).setLevel(
             train_cfg.python_log_level.upper())  # Train script
+
+    # Initialize pytorch distributed training process groups
+    dist_timeout: Union[int, float] = train_cfg.dist_timeout
+    _initialize_dist_with_barrier(dist_timeout=dist_timeout)
 
     # Mandatory model training configs
     model_config = train_cfg.model

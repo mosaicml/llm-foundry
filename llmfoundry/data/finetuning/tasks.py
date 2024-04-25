@@ -850,6 +850,9 @@ class DatasetConstructor:
             log.debug('Local rank 0 finished data prep')
             with open(signal_file_path, 'wb') as f:
                 f.write(b'local_rank0_completed_data_prep')
+        
+        if error is not None and isinstance(error, TimeoutError):
+            raise error
 
         # All ranks sync up at this barrier, having completed data processing
         dist.barrier()

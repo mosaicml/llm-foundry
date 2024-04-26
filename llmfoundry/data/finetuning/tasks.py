@@ -826,7 +826,7 @@ class DatasetConstructor:
                 desc='Tokenizing dataset',
             )
 
-            filter_timeout = 600
+            filter_timeout = 1800
             task = 'Filtering out long prompts'
             with _timeout_signal(filter_timeout, task=task):
                 filtered_dataset = tokenized_dataset.filter(

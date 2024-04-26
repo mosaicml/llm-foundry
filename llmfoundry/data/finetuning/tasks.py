@@ -31,15 +31,14 @@ with "prompt" and "response" keys, and that the values associated with
 those keys are strings (i.e. text).
 """
 
-from contextlib import contextmanager
 import importlib
 import logging
 import os
 import signal
 import warnings
 from collections.abc import Mapping
+from contextlib import contextmanager
 from functools import partial
-from multiprocessing.context import SpawnProcess
 from pathlib import Path
 from typing import (Any, Callable, Dict, List, Literal, Optional, Sequence,
                     Tuple, Union, cast)
@@ -436,17 +435,19 @@ def is_valid_ift_example(max_seq_len: int, target_prompts: str,
 
 
 @contextmanager
-def _timeout_signal(timeout: int):
+def _timeout_signal(timeout: int, task: str = 'Task'):
+    """Raises a TimeoutError if a task takes longer than `timeout`."""
+
     def timeout_handler(*_):
-        raise TimeoutError(f'Filtering dataset time {timeout}')
+        raise TimeoutError(f'{task} took longer than {timeout} seconds.')
+
     signal.signal(signal.SIGALRM, timeout_handler)
     signal.alarm(timeout)
-    import time
-    time.sleep(400)
     try:
         yield
     finally:
         signal.alarm(0)
+
 
 def _stream_remote_local_validate(remote: Optional[str], local: Optional[str],
                                   split: Optional[str]):
@@ -832,13 +833,14 @@ class DatasetConstructor:
                 desc='Tokenizing dataset',
             )
 
-            filter_timeout = 20
-            with _timeout_signal(filter_timeout):
+            filter_timeout = 600
+            task = 'Filtering out long prompts'
+            with _timeout_signal(filter_timeout, task=task):
                 filtered_dataset = tokenized_dataset.filter(
                     partial(is_valid_ift_example, max_seq_len, target_prompts,
                             target_responses, decoder_only_format),
                     num_proc=num_cpus_to_use,
-                    desc='Filtering out long prompts',
+                    desc=task,
                 )
 
             examples_removed = len(tokenized_dataset) - len(filtered_dataset)
@@ -856,7 +858,8 @@ class DatasetConstructor:
             with open(signal_file_path, 'wb') as f:
                 f.write(b'local_rank0_completed_data_prep')
 
-        if error is not None and isinstance(error, TimeoutError):
+        if error is not None:
+            log.error('Error during data prep')
             raise error
 
         # All ranks sync up at this barrier, having completed data processing
@@ -870,9 +873,6 @@ class DatasetConstructor:
             log.error('Huggingface DatasetGenerationError during data prep.')
             raise MisconfiguredHfDatasetError(dataset_name=dataset_name,
                                               split=split)
-        if error is not None:
-            log.error('Error during data prep')
-            raise error
         log.debug('All ranks finished data prep')
 
         hf_tokenization_logger.removeFilter(sequence_length_warning_filter)

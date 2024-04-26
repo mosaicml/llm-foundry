@@ -444,20 +444,6 @@ def _stream_remote_local_validate(remote: Optional[str], local: Optional[str],
             if split is not None and split not in contents:
                 raise ValueError(
                     f'Local directory {local} does not contain split {split}')
-            
-def _sleep_and_timeout(timeout: int):
-    time.sleep(timeout)
-    os.kill(os.getpid(), signal.SIGKILL)
-    raise TimeoutError(f'Timed out after {timeout} seconds')  
-
-@contextmanager
-def _force_timeout_subprocess(timeout: int):
-    timeout_process = SpawnProcess(target=_sleep_and_timeout, args=(timeout,))
-    timeout_process.start()
-    try:
-        yield
-    finally:
-        timeout_process.terminate()
 
 
 class StreamingFinetuningDataset(StreamingDataset):
@@ -835,15 +821,19 @@ class DatasetConstructor:
             )
 
             
-            with _force_timeout_subprocess(timeout=1):
-                import time
-                time.sleep(60)
-                filtered_dataset = tokenized_dataset.filter(
-                    partial(is_valid_ift_example, max_seq_len, target_prompts,
-                            target_responses, decoder_only_format),
-                    num_proc=num_cpus_to_use,
-                    desc='Filtering out long prompts',
-                )
+            def timeout(*_):
+                raise TimeoutError('Filtering dataset time')
+            signal.signal(signal.SIGALRM, timeout)
+            signal.alarm(20)
+            import time
+            time.sleep(400)
+            filtered_dataset = tokenized_dataset.filter(
+                partial(is_valid_ift_example, max_seq_len, target_prompts,
+                        target_responses, decoder_only_format),
+                num_proc=num_cpus_to_use,
+                desc='Filtering out long prompts',
+            )
+            signal.alarm(0)
             
             examples_removed = len(tokenized_dataset) - len(filtered_dataset)
             if examples_removed > 0:

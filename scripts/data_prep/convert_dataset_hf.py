@@ -6,7 +6,7 @@ import json
 import os
 import platform
 from argparse import ArgumentParser, Namespace
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, Iterable, Optional, Union
 
@@ -89,7 +89,7 @@ def parse_args() -> Namespace:
 class DataSplitConstants:
     hf_split: str
     folder_split: str
-    raw_samples: int
+    raw_samples: Union[int, None]
     truncated_samples: Union[int, None]
 
 
@@ -97,7 +97,7 @@ class DataSplitConstants:
 class DatasetConstants:
     chars_per_sample: int
     chars_per_token: int
-    splits = {}
+    splits: Dict[str, DataSplitConstants] = field(default_factory=dict)
 
     def __iter__(self):
         for _, v in self.splits.items():
@@ -109,7 +109,7 @@ class TrainSmallConstants(DataSplitConstants):
     def __init__(self,
                  hf_split: str = 'train',
                  folder_split: str = 'train_small',
-                 raw_samples: int = 1000000,
+                 raw_samples: int = 100000,
                  truncated_samples: int = 100000):
         super().__init__(hf_split, folder_split, raw_samples, truncated_samples)
 
@@ -145,7 +145,7 @@ pileconstants.splits['train'] = DataSplitConstants(hf_split='train',
 pileconstants.splits['train_small'] = DataSplitConstants(
     hf_split='train',
     folder_split='train_small',
-    raw_samples=1000000,
+    raw_samples=100000,
     truncated_samples=100000)
 pileconstants.splits['val'] = DataSplitConstants(hf_split='validation',
                                                  folder_split='val',
@@ -172,7 +172,7 @@ c4constants.splits['train'] = DataSplitConstants(hf_split='train',
 c4constants.splits['train_small'] = DataSplitConstants(
     hf_split='train',
     folder_split='train_small',
-    raw_samples=1000000,
+    raw_samples=100000,
     truncated_samples=100000)
 c4constants.splits['val'] = DataSplitConstants(hf_split='validation',
                                                folder_split='val',

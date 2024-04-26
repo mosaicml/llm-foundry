@@ -34,13 +34,12 @@ those keys are strings (i.e. text).
 from contextlib import contextmanager
 import importlib
 import logging
-from multiprocessing.context import SpawnProcess
 import os
 import signal
-import time
 import warnings
 from collections.abc import Mapping
 from functools import partial
+from multiprocessing.context import SpawnProcess
 from pathlib import Path
 from typing import (Any, Callable, Dict, List, Literal, Optional, Sequence,
                     Tuple, Union, cast)
@@ -436,6 +435,19 @@ def is_valid_ift_example(max_seq_len: int, target_prompts: str,
     return True
 
 
+@contextmanager
+def _timeout_signal(timeout: int):
+    def timeout_handler(*_):
+        raise TimeoutError(f'Filtering dataset time {timeout}')
+    signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(timeout)
+    import time
+    time.sleep(400)
+    try:
+        yield
+    finally:
+        signal.alarm(0)
+
 def _stream_remote_local_validate(remote: Optional[str], local: Optional[str],
                                   split: Optional[str]):
     if remote is None or (local == remote):
@@ -820,21 +832,15 @@ class DatasetConstructor:
                 desc='Tokenizing dataset',
             )
 
-            
-            def timeout(*_):
-                raise TimeoutError('Filtering dataset time')
-            signal.signal(signal.SIGALRM, timeout)
-            signal.alarm(20)
-            import time
-            time.sleep(400)
-            filtered_dataset = tokenized_dataset.filter(
-                partial(is_valid_ift_example, max_seq_len, target_prompts,
-                        target_responses, decoder_only_format),
-                num_proc=num_cpus_to_use,
-                desc='Filtering out long prompts',
-            )
-            signal.alarm(0)
-            
+            filter_timeout = 20
+            with _timeout_signal(filter_timeout):
+                filtered_dataset = tokenized_dataset.filter(
+                    partial(is_valid_ift_example, max_seq_len, target_prompts,
+                            target_responses, decoder_only_format),
+                    num_proc=num_cpus_to_use,
+                    desc='Filtering out long prompts',
+                )
+
             examples_removed = len(tokenized_dataset) - len(filtered_dataset)
             if examples_removed > 0:
                 warnings.warn(
@@ -849,7 +855,7 @@ class DatasetConstructor:
             log.debug('Local rank 0 finished data prep')
             with open(signal_file_path, 'wb') as f:
                 f.write(b'local_rank0_completed_data_prep')
-        
+
         if error is not None and isinstance(error, TimeoutError):
             raise error
 

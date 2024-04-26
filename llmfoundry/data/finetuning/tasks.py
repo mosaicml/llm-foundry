@@ -833,9 +833,11 @@ class DatasetConstructor:
                 desc='Tokenizing dataset',
             )
 
-            filter_timeout = 600
+            filter_timeout = 20
             task = 'Filtering out long prompts'
             with _timeout_signal(filter_timeout, task=task):
+                import time
+                time.sleep(50)
                 filtered_dataset = tokenized_dataset.filter(
                     partial(is_valid_ift_example, max_seq_len, target_prompts,
                             target_responses, decoder_only_format),

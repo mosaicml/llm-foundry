@@ -851,6 +851,10 @@ class DatasetConstructor:
             with open(signal_file_path, 'wb') as f:
                 f.write(b'local_rank0_completed_data_prep')
 
+        if isinstance(error, hf_exceptions.DatasetGenerationError):
+            log.error('Huggingface DatasetGenerationError during data prep.')
+            raise MisconfiguredHfDatasetError(dataset_name=dataset_name,
+                                              split=split)
         if error is not None:
             log.error('Error during data prep')
             raise error
@@ -862,10 +866,6 @@ class DatasetConstructor:
         if dist.get_local_rank() == 0:
             os.remove(signal_file_path)
 
-        if isinstance(error, hf_exceptions.DatasetGenerationError):
-            log.error('Huggingface DatasetGenerationError during data prep.')
-            raise MisconfiguredHfDatasetError(dataset_name=dataset_name,
-                                              split=split)
         log.debug('All ranks finished data prep')
 
         hf_tokenization_logger.removeFilter(sequence_length_warning_filter)

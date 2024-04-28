@@ -224,11 +224,11 @@ def build_callback(
     if name in registry.callbacks_with_config:
         if kwargs is None:
             kwargs = {}
-        if 'config' in kwargs:
+        if 'train_config' in kwargs:
             raise ValueError(
-                f'`config` is a reserved keyword for callbacks with config. Please remove it from the kwargs.'
+                f'`train_config` is a reserved keyword for callbacks with config. Please remove it from the kwargs.'
             )
-        kwargs['config'] = config
+        kwargs['train_config'] = config
         registry_to_use = registry.callbacks_with_config
 
     return construct_from_registry(name=name,

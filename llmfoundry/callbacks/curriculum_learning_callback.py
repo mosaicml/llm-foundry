@@ -39,7 +39,7 @@ class CurriculumLearning(CallbackWithConfig):
         self.all_dataset_configs = []
         self.current_dataset_state = {}
         # The current dataset config is resolved and passed in train.py
-        self.current_dataset_config = train_config['dataloader']
+        self.current_dataset_config = train_config['train_loader']
 
     def before_load(self, state: State, logger: Logger):
         del logger

@@ -20,6 +20,7 @@ from composer.utils import dist
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from streaming import MDSWriter
+from streaming.base.util import clean_stale_shared_memory
 
 from llmfoundry.data import build_dataloader, build_finetuning_dataloader
 from llmfoundry.data.finetuning.collator import (_HF_IGNORE_INDEX,
@@ -579,6 +580,8 @@ def test_finetuning_dataloader_streaming(pretokenize: bool,
                                          backwards_compatibility_mode: bool,
                                          use_bytes: bool,
                                          tmp_path: pathlib.Path):
+    clean_stale_shared_memory()
+
     max_seq_len = 2048
 
     tokenizer = build_tokenizer(

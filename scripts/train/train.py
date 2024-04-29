@@ -182,7 +182,7 @@ def main(cfg: DictConfig) -> Trainer:
         logging.getLogger(__name__).setLevel(
             train_cfg.python_log_level.upper())  # Train script
 
-    _initialize_dist_with_barrier(dist_timeout=dist_timeout)
+    _initialize_dist_with_barrier(dist_timeout=train_cfg.dist_timeout)
 
     # Filter deprecation warning from torch internal usage
     warnings.filterwarnings(
@@ -217,10 +217,6 @@ def main(cfg: DictConfig) -> Trainer:
     # Set seed first
     seed: int = train_cfg.seed
     reproducibility.seed_all(seed)
-
-    # Initialize pytorch distributed training process groups
-    dist_timeout: Union[int, float] = train_cfg.dist_timeout
-    _initialize_dist_with_barrier(dist_timeout=dist_timeout)
 
     # Mandatory model training configs
     model_config = train_cfg.model
@@ -465,7 +461,7 @@ def main(cfg: DictConfig) -> Trainer:
         save_ignore_keys=train_cfg.save_ignore_keys,
         autoresume=train_cfg.autoresume,
         python_log_level=train_cfg.python_log_level,
-        dist_timeout=dist_timeout,
+        dist_timeout=train_cfg.dist_timeout,
         profiler=profiler,
         compile_config=compile_config,
     )

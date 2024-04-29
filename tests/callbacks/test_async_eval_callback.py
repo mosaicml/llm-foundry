@@ -245,10 +245,7 @@ FAKE_RUN = Run(
 
 @patch('llmfoundry.callbacks.async_eval_callback.get_run',
        return_value=FAKE_RUN)
-@patch('llmfoundry.callbacks.async_eval_callback.create_run',
-       return_value=FAKE_RUN)
-def test_async_eval_callback_builds(mock_create_run: MagicMock,
-                                    mock_get_run: MagicMock):
+def test_async_eval_callback_builds(mock_get_run: MagicMock):
     kwargs = {'interval': 1}
     config = {
         'save_folder': 'foo',
@@ -261,7 +258,7 @@ def test_async_eval_callback_builds(mock_create_run: MagicMock,
         'tokenizer': {},
         'icl_tasks': [],
     }
-    callback = build_callback('async_eval', kwargs=kwargs, config=config)
+    callback = build_callback('async_eval', kwargs=kwargs, train_config=config)
     assert isinstance(callback, AsyncEval)
     assert callback.current_run.name == RUN_NAME
     assert mock_get_run.call_count == 1

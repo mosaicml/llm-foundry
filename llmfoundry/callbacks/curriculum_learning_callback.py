@@ -33,7 +33,7 @@ class CurriculumLearning(CallbackWithConfig):
             being used.
     """
 
-    def __init__(self, dataset_index: int, train_config: Dict):
+    def __init__(self, train_config: Dict, dataset_index: int):
         self.dataset_index = dataset_index
         self.saved_dataset_index = 0
         self.all_dataset_configs = []

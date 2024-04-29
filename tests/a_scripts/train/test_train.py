@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
+
 import copy
+import os
 import pathlib
 from typing import Optional
 
@@ -9,9 +11,10 @@ from composer.loggers import InMemoryLogger
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 
-from scripts.train.train import main  # noqa: E402
+from scripts.train.train import main, validate_config  # noqa: E402
 from tests.data_utils import (create_arxiv_dataset, create_c4_dataset_xxsmall,
                               gpt_tiny_cfg)
+from tests.fixtures.autouse import REPO_DIR
 
 
 @pytest.mark.parametrize('averages', [{
@@ -122,7 +125,6 @@ def test_train_multi_eval(tmp_path: pathlib.Path):
     inmemorylogger = trainer.logger.destinations[
         0]  # pyright: ignore [reportGeneralTypeIssues]
     assert isinstance(inmemorylogger, InMemoryLogger)
-    print(inmemorylogger.data.keys())
 
     # Checks for first eval dataloader
     assert 'metrics/eval/c4/LanguageCrossEntropy' in inmemorylogger.data.keys()
@@ -143,3 +145,49 @@ def test_train_multi_eval(tmp_path: pathlib.Path):
     assert isinstance(
         inmemorylogger.data['metrics/eval/arxiv/LanguageCrossEntropy'][-1],
         tuple)
+
+
+@pytest.mark.gpu
+def test_validate_config():
+    conf_path: str = os.path.join(
+        REPO_DIR,
+        'scripts/train/yamls/pretrain/testing-moe.yaml',
+    )
+    with open(conf_path) as f:
+        test_cfg: DictConfig = om.load(f)  # type: ignore
+    test_cfg.model.ffn_config.moe_world_size = 4
+    test_cfg.fsdp_config.use_orig_params = False
+    with pytest.raises(
+            ValueError,
+            match=
+            'MoEs with expert parallelism (.*) require `use_orig_params=True`.'
+    ):
+        validate_config(test_cfg)
+
+
+def test_eval_metrics_with_no_train_metrics(tmp_path: pathlib.Path):
+    """Test using use_train_metrics=False does not disable eval metrics."""
+    c4_dataset_name = create_c4_dataset_xxsmall(tmp_path)
+    test_cfg = gpt_tiny_cfg(c4_dataset_name, 'cpu')
+    first_eval_loader = test_cfg.eval_loader
+    first_eval_loader.label = 'c4'
+    test_cfg.eval_loader = om.create([first_eval_loader])
+    test_cfg.eval_subset_num_batches = 1  # -1 to evaluate on all batches
+    test_cfg.max_duration = '1ba'
+    test_cfg.eval_interval = '1ba'
+    test_cfg.loggers = DictConfig({'inmemory': DictConfig({})})
+    test_cfg.model['use_train_metrics'] = False
+    trainer = main(test_cfg)
+
+    # Check eval metrics exist
+    inmemorylogger = trainer.logger.destinations[
+        0]  # pyright: ignore [reportGeneralTypeIssues]
+    assert isinstance(inmemorylogger, InMemoryLogger)
+
+    assert 'metrics/eval/c4/LanguageCrossEntropy' in inmemorylogger.data.keys()
+    assert isinstance(
+        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'], list)
+    assert len(
+        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1]) > 0
+    assert isinstance(
+        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1], tuple)

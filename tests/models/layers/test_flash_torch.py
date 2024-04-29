@@ -8,6 +8,7 @@ from omegaconf import OmegaConf as om
 from llmfoundry.models.layers import attention
 from llmfoundry.models.layers.attention import (check_alibi_support, gen_slopes,
                                                 is_flash_v2_installed)
+from llmfoundry.models.layers.layer_builders import build_attention_layer
 from llmfoundry.models.mpt.modeling_mpt import (apply_sequence_id,
                                                 gen_attention_mask_in_length,
                                                 gen_flash_attn_padding_info,
@@ -23,9 +24,7 @@ def allclose_helper(t0: torch.Tensor,
 
 @pytest.mark.gpu
 @pytest.mark.parametrize('attn_impl_0, attn_impl_1', [
-    ('flash', 'triton'),
     ('flash', 'torch'),
-    ('triton', 'torch'),
 ])
 @pytest.mark.parametrize('clip_qkv', [True, False])
 @pytest.mark.parametrize('qk_ln, qk_gn', [
@@ -122,9 +121,15 @@ def test_attn_impl(attn_impl_0: str,
                                        ]).to(device=device)
 
     cfg.attn_impl = attn_impl_0
-    attn0 = attention.ATTN_CLASS_REGISTRY[attn_type](**cfg).to(device)
+    attn0 = build_attention_layer(
+        name=attn_type,
+        attn_kwargs=om.to_container(cfg),  # type: ignore
+    ).to(device)
     cfg.attn_impl = attn_impl_1
-    attn1 = attention.ATTN_CLASS_REGISTRY[attn_type](**cfg).to(device)
+    attn1 = build_attention_layer(
+        name=attn_type,
+        attn_kwargs=om.to_container(cfg),  # type: ignore
+    ).to(device)
 
     attn1.load_state_dict(attn0.state_dict())
 
@@ -146,7 +151,6 @@ def test_attn_impl(attn_impl_0: str,
                                        cfg.n_heads,
                                        s,
                                        alibi,
-                                       prefix_lm=False,
                                        use_sequence_id=attn_uses_sequence_id,
                                        causal=causal)
         if bs is not None:
@@ -291,7 +295,7 @@ def test_attn_impl(attn_impl_0: str,
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('attn_impl', ['flash', 'triton', 'torch'])
+@pytest.mark.parametrize('attn_impl', ['flash', 'torch'])
 def test_vs_mha(attn_impl: str, device: str = 'cuda'):
     """Compare diff attn_impl to torch.nn.MultiheadAttention."""
     from llmfoundry.models.layers import attention
@@ -388,7 +392,7 @@ def test_vs_mha(attn_impl: str, device: str = 'cuda'):
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('attn_impl', ['flash', 'triton', 'torch'])
+@pytest.mark.parametrize('attn_impl', ['flash', 'torch'])
 @pytest.mark.parametrize('n_heads', [16, 8])
 @pytest.mark.parametrize('kv_n_heads', [4, 2, 1])
 def test_grouped_attention_heads(attn_impl: str,

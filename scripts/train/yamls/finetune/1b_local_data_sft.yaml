@@ -16,13 +16,13 @@ model:
   name: mpt_causal_lm
   init_device: meta
   d_model: 2048
-  n_heads: 16  # Modified 24->16 so that d_head == 128 to statisfy FlashAttention
+  n_heads: 16  # Modified 24->16 so that d_head == 128 to satisfy FlashAttention
   n_layers: 24
   expansion_ratio: 4
   max_seq_len: ${max_seq_len}
   vocab_size: 50368
   attn_config:
-    attn_impl: triton
+    attn_impl: flash
     # Set this to `true` if using `train_loader.dataset.packing_ratio` below
     attn_uses_sequence_id: false
 

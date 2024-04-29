@@ -42,6 +42,12 @@ ORAS_CLI = 'oras'
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    'download_from_hf_hub',
+    'download_from_http_fileserver',
+    'download_from_oras',
+]
+
 
 @tenacity.retry(retry=tenacity.retry_if_not_exception_type(
     (ValueError, hf_hub.utils.RepositoryNotFoundError)),
@@ -243,7 +249,7 @@ def download_from_oras(model: str,
         credentials_dir (str): Path to a directory containing credentials for the registry. It is expected to contain three
             files: `username`, `password`, and `registry`, each of which contains the corresponding credential.
         save_dir (str): Path to the directory where files will be downloaded.
-        tokenizer_only (bool): If true, only download the tokenzier files.
+        tokenizer_only (bool): If true, only download the tokenizer files.
         concurrency (int): The number of concurrent downloads to run.
     """
     if shutil.which(ORAS_CLI) is None:

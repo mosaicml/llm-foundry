@@ -7,10 +7,17 @@ from typing import Callable, Dict, Iterable, List, Literal, Optional, Tuple
 
 import numpy as np
 import torch
+from composer.utils import dist
 from omegaconf import DictConfig
 from transformers import PreTrainedTokenizerBase
 
 log = logging.getLogger(__name__)
+
+__all__ = [
+    'BinPackCollator',
+    'auto_packing_ratio',
+    'profile_packing',
+]
 
 
 class BinPackCollator:
@@ -71,7 +78,7 @@ class BinPackCollator:
                 'input_ids',
                 'labels',
                 'attention_mask',
-                'bidirectional_mask',
+                'sequence_id',
             ]
         # Cut everything down to size
         sizes, trimmed_examples = _trim_batch(batch)
@@ -277,7 +284,6 @@ def _repad(packed_examples: List[Dict[str, torch.Tensor]], max_seq_len: int,
         'input_ids': pad_token_id,
         'labels': -100,
         'attention_mask': 0,
-        'bidirectional_mask': 0,
         'sequence_id': -1,
     }
     keys = packed_examples[0].keys()
@@ -315,6 +321,8 @@ def auto_packing_ratio(dataloader_cfg: DictConfig,
         A packing ratio that minimizes padding while maintaining zero waste.
     """
     from composer.utils import dist, get_device, reproducibility
+
+    log.debug('Searching for optimal packing ratio.')
 
     # Stash the rng state to restore later.
     rng_state = reproducibility.get_rng_state()
@@ -382,15 +390,26 @@ def profile_packing(
 
     # Turn off packing for the dataloader (we want raw, pre-packed examples)
     dataloader_cfg = copy.deepcopy(dataloader_cfg)
-    dataloader_cfg.dataset.packing_ratio = None
+    dataloader_cfg.dataset.packing_ratio = 1.0
     dataloader_cfg.drop_last = False
     dataloader_cfg.num_workers = 0
     dataloader_cfg.prefetch_factor = None
     dataloader_cfg.persistent_workers = False
 
     # If streaming dataset, use a temporary local folder for profiling
+    local_rank_zero = dist.get_global_rank() - dist.get_local_rank()
     if dataloader_cfg.dataset.get('remote') is not None:
-        dataloader_cfg.dataset.local = tempfile.TemporaryDirectory().name
+        tmp_path_to_broadcast = tempfile.TemporaryDirectory().name
+        gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
+        tmp_path = gathered_paths[local_rank_zero]
+        dataloader_cfg.dataset.local = tmp_path
+
+    if dataloader_cfg.dataset.get('streams') is not None:
+        for stream_config in dataloader_cfg.dataset.streams.values():
+            tmp_path_to_broadcast = tempfile.TemporaryDirectory().name
+            gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
+            tmp_path = gathered_paths[local_rank_zero]
+            stream_config.local = tmp_path
 
     # Determine the packing_ratio values we'll try
     packing_ratios, raw_batch_sizes = [], []
@@ -448,6 +467,12 @@ def profile_packing(
         waste_percent = 100 * packer.waste
         return padding_percent, waste_percent
 
-    for packing_ratio, raw_batch_size in zip(packing_ratios, raw_batch_sizes):
+    log.debug('Profiling packing ratios')
+    total_packing_ratios = min(len(packing_ratios), len(raw_batch_sizes))
+    for i, (packing_ratio,
+            raw_batch_size) in enumerate(zip(packing_ratios, raw_batch_sizes)):
+        log.debug(
+            f'Progress [{i}/{total_packing_ratios}]: Profiling packing ratio {packing_ratio}'
+        )
         padding, waste = profile(raw_batch_size)
         yield (packing_ratio, padding, waste)

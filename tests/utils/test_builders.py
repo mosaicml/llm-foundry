@@ -14,7 +14,6 @@ from composer.callbacks import Generate
 from composer.core import Evaluator
 from composer.loggers import WandBLogger
 from omegaconf import DictConfig, ListConfig
-from omegaconf import OmegaConf as om
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.callbacks import HuggingFaceCheckpointer
@@ -57,12 +56,12 @@ def test_tokenizer_no_EOS():
 
 def test_build_callback_fails():
     with pytest.raises(ValueError):
-        build_callback('nonexistent_callback', {}, {})
+        build_callback(name='nonexistent_callback', kwargs={}, train_config={})
 
 
 @pytest.mark.parametrize(
     'interval_key,interval_value',
-    [('interval', '10ba'), ('batch_log_interval', 10)],
+    [('interval', '10ba')],
 )
 def test_build_generate_callback(
     interval_key: str,
@@ -73,14 +72,13 @@ def test_build_generate_callback(
                            autospec=True) as mock_generate:
         mock_generate.return_value = None
         build_callback(
-            'generate_callback',
-            {
+            name='generate_callback',
+            kwargs={
                 'prompts': ['hello'],
                 interval_key: interval_value,
                 'foo': 'bar',
                 'something': 'else',
             },
-            {},
         )
 
         assert mock_generate.call_count == 1
@@ -92,18 +90,17 @@ def test_build_generate_callback(
 
 
 def test_build_generate_callback_unspecified_interval():
-    with pytest.raises(KeyError):
+    with pytest.raises(TypeError):
         with mock.patch.object(Generate, '__init__',
                                autospec=True) as mock_generate:
             mock_generate.return_value = None
             build_callback(
-                'generate_callback',
-                {
+                name='generate_callback',
+                kwargs={
                     'prompts': ['hello'],
                     'foo': 'bar',
                     'something': 'else',
                 },
-                {},
             )
 
 
@@ -121,13 +118,14 @@ def test_build_hf_checkpointer_callback():
                 'task': 'llm/v1/completions'
             }
         }
-        build_callback(name='hf_checkpointer',
-                       kwargs=om.create({
-                           'save_folder': save_folder,
-                           'save_interval': save_interval,
-                           'mlflow_logging_config': mlflow_logging_config_dict
-                       }),
-                       config={})
+        build_callback(
+            name='hf_checkpointer',
+            kwargs={
+                'save_folder': save_folder,
+                'save_interval': save_interval,
+                'mlflow_logging_config': mlflow_logging_config_dict
+            },
+        )
 
         assert mock_hf_checkpointer.call_count == 1
         _, _, kwargs = mock_hf_checkpointer.mock_calls[0]
@@ -214,6 +212,7 @@ class _DummyModule(nn.Module):
 def test_build_optimizer(name: str, optimizer_config: Dict[str, Any],
                          opt_additional_config: Dict[str, Any]):
     model = _DummyModule()
+    optimizer_config = deepcopy(optimizer_config)
     optimizer_config.update(deepcopy(opt_additional_config))
     optimizer = build_optimizer(model, name, optimizer_config)
 

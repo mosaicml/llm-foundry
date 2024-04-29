@@ -141,7 +141,7 @@ def parse_args():
                         nargs='+',
                         help='model sizes to test')
 
-    parser.add_argument('--attn_impl', type=str, default='triton')
+    parser.add_argument('--attn_impl', type=str, default='flash')
 
     parser.add_argument('-c',
                         '--clusters',
@@ -205,7 +205,7 @@ def get_global_train_batch_sizes(max_seq_len: int,
     if batch_sizes is None:
         batch_sizes = []
     if pows:
-        # global batch size in tokens (defualt: .5M thru 8M)
+        # global batch size in tokens (default: .5M thru 8M)
         global_train_token_counts = [2**n for n in range(pows[0], pows[1] + 1)]
         batch_sizes += [t // max_seq_len for t in global_train_token_counts
                        ]  # global batch size in samples

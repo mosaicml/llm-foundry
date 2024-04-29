@@ -3,6 +3,7 @@
 
 """MosaicML LLM Foundry package setup."""
 
+import copy
 import os
 import re
 
@@ -20,7 +21,9 @@ with open(os.path.join(_PACKAGE_REAL_PATH, '__init__.py')) as f:
     content = f.read()
 # regex: '__version__', whitespace?, '=', whitespace, quote, version, quote
 # we put parens around the version so that it becomes elem 1 of the match
-expr = re.compile(r"""^__version__\W+=\W+['"]([0-9\.]*)['"]""", re.MULTILINE)
+expr = re.compile(
+    r"""^__version__\s*=\s*['"]([0-9]+\.[0-9]+\.[0-9]+(?:\.\w+)?)['"]""",
+    re.MULTILINE)
 repo_version = expr.findall(content)[0]
 
 # Use repo README for PyPi description
@@ -50,13 +53,13 @@ classifiers = [
 ]
 
 install_requires = [
-    'mosaicml[libcloud,wandb,oci,gcs]>=0.20,<0.21',
-    'mlflow>=2.10,<3',
+    'mosaicml[libcloud,wandb,oci,gcs]>=0.21.3,<0.22',
+    'mlflow>=2.12.1,<2.13',
     'accelerate>=0.25,<0.26',  # for HF inference `device_map`
-    'transformers>=4.37,<4.38',
-    'mosaicml-streaming>=0.7.4,<0.8',
-    'torch>=2.2,<2.3',
-    'datasets>=2.16,<2.17',
+    'transformers>=4.40,<4.41',
+    'mosaicml-streaming>=0.7.5,<0.8',
+    'torch>=2.2.1,<2.3',
+    'datasets>=2.19,<2.20',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
     'sentencepiece==0.1.97',
     'einops==0.7.0',
@@ -65,13 +68,12 @@ install_requires = [
     'mosaicml-cli>=0.6.10,<1',
     'onnx==1.14.0',
     'onnxruntime==1.15.1',
-    'cmake>=3.25.0,<=3.26.3',  # required for triton-pre-mlir below
-    # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
-    'triton-pre-mlir@git+https://github.com/vchiley/triton.git@triton_pre_mlir_sm90#subdirectory=python',
     'boto3>=1.21.45,<2',
-    'huggingface-hub>=0.17.0,<1.0',
+    'huggingface-hub>=0.19.0,<1.0',
     'beautifulsoup4>=4.12.2,<5',  # required for model download utils
     'tenacity>=8.2.3,<9',
+    'catalogue>=2,<3',
+    'typer[all]<1',
 ]
 
 extra_deps = {}
@@ -88,36 +90,40 @@ extra_deps['dev'] = [
 ]
 
 extra_deps['databricks'] = [
-    'mosaicml[databricks]>=0.20,<0.21',
+    'mosaicml[databricks]>=0.21.1,<0.22',
     'databricks-sql-connector>=3,<4',
     'databricks-connect==14.1.0',
     'lz4>=4,<5',
 ]
 
 extra_deps['tensorboard'] = [
-    'mosaicml[tensorboard]>=0.20,<0.21',
+    'mosaicml[tensorboard]>=0.21.1,<0.22',
 ]
 
-extra_deps['gpu'] = [
-    'flash-attn==1.0.9',
-    # PyPI does not support direct dependencies, so we remove this line before uploading from PyPI
-    'xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v1.0.9#subdirectory=csrc/xentropy',
-]
-
+# Flash 2 group kept for backwards compatibility
 extra_deps['gpu-flash2'] = [
     'flash-attn==2.5.0',
 ]
 
+extra_deps['gpu'] = copy.deepcopy(extra_deps['gpu-flash2'])
+
 extra_deps['peft'] = [
-    'mosaicml[peft]>=0.20,<0.21',
+    'mosaicml[peft]>=0.21.1,<0.22',
 ]
 
 extra_deps['openai'] = [
     'openai==1.3.8',
     'tiktoken==0.4.0',
 ]
-extra_deps['all-cpu'] = set(
-    dep for key, deps in extra_deps.items() for dep in deps if 'gpu' not in key)
+
+extra_deps['megablocks'] = [
+    'megablocks==0.5.1',
+    'grouped-gemm==0.1.4',
+]
+
+extra_deps['all-cpu'] = set(dep for key, deps in extra_deps.items()
+                            for dep in deps
+                            if 'gpu' not in key and 'megablocks' not in key)
 extra_deps['all'] = set(dep for key, deps in extra_deps.items() for dep in deps
                         if key not in {'gpu-flash2', 'all-cpu'})
 extra_deps['all-flash2'] = set(dep for key, deps in extra_deps.items()
@@ -142,4 +148,7 @@ setup(
     install_requires=install_requires,
     extras_require=extra_deps,
     python_requires='>=3.9',
+    entry_points={
+        'console_scripts': ['llmfoundry = llmfoundry.cli.cli:app'],
+    },
 )

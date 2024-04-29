@@ -15,16 +15,18 @@ from composer.loggers.remote_uploader_downloader import RemoteUploaderDownloader
 from composer.utils import (dist, format_name_with_dist_and_time, parse_uri,
                             reproducibility)
 
+__all__ = ['MonolithicCheckpointSaver']
+
 
 class MonolithicCheckpointSaver(Callback):
     """Save a monolithic checkpoint every N batches.
 
     Args:
         save_folder (str): Folder to save checkpoints to (can be a URI)
-        filename (str): Filename to save checkpoints to.
         batch_interval (int): Number of batches between checkpoints.
+        filename (str): Filename to save checkpoints to.
         overwrite (bool): Whether to overwrite previous checkpoints.
-        keep_optimizer(bool): Whether to save the optimizer state in the monolithic checkpoint.
+        keep_optimizers (bool): Whether to save the optimizer state in the monolithic checkpoint.
     """
 
     def __init__(self,

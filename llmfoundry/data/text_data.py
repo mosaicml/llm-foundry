@@ -3,6 +3,7 @@
 
 """Build a StreamingTextDataset dataset and dataloader for training."""
 
+import logging
 import os
 from itertools import islice
 from typing import (Any, Callable, Dict, List, Mapping, Optional, Sequence,
@@ -18,6 +19,15 @@ from omegaconf import OmegaConf as om
 from streaming import Stream, StreamingDataset
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
+
+log = logging.getLogger(__name__)
+
+__all__ = [
+    'StreamingTextDataset',
+    'build_text_dataloader',
+    'ConcatenatedSequenceCollatorWrapper',
+    'get_tokens_per_batch_func',
+]
 
 
 class StreamingTextDataset(StreamingDataset):
@@ -80,6 +90,12 @@ class StreamingTextDataset(StreamingDataset):
             Defaults to ``1``.
         batching_method (str): Which batching method to use, either ``random``, ``stratified``, or
             ``per_stream``. Defaults to ``random``.
+        allow_unsafe_types (bool): If a shard contains Pickle, which allows arbitrary code
+            execution during deserialization, whether to keep going if ``True`` or raise an error
+            if ``False``. Defaults to ``False``.
+        replication (int, optional): Determines how many consecutive devices will receive the same
+            samples. Useful for training with tensor or sequence parallelism, where multiple
+            devices need to see the same partition of the dataset. Defaults to ``None``.
     """
 
     def __init__(self,
@@ -106,6 +122,8 @@ class StreamingTextDataset(StreamingDataset):
                  sampling_method: str = 'balanced',
                  sampling_granularity: int = 1,
                  batching_method: str = 'random',
+                 allow_unsafe_types: bool = False,
+                 replication: Optional[int] = None,
                  **kwargs: Any):
 
         if len(kwargs) > 0:
@@ -148,6 +166,8 @@ class StreamingTextDataset(StreamingDataset):
             sampling_method=sampling_method,
             sampling_granularity=sampling_granularity,
             batching_method=batching_method,
+            allow_unsafe_types=allow_unsafe_types,
+            replication=replication,
         )
         self.tokenizer = tokenizer
         self.max_seq_len = max_seq_len
@@ -256,6 +276,34 @@ def build_text_dataloader(
     mlm_probability = cfg.dataset.pop('mlm_probability', None)
     eos_token_id = cfg.dataset.pop('eos_token_id', None)
     bos_token_id = cfg.dataset.pop('bos_token_id', None)
+
+    if eos_token_id is None and bos_token_id is None and (hasattr(
+            tokenizer, 'eos_token_id') or hasattr(tokenizer, 'bos_token_id')):
+        log.warning(
+            'The user has not provided an eos_token_id or bos_token_id, but the tokenizer has an eos_token_id or a bos_token_id.'
+        )
+
+    tokenizer_eos_token_id = getattr(tokenizer, 'eos_token_id', None)
+    if eos_token_id is not None and eos_token_id != tokenizer_eos_token_id:
+        eos_mismatch_str = f'Provided {eos_token_id=} does not match the eos_token_id of the tokenizer={tokenizer_eos_token_id}.'
+        if cfg.dataset.pop('override_eos_token_id_mismatch_error', False):
+            log.warning(eos_mismatch_str)
+        else:
+            raise ValueError(
+                eos_mismatch_str +
+                ' To override this error, set the override_eos_token_id_mismatch_error flag to True in the dataset config section of the YAML.'
+            )
+
+    tokenizer_bos_token_id = getattr(tokenizer, 'bos_token_id', None)
+    if bos_token_id is not None and bos_token_id != tokenizer_bos_token_id:
+        bos_mismatch_str = f'Provided {bos_token_id=} does not match the bos_token_id of the tokenizer={tokenizer_bos_token_id}.'
+        if cfg.dataset.pop('override_bos_token_id_mismatch_error', False):
+            log.warning(bos_mismatch_str)
+        else:
+            raise ValueError(
+                bos_mismatch_str +
+                ' To override this error, set the override_bos_token_id_mismatch_error flag to True in the dataset config section of the YAML.'
+            )
 
     streams = build_streams(cfg.dataset)
 

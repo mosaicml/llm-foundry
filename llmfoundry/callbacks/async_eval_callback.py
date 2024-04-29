@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from composer.callbacks import CheckpointSaver
-from composer.core import Callback, Event, State, Time, Timestamp, TimeUnit
+from composer.core import Event, State, Time, Timestamp, TimeUnit
 from composer.loggers import Logger
 from composer.loggers.mosaicml_logger import (MOSAICML_PLATFORM_ENV_VAR,
                                               RUN_NAME_ENV_VAR)
@@ -22,9 +22,12 @@ from composer.utils import dist
 from composer.utils.file_helpers import list_remote_objects
 from composer.utils.misc import create_interval_scheduler
 
+from llmfoundry.interfaces import CallbackWithConfig
 from mcli import Run, RunConfig, create_run, get_run
 
 log = logging.getLogger(__name__)
+
+__all__ = ['AsyncEval']
 
 REQUIRED_PARAMS_FOR_EVAL = {
     'device_eval_batch_size',
@@ -177,7 +180,7 @@ def validate_eval_run_config(
 CHECKS_PER_INTERVAL = 4
 
 
-class AsyncEval(Callback):
+class AsyncEval(CallbackWithConfig):
     """Run the eval loop asynchronously as part of a MosaicML platform run.
 
     This callback is currently experimental. The API may change in the future.
@@ -207,28 +210,28 @@ class AsyncEval(Callback):
 
     def __init__(
         self,
-        training_params: Dict[str, Any],
+        train_config: Dict[str, Any],
         interval: Union[str, int, Time],
         eval_run_config: Optional[Dict[str, Any]] = None,
     ):
 
         # Run these during init to fail fast in any of the error cases
         for required in ('save_interval', 'save_folder'):
-            if required not in training_params:
+            if required not in train_config:
                 raise ValueError(f'{required} required for async eval')
 
-        if '/' in training_params.get('save_filename', ''):
+        if '/' in train_config.get('save_filename', ''):
             raise ValueError(
                 'AsyncEval not supported for save_filename that includes a path'
             )
 
-        self.checkpoint_save_folder = training_params['save_folder']
-        self.training_params = training_params
+        self.checkpoint_save_folder = train_config['save_folder']
+        self.training_params = train_config
         self.eval_run_config = validate_eval_run_config(eval_run_config)
 
         self.current_run = self._get_current_run()
         get_eval_parameters(
-            parameters=training_params,
+            parameters=train_config,
             checkpoint='test',
             training_run_name=self.current_run.name,
         )
@@ -397,7 +400,7 @@ class AsyncEval(Callback):
             log.debug('No saved checkpoints found yet on remote. Skipping eval')
             return
 
-        if state.fsdp_elastic_sharded_enabled:
+        if state.fsdp_sharded_state_dict_enabled:
             checkpoints_to_eval = self._get_ready_sharded_checkpoints(
                 checkpointer.all_saved_checkpoints_to_timestamp,
                 remote_checkpoints)

@@ -178,7 +178,7 @@ icl_tasks:
 #   dataset_uri: eval/local_data/programming/human_eval.jsonl
 #   num_fewshot: [0]
 #   pass_at_k: 1
-#   num_beams: 20
+#   generations_per_sample: 20
 #   batch_size: 1
 #   icl_task_type: code_evaluation
 #   continuation_delimiter: ""
@@ -187,7 +187,7 @@ icl_tasks:
 #   dataset_uri: eval/local_data/programming/processed_human_eval_cpp.jsonl
 #   num_fewshot: [0]
 #   pass_at_k: 1
-#   num_beams: 20
+#   generations_per_sample: 20
 #   batch_size: 1
 #   icl_task_type: code_evaluation
 #   continuation_delimiter: ""
@@ -196,7 +196,7 @@ icl_tasks:
 #   dataset_uri: eval/local_data/programming/processed_human_eval_js.jsonl
 #   num_fewshot: [0]
 #   pass_at_k: 1
-#   num_beams: 20
+#   generations_per_sample: 20
 #   batch_size: 1
 #   icl_task_type: code_evaluation
 #   continuation_delimiter: ""
@@ -205,7 +205,7 @@ icl_tasks:
 #   dataset_uri: eval/local_data/programming/human_eval_return_simple.jsonl
 #   num_fewshot: [0]
 #   pass_at_k: 1
-#   num_beams: 20
+#   generations_per_sample: 20
 #   batch_size: 1
 #   icl_task_type: code_evaluation
 #   continuation_delimiter: ""
@@ -214,7 +214,7 @@ icl_tasks:
 #   dataset_uri: eval/local_data/programming/human_eval_return_complex.jsonl
 #   num_fewshot: [0]
 #   pass_at_k: 1
-#   num_beams: 20
+#   generations_per_sample: 20
 #   batch_size: 1
 #   icl_task_type: code_evaluation
 #   continuation_delimiter: ""
@@ -223,7 +223,7 @@ icl_tasks:
 #   dataset_uri: eval/local_data/programming/human_eval-0.25.jsonl
 #   num_fewshot: [0]
 #   pass_at_k: 1
-#   num_beams: 20
+#   generations_per_sample: 20
 #   batch_size: 1
 #   icl_task_type: code_evaluation
 #   continuation_delimiter: ""
@@ -232,7 +232,7 @@ icl_tasks:
 #   dataset_uri: eval/local_data/programming/human_eval-0.5.jsonl
 #   num_fewshot: [0]
 #   pass_at_k: 1
-#   num_beams: 20
+#   generations_per_sample: 20
 #   batch_size: 1
 #   icl_task_type: code_evaluation
 #   continuation_delimiter: ""
@@ -241,7 +241,7 @@ icl_tasks:
 #   dataset_uri: eval/local_data/programming/human_eval-0.75.jsonl
 #   num_fewshot: [0]
 #   pass_at_k: 1
-#   num_beams: 20
+#   generations_per_sample: 20
 #   batch_size: 1
 #   icl_task_type: code_evaluation
 #   continuation_delimiter: ""

@@ -364,6 +364,24 @@ def test_additional_special_tokens(model_name: Optional[str],
     assert decoded_outputs == input_string
 
 
+def test_additional_special_tokens_len():
+    special_token_to_add = '<|im_start|>'
+    with_special = TiktokenTokenizerWrapper(
+        model_name='gpt-4', additional_special_tokens=[special_token_to_add])
+
+    no_special = TiktokenTokenizerWrapper(model_name='gpt-4',)
+    assert len(with_special.get_vocab()) == len(no_special.get_vocab()) + 1
+
+    ret = with_special.add_special_tokens(
+        {'additional_special_tokens': ['<|im_start|>']})
+    assert ret == 0
+
+    ret = with_special.add_special_tokens(
+        {'additional_special_tokens': ['<|im_end|>']})
+    assert ret == 1
+    assert len(with_special.get_vocab()) == len(no_special.get_vocab()) + 2
+
+
 @pytest.mark.parametrize('model_name,encoding_name',
                          MODEL_ENCODING_NAME_PARAMETRIZATION)
 def test_chat_formatting(model_name: Optional[str],

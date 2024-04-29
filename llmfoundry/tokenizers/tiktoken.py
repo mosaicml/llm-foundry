@@ -1,9 +1,14 @@
-# Copyright 2022 MosaicML LLM Foundry authors
+# Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
+
 from functools import lru_cache
 from typing import Any, Dict, List, Optional, Tuple
 
 from transformers import PreTrainedTokenizer
+
+__all__ = [
+    'TiktokenTokenizerWrapper',
+]
 
 DEFAULT_SYSTEM_PROMPT = """You are a helpful, respectful and honest assistant. Always answer as helpfully as possible."""
 
@@ -229,7 +234,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             # Get an index to add and add the item
             vocab_clone[candidate_extra_id] = index_to_add
 
-        return vocab_clone
+        return dict(vocab_clone, **self.added_tokens_encoder)
 
     def _tokenize(self, text: str) -> List[str]:
         """Returns a tokenized string."""

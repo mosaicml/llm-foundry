@@ -14,6 +14,12 @@ from transformers.models.opt.modeling_opt import OPTDecoder
 if TYPE_CHECKING:
     from peft import PeftModel
 
+__all__ = [
+    'prepare_hf_model_for_fsdp',
+    'prepare_hf_causal_lm_model_for_fsdp',
+    'prepare_hf_enc_dec_model_for_fsdp',
+]
+
 
 # helper functions
 def rhasattr(obj: Any, attr: str) -> bool:
@@ -69,7 +75,8 @@ def hf_get_causal_base_model(model: PreTrainedModel) -> Any:
     if hasattr(model, 'get_decoder'):
         return model.get_decoder()
 
-    decoder_attrs = ('transformer', 'model.decoder', 'gpt_neox')
+    decoder_attrs = ('transformer', 'model.decoder', 'gpt_neox',
+                     'model.transformer')
     causal_base_model = findattr(model, decoder_attrs)
     if causal_base_model is None:
         raise ValueError(
@@ -141,15 +148,19 @@ def prepare_hf_causal_lm_model_for_fsdp(model: Union[PreTrainedModel,
     """
     causal_base_model = hf_get_causal_base_model(model)
 
-    # OPT has an extra layer of wrapping, so special case here
+    # OPT and olmo have an extra layer of wrapping, so special case here
     if isinstance(causal_base_model, OPTDecoder):
         underlying_model = maybe_get_underlying_model(model)
         underlying_model.model._fsdp_wrap = False
     model_block = hf_get_hidden_layers(causal_base_model)
     lm_head = model.get_output_embeddings()
-    # some models (OPT) implement .get_input_embeddings for the causal subclass
-    # but all of them implement it for the base model
-    tied_embeddings = causal_base_model.get_input_embeddings()
+    # Try to get input embeddings from the transformer backbone
+    # and then from the XXXForCausalLM
+    try:
+        tied_embeddings = causal_base_model.get_input_embeddings()
+    except:
+        tied_embeddings = model.get_input_embeddings()
+
     modules = {
         'base_model': causal_base_model,
         'model_block': model_block,
@@ -245,7 +256,7 @@ def prepare_hf_enc_dec_model_for_fsdp(model: PreTrainedModel,
     if encoder_block_type == decoder_block_type:
         return
 
-    # need to wrap encoder blocks separately for ProhpetNet and Marian
+    # need to wrap encoder blocks separately for ProphetNet and Marian
     model.fsdp_wrap_fn = lambda module: isinstance(module, encoder_block_type)
     model.activation_checkpointing_fn = lambda module: isinstance(
         module, encoder_block_type)

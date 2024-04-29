@@ -6,11 +6,12 @@ from unittest.mock import MagicMock
 import pytest
 import transformers
 
-from llmfoundry.data.finetuning.tasks import (_ALLOWED_PROMPT_KEYS,
-                                              _ALLOWED_RESPONSE_KEYS,
-                                              _slice_chat_formatted_example,
+from llmfoundry.data.finetuning.tasks import (_slice_chat_formatted_example,
+                                              dataset_constructor,
                                               tokenize_formatted_example)
 from llmfoundry.utils.builders import build_tokenizer
+from llmfoundry.utils.exceptions import (ALLOWED_PROMPT_KEYS,
+                                         ALLOWED_RESPONSE_KEYS)
 
 
 def test_tokenize_chat_example_malformed():
@@ -89,7 +90,7 @@ def test_tokenize_chat_example_well_formed():
     ]
 
     expected = [
-        {
+        [{
             'prompt':
                 '''<|im_start|>system
 A conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers.
@@ -99,36 +100,46 @@ Hello, GPT<|im_end|>
 ''',
             'response':
                 'this is my response<|im_end|>'
-        },
-        {
+        }],
+        [{
             'prompt':
                 '''<|im_start|>system
 A conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers.
 <|im_start|>user
 Hello, GPT<|im_end|>
 <|im_start|>assistant
-this is my response<|im_end|>
+''',
+            'response':
+                'this is my response<|im_end|>'
+        }, {
+            'prompt':
+                '''
 <|im_start|>user
 Nice to hear that.<|im_end|>
 <|im_start|>assistant
 ''',
             'response':
                 'multi-way chat works too!<|im_end|>'
-        },
+        }],
     ]
 
     chat_tokenizer = build_tokenizer('mosaicml/mpt-7b-8k-chat', {})
     assert len(expected) == len(
         chat_examples)  # if we add a new example, zip shouldn't fail silently
     for chat_example, expected_stringification in zip(chat_examples, expected):
-        prompt, response = _slice_chat_formatted_example(
+        templatized_prompt_response_turns = _slice_chat_formatted_example(
             chat_example, chat_tokenizer)
         tokenized_example = tokenize_formatted_example(chat_example,
                                                        chat_tokenizer)
-        assert prompt == expected_stringification['prompt']
-        assert response == expected_stringification['response']
-        assert 'input_ids' in tokenized_example
-        assert 'labels' in tokenized_example
+        for (prompt, response), exp_str, turn in zip(
+                templatized_prompt_response_turns,
+                expected_stringification,
+                tokenized_example['turns'],
+        ):
+            assert prompt == exp_str['prompt']
+            assert response == exp_str['response']
+            assert 'input_ids' in turn
+            assert 'labels' in turn
 
 
 def test_tokenize_instruct_example_malformed():
@@ -149,17 +160,123 @@ def test_tokenize_instruct_example_malformed():
     ]
 
     for example in malformed_prompt_response_examples:
-        with pytest.raises(KeyError):
+        with pytest.raises(Exception):
             tokenize_formatted_example(example, MagicMock())
 
 
 def test_tokenize_instruct_example_well_formed():
     tokenizer = transformers.AutoTokenizer.from_pretrained('gpt2')
 
-    for prompt_key in _ALLOWED_PROMPT_KEYS:
-        for response_key in _ALLOWED_RESPONSE_KEYS:
+    for prompt_key in ALLOWED_PROMPT_KEYS:
+        for response_key in ALLOWED_RESPONSE_KEYS:
 
             example = {prompt_key: 'prompt', response_key: 'response'}
             tokenized_example = tokenize_formatted_example(example, tokenizer)
-            assert 'input_ids' in tokenized_example
-            assert 'labels' in tokenized_example
+            assert 'input_ids' in tokenized_example['turns'][0]
+            assert 'labels' in tokenized_example['turns'][0]
+
+
+@pytest.mark.parametrize(
+    'tokenizer_name',
+    ['EleutherAI/gpt-neox-20b', 'HuggingFaceH4/zephyr-7b-beta', 't5-base'])
+@pytest.mark.parametrize('messages_format', [True, False])
+def test_multi_turn_chat_slicing(tokenizer_name: str, messages_format: bool):
+    if messages_format:
+        convo = [
+            {
+                'role': 'system',
+                'content': 'everyone thinks you are so cool'
+            },
+            {
+                'role': 'user',
+                'content': 'hiiii'
+            },
+            {
+                'role': 'assistant',
+                'content': 'yassss'
+            },
+            {
+                'role': 'user',
+                'content': 'HIIIIII!!!'
+            },
+            {
+                'role': 'assistant',
+                'content': 'YASSSSSS'
+            },
+        ]
+    else:
+        convo = [
+            {
+                'from': 'system',
+                'value': 'everyone thinks you are so cool'
+            },
+            {
+                'from': 'human',
+                'value': 'hiiii'
+            },
+            {
+                'from': 'gpt',
+                'value': 'yassss'
+            },
+            {
+                'from': 'tool',
+                'value': 'HIIIIII!!!'
+            },
+            {
+                'from': 'gpt',
+                'value': 'YASSSSSS'
+            },
+        ]
+        tmp = {'conversations': convo}
+        preprocessor = dataset_constructor.get_preprocessing_fn_from_str(
+            'teknium/OpenHermes-2.5')
+        assert preprocessor is not None
+        convo = preprocessor(tmp)['messages']
+        assert isinstance(convo, list)
+
+    example = {'messages': convo}
+
+    tok = transformers.AutoTokenizer.from_pretrained(tokenizer_name)
+
+    templated_prompt_response_turns = _slice_chat_formatted_example(
+        example, tok)
+
+    reconstructed_chat = ''
+    for prompt, response in templated_prompt_response_turns:
+        reconstructed_chat += prompt + response
+
+    full_chat = tok.apply_chat_template(convo, tokenize=False)
+    assert reconstructed_chat == full_chat
+
+
+def test_tokenize_no_labels_bos_pr():
+    # This tokenizer automatically adds bos tokens
+    tokenizer = transformers.AutoTokenizer.from_pretrained(
+        'ai21labs/Jamba-v0.1', add_bos_token=True)
+
+    example = {'prompt': 'prompt', 'response': 'response'}
+
+    assert tokenizer.add_bos_token == True
+
+    tokenized_example = tokenize_formatted_example(example, tokenizer)
+
+    # Extract the first turn
+    tokenized_example = tokenized_example['turns'][0]
+
+    assert len(tokenized_example['labels']) == 1
+    assert tokenized_example['labels'][0] != tokenizer.bos_token_id
+    assert tokenized_example['input_ids'][0] == tokenizer.bos_token_id
+
+    # This tokenizer does not have the add_bos_token attribute
+    tokenizer = transformers.AutoTokenizer.from_pretrained('mosaicml/mpt-7b')
+
+    assert not tokenizer.add_bos_token
+
+    tokenized_example = tokenize_formatted_example(example, tokenizer)
+
+    # Extract the first turn
+    tokenized_example = tokenized_example['turns'][0]
+
+    assert len(tokenized_example['labels']) == 1
+    assert tokenized_example['labels'][0] != tokenizer.bos_token_id
+    assert tokenized_example['input_ids'][0] != tokenizer.bos_token_id

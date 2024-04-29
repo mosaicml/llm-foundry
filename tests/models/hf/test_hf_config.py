@@ -6,16 +6,17 @@ import tempfile
 from copy import deepcopy
 from pathlib import Path
 from typing import Any, Dict, Mapping
+from unittest.mock import Mock, patch
 
 import pytest
 import torch
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
-from transformers import AutoModelForCausalLM
+from transformers import AutoModelForCausalLM, PretrainedConfig
 
-from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils import build_tokenizer
+from llmfoundry.utils.builders import build_composer_model
 
 
 def test_remote_code_false_mpt(
@@ -45,8 +46,11 @@ def test_remote_code_false_mpt(
     with pytest.raises(
             ValueError,
             match='trust_remote_code must be set to True for MPT models.'):
-        _ = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
-                                                         tokenizer)
+        _ = build_composer_model(
+            name=test_cfg.model.name,
+            cfg=test_cfg.model,
+            tokenizer=tokenizer,
+        )
 
 
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
@@ -80,7 +84,7 @@ def test_tie_weights(tie_word_embeddings: bool):
     },
     {
         'attn_config': {
-            'attn_impl': 'triton'
+            'attn_impl': 'flash',
         }
     },
     {
@@ -91,7 +95,7 @@ def test_tie_weights(tie_word_embeddings: bool):
     {
         'max_seq_len': 1024,
         'attn_config': {
-            'attn_impl': 'triton'
+            'attn_impl': 'flash',
         },
         'init_config': {
             'emb_init_std': 5
@@ -101,11 +105,13 @@ def test_tie_weights(tie_word_embeddings: bool):
                  marks=pytest.mark.xfail(reason='"msl" is a ValueError',
                                          strict=True)),
     pytest.param({'attn_config': {
-        'attn_iml': 'triton'
+        'attn_iml': 'flash'
     }},
                  marks=pytest.mark.xfail(reason='"attn_impl" mispelled',
                                          strict=True)),
 ])
+@patch('llmfoundry.models.layers.attention.is_flash_v2_installed',
+       new=Mock(return_value=True))
 def test_hf_config_override(
     model_cfg_overrides: Dict[str, Any],
     conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml',
@@ -132,8 +138,11 @@ def test_hf_config_override(
     tokenizer_name = tokenizer_cfg['name']
     tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
-    model = COMPOSER_MODEL_REGISTRY[test_cfg.model.name](test_cfg.model,
-                                                         tokenizer)
+    model = build_composer_model(
+        name=test_cfg.model.name,
+        cfg=test_cfg.model,
+        tokenizer=tokenizer,
+    )
 
     # save model
     tmp_dir = tempfile.TemporaryDirectory()
@@ -153,8 +162,11 @@ def test_hf_config_override(
     })
     hf_model_config.model = model_cfg
 
-    hf_model = COMPOSER_MODEL_REGISTRY[hf_model_config.model.name](
-        hf_model_config.model, tokenizer=tokenizer)
+    hf_model = build_composer_model(
+        name=hf_model_config.model.name,
+        cfg=hf_model_config.model,
+        tokenizer=tokenizer,
+    )
 
     for k, v in hf_model_config.model.config_overrides.items():
         if isinstance(v, Mapping):
@@ -185,7 +197,42 @@ def test_rope_scaling_override():
     }
     model_cfg = om.create(model_cfg)
 
-    model = COMPOSER_MODEL_REGISTRY[model_cfg.name](model_cfg, tokenizer=None)
+    model = build_composer_model(
+        name=model_cfg.name,
+        cfg=model_cfg,
+        tokenizer=None,  # type: ignore
+    )
     # This would error if the config isn't parsed into a proper dictionary
     model.get_metadata()
     assert model.config.rope_scaling == {'type': 'dynamic', 'factor': 0.5}
+
+
+@pytest.mark.skipif('HUGGING_FACE_HUB_TOKEN' not in os.environ,
+                    reason='CI does not have access to Dbrx')
+def test_nested_override():
+    model_cfg = {
+        'name': 'hf_causal_lm',
+        'pretrained_model_name_or_path': 'databricks/dbrx-instruct',
+        'config_overrides': {
+            'ffn_config': {
+                'ffn_hidden_size': 500,
+            }
+        },
+        'use_auth_token': True,
+        'pretrained': False,
+        'init_device': 'meta',
+    }
+    model_cfg = om.create(model_cfg)
+
+    model = build_composer_model(
+        name=model_cfg.name,
+        cfg=model_cfg,
+        tokenizer=None,  # type: ignore
+    )
+
+    # The value we changed
+    assert model.config.ffn_config.ffn_hidden_size == 500
+    # Ensure we still have a config, and haven't replaced it with a dictionary
+    assert isinstance(model.config.ffn_config, PretrainedConfig)
+    # Ensure the other values still exist and are not set back to their defaults
+    assert model.config.ffn_config.moe_num_experts == 16

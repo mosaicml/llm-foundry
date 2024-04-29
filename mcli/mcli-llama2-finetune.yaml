@@ -1,15 +1,15 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: v0.5.0
+  git_branch: v0.7.0
   # git_commit: # OR use your commit hash
-  pip_install: -e .[gpu-flash2]
+  pip_install: .[gpu]
   ssh_clone: false  # Should be true if using a private repo
 
 command: |
   cd llm-foundry/scripts
   composer train/train.py /mnt/config/parameters.yaml
-image: mosaicml/llm-foundry:2.1.0_cu121_flash2-latest
+image: mosaicml/llm-foundry:2.2.1_cu121_flash2-latest
 name: llama2-finetune
 
 compute:
@@ -38,7 +38,7 @@ parameters:
     pretrained: true
     # Note: you must have set the HUGGING_FACE_HUB_TOKEN environment variable and have access to the llama2 models
     use_auth_token: true
-    attention_patch_type: triton
+    use_flash_attention_2: true
 
   # Tokenizer
   tokenizer:
@@ -62,7 +62,7 @@ parameters:
       # # Or use `python llmfoundry/scripts/misc/profile_packing.py --yaml-path /path/to/this/yaml/ ...`
       # # to profile this run's optimal packing_ratio as it depends on GPU count,
       # # batch size, sequence length
-      # packing_ratio:
+      # packing_ratio: auto
     drop_last: true
     num_workers: 8
     pin_memory: false

@@ -1,9 +1,9 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: v0.5.0
+  git_branch: v0.7.0
   # git_commit:  # OR use your commit hash
-  pip_install: -e .[gpu-flash2]
+  pip_install: .[gpu]
   ssh_clone: false  # Should be true if using a private repo
 
 # We are fetching, converting, and training on the 'val' split
@@ -17,7 +17,7 @@ command: |
     --out_root ./my-copy-c4 --splits train_small val_small \
     --concat_tokens 8192 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
   composer train/train.py /mnt/config/parameters.yaml
-image: mosaicml/llm-foundry:2.1.0_cu121_flash2-latest
+image: mosaicml/llm-foundry:2.2.1_cu121_flash2-latest
 name: mpt-1b-ctx-8k-gpus-8
 
 compute:
@@ -43,13 +43,13 @@ parameters:
     name: mpt_causal_lm
     init_device: meta
     d_model: 2048
-    n_heads: 16  # Modified 24->16 so that d_head == 128 to statisfy FlashAttention
+    n_heads: 16  # Modified 24->16 so that d_head == 128 to satisfy FlashAttention
     n_layers: 24
     expansion_ratio: 4
     max_seq_len: ${max_seq_len}
     vocab_size: 50368
     attn_config:
-      attn_impl: triton
+      attn_impl: flash
 
   # Tokenizer
   tokenizer:

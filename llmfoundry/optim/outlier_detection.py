@@ -4,6 +4,8 @@
 import collections
 from typing import Optional
 
+__all__ = ['OutlierDetector']
+
 
 class OutlierDetector:
     """OutlierDetector.

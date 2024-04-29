@@ -332,7 +332,9 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Callbacks
     callbacks: List[Callback] = [
-        build_callback(str(name), callback_cfg, logged_cfg)
+        build_callback(name=str(name),
+                       kwargs=callback_cfg,
+                       train_config=logged_cfg)
         for name, callback_cfg in callback_configs.items()
     ]
 

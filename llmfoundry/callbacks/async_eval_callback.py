@@ -210,28 +210,28 @@ class AsyncEval(CallbackWithConfig):
 
     def __init__(
         self,
-        training_params: Dict[str, Any],
+        train_config: Dict[str, Any],
         interval: Union[str, int, Time],
         eval_run_config: Optional[Dict[str, Any]] = None,
     ):
 
         # Run these during init to fail fast in any of the error cases
         for required in ('save_interval', 'save_folder'):
-            if required not in training_params:
+            if required not in train_config:
                 raise ValueError(f'{required} required for async eval')
 
-        if '/' in training_params.get('save_filename', ''):
+        if '/' in train_config.get('save_filename', ''):
             raise ValueError(
                 'AsyncEval not supported for save_filename that includes a path'
             )
 
-        self.checkpoint_save_folder = training_params['save_folder']
-        self.training_params = training_params
+        self.checkpoint_save_folder = train_config['save_folder']
+        self.training_params = train_config
         self.eval_run_config = validate_eval_run_config(eval_run_config)
 
         self.current_run = self._get_current_run()
         get_eval_parameters(
-            parameters=training_params,
+            parameters=train_config,
             checkpoint='test',
             training_run_name=self.current_run.name,
         )

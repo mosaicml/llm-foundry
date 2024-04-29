@@ -50,13 +50,7 @@ class HuggingFaceModelWithFSDP(HuggingFaceModel):
             should_save_peft_only=True,
         )
 
-        # Note: We need to add the FSDP related attributes to the model AFTER the super init,
-        # so that the (possible) embedding resizing doesn't destroy them
-        prepare_hf_model_for_fsdp(self.model, init_device)
-
-        # This provides support for meta initialization when using FSDP
-        self.model.param_init_fn = lambda module: self.model._init_weights(
-            module)
+        self.prepare_inner_model(self.model, init_device)
 
     def forward(self, batch: Mapping):
         if isinstance(batch, dict) or isinstance(batch, UserDict):
@@ -76,3 +70,13 @@ class HuggingFaceModelWithFSDP(HuggingFaceModel):
             return outputs['loss']
         # loss is at index 0 in the output tuple, logits are at index 1
         return outputs[:2]
+
+    @staticmethod
+    def prepare_inner_model(model: transformers.PreTrainedModel,
+                            init_device: Optional[str] = None):
+        # Note: We need to add the FSDP related attributes to the model AFTER the super init,
+        # so that the (possible) embedding resizing doesn't destroy them
+        prepare_hf_model_for_fsdp(model, init_device)
+
+        # This provides support for meta initialization when using FSDP
+        model.param_init_fn = lambda module: model._init_weights(module)

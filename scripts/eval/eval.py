@@ -78,7 +78,7 @@ def evaluate_model(
 
     # Callbacks
     callbacks: List[Callback] = [
-        build_callback(str(name), callback_cfg)
+        build_callback(name=str(name), kwargs=callback_cfg)
         for name, callback_cfg in callback_configs.items()
     ] if callback_configs else []
 

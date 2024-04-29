@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from collections import UserDict
-from typing import TYPE_CHECKING, List, Mapping, Optional
+from typing import TYPE_CHECKING, List, Mapping, Optional, Union
 
 import transformers
 from composer.models.huggingface import HuggingFaceModel
@@ -17,7 +17,7 @@ from transformers.utils.generic import ModelOutput
 from llmfoundry.models.hf.hf_fsdp import prepare_hf_model_for_fsdp
 
 if TYPE_CHECKING:
-    from peft import PeftConfig
+    from peft import PeftConfig, PeftModel
 
 __all__ = ['HuggingFaceModelWithFSDP']
 
@@ -32,7 +32,7 @@ class HuggingFaceModelWithFSDP(HuggingFaceModel):
     """
 
     def __init__(self,
-                 model: transformers.PreTrainedModel,
+                 model: Union[transformers.PreTrainedModel, 'PeftModel'],
                  tokenizer: Optional[PreTrainedTokenizerBase] = None,
                  metrics: Optional[List[Metric]] = None,
                  eval_metrics: Optional[List[Metric]] = None,
@@ -72,7 +72,8 @@ class HuggingFaceModelWithFSDP(HuggingFaceModel):
         return outputs[:2]
 
     @staticmethod
-    def prepare_inner_model(model: transformers.PreTrainedModel,
+    def prepare_inner_model(model: Union[transformers.PreTrainedModel,
+                                         'PeftModel'],
                             init_device: Optional[str] = None):
         # Note: We need to add the FSDP related attributes to the model AFTER the super init,
         # so that the (possible) embedding resizing doesn't destroy them

@@ -87,7 +87,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             use_auth_token=use_auth_token,
             config_overrides=config_overrides,
             load_in_8bit=load_in_8bit,
-            pef_config=peft_config,
+            pretrained=pretrained,
             prepare_for_fsdp=True,
         )
 
@@ -157,6 +157,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         use_auth_token: bool,
         config_overrides: Dict[str, Any],
         load_in_8bit: bool,
+        pretrained: bool,
         prepare_for_fsdp: bool = False,
     ) -> Union[PreTrainedModel, 'PeftModel']:
         """Builds the inner model for the ComposerHFCausalLM.

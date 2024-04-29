@@ -293,7 +293,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
 
         if prepare_with_superclass:
             HuggingFaceModelWithFSDP.prepare_inner_model(
-                model)  # type: ignore (see PeftModel comment above)
+                model,  # type: ignore
+                init_device)  # type: ignore (see PeftModel comment above)
         return model
 
     @staticmethod

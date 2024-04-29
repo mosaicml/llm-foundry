@@ -6,7 +6,7 @@
 import logging
 import os
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Tuple, Union
 
 from composer.models.huggingface import peft_installed
 from composer.utils import dist
@@ -24,7 +24,7 @@ from llmfoundry.models.utils import init_empty_weights
 from llmfoundry.utils.config_utils import pop_config
 
 if TYPE_CHECKING:
-    from peft import PeftConfig
+    from peft import PeftConfig, PeftModel
 
 __all__ = ['ComposerHFCausalLM']
 
@@ -83,8 +83,10 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         # Set up config args for the model construction and base classes
         init_device = om_model_config.get('init_device', 'cpu')
 
+        # PeftModel is not a subclass of PreTrainedModel, so we need to silence the
+        # type checker here:
         super().__init__(
-            model=model,
+            model=model,  # type: ignore
             shift_labels=True,
             tokenizer=tokenizer,
             metrics=train_metrics,
@@ -113,7 +115,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         return train_metrics, eval_metrics
 
     @staticmethod
-    def build_inner_model(om_model_config: DictConfig) -> PreTrainedModel:
+    def build_inner_model(
+            om_model_config: DictConfig) -> Union[PreTrainedModel, PeftModel]:
         pretrained_model_name_or_path = om_model_config.pretrained_model_name_or_path
         pretrained_lora_id_or_path = om_model_config.get(
             'pretrained_lora_id_or_path', None)
@@ -286,7 +289,6 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             model = PeftModelForCausalLM.from_pretrained(
                 model, pretrained_lora_id_or_path)
 
-        assert isinstance(model, PreTrainedModel)
         return model
 
     @staticmethod

@@ -339,6 +339,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             ComposerHFCausalLM.prepare_inner_model(model, init_device)
         return model
 
+
     @staticmethod
     def _get_peft_config(peft_config_dict: Dict[str, Any]) -> 'PeftConfig':
         if peft_installed:

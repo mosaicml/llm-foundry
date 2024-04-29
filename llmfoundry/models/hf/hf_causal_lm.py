@@ -116,7 +116,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
 
     @staticmethod
     def build_inner_model(
-            om_model_config: DictConfig) -> Union[PreTrainedModel, PeftModel]:
+            om_model_config: DictConfig) -> Union[PreTrainedModel, 'PeftModel']:
         pretrained_model_name_or_path = om_model_config.pretrained_model_name_or_path
         pretrained_lora_id_or_path = om_model_config.get(
             'pretrained_lora_id_or_path', None)

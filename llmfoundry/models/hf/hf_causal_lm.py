@@ -62,7 +62,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
 
     def __init__(self, om_model_config: DictConfig,
                  tokenizer: PreTrainedTokenizerBase):
-        model = ComposerHFCausalLM.build_inner_model(om_model_config, tokenizer)
+        model = ComposerHFCausalLM.build_inner_model(om_model_config)
 
         train_metrics, eval_metrics = ComposerHFCausalLM.get_metrics(
             om_model_config)
@@ -113,9 +113,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         return train_metrics, eval_metrics
 
     @staticmethod
-    def build_inner_model(
-            om_model_config: DictConfig,
-            tokenizer: PreTrainedTokenizerBase) -> PreTrainedModel:
+    def build_inner_model(om_model_config: DictConfig) -> PreTrainedModel:
         pretrained_model_name_or_path = om_model_config.pretrained_model_name_or_path
         pretrained_lora_id_or_path = om_model_config.get(
             'pretrained_lora_id_or_path', None)

@@ -224,18 +224,18 @@ def build_composer_model(
 def build_callback(
     name: str,
     kwargs: Optional[Dict[str, Any]] = None,
-    config: Any = None,
+    train_config: Any = None,
 ) -> Callback:
     """Builds a callback from the registry."""
     registry_to_use = registry.callbacks
     if name in registry.callbacks_with_config:
         if kwargs is None:
             kwargs = {}
-        if 'config' in kwargs:
+        if 'train_config' in kwargs:
             raise ValueError(
-                f'`config` is a reserved keyword for callbacks with config. Please remove it from the kwargs.'
+                f'`train_config` is a reserved keyword for callbacks with config. Please remove it from the kwargs.'
             )
-        kwargs['config'] = config
+        kwargs['train_config'] = train_config
         registry_to_use = registry.callbacks_with_config
 
     return construct_from_registry(name=name,

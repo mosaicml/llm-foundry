@@ -64,7 +64,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                  tokenizer: PreTrainedTokenizerBase):
         model = ComposerHFCausalLM.build_inner_model(om_model_config)
 
-        train_metrics, eval_metrics = ComposerHFCausalLM.get_metrics(
+        train_metrics, eval_metrics = ComposerHFCausalLM.build_metrics(
             om_model_config)
 
         peft_config_dict = pop_config(om_model_config,
@@ -94,7 +94,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         )
 
     @staticmethod
-    def get_metrics(
+    def build_metrics(
             om_model_config: DictConfig) -> Tuple[List[Metric], List[Metric]]:
         from llmfoundry.utils.builders import build_metric
 

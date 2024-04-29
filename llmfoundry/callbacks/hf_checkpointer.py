@@ -12,9 +12,11 @@ import tempfile
 import time
 from multiprocessing.context import SpawnProcess
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
+import numpy as np
 import torch
+import torch.nn as nn
 from composer.core import Callback, Event, State, Time, TimeUnit
 from composer.core.state import fsdp_state_dict_type_context
 from composer.loggers import Logger, MLFlowLogger
@@ -24,6 +26,7 @@ from composer.utils import (dist, format_name_with_dist_and_time,
                             parse_uri)
 from composer.utils.misc import create_interval_scheduler
 from mlflow.transformers import _fetch_model_card, _write_license_information
+from packaging import version
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
@@ -32,6 +35,8 @@ from llmfoundry.utils.huggingface_hub_utils import \
     edit_files_for_hf_compatibility
 
 log = logging.getLogger(__name__)
+
+__all__ = ['HuggingFaceCheckpointer']
 
 _LICENSE_FILE_PATTERN = re.compile(r'license(\.[a-z]+|$)', re.IGNORECASE)
 
@@ -156,8 +161,6 @@ class HuggingFaceCheckpointer(Callback):
         if mlflow_logging_config is None:
             mlflow_logging_config = {}
         if self.mlflow_registered_model_name is not None:
-            import numpy as np
-
             # Both the metadata and the task are needed in order for mlflow
             # and databricks optimized model serving to work
             passed_metadata = mlflow_logging_config.get('metadata', {})
@@ -167,18 +170,17 @@ class HuggingFaceCheckpointer(Callback):
             default_input_example = {
                 'prompt': np.array(['What is Machine Learning?'])
             }
-            is_chat = mlflow_logging_config['task'].endswith(
-                'chat') or mlflow_logging_config['metadata'].get(
-                    'task', '').endswith('chat')
+            is_chat = mlflow_logging_config['task'].endswith('chat') or (
+                mlflow_logging_config['metadata'] is not None and
+                mlflow_logging_config['metadata'].get('task',
+                                                      '').endswith('chat'))
             if is_chat:
                 default_input_example = {
-                    'messages':
-                        np.array([{
-                            'role': 'user',
-                            'content': 'What is Machine Learning?'
-                        }])
+                    'messages': [{
+                        'role': 'user',
+                        'content': 'What is Machine Learning?'
+                    }]
                 }
-                mlflow_logging_config.setdefault('example_no_conversion', True)
             mlflow_logging_config.setdefault('input_example',
                                              default_input_example)
 
@@ -256,6 +258,16 @@ class HuggingFaceCheckpointer(Callback):
             return True
 
         assert state.max_duration is not None  # for pyright
+
+        epoch_complete = state.dataloader_len == state.timestamp.batch_in_epoch
+        second_to_last_epoch = state.max_duration.unit == TimeUnit.EPOCH and (
+            state.timestamp.epoch == state.max_duration.value - 1)
+        # If the save interval is specified as exactly the same number of batches as the total duration,
+        # but the max duration is specified in epochs, we need a special case to identify we are on the last batch
+        # and should write the mlflow checkpoint. This should occur on the last batch of the final epoch.
+        if self.save_interval.unit == TimeUnit.BATCH and second_to_last_epoch and epoch_complete:
+            return True
+
         # If the save interval is specified as 1dur, and the max duration is in epoch units
         # we need a special case to identify we are on the last batch and should write the mlflow checkpoint
         if self.save_interval.unit == TimeUnit.DURATION and self.save_interval.value == 1 and state.max_duration.unit == TimeUnit.EPOCH:
@@ -270,6 +282,23 @@ class HuggingFaceCheckpointer(Callback):
         x = torch.tensor(1 if not_done else 0).to(device='cuda')
         dist.all_reduce(x, reduce_operation='MAX')
         return x.item() == 0
+
+    def transform_model_and_tokenizer(
+        self, model: PreTrainedModel, tokenizer: PreTrainedTokenizerBase
+    ) -> Tuple[PreTrainedModel, PreTrainedTokenizerBase]:
+        """Transform the model and tokenizer before saving.
+
+        This allows a subclass to modify the model and tokenizer before saving. The base class implementation will
+        make no modifications.
+
+        Args:
+            model (PreTrainedModel): The model to be transformed.
+            tokenizer (PreTrainedTokenizerBase): The tokenizer to be transformed.
+
+        Returns:
+            Tuple[PreTrainedModel, PreTrainedTokenizerBase]: The transformed model and tokenizer.
+        """
+        return model, tokenizer
 
     def _save_checkpoint(self, state: State, logger: Logger):
         del logger  # unused
@@ -312,28 +341,72 @@ class HuggingFaceCheckpointer(Callback):
             state_dict_model = state.model.model
             original_tokenizer = state.model.tokenizer
 
-        state_dict_context = fsdp_state_dict_type_context(
-            original_model,
-            state_dict_type='full') if ((not state.is_model_ddp) and isinstance(
-                state_dict_model, FSDP)) else contextlib.nullcontext()
+        if version.parse(torch.__version__) > version.parse('2.2.9'):
+            from torch.distributed._tensor import DTensor
+            from torch.distributed.checkpoint.state_dict import (
+                StateDictOptions, get_model_state_dict)
+            cpu_offload = True
 
-        with state_dict_context:
-            state_dict = state_dict_model.state_dict()
+            # Add a dtensor->cpu tensor hook to avoid CUDA OOM
+            def dtensor_to_tensor_hook(
+                module: nn.Module,
+                state_dict: Dict[str, Any],
+                prefix: str,
+                *args: Any,
+            ) -> Dict[str, Any]:
+                dtensor_fqns = []
+                for fqn in state_dict.keys():
+                    tensor = state_dict[fqn]
+                    if isinstance(tensor, DTensor):
+                        dtensor_fqns.append(fqn)
+                        tensor = tensor.full_tensor()  # type: ignore
+                        if dist.get_global_rank() == 0:
+                            if cpu_offload:
+                                tensor = tensor.cpu()
+                            state_dict[fqn] = tensor
+                if dist.get_global_rank() != 0:
+                    for fqn in dtensor_fqns:
+                        del state_dict[fqn]
+                return state_dict
 
-            # convert the state dict to the requested precision
-            for k, v in state_dict.items():
-                if isinstance(v, torch.Tensor):
-                    state_dict[k] = v.to(dtype=self.dtype)
+            hooks = []
+            for _, module in state_dict_model.named_modules():
+                if isinstance(module, FSDP):
+                    hooks.append(
+                        module._register_state_dict_hook(
+                            dtensor_to_tensor_hook))
+
+            state_dict = get_model_state_dict(state_dict_model,
+                                              options=StateDictOptions(
+                                                  full_state_dict=True,
+                                                  cpu_offload=cpu_offload))
+            for hook in hooks:
+                hook.remove()
+        else:
+            state_dict_context = fsdp_state_dict_type_context(
+                original_model, state_dict_type='full') if (
+                    (not state.is_model_ddp) and isinstance(
+                        state_dict_model, FSDP)) else contextlib.nullcontext()
+            with state_dict_context:
+                state_dict = state_dict_model.state_dict()
+
+        # Convert the state dict to the requested precis
+        for k, v in state_dict.items():
+            if isinstance(v, torch.Tensor):
+                state_dict[k] = v.to(dtype=self.dtype)
 
         new_model_instance = None  # Need this for pyright because variable could be unbound
 
         if dist.get_global_rank() == 0:
             log.debug('Saving Hugging Face checkpoint in global rank 0')
 
+            # Edit HF config before building 2nd model copy
             copied_config = copy.deepcopy(original_model.config)
             if copied_config.model_type == 'mpt':
                 copied_config.attn_config['attn_impl'] = 'torch'
                 copied_config.init_device = 'cpu'
+                if 'moe_world_size' in getattr(copied_config, 'ffn_config', {}):
+                    copied_config.ffn_config['moe_world_size'] = 1
 
             log.debug(f'Creating new model instance')
 
@@ -353,11 +426,17 @@ class HuggingFaceCheckpointer(Callback):
                 # initialization cost.
                 with init_empty_weights():
                     new_model_instance = type(original_model)(copied_config)
+                    new_model_instance.generation_config.update(
+                        **original_model.generation_config.to_dict())
 
             # Then load the state dict in with "assign" so that the state dict
             # is loaded properly even though the model is initially on meta device.
             new_model_instance.load_state_dict(state_dict, assign=True)
             del state_dict
+
+            # Transform the model and tokenizer before saving
+            new_model_instance, original_tokenizer = self.transform_model_and_tokenizer(
+                new_model_instance, original_tokenizer)
 
             log.debug('Saving Hugging Face checkpoint to disk')
             new_model_instance.save_pretrained(temp_save_dir)

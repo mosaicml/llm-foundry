@@ -12,7 +12,6 @@ from typing import Any, Dict, List, Optional, Union
 import torch
 from composer import Trainer
 from composer.core.callback import Callback
-from composer.metrics.nlp import InContextLearningMetric
 from composer.profiler import (JSONTraceHandler, Profiler, TraceHandler,
                                cyclic_schedule)
 from composer.utils import dist, get_device, reproducibility
@@ -20,12 +19,14 @@ from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from rich.traceback import install
 
+from llmfoundry.eval.metrics.nlp import InContextLearningMetric
 from llmfoundry.utils import (find_mosaicml_logger, log_train_analytics,
                               maybe_create_mosaicml_logger)
 
 install()
 from llmfoundry.callbacks import AsyncEval
 from llmfoundry.data.dataloader import build_dataloader
+from llmfoundry.layers_registry import ffns_with_megablocks
 from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
                                        build_algorithm, build_callback,
                                        build_composer_model, build_evaluators,
@@ -80,16 +81,16 @@ def validate_config(cfg: DictConfig):
         fsdp_config = cfg.get('fsdp_config', None)
         act_ckpt = fsdp_config.get('activation_checkpointing', False)
         act_ckpt_reentrant = fsdp_config.get(
-            'activation_checkpointing_reentrant', True)
-        if fsdp_config is not None and act_ckpt == True and act_ckpt_reentrant == False:
+            'activation_checkpointing_reentrant', False)
+        if fsdp_config is not None and act_ckpt == True and act_ckpt_reentrant == True:
             warnings.warn(
                 '`te.Linear` layers do not support activation_checkpointing with '
-                + '`activation_checkpointing_reentrant = False`. ' +
-                'Setting cfg.fsdp_config.activation_checkpointing_reentrant=True.'
+                + '`activation_checkpointing_reentrant = True`. ' +
+                'Setting cfg.fsdp_config.activation_checkpointing_reentrant=False.'
             )
-            cfg.fsdp_config.activation_checkpointing_reentrant = True
+            cfg.fsdp_config.activation_checkpointing_reentrant = False
 
-    if 'te' in cfg.model.get('ffn_config', {}).get('ffn_type', 'mptmlp'):
+    if cfg.model.get('ffn_config', {}).get('ffn_type', 'mptmlp') == 'te_ln_mlp':
         warnings.warn(
             '`te.LayerNormMLP` requires has issues with torch._dynamo. ' +
             'Setting `torch._dynamo.config.suppress_errors = True` and falling back to eager.'
@@ -100,6 +101,30 @@ def validate_config(cfg: DictConfig):
         raise ValueError(
             '`load_in_8bit` is only supported for evaluation rather than training.'
         )
+
+    if cfg.model.get('ffn_config', {}).get('ffn_type',
+                                           'mptmlp') in ffns_with_megablocks:
+        moe_world_size = cfg.model.get('ffn_config',
+                                       {}).get('moe_world_size', 1)
+        use_orig_params = cfg.get('fsdp_config',
+                                  {}).get('use_orig_params', True)
+        if moe_world_size > 1 and not use_orig_params:
+            raise ValueError(
+                f'MoEs with expert parallelism (moe_world_size {moe_world_size} > 1) require `use_orig_params=True`.'
+            )
+
+
+def _initialize_dist_with_barrier(dist_timeout: Union[int, float]):
+    """Initialize distributed and test setup with a barrier.
+
+    Args:
+        dist_timeout (Union[int, float]): Timeout for initializing the process group
+    """
+    log.debug('Initializing dist with device...')
+    dist.initialize_dist(get_device(None), timeout=dist_timeout)
+    log.debug('Testing barrier with device...')
+    dist.barrier()
+    log.debug('Barrier test passed with device.')
 
 
 def main(cfg: DictConfig) -> Trainer:
@@ -158,7 +183,24 @@ def main(cfg: DictConfig) -> Trainer:
                                                  'dist_timeout',
                                                  must_exist=False,
                                                  default_value=600.0)
-    dist.initialize_dist(get_device(None), timeout=dist_timeout)
+    python_log_level: Optional[str] = pop_config(cfg,
+                                                 'python_log_level',
+                                                 must_exist=False,
+                                                 default_value='debug')
+    # Set logging level
+    if python_log_level is not None:
+        logging.basicConfig(
+            # Example of format string
+            # 2022-06-29 11:22:26,152: rank0[822018][MainThread]: INFO: Message here
+            format=
+            f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
+        )
+        logging.getLogger('llmfoundry').setLevel(
+            python_log_level.upper())  # Foundry module
+        logging.getLogger(__name__).setLevel(
+            python_log_level.upper())  # Train script
+
+    _initialize_dist_with_barrier(dist_timeout=dist_timeout)
 
     # Get global and device batch size information from distributed/single node setting
     cfg = update_batch_size_info(cfg)
@@ -286,10 +328,6 @@ def main(cfg: DictConfig) -> Trainer:
                                       'log_to_console',
                                       must_exist=False,
                                       default_value=True)
-    python_log_level: Optional[str] = pop_config(cfg,
-                                                 'python_log_level',
-                                                 must_exist=False,
-                                                 default_value='debug')
     console_log_interval: Union[int, str] = pop_config(cfg,
                                                        'console_log_interval',
                                                        must_exist=False,
@@ -321,6 +359,10 @@ def main(cfg: DictConfig) -> Trainer:
                                                  default_value=True)
     load_ignore_keys: Optional[List[str]] = pop_config(cfg,
                                                        'load_ignore_keys',
+                                                       must_exist=False,
+                                                       default_value=None)
+    save_ignore_keys: Optional[List[str]] = pop_config(cfg,
+                                                       'save_ignore_keys',
                                                        must_exist=False,
                                                        default_value=None)
     compile_config: Optional[Dict[str, Any]] = pop_config(cfg,
@@ -374,19 +416,6 @@ def main(cfg: DictConfig) -> Trainer:
         warnings.warn(
             'FSDP is not applicable for single-GPU training. Reverting to DDP.')
         fsdp_config = None
-
-    # set logging level
-    if python_log_level is not None:
-        logging.basicConfig(
-            # Example of format string
-            # 2022-06-29 11:22:26,152: rank0[822018][MainThread]: INFO: Message here
-            format=
-            f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
-        )
-        logging.getLogger('llmfoundry').setLevel(
-            python_log_level.upper())  # Foundry module
-        logging.getLogger(__name__).setLevel(
-            python_log_level.upper())  # Train script
 
     # Initialize context
     init_context = process_init_device(model_config, fsdp_config)
@@ -452,7 +481,9 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Callbacks
     callbacks: List[Callback] = [
-        build_callback(str(name), callback_cfg, om.to_container(logged_cfg))
+        build_callback(name=str(name),
+                       kwargs=callback_cfg,
+                       train_config=om.to_container(logged_cfg))
         for name, callback_cfg in callback_configs.items()
     ] if callback_configs else []
 
@@ -520,11 +551,20 @@ def main(cfg: DictConfig) -> Trainer:
     )
 
     # Log number of parameters
-    n_params = sum(p.numel() for p in model.parameters())
-    n_trainable_params = sum(
-        p.numel() for p in model.parameters() if p.requires_grad)
+    if hasattr(model, 'n_total_params'):
+        n_params = model.n_total_params
+        n_trainable_params = n_params  # TODO: we currently assume all parameters are trainable.
+    else:
+        n_params = sum(p.numel() for p in model.parameters())
+        n_trainable_params = sum(
+            p.numel() for p in model.parameters() if p.requires_grad)
+    if hasattr(model, 'n_active_params'):
+        n_active_params = model.n_active_params
+    else:
+        n_active_params = n_params
     logged_cfg.update({
         'n_params': n_params,
+        'n_active_params': n_active_params,
         'n_trainable_params': n_trainable_params,
     })
 
@@ -580,6 +620,7 @@ def main(cfg: DictConfig) -> Trainer:
         load_weights_only=load_weights_only,
         load_strict_model_weights=load_strict_model_weights,
         load_ignore_keys=load_ignore_keys,
+        save_ignore_keys=save_ignore_keys,
         autoresume=autoresume,
         python_log_level=python_log_level,
         dist_timeout=dist_timeout,

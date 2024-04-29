@@ -94,7 +94,6 @@ seed: 17
 device_train_microbatch_size: 1
 device_eval_batch_size: 1
 precision: amp_bf16
-autoresume: true
 dist_timeout: 3600
 expandable_segments: true
 

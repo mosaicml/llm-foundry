@@ -1,9 +1,11 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import copy
 import functools
 import importlib.util
 import os
+from contextlib import contextmanager
 from pathlib import Path
 from types import ModuleType
 from typing import (Any, Callable, Dict, Generic, Optional, Sequence, Type,
@@ -11,9 +13,17 @@ from typing import (Any, Callable, Dict, Generic, Optional, Sequence, Type,
 
 import catalogue
 
-__all__ = ['TypedRegistry', 'create_registry', 'construct_from_registry']
+__all__ = [
+    'TypedRegistry',
+    'create_registry',
+    'construct_from_registry',
+    'import_file',
+    'save_registry',
+]
 
 T = TypeVar('T')
+TypeBoundT = TypeVar('TypeBoundT', bound=Type)
+CallableBoundT = TypeVar('CallableBoundT', bound=Callable[..., Any])
 
 
 class TypedRegistry(catalogue.Registry, Generic[T]):
@@ -34,6 +44,12 @@ class TypedRegistry(catalogue.Registry, Generic[T]):
         return super().__call__(name, func)
 
     def register(self, name: str, *, func: Optional[T] = None) -> T:
+        return super().register(name, func=func)
+
+    def register_class(self,
+                       name: str,
+                       *,
+                       func: Optional[TypeBoundT] = None) -> TypeBoundT:
         return super().register(name, func=func)
 
     def get(self, name: str) -> T:
@@ -135,7 +151,7 @@ def construct_from_registry(
         )
 
     if post_validation_function is not None:
-        post_validation_function(registered_constructor)
+        post_validation_function(constructed_item)
 
     return constructed_item
 
@@ -166,3 +182,13 @@ def import_file(loc: Union[str, Path]) -> ModuleType:
     except Exception as e:
         raise RuntimeError(f'Error executing {loc}') from e
     return module
+
+
+@contextmanager
+def save_registry():
+    """Save the registry state and restore after the context manager exits."""
+    saved_registry_state = copy.deepcopy(catalogue.REGISTRY)
+
+    yield
+
+    catalogue.REGISTRY = saved_registry_state

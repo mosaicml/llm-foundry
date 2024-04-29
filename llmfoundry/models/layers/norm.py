@@ -1,9 +1,21 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Dict, List, Optional, Type, Union
+from typing import List, Optional, Union
 
 import torch
+
+from llmfoundry.layers_registry import norms
+
+__all__ = [
+    'LPLayerNorm',
+    'LPRMSNorm',
+    'RMSNorm',
+    'TritonRMSNorm',
+    'rms_norm',
+]
+
+norms.register(name='layernorm', func=torch.nn.LayerNorm)
 
 
 def _cast_if_autocast_enabled(tensor: torch.Tensor) -> torch.Tensor:
@@ -18,6 +30,7 @@ def _cast_if_autocast_enabled(tensor: torch.Tensor) -> torch.Tensor:
     return tensor
 
 
+@norms.register_class('low_precision_layernorm')
 class LPLayerNorm(torch.nn.LayerNorm):
 
     def __init__(
@@ -62,6 +75,7 @@ def rms_norm(x: torch.Tensor,
     return output
 
 
+@norms.register_class('rmsnorm')
 class RMSNorm(torch.nn.Module):
 
     def __init__(
@@ -84,6 +98,7 @@ class RMSNorm(torch.nn.Module):
         return rms_norm(x.float(), self.weight, self.eps).to(dtype=x.dtype)
 
 
+@norms.register_class('low_precision_rmsnorm')
 class LPRMSNorm(RMSNorm):
 
     def __init__(
@@ -111,6 +126,7 @@ class LPRMSNorm(RMSNorm):
                             self.eps).to(dtype=x.dtype)
 
 
+@norms.register_class('triton_rmsnorm')
 class TritonRMSNorm(torch.nn.Module):
 
     def __init__(
@@ -150,12 +166,3 @@ class TritonRMSNorm(torch.nn.Module):
             prenorm=False,
             residual_in_fp32=False,
         )
-
-
-NORM_CLASS_REGISTRY: Dict[str, Type[torch.nn.Module]] = {
-    'layernorm': torch.nn.LayerNorm,
-    'low_precision_layernorm': LPLayerNorm,
-    'rmsnorm': RMSNorm,
-    'low_precision_rmsnorm': LPRMSNorm,
-    'triton_rmsnorm': TritonRMSNorm,
-}

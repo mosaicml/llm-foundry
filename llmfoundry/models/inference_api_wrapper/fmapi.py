@@ -15,6 +15,7 @@ from llmfoundry.models.inference_api_wrapper.openai_causal_lm import (
 __all__ = [
     'FMAPICasualLMEvalWrapper',
     'FMAPIChatAPIEvalWrapper',
+    'FMAPIEvalInterface',
 ]
 
 log = logging.getLogger(__name__)

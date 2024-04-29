@@ -56,7 +56,7 @@ def test_tokenizer_no_EOS():
 
 def test_build_callback_fails():
     with pytest.raises(ValueError):
-        build_callback('nonexistent_callback', {}, {})
+        build_callback(name='nonexistent_callback', kwargs={}, train_config={})
 
 
 @pytest.mark.parametrize(
@@ -72,14 +72,13 @@ def test_build_generate_callback(
                            autospec=True) as mock_generate:
         mock_generate.return_value = None
         build_callback(
-            'generate_callback',
-            {
+            name='generate_callback',
+            kwargs={
                 'prompts': ['hello'],
                 interval_key: interval_value,
                 'foo': 'bar',
                 'something': 'else',
             },
-            {},
         )
 
         assert mock_generate.call_count == 1
@@ -96,13 +95,12 @@ def test_build_generate_callback_unspecified_interval():
                                autospec=True) as mock_generate:
             mock_generate.return_value = None
             build_callback(
-                'generate_callback',
-                {
+                name='generate_callback',
+                kwargs={
                     'prompts': ['hello'],
                     'foo': 'bar',
                     'something': 'else',
                 },
-                {},
             )
 
 
@@ -120,13 +118,14 @@ def test_build_hf_checkpointer_callback():
                 'task': 'llm/v1/completions'
             }
         }
-        build_callback(name='hf_checkpointer',
-                       kwargs={
-                           'save_folder': save_folder,
-                           'save_interval': save_interval,
-                           'mlflow_logging_config': mlflow_logging_config_dict
-                       },
-                       config={})
+        build_callback(
+            name='hf_checkpointer',
+            kwargs={
+                'save_folder': save_folder,
+                'save_interval': save_interval,
+                'mlflow_logging_config': mlflow_logging_config_dict
+            },
+        )
 
         assert mock_hf_checkpointer.call_count == 1
         _, _, kwargs = mock_hf_checkpointer.mock_calls[0]

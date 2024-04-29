@@ -20,6 +20,8 @@ from llmfoundry.utils.warnings import experimental_class
 
 log = logging.getLogger(__name__)
 
+__all__ = ['CurriculumLearning']
+
 
 @experimental_class('CurriculumLearning callback')
 class CurriculumLearning(CallbackWithConfig):
@@ -31,13 +33,13 @@ class CurriculumLearning(CallbackWithConfig):
             being used.
     """
 
-    def __init__(self, dataset_index: int, train_config: Dict):
+    def __init__(self, train_config: Dict, dataset_index: int):
         self.dataset_index = dataset_index
         self.saved_dataset_index = 0
         self.all_dataset_configs = []
         self.current_dataset_state = {}
         # The current dataset config is resolved and passed in train.py
-        self.current_dataset_config = train_config['dataloader']
+        self.current_dataset_config = train_config['train_loader']
 
     def before_load(self, state: State, logger: Logger):
         del logger

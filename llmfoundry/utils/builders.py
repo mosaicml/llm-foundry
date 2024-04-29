@@ -6,14 +6,13 @@ import functools
 import logging
 import os
 import re
+import warnings
 from collections import OrderedDict
 from typing import (Any, ContextManager, Dict, Iterable, List, Optional, Tuple,
                     Union)
 
 import torch
 from composer.core import Algorithm, Callback, Evaluator
-from composer.datasets.in_context_learning_evaluation import \
-    get_icl_task_dataloader
 from composer.loggers import LoggerDestination
 from composer.models import ComposerModel
 from composer.optim.scheduler import ComposerScheduler
@@ -27,8 +26,11 @@ from transformers import AutoTokenizer, PreTrainedTokenizerBase
 from llmfoundry import registry
 from llmfoundry.callbacks import EvalGauntlet
 from llmfoundry.data.dataloader import build_dataloader
+from llmfoundry.eval.datasets.in_context_learning_evaluation import \
+    get_icl_task_dataloader
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
 from llmfoundry.utils.registry_utils import construct_from_registry
+from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
 log = logging.getLogger(__name__)
 
@@ -104,6 +106,7 @@ def build_eval_loaders(
             # Load the eval data to fail fast. metrics will get added
             # later in add_metrics_to_eval_loaders, after the model is loaded
             metric_names=[],
+            device_eval_microbatch_size=device_eval_batch_size,
         )
         evaluators.append(eval_loader)
     return evaluators
@@ -214,18 +217,18 @@ def build_composer_model(
 def build_callback(
     name: str,
     kwargs: Optional[Dict[str, Any]] = None,
-    config: Any = None,
+    train_config: Any = None,
 ) -> Callback:
     """Builds a callback from the registry."""
     registry_to_use = registry.callbacks
     if name in registry.callbacks_with_config:
         if kwargs is None:
             kwargs = {}
-        if 'config' in kwargs:
+        if 'train_config' in kwargs:
             raise ValueError(
-                f'`config` is a reserved keyword for callbacks with config. Please remove it from the kwargs.'
+                f'`train_config` is a reserved keyword for callbacks with config. Please remove it from the kwargs.'
             )
-        kwargs['config'] = config
+        kwargs['train_config'] = train_config
         registry_to_use = registry.callbacks_with_config
 
     return construct_from_registry(name=name,
@@ -495,8 +498,15 @@ def build_icl_evaluators(
                 icl_cfg.metric_names = [
                     'InContextLearningMultipleChoiceAccuracy'
                 ]
-            elif icl_cfg.icl_task_type == 'question_answering':
-                icl_cfg.metric_names = ['InContextLearningQAAccuracy']
+            elif icl_cfg.icl_task_type == 'generation_task_with_answers' or icl_cfg.icl_task_type == 'question_answering':
+                if icl_cfg.icl_task_type == 'question_answering':
+                    warnings.warn(
+                        VersionedDeprecationWarning(
+                            "ICL task type 'question_answering' is now deprecated. Use identifier 'generation_task_with_answers'",
+                            'v0.9.0'))
+                icl_cfg.metric_names = [
+                    'InContextLearningGenerationExactMatchAccuracy'
+                ]
             elif icl_cfg.icl_task_type == 'code_evaluation':
                 icl_cfg.metric_names = ['InContextLearningCodeEvalAccuracy']
             else:

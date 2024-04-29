@@ -5,6 +5,36 @@
 from collections.abc import Mapping
 from typing import Any, Dict, List
 
+__all__ = [
+    'ALLOWED_RESPONSE_KEYS',
+    'ALLOWED_PROMPT_KEYS',
+    'ALLOWED_MESSAGES_KEYS',
+    'MissingHuggingFaceURLSplitError',
+    'NotEnoughDatasetSamplesError',
+    'UnknownExampleTypeError',
+    'NotEnoughChatDataError',
+    'ConsecutiveRepeatedChatRolesError',
+    'InvalidLastChatMessageRoleError',
+    'IncorrectMessageKeyQuantityError',
+    'InvalidRoleError',
+    'InvalidContentTypeError',
+    'InvalidPromptTypeError',
+    'InvalidResponseTypeError',
+    'InvalidPromptResponseKeysError',
+    'InvalidFileExtensionError',
+    'UnableToProcessPromptResponseError',
+    'ClusterDoesNotExistError',
+    'FailedToCreateSQLConnectionError',
+    'FailedToConnectToDatabricksError',
+    'InputFolderMissingDataError',
+    'OutputFolderNotEmptyError',
+    'MisconfiguredHfDatasetError',
+]
+
+ALLOWED_RESPONSE_KEYS = {'response', 'completion'}
+ALLOWED_PROMPT_KEYS = {'prompt'}
+ALLOWED_MESSAGES_KEYS = {'messages'}
+
 
 # Finetuning dataloader exceptions
 class MissingHuggingFaceURLSplitError(ValueError):
@@ -44,17 +74,11 @@ class UnknownExampleTypeError(KeyError):
 
     def __init__(self, example: Mapping) -> None:
         self.example = example
-        message = f'Unknown example type {example=}'
-        super().__init__(message)
-
-
-class TooManyKeysInExampleError(ValueError):
-    """Error thrown when a data sample has too many keys."""
-
-    def __init__(self, desired_keys: set[str], keys: set[str]) -> None:
-        self.desired_keys = desired_keys
-        self.keys = keys
-        message = f'Data sample has {len(keys)} keys in `allowed_keys`: {desired_keys} Please specify exactly one. Provided keys: {keys}'
+        message = (
+            f'Found keys {example.keys()} in dataset. Unknown example type. For prompt and response '
+            f'finetuning, the valid prompt keys are {ALLOWED_PROMPT_KEYS} and the valid response keys are '
+            f'{ALLOWED_RESPONSE_KEYS}. For chat finetuning, the allowed keys are {ALLOWED_MESSAGES_KEYS}'
+        )
         super().__init__(message)
 
 
@@ -203,4 +227,14 @@ class OutputFolderNotEmptyError(FileExistsError):
     def __init__(self, output_folder: str) -> None:
         self.output_folder = output_folder
         message = f'{output_folder} is not empty. Please remove or empty it and retry.'
+        super().__init__(message)
+
+
+class MisconfiguredHfDatasetError(ValueError):
+    """Error thrown when a HuggingFace dataset is misconfigured."""
+
+    def __init__(self, dataset_name: str, split: str) -> None:
+        self.dataset_name = dataset_name
+        self.split = split
+        message = f'Your dataset (name={dataset_name}, split={split}) is misconfigured. Please check your dataset format and make sure you can load your dataset locally.'
         super().__init__(message)

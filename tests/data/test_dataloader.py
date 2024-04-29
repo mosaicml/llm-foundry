@@ -20,9 +20,9 @@ from composer.utils import dist
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from streaming import MDSWriter
+from streaming.base.util import clean_stale_shared_memory
 
-from llmfoundry import build_finetuning_dataloader
-from llmfoundry.data import build_dataloader
+from llmfoundry.data import build_dataloader, build_finetuning_dataloader
 from llmfoundry.data.finetuning.collator import (_HF_IGNORE_INDEX,
                                                  validate_target_settings)
 from llmfoundry.data.finetuning.tasks import (DOWNLOADED_FT_DATASETS_DIRPATH,
@@ -42,8 +42,8 @@ from llmfoundry.utils.exceptions import (ConsecutiveRepeatedChatRolesError,
                                          InvalidPromptTypeError,
                                          InvalidResponseTypeError,
                                          InvalidRoleError,
+                                         MisconfiguredHfDatasetError,
                                          NotEnoughDatasetSamplesError,
-                                         TooManyKeysInExampleError,
                                          UnknownExampleTypeError)
 # yapf: enable
 from scripts.data_prep.convert_dataset_hf import main as main_hf
@@ -266,6 +266,47 @@ def test_sequence_id_wrapper(eos_token_id: Optional[int],
                            torch.Tensor([[0, 0, 0, 1, 1, 1, 2, 2, 2]]))
     else:
         raise NotImplementedError()
+
+
+def test_invalid_jsonl_data():
+    max_seq_len = 2
+    decoder_only_format = True
+    packing_ratio = 'auto'
+    allow_pad_trimming = False
+    cfg = {
+        'name': 'finetuning',
+        'dataset': {
+            'hf_name': 'iamroot/chat_malformatted_examples',
+            'split': 'train',
+            'max_seq_len': max_seq_len,
+            'decoder_only_format': decoder_only_format,
+            'allow_pad_trimming': allow_pad_trimming,
+            'packing_ratio': packing_ratio,
+            'shuffle': True,
+        },
+        'drop_last': False,
+        'num_workers': 0,
+        'pin_memory': False,
+        'prefetch_factor': None,
+        'persistent_workers': False,
+        'timeout': 0
+    }
+
+    cfg = om.create(cfg)
+
+    tokenizer = build_tokenizer(
+        tokenizer_name='gpt2',
+        tokenizer_kwargs={'model_max_length': max_seq_len})
+
+    device_batch_size = 2
+
+    expected_keys = ['input_ids', 'attention_mask', 'labels']
+    if not decoder_only_format:
+        expected_keys += ['decoder_attention_mask', 'decoder_input_ids']
+
+    with pytest.raises(MisconfiguredHfDatasetError):
+        build_finetuning_dataloader(cfg, tokenizer,
+                                    device_batch_size).dataloader
 
 
 @pytest.mark.parametrize('use_chat_formatting', [True, False])
@@ -539,6 +580,8 @@ def test_finetuning_dataloader_streaming(pretokenize: bool,
                                          backwards_compatibility_mode: bool,
                                          use_bytes: bool,
                                          tmp_path: pathlib.Path):
+    clean_stale_shared_memory()
+
     max_seq_len = 2048
 
     tokenizer = build_tokenizer(
@@ -748,10 +791,10 @@ def test_malformed_data(
                                       match='Expected response to be')
     if add_unknown_example_type:
         error_context = pytest.raises(UnknownExampleTypeError,
-                                      match='Unknown example type')
+                                      match=r'.*Unknown example type')
     if add_too_many_example_keys:
-        error_context = pytest.raises(TooManyKeysInExampleError,
-                                      match='Please specify exactly one.')
+        error_context = pytest.raises(UnknownExampleTypeError,
+                                      match=r'.*Unknown example type')
 
     with error_context:
         dl = build_finetuning_dataloader(cfg, tokenizer,
@@ -1093,3 +1136,87 @@ def test_build_unknown_dataloader():
     tokenizer = MagicMock()
     with pytest.raises(catalogue.RegistryError):
         _ = build_dataloader(cfg, tokenizer, 2)
+
+
+invalid_conversation_params_sharegpt = [
+    'add_invalid_last_chat_message', 'add_invalid_content_type',
+    'add_invalid_role', 'add_not_alternating_roles'
+]
+
+
+@pytest.mark.parametrize(
+    ','.join(invalid_conversation_params_sharegpt),
+    generate_exclusive_test_params(invalid_conversation_params_sharegpt))
+def test_sharegpt_format(tmp_path: pathlib.Path,
+                         add_invalid_last_chat_message: bool,
+                         add_invalid_content_type: bool, add_invalid_role: bool,
+                         add_not_alternating_roles: bool):
+    tokenizer_name = 'mosaicml/mpt-7b'
+    max_seq_len = 2048
+    dataset_size = 5
+    device_batch_size = 5
+    tiny_dataset_folder_path = tmp_path
+    tiny_dataset_path = str(tiny_dataset_folder_path / 'train.jsonl')
+
+    tokenizer = build_tokenizer(
+        tokenizer_name=tokenizer_name,
+        tokenizer_kwargs={'model_max_length': max_seq_len},
+    )
+    tokenizer.add_special_tokens({
+        'pad_token': '<pad>',
+        'bos_token': '<bos>',
+        'eos_token': '<eos>',
+    })
+
+    if dist.get_global_rank() == 0:
+        make_tiny_conversation_ft_dataset(
+            path=tiny_dataset_path,
+            size=dataset_size,
+            add_invalid_last_chat_message=add_invalid_last_chat_message,
+            add_invalid_message_key_quantity=False,
+            add_invalid_content_type=add_invalid_content_type,
+            add_invalid_role=add_invalid_role,
+            add_not_alternating_roles=add_not_alternating_roles,
+            use_messages_format=False,
+        )
+
+    cfg = {
+        'name': 'finetuning',
+        'dataset': {
+            'hf_name': str(tiny_dataset_folder_path),
+            'preprocessing_fn': 'teknium/OpenHermes-2.5',
+            'split': 'train',
+            'max_seq_len': max_seq_len,
+            'decoder_only_format': True,
+            'allow_pad_trimming': False,
+            'packing_ratio': None,
+            'shuffle': True,
+        },
+        'drop_last': False,
+        'num_workers': 0,
+        'prefetch_factor': None,
+        'pin_memory': False,
+        'persistent_workers': False,
+        'timeout': 0
+    }
+
+    cfg = om.create(cfg)
+
+    error_context = contextlib.nullcontext()
+    if add_invalid_last_chat_message:
+        error_context = pytest.raises(InvalidLastChatMessageRoleError,
+                                      match='Invalid last message role:')
+    if add_invalid_content_type:
+        error_context = pytest.raises(InvalidContentTypeError,
+                                      match='Expected content to be')
+    if add_invalid_role:
+        error_context = pytest.raises(InvalidRoleError,
+                                      match='Expected role to be one of')
+
+    if add_not_alternating_roles:
+        error_context = pytest.raises(ConsecutiveRepeatedChatRolesError,
+                                      match='Conversation roles must alternate')
+
+    with error_context:
+        build_finetuning_dataloader(cfg, tokenizer,
+                                    device_batch_size).dataloader

@@ -33,7 +33,7 @@ def test_fsdp_weight_tying(peft_config: Optional[dict], tmp_path: pathlib.Path,
                            init_device: str):
     model_cfg = {
         'name': 'hf_causal_lm',
-        'pretrained_model_name_or_path': 'mistralai/Mistral-7B-v0.1',
+        'pretrained_model_name_or_path': 'codellama/CodeLlama-7b-hf',
         'config_overrides': {
             'num_hidden_layers': 2,
             'hidden_size': 32,
@@ -43,7 +43,7 @@ def test_fsdp_weight_tying(peft_config: Optional[dict], tmp_path: pathlib.Path,
         'pretrained': False,
         'init_device': init_device,
     }
-    tokenizer_name = 'mistralai/Mistral-7B-v0.1'
+    tokenizer_name = 'codellama/CodeLlama-7b-hf'
 
     assert model_cfg is not None
     assert tokenizer_name is not None

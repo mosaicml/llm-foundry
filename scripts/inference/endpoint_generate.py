@@ -42,7 +42,7 @@ def parse_args() -> Namespace:
         '-i',
         '--inputs',
         nargs='+',
-        help=f'List of strings, local datafiles (starting with {utils.PROMPTFILE_PREFIX}),' +\
+        help=f'List of strings, local data files (starting with {utils.PROMPTFILE_PREFIX}),' +\
              ' and/or remote object stores'
         )
     parser.add_argument(

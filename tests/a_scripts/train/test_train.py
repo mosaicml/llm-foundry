@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
+
 import copy
+import os
 import pathlib
 from typing import Optional
 
@@ -9,9 +11,10 @@ from composer.loggers import InMemoryLogger
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 
-from scripts.train.train import main  # noqa: E402
+from scripts.train.train import main, validate_config  # noqa: E402
 from tests.data_utils import (create_arxiv_dataset, create_c4_dataset_xxsmall,
                               gpt_tiny_cfg)
+from tests.fixtures.autouse import REPO_DIR
 
 
 @pytest.mark.parametrize('averages', [{
@@ -142,6 +145,24 @@ def test_train_multi_eval(tmp_path: pathlib.Path):
     assert isinstance(
         inmemorylogger.data['metrics/eval/arxiv/LanguageCrossEntropy'][-1],
         tuple)
+
+
+@pytest.mark.gpu
+def test_validate_config():
+    conf_path: str = os.path.join(
+        REPO_DIR,
+        'scripts/train/yamls/pretrain/testing-moe.yaml',
+    )
+    with open(conf_path) as f:
+        test_cfg: DictConfig = om.load(f)  # type: ignore
+    test_cfg.model.ffn_config.moe_world_size = 4
+    test_cfg.fsdp_config.use_orig_params = False
+    with pytest.raises(
+            ValueError,
+            match=
+            'MoEs with expert parallelism (.*) require `use_orig_params=True`.'
+    ):
+        validate_config(test_cfg)
 
 
 def test_eval_metrics_with_no_train_metrics(tmp_path: pathlib.Path):

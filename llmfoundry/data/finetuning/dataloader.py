@@ -23,6 +23,10 @@ from llmfoundry.utils.exceptions import (MissingHuggingFaceURLSplitError,
 
 log = logging.getLogger(__name__)
 
+__all__ = [
+    'build_finetuning_dataloader',
+]
+
 # HuggingFace hardcodes the ignore index to -100
 _HF_IGNORE_INDEX = -100
 
@@ -170,6 +174,8 @@ def build_finetuning_dataloader(cfg: DictConfig,
             sampling_granularity=cfg.dataset.get('sampling_granularity', 1),
             batching_method=cfg.dataset.get('batching_method', 'random'),
             max_seq_len=cfg.dataset.max_seq_len,
+            allow_unsafe_types=cfg.dataset.get('allow_unsafe_types', False),
+            replication=cfg.dataset.get('replication', None),
         )
 
     else:

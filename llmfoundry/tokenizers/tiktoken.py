@@ -1,9 +1,14 @@
-# Copyright 2022 MosaicML LLM Foundry authors
+# Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
+
 from functools import lru_cache
 from typing import Any, Dict, List, Optional, Tuple
 
 from transformers import PreTrainedTokenizer
+
+__all__ = [
+    'TiktokenTokenizerWrapper',
+]
 
 DEFAULT_SYSTEM_PROMPT = """You are a helpful, respectful and honest assistant. Always answer as helpfully as possible."""
 

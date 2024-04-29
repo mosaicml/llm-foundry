@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from collections import UserDict
-from typing import TYPE_CHECKING, List, Mapping, Optional
+from typing import TYPE_CHECKING, List, Mapping, Optional, Union
 
 import transformers
 from composer.models.huggingface import HuggingFaceModel
@@ -17,7 +17,9 @@ from transformers.utils.generic import ModelOutput
 from llmfoundry.models.hf.hf_fsdp import prepare_hf_model_for_fsdp
 
 if TYPE_CHECKING:
-    from peft import PeftConfig
+    from peft import PeftConfig, PeftModel
+
+__all__ = ['HuggingFaceModelWithFSDP']
 
 # HuggingFace hardcodes the ignore index to -100
 _HF_IGNORE_INDEX = -100
@@ -30,7 +32,7 @@ class HuggingFaceModelWithFSDP(HuggingFaceModel):
     """
 
     def __init__(self,
-                 model: transformers.PreTrainedModel,
+                 model: Union[transformers.PreTrainedModel, 'PeftModel'],
                  tokenizer: Optional[PreTrainedTokenizerBase] = None,
                  metrics: Optional[List[Metric]] = None,
                  eval_metrics: Optional[List[Metric]] = None,
@@ -48,13 +50,7 @@ class HuggingFaceModelWithFSDP(HuggingFaceModel):
             should_save_peft_only=True,
         )
 
-        # Note: We need to add the FSDP related attributes to the model AFTER the super init,
-        # so that the (possible) embedding resizing doesn't destroy them
-        prepare_hf_model_for_fsdp(self.model, init_device)
-
-        # This provides support for meta initialization when using FSDP
-        self.model.param_init_fn = lambda module: self.model._init_weights(
-            module)
+        self.prepare_inner_model(self.model, init_device)
 
     def forward(self, batch: Mapping):
         if isinstance(batch, dict) or isinstance(batch, UserDict):
@@ -74,3 +70,20 @@ class HuggingFaceModelWithFSDP(HuggingFaceModel):
             return outputs['loss']
         # loss is at index 0 in the output tuple, logits are at index 1
         return outputs[:2]
+
+    @staticmethod
+    def prepare_inner_model(model: Union[transformers.PreTrainedModel,
+                                         'PeftModel'],
+                            init_device: Optional[str] = None):
+        """Prepare the inner model for FSDP wrapping.
+
+        Args:
+            model: The model to prepare.
+            init_device: The device to initialize the model on.
+        """
+        # Note: We need to add the FSDP related attributes to the model AFTER the super init,
+        # so that the (possible) embedding resizing doesn't destroy them
+        prepare_hf_model_for_fsdp(model, init_device)
+
+        # This provides support for meta initialization when using FSDP
+        model.param_init_fn = lambda module: model._init_weights(module)

@@ -122,7 +122,7 @@ eval_gauntlet:
     - name: human_eval_ccp
       num_fewshot: 0
       random_baseline: 0
-    - name: human_eval_js 
+    - name: human_eval_js
       num_fewshot: 0
       random_baseline: 0
     - name: human_eval_return_simple
@@ -140,5 +140,3 @@ eval_gauntlet:
     - name: human_eval_75
       num_fewshot: 0
       random_baseline: 0
-
-

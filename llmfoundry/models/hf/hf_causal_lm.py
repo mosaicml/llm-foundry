@@ -116,8 +116,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
 
     @staticmethod
     def build_inner_model(
-        om_model_config: DictConfig,
-        prepare_with_superclass: bool = False
+            om_model_config: DictConfig,
+            prepare_for_fsdp: bool = False
     ) -> Union[PreTrainedModel, 'PeftModel']:
         pretrained_model_name_or_path = om_model_config.pretrained_model_name_or_path
         pretrained_lora_id_or_path = om_model_config.get(
@@ -291,8 +291,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             model = PeftModelForCausalLM.from_pretrained(
                 model, pretrained_lora_id_or_path)
 
-        if prepare_with_superclass:
-            HuggingFaceModelWithFSDP.prepare_inner_model(
+        if prepare_for_fsdp:
+            ComposerHFCausalLM.prepare_inner_model(
                 model,  # type: ignore
                 init_device)  # type: ignore (see PeftModel comment above)
         return model

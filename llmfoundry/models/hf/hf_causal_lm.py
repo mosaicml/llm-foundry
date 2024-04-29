@@ -97,9 +97,10 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
     def build_metrics(
             om_model_config: DictConfig) -> Tuple[List[Metric], List[Metric]]:
         """Builds the training and evaluation metrics for the model.
-        
+
         Args:
-            om_model_config (DictConfig): The model configuration. See `__init__` for details on allowed keys."""
+            om_model_config (DictConfig): The model configuration. See `__init__` for details on allowed keys.
+        """
         from llmfoundry.utils.builders import build_metric
 
         use_train_metrics = om_model_config.get('use_train_metrics', True)
@@ -122,10 +123,11 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             prepare_for_fsdp: bool = False
     ) -> Union[PreTrainedModel, 'PeftModel']:
         """Builds the inner model for the ComposerHFCausalLM.
-        
+
         Args:
             om_model_config (DictConfig): The model configuration. See `__init__` for details on allowed keys.
-            prepare_for_fsdp (bool): Whether to prepare the model for FSDP wrapping. Default: ``False``."""
+            prepare_for_fsdp (bool): Whether to prepare the model for FSDP wrapping. Default: ``False``.
+        """
         pretrained_model_name_or_path = om_model_config.pretrained_model_name_or_path
         pretrained_lora_id_or_path = om_model_config.get(
             'pretrained_lora_id_or_path', None)

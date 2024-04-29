@@ -76,10 +76,11 @@ class HuggingFaceModelWithFSDP(HuggingFaceModel):
                                          'PeftModel'],
                             init_device: Optional[str] = None):
         """Prepare the inner model for FSDP wrapping.
-        
+
         Args:
             model: The model to prepare.
-            init_device: The device to initialize the model on."""
+            init_device: The device to initialize the model on.
+        """
         # Note: We need to add the FSDP related attributes to the model AFTER the super init,
         # so that the (possible) embedding resizing doesn't destroy them
         prepare_hf_model_for_fsdp(model, init_device)

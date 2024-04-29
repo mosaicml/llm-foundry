@@ -89,7 +89,7 @@ def parse_args() -> Namespace:
 class DataSplitConstants:
     hf_split: str
     folder_split: str
-    raw_samples: Union[int, None]
+    raw_samples: Optional[int]
     truncated_samples: Union[int, None]
 
 

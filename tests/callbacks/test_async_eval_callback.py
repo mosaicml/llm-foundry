@@ -13,6 +13,7 @@ from llmfoundry.callbacks.async_eval_callback import (AsyncEval,
                                                       get_run_name,
                                                       validate_eval_run_config,
                                                       validate_interval)
+from llmfoundry.utils.builders import build_callback
 from mcli import Run, RunConfig, RunStatus
 
 RUN_NAME = 'foo_bar-1234'
@@ -240,6 +241,28 @@ FAKE_RUN = Run(
         parameters={},
     ),
 )
+
+
+@patch('llmfoundry.callbacks.async_eval_callback.get_run',
+       return_value=FAKE_RUN)
+def test_async_eval_callback_builds(mock_get_run: MagicMock):
+    kwargs = {'interval': 1}
+    config = {
+        'save_folder': 'foo',
+        'save_interval': 1,
+        'device_eval_batch_size': 2,
+        'max_seq_len': 3,
+        'model': {
+            'name': 'foo',
+        },
+        'tokenizer': {},
+        'icl_tasks': [],
+    }
+    callback = build_callback('async_eval', kwargs=kwargs, train_config=config)
+    assert isinstance(callback, AsyncEval)
+    assert callback.current_run.name == RUN_NAME
+    assert mock_get_run.call_count == 1
+    assert mock_get_run.call_args[0][0] == RUN_NAME
 
 
 @patch('llmfoundry.callbacks.async_eval_callback.get_run',

@@ -6,11 +6,12 @@
 import logging
 import os
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, Mapping
+from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Tuple
 
 from composer.models.huggingface import peft_installed
 from composer.utils import dist
 from omegaconf import DictConfig
+from torchmetrics import Metric
 from transformers import (AutoConfig, AutoModelForCausalLM, PretrainedConfig,
                           PreTrainedModel, PreTrainedTokenizerBase)
 
@@ -61,8 +62,60 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
 
     def __init__(self, om_model_config: DictConfig,
                  tokenizer: PreTrainedTokenizerBase):
+        model = ComposerHFCausalLM.build_inner_model(om_model_config, tokenizer)
+
+        train_metrics, eval_metrics = ComposerHFCausalLM.get_metrics(
+            om_model_config)
+
+        peft_config_dict = pop_config(om_model_config,
+                                      'peft_config',
+                                      must_exist=False,
+                                      convert=True)
+        if peft_config_dict is not None and not peft_installed:
+            raise ValueError(
+                'PEFT is not installed, but peft_config was passed. Please install LLM Foundry with the peft extra to use peft_config.'
+            )
+
+        peft_config = None
+        if peft_config_dict is not None:
+            peft_config = self._get_peft_config(peft_config_dict)
+
+        # Set up config args for the model construction and base classes
+        init_device = om_model_config.get('init_device', 'cpu')
+
+        super().__init__(
+            model=model,
+            shift_labels=True,
+            tokenizer=tokenizer,
+            metrics=train_metrics,
+            eval_metrics=eval_metrics,
+            init_device=init_device,
+            peft_config=peft_config,
+        )
+
+    @staticmethod
+    def get_metrics(
+            om_model_config: DictConfig) -> Tuple[List[Metric], List[Metric]]:
         from llmfoundry.utils.builders import build_metric
 
+        use_train_metrics = om_model_config.get('use_train_metrics', True)
+        train_metric_names = DEFAULT_CAUSAL_LM_TRAIN_METRICS + om_model_config.get(
+            'additional_train_metrics', [])
+        train_metrics = [
+            build_metric(metric, {}) for metric in train_metric_names
+        ] if use_train_metrics else []
+        eval_metric_names = DEFAULT_CAUSAL_LM_EVAL_METRICS + om_model_config.get(
+            'additional_eval_metrics', [])
+        eval_metrics = [
+            build_metric(metric, {}) for metric in eval_metric_names
+        ]
+
+        return train_metrics, eval_metrics
+
+    @staticmethod
+    def build_inner_model(
+            om_model_config: DictConfig,
+            tokenizer: PreTrainedTokenizerBase) -> PreTrainedModel:
         pretrained_model_name_or_path = om_model_config.pretrained_model_name_or_path
         pretrained_lora_id_or_path = om_model_config.get(
             'pretrained_lora_id_or_path', None)
@@ -93,27 +146,6 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             raise ValueError(
                 'use_flash_attention_2 is set to True, but flash-attention 2 is not installed. '
                 + 'Please `pip install llm-foundry[gpu]`.')
-
-        peft_config_dict = pop_config(om_model_config,
-                                      'peft_config',
-                                      must_exist=False,
-                                      convert=True)
-        if peft_config_dict is not None and not peft_installed:
-            raise ValueError(
-                'PEFT is not installed, but peft_config was passed. Please install LLM Foundry with the peft extra to use peft_config.'
-            )
-
-        use_train_metrics = om_model_config.get('use_train_metrics', True)
-        train_metric_names = DEFAULT_CAUSAL_LM_TRAIN_METRICS + om_model_config.get(
-            'additional_train_metrics', [])
-        train_metrics = [
-            build_metric(metric, {}) for metric in train_metric_names
-        ] if use_train_metrics else []
-        eval_metric_names = DEFAULT_CAUSAL_LM_EVAL_METRICS + om_model_config.get(
-            'additional_eval_metrics', [])
-        eval_metrics = [
-            build_metric(metric, {}) for metric in eval_metric_names
-        ]
 
         # Construct the Hugging Face config to use
         config = AutoConfig.from_pretrained(
@@ -247,10 +279,6 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         if model.config.tie_word_embeddings and resolved_init_device == 'meta':
             model.tie_weights()
 
-        peft_config = None
-        if peft_config_dict is not None:
-            peft_config = self._get_peft_config(peft_config_dict)
-
         if pretrained_lora_id_or_path is not None:
             if not peft_installed:
                 raise ValueError(
@@ -260,15 +288,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             model = PeftModelForCausalLM.from_pretrained(
                 model, pretrained_lora_id_or_path)
 
-        super().__init__(
-            model=model,
-            shift_labels=True,
-            tokenizer=tokenizer,
-            metrics=train_metrics,
-            eval_metrics=eval_metrics,
-            init_device=init_device,
-            peft_config=peft_config,
-        )
+        assert isinstance(model, PreTrainedModel)
+        return model
 
     @staticmethod
     def _get_peft_config(peft_config_dict: Dict[str, Any]) -> 'PeftConfig':

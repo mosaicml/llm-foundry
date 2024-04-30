@@ -193,8 +193,11 @@ class HuggingFaceCheckpointer(Callback):
                                                    TimeUnit.EPOCH)
         self.check_interval = create_interval_scheduler(
             self.save_interval, include_end_of_training=True)
+
+        # Create a remote uploader downloader for global rank 0 to
+        # upload the checkpoint to a remote location.
         self.remote_ud = maybe_create_remote_uploader_downloader_from_uri(
-            save_folder, loggers=[])
+            save_folder, loggers=[]) if dist.get_global_rank() == 0 else None
         if self.remote_ud is not None:
             self.remote_ud._num_concurrent_uploads = 4
 

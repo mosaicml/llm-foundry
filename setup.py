@@ -102,17 +102,13 @@ extra_deps['tensorboard'] = [
 
 # Flash 2 group kept for backwards compatibility
 extra_deps['gpu-flash2'] = [
-    'flash-attn==2.5.0',
+    'flash-attn==2.5.8',
 ]
 
 extra_deps['gpu'] = copy.deepcopy(extra_deps['gpu-flash2'])
 
 extra_deps['peft'] = [
     'mosaicml[peft]>=0.21.1,<0.22',
-]
-
-extra_deps['olmo'] = [
-    'ai2-olmo>0.2.4',
 ]
 
 extra_deps['openai'] = [

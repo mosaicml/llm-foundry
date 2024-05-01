@@ -8,6 +8,7 @@ import torch
 from composer.core.data_spec import DataSpec
 from composer.utils import dist, get_file, parse_uri
 from omegaconf import DictConfig
+from requests.exceptions import ChunkedEncodingError
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
@@ -114,6 +115,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
                     The script `scripts/misc/profile_packing.py` can help
                     you choose the best packing_ratio.
             cfg.dataset.shuffle (bool): Whether to shuffle the dataset.
+            cfg.dataset.num_retries (int, optional): Number of times to try loading the datase.
             ___
             See :class:`StreamingFinetuningDataset` for info on other standard config
                 options within `cfg.dataset` that will be passed as kwargs if
@@ -187,9 +189,12 @@ def build_finetuning_dataloader(cfg: DictConfig,
 
         # If dataset is a remote path, download it first.
         backend, _, _ = parse_uri(dataset_name_or_path)
+        num_retries: int = cfg.dataset.get(num_retries, 3)
         if backend not in ['', None]:
             dataset_name_or_path = _download_remote_hf_dataset(
-                remote_path=dataset_name_or_path, split=split)
+                remote_path=dataset_name_or_path,
+                split=split,
+                num_retries=num_retries)
             split = split.replace('-', '_')
 
         # Get the preprocessing function.
@@ -348,7 +353,8 @@ def _validate_config(dataset_cfg: DictConfig) -> None:
                              decoder_only_format)
 
 
-def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
+def _download_remote_hf_dataset(remote_path: str, split: str,
+                                num_retries: int) -> str:
     """Downloads a dataset from a remote object store.
 
     This function supports 'jsonl', 'csv', and 'parquet' file formats for the dataset. It will attempt to download
@@ -406,6 +412,17 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
                     log.debug(
                         f'Could not find {name}, looking for another extension')
                 continue
+            except ChunkedEncodingError as e:
+                if num_retries == 0:
+                    raise e
+                for _ in range(num_retries):
+                    try:
+                        get_file(path=name,
+                                 destination=destination,
+                                 overwrite=True)
+                        break
+                    except ChunkedEncodingError:
+                        pass
 
             os.makedirs(os.path.dirname(signal_file_path), exist_ok=True)
             with open(signal_file_path, 'wb') as f:

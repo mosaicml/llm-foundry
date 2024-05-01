@@ -24,11 +24,11 @@ jobs:
           markers: "gpu"
           pip_deps: "[all]"
           pytest_command: "coverage run -m pytest"
-        # - name: "gpu-2.3.0"
-        #   container: mosaicml/pytorch:2.3.0_cu121-python3.11-ubuntu20.04
-        #   markers: "gpu"
-        #   pytest_command: "coverage run -m pytest"
-        #   deps_group: "all"
+          # - name: "gpu-2.3.0"
+          #   container: mosaicml/pytorch:2.3.0_cu121-python3.11-ubuntu20.04
+          #   markers: "gpu"
+          #   pytest_command: "coverage run -m pytest"
+          #   deps_group: "all"
     name: ${{ matrix.name }}
     if: github.repository_owner == 'mosaicml'
     with:

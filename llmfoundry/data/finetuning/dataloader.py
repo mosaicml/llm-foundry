@@ -7,6 +7,7 @@ from typing import Tuple, Union
 import torch
 from composer.core.data_spec import DataSpec
 from composer.utils import dist, get_file, parse_uri
+from composer.utils.retrying import retry
 from omegaconf import DictConfig
 from requests.exceptions import ChunkedEncodingError
 from torch.utils.data import DataLoader
@@ -396,7 +397,9 @@ def _download_remote_hf_dataset(remote_path: str, split: str,
             finetune_dir, f'.node_{dist.get_node_rank()}_local_rank0_completed')
         if dist.get_local_rank() == 0:
             try:
-                get_file(path=name, destination=destination, overwrite=True)
+                retry(num_attempts=num_retries, exc_class=ChunkedEncodingError)(
+                    get_file(path=name, destination=destination,
+                             overwrite=True))
             except FileNotFoundError as e:
                 if extension == SUPPORTED_EXTENSIONS[-1]:
                     files_searched = [
@@ -412,17 +415,6 @@ def _download_remote_hf_dataset(remote_path: str, split: str,
                     log.debug(
                         f'Could not find {name}, looking for another extension')
                 continue
-            except ChunkedEncodingError as e:
-                if num_retries == 0:
-                    raise e
-                for _ in range(num_retries):
-                    try:
-                        get_file(path=name,
-                                 destination=destination,
-                                 overwrite=True)
-                        break
-                    except ChunkedEncodingError:
-                        pass
 
             os.makedirs(os.path.dirname(signal_file_path), exist_ok=True)
             with open(signal_file_path, 'wb') as f:

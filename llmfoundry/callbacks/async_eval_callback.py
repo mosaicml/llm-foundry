@@ -16,8 +16,10 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from composer.callbacks import CheckpointSaver
 from composer.core import Event, State, Time, Timestamp, TimeUnit
 from composer.loggers import Logger
-from composer.loggers.mosaicml_logger import (MOSAICML_PLATFORM_ENV_VAR,
-                                              RUN_NAME_ENV_VAR)
+from composer.loggers.mosaicml_logger import (
+    MOSAICML_PLATFORM_ENV_VAR,
+    RUN_NAME_ENV_VAR,
+)
 from composer.utils import dist
 from composer.utils.file_helpers import list_remote_objects
 from composer.utils.misc import create_interval_scheduler
@@ -65,15 +67,17 @@ def get_run_name(training_run_name: str, current_interval: str) -> str:
     """
     name_without_uuid_suffix = training_run_name.rsplit('-', 1)[0]
 
-    max_length = MAX_RUN_NAME_BASE_LENGTH - len(RUN_NAME_PREFIX) - len(
-        current_interval) - 2
+    max_length = MAX_RUN_NAME_BASE_LENGTH - len(
+        RUN_NAME_PREFIX,
+    ) - len(current_interval) - 2
 
     # A run name that is too long will fail a createRun call
     if len(name_without_uuid_suffix) > max_length:
         new_name = name_without_uuid_suffix[:max_length]
         log.warning(
             f'Training run name {name_without_uuid_suffix} may be too long,' +
-            f' truncating to {new_name}')
+            f' truncating to {new_name}',
+        )
         name_without_uuid_suffix = new_name
 
     return f'{RUN_NAME_PREFIX}-{current_interval}-{name_without_uuid_suffix}'
@@ -107,7 +111,7 @@ def get_eval_parameters(
 
     if looking_for:
         raise Exception(
-            f'Missing the following required parameters for async eval: {looking_for}'
+            f'Missing the following required parameters for async eval: {looking_for}',
         )
 
     for logger, config in subset_keys.get('loggers', {}).items():
@@ -126,7 +130,7 @@ def get_eval_parameters(
     new_models = {
         'model_name': model_name,
         'model': model,
-        'load_path': checkpoint
+        'load_path': checkpoint,
     }
 
     tokenizer = subset_keys.pop('tokenizer', None)
@@ -136,27 +140,32 @@ def get_eval_parameters(
     return subset_keys
 
 
-def validate_interval(interval: Union[str, int, Time],
-                      save_interval: Union[str, int, Time]) -> Time:
+def validate_interval(
+    interval: Union[str, int, Time],
+    save_interval: Union[str, int, Time],
+) -> Time:
 
     new_save_interval = Time.from_input(save_interval, TimeUnit.EPOCH)
     async_interval = Time.from_input(interval, TimeUnit.EPOCH)
 
     if new_save_interval.unit != async_interval.unit:
         raise ValueError(
-            'Save interval and async eval interval must be in the same unit')
+            'Save interval and async eval interval must be in the same unit',
+        )
     if async_interval < new_save_interval:
         raise ValueError(
-            'Async eval interval must be equal or greater (less frequent) than save interval'
+            'Async eval interval must be equal or greater (less frequent) than save interval',
         )
     if async_interval.value % new_save_interval.value != 0:
         raise ValueError(
-            'Async eval interval must be a multiple of save interval')
+            'Async eval interval must be a multiple of save interval',
+        )
     return async_interval
 
 
 def validate_eval_run_config(
-        eval_run_config: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    eval_run_config: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
 
     if not eval_run_config:
         return {}
@@ -172,7 +181,8 @@ def validate_eval_run_config(
     if found_unsupported:
         raise ValueError(
             f'Unsupported eval run config keys found: {", ".join(found_unsupported)}'
-            + f'. Supported keys: {supported_keys}')
+            + f'. Supported keys: {supported_keys}',
+        )
 
     return run_config
 
@@ -222,7 +232,7 @@ class AsyncEval(CallbackWithConfig):
 
         if '/' in train_config.get('save_filename', ''):
             raise ValueError(
-                'AsyncEval not supported for save_filename that includes a path'
+                'AsyncEval not supported for save_filename that includes a path',
             )
 
         self.checkpoint_save_folder = train_config['save_folder']
@@ -237,14 +247,18 @@ class AsyncEval(CallbackWithConfig):
         )
 
         # Validate the interval (how often to launch eval runs)
-        self.interval = validate_interval(interval,
-                                          self.training_params['save_interval'])
+        self.interval = validate_interval(
+            interval,
+            self.training_params['save_interval'],
+        )
 
         # Configures how often to check for new checkpoints. This is semi-arbitrary;
         # really we just want to check often enough to pull relevant checkpoints
         # but not so often that we're constantly checking
-        check_interval_value = max(self.interval.value // CHECKS_PER_INTERVAL,
-                                   1)
+        check_interval_value = max(
+            self.interval.value // CHECKS_PER_INTERVAL,
+            1,
+        )
         self.check_interval = Time(check_interval_value, self.interval.unit)
 
         # Keep track of checkpoints that have already been evaled
@@ -260,8 +274,10 @@ class AsyncEval(CallbackWithConfig):
             include_end_of_training=False,
         )
 
-        log.info('Initialized AsyncEval callback. Will generate runs at ' +
-                 f'interval {interval}, checking at {self.check_interval}')
+        log.info(
+            'Initialized AsyncEval callback. Will generate runs at ' +
+            f'interval {interval}, checking at {self.check_interval}',
+        )
 
     def state_dict(self) -> Dict[str, Any]:
         checkpoints_evaled = []
@@ -284,7 +300,7 @@ class AsyncEval(CallbackWithConfig):
                 self.checkpoints_evaled[eval_ts] = (checkpoint, run_name)
 
             log.info(
-                f'Loaded previous checkpoints evaled: {self.checkpoints_evaled}'
+                f'Loaded previous checkpoints evaled: {self.checkpoints_evaled}',
             )
 
     @staticmethod
@@ -318,12 +334,12 @@ class AsyncEval(CallbackWithConfig):
 
             # expecting one shard per gpu + 1 for metadata
             expected_shard_count = dist.get_world_size() + 1
-            if remote_file_group_counts[
-                    checkpoint_ts_path] != expected_shard_count:
+            if remote_file_group_counts[checkpoint_ts_path
+                                       ] != expected_shard_count:
                 log.debug(
                     f'Checkpoint {checkpoint} not fully uploaded (missing shards '
                     +
-                    f'{remote_file_group_counts[checkpoint_ts_path]}/{expected_shard_count}), skipping'
+                    f'{remote_file_group_counts[checkpoint_ts_path]}/{expected_shard_count}), skipping',
                 )
                 continue
 
@@ -357,7 +373,8 @@ class AsyncEval(CallbackWithConfig):
 
             if checkpoint not in unique_remote_checkpoints:
                 log.debug(
-                    f'Checkpoint {checkpoint} not fully uploaded, skipping')
+                    f'Checkpoint {checkpoint} not fully uploaded, skipping',
+                )
                 continue
 
             checkpoints_to_eval[checkpoint_ts_path] = checkpoint_ts
@@ -379,7 +396,8 @@ class AsyncEval(CallbackWithConfig):
                     checkpointer = callback
                 else:
                     log.warning(
-                        'Multiple checkpoint savers found. Using the first one')
+                        'Multiple checkpoint savers found. Using the first one',
+                    )
 
         if not checkpointer:
             warnings.warn('No checkpoint saver callback found. Skipping eval')
@@ -387,12 +405,14 @@ class AsyncEval(CallbackWithConfig):
 
         if not checkpointer.all_saved_checkpoints_to_timestamp:
             log.debug(
-                'No saved checkpoints found on the checkpointer. Skipping eval')
+                'No saved checkpoints found on the checkpointer. Skipping eval',
+            )
             return
 
         log.debug(
             f'Found {len(checkpointer.all_saved_checkpoints_to_timestamp)} ' +
-            f'checkpoints: {checkpointer.all_saved_checkpoints_to_timestamp}')
+            f'checkpoints: {checkpointer.all_saved_checkpoints_to_timestamp}',
+        )
 
         remote_checkpoints = list_remote_objects(self.checkpoint_save_folder)
 
@@ -403,11 +423,13 @@ class AsyncEval(CallbackWithConfig):
         if state.fsdp_sharded_state_dict_enabled:
             checkpoints_to_eval = self._get_ready_sharded_checkpoints(
                 checkpointer.all_saved_checkpoints_to_timestamp,
-                remote_checkpoints)
+                remote_checkpoints,
+            )
         else:
             checkpoints_to_eval = self._get_ready_single_checkpoints(
                 checkpointer.all_saved_checkpoints_to_timestamp,
-                remote_checkpoints)
+                remote_checkpoints,
+            )
 
         for checkpoint_interval_path, checkpoint_timestamp in checkpoints_to_eval.items(
         ):
@@ -415,7 +437,8 @@ class AsyncEval(CallbackWithConfig):
             if checkpoint_ts.value % self.interval.value != 0:
                 log.debug(
                     f'Checkpoint {checkpoint_interval_path} ({checkpoint_ts}) is '
-                    + f'not at an eval interval ({self.interval}), skipping')
+                    + f'not at an eval interval ({self.interval}), skipping',
+                )
                 continue
             if checkpoint_ts in self.checkpoints_evaled:
                 continue  # Skip checkpoints that have already been evaled
@@ -454,7 +477,9 @@ class AsyncEval(CallbackWithConfig):
         latest_timestamp = state.timestamp.get(self.interval.unit)
         if latest_timestamp not in self.checkpoints_evaled:
             save_latest_filename = self.training_params.get(
-                'save_latest_filename', None)
+                'save_latest_filename',
+                None,
+            )
 
             if not save_latest_filename:
                 rank = dist.get_global_rank()
@@ -463,11 +488,13 @@ class AsyncEval(CallbackWithConfig):
             checkpoint = f'{self.checkpoint_save_folder}/{save_latest_filename}'
 
             eval_run = self.launch_run(checkpoint, latest_timestamp)
-            self.checkpoints_evaled[latest_timestamp] = (checkpoint,
-                                                         eval_run.name)
+            self.checkpoints_evaled[latest_timestamp] = (
+                checkpoint,
+                eval_run.name,
+            )
 
         log.info(
-            f'AsyncEval callback finished. Launched {len(self.checkpoints_evaled)} eval runs:'
+            f'AsyncEval callback finished. Launched {len(self.checkpoints_evaled)} eval runs:',
         )
         for checkpoint_ts, (checkpoint,
                             run_name) in self.checkpoints_evaled.items():
@@ -477,13 +504,13 @@ class AsyncEval(CallbackWithConfig):
         if os.environ.get(MOSAICML_PLATFORM_ENV_VAR,
                           'false').lower() == 'false':
             raise RuntimeError(
-                'AsyncEval callback is only supported when running on the MosaicML platform'
+                'AsyncEval callback is only supported when running on the MosaicML platform',
             )
 
         run_name = os.environ.get(RUN_NAME_ENV_VAR, None)
         if not run_name:
             raise RuntimeError(
-                'RUN_NAME environment variable must be set to use the AsyncEval callback'
+                'RUN_NAME environment variable must be set to use the AsyncEval callback',
             )
 
         # Allows the MapiException to be raised if the run doesn't exist
@@ -542,7 +569,8 @@ class AsyncEval(CallbackWithConfig):
                 'No github integration found for llm-foundry. Adding installation '
                 + f'to eval run for latest foundry release ({version}). ' +
                 'To use a fork, custom branch, or custom version, configure ' +
-                'llm-foundry installation through a github integration')
+                'llm-foundry installation through a github integration',
+            )
             integrations.append({
                 'integration_type': 'git_repo',
                 'git_repo': 'mosaicml/llm-foundry',

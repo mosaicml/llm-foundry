@@ -51,13 +51,15 @@ class CurriculumLearning(CallbackWithConfig):
         if not isinstance(train_loader, DataLoader):
             raise ValueError(
                 f'CurriculumLearning callback can only be used with a train ',
-                f'dataloader of type DataLoader, but got {type(train_loader)}.')
+                f'dataloader of type DataLoader, but got {type(train_loader)}.',
+            )
         dataset = train_loader.dataset
         if not isinstance(dataset, StreamingDataset):
             raise ValueError(
                 f'CurriculumLearning callback only supports StreamingDataset ',
                 f'because it requires loading and saving dataset state. ',
-                f'Instead, got a dataset of type {type(dataset)}')
+                f'Instead, got a dataset of type {type(dataset)}',
+            )
         assert isinstance(dataset, StreamingDataset)
         # Save the current dataset state so we can restore it if needed.
         self.current_dataset_state = dataset.state_dict(  # type: ignore
@@ -72,10 +74,12 @@ class CurriculumLearning(CallbackWithConfig):
         train_loader = state._train_dataloader
         assert isinstance(
             train_loader,
-            DataLoader), 'CurriculumLearning callback requires a DataLoader.'
+            DataLoader,
+        ), 'CurriculumLearning callback requires a DataLoader.'
         dataset = train_loader.dataset
         assert isinstance(
-            dataset, StreamingDataset
+            dataset,
+            StreamingDataset,
         ), 'CurriculumLearning callback requires a StreamingDataset.'
         if self.saved_dataset_index < self.dataset_index:
             # Ignore the dataset state that was read in from the checkpoint, and
@@ -101,7 +105,7 @@ class CurriculumLearning(CallbackWithConfig):
     def state_dict(self):
         return {
             'dataset_index': self.dataset_index,
-            'all_dataset_configs': self.all_dataset_configs
+            'all_dataset_configs': self.all_dataset_configs,
         }
 
     def load_state_dict(self, state: Dict[str, Any]):

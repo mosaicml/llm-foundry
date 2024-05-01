@@ -24,19 +24,23 @@ def test_init_hfhub_mpt(
         pytest.skip(f'{attn_impl=} not implemented for {device=}.')
     composer_device = get_device(device)
 
-    model = build_tiny_hf_mpt(attn_config={
-        'attn_impl': attn_impl,
-        'attn_uses_sequence_id': False,
-    })
+    model = build_tiny_hf_mpt(
+        attn_config={
+            'attn_impl': attn_impl,
+            'attn_uses_sequence_id': False,
+        },
+    )
     model = composer_device.module_to_device(model)
 
     model.eval()
 
-    with get_precision_context('amp_bf16' if composer_device.name ==
-                               'gpu' else 'fp32'):
+    with get_precision_context(
+        'amp_bf16' if composer_device.name == 'gpu' else 'fp32',
+    ):
         _ = model.generate(
             composer_device.tensor_to_device(
-                mpt_tokenizer('hello', return_tensors='pt')['input_ids']),
+                mpt_tokenizer('hello', return_tensors='pt')['input_ids'],
+            ),
             max_new_tokens=2,
         )
 
@@ -45,7 +49,9 @@ def test_init_hfhub_mpt_cpu(
     build_tiny_hf_mpt: Callable[..., ComposerHFCausalLM],
     mpt_tokenizer: PreTrainedTokenizerBase,
 ):
-    test_init_hfhub_mpt(device='cpu',
-                        attn_impl='torch',
-                        build_tiny_hf_mpt=build_tiny_hf_mpt,
-                        mpt_tokenizer=mpt_tokenizer)
+    test_init_hfhub_mpt(
+        device='cpu',
+        attn_impl='torch',
+        build_tiny_hf_mpt=build_tiny_hf_mpt,
+        mpt_tokenizer=mpt_tokenizer,
+    )

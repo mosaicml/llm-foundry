@@ -33,8 +33,9 @@ class VersionedDeprecationWarning(UserWarning):
     """
 
     def __init__(self, message: str, remove_version: str) -> None:
-        super().__init__(message +
-                         f' It will be removed in version {remove_version}.')
+        super().__init__(
+            message + f' It will be removed in version {remove_version}.',
+        )
 
 
 class ExperimentalWarning(Warning):
@@ -46,7 +47,7 @@ class ExperimentalWarning(Warning):
 
     def __init__(self, feature_name: str) -> None:
         super().__init__(
-            f'{feature_name} is experimental and may change with future versions.'
+            f'{feature_name} is experimental and may change with future versions.',
         )
 
 

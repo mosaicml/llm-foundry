@@ -16,14 +16,17 @@ from llmfoundry.utils.warnings import experimental_class
 __all__ = ['InverseSquareRootWithWarmupScheduler']
 
 
-def _raise_if_units_dont_match(time: Union[str, Time], t_max: Union[str, Time],
-                               name: str) -> None:
+def _raise_if_units_dont_match(
+    time: Union[str, Time],
+    t_max: Union[str, Time],
+    name: str,
+) -> None:
     new_time = Time.from_input(time)
     new_t_max = Time.from_input(t_max)
 
     if new_time.unit != new_t_max.unit:
         raise ValueError(
-            f'{name} (unit {new_time.unit=}) must match max_duration unit ({new_t_max.unit=}).'
+            f'{name} (unit {new_time.unit=}) must match max_duration unit ({new_t_max.unit=}).',
         )
 
 
@@ -77,17 +80,21 @@ class InverseSquareRootWithWarmupScheduler(ComposerScheduler):
         alpha_f_cooldown (float): The learning rate multiplier to decay linear cooldown to. Default = ``0.0``.
     """
 
-    def __init__(self,
-                 t_warmup: Union[str, Time],
-                 t_scale: Union[str, Time],
-                 t_cooldown: Union[str, Time],
-                 t_max: Union[str, Time] = '1dur',
-                 alpha_f_decay: float = 0.0,
-                 alpha_f_cooldown: float = 0.0) -> None:
+    def __init__(
+        self,
+        t_warmup: Union[str, Time],
+        t_scale: Union[str, Time],
+        t_cooldown: Union[str, Time],
+        t_max: Union[str, Time] = '1dur',
+        alpha_f_decay: float = 0.0,
+        alpha_f_cooldown: float = 0.0,
+    ) -> None:
         if alpha_f_decay < alpha_f_cooldown:
-            raise ValueError(('Required: alpha_f_decay >= alpha_f_cooldown. '
-                              f'Current: alpha_f_decay={alpha_f_decay}, '
-                              f'alpha_f_cooldown={alpha_f_cooldown}.'))
+            raise ValueError((
+                'Required: alpha_f_decay >= alpha_f_cooldown. '
+                f'Current: alpha_f_decay={alpha_f_decay}, '
+                f'alpha_f_cooldown={alpha_f_cooldown}.'
+            ))
         _raise_if_units_dur(t_warmup, 't_warmup')
         _raise_if_units_dur(t_scale, 't_scale')
         _raise_if_units_dur(t_cooldown, 't_cooldown')
@@ -97,25 +104,36 @@ class InverseSquareRootWithWarmupScheduler(ComposerScheduler):
         self.t_max = t_max
         self.alpha_f_decay = alpha_f_decay
         self.alpha_f_cooldown = alpha_f_cooldown
-        self.warmup_scheduler = LinearScheduler(alpha_i=0.0,
-                                                alpha_f=1.0,
-                                                t_max=t_warmup)
+        self.warmup_scheduler = LinearScheduler(
+            alpha_i=0.0,
+            alpha_f=1.0,
+            t_max=t_warmup,
+        )
 
     def __call__(self, state: State, ssr: float = 1.0) -> float:
         assert state.max_duration is not None, 'max_duration should be set whenever schedulers are invoked'
-        _raise_if_units_dont_match(self.t_warmup, state.max_duration,
-                                   't_warmup')
+        _raise_if_units_dont_match(
+            self.t_warmup,
+            state.max_duration,
+            't_warmup',
+        )
         _raise_if_units_dont_match(self.t_scale, state.max_duration, 't_scale')
-        _raise_if_units_dont_match(self.t_cooldown, state.max_duration,
-                                   't_cooldown')
+        _raise_if_units_dont_match(
+            self.t_cooldown,
+            state.max_duration,
+            't_cooldown',
+        )
 
         t_warmup = _convert_time(self.t_warmup, state)
         if t_warmup.value == 0:
             warnings.warn(
-                textwrap.dedent("""\
+                textwrap.dedent(
+                    """\
                 The warmup duration is 0. If warmup was specified as a fraction of the total
                 training duration, the warmup duration is calculated in the
-                same unit as the trainer's max_duration parameter."""))
+                same unit as the trainer's max_duration parameter.""",
+                ),
+            )
 
         if state.timestamp < t_warmup:
             return self.warmup_scheduler(state)
@@ -136,8 +154,9 @@ class InverseSquareRootWithWarmupScheduler(ComposerScheduler):
             # elapsed after warmup, rescaled by the time scale, such that, at
             # infinite time, the LR decays to alpha_f_decay.
             coeff = 1 / ((current_time + t_shift) / t_scale).value**0.5
-            current_factor = (self.alpha_f_decay + coeff *
-                              (1.0 - self.alpha_f_decay))
+            current_factor = (
+                self.alpha_f_decay + coeff * (1.0 - self.alpha_f_decay)
+            )
             return current_factor
 
         else:
@@ -152,6 +171,7 @@ class InverseSquareRootWithWarmupScheduler(ComposerScheduler):
             frac_of_cooldown = ((current_time - t_cooldown_start) /
                                 t_cooldown).value
             frac_of_cooldown = min(1.0, frac_of_cooldown)
-            current_factor = (alpha_i + frac_of_cooldown *
-                              (self.alpha_f_cooldown - alpha_i))
+            current_factor = (
+                alpha_i + frac_of_cooldown * (self.alpha_f_cooldown - alpha_i)
+            )
             return current_factor

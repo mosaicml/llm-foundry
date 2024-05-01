@@ -77,7 +77,7 @@ class MegaBlocksMoE_TokPerExpert(Callback):
                 from megablocks.layers.moe import MoE
             except:
                 raise RuntimeError(
-                    'Requirements for MegaBlocks not installed; see install instructions in `README.md`.'
+                    'Requirements for MegaBlocks not installed; see install instructions in `README.md`.',
                 )
             for module in state.model.modules():
                 if isinstance(module, (MoE, dMoE)):
@@ -85,7 +85,7 @@ class MegaBlocksMoE_TokPerExpert(Callback):
                     return
 
             raise RuntimeError(
-                f'Callback not initialized correctly; self.topk not instantiated.'
+                f'Callback not initialized correctly; self.topk not instantiated.',
             )
 
     def batch_end(self, state: State, logger: Logger) -> None:
@@ -94,7 +94,7 @@ class MegaBlocksMoE_TokPerExpert(Callback):
                 from megablocks.layers.moe import get_load_balancing_loss
             except:
                 raise RuntimeError(
-                    'Requirements for MegaBlocks not installed; see install instructions in `README.md`.'
+                    'Requirements for MegaBlocks not installed; see install instructions in `README.md`.',
                 )
             tokens_per_expert, _ = zip(*get_load_balancing_loss())
 

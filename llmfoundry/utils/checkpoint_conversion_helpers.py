@@ -91,7 +91,7 @@ def get_hf_tokenizer_from_composer_state_dict(
                     import sentencepiece as spm
                 except ImportError as e:
                     raise ImportError(
-                        'To load SentencePiece model, you need to install `sentencepiece`.'
+                        'Your tokenizer uses `sentencepiece`. Please install `sentencepiece` to load it.'
                     ) from e
 
                 s = spm.SentencePieceProcessor()

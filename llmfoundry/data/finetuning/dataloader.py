@@ -397,9 +397,9 @@ def _download_remote_hf_dataset(remote_path: str, split: str,
             finetune_dir, f'.node_{dist.get_node_rank()}_local_rank0_completed')
         if dist.get_local_rank() == 0:
             try:
-                retry(num_attempts=num_retries, exc_class=ChunkedEncodingError)(
-                    get_file(path=name, destination=destination,
-                             overwrite=True))
+                retry(num_attempts=num_retries,
+                      exc_class=ChunkedEncodingError)(lambda: get_file(
+                          path=name, destination=destination, overwrite=True))
             except FileNotFoundError as e:
                 if extension == SUPPORTED_EXTENSIONS[-1]:
                     files_searched = [

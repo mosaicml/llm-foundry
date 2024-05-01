@@ -18,7 +18,6 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Tuple, Union
 
 import numpy as np
-import sentencepiece as spm
 from transformers import (AutoTokenizer, PreTrainedTokenizer,
                           PreTrainedTokenizerFast)
 
@@ -88,6 +87,13 @@ def get_hf_tokenizer_from_composer_state_dict(
                 with open(tokenizer_file_path, 'w') as _tmp_file:
                     _tmp_file.write(saved_content['content'])
             elif saved_content['file_extension'] == '.model':
+                try:
+                    import sentencepiece as spm
+                except ImportError as e:
+                    raise ImportError(
+                        'To load SentencePiece model, you need to install `sentencepiece`.'
+                    ) from e
+
                 s = spm.SentencePieceProcessor()
                 s.load_from_serialized_proto(saved_content['content'])
                 with open(tokenizer_file_path, 'wb') as _tmp_file:

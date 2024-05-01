@@ -190,7 +190,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
 
         # If dataset is a remote path, download it first.
         backend, _, _ = parse_uri(dataset_name_or_path)
-        num_retries: int = cfg.dataset.get(num_retries, 3)
+        num_retries: int = cfg.dataset.get('num_retries', 3)
         if backend not in ['', None]:
             dataset_name_or_path = _download_remote_hf_dataset(
                 remote_path=dataset_name_or_path,

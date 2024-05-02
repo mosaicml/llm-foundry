@@ -136,10 +136,9 @@ def get_tokens_per_batch_func(
 def get_text_collator(
     cfg: DictConfig,
     tokenizer: PreTrainedTokenizerBase,
-    ds_batch_size: int = -1,
+    dataset_batch_size: int = -1,
 ) -> Tuple[Union[transformers.DataCollatorForLanguageModeling,
-                 ConcatenatedSequenceCollatorWrapper], None]:
-    del ds_batch_size
+                 ConcatenatedSequenceCollatorWrapper], int]:
     eos_token_id = cfg.dataset.get('eos_token_id', None)
     bos_token_id = cfg.dataset.get('bos_token_id', None)
     mlm_probability = cfg.dataset.pop('mlm_probability', None)
@@ -157,12 +156,12 @@ def get_text_collator(
             bos_token_id=bos_token_id,
         )
 
-    return collate_fn, None
+    return collate_fn, dataset_batch_size
 
 
 def get_finetuning_collator(
     cfg: DictConfig,
     tokenizer: PreTrainedTokenizerBase,
-    ds_batch_size: int,
+    dataset_batch_size: int,
 ) -> Tuple[Union[Seq2SeqFinetuningCollator, BinPackCollator], int]:
-    return build_collate_fn(cfg, tokenizer, ds_batch_size)
+    return build_collate_fn(cfg, tokenizer, dataset_batch_size)

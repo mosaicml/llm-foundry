@@ -151,7 +151,7 @@ def build_finetuning_dataloader(
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    replication_factor, ds_batch_size = construct_from_registry(
+    replication_factor, dataset_batch_size = construct_from_registry(
         name='dataset_replication_validator',
         registry=registry.dataset_replication_validators,
         partial_function=False,
@@ -169,7 +169,7 @@ def build_finetuning_dataloader(
         kwargs={
             'cfg': cfg,
             'tokenizer': tokenizer,
-            'ds_batch_size': ds_batch_size,
+            'dataset_batch_size': dataset_batch_size,
         },
     )
 
@@ -195,7 +195,7 @@ def build_finetuning_dataloader(
             cache_limit=cfg.dataset.get('cache_limit', None),
             partition_algo=cfg.dataset.get('partition_algo', 'relaxed'),
             num_canonical_nodes=cfg.dataset.get('num_canonical_nodes', None),
-            batch_size=ds_batch_size,
+            batch_size=dataset_batch_size,
             shuffle=cfg.dataset.get('shuffle', False),
             shuffle_algo=cfg.dataset.get('shuffle_algo', 'py1e'),
             shuffle_seed=cfg.dataset.get('shuffle_seed', 9176),

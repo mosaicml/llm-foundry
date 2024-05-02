@@ -289,7 +289,7 @@ def build_text_dataloader(
     assert cfg.name == 'text', f'Tried to build text dataloader with cfg.name={cfg.name}'
 
     # get kwargs
-    cfg.dataset['replication'], ds_batch_size = construct_from_registry(
+    cfg.dataset['replication'], dataset_batch_size = construct_from_registry(
         name='dataset_replication_validator',
         registry=registry.dataset_replication_validators,
         partial_function=False,
@@ -316,24 +316,25 @@ def build_text_dataloader(
     dataset = StreamingTextDataset(
         tokenizer=tokenizer,
         streams=streams,
-        batch_size=ds_batch_size,
+        batch_size=dataset_batch_size,
         **dataset_config_subset_for_streaming_text_dataset,
     )
 
-    collate_fn, _ = construct_from_registry(
+    collate_fn, dataloader_batch_size = construct_from_registry(
         name='text_collator',
         registry=registry.collators,
         partial_function=False,
         kwargs={
             'cfg': cfg,
             'tokenizer': dataset.tokenizer,
+            'dataset_batch_size': dataset_batch_size,
         },
     )
 
     dl = DataLoader(
         dataset,
         collate_fn=collate_fn,
-        batch_size=ds_batch_size,
+        batch_size=dataloader_batch_size,
         drop_last=cfg.drop_last,
         num_workers=cfg.num_workers,
         pin_memory=cfg.get('pin_memory', True),

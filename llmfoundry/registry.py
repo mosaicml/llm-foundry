@@ -1,6 +1,6 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-from typing import Any, Callable, Iterable, Optional, Tuple, Type, Union
+from typing import Any, Callable, Iterable, Tuple, Type, Union
 
 from composer.core import Algorithm, Callback, DataSpec
 from composer.loggers import LoggerDestination
@@ -146,7 +146,7 @@ _dataset_replication_validators_description = (
         device_batch_size (Union[int, float]): The device batch size.
     Returns:
         replication_factor (int): The replication factor for dataset.
-        ds_batch_size (int): The dataset device batch size."""
+        dataset_batch_size (int): The dataset device batch size."""
 )
 dataset_replication_validators = create_registry(
     'llmfoundry',
@@ -163,16 +163,16 @@ _collators_description = (
     Args:
         cfg (DictConfig): The dataloader config.
         tokenizer (PreTrainedTokenizerBase): The tokenizer
-        ds_batch_size (Union[int, float]): The dataset device batch size.
+        dataset_batch_size (Union[int, float]): The dataset device batch size.
     Returns:
         collate_fn  (Any): The collate function.
-        dataloader_batch_size (Optional[int]): The dataloader batch size, used for packing. Only finetuning collator returns this."""
+        dataloader_batch_size (int): The batch size for dataloader. In case of packing, this might be the packing ratio times the dataset device batch size."""
 )
 collators = create_registry(
     'llmfoundry',
     'collators',
     generic_type=Callable[[DictConfig, PreTrainedTokenizerBase, int],
-                          Tuple[Any, Optional[int]]],
+                          Tuple[Any, int]],
     entry_points=True,
     description=_collators_description,
 )
@@ -183,7 +183,7 @@ _data_specs_description = (
         dl (Union[Iterable, TorchDataloader): The dataloader.
         dataset_cfg (DictConfig): The dataset config.
     Returns:
-        dataspec  (Any): The dataspec."""
+        dataspec (Any): The dataspec."""
 )
 data_specs = create_registry(
     'llmfoundry',

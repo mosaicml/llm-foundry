@@ -136,6 +136,15 @@ def validate_config(cfg: DictConfig):
                 f'MoEs with expert parallelism (moe_world_size {moe_world_size} > 1) require `use_orig_params=True`.',
             )
 
+    attn_config = cfg.model.get('attn_config', None)
+    if attn_config is not None:
+        seq_parallel_world_size = attn_config.get(
+            'seq_parallel_world_size',
+            None,
+        )
+        if seq_parallel_world_size is not None:
+            raise ValueError('Training does not support sequence parallelism.')
+
 
 def _initialize_dist_with_barrier(dist_timeout: Union[int, float]):
     """Initialize distributed and test setup with a barrier.
@@ -265,6 +274,15 @@ def main(cfg: DictConfig) -> Trainer:
     icl_tasks_config: Optional[
         Union[ListConfig, str]
     ] = pop_config(cfg, 'icl_tasks', must_exist=False, default_value=None)
+    if icl_tasks_config is not None:
+        seq_parallel_replication = train_loader_config.dataset.get(
+            'seq_parallel_replication',
+            None,
+        )
+        if seq_parallel_replication is not None and seq_parallel_replication != 1:
+            raise ValueError(
+                'icl eval tasks are not supported with sequence parallelism',
+            )
     eval_gauntlet_config: Optional[
         Union[DictConfig, str]
     ] = pop_config(cfg, 'eval_gauntlet', must_exist=False, default_value=None)

@@ -247,6 +247,14 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             else:
                 setattr(config, k, v)
 
+        if hasattr(config, 'attn_config') and config.attn_config.get(
+            'seq_parallel_world_size',
+            None,
+        ) is not None:
+            raise NotImplementedError(
+                'Sequence Parallelism is not supported for HuggingFace models.',
+            )
+
         # We need to have all non-zero local ranks be not-pretrained
         # Rank 0 will still be pretrained, and distribute the weights appropriately
         if dist.get_local_rank() != 0 and init_device == 'mixed':

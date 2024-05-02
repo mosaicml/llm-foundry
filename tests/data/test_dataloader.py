@@ -385,6 +385,8 @@ def test_finetuning_dataloader(use_chat_formatting: bool,
 def test_finetuning_dataloader_safe_load(hf_name: str,
                                          hf_revision: Optional[str],
                                          expectation: ContextManager):
+    # Clear the folder
+    shutil.rmtree(DOWNLOADED_FT_DATASETS_DIRPATH, ignore_errors=True)
     cfg = DictConfig({
         'name': 'finetuning',
         'dataset': {

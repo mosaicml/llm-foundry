@@ -1571,7 +1571,7 @@ def test_qa_task_with_cot_dataloader(
     assert all(item.count('Q: ') == num_fewshot + 1 for item in decoded_batch)
     assert all(item.count('\nA:') == num_fewshot + 1 for item in decoded_batch)
 
-    assert batch['labels'] == [['18'], ['3']]
+    assert batch['labels'] == [['18'], ['12334']]
     if num_fewshot == 0:
         assert decoded_batch[0].endswith(
             "Q: Janet’s ducks lay 16 eggs per day. She eats three for breakfast every morning and bakes muffins for her friends every day with four. She sells the remainder at the farmers' market daily for $2 per fresh duck egg. How much in dollars does she make every day at the farmers' market?\nA: Let's think step by step."

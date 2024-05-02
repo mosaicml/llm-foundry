@@ -9,7 +9,7 @@ integrations:
 command: |
   cd llm-foundry/scripts/
   composer eval/eval.py /mnt/config/parameters.yaml
-image: mosaicml/llm-foundry:2.2.1_cu121_flash2-latest
+image: mosaicml/llm-foundry:2.3.0_cu121_flash2-latest
 name: mpt-1b-eval
 
 compute:

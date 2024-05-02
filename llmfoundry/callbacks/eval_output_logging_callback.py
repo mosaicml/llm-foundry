@@ -84,9 +84,9 @@ class EvalOutputLogging(Callback):
             # All types in list are the same
             if isinstance(value[0], torch.Tensor):
                 logging_dict[key] = [
-                    state.dataloader.dataset.tokenizer.decode(
-                        t)  # pyright: ignore[reportGeneralTypeIssues]
-                    for t in value
+                    state.dataloader.dataset.tokenizer.
+                    decode(  # pyright: ignore[reportGeneralTypeIssues]
+                        t) for t in value
                 ]
             elif isinstance(value[0], list):
                 if isinstance(value[0][0], torch.Tensor):

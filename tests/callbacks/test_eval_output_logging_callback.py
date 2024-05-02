@@ -15,7 +15,9 @@ from llmfoundry.callbacks.eval_output_logging_callback import EvalOutputLogging
 from llmfoundry.eval.datasets.in_context_learning_evaluation import \
     InContextLearningMultipleChoiceTaskDataset
 from llmfoundry.eval.metrics.nlp import (
-    InContextLearningLMAccuracy, InContextLearningMultipleChoiceAccuracy,)
+    InContextLearningLMAccuracy,
+    InContextLearningMultipleChoiceAccuracy,
+)
 
 
 class MockDataset(InContextLearningMultipleChoiceTaskDataset):
@@ -49,7 +51,9 @@ class MockState(State):
 
 
 def mock_lm_computation(
-    metric: Metric, tokenizer: transformers.AutoTokenizer, state: State
+    metric: Metric,
+    tokenizer: transformers.AutoTokenizer,
+    state: State,
 ):
     contexts = ['The dog is', 'I love to eat', 'I hate', 'The weather is']
     continuations = [' furry', ' pie', ' long lines', ' snowy']
@@ -88,7 +92,9 @@ def mock_lm_computation(
 
 
 def mock_mc_computation(
-    metric: Metric, tokenizer: transformers.AutoTokenizer, state: State
+    metric: Metric,
+    tokenizer: transformers.AutoTokenizer,
+    state: State,
 ):
     contexts = [
         'Q: How do you cook a cake?',
@@ -143,7 +149,9 @@ def mock_mc_computation(
     logits[3][start:end] = logits[2][start:end].clone()
 
     state.metric_outputs = metric.update(
-        batch=batch, outputs=logits, labels=batch['labels']
+        batch=batch,
+        outputs=logits,
+        labels=batch['labels'],
     )
     state.batch = batch
     state.outputs = logits
@@ -151,7 +159,7 @@ def mock_mc_computation(
 
 
 def test_eval_output_logging_lm(
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer
+    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
 ):
     # this test simulates an unrolled version of the eval loop occurring twice
     state = MockState()
@@ -171,7 +179,8 @@ def test_eval_output_logging_lm(
         )
         mock_lm_computation(
             state.eval_metrics['lm_acc']['InContextLearningLMAccuracy()'],
-            tiny_gpt2_tokenizer, state
+            tiny_gpt2_tokenizer,
+            state,
         )
         state.metric_outputs['metric_name'] = [
             lm_metric.__class__.__name__
@@ -271,7 +280,7 @@ def test_eval_output_logging_lm(
 
 
 def test_eval_output_logging_mc(
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer
+    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
 ):
     # this test simulates an unrolled version of the eval loop occurring twice
     state = MockState()

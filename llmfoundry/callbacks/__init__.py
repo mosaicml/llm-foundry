@@ -4,7 +4,7 @@
 from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
                                 MemoryMonitor, MemorySnapshot, OOMObserver,
                                 OptimizerMonitor, RuntimeEstimator,
-                                SpeedMonitor)
+                                SpeedMonitor,)
 
 from llmfoundry.callbacks.async_eval_callback import AsyncEval
 from llmfoundry.callbacks.curriculum_learning_callback import CurriculumLearning

@@ -15,7 +15,7 @@ from llmfoundry.callbacks.eval_output_logging_callback import EvalOutputLogging
 from llmfoundry.eval.datasets.in_context_learning_evaluation import \
     InContextLearningMultipleChoiceTaskDataset
 from llmfoundry.eval.metrics.nlp import (
-    InContextLearningLMAccuracy, InContextLearningMultipleChoiceAccuracy)
+    InContextLearningLMAccuracy, InContextLearningMultipleChoiceAccuracy,)
 
 
 class MockDataset(InContextLearningMultipleChoiceTaskDataset):
@@ -48,8 +48,9 @@ class MockState(State):
         self._dataloader_label = dataloader_label
 
 
-def mock_lm_computation(metric: Metric, tokenizer: transformers.AutoTokenizer,
-                        state: State):
+def mock_lm_computation(
+    metric: Metric, tokenizer: transformers.AutoTokenizer, state: State
+):
     contexts = ['The dog is', 'I love to eat', 'I hate', 'The weather is']
     continuations = [' furry', ' pie', ' long lines', ' snowy']
     pad = tokenizer.pad_token_id
@@ -57,8 +58,9 @@ def mock_lm_computation(metric: Metric, tokenizer: transformers.AutoTokenizer,
         tokenizer(context)['input_ids'] + tokenizer(continuation)['input_ids']
         for context, continuation in zip(contexts, continuations)
     ]
-    inputs = torch.tensor(
-        [input + [pad] * (2048 - len(input)) for input in inputs])
+    inputs = torch.tensor([
+        input + [pad] * (2048 - len(input)) for input in inputs
+    ])
 
     cont_idxs = []
     for context, continuation in zip(contexts, continuations):
@@ -70,7 +72,7 @@ def mock_lm_computation(metric: Metric, tokenizer: transformers.AutoTokenizer,
         'mode': 'icl_task',
         'continuation_indices': cont_idxs,
         'labels': inputs.roll(-1),
-        'input_ids': inputs
+        'input_ids': inputs,
     }
     logits = torch.nn.functional.one_hot(inputs.roll(-1),
                                          num_classes=pad + 1).float() * 100
@@ -85,8 +87,9 @@ def mock_lm_computation(metric: Metric, tokenizer: transformers.AutoTokenizer,
     return state
 
 
-def mock_mc_computation(metric: Metric, tokenizer: transformers.AutoTokenizer,
-                        state: State):
+def mock_mc_computation(
+    metric: Metric, tokenizer: transformers.AutoTokenizer, state: State
+):
     contexts = [
         'Q: How do you cook a cake?',
         'Q: How do you cook a cake?',
@@ -94,8 +97,10 @@ def mock_mc_computation(metric: Metric, tokenizer: transformers.AutoTokenizer,
         'Q: How old is the earth?',
     ]
     continuations = [
-        ' A: turn on the oven', ' A: do a backflip', ' A: 2 minutes',
-        ' A: 4.5 billion years'
+        ' A: turn on the oven',
+        ' A: do a backflip',
+        ' A: 2 minutes',
+        ' A: 4.5 billion years',
     ]
     gold_indices = [0, 1]
     choice_groupings = [(0, 2), (2, 4)]
@@ -104,8 +109,9 @@ def mock_mc_computation(metric: Metric, tokenizer: transformers.AutoTokenizer,
         tokenizer(context)['input_ids'] + tokenizer(continuation)['input_ids']
         for context, continuation in zip(contexts, continuations)
     ]
-    inputs = torch.tensor(
-        [input + [pad] * (2048 - len(input)) for input in inputs])
+    inputs = torch.tensor([
+        input + [pad] * (2048 - len(input)) for input in inputs
+    ])
     attention_mask = ~(inputs == pad)
 
     cont_idxs = []
@@ -136,16 +142,17 @@ def mock_mc_computation(metric: Metric, tokenizer: transformers.AutoTokenizer,
     start, end = cont_idxs[3].tolist()[0], cont_idxs[3].tolist()[-1]
     logits[3][start:end] = logits[2][start:end].clone()
 
-    state.metric_outputs = metric.update(batch=batch,
-                                         outputs=logits,
-                                         labels=batch['labels'])
+    state.metric_outputs = metric.update(
+        batch=batch, outputs=logits, labels=batch['labels']
+    )
     state.batch = batch
     state.outputs = logits
     metric.compute()
 
 
 def test_eval_output_logging_lm(
-        tiny_gpt2_tokenizer: transformers.AutoTokenizer):
+    tiny_gpt2_tokenizer: transformers.AutoTokenizer
+):
     # this test simulates an unrolled version of the eval loop occurring twice
     state = MockState()
     in_memory_logger = InMemoryLogger()
@@ -164,7 +171,8 @@ def test_eval_output_logging_lm(
         )
         mock_lm_computation(
             state.eval_metrics['lm_acc']['InContextLearningLMAccuracy()'],
-            tiny_gpt2_tokenizer, state)
+            tiny_gpt2_tokenizer, state
+        )
         state.metric_outputs['metric_name'] = [
             lm_metric.__class__.__name__
             for _ in range(0, state.batch['input_ids'].shape[0])
@@ -188,42 +196,83 @@ def test_eval_output_logging_lm(
     # We use the same data in each batch
     assert json.loads(in_memory_logger.tables[f'lm_acc_step_0'])['data'] == [
         [
-            'The dog is', ' furry', ' furry', 1, 'InContextLearningLMAccuracy',
-            'The dog is furry', 'mock_name'
+            'The dog is',
+            ' furry',
+            ' furry',
+            1,
+            'InContextLearningLMAccuracy',
+            'The dog is furry',
+            'mock_name',
         ],
         [
-            'I love to eat', ' pie', '[PAD]', 0, 'InContextLearningLMAccuracy',
-            'I love to eat pie', 'mock_name'
+            'I love to eat',
+            ' pie',
+            '[PAD]',
+            0,
+            'InContextLearningLMAccuracy',
+            'I love to eat pie',
+            'mock_name',
         ],
         [
-            'I hate', ' long lines', ' long lines', 1,
-            'InContextLearningLMAccuracy', 'I hate long lines', 'mock_name'
+            'I hate',
+            ' long lines',
+            ' long lines',
+            1,
+            'InContextLearningLMAccuracy',
+            'I hate long lines',
+            'mock_name',
         ],
         [
-            'The weather is', ' snowy', ' snowy', 1,
-            'InContextLearningLMAccuracy', 'The weather is snowy', 'mock_name'
+            'The weather is',
+            ' snowy',
+            ' snowy',
+            1,
+            'InContextLearningLMAccuracy',
+            'The weather is snowy',
+            'mock_name',
         ],
         [
-            'The dog is', ' furry', ' furry', 1, 'InContextLearningLMAccuracy',
-            'The dog is furry', 'mock_name'
+            'The dog is',
+            ' furry',
+            ' furry',
+            1,
+            'InContextLearningLMAccuracy',
+            'The dog is furry',
+            'mock_name',
         ],
         [
-            'I love to eat', ' pie', '[PAD]', 0, 'InContextLearningLMAccuracy',
-            'I love to eat pie', 'mock_name'
+            'I love to eat',
+            ' pie',
+            '[PAD]',
+            0,
+            'InContextLearningLMAccuracy',
+            'I love to eat pie',
+            'mock_name',
         ],
         [
-            'I hate', ' long lines', ' long lines', 1,
-            'InContextLearningLMAccuracy', 'I hate long lines', 'mock_name'
+            'I hate',
+            ' long lines',
+            ' long lines',
+            1,
+            'InContextLearningLMAccuracy',
+            'I hate long lines',
+            'mock_name',
         ],
         [
-            'The weather is', ' snowy', ' snowy', 1,
-            'InContextLearningLMAccuracy', 'The weather is snowy', 'mock_name'
+            'The weather is',
+            ' snowy',
+            ' snowy',
+            1,
+            'InContextLearningLMAccuracy',
+            'The weather is snowy',
+            'mock_name',
         ],
     ]
 
 
 def test_eval_output_logging_mc(
-        tiny_gpt2_tokenizer: transformers.AutoTokenizer):
+    tiny_gpt2_tokenizer: transformers.AutoTokenizer
+):
     # this test simulates an unrolled version of the eval loop occurring twice
     state = MockState()
     in_memory_logger = InMemoryLogger()
@@ -278,7 +327,7 @@ def test_eval_output_logging_mc(
             0,
             [
                 'Q: How do you cook a cake? A: turn on the oven',
-                'Q: How do you cook a cake? A: do a backflip'
+                'Q: How do you cook a cake? A: do a backflip',
             ],
             1,
             'InContextLearningMultipleChoiceAccuracy',
@@ -308,7 +357,7 @@ def test_eval_output_logging_mc(
             0,
             [
                 'Q: How do you cook a cake? A: turn on the oven',
-                'Q: How do you cook a cake? A: do a backflip'
+                'Q: How do you cook a cake? A: do a backflip',
             ],
             1,
             'InContextLearningMultipleChoiceAccuracy',

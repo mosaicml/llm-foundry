@@ -16,7 +16,7 @@ gpu_num:  #
 gpu_type:  #
 cluster:  # replace with your cluster here!
 
-image: mosaicml/llm-foundry:2.2.1_cu121_flash2-latest
+image: mosaicml/llm-foundry:2.3.0_cu121_flash2-latest
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:

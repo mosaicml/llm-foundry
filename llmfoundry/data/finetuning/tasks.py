@@ -784,7 +784,7 @@ class DatasetConstructor:
                         Path(f).suffix in SUPPORTED_EXTENSIONS
                         for f in dataset_files):
                     raise Exception([
-                        Path(f).suffix in SUPPORTED_EXTENSIONS
+                        Path(f).suffix
                         for f in dataset_files
                     ])
                     # raise InvalidFileExtensionError(dataset_name,

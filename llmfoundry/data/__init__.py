@@ -28,14 +28,16 @@ from llmfoundry.registry import (
     collators,
     data_specs,
     dataloaders,
-    dataset_replication_validators
+    dataset_replication_validators,
 )
 
 dataloaders.register('text', func=build_text_dataloader)
 dataloaders.register('finetuning', func=build_finetuning_dataloader)
 
-dataset_replication_validators.register('dataset_replication_validator',
-                                        func=validate_ds_replication)
+dataset_replication_validators.register(
+    'dataset_replication_validator',
+    func=validate_ds_replication,
+)
 collators.register('finetuning_collator', func=get_finetuning_collator)
 collators.register('text_collator', func=get_text_collator)
 data_specs.register('data_spec', func=get_data_spec)

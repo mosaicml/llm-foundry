@@ -426,7 +426,9 @@ def profile_packing(
     dataloader_cfg = copy.deepcopy(dataloader_cfg)
     dataloader_cfg.dataset.packing_ratio = 1.0
     dataloader_cfg.dataset.auto_packing_replication = dataloader_cfg.dataset.get(
-        'seq_parallel_replication', 1) or 1
+        'seq_parallel_replication',
+        1,
+    ) or 1
     dataloader_cfg.dataset.seq_parallel_replication = 1
     dataloader_cfg.drop_last = False
     dataloader_cfg.num_workers = 0

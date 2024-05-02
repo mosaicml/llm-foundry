@@ -24,10 +24,12 @@ def _validate_cfg(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase):
     eos_token_id = cfg.dataset.get('eos_token_id', None)
     bos_token_id = cfg.dataset.get('bos_token_id', None)
 
-    if eos_token_id is None and bos_token_id is None and (hasattr(
-            tokenizer, 'eos_token_id') or hasattr(tokenizer, 'bos_token_id')):
+    if eos_token_id is None and bos_token_id is None and (
+        hasattr(tokenizer, 'eos_token_id') or
+        hasattr(tokenizer, 'bos_token_id')
+    ):
         log.warning(
-            'The user has not provided an eos_token_id or bos_token_id, but the tokenizer has an eos_token_id or a bos_token_id.'
+            'The user has not provided an eos_token_id or bos_token_id, but the tokenizer has an eos_token_id or a bos_token_id.',
         )
 
     tokenizer_eos_token_id = getattr(tokenizer, 'eos_token_id', None)
@@ -38,7 +40,7 @@ def _validate_cfg(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase):
         else:
             raise ValueError(
                 eos_mismatch_str +
-                ' To override this error, set the override_eos_token_id_mismatch_error flag to True in the dataset config section of the YAML.'
+                ' To override this error, set the override_eos_token_id_mismatch_error flag to True in the dataset config section of the YAML.',
             )
 
     tokenizer_bos_token_id = getattr(tokenizer, 'bos_token_id', None)
@@ -49,7 +51,7 @@ def _validate_cfg(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase):
         else:
             raise ValueError(
                 bos_mismatch_str +
-                ' To override this error, set the override_bos_token_id_mismatch_error flag to True in the dataset config section of the YAML.'
+                ' To override this error, set the override_bos_token_id_mismatch_error flag to True in the dataset config section of the YAML.',
             )
 
     max_seq_len = cfg.dataset.get('max_seq_len')
@@ -60,8 +62,10 @@ def _validate_cfg(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase):
 
 
 def validate_ds_replication(
-        cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
-        device_batch_size: Union[int, float]) -> Tuple[int, int]:
+    cfg: DictConfig,
+    tokenizer: PreTrainedTokenizerBase,
+    device_batch_size: Union[int, float],
+) -> Tuple[int, int]:
     _validate_cfg(cfg, tokenizer)
     dataset_cfg = cfg.dataset
     if (dataset_cfg.get('seq_parallel_replication', 1) or 1) > 1:
@@ -71,8 +75,10 @@ def validate_ds_replication(
     return dataset_cfg.get('replication', 1) or 1, device_batch_size
 
 
-def get_data_spec(dl: Union[Iterable, TorchDataloader],
-                  dataset_cfg: DictConfig) -> DataSpec:
+def get_data_spec(
+    dl: Union[Iterable, TorchDataloader],
+    dataset_cfg: DictConfig,
+) -> DataSpec:
     del dataset_cfg
     token_counting_func = get_tokens_per_batch_func()
 
@@ -83,7 +89,8 @@ def get_data_spec(dl: Union[Iterable, TorchDataloader],
 
 
 def get_tokens_per_batch_func(
-        decoder_only: bool = True) -> Callable[[Batch], int]:
+    decoder_only: bool = True,
+) -> Callable[[Batch], int]:
     """Returns a callable that counts the number of tokens in a batch.
 
     Args:
@@ -96,15 +103,16 @@ def get_tokens_per_batch_func(
     """
 
     def get_num_tokens_in_batch(batch: Batch) -> int:
-        if not isinstance(batch, Mapping) or ('attention_mask' not in batch and
-                                              'input_ids' not in batch):
+        if not isinstance(batch, Mapping) or (
+            'attention_mask' not in batch and 'input_ids' not in batch
+        ):
             raise ValueError(
-                'get_tokens_per_batch_func() requires a batch with an attention_mask key or an input_ids key'
+                'get_tokens_per_batch_func() requires a batch with an attention_mask key or an input_ids key',
             )
 
         if not decoder_only and 'decoder_attention_mask' not in batch:
             raise ValueError(
-                'get_tokens_per_batch_func() for encoder decoder requires a batch with a decoder_attention_mask key'
+                'get_tokens_per_batch_func() for encoder decoder requires a batch with a decoder_attention_mask key',
             )
 
         # Count number of non padding tokens in batch
@@ -117,7 +125,8 @@ def get_tokens_per_batch_func(
         decoder_input_ids_tokens = 0
         if not decoder_only:
             decoder_input_ids_tokens = int(
-                torch.sum(batch['decoder_attention_mask']).item())
+                torch.sum(batch['decoder_attention_mask']).item(),
+            )
 
         return input_ids_tokens + decoder_input_ids_tokens
 
@@ -137,14 +146,16 @@ def get_text_collator(
     collate_fn = transformers.DataCollatorForLanguageModeling(
         tokenizer=tokenizer,
         mlm=mlm_probability is not None,
-        mlm_probability=mlm_probability)
+        mlm_probability=mlm_probability,
+    )
 
     if (eos_token_id is not None) or (bos_token_id is not None):
         # Note: Will raise an error if both are non-None
         collate_fn = ConcatenatedSequenceCollatorWrapper(
             base_collator=collate_fn,
             eos_token_id=eos_token_id,
-            bos_token_id=bos_token_id)
+            bos_token_id=bos_token_id,
+        )
 
     return collate_fn, None
 

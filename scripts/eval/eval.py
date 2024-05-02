@@ -340,11 +340,14 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
 
         attn_config = model_cfg.model.get('attn_config', None)
         if attn_config is not None:
-            seq_parallel_world_size = attn_config.get('seq_parallel_world_size',
-                                                      None)
+            seq_parallel_world_size = attn_config.get(
+                'seq_parallel_world_size',
+                None,
+            )
             if seq_parallel_world_size is not None and seq_parallel_world_size != 1:
                 raise ValueError(
-                    'Offline eval does not support sequence parallelism.')
+                    'Offline eval does not support sequence parallelism.',
+                )
 
         (trainer, logger_keys, eval_gauntlet_callback,
          eval_gauntlet_df) = evaluate_model(

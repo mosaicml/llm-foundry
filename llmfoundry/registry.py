@@ -146,7 +146,8 @@ _dataset_replication_validators_description = (
         device_batch_size (Union[int, float]): The device batch size.
     Returns:
         replication_factor (int): The replication factor for dataset.
-        ds_batch_size (int): The dataset device batch size.""")
+        ds_batch_size (int): The dataset device batch size."""
+)
 dataset_replication_validators = create_registry(
     'llmfoundry',
     'dataset_replication_validators',
@@ -154,9 +155,11 @@ dataset_replication_validators = create_registry(
         [DictConfig, PreTrainedTokenizerBase, Union[int, float]], Tuple[int,
                                                                         int]],
     entry_points=True,
-    description=_dataset_replication_validators_description)
+    description=_dataset_replication_validators_description,
+)
 
-_collators_description = ("""Returns the data collator.
+_collators_description = (
+    """Returns the data collator.
     Args:
         cfg (DictConfig): The dataloader config.
         tokenizer (PreTrainedTokenizerBase): The tokenizer
@@ -164,27 +167,31 @@ _collators_description = ("""Returns the data collator.
     Returns:
         collate_fn  (Any): The collate function.
         dataloader_batch_size (Optional[int]): The dataloader batch size, used for packing. Only finetuning collator returns this."""
-                         )
+)
 collators = create_registry(
     'llmfoundry',
     'collators',
     generic_type=Callable[[DictConfig, PreTrainedTokenizerBase, int],
                           Tuple[Any, Optional[int]]],
     entry_points=True,
-    description=_collators_description)
+    description=_collators_description,
+)
 
-_data_specs_description = ("""Returns the get_data_spec function.
+_data_specs_description = (
+    """Returns the get_data_spec function.
     Args:
         dl (Union[Iterable, TorchDataloader): The dataloader.
         dataset_cfg (DictConfig): The dataset config.
     Returns:
-        dataspec  (Any): The dataspec.""")
+        dataspec  (Any): The dataspec."""
+)
 data_specs = create_registry(
     'llmfoundry',
     'data_specs',
     generic_type=Callable[[Union[Iterable, TorchDataloader], DictConfig], Any],
     entry_points=True,
-    description=_data_specs_description)
+    description=_data_specs_description,
+)
 
 _metrics_description = (
     'The metrics registry is used to register classes that implement the torchmetrics.Metric interface.'

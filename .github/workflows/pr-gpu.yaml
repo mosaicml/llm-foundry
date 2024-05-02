@@ -23,7 +23,7 @@ jobs:
           container: mosaicml/pytorch:2.3.0_cu121-python3.11-ubuntu20.04
           markers: "gpu"
           pytest_command: "coverage run -m pytest"
-          deps_group: "all"
+          pip_deps: "[all]"
     name: ${{ matrix.name }}
     if: github.repository_owner == 'mosaicml'
     with:

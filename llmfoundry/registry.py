@@ -183,12 +183,13 @@ _data_specs_description = (
         dl (Union[Iterable, TorchDataloader): The dataloader.
         dataset_cfg (DictConfig): The dataset config.
     Returns:
-        dataspec (Any): The dataspec."""
+        dataspec (DataSpec): The dataspec."""
 )
 data_specs = create_registry(
     'llmfoundry',
     'data_specs',
-    generic_type=Callable[[Union[Iterable, TorchDataloader], DictConfig], Any],
+    generic_type=Callable[[Union[Iterable, TorchDataloader], DictConfig],
+                          DataSpec],
     entry_points=True,
     description=_data_specs_description,
 )

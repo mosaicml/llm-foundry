@@ -783,12 +783,8 @@ class DatasetConstructor:
                 if not all(
                         Path(f).suffix in SUPPORTED_EXTENSIONS
                         for f in dataset_files):
-                    raise Exception([
-                        Path(f).suffix
-                        for f in dataset_files
-                    ])
-                    # raise InvalidFileExtensionError(dataset_name,
-                    #                                 SUPPORTED_EXTENSIONS)
+                    raise InvalidFileExtensionError(dataset_name,
+                                                    SUPPORTED_EXTENSIONS)
 
             dataset = hf_datasets.load_dataset(dataset_name,
                                                split=split,

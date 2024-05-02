@@ -13,8 +13,10 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.distributed._tensor import DTensor, Placement, Replicate, Shard
 from torch.distributed._tensor.device_mesh import init_device_mesh
-from torch.distributed.checkpoint.state_dict import (StateDictOptions,
-                                                     get_model_state_dict)
+from torch.distributed.checkpoint.state_dict import (
+    StateDictOptions,
+    get_model_state_dict,
+)
 from torch.distributed.tensor.parallel.ddp import _pre_dp_module_transform
 from torch.nn.parallel import DistributedDataParallel as DDP
 
@@ -37,13 +39,13 @@ def _get_all_inputs(
     world_size: int = dist.get_world_size()
     rank: int = dist.get_rank()
     device: torch.device = torch.device(f'cuda:{rank}')
-    all_inputs = []
-    for _ in range(world_size):
-        all_inputs.append(torch.rand(
+    all_inputs = [
+        torch.rand(
             input_shape,
             device=device,
             dtype=dtype,
-        ))
+        ) for _ in range(world_size)
+    ]
     return all_inputs
 
 
@@ -55,16 +57,22 @@ def _get_torch_dtype(fp16: bool, bf16: bool) -> Optional[torch.dtype]:
     return None
 
 
-@pytest.mark.skipif(not is_megablocks_imported,
-                    reason='This test needs megablocks module')
+@pytest.mark.skipif(
+    not is_megablocks_imported,
+    reason='This test needs megablocks module',
+)
 @pytest.mark.gpu
 @pytest.mark.world_size(2)
 @pytest.mark.parametrize('moe_num_experts', [8])
 @pytest.mark.parametrize('mlp_type', ['glu', 'mlp'])
 @pytest.mark.parametrize('moe_world_size', [1, 2])
 @pytest.mark.parametrize('two_d_input', [True, False])
-def test_dmoe(moe_num_experts: int, mlp_type: str, moe_world_size: int,
-              two_d_input: bool):
+def test_dmoe(
+    moe_num_experts: int,
+    mlp_type: str,
+    moe_world_size: int,
+    two_d_input: bool,
+):
     # Generate inputs
     rank = dist.get_rank()
     batch_size = 2
@@ -120,11 +128,10 @@ def test_dmoe(moe_num_experts: int, mlp_type: str, moe_world_size: int,
             mesh_dim_names=('weight_parallel', 'expert_parallel'),
         )
         expert_parallel_group = device_mesh['expert_parallel'].get_group(0)
-        extra_args.update(
-            {
-                'moe_expert_model_parallelism': True,
-                'expert_parallel_group': expert_parallel_group,
-            },)
+        extra_args.update({
+            'moe_expert_model_parallelism': True,
+            'expert_parallel_group': expert_parallel_group,
+        },)
     mp_dmoe_args.update(extra_args)
     args = megablocks.layers.arguments.Arguments(**mp_dmoe_args,)
     mb_dmoe = megablocks.layers.dmoe.dMoE(args).to(device)
@@ -152,9 +159,10 @@ def test_dmoe(moe_num_experts: int, mlp_type: str, moe_world_size: int,
         mb_dmoe.experts = DDP(mb_dmoe.experts, process_group=dp_pg)
 
         # Copy mb_dmoe's parameters to torch_dmoe
-        mb_dmoe_state_dict = get_model_state_dict(mb_dmoe,
-                                                  options=StateDictOptions(
-                                                      full_state_dict=True,))
+        mb_dmoe_state_dict = get_model_state_dict(
+            mb_dmoe,
+            options=StateDictOptions(full_state_dict=True,),
+        )
         for key, t in mb_dmoe_state_dict.items():
             if key in tp_names:
                 dtensor_full = DTensor.from_local(
@@ -166,9 +174,10 @@ def test_dmoe(moe_num_experts: int, mlp_type: str, moe_world_size: int,
                 mb_dmoe_state_dict[key] = dtensor_full
     else:
         mb_dmoe.experts = DDP(mb_dmoe.experts, device_ids=[rank])
-        mb_dmoe_state_dict = get_model_state_dict(mb_dmoe,
-                                                  options=StateDictOptions(
-                                                      full_state_dict=True,))
+        mb_dmoe_state_dict = get_model_state_dict(
+            mb_dmoe,
+            options=StateDictOptions(full_state_dict=True,),
+        )
     mb_dmoe_optimizer = optim.SGD(mb_dmoe.parameters(), lr=0.1)
 
     # Load mb_dmoe state dict to torch dmoe
@@ -188,45 +197,51 @@ def test_dmoe(moe_num_experts: int, mlp_type: str, moe_world_size: int,
     torch.testing.assert_close(torch_y, mb_y)
 
 
-@pytest.mark.skipif(not is_megablocks_imported,
-                    reason='This test needs megablocks module')
+@pytest.mark.skipif(
+    not is_megablocks_imported,
+    reason='This test needs megablocks module',
+)
 @pytest.mark.gpu
 @pytest.mark.parametrize('seqlen', [512])
 @pytest.mark.parametrize('mlp_type', ['glu', 'mlp'])
 @pytest.mark.parametrize('precision', ['bf16', 'fp32'])
 def test_fwd_equal_dmoe(seqlen: int, precision: str, mlp_type: str):
-    mb_dmoe_config = MPTConfig(d_model=1024,
-                               n_heads=32,
-                               n_layers=1,
-                               learned_pos_emb=False,
-                               max_seq_len=2048,
-                               vocab_size=100,
-                               no_bias=True,
-                               fuse_norm_attn_norm=True,
-                               tie_word_embeddings=False,
-                               attn_config=dict(
-                                   attn_type='grouped_query_attention',
-                                   attn_impl='torch',
-                                   attn_pdrop=0.0,
-                                   clip_qkv=8.0,
-                                   kv_n_heads=8,
-                                   rope=True,
-                                   rope_theta=10000.0,
-                               ),
-                               ffn_config=dict(
-                                   ffn_type='mb_dmoe',
-                                   fc_type='torch',
-                                   mlp_type=mlp_type,
-                                   moe_world_size=1,
-                                   ffn_act_fn={'name': 'silu'},
-                                   ffn_hidden_size=1792,
-                                   moe_num_experts=16,
-                                   moe_top_k=4,
-                                   moe_jitter_eps=0.0,
-                                   moe_loss_weight=0.05,
-                                   moe_normalize_expert_weights=1.0,
-                                   uniform_expert_assignment=False,
-                               ))
+    mb_dmoe_config = MPTConfig(
+        d_model=1024,
+        n_heads=32,
+        n_layers=1,
+        learned_pos_emb=False,
+        max_seq_len=2048,
+        vocab_size=100,
+        no_bias=True,
+        fuse_norm_attn_norm=True,
+        tie_word_embeddings=False,
+        attn_config={
+            'attn_type': 'grouped_query_attention',
+            'attn_impl': 'torch',
+            'attn_pdrop': 0.0,
+            'clip_qkv': 8.0,
+            'kv_n_heads': 8,
+            'rope': True,
+            'rope_theta': 10000.0,
+        },
+        ffn_config={
+            'ffn_type': 'mb_dmoe',
+            'fc_type': 'torch',
+            'mlp_type': mlp_type,
+            'moe_world_size': 1,
+            'ffn_act_fn': {
+                'name': 'silu',
+            },
+            'ffn_hidden_size': 1792,
+            'moe_num_experts': 16,
+            'moe_top_k': 4,
+            'moe_jitter_eps': 0.0,
+            'moe_loss_weight': 0.05,
+            'moe_normalize_expert_weights': 1.0,
+            'uniform_expert_assignment': False,
+        },
+    )
     device = 'cuda:0'
     if precision == 'fp32':
         dtype = torch.float32
@@ -244,10 +259,12 @@ def test_fwd_equal_dmoe(seqlen: int, precision: str, mlp_type: str):
     del torch_dmoe_config.ffn_config['moe_loss_weight']
     del torch_dmoe_config.ffn_config['return_bias']
 
-    mb_dmoe_model = MPTForCausalLM(mb_dmoe_config).to(device=device,
-                                                      dtype=dtype)
-    torch_dmoe_model = MPTForCausalLM(torch_dmoe_config).to(device=device,
-                                                            dtype=dtype)
+    mb_dmoe_model = MPTForCausalLM(
+        mb_dmoe_config,
+    ).to(device=device, dtype=dtype)
+    torch_dmoe_model = MPTForCausalLM(
+        torch_dmoe_config,
+    ).to(device=device, dtype=dtype)
 
     # set same state dicts
     torch_dmoe_model.load_state_dict(mb_dmoe_model.state_dict())

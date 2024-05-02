@@ -30,7 +30,7 @@ def mpt_tokenizer():
 
 @fixture
 def build_tiny_mpt(
-    mpt_tokenizer: PreTrainedTokenizerBase
+    mpt_tokenizer: PreTrainedTokenizerBase,
 ) -> Callable[..., ComposerMPTCausalLM]:
 
     def build(**kwargs: Any) -> ComposerMPTCausalLM:
@@ -51,7 +51,7 @@ def build_tiny_mpt(
 
 @fixture
 def build_tiny_hf_mpt(
-    mpt_tokenizer: PreTrainedTokenizerBase
+    mpt_tokenizer: PreTrainedTokenizerBase,
 ) -> Callable[..., ComposerHFCausalLM]:
 
     def build(**kwargs: Any) -> ComposerHFCausalLM:
@@ -93,7 +93,7 @@ def tiny_gpt2_config_helper():
         'n_embd': 2,
         'n_head': 2,
         'n_layer': 2,
-        'vocab_size': 50258  # 50257 + 1 for pad token
+        'vocab_size': 50258,  # 50257 + 1 for pad token
     }
     return transformers.AutoConfig.from_pretrained('gpt2', **tiny_overrides)
 
@@ -130,7 +130,9 @@ def tiny_llama_tokenizer_helper():
     transformers = pytest.importorskip('transformers')
 
     hf_tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'huggyllama/llama-7b', use_fast=False)
+        'huggyllama/llama-7b',
+        use_fast=False,
+    )
     return hf_tokenizer
 
 
@@ -148,7 +150,8 @@ def tiny_opt_tokenizer_helper():
     transformers = pytest.importorskip('transformers')
 
     hf_tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'facebook/opt-125m')
+        'facebook/opt-125m',
+    )
     hf_tokenizer.add_special_tokens({'pad_token': '[PAD]'})
     return hf_tokenizer
 
@@ -181,10 +184,12 @@ def tiny_opt_config_helper():
         'n_embd': 2,
         'n_head': 2,
         'n_layer': 2,
-        'vocab_size': 50272
+        'vocab_size': 50272,
     }
-    return transformers.AutoConfig.from_pretrained('facebook/opt-125m',
-                                                   **tiny_overrides)
+    return transformers.AutoConfig.from_pretrained(
+        'facebook/opt-125m',
+        **tiny_overrides,
+    )
 
 
 @pytest.fixture

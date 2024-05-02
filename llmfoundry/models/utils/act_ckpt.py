@@ -5,9 +5,13 @@ from typing import Any
 
 import torch
 
-from llmfoundry.layers_registry import (attention_classes, ffns,
-                                        ffns_with_megablocks, ffns_with_norm,
-                                        norms)
+from llmfoundry.layers_registry import (
+    attention_classes,
+    ffns,
+    ffns_with_megablocks,
+    ffns_with_norm,
+    norms,
+)
 from llmfoundry.models.layers.blocks import FusedNormAttentionNorm, MPTBlock
 
 __all__ = [
@@ -48,9 +52,10 @@ def get_act_ckpt_module(mod_name: str) -> Any:
             list(attention_classes.keys()) + list(ffns.get_all()) +
             list(ffns_with_norm.get_all()) +
             list(ffns_with_megablocks.get_all()) + list(norms.get_all()) +
-            ['MPTBlock'])
+            ['MPTBlock'],
+        )
         raise ValueError(
-            f'{mod_name} (specified in activation_checkpointing_target) is not a recognized option out of available options {msg}.'
+            f'{mod_name} (specified in activation_checkpointing_target) is not a recognized option out of available options {msg}.',
         )
     return mod_type
 
@@ -68,7 +73,8 @@ def parse_ele_str(ele: str, max_block_idx: int) -> list:
     elif ele.startswith('last-'):
         assert ele[5:].isdigit(), f'Invalid target_blocks element {ele}'
         to_add = list(
-            range(max(max_block_idx - int(ele[5:]) + 1, 0), max_block_idx + 1))
+            range(max(max_block_idx - int(ele[5:]) + 1, 0), max_block_idx + 1),
+        )
     elif ele.startswith('middle-'):
         assert ele[7:].isdigit(), f'Invalid target_blocks element {ele}'
         num = int(ele[7:])
@@ -101,7 +107,7 @@ def get_target_block_list(target_blocks: Any, max_block_idx: int) -> list:
                 candidate_block_ids.extend(to_add)
             else:
                 raise ValueError(
-                    f'target_blocks must be a list of integers or "first-n", "middle-m", "last-k", or "range-i-j" where n, m, k, i, j are integers, but got {target_blocks}'
+                    f'target_blocks must be a list of integers or "first-n", "middle-m", "last-k", or "range-i-j" where n, m, k, i, j are integers, but got {target_blocks}',
                 )
     elif isinstance(target_blocks, str):
         target_blocks = target_blocks.replace(' ', '')
@@ -110,7 +116,7 @@ def get_target_block_list(target_blocks: Any, max_block_idx: int) -> list:
             candidate_block_ids.extend(to_add)
     else:
         raise ValueError(
-            f'target_blocks must be either a single integer, or a list of integers, or a comma separated string made of "first-n", "last-m", "middle-k", "range-i-j", or a list of mixed integers and before-mentioned strings, but got {type(target_blocks)}'
+            f'target_blocks must be either a single integer, or a list of integers, or a comma separated string made of "first-n", "last-m", "middle-k", "range-i-j", or a list of mixed integers and before-mentioned strings, but got {type(target_blocks)}',
         )
 
     candidate_block_ids = list(set(candidate_block_ids))
@@ -129,14 +135,17 @@ def check_mapping_blocks_overlap(mapping: dict, max_block_idx: int) -> None:
             else:
                 if all_blocks[vv] is not None:
                     raise ValueError(
-                        f'Block {vv} is assigned to both {k} and {all_blocks[vv]}. Each block can only have one granularity of activation checkpointing. Make sure the target_blocks in activation_checkpointing_target do not overlap. For more details, refer to the docs of activation_checkpointing_fn.'
+                        f'Block {vv} is assigned to both {k} and {all_blocks[vv]}. Each block can only have one granularity of activation checkpointing. Make sure the target_blocks in activation_checkpointing_target do not overlap. For more details, refer to the docs of activation_checkpointing_fn.',
                     )
                 else:
                     all_blocks[vv] = k
 
 
-def build_act_ckpt_mod_to_blocks(act_ckpt_target: Any, top_module: Any,
-                                 max_block_idx: int) -> dict:
+def build_act_ckpt_mod_to_blocks(
+    act_ckpt_target: Any,
+    top_module: Any,
+    max_block_idx: int,
+) -> dict:
     act_ckpt_mod_to_blocks = {}
     if act_ckpt_target is None or act_ckpt_target == []:
         mod = top_module
@@ -155,7 +164,7 @@ def build_act_ckpt_mod_to_blocks(act_ckpt_target: Any, top_module: Any,
             act_ckpt_mod_to_blocks[mod] = block_ids
     else:
         raise ValueError(
-            f'activation_checkpointing_target must be either a single string or a list or a dict, but got {type(act_ckpt_target)}'
+            f'activation_checkpointing_target must be either a single string or a list or a dict, but got {type(act_ckpt_target)}',
         )
 
     return act_ckpt_mod_to_blocks

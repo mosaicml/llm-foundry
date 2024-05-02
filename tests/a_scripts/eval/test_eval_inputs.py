@@ -37,14 +37,18 @@ class TestHuggingFaceEvalYAMLInputs:
         ]
         mandatory_configs = ['models', 'icl_tasks']
         for p in mandatory_params + mandatory_configs:
-            with pytest.raises((omegaconf.errors.ConfigKeyError,
-                                omegaconf.errors.InterpolationKeyError)):
+            with pytest.raises((
+                omegaconf.errors.ConfigKeyError,
+                omegaconf.errors.InterpolationKeyError,
+            )):
                 cfg[p + '-mispelled'] = cfg.pop(p)
                 main(cfg)
                 cfg[p] = cfg.pop(p + '-mispelled')
 
-    def test_optional_mispelled_params_raise_warning(self,
-                                                     cfg: DictConfig) -> None:
+    def test_optional_mispelled_params_raise_warning(
+        self,
+        cfg: DictConfig,
+    ) -> None:
         """Check that warnings are raised for optional mispelled parameters."""
         optional_params = [
             'seed',
@@ -66,8 +70,10 @@ class TestHuggingFaceEvalYAMLInputs:
                     main(cfg)
                 except:
                     pass
-                assert any(f'Unused parameter {updated_param} found in cfg.' in
-                           str(warning.message) for warning in warning_list)
+                assert any(
+                    f'Unused parameter {updated_param} found in cfg.' in
+                    str(warning.message) for warning in warning_list
+                )
             # restore configs.
             cfg = copy.deepcopy(old_cfg)
 
@@ -85,7 +91,10 @@ class TestMPTEvalYAMLInputs:
             test_cfg = om.load(config)
 
         test_cfg.icl_tasks[0].dataset_uri = os.path.join(
-            foundry_dir, 'scripts', test_cfg.icl_tasks[0].dataset_uri)
+            foundry_dir,
+            'scripts',
+            test_cfg.icl_tasks[0].dataset_uri,
+        )
 
         # make tests use cpu initialized transformer models only
         test_cfg.models[0].model.init_device = 'cpu'

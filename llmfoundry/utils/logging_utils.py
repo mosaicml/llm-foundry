@@ -5,8 +5,10 @@ import logging
 import os
 
 from composer.loggers import MosaicMLLogger
-from composer.loggers.mosaicml_logger import (MOSAICML_ACCESS_TOKEN_ENV_VAR,
-                                              MOSAICML_PLATFORM_ENV_VAR)
+from composer.loggers.mosaicml_logger import (
+    MOSAICML_ACCESS_TOKEN_ENV_VAR,
+    MOSAICML_PLATFORM_ENV_VAR,
+)
 
 __all__ = [
     'SpecificWarningFilter',

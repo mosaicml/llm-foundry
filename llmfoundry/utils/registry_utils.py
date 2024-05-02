@@ -8,8 +8,17 @@ import os
 from contextlib import contextmanager
 from pathlib import Path
 from types import ModuleType
-from typing import (Any, Callable, Dict, Generic, Optional, Sequence, Type,
-                    TypeVar, Union)
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    Optional,
+    Sequence,
+    Type,
+    TypeVar,
+    Union,
+)
 
 import catalogue
 
@@ -32,10 +41,12 @@ class TypedRegistry(catalogue.Registry, Generic[T]):
     descriptions.
     """
 
-    def __init__(self,
-                 namespace: Sequence[str],
-                 entry_points: bool = False,
-                 description: str = '') -> None:
+    def __init__(
+        self,
+        namespace: Sequence[str],
+        entry_points: bool = False,
+        description: str = '',
+    ) -> None:
         super().__init__(namespace, entry_points=entry_points)
 
         self.description = description
@@ -46,10 +57,12 @@ class TypedRegistry(catalogue.Registry, Generic[T]):
     def register(self, name: str, *, func: Optional[T] = None) -> T:
         return super().register(name, func=func)
 
-    def register_class(self,
-                       name: str,
-                       *,
-                       func: Optional[TypeBoundT] = None) -> TypeBoundT:
+    def register_class(
+        self,
+        name: str,
+        *,
+        func: Optional[TypeBoundT] = None,
+    ) -> TypeBoundT:
         return super().register(name, func=func)
 
     def get(self, name: str) -> T:
@@ -88,9 +101,11 @@ def create_registry(
     if catalogue.check_exists(*namespace):
         raise catalogue.RegistryError(f'Namespace already exists: {namespace}')
 
-    return TypedRegistry[generic_type](namespace,
-                                       entry_points=entry_points,
-                                       description=description)
+    return TypedRegistry[generic_type](
+        namespace,
+        entry_points=entry_points,
+        description=description,
+    )
 
 
 def construct_from_registry(
@@ -128,26 +143,27 @@ def construct_from_registry(
         if isinstance(pre_validation_function, type):
             if not issubclass(registered_constructor, pre_validation_function):
                 raise ValueError(
-                    f'Expected {name} to be of type {pre_validation_function}, but got {type(registered_constructor)}'
+                    f'Expected {name} to be of type {pre_validation_function}, but got {type(registered_constructor)}',
                 )
         elif isinstance(pre_validation_function, Callable):
             pre_validation_function(registered_constructor)
         else:
             raise ValueError(
-                f'Expected pre_validation_function to be a callable or a type, but got {type(pre_validation_function)}'
+                f'Expected pre_validation_function to be a callable or a type, but got {type(pre_validation_function)}',
             )
 
     # If it is a class, or a builder function, construct the class with kwargs
     # If it is a function, create a partial with kwargs
     if isinstance(
-            registered_constructor,
-            type) or callable(registered_constructor) and not partial_function:
+        registered_constructor,
+        type,
+    ) or callable(registered_constructor) and not partial_function:
         constructed_item = registered_constructor(**kwargs)
     elif callable(registered_constructor):
         constructed_item = functools.partial(registered_constructor, **kwargs)
     else:
         raise ValueError(
-            f'Expected {name} to be a class or function, but got {type(registered_constructor)}'
+            f'Expected {name} to be a class or function, but got {type(registered_constructor)}',
         )
 
     if post_validation_function is not None:

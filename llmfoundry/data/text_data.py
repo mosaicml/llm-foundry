@@ -6,7 +6,17 @@
 import inspect
 import os
 from itertools import islice
-from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Union, cast
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Union,
+    cast,
+)
 
 import numpy as np
 import torch
@@ -95,37 +105,39 @@ class StreamingTextDataset(StreamingDataset):
             devices need to see the same partition of the dataset. Defaults to ``None``.
     """
 
-    def __init__(self,
-                 tokenizer: PreTrainedTokenizerBase,
-                 max_seq_len: int,
-                 streams: Optional[Sequence[Stream]] = None,
-                 remote: Optional[str] = None,
-                 local: Optional[str] = None,
-                 split: Optional[str] = None,
-                 download_retry: int = 2,
-                 download_timeout: float = 60,
-                 validate_hash: Optional[str] = None,
-                 keep_zip: bool = False,
-                 epoch_size: Optional[Union[int, str]] = None,
-                 predownload: Optional[int] = None,
-                 cache_limit: Optional[Union[int, str]] = None,
-                 partition_algo: str = 'relaxed',
-                 num_canonical_nodes: Optional[int] = None,
-                 batch_size: Optional[int] = None,
-                 shuffle: bool = False,
-                 shuffle_algo: str = 'py1e',
-                 shuffle_seed: int = 9176,
-                 shuffle_block_size: Optional[int] = None,
-                 sampling_method: str = 'balanced',
-                 sampling_granularity: int = 1,
-                 batching_method: str = 'random',
-                 allow_unsafe_types: bool = False,
-                 replication: Optional[int] = None,
-                 **kwargs: Any):
+    def __init__(
+        self,
+        tokenizer: PreTrainedTokenizerBase,
+        max_seq_len: int,
+        streams: Optional[Sequence[Stream]] = None,
+        remote: Optional[str] = None,
+        local: Optional[str] = None,
+        split: Optional[str] = None,
+        download_retry: int = 2,
+        download_timeout: float = 60,
+        validate_hash: Optional[str] = None,
+        keep_zip: bool = False,
+        epoch_size: Optional[Union[int, str]] = None,
+        predownload: Optional[int] = None,
+        cache_limit: Optional[Union[int, str]] = None,
+        partition_algo: str = 'relaxed',
+        num_canonical_nodes: Optional[int] = None,
+        batch_size: Optional[int] = None,
+        shuffle: bool = False,
+        shuffle_algo: str = 'py1e',
+        shuffle_seed: int = 9176,
+        shuffle_block_size: Optional[int] = None,
+        sampling_method: str = 'balanced',
+        sampling_granularity: int = 1,
+        batching_method: str = 'random',
+        allow_unsafe_types: bool = False,
+        replication: Optional[int] = None,
+        **kwargs: Any,
+    ):
 
         if len(kwargs) > 0:
             raise ValueError(
-                f'StreamingTextDataset() got an unexpected keyword argument: {kwargs}'
+                f'StreamingTextDataset() got an unexpected keyword argument: {kwargs}',
             )
 
         if local is not None and (remote is None or (local == remote)):
@@ -133,7 +145,7 @@ class StreamingTextDataset(StreamingDataset):
                 contents = set(os.listdir(local))
                 if split not in contents:
                     raise ValueError(
-                        f'local directory {local} does not contain split {split}'
+                        f'local directory {local} does not contain split {split}',
                     )
 
         # TODO: discover where yamls are being converted incorrect, but temporary workaround
@@ -174,18 +186,24 @@ class StreamingTextDataset(StreamingDataset):
         if self.tokenizer._pad_token is None:
             # Some tokenizers (e.g. GPT2 tokenizer) have no padding token which causes bugs
             raise RuntimeError(
-                'If tokenizing on-the-fly, tokenizer must have a pad_token_id')
+                'If tokenizing on-the-fly, tokenizer must have a pad_token_id',
+            )
 
-        return self.tokenizer(text_sample['text'],
-                              truncation=True,
-                              padding='max_length',
-                              max_length=self.max_seq_len)
+        return self.tokenizer(
+            text_sample['text'],
+            truncation=True,
+            padding='max_length',
+            max_length=self.max_seq_len,
+        )
 
-    def _read_binary_tokenized_sample(self, sample: Dict[str,
-                                                         Any]) -> torch.Tensor:
+    def _read_binary_tokenized_sample(
+        self,
+        sample: Dict[str, Any],
+    ) -> torch.Tensor:
         return torch.from_numpy(
             np.frombuffer(sample['tokens'],
-                          dtype=np.int64)[:self.max_seq_len].copy())
+                          dtype=np.int64)[:self.max_seq_len].copy(),
+        )
 
     # How to process a sample
     def __getitem__(self,
@@ -197,7 +215,7 @@ class StreamingTextDataset(StreamingDataset):
             token_sample = self._read_binary_tokenized_sample(sample)
         else:
             raise RuntimeError(
-                'StreamingTextDataset needs samples to have a `text` or `tokens` column'
+                'StreamingTextDataset needs samples to have a `text` or `tokens` column',
             )
         return token_sample
 
@@ -214,13 +232,13 @@ class ConcatenatedSequenceCollatorWrapper:
         self.base_collator = base_collator
         if (eos_token_id is None) and (bos_token_id is None):
             raise ValueError(
-                'Must supply a value for either eos_token_id or bos_token_id, but got None for both.'
+                'Must supply a value for either eos_token_id or bos_token_id, but got None for both.',
             )
         if (eos_token_id is not None) and (bos_token_id is not None):
             raise ValueError(
                 'Cannot use *both* EOS and BOS tokens for detecting sequence boundaries. ' +\
                 'Please supply `eos_token_id` if sequences end with an EOS token, or use ' +\
-                '`bos_token_id` if sequences start with a BOS token.'
+                '`bos_token_id` if sequences start with a BOS token.',
             )
 
         if eos_token_id is None:
@@ -236,7 +254,9 @@ class ConcatenatedSequenceCollatorWrapper:
         return batch
 
     def get_sequence_id_from_batch(
-            self, batch: Dict[str, torch.Tensor]) -> torch.Tensor:
+        self,
+        batch: Dict[str, torch.Tensor],
+    ) -> torch.Tensor:
         is_separator = torch.eq(batch['input_ids'], self.split_token_id)
         cumulative_sep = torch.cumsum(is_separator,
                                       dim=1).to(batch['input_ids'].dtype)
@@ -255,7 +275,7 @@ def build_streams(dataset_cfg: DictConfig):
     streams = None
     if streams_dict is not None:
         streams = []
-        for _, stream in streams_dict.items():
+        for stream in streams_dict.values():
             # stream is the streams kwargs
             # fwd all kwargs with **stream allows streaming to check args
             streams.append(Stream(**stream))
@@ -341,33 +361,42 @@ if __name__ == '__main__':
     from llmfoundry.utils.builders import build_tokenizer
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--tokenizer',
-                        type=str,
-                        default='EleutherAI/gpt-neox-20b',
-                        help='the name of the tokenizer to use')
-    parser.add_argument('--local_path',
-                        type=str,
-                        required=True,
-                        help='the path to the local copy of the dataset')
+    parser.add_argument(
+        '--tokenizer',
+        type=str,
+        default='EleutherAI/gpt-neox-20b',
+        help='the name of the tokenizer to use',
+    )
+    parser.add_argument(
+        '--local_path',
+        type=str,
+        required=True,
+        help='the path to the local copy of the dataset',
+    )
     parser.add_argument(
         '--remote_path',
         type=str,
         default=None,
-        help='the path to the remote copy to stream from (optional)')
-    parser.add_argument('--split',
-                        type=str,
-                        default='val',
-                        help='which split of the dataset to use')
-    parser.add_argument('--max_seq_len',
-                        type=int,
-                        default=32,
-                        help='max sequence length to test')
+        help='the path to the remote copy to stream from (optional)',
+    )
+    parser.add_argument(
+        '--split',
+        type=str,
+        default='val',
+        help='which split of the dataset to use',
+    )
+    parser.add_argument(
+        '--max_seq_len',
+        type=int,
+        default=32,
+        help='max sequence length to test',
+    )
 
     args = parser.parse_args()
 
     if args.remote_path is not None:
         print(
-            f'Reading {args.split} split from {args.local_path} <- streamed from <- {args.remote_path}'
+            f'Reading {args.split} split from {args.local_path} <- streamed from <- {args.remote_path}',
         )
     else:
         print(f'Reading {args.split} split from {args.local_path}')

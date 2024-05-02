@@ -12,15 +12,21 @@ from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry import registry
-from llmfoundry.data.finetuning.collator import (Seq2SeqFinetuningCollator,
-                                                 validate_target_settings)
-from llmfoundry.data.finetuning.tasks import (DOWNLOADED_FT_DATASETS_DIRPATH,
-                                              SUPPORTED_EXTENSIONS,
-                                              dataset_constructor)
+from llmfoundry.data.finetuning.collator import (
+    Seq2SeqFinetuningCollator,
+    validate_target_settings,
+)
+from llmfoundry.data.finetuning.tasks import (
+    DOWNLOADED_FT_DATASETS_DIRPATH,
+    SUPPORTED_EXTENSIONS,
+    dataset_constructor,
+)
 from llmfoundry.data.packing import BinPackCollator, auto_packing_ratio
-from llmfoundry.data.text_data import build_streams
-from llmfoundry.utils.exceptions import (MissingHuggingFaceURLSplitError,
-                                         NotEnoughDatasetSamplesError)
+from llmfoundry.data.text_data import build_streams, get_tokens_per_batch_func
+from llmfoundry.utils.exceptions import (
+    MissingHuggingFaceURLSplitError,
+    NotEnoughDatasetSamplesError,
+)
 from llmfoundry.utils.registry_utils import construct_from_registry
 
 log = logging.getLogger(__name__)
@@ -38,8 +44,10 @@ _DEFAULT_TARGET_PROMPTS = 'none'
 
 
 def build_finetuning_dataloader(
-        cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
-        device_batch_size: Union[int, float]) -> DataSpec:
+    cfg: DictConfig,
+    tokenizer: PreTrainedTokenizerBase,
+    device_batch_size: Union[int, float],
+) -> DataSpec:
     """Builds a finetuning dataloader for training or evaluating.
 
     The underlying dataset can be built through one of two code paths:
@@ -167,8 +175,9 @@ def build_finetuning_dataloader(
 
     dataset = None  # for pyright
     sampler = None
-    if cfg.dataset.get('remote') is not None or cfg.dataset.get(
-            'streams') is not None:
+    if cfg.dataset.get(
+        'remote',
+    ) is not None or cfg.dataset.get('streams') is not None:
         # Build streaming dataloader
         streams = build_streams(cfg.dataset)
         dataset = dataset_constructor.build_from_streaming(
@@ -210,17 +219,22 @@ def build_finetuning_dataloader(
         backend, _, _ = parse_uri(dataset_name_or_path)
         if backend not in ['', None]:
             dataset_name_or_path = _download_remote_hf_dataset(
-                remote_path=dataset_name_or_path, split=split)
+                remote_path=dataset_name_or_path,
+                split=split,
+            )
             split = split.replace('-', '_')
 
         # Get the preprocessing function.
         proto_preprocessing_fn = cfg.dataset.get('preprocessing_fn')
         if isinstance(proto_preprocessing_fn, (dict, DictConfig)):
             preprocessing_fn = dataset_constructor.get_preprocessing_fn_from_dict(
-                dict(proto_preprocessing_fn))
+                dict(proto_preprocessing_fn),
+            )
         else:
             preprocessing_fn = dataset_constructor.get_preprocessing_fn_from_str(
-                proto_preprocessing_fn, dataset_name_or_path)
+                proto_preprocessing_fn,
+                dataset_name_or_path,
+            )
 
         # Build dataset from HF.
         dataset = dataset_constructor.build_from_hf(
@@ -230,12 +244,17 @@ def build_finetuning_dataloader(
             max_seq_len=cfg.dataset.max_seq_len,
             preprocessing_fn=preprocessing_fn,
             tokenizer=tokenizer,
-            target_prompts=cfg.dataset.get('target_prompts',
-                                           _DEFAULT_TARGET_PROMPTS),
-            target_responses=cfg.dataset.get('target_responses',
-                                             _DEFAULT_TARGET_RESPONSES),
+            target_prompts=cfg.dataset.get(
+                'target_prompts',
+                _DEFAULT_TARGET_PROMPTS,
+            ),
+            target_responses=cfg.dataset.get(
+                'target_responses',
+                _DEFAULT_TARGET_RESPONSES,
+            ),
             decoder_only_format=cfg.dataset.decoder_only_format,
-            hf_kwargs=cfg.dataset.get('hf_kwargs', {}))
+            hf_kwargs=cfg.dataset.get('hf_kwargs', {}),
+        )
 
         # Ensure dataset is large enough.
         if cfg.drop_last:
@@ -250,7 +269,8 @@ def build_finetuning_dataloader(
                         dataloader_batch_size=dataloader_batch_size,
                         world_size=world_size,
                         full_dataset_size=full_dataset_size,
-                        minimum_dataset_size=minimum_dataset_size)
+                        minimum_dataset_size=minimum_dataset_size,
+                    )
         # Initialize sampler.
         sampler = dist.get_sampler(
             dataset,
@@ -303,16 +323,17 @@ def _validate_config(dataset_cfg: DictConfig) -> None:
     if dataset_cfg.get('hf_name') is not None:
         # Using the HuggingFace dataset codepath
         illegal_keys = ['local', 'remote']
-        discovered_illegal_keys = []
-        for key in illegal_keys:
-            if dataset_cfg.get(key) is not None:
-                discovered_illegal_keys.append('`' + key + '`')
+        discovered_illegal_keys = [
+            '`' + key + '`'
+            for key in illegal_keys
+            if dataset_cfg.get(key) is not None
+        ]
         if discovered_illegal_keys:
             raise ValueError(
                 'The dataset config sets a value for `hf_name` as well as the ' +\
                 f'following keys: {", ".join(discovered_illegal_keys)}.\n' +\
                 'Those keys are used when building from a streaming dataset, but ' +\
-                'setting `hf_name` instructs the dataset to build from a HuggingFace dataset.'
+                'setting `hf_name` instructs the dataset to build from a HuggingFace dataset.',
             )
     elif dataset_cfg.get('remote') is not None:
         # Using the streaming dataset codepath
@@ -326,12 +347,12 @@ def _validate_config(dataset_cfg: DictConfig) -> None:
                 'The dataset config sets a value for `remote` as well as the ' +\
                 f'following keys: {", ".join(discovered_illegal_keys)}.\n' +\
                 'Those keys are used when building from a HuggingFace dataset, but ' +\
-                'setting `remote` instructs the dataset to build from a streaming dataset.'
+                'setting `remote` instructs the dataset to build from a streaming dataset.',
             )
         if dataset_cfg.get('local') is None:
             raise ValueError(
                 'Using a streaming dataset requires setting both `remote` and `local`, ' +\
-                'but dataset.local is None.'
+                'but dataset.local is None.',
             )
     elif dataset_cfg.get('streams') is not None:
         # Using the streaming dataset codepath
@@ -345,7 +366,7 @@ def _validate_config(dataset_cfg: DictConfig) -> None:
                 'The dataset config sets a value for `streams` as well as the ' +\
                 f'following keys: {", ".join(discovered_illegal_keys)}.\n' +\
                 'Those keys are used when building from a HuggingFace dataset, but ' +\
-                'setting `streams` instructs the dataset to build from a streaming dataset.'
+                'setting `streams` instructs the dataset to build from a streaming dataset.',
             )
         illegal_keys = ['remote', 'local']
         discovered_illegal_keys = []
@@ -357,19 +378,20 @@ def _validate_config(dataset_cfg: DictConfig) -> None:
                 'The dataset config sets a value for `streams` as well as the ' +\
                 f'following keys: {", ".join(discovered_illegal_keys)}.\n' +\
                 'Please either use single stream (set remote/local only) ' +\
-                'or put remote/local under streams'
+                'or put remote/local under streams',
             )
 
     else:
         raise ValueError(
             'In the dataset config, you must set `hf_name` to use a HuggingFace ' +\
             'dataset, or set `remote` to use a streaming dataset, or set ' +\
-            '`streams` to use multiple streaming datasets,  but all were None.'
+            '`streams` to use multiple streaming datasets,  but all were None.',
         )
     max_seq_len = dataset_cfg.get('max_seq_len')
     if max_seq_len is None:
         raise ValueError(
-            'In the dataset config, you must set the `max_seq_len`')
+            'In the dataset config, you must set the `max_seq_len`',
+        )
 
     if max_seq_len != int(max_seq_len):
         raise ValueError('max_seq_len must be an integer')
@@ -378,12 +400,17 @@ def _validate_config(dataset_cfg: DictConfig) -> None:
     # Raise an error if the target_prompts + target_responses + decoder_only_format settings
     # are invalid
     target_responses = str(
-        dataset_cfg.get('target_responses', _DEFAULT_TARGET_RESPONSES)).lower()
+        dataset_cfg.get('target_responses', _DEFAULT_TARGET_RESPONSES),
+    ).lower()
     target_prompts = str(
-        dataset_cfg.get('target_prompts', _DEFAULT_TARGET_PROMPTS)).lower()
+        dataset_cfg.get('target_prompts', _DEFAULT_TARGET_PROMPTS),
+    ).lower()
     decoder_only_format = dataset_cfg.decoder_only_format
-    validate_target_settings(target_prompts, target_responses,
-                             decoder_only_format)
+    validate_target_settings(
+        target_prompts,
+        target_responses,
+        decoder_only_format,
+    )
 
 
 def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
@@ -419,13 +446,19 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
         destination = str(
             os.path.abspath(
                 os.path.join(
-                    finetune_dir, 'data',
-                    f'{hf_formatted_split}-00000-of-00001{extension}')))
+                    finetune_dir,
+                    'data',
+                    f'{hf_formatted_split}-00000-of-00001{extension}',
+                ),
+            ),
+        )
 
         # Since we don't know exactly what the extension will be, since it is one of a list
         # use a signal file to wait for instead of the desired file
         signal_file_path = os.path.join(
-            finetune_dir, f'.node_{dist.get_node_rank()}_local_rank0_completed')
+            finetune_dir,
+            f'.node_{dist.get_node_rank()}_local_rank0_completed',
+        )
         if dist.get_local_rank() == 0:
             try:
                 get_file(path=name, destination=destination, overwrite=True)
@@ -438,11 +471,12 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
                     raise FileNotFoundError(
                         f'Could not find a file with any of ' + \
                         f'the supported extensions: {SUPPORTED_EXTENSIONS}\n' + \
-                        f'at {files_searched}'
+                        f'at {files_searched}',
                     ) from e
                 else:
                     log.debug(
-                        f'Could not find {name}, looking for another extension')
+                        f'Could not find {name}, looking for another extension',
+                    )
                 continue
 
             os.makedirs(os.path.dirname(signal_file_path), exist_ok=True)
@@ -464,8 +498,9 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
 
 
 def build_collate_fn(
-    dataloader_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
-    device_batch_size: int
+    dataloader_cfg: DictConfig,
+    tokenizer: PreTrainedTokenizerBase,
+    device_batch_size: int,
 ) -> Tuple[Union[Seq2SeqFinetuningCollator, BinPackCollator], int]:
     dataset_cfg = dataloader_cfg.dataset
     max_seq_len = dataset_cfg.max_seq_len
@@ -474,10 +509,14 @@ def build_collate_fn(
         tokenizer=tokenizer,
         max_seq_len=max_seq_len,
         decoder_only_format=dataset_cfg.decoder_only_format,
-        target_responses=dataset_cfg.get('target_responses',
-                                         _DEFAULT_TARGET_RESPONSES),
-        target_prompts=dataset_cfg.get('target_prompts',
-                                       _DEFAULT_TARGET_PROMPTS),
+        target_responses=dataset_cfg.get(
+            'target_responses',
+            _DEFAULT_TARGET_RESPONSES,
+        ),
+        target_prompts=dataset_cfg.get(
+            'target_prompts',
+            _DEFAULT_TARGET_PROMPTS,
+        ),
         allow_pad_trimming=dataset_cfg.get('allow_pad_trimming', False),
     )
 
@@ -492,13 +531,17 @@ def build_collate_fn(
         return collate_fn, device_batch_size
 
     if packing_ratio == 'auto':
-        packing_ratio = auto_packing_ratio(dataloader_cfg, tokenizer,
-                                           device_batch_size)
+        packing_ratio = auto_packing_ratio(
+            dataloader_cfg,
+            tokenizer,
+            device_batch_size,
+        )
 
     if isinstance(packing_ratio, str):
         raise ValueError(
             'dataset.packing_ratio must be a float or "auto", but it was set to '
-            + f'{packing_ratio}.')
+            + f'{packing_ratio}.',
+        )
 
     log.info(f'Using packing ratio {packing_ratio}')
 
@@ -509,7 +552,7 @@ def build_collate_fn(
 
     if not dataset_cfg.decoder_only_format:
         raise NotImplementedError(
-            'On-the-fly packing is currently only supported for decoder-only formats.'
+            'On-the-fly packing is currently only supported for decoder-only formats.',
         )
 
     collate_fn = BinPackCollator(
@@ -559,7 +602,7 @@ if __name__ == '__main__':
         'pin_memory': False,
         'prefetch_factor': None,
         'persistent_workers': False,
-        'timeout': 0
+        'timeout': 0,
     })
 
     tokenizer_name = 'EleutherAI/gpt-neox-20b'
@@ -567,8 +610,11 @@ if __name__ == '__main__':
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
     device_batch_size = 1
-    dataloader = build_finetuning_dataloader(cfg, tokenizer,
-                                             device_batch_size).dataloader
+    dataloader = build_finetuning_dataloader(
+        cfg,
+        tokenizer,
+        device_batch_size,
+    ).dataloader
 
     packing = cfg.dataset.get('packing_ratio') is not None
 
@@ -589,31 +635,43 @@ if __name__ == '__main__':
                         is_subseq = batch['sequence_id'][j] == subseq
                         print(
                             '\033[93m{}\033[00m\n'.format('INPUT IDS:'),
-                            tokenizer.decode(batch['input_ids'][
-                                j,
-                                torch.logical_and(
-                                    is_subseq, batch['attention_mask'][j] ==
-                                    1)],
-                                             skip_special_tokens=False,
-                                             clean_up_tokenization_spaces=True))
+                            tokenizer.decode(
+                                batch['input_ids'][
+                                    j,
+                                    torch.logical_and(
+                                        is_subseq,
+                                        batch['attention_mask'][j] == 1,
+                                    )],
+                                skip_special_tokens=False,
+                                clean_up_tokenization_spaces=True,
+                            ),
+                        )
                         context = torch.logical_and(
                             batch['attention_mask'][j] == 1,
-                            batch['labels'][j] == _HF_IGNORE_INDEX)
+                            batch['labels'][j] == _HF_IGNORE_INDEX,
+                        )
                         print(
                             '\033[92m{}\033[00m\n'.format('CONTEXT:  '),
-                            tokenizer.decode(batch['input_ids'][
-                                j, torch.logical_and(is_subseq, context)],
-                                             skip_special_tokens=False,
-                                             clean_up_tokenization_spaces=True))
+                            tokenizer.decode(
+                                batch['input_ids'][
+                                    j, torch.logical_and(is_subseq, context)],
+                                skip_special_tokens=False,
+                                clean_up_tokenization_spaces=True,
+                            ),
+                        )
                         print(
                             '\033[91m{}\033[00m\n'.format('TARGET:   '),
-                            tokenizer.decode(batch['input_ids'][
-                                j,
-                                torch.logical_and(
-                                    is_subseq,
-                                    batch['labels'][j] != _HF_IGNORE_INDEX)],
-                                             skip_special_tokens=False,
-                                             clean_up_tokenization_spaces=True))
+                            tokenizer.decode(
+                                batch['input_ids'][
+                                    j,
+                                    torch.logical_and(
+                                        is_subseq,
+                                        batch['labels'][j] != _HF_IGNORE_INDEX,
+                                    )],
+                                skip_special_tokens=False,
+                                clean_up_tokenization_spaces=True,
+                            ),
+                        )
                 else:
                     print(
                         '\033[93m{}\033[00m\n'.format('INPUT IDS:'),
@@ -621,32 +679,46 @@ if __name__ == '__main__':
                             batch['input_ids'][j,
                                                batch['attention_mask'][j] == 1],
                             skip_special_tokens=False,
-                            clean_up_tokenization_spaces=True))
+                            clean_up_tokenization_spaces=True,
+                        ),
+                    )
                     context = torch.logical_and(
                         batch['attention_mask'][j] == 1,
-                        batch['labels'][j] == _HF_IGNORE_INDEX)
+                        batch['labels'][j] == _HF_IGNORE_INDEX,
+                    )
                     print(
                         '\033[92m{}\033[00m\n'.format('CONTEXT:  '),
-                        tokenizer.decode(batch['input_ids'][j, context],
-                                         skip_special_tokens=False,
-                                         clean_up_tokenization_spaces=True))
+                        tokenizer.decode(
+                            batch['input_ids'][j, context],
+                            skip_special_tokens=False,
+                            clean_up_tokenization_spaces=True,
+                        ),
+                    )
                     print(
                         '\033[91m{}\033[00m\n'.format('TARGET:   '),
-                        tokenizer.decode(batch['input_ids'][
-                            j, batch['labels'][j] != _HF_IGNORE_INDEX],
-                                         skip_special_tokens=False,
-                                         clean_up_tokenization_spaces=True))
+                        tokenizer.decode(
+                            batch['input_ids'][
+                                j, batch['labels'][j] != _HF_IGNORE_INDEX],
+                            skip_special_tokens=False,
+                            clean_up_tokenization_spaces=True,
+                        ),
+                    )
             else:
                 print(
                     '\033[92m{}\033[00m\n'.format('CONTEXT:  '),
                     tokenizer.decode(
                         batch['input_ids'][j, batch['attention_mask'][j] == 1],
                         skip_special_tokens=False,
-                        clean_up_tokenization_spaces=True))
+                        clean_up_tokenization_spaces=True,
+                    ),
+                )
                 print(
                     '\033[91m{}\033[00m\n'.format('TARGET:   '),
-                    tokenizer.decode(batch['labels'][
-                        j, batch['decoder_attention_mask'][j] == 1],
-                                     skip_special_tokens=False,
-                                     clean_up_tokenization_spaces=True))
+                    tokenizer.decode(
+                        batch['labels'][j, batch['decoder_attention_mask'][j] ==
+                                        1],
+                        skip_special_tokens=False,
+                        clean_up_tokenization_spaces=True,
+                    ),
+                )
         print('   ')

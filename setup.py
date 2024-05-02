@@ -23,7 +23,8 @@ with open(os.path.join(_PACKAGE_REAL_PATH, '__init__.py')) as f:
 # we put parens around the version so that it becomes elem 1 of the match
 expr = re.compile(
     r"""^__version__\s*=\s*['"]([0-9]+\.[0-9]+\.[0-9]+(?:\.\w+)?)['"]""",
-    re.MULTILINE)
+    re.MULTILINE,
+)
 repo_version = expr.findall(content)[0]
 
 # Use repo README for PyPi description
@@ -122,14 +123,18 @@ extra_deps['megablocks'] = [
     'grouped-gemm==0.1.4',
 ]
 
-extra_deps['all-cpu'] = set(dep for key, deps in extra_deps.items()
-                            for dep in deps
-                            if 'gpu' not in key and 'megablocks' not in key)
-extra_deps['all'] = set(dep for key, deps in extra_deps.items() for dep in deps
-                        if key not in {'gpu-flash2', 'all-cpu'})
-extra_deps['all-flash2'] = set(dep for key, deps in extra_deps.items()
-                               for dep in deps
-                               if key not in {'gpu', 'all', 'all-cpu'})
+extra_deps['all-cpu'] = {
+    dep for key, deps in extra_deps.items() for dep in deps
+    if 'gpu' not in key and 'megablocks' not in key
+}
+extra_deps['all'] = {
+    dep for key, deps in extra_deps.items() for dep in deps
+    if key not in {'gpu-flash2', 'all-cpu'}
+}
+extra_deps['all-flash2'] = {
+    dep for key, deps in extra_deps.items() for dep in deps
+    if key not in {'gpu', 'all', 'all-cpu'}
+}
 
 setup(
     name=_PACKAGE_NAME,
@@ -144,7 +149,8 @@ setup(
         'llmfoundry': ['py.typed'],
     },
     packages=setuptools.find_packages(
-        exclude=['.github*', 'mcli*', 'scripts*', 'tests*']),
+        exclude=['.github*', 'mcli*', 'scripts*', 'tests*'],
+    ),
     classifiers=classifiers,
     install_requires=install_requires,
     extras_require=extra_deps,

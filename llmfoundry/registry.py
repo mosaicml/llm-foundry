@@ -13,10 +13,17 @@ from torchmetrics import Metric
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.interfaces import CallbackWithConfig
-from llmfoundry.layers_registry import (attention_classes,
-                                        attention_implementations, fcs, ffns,
-                                        ffns_with_megablocks, ffns_with_norm,
-                                        module_init_fns, norms, param_init_fns)
+from llmfoundry.layers_registry import (
+    attention_classes,
+    attention_implementations,
+    fcs,
+    ffns,
+    ffns_with_megablocks,
+    ffns_with_norm,
+    module_init_fns,
+    norms,
+    param_init_fns,
+)
 from llmfoundry.utils.registry_utils import create_registry
 
 _loggers_description = (
@@ -26,11 +33,13 @@ _loggers_description = (
     +
     'will be constructed by directly passing along the specified kwargs to the constructor.'
 )
-loggers = create_registry('llmfoundry',
-                          'loggers',
-                          generic_type=Type[LoggerDestination],
-                          entry_points=True,
-                          description=_loggers_description)
+loggers = create_registry(
+    'llmfoundry',
+    'loggers',
+    generic_type=Type[LoggerDestination],
+    entry_points=True,
+    description=_loggers_description,
+)
 
 _callbacks_description = (
     'The callbacks registry is used to register classes that implement the Callback interface. '
@@ -39,11 +48,13 @@ _callbacks_description = (
     +
     'The callbacks will be constructed by directly passing along the specified kwargs to the constructor.'
 )
-callbacks = create_registry('llmfoundry',
-                            'callbacks',
-                            generic_type=Type[Callback],
-                            entry_points=True,
-                            description=_callbacks_description)
+callbacks = create_registry(
+    'llmfoundry',
+    'callbacks',
+    generic_type=Type[Callback],
+    entry_points=True,
+    description=_callbacks_description,
+)
 
 _callbacks_with_config_description = (
     'The callbacks_with_config registry is used to register classes that implement the CallbackWithConfig interface. '
@@ -54,40 +65,50 @@ callbacks_with_config = create_registry(
     'llm_foundry.callbacks_with_config',
     generic_type=Type[CallbackWithConfig],
     entry_points=True,
-    description=_callbacks_with_config_description)
+    description=_callbacks_with_config_description,
+)
 
 _optimizers_description = (
     'The optimizers registry is used to register classes that implement the Optimizer interface. '
     +
     'The optimizer will be passed to the optimizers arg of the Trainer. The optimizer will be constructed by directly passing along the '
-    + 'specified kwargs to the constructor, along with the model parameters.')
-optimizers = create_registry('llmfoundry',
-                             'optimizers',
-                             generic_type=Type[Optimizer],
-                             entry_points=True,
-                             description=_optimizers_description)
+    + 'specified kwargs to the constructor, along with the model parameters.'
+)
+optimizers = create_registry(
+    'llmfoundry',
+    'optimizers',
+    generic_type=Type[Optimizer],
+    entry_points=True,
+    description=_optimizers_description,
+)
 
 _algorithms_description = (
     'The algorithms registry is used to register classes that implement the Algorithm interface. '
     +
     'The algorithm will be passed to the algorithms arg of the Trainer. The algorithm will be constructed by directly passing along the '
-    + 'specified kwargs to the constructor.')
-algorithms = create_registry('llmfoundry',
-                             'algorithms',
-                             generic_type=Type[Algorithm],
-                             entry_points=True,
-                             description=_algorithms_description)
+    + 'specified kwargs to the constructor.'
+)
+algorithms = create_registry(
+    'llmfoundry',
+    'algorithms',
+    generic_type=Type[Algorithm],
+    entry_points=True,
+    description=_algorithms_description,
+)
 
 _schedulers_description = (
     'The schedulers registry is used to register classes that implement the ComposerScheduler interface. '
     +
     'The scheduler will be passed to the schedulers arg of the Trainer. The scheduler will be constructed by directly passing along the '
-    + 'specified kwargs to the constructor.')
-schedulers = create_registry('llmfoundry',
-                             'schedulers',
-                             generic_type=Type[ComposerScheduler],
-                             entry_points=True,
-                             description=_schedulers_description)
+    + 'specified kwargs to the constructor.'
+)
+schedulers = create_registry(
+    'llmfoundry',
+    'schedulers',
+    generic_type=Type[ComposerScheduler],
+    entry_points=True,
+    description=_schedulers_description,
+)
 
 _models_description = (
     'The models registry is used to register classes that implement the ComposerModel interface. '
@@ -96,11 +117,13 @@ _models_description = (
     +
     'Note: This will soon be updated to take in named kwargs instead of a config directly.'
 )
-models = create_registry('llmfoundry',
-                         'models',
-                         generic_type=Type[ComposerModel],
-                         entry_points=True,
-                         description=_models_description)
+models = create_registry(
+    'llmfoundry',
+    'models',
+    generic_type=Type[ComposerModel],
+    entry_points=True,
+    description=_models_description,
+)
 
 _dataloaders_description = (
     'The dataloaders registry is used to register functions that create a DataSpec. The function should take '
@@ -112,7 +135,8 @@ dataloaders = create_registry(
     'dataloaders',
     generic_type=Callable[[DictConfig, PreTrainedTokenizerBase, int], DataSpec],
     entry_points=True,
-    description=_dataloaders_description)
+    description=_dataloaders_description,
+)
 
 _dataset_replication_validators_description = (
     """Validates the dataset replication args.
@@ -165,11 +189,13 @@ data_specs = create_registry(
 _metrics_description = (
     'The metrics registry is used to register classes that implement the torchmetrics.Metric interface.'
 )
-metrics = create_registry('llmfoundry',
-                          'metrics',
-                          generic_type=Type[Metric],
-                          entry_points=True,
-                          description=_metrics_description)
+metrics = create_registry(
+    'llmfoundry',
+    'metrics',
+    generic_type=Type[Metric],
+    entry_points=True,
+    description=_metrics_description,
+)
 
 __all__ = [
     'loggers',

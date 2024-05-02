@@ -9,13 +9,13 @@ from composer.core.state import State
 from composer.core.time import Timestamp
 from composer.loggers import InMemoryLogger, Logger
 from torch.utils.data import DataLoader
+from torchmetrics import Metric
 
 from llmfoundry.callbacks.eval_output_logging_callback import EvalOutputLogging
 from llmfoundry.eval.datasets.in_context_learning_evaluation import \
     InContextLearningMultipleChoiceTaskDataset
 from llmfoundry.eval.metrics.nlp import (
-    InContextLearningLMAccuracy, InContextLearningMetric,
-    InContextLearningMultipleChoiceAccuracy)
+    InContextLearningLMAccuracy, InContextLearningMultipleChoiceAccuracy)
 
 
 class MockDataset(InContextLearningMultipleChoiceTaskDataset):
@@ -39,7 +39,7 @@ class MockState(State):
         self.run_name = 'mock_name'
         self.timestamp = Timestamp()
 
-    def add_metric(self, metric_name: str, metric: InContextLearningMetric):
+    def add_metric(self, metric_name: str, metric: Metric):
         self.eval_metrics[metric_name] = {}
         self.eval_metrics[metric_name][str(metric)] = metric
 
@@ -48,8 +48,8 @@ class MockState(State):
         self._dataloader_label = dataloader_label
 
 
-def mock_lm_computation(metric: InContextLearningMetric,
-                        tokenizer: transformers.AutoTokenizer, state: State):
+def mock_lm_computation(metric: Metric, tokenizer: transformers.AutoTokenizer,
+                        state: State):
     contexts = ['The dog is', 'I love to eat', 'I hate', 'The weather is']
     continuations = [' furry', ' pie', ' long lines', ' snowy']
     pad = tokenizer.pad_token_id
@@ -85,8 +85,8 @@ def mock_lm_computation(metric: InContextLearningMetric,
     return state
 
 
-def mock_mc_computation(metric: InContextLearningMetric,
-                        tokenizer: transformers.AutoTokenizer, state: State):
+def mock_mc_computation(metric: Metric, tokenizer: transformers.AutoTokenizer,
+                        state: State):
     contexts = [
         'Q: How do you cook a cake?',
         'Q: How do you cook a cake?',

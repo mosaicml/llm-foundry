@@ -4,6 +4,7 @@
 import json
 
 import torch
+import transformers
 from composer.core.state import State
 from composer.core.time import Timestamp
 from composer.loggers import InMemoryLogger, Logger
@@ -13,21 +14,20 @@ from llmfoundry.callbacks.eval_output_logging_callback import EvalOutputLogging
 from llmfoundry.eval.datasets.in_context_learning_evaluation import \
     InContextLearningMultipleChoiceTaskDataset
 from llmfoundry.eval.metrics.nlp import (
-    InContextLearningLMAccuracy, InContextLearningMultipleChoiceAccuracy)
-
-# from tests.common import device
+    InContextLearningLMAccuracy, InContextLearningMetric,
+    InContextLearningMultipleChoiceAccuracy)
 
 
 class MockDataset(InContextLearningMultipleChoiceTaskDataset):
 
-    def __init__(self, tokenizer):
+    def __init__(self, tokenizer: transformers.AutoTokenizer):
         self.tokenizer = tokenizer
         self.pad_tok_id = tokenizer.pad_token_id
 
 
 class MockDataLoader(DataLoader):
 
-    def __init__(self, tokenizer):
+    def __init__(self, tokenizer: transformers.AutoTokenizer):
         self.dataset = MockDataset(tokenizer)
 
 
@@ -39,16 +39,17 @@ class MockState(State):
         self.run_name = 'mock_name'
         self.timestamp = Timestamp()
 
-    def add_metric(self, metric_name, metric):
+    def add_metric(self, metric_name: str, metric: InContextLearningMetric):
         self.eval_metrics[metric_name] = {}
         self.eval_metrics[metric_name][str(metric)] = metric
 
-    def update_curr_eval(self, dataloader, dataloader_label):
+    def update_curr_eval(self, dataloader: DataLoader, dataloader_label: str):
         self._dataloader = dataloader
         self._dataloader_label = dataloader_label
 
 
-def mock_lm_computation(metric, tokenizer, state):
+def mock_lm_computation(metric: InContextLearningMetric,
+                        tokenizer: transformers.AutoTokenizer, state: State):
     contexts = ['The dog is', 'I love to eat', 'I hate', 'The weather is']
     continuations = [' furry', ' pie', ' long lines', ' snowy']
     pad = tokenizer.pad_token_id
@@ -84,7 +85,8 @@ def mock_lm_computation(metric, tokenizer, state):
     return state
 
 
-def mock_mc_computation(metric, tokenizer, state):
+def mock_mc_computation(metric: InContextLearningMetric,
+                        tokenizer: transformers.AutoTokenizer, state: State):
     contexts = [
         'Q: How do you cook a cake?',
         'Q: How do you cook a cake?',
@@ -142,8 +144,8 @@ def mock_mc_computation(metric, tokenizer, state):
     metric.compute()
 
 
-# @device('cpu')
-def test_eval_output_logging_lm(tiny_gpt2_tokenizer):
+def test_eval_output_logging_lm(
+        tiny_gpt2_tokenizer: transformers.AutoTokenizer):
     # this test simulates an unrolled version of the eval loop occurring twice
     state = MockState()
     in_memory_logger = InMemoryLogger()
@@ -220,8 +222,8 @@ def test_eval_output_logging_lm(tiny_gpt2_tokenizer):
     ]
 
 
-# @device('cpu')
-def test_eval_output_logging_mc(tiny_gpt2_tokenizer):
+def test_eval_output_logging_mc(
+        tiny_gpt2_tokenizer: transformers.AutoTokenizer):
     # this test simulates an unrolled version of the eval loop occurring twice
     state = MockState()
     in_memory_logger = InMemoryLogger()

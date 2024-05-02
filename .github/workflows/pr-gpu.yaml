@@ -9,7 +9,6 @@ on:
     - main
     - release/**
   workflow_dispatch:
-# Cancel old runs when a new commit is pushed to the same branch if not on main or dev
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
@@ -17,6 +16,7 @@ jobs:
   pytest-gpu:
     uses: mosaicml/ci-testing/.github/workflows/pytest-gpu.yaml@v0.0.5
     strategy:
+      fail-fast: false
       matrix:
         include:
         - name: "gpu-2.2.1"
@@ -24,11 +24,11 @@ jobs:
           markers: "gpu"
           pip_deps: "[all]"
           pytest_command: "coverage run -m pytest"
-          # - name: "gpu-2.3.0"
-          #   container: mosaicml/pytorch:2.3.0_cu121-python3.11-ubuntu20.04
-          #   markers: "gpu"
-          #   pytest_command: "coverage run -m pytest"
-          #   deps_group: "all"
+        - name: "gpu-2.3.0"
+          container: mosaicml/pytorch:2.3.0_cu121-python3.11-ubuntu20.04
+          markers: "gpu"
+          pytest_command: "coverage run -m pytest"
+          pip_deps: "[all]"
     name: ${{ matrix.name }}
     if: github.repository_owner == 'mosaicml'
     with:

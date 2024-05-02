@@ -36,14 +36,16 @@ class EvalOutputLogging(Callback):
             warnings.warn(
                 f'''EvalOutputLogging only supports batches that are dictionary. \
                 Found batch for type {type(state.batch)}. \
-                Not logging eval outputs.''',)
+                Not logging eval outputs.''',
+            )
             return
 
         assert state.outputs is not None
         assert state.metric_outputs is not None
         logging_dict: Dict[str, Union[List[Any], torch.Tensor,
                                       Sequence[torch.Tensor]]] = deepcopy(
-                                          state.metric_outputs)
+                                          state.metric_outputs,
+                                      )
 
         # If batch mode is not generate, outputs will be logits
         if state.batch['mode'] == 'generate':
@@ -84,9 +86,10 @@ class EvalOutputLogging(Callback):
             # All types in list are the same
             if isinstance(value[0], torch.Tensor):
                 logging_dict[key] = [
-                    state.dataloader.dataset.tokenizer.
-                    decode(  # pyright: ignore[reportGeneralTypeIssues]
-                        t) for t in value
+                    state.dataloader.dataset. # pyright: ignore[reportGeneralTypeIssues]
+                    tokenizer.decode(  # pyright: ignore[reportGeneralTypeIssues]
+                        t,
+                    ) for t in value
                 ]
             elif isinstance(value[0], list):
                 if isinstance(value[0][0], torch.Tensor):
@@ -117,10 +120,12 @@ class EvalOutputLogging(Callback):
         rows = [row for rows in list_of_rows for row in rows]
         for dest_logger in logger.destinations:
             if not isinstance(dest_logger, ConsoleLogger):
-                dest_logger.log_table(self.columns,
-                                      rows,
-                                      name=self.name,
-                                      step=state.timestamp.batch.value)
+                dest_logger.log_table(
+                    self.columns,
+                    rows,
+                    name=self.name,
+                    step=state.timestamp.batch.value,
+                )
 
         self.rows = []
         self.name = None

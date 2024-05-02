@@ -790,6 +790,7 @@ def test_huggingface_conversion_callback(
     trainer = Trainer(
         model=original_model,
         device='gpu',
+        precision='amp_bf16',
         fsdp_config=fsdp_config if fsdp_state_dict_type is not None else None,
         train_dataloader=train_dataloader,
         save_folder=os.path.join(tmp_path, 'checkpoints'),

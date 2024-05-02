@@ -58,7 +58,7 @@ install_requires = [
     'accelerate>=0.25,<0.26',  # for HF inference `device_map`
     'transformers>=4.40,<4.41',
     'mosaicml-streaming>=0.7.5,<0.8',
-    'torch>=2.2.1,<2.4',
+    'torch>=2.3.0,<2.4',
     'datasets>=2.19,<2.20',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
     'sentencepiece==0.1.97',
@@ -69,7 +69,7 @@ install_requires = [
     'onnx==1.14.0',
     'onnxruntime==1.15.1',
     'boto3>=1.21.45,<2',
-    'huggingface-hub>=0.19.0,<1.0',
+    'huggingface-hub>=0.19.0,<0.23',
     'beautifulsoup4>=4.12.2,<5',  # required for model download utils
     'tenacity>=8.2.3,<9',
     'catalogue>=2,<3',

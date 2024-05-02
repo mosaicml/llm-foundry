@@ -1,3 +1,6 @@
+# Copyright 2024 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 # TODO: what's right for this?
 # Copyright 2022 MosaicML Composer authors
 # SPDX-License-Identifier: Apache-2.0
@@ -9,7 +12,6 @@ from copy import deepcopy
 from typing import Any, Dict, List, Sequence, Union
 
 import torch
-
 from composer.core import Callback, State
 from composer.loggers import ConsoleLogger, Logger
 from composer.utils.dist import all_gather_object
@@ -18,13 +20,15 @@ from composer.utils.dist import all_gather_object
 class EvalOutputLogging(Callback):
     """Logs eval outputs for each sample of each ICL evaluation dataset.
 
-    ICL metrics are required to support caching the model's responses including information on whether model was correct.
-    Metrics are responsible for returning the results of individual data points in a dictionary of lists.
-    The callback will log the metric name, the depadded and detokenized input, any data stored in state.metric_outputs, and
-    any keys from the batch passed into `batch_keys_to_log`. It will do so after every eval batch.
+    ICL metrics are required to support caching the model's responses including
+    information on whether model was correct. Metrics are responsible for
+    returning the results of individual data points in a dictionary of lists.
+    The callback will log the metric name, the depadded and detokenized input,
+    any data stored in state.metric_outputs, and any keys from the batch passed
+    into `batch_keys_to_log`. It will do so after every eval batch.
     """
 
-    def __init__(self, log_tokens: bool =False, *args: Any, **kwargs: Any):
+    def __init__(self, log_tokens: bool = False, *args: Any, **kwargs: Any):
         super().__init__(self, *args, **kwargs)
         self.log_tokens = log_tokens
         self.columns = None
@@ -36,13 +40,14 @@ class EvalOutputLogging(Callback):
             warnings.warn(
                 f'''EvalOutputLogging only supports batches that are dictionary. \
                 Found batch for type {type(state.batch)}. \
-                Not logging eval outputs.''',
-            )
+                Not logging eval outputs.''',)
             return
 
         assert state.outputs is not None
         assert state.metric_outputs is not None
-        logging_dict: Dict[str, Union[List[Any], torch.Tensor, Sequence[torch.Tensor]]] = deepcopy(state.metric_outputs)
+        logging_dict: Dict[str, Union[List[Any], torch.Tensor,
+                                      Sequence[torch.Tensor]]] = deepcopy(
+                                          state.metric_outputs)
 
         # If batch mode is not generate, outputs will be logits
         if state.batch['mode'] == 'generate':
@@ -56,7 +61,9 @@ class EvalOutputLogging(Callback):
         # Depad and decode input_ids
         for input_list in input_ids.tolist():
             dataset = state.dataloader.dataset  # pyright: ignore[reportGeneralTypeIssues]
-            depadded_input = [tok for tok in input_list if tok != dataset.pad_tok_id]
+            depadded_input = [
+                tok for tok in input_list if tok != dataset.pad_tok_id
+            ]
             logged_input.append(dataset.tokenizer.decode(depadded_input))
         logging_dict['input'] = logged_input
 
@@ -68,7 +75,9 @@ class EvalOutputLogging(Callback):
                     logging_dict['label_tokens'] = state.outputs.tolist()
 
         # Add run_name as a column
-        run_name_list = [state.run_name for _ in range(0, len(logging_dict['input']))]
+        run_name_list = [
+            state.run_name for _ in range(0, len(logging_dict['input']))
+        ]
         logging_dict['run_name'] = run_name_list
 
         # NOTE: This assumes _any_ tensor logged are tokens to be decoded.
@@ -79,13 +88,16 @@ class EvalOutputLogging(Callback):
             # All types in list are the same
             if isinstance(value[0], torch.Tensor):
                 logging_dict[key] = [
-                    state.dataloader.dataset.tokenizer.decode(t)  # pyright: ignore[reportGeneralTypeIssues]
+                    state.dataloader.dataset.tokenizer.decode(
+                        t)  # pyright: ignore[reportGeneralTypeIssues]
                     for t in value
                 ]
             elif isinstance(value[0], list):
                 if isinstance(value[0][0], torch.Tensor):
                     tokenizer = state.dataloader.dataset.tokenizer  # pyright: ignore[reportGeneralTypeIssues]
-                    logging_dict[key] = [[tokenizer.decode(choice) for choice in t] for t in value]
+                    logging_dict[key] = [[
+                        tokenizer.decode(choice) for choice in t
+                    ] for t in value]
 
         # Convert logging_dict from kv pairs of column name and column values to a list of rows
         # Example:
@@ -109,7 +121,10 @@ class EvalOutputLogging(Callback):
         rows = [row for rows in list_of_rows for row in rows]
         for dest_logger in logger.destinations:
             if not isinstance(dest_logger, ConsoleLogger):
-                dest_logger.log_table(self.columns, rows, name=self.name, step=state.timestamp.batch.value)
+                dest_logger.log_table(self.columns,
+                                      rows,
+                                      name=self.name,
+                                      step=state.timestamp.batch.value)
 
         self.rows = []
         self.name = None

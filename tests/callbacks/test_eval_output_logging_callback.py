@@ -1,17 +1,20 @@
-# Copyright 2022 MosaicML Composer authors
+# Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
 import json
 
 import torch
-from torch.utils.data import DataLoader
 from composer.core.state import State
 from composer.core.time import Timestamp
 from composer.loggers import InMemoryLogger, Logger
+from torch.utils.data import DataLoader
 
 from llmfoundry.callbacks.eval_output_logging_callback import EvalOutputLogging
-from llmfoundry.eval.datasets.in_context_learning_evaluation import InContextLearningMultipleChoiceTaskDataset
-from llmfoundry.eval.metrics.nlp import InContextLearningLMAccuracy, InContextLearningMultipleChoiceAccuracy
+from llmfoundry.eval.datasets.in_context_learning_evaluation import \
+    InContextLearningMultipleChoiceTaskDataset
+from llmfoundry.eval.metrics.nlp import (
+    InContextLearningLMAccuracy, InContextLearningMultipleChoiceAccuracy)
+
 # from tests.common import device
 
 
@@ -53,7 +56,8 @@ def mock_lm_computation(metric, tokenizer, state):
         tokenizer(context)['input_ids'] + tokenizer(continuation)['input_ids']
         for context, continuation in zip(contexts, continuations)
     ]
-    inputs = torch.tensor([input + [pad] * (2048 - len(input)) for input in inputs])
+    inputs = torch.tensor(
+        [input + [pad] * (2048 - len(input)) for input in inputs])
 
     cont_idxs = []
     for context, continuation in zip(contexts, continuations):
@@ -61,10 +65,17 @@ def mock_lm_computation(metric, tokenizer, state):
         end = start + len(tokenizer(continuation)['input_ids'])
         cont_idxs.append(torch.tensor(list(range(start, end))))
 
-    batch = {'mode': 'icl_task', 'continuation_indices': cont_idxs, 'labels': inputs.roll(-1), 'input_ids': inputs}
-    logits = torch.nn.functional.one_hot(inputs.roll(-1), num_classes=pad + 1).float() * 100
+    batch = {
+        'mode': 'icl_task',
+        'continuation_indices': cont_idxs,
+        'labels': inputs.roll(-1),
+        'input_ids': inputs
+    }
+    logits = torch.nn.functional.one_hot(inputs.roll(-1),
+                                         num_classes=pad + 1).float() * 100
     start, end = cont_idxs[1].tolist()[0] - 1, cont_idxs[1].tolist()[-1]
-    logits[1][start:end] = logits[0][start:end].clone()  # make one of the answer's continuations incorrect
+    logits[1][start:end] = logits[0][start:end].clone(
+    )  # make one of the answer's continuations incorrect
 
     state.metric_outputs = metric.update(batch, logits, batch['labels'])
     metric.compute()
@@ -80,7 +91,10 @@ def mock_mc_computation(metric, tokenizer, state):
         'Q: How old is the earth?',
         'Q: How old is the earth?',
     ]
-    continuations = [' A: turn on the oven', ' A: do a backflip', ' A: 2 minutes', ' A: 4.5 billion years']
+    continuations = [
+        ' A: turn on the oven', ' A: do a backflip', ' A: 2 minutes',
+        ' A: 4.5 billion years'
+    ]
     gold_indices = [0, 1]
     choice_groupings = [(0, 2), (2, 4)]
     pad = tokenizer.pad_token_id
@@ -88,7 +102,8 @@ def mock_mc_computation(metric, tokenizer, state):
         tokenizer(context)['input_ids'] + tokenizer(continuation)['input_ids']
         for context, continuation in zip(contexts, continuations)
     ]
-    inputs = torch.tensor([input + [pad] * (2048 - len(input)) for input in inputs])
+    inputs = torch.tensor(
+        [input + [pad] * (2048 - len(input)) for input in inputs])
     attention_mask = ~(inputs == pad)
 
     cont_idxs = []
@@ -106,7 +121,8 @@ def mock_mc_computation(metric, tokenizer, state):
         'gold_indices': gold_indices,
         'choice_groupings': choice_groupings,
     }
-    logits = torch.nn.functional.one_hot(inputs.roll(-1), num_classes=pad + 1).float()
+    logits = torch.nn.functional.one_hot(inputs.roll(-1),
+                                         num_classes=pad + 1).float()
 
     # for the first two, the correct answer is continuation 0
     # make the answer correct by making continuation 0 more likely for both answers
@@ -118,7 +134,9 @@ def mock_mc_computation(metric, tokenizer, state):
     start, end = cont_idxs[3].tolist()[0], cont_idxs[3].tolist()[-1]
     logits[3][start:end] = logits[2][start:end].clone()
 
-    state.metric_outputs = metric.update(batch=batch, outputs=logits, labels=batch['labels'])
+    state.metric_outputs = metric.update(batch=batch,
+                                         outputs=logits,
+                                         labels=batch['labels'])
     state.batch = batch
     state.outputs = logits
     metric.compute()
@@ -142,9 +160,12 @@ def test_eval_output_logging_lm(tiny_gpt2_tokenizer):
             MockDataLoader(tiny_gpt2_tokenizer),
             'lm_acc',
         )
-        mock_lm_computation(state.eval_metrics['lm_acc']['InContextLearningLMAccuracy()'], tiny_gpt2_tokenizer, state)
+        mock_lm_computation(
+            state.eval_metrics['lm_acc']['InContextLearningLMAccuracy()'],
+            tiny_gpt2_tokenizer, state)
         state.metric_outputs['metric_name'] = [
-            lm_metric.__class__.__name__ for _ in range(0, state.batch['input_ids'].shape[0])
+            lm_metric.__class__.__name__
+            for _ in range(0, state.batch['input_ids'].shape[0])
         ]
         eval_output_logging.eval_batch_end(state, logger)
         state.timestamp = Timestamp(batch=state.timestamp.batch.value + 1)
@@ -164,14 +185,38 @@ def test_eval_output_logging_lm(tiny_gpt2_tokenizer):
     ]
     # We use the same data in each batch
     assert json.loads(in_memory_logger.tables[f'lm_acc_step_0'])['data'] == [
-        ['The dog is', ' furry', ' furry', 1, 'InContextLearningLMAccuracy', 'The dog is furry', 'mock_name'],
-        ['I love to eat', ' pie', '[PAD]', 0, 'InContextLearningLMAccuracy', 'I love to eat pie', 'mock_name'],
-        ['I hate', ' long lines', ' long lines', 1, 'InContextLearningLMAccuracy', 'I hate long lines', 'mock_name'],
-        ['The weather is', ' snowy', ' snowy', 1, 'InContextLearningLMAccuracy', 'The weather is snowy', 'mock_name'],
-        ['The dog is', ' furry', ' furry', 1, 'InContextLearningLMAccuracy', 'The dog is furry', 'mock_name'],
-        ['I love to eat', ' pie', '[PAD]', 0, 'InContextLearningLMAccuracy', 'I love to eat pie', 'mock_name'],
-        ['I hate', ' long lines', ' long lines', 1, 'InContextLearningLMAccuracy', 'I hate long lines', 'mock_name'],
-        ['The weather is', ' snowy', ' snowy', 1, 'InContextLearningLMAccuracy', 'The weather is snowy', 'mock_name'],
+        [
+            'The dog is', ' furry', ' furry', 1, 'InContextLearningLMAccuracy',
+            'The dog is furry', 'mock_name'
+        ],
+        [
+            'I love to eat', ' pie', '[PAD]', 0, 'InContextLearningLMAccuracy',
+            'I love to eat pie', 'mock_name'
+        ],
+        [
+            'I hate', ' long lines', ' long lines', 1,
+            'InContextLearningLMAccuracy', 'I hate long lines', 'mock_name'
+        ],
+        [
+            'The weather is', ' snowy', ' snowy', 1,
+            'InContextLearningLMAccuracy', 'The weather is snowy', 'mock_name'
+        ],
+        [
+            'The dog is', ' furry', ' furry', 1, 'InContextLearningLMAccuracy',
+            'The dog is furry', 'mock_name'
+        ],
+        [
+            'I love to eat', ' pie', '[PAD]', 0, 'InContextLearningLMAccuracy',
+            'I love to eat pie', 'mock_name'
+        ],
+        [
+            'I hate', ' long lines', ' long lines', 1,
+            'InContextLearningLMAccuracy', 'I hate long lines', 'mock_name'
+        ],
+        [
+            'The weather is', ' snowy', ' snowy', 1,
+            'InContextLearningLMAccuracy', 'The weather is snowy', 'mock_name'
+        ],
     ]
 
 
@@ -193,12 +238,14 @@ def test_eval_output_logging_mc(tiny_gpt2_tokenizer):
             'mc_acc',
         )
         mock_mc_computation(
-            state.eval_metrics['mc_acc']['InContextLearningMultipleChoiceAccuracy()'],
+            state.eval_metrics['mc_acc']
+            ['InContextLearningMultipleChoiceAccuracy()'],
             tiny_gpt2_tokenizer,
             state,
         )
         state.metric_outputs['metric_name'] = [
-            mc_metric.__class__.__name__ for _ in range(0, state.batch['input_ids'].shape[0])
+            mc_metric.__class__.__name__
+            for _ in range(0, state.batch['input_ids'].shape[0])
         ]
         eval_output_logging.eval_batch_end(state, logger)
         state.timestamp = Timestamp(batch=state.timestamp.batch.value + 1)
@@ -227,7 +274,10 @@ def test_eval_output_logging_mc(tiny_gpt2_tokenizer):
             0,
             ' A: turn on the oven',
             0,
-            ['Q: How do you cook a cake? A: turn on the oven', 'Q: How do you cook a cake? A: do a backflip'],
+            [
+                'Q: How do you cook a cake? A: turn on the oven',
+                'Q: How do you cook a cake? A: do a backflip'
+            ],
             1,
             'InContextLearningMultipleChoiceAccuracy',
             'Q: How do you cook a cake? A: turn on the oven',
@@ -254,7 +304,10 @@ def test_eval_output_logging_mc(tiny_gpt2_tokenizer):
             0,
             ' A: turn on the oven',
             0,
-            ['Q: How do you cook a cake? A: turn on the oven', 'Q: How do you cook a cake? A: do a backflip'],
+            [
+                'Q: How do you cook a cake? A: turn on the oven',
+                'Q: How do you cook a cake? A: do a backflip'
+            ],
             1,
             'InContextLearningMultipleChoiceAccuracy',
             'Q: How do you cook a cake? A: turn on the oven',

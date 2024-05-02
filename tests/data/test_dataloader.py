@@ -378,13 +378,15 @@ def test_finetuning_dataloader(use_chat_formatting: bool,
             break
 
 
-@pytest.mark.parametrize('hf_name, hf_revision, expectation',
-                         [('mosaicml/dolly_hhrlhf', None, does_not_raise()),
-                          ('squad', '5fe18c', pytest.raises(FileNotFoundError))]
-                        )
+@pytest.mark.parametrize(
+    'hf_name, hf_revision, expectation',
+    [('HuggingFaceH4/databricks_dolly_15k', None, does_not_raise()),
+     ('squad', '5fe18c', pytest.raises(FileNotFoundError))])
 def test_finetuning_dataloader_safe_load(hf_name: str,
                                          hf_revision: Optional[str],
                                          expectation: ContextManager):
+    # Clear the folder
+    shutil.rmtree(DOWNLOADED_FT_DATASETS_DIRPATH, ignore_errors=True)
     cfg = DictConfig({
         'name': 'finetuning',
         'dataset': {

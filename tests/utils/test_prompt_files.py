@@ -13,6 +13,10 @@ def test_load_prompt_strings(tmp_path: Path):
         f.write('hello goodbye')
 
     temp = utils.PROMPTFILE_PREFIX + str(tmp_path / 'prompts.txt')
-    assert utils.load_prompts(
-        [temp, temp, 'why'],
-        ' ') == ['hello', 'goodbye', 'hello', 'goodbye', 'why']
+    assert utils.load_prompts([temp, temp, 'why'], ' ') == [
+        'hello',
+        'goodbye',
+        'hello',
+        'goodbye',
+        'why',
+    ]

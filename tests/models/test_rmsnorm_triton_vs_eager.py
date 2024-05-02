@@ -13,12 +13,15 @@ from llmfoundry.models.layers.layer_builders import build_norm
 
 @pytest.mark.gpu
 @pytest.mark.parametrize('normalized_shape', [32, 128, 4096])
-def test_rmsnorm_triton_vs_eager(normalized_shape: Union[int, List[int]],
-                                 device: str = 'cuda'):
+def test_rmsnorm_triton_vs_eager(
+    normalized_shape: Union[int, List[int]],
+    device: str = 'cuda',
+):
     # Compare Triton and PyTorch Eager implementations of RMSNorm
     if not is_flash_v2_installed():
         pytest.skip(
-            'triton implementation of rmsnorm requires flash attention 2.')
+            'triton implementation of rmsnorm requires flash attention 2.',
+        )
 
     batch_size = 2
 
@@ -38,7 +41,7 @@ def test_rmsnorm_triton_vs_eager(normalized_shape: Union[int, List[int]],
     if isinstance(normalized_shape, int):
         input_shape = [batch_size, normalized_shape]
     else:
-        input_shape = tuple([batch_size, *normalized_shape])
+        input_shape = (batch_size, *normalized_shape)
 
     x0 = torch.randn(size=input_shape, device=device)
     x1 = x0.clone().detach()

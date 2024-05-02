@@ -27,18 +27,21 @@ def ensure_list(x: Union[List, torch.Tensor]) -> List:
     return x
 
 
-def validate_target_settings(target_prompts: str, target_responses: str,
-                             decoder_only_format: bool):
+def validate_target_settings(
+    target_prompts: str,
+    target_responses: str,
+    decoder_only_format: bool,
+):
     """Raises an error if target settings are invalid."""
-    if (not decoder_only_format) and (target_prompts != 'none' or
-                                      target_responses != 'last'):
+    if (not decoder_only_format
+       ) and (target_prompts != 'none' or target_responses != 'last'):
         raise ValueError(
-            f'When using encoder_decoder format, you must use target_prompts="none" and target_responses="last".'
+            f'When using encoder_decoder format, you must use target_prompts="none" and target_responses="last".',
         )
 
     if target_responses not in {'all', 'last'}:
         raise ValueError(
-            f'target_responses must be either "last" or "all" but {target_responses=}'
+            f'target_responses must be either "last" or "all" but {target_responses=}',
         )
 
     if target_prompts.startswith('length>='):
@@ -47,37 +50,43 @@ def validate_target_settings(target_prompts: str, target_responses: str,
             raise ValueError(
                 f'target_prompts starts with "length>=" but the rest of the string is not digits ({target_prompts=}). ' +\
                 'To use this configuration option, set target_prompts "length>=XX" where "XX" is a positive integer indicating ' +\
-                'the length cutoff. Prompts of at least XX tokens in length will be treated as targets.'
+                'the length cutoff. Prompts of at least XX tokens in length will be treated as targets.',
             )
         cutoff = int(cutoff)
         if cutoff <= 0:
             raise ValueError(
-                f'You are trying to set the target_prompts length cutoff to a negative number {cutoff=}. This is not allowed.'
+                f'You are trying to set the target_prompts length cutoff to a negative number {cutoff=}. This is not allowed.',
             )
     elif target_prompts not in {'all', 'none'}:
         raise ValueError(
-            f'target_prompts must either be "all", "none" or "length>=XX" where "XX" is a positive integer, but {target_prompts=}'
+            f'target_prompts must either be "all", "none" or "length>=XX" where "XX" is a positive integer, but {target_prompts=}',
         )
 
 
 ###### Functions to implement target_prompts and target_responses choices #####
-def _sequence_to_labels_all(sequence: list[int],
-                            is_last_turn: bool,
-                            cutoff: Optional[int] = None) -> list[int]:
+def _sequence_to_labels_all(
+    sequence: list[int],
+    is_last_turn: bool,
+    cutoff: Optional[int] = None,
+) -> list[int]:
     del is_last_turn, cutoff  # unused
     return sequence
 
 
-def _sequence_to_labels_none(sequence: list[int],
-                             is_last_turn: bool,
-                             cutoff: Optional[int] = None) -> list[int]:
+def _sequence_to_labels_none(
+    sequence: list[int],
+    is_last_turn: bool,
+    cutoff: Optional[int] = None,
+) -> list[int]:
     del is_last_turn, cutoff  # unused
     return [_HF_IGNORE_INDEX] * len(sequence)
 
 
-def _sequence_to_labels_last(sequence: list[int],
-                             is_last_turn: bool,
-                             cutoff: Optional[int] = None) -> list[int]:
+def _sequence_to_labels_last(
+    sequence: list[int],
+    is_last_turn: bool,
+    cutoff: Optional[int] = None,
+) -> list[int]:
     del cutoff  # unused
     if is_last_turn:
         return sequence
@@ -85,9 +94,11 @@ def _sequence_to_labels_last(sequence: list[int],
         return [_HF_IGNORE_INDEX] * len(sequence)
 
 
-def _sequence_to_labels_cutoff(sequence: list[int],
-                               is_last_turn: bool,
-                               cutoff: Optional[int] = None) -> list[int]:
+def _sequence_to_labels_cutoff(
+    sequence: list[int],
+    is_last_turn: bool,
+    cutoff: Optional[int] = None,
+) -> list[int]:
     del is_last_turn  # unused
     if cutoff is None:
         raise ValueError('input ``cutoff`` must be provided')
@@ -106,18 +117,21 @@ _TARGET_POLICY_LOOKUP = {
 
 
 def stitch_turns_decoder_only(
-        example_turns: list[dict[str, list[int]]],
-        target_prompts: str,
-        target_responses: str,
-        eos_token_id: Optional[int] = None,
-        validate: bool = False) -> tuple[list[int], list[int]]:
+    example_turns: list[dict[str, list[int]]],
+    target_prompts: str,
+    target_responses: str,
+    eos_token_id: Optional[int] = None,
+    validate: bool = False,
+) -> tuple[list[int], list[int]]:
     target_prompts = target_prompts.lower()
     target_responses = target_responses.lower()
 
     if validate:
-        validate_target_settings(target_prompts,
-                                 target_responses,
-                                 decoder_only_format=True)
+        validate_target_settings(
+            target_prompts,
+            target_responses,
+            decoder_only_format=True,
+        )
 
     if target_prompts.startswith('length'):
         prompt_cutoff = int(target_prompts.split('>=')[-1])
@@ -148,7 +162,7 @@ def stitch_turns_decoder_only(
 
     if len(input_ids) != len(labels):
         raise ValueError(
-            f'input_ids and labels should be the same length, {len(input_ids)=}, {len(labels)=}'
+            f'input_ids and labels should be the same length, {len(input_ids)=}, {len(labels)=}',
         )
     return input_ids, labels
 
@@ -240,29 +254,32 @@ class Seq2SeqFinetuningCollator:
             'decoder_input_ids',
             'decoder_attention_mask',
         ]
-        found_keys = []
-        for illegal_key in illegal_keys:
-            if illegal_key in self.batch_metadata:
-                found_keys.append(illegal_key)
+        found_keys = [
+            illegal_key for illegal_key in illegal_keys
+            if illegal_key in self.batch_metadata
+        ]
         if found_keys:
             raise ValueError(
                 f'The following keys are in batch_metadata but are not allowed: {", ".join(found_keys)}.\n' +\
                 f'You cannot use keys that are used directly by the models. The prohibited keys are:\n' +\
-                f'{", ".join(illegal_keys)}'
+                f'{", ".join(illegal_keys)}',
             )
 
         if (max_seq_len % 8) != 0:
             log.warning(
-                'For performance, a max_seq_len as a multiple of 8 is recommended.'
+                'For performance, a max_seq_len as a multiple of 8 is recommended.',
             )
 
         if self.tokenizer.pad_token_id is None:
             raise ValueError(
-                f'{self.__class__.__name__} requires that the tokenizer has the pad token set, but it is None'
+                f'{self.__class__.__name__} requires that the tokenizer has the pad token set, but it is None',
             )
 
-        validate_target_settings(self.target_prompts, self.target_responses,
-                                 self.decoder_only_format)
+        validate_target_settings(
+            self.target_prompts,
+            self.target_responses,
+            self.decoder_only_format,
+        )
         if self.target_prompts.startswith('length'):
             self.prompt_cutoff = int(self.target_prompts.split('>=')[-1])
             self.prompt_to_target = _TARGET_POLICY_LOOKUP['length']
@@ -280,7 +297,7 @@ class Seq2SeqFinetuningCollator:
         for check_key in ['input_ids', 'labels']:
             if check_key not in examples[0]['turns'][0]:
                 raise KeyError(
-                    f'Examples returned by dataset do not include required key: {check_key}'
+                    f'Examples returned by dataset do not include required key: {check_key}',
                 )
 
         if self.decoder_only_format:
@@ -298,7 +315,9 @@ class Seq2SeqFinetuningCollator:
         return batch
 
     def _process_and_batch_decoder_only(
-            self, examples: List[TokenizedExample]) -> Dict[str, torch.Tensor]:
+        self,
+        examples: List[TokenizedExample],
+    ) -> Dict[str, torch.Tensor]:
         # Steps explained in comments
         processed_examples = []
         for example in examples:
@@ -323,14 +342,14 @@ class Seq2SeqFinetuningCollator:
                         'This sample should have been filtered out before reaching the collator. If using ' +\
                         'pre-tokenized streaming data, this may have resulted from using different ' +\
                         '``target_prompts``, ``target_responses``, or ``max_seq_len`` ' +\
-                        'settings when preparing the streaming dataset than what are currently being used.'
+                        'settings when preparing the streaming dataset than what are currently being used.',
                     )
 
                 # Still issue a warning when truncating
                 if not self._warned_truncated:
                     warnings.warn(
                         f'Truncating sequence of length={orig_size} to fit max_seq_len={self.max_seq_len}. ' +\
-                        f'If truncation is a problem, consider increasing max_seq_len.'
+                        f'If truncation is a problem, consider increasing max_seq_len.',
                     )
                     self._warned_truncated = True
 
@@ -385,7 +404,9 @@ class Seq2SeqFinetuningCollator:
         return batch
 
     def _process_and_batch_encoder_decoder(
-            self, examples: List[TokenizedExample]) -> Dict[str, torch.Tensor]:
+        self,
+        examples: List[TokenizedExample],
+    ) -> Dict[str, torch.Tensor]:
         # The encoder-decoder case is has some gotchas.
         # Steps are explained in comments.
         processed_examples = []
@@ -439,14 +460,18 @@ class Seq2SeqFinetuningCollator:
         # We're still missing decoder_input_ids and decoder_attention_mask
         batch['decoder_input_ids'] = torch.cat([
             torch.full((len(processed_examples), 1),
-                       self.tokenizer.pad_token_id), batch['labels'][:, :-1]
+                       self.tokenizer.pad_token_id),
+            batch['labels'][:, :-1],
         ],
                                                dim=1)
         batch['decoder_input_ids'].masked_fill_(
             batch['decoder_input_ids'] == _HF_IGNORE_INDEX,
-            self.tokenizer.pad_token_id)
+            self.tokenizer.pad_token_id,
+        )
         batch['decoder_attention_mask'] = torch.not_equal(
-            batch['labels'], _HF_IGNORE_INDEX)
+            batch['labels'],
+            _HF_IGNORE_INDEX,
+        )
 
         # This logic prevents trimming on at least the first batch
         if not (self._allow_pad_trimming and self._seen_first_batch):

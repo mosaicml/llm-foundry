@@ -6,8 +6,10 @@ from typing import Any, Dict, List, Optional, Union
 
 from composer.loggers import MosaicMLLogger
 from composer.loggers.logger_destination import LoggerDestination
-from composer.loggers.mosaicml_logger import (MOSAICML_ACCESS_TOKEN_ENV_VAR,
-                                              MOSAICML_PLATFORM_ENV_VAR)
+from composer.loggers.mosaicml_logger import (
+    MOSAICML_ACCESS_TOKEN_ENV_VAR,
+    MOSAICML_PLATFORM_ENV_VAR,
+)
 from omegaconf import DictConfig, ListConfig
 
 __all__ = [
@@ -37,25 +39,31 @@ def maybe_create_mosaicml_logger() -> Optional[MosaicMLLogger]:
 
 
 def find_mosaicml_logger(
-        loggers: List[LoggerDestination]) -> Optional[MosaicMLLogger]:
+    loggers: List[LoggerDestination],
+) -> Optional[MosaicMLLogger]:
     """Returns the first MosaicMLLogger from a list, and None otherwise."""
     return next(
         (logger for logger in loggers if isinstance(logger, MosaicMLLogger)),
-        None)
+        None,
+    )
 
 
-def log_eval_analytics(mosaicml_logger: MosaicMLLogger,
-                       model_configs: ListConfig, icl_tasks: Union[str,
-                                                                   ListConfig],
-                       eval_gauntlet_config: Optional[Union[str, DictConfig]]):
+def log_eval_analytics(
+    mosaicml_logger: MosaicMLLogger,
+    model_configs: ListConfig,
+    icl_tasks: Union[str, ListConfig],
+    eval_gauntlet_config: Optional[Union[str, DictConfig]],
+):
     """Logs analytics for runs using the `eval.py` script."""
     metrics: Dict[str, Any] = {
         'llmfoundry/script': 'eval',
     }
 
     metrics['llmfoundry/gauntlet_configured'] = eval_gauntlet_config is not None
-    metrics['llmfoundry/icl_configured'] = isinstance(icl_tasks,
-                                                      str) or len(icl_tasks) > 0
+    metrics['llmfoundry/icl_configured'] = isinstance(
+        icl_tasks,
+        str,
+    ) or len(icl_tasks) > 0
 
     metrics['llmfoundry/model_configs'] = []
     for model_config in model_configs:
@@ -67,21 +75,24 @@ def log_eval_analytics(mosaicml_logger: MosaicMLLogger,
 
         if len(model_config_data) > 0:
             metrics['llmfoundry/model_configs'].append(
-                json.dumps(model_config_data, sort_keys=True))
+                json.dumps(model_config_data, sort_keys=True),
+            )
 
     mosaicml_logger.log_metrics(metrics)
     mosaicml_logger._flush_metadata(force_flush=True)
 
 
-def log_train_analytics(mosaicml_logger: MosaicMLLogger,
-                        model_config: DictConfig,
-                        train_loader_config: DictConfig,
-                        eval_loader_config: Optional[Union[DictConfig,
-                                                           ListConfig]],
-                        callback_configs: Optional[DictConfig],
-                        tokenizer_name: str, load_path: Optional[str],
-                        icl_tasks_config: Optional[Union[ListConfig, str]],
-                        eval_gauntlet: Optional[Union[DictConfig, str]]):
+def log_train_analytics(
+    mosaicml_logger: MosaicMLLogger,
+    model_config: DictConfig,
+    train_loader_config: DictConfig,
+    eval_loader_config: Optional[Union[DictConfig, ListConfig]],
+    callback_configs: Optional[DictConfig],
+    tokenizer_name: str,
+    load_path: Optional[str],
+    icl_tasks_config: Optional[Union[ListConfig, str]],
+    eval_gauntlet: Optional[Union[DictConfig, str]],
+):
     """Logs analytics for runs using the `train.py` script."""
     train_loader_dataset = train_loader_config.get('dataset', {})
     metrics: Dict[str, Any] = {
@@ -96,12 +107,16 @@ def log_train_analytics(mosaicml_logger: MosaicMLLogger,
         ]
 
     metrics['llmfoundry/gauntlet_configured'] = eval_gauntlet is not None
-    metrics['llmfoundry/icl_configured'] = (icl_tasks_config is not None and (
-        (isinstance(icl_tasks_config, str) or len(icl_tasks_config) > 0)))
+    metrics['llmfoundry/icl_configured'] = (
+        icl_tasks_config is not None and
+        ((isinstance(icl_tasks_config, str) or len(icl_tasks_config) > 0))
+    )
 
     if train_loader_dataset.get('hf_name', None) is not None:
         metrics['llmfoundry/train_dataset_hf_name'] = train_loader_dataset.get(
-            'hf_name', None)
+            'hf_name',
+            None,
+        )
     if train_loader_config.get('name') == 'finetuning':
         metrics['llmfoundry/train_task_type'] = 'INSTRUCTION_FINETUNE'
     elif train_loader_config.get('name') == 'text':
@@ -124,11 +139,13 @@ def log_train_analytics(mosaicml_logger: MosaicMLLogger,
             eval_loader_info['name'] = loader_config.get('name')
             if eval_loader_dataset.get('hf_name', None) is not None:
                 eval_loader_info['dataset_hf_name'] = eval_loader_dataset.get(
-                    'hf_name')
+                    'hf_name',
+                )
 
             # Log as a key-sorted JSON string, so that we can easily parse it in Spark / SQL
             metrics['llmfoundry/eval_loaders'].append(
-                json.dumps(eval_loader_info, sort_keys=True))
+                json.dumps(eval_loader_info, sort_keys=True),
+            )
 
     model_config_data = {}
     for key in _MODEL_KEYS_TO_LOG:

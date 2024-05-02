@@ -8,11 +8,13 @@ from unittest.mock import MagicMock, patch
 import pytest
 from composer.core import Time, Timestamp, TimeUnit
 
-from llmfoundry.callbacks.async_eval_callback import (AsyncEval,
-                                                      get_eval_parameters,
-                                                      get_run_name,
-                                                      validate_eval_run_config,
-                                                      validate_interval)
+from llmfoundry.callbacks.async_eval_callback import (
+    AsyncEval,
+    get_eval_parameters,
+    get_run_name,
+    validate_eval_run_config,
+    validate_interval,
+)
 from llmfoundry.utils.builders import build_callback
 from mcli import Run, RunConfig, RunStatus
 
@@ -27,9 +29,9 @@ BASIC_PARAMS = {
         'name': 'model_example',
         'config_overrides': {
             'attn_config': {
-                'foo': 'bar'
-            }
-        }
+                'foo': 'bar',
+            },
+        },
     },
     'tokenizer': {
         'tokenizer_example': 'tokenizer_example',
@@ -48,40 +50,47 @@ def test_get_run_name():
 
 @pytest.fixture(autouse=True, scope='module')
 def set_os_env_vars():
-    with patch.dict('os.environ', {
+    with patch.dict(
+        'os.environ',
+        {
             'MOSAICML_PLATFORM': 'true',
-            'RUN_NAME': RUN_NAME
-    }):
+            'RUN_NAME': RUN_NAME,
+        },
+    ):
         yield
 
 
 def test_fails_when_not_on_platform():
     with patch.dict('os.environ', {'MOSAICML_PLATFORM': 'false'}):
         with pytest.raises(
-                Exception,
-                match=
-                'AsyncEval callback is only supported when running on the MosaicML platform'
+            Exception,
+            match=
+            'AsyncEval callback is only supported when running on the MosaicML platform',
         ):
             AsyncEval(BASIC_PARAMS, interval='2ba')
 
 
 def test_fails_when_no_run_name():
-    with patch.dict('os.environ', {
+    with patch.dict(
+        'os.environ',
+        {
             'MOSAICML_PLATFORM': 'true',
-            'RUN_NAME': ''
-    }):
+            'RUN_NAME': '',
+        },
+    ):
         with pytest.raises(
-                Exception,
-                match=
-                'RUN_NAME environment variable must be set to use the AsyncEval callback'
+            Exception,
+            match=
+            'RUN_NAME environment variable must be set to use the AsyncEval callback',
         ):
             AsyncEval(BASIC_PARAMS, interval='2ba')
 
 
 def test_get_eval_parameters():
     with pytest.raises(
-            Exception,
-            match='Missing the following required parameters for async eval:'):
+        Exception,
+        match='Missing the following required parameters for async eval:',
+    ):
         get_eval_parameters({}, 'checkpoints/file', RUN_NAME)
 
     # minimal example
@@ -99,12 +108,12 @@ def test_get_eval_parameters():
                 'name': 'model_example',
                 'config_overrides': {
                     'attn_config': {
-                        'foo': 'bar'
+                        'foo': 'bar',
                     },
                 },
             },
             'tokenizer': {
-                'tokenizer_example': 'tokenizer_example'
+                'tokenizer_example': 'tokenizer_example',
             },
             'load_path': 'checkpoints/file',
         }],
@@ -119,15 +128,15 @@ def test_get_eval_parameters():
             'dist_timeout': 1,
             'eval_gauntlet': 'eval_gauntlet_example',
             'fsdp_config': {
-                'fsdp_cfg_example': 'fsdp_cfg_example'
+                'fsdp_cfg_example': 'fsdp_cfg_example',
             },
             'icl_subset_num_batches': 4,
             'loggers': {
                 'wandb': {
                     'init_kwargs': {
-                        'fee': 'bee'
-                    }
-                }
+                        'fee': 'bee',
+                    },
+                },
             },
             'precision': 'precision_example',
             'python_log_level': 'debug',
@@ -149,27 +158,27 @@ def test_get_eval_parameters():
                 'name': 'model_example',
                 'config_overrides': {
                     'attn_config': {
-                        'foo': 'bar'
+                        'foo': 'bar',
                     },
                 },
             },
             'tokenizer': {
-                'tokenizer_example': 'tokenizer_example'
+                'tokenizer_example': 'tokenizer_example',
             },
             'load_path': 'checkpoints/file',
         }],
         'eval_gauntlet': 'eval_gauntlet_example',
         'fsdp_config': {
-            'fsdp_cfg_example': 'fsdp_cfg_example'
+            'fsdp_cfg_example': 'fsdp_cfg_example',
         },
         'icl_subset_num_batches': 4,
         'loggers': {
             'wandb': {
                 'group': 'foo_bar-1234',
                 'init_kwargs': {
-                    'fee': 'bee'
+                    'fee': 'bee',
                 },
-            }
+            },
         },
         'precision': 'precision_example',
         'python_log_level': 'debug',
@@ -243,8 +252,10 @@ FAKE_RUN = Run(
 )
 
 
-@patch('llmfoundry.callbacks.async_eval_callback.get_run',
-       return_value=FAKE_RUN)
+@patch(
+    'llmfoundry.callbacks.async_eval_callback.get_run',
+    return_value=FAKE_RUN,
+)
 def test_async_eval_callback_builds(mock_get_run: MagicMock):
     kwargs = {'interval': 1}
     config = {
@@ -265,12 +276,18 @@ def test_async_eval_callback_builds(mock_get_run: MagicMock):
     assert mock_get_run.call_args[0][0] == RUN_NAME
 
 
-@patch('llmfoundry.callbacks.async_eval_callback.get_run',
-       return_value=FAKE_RUN)
-@patch('llmfoundry.callbacks.async_eval_callback.create_run',
-       return_value=FAKE_RUN)
-def test_async_eval_callback_minimal(mock_create_run: MagicMock,
-                                     mock_get_run: MagicMock):
+@patch(
+    'llmfoundry.callbacks.async_eval_callback.get_run',
+    return_value=FAKE_RUN,
+)
+@patch(
+    'llmfoundry.callbacks.async_eval_callback.create_run',
+    return_value=FAKE_RUN,
+)
+def test_async_eval_callback_minimal(
+    mock_create_run: MagicMock,
+    mock_get_run: MagicMock,
+):
     callback = AsyncEval(
         BASIC_PARAMS,
         interval='2ba',
@@ -324,20 +341,22 @@ def test_async_eval_callback_minimal(mock_create_run: MagicMock,
             'name': 'model_example',
             'config_overrides': {
                 'attn_config': {
-                    'foo': 'bar'
+                    'foo': 'bar',
                 },
             },
         },
         'tokenizer': {
-            'tokenizer_example': 'tokenizer_example'
+            'tokenizer_example': 'tokenizer_example',
         },
         'load_path': 'checkpoint/path',
     }]
     assert parameters['run_name'] == 'eval-1ba-foo_bar'  # original run
 
 
-@patch('llmfoundry.callbacks.async_eval_callback.get_run',
-       return_value=FAKE_RUN)
+@patch(
+    'llmfoundry.callbacks.async_eval_callback.get_run',
+    return_value=FAKE_RUN,
+)
 def test_async_eval_state(mock_create_run: MagicMock):
     callback = AsyncEval(BASIC_PARAMS, interval='2ba')
 
@@ -387,23 +406,31 @@ INTEGRATION_GIT_RANDOM = {
 
 FAKE_RUN_WITH_INTEGRATIONS = deepcopy(FAKE_RUN)
 FAKE_RUN_WITH_INTEGRATIONS.submitted_config.integrations = [
-    INTEGRATION_GIT_LLMFOUNDRY, INTEGRATION_GIT_RANDOM
+    INTEGRATION_GIT_LLMFOUNDRY,
+    INTEGRATION_GIT_RANDOM,
 ]
 
 
-@patch('llmfoundry.callbacks.async_eval_callback.get_run',
-       return_value=FAKE_RUN_WITH_INTEGRATIONS)
-@patch('llmfoundry.callbacks.async_eval_callback.create_run',
-       return_value=FAKE_RUN_WITH_INTEGRATIONS)
-def test_async_eval_callback_integrations(mock_create_run: MagicMock,
-                                          mock_get_run: MagicMock):
+@patch(
+    'llmfoundry.callbacks.async_eval_callback.get_run',
+    return_value=FAKE_RUN_WITH_INTEGRATIONS,
+)
+@patch(
+    'llmfoundry.callbacks.async_eval_callback.create_run',
+    return_value=FAKE_RUN_WITH_INTEGRATIONS,
+)
+def test_async_eval_callback_integrations(
+    mock_create_run: MagicMock,
+    mock_get_run: MagicMock,
+):
     callback = AsyncEval(
         BASIC_PARAMS,
         interval='2ba',
         eval_run_config={'compute': {
             'cluster': 'c2z3',
             'nodes': 2,
-        }})
+        }},
+    )
     assert mock_get_run.call_count == 1
 
     callback.launch_run('checkpoint/path', Time(1, TimeUnit.BATCH))
@@ -419,8 +446,10 @@ def test_async_eval_callback_integrations(mock_create_run: MagicMock,
     assert f'cd {custom_path}/scripts' in run_config_created.command
 
 
-@patch('llmfoundry.callbacks.async_eval_callback.dist.get_world_size',
-       return_value=4)
+@patch(
+    'llmfoundry.callbacks.async_eval_callback.dist.get_world_size',
+    return_value=4,
+)
 def test_get_ready_sharded_checkpoints(mocked_get_world_size: MagicMock):
     assert not AsyncEval._get_ready_sharded_checkpoints({}, [])
     assert not AsyncEval._get_ready_sharded_checkpoints(

@@ -16,8 +16,10 @@ from llmfoundry.callbacks.log_mbmoe_tok_per_expert_callback import \
     MegaBlocksMoE_TokPerExpert
 from llmfoundry.callbacks.monolithic_ckpt_callback import \
     MonolithicCheckpointSaver
-from llmfoundry.callbacks.resumption_callbacks import (GlobalLRScaling,
-                                                       LayerFreezing)
+from llmfoundry.callbacks.resumption_callbacks import (
+    GlobalLRScaling,
+    LayerFreezing,
+)
 from llmfoundry.callbacks.scheduled_gc_callback import ScheduledGarbageCollector
 from llmfoundry.registry import callbacks, callbacks_with_config
 

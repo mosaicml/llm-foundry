@@ -16,15 +16,19 @@ def load_icl_config(conf_path: str = 'tests/data/test_tasks.yaml'):
     return test_cfg
 
 
-def run_test(dir: pathlib.Path,
-             tokenizer: PreTrainedTokenizerBase,
-             bos_tok: str = ''):
+def run_test(
+    dir: pathlib.Path,
+    tokenizer: PreTrainedTokenizerBase,
+    bos_tok: str = '',
+):
     task_cfg = load_icl_config()
-    evaluators, _ = build_icl_evaluators(task_cfg.icl_tasks,
-                                         tokenizer,
-                                         1024,
-                                         8,
-                                         destination_dir=str(dir))
+    evaluators, _ = build_icl_evaluators(
+        task_cfg.icl_tasks,
+        tokenizer,
+        1024,
+        8,
+        destination_dir=str(dir),
+    )
 
     for e in evaluators:
         batch = next(e.dataloader.dataloader.__iter__())
@@ -34,14 +38,15 @@ def run_test(dir: pathlib.Path,
             continuation_indices = list(batch['continuation_indices'][0])
             full_example = tokenizer.decode(inputs[0:continuation_indices[-1]])
             answer = tokenizer.decode(
-                inputs[continuation_indices[0]:continuation_indices[-1]])
+                inputs[continuation_indices[0]:continuation_indices[-1]],
+            )
         else:
             if tokenizer.pad_token_id is not None:
-                start_idx = (
-                    inputs == tokenizer.pad_token_id).tolist().index(False)
+                start_idx = (inputs == tokenizer.pad_token_id
+                            ).tolist().index(False)
             else:
-                start_idx = (
-                    inputs == tokenizer.eos_token_id).tolist().index(False)
+                start_idx = (inputs == tokenizer.eos_token_id
+                            ).tolist().index(False)
             full_example = tokenizer.decode(inputs[start_idx:])
             answer = batch['labels'][0][0]
 
@@ -71,10 +76,14 @@ def run_test(dir: pathlib.Path,
             assert answer == ' feared violence'
 
 
-@pytest.mark.parametrize('tokenizer_name,bos_token',
-                         [('facebook/opt-6.7b', '</s>'),
-                          ('EleutherAI/gpt-neox-20b', '')])
-def test_icl_task_tokenizer(tmp_path: pathlib.Path, tokenizer_name: str,
-                            bos_token: str):
+@pytest.mark.parametrize(
+    'tokenizer_name,bos_token',
+    [('facebook/opt-6.7b', '</s>'), ('EleutherAI/gpt-neox-20b', '')],
+)
+def test_icl_task_tokenizer(
+    tmp_path: pathlib.Path,
+    tokenizer_name: str,
+    bos_token: str,
+):
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
     run_test(tmp_path, tokenizer, bos_token)

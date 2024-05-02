@@ -12,14 +12,20 @@ from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 
 from scripts.train.train import main, validate_config  # noqa: E402
-from tests.data_utils import (create_arxiv_dataset, create_c4_dataset_xxsmall,
-                              gpt_tiny_cfg)
+from tests.data_utils import (
+    create_arxiv_dataset,
+    create_c4_dataset_xxsmall,
+    gpt_tiny_cfg,
+)
 from tests.fixtures.autouse import REPO_DIR
 
 
-@pytest.mark.parametrize('averages', [{
-    'core_average': ['language_understanding_lite']
-}, None])
+@pytest.mark.parametrize(
+    'averages',
+    [{
+        'core_average': ['language_understanding_lite'],
+    }, None],
+)
 def test_train_gauntlet(averages: Optional[dict], tmp_path: pathlib.Path):
     """Test training run with a small dataset."""
     dataset_name = create_c4_dataset_xxsmall(tmp_path)
@@ -32,8 +38,8 @@ def test_train_gauntlet(averages: Optional[dict], tmp_path: pathlib.Path):
                 'scripts/eval/local_data/language_understanding/lambada_openai_small.jsonl',
             'num_fewshot': [0],
             'icl_task_type':
-                'language_modeling'
-        })
+                'language_modeling',
+        }),
     ])
     test_cfg.icl_subset_num_batches = 1
     test_cfg.eval_subset_num_batches = 2
@@ -61,11 +67,11 @@ def test_train_gauntlet(averages: Optional[dict], tmp_path: pathlib.Path):
                             DictConfig({
                                 'name': 'lambada_openai',
                                 'num_fewshot': 0,
-                                'random_baseline': 0.0
-                            })
-                        ])
-                })
-            ])
+                                'random_baseline': 0.0,
+                            }),
+                        ]),
+                }),
+            ]),
     })
 
     if averages is not None:
@@ -88,12 +94,16 @@ def test_train_gauntlet(averages: Optional[dict], tmp_path: pathlib.Path):
     assert f'icl/metrics/eval_gauntlet/{category_name}' in inmemorylogger.data.keys(
     )
     assert isinstance(
-        inmemorylogger.data[f'icl/metrics/eval_gauntlet/{category_name}'], list)
-    assert len(inmemorylogger.data[f'icl/metrics/eval_gauntlet/{category_name}']
-               [-1]) > 0
+        inmemorylogger.data[f'icl/metrics/eval_gauntlet/{category_name}'],
+        list,
+    )
+    assert len(
+        inmemorylogger.data[f'icl/metrics/eval_gauntlet/{category_name}'][-1],
+    ) > 0
     assert isinstance(
         inmemorylogger.data[f'icl/metrics/eval_gauntlet/{category_name}'][-1],
-        tuple)
+        tuple,
+    )
 
     assert inmemorylogger.data[f'icl/metrics/eval_gauntlet/{category_name}'][
         -1][-1] == 0
@@ -129,22 +139,31 @@ def test_train_multi_eval(tmp_path: pathlib.Path):
     # Checks for first eval dataloader
     assert 'metrics/eval/c4/LanguageCrossEntropy' in inmemorylogger.data.keys()
     assert isinstance(
-        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'], list)
+        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'],
+        list,
+    )
     assert len(
-        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1]) > 0
+        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1],
+    ) > 0
     assert isinstance(
-        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1], tuple)
+        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1],
+        tuple,
+    )
 
     # Checks for second eval dataloader
     assert 'metrics/eval/arxiv/LanguageCrossEntropy' in inmemorylogger.data.keys(
     )
     assert isinstance(
-        inmemorylogger.data['metrics/eval/arxiv/LanguageCrossEntropy'], list)
+        inmemorylogger.data['metrics/eval/arxiv/LanguageCrossEntropy'],
+        list,
+    )
     assert len(
-        inmemorylogger.data['metrics/eval/arxiv/LanguageCrossEntropy'][-1]) > 0
+        inmemorylogger.data['metrics/eval/arxiv/LanguageCrossEntropy'][-1],
+    ) > 0
     assert isinstance(
         inmemorylogger.data['metrics/eval/arxiv/LanguageCrossEntropy'][-1],
-        tuple)
+        tuple,
+    )
 
 
 @pytest.mark.gpu
@@ -158,9 +177,9 @@ def test_validate_config():
     test_cfg.model.ffn_config.moe_world_size = 4
     test_cfg.fsdp_config.use_orig_params = False
     with pytest.raises(
-            ValueError,
-            match=
-            'MoEs with expert parallelism (.*) require `use_orig_params=True`.'
+        ValueError,
+        match=
+        'MoEs with expert parallelism (.*) require `use_orig_params=True`.',
     ):
         validate_config(test_cfg)
 
@@ -186,8 +205,13 @@ def test_eval_metrics_with_no_train_metrics(tmp_path: pathlib.Path):
 
     assert 'metrics/eval/c4/LanguageCrossEntropy' in inmemorylogger.data.keys()
     assert isinstance(
-        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'], list)
+        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'],
+        list,
+    )
     assert len(
-        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1]) > 0
+        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1],
+    ) > 0
     assert isinstance(
-        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1], tuple)
+        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1],
+        tuple,
+    )

@@ -18,9 +18,11 @@ class FDiffMetrics(Callback):
     numerical derivative of the metrics
     """
 
-    def __init__(self,
-                 diff_train_metrics: bool = False,
-                 diff_eval_metrics: bool = True):
+    def __init__(
+        self,
+        diff_train_metrics: bool = False,
+        diff_eval_metrics: bool = True,
+    ):
         self.diff_train_metrics = diff_train_metrics
         self.diff_eval_metrics = diff_eval_metrics
 
@@ -34,14 +36,16 @@ class FDiffMetrics(Callback):
                 raise NotImplementedError('Multiple losses not supported yet')
             loss = state.loss.item()
             if self.train_prev_loss:
-                logger.log_metrics(
-                    {'loss/train/total_fdiff': loss - self.train_prev_loss})
+                logger.log_metrics({
+                    'loss/train/total_fdiff': loss - self.train_prev_loss,
+                })
             self.train_prev_loss = loss
 
             for k in self.train_prev_metric.keys():
                 logger.log_metrics({
                     f'metrics/train/{k}_fdiff':
-                        state.train_metric_values[k] - self.train_prev_metric[k]
+                        state.train_metric_values[k] -
+                        self.train_prev_metric[k],
                 })
 
             for k in state.train_metric_values.keys():
@@ -61,7 +65,7 @@ class FDiffMetrics(Callback):
                     logger.log_metrics({
                         f'{mkey}_fdiff':
                             state.eval_metric_values[k] -
-                            self.eval_prev_metric[mkey]
+                            self.eval_prev_metric[mkey],
                     })
 
             for k in metrics:

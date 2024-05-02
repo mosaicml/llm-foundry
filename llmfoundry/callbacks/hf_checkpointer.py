@@ -21,9 +21,12 @@ from composer.core import Callback, Event, State, Time, TimeUnit
 from composer.core.state import fsdp_state_dict_type_context
 from composer.loggers import Logger, MLFlowLogger
 from composer.models import HuggingFaceModel
-from composer.utils import (dist, format_name_with_dist_and_time,
-                            maybe_create_remote_uploader_downloader_from_uri,
-                            parse_uri)
+from composer.utils import (
+    dist,
+    format_name_with_dist_and_time,
+    maybe_create_remote_uploader_downloader_from_uri,
+    parse_uri,
+)
 from composer.utils.misc import create_interval_scheduler
 from mlflow.transformers import _fetch_model_card, _write_license_information
 from packaging import version
@@ -42,8 +45,9 @@ _LICENSE_FILE_PATTERN = re.compile(r'license(\.[a-z]+|$)', re.IGNORECASE)
 
 
 def _maybe_get_license_filename(
-        local_dir: str,
-        pretrained_model_name: Optional[str] = None) -> Optional[str]:
+    local_dir: str,
+    pretrained_model_name: Optional[str] = None,
+) -> Optional[str]:
     """Returns the name of the license file if it exists in the local_dir.
 
     Note: This is intended to be consistent with the code in MLflow.
@@ -57,22 +61,29 @@ def _maybe_get_license_filename(
     If the license file does not exist, returns None.
     """
     try:
-        license_filename = next(file for file in os.listdir(local_dir)
-                                if _LICENSE_FILE_PATTERN.search(file))
+        license_filename = next(
+            file for file in os.listdir(local_dir)
+            if _LICENSE_FILE_PATTERN.search(file)
+        )
 
         # If a pretrained model name is provided, replace the license file with the correct info from HF Hub.
         if pretrained_model_name is not None:
             log.info(
-                f'Overwriting license file {license_filename} with license info for model {pretrained_model_name} from Hugging Face Hub'
+                f'Overwriting license file {license_filename} with license info for model {pretrained_model_name} from Hugging Face Hub',
             )
             os.remove(os.path.join(local_dir, license_filename))
             model_card = _fetch_model_card(pretrained_model_name)
 
             local_dir_path = Path(local_dir).absolute()
-            _write_license_information(pretrained_model_name, model_card,
-                                       local_dir_path)
-            license_filename = next(file for file in os.listdir(local_dir)
-                                    if _LICENSE_FILE_PATTERN.search(file))
+            _write_license_information(
+                pretrained_model_name,
+                model_card,
+                local_dir_path,
+            )
+            license_filename = next(
+                file for file in os.listdir(local_dir)
+                if _LICENSE_FILE_PATTERN.search(file)
+            )
 
         return license_filename
 
@@ -96,13 +107,16 @@ def _register_model_with_run_id_multiprocess(
         # If logging_level is 0, then the composer logger was unset.
         logging.basicConfig(
             format=
-            f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
+            f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s',
         )
         logging.getLogger('composer').setLevel(composer_logging_level)
 
     # Register model.
     mlflow_logger.register_model_with_run_id(
-        model_uri=model_uri, name=name, await_creation_for=await_creation_for)
+        model_uri=model_uri,
+        name=name,
+        await_creation_for=await_creation_for,
+    )
 
 
 class HuggingFaceCheckpointer(Callback):
@@ -136,15 +150,15 @@ class HuggingFaceCheckpointer(Callback):
     """
 
     def __init__(
-            self,
-            save_folder: str,
-            save_interval: Union[str, int, Time],
-            huggingface_folder_name: str = 'ba{batch}',
-            precision: str = 'float32',
-            overwrite: bool = True,
-            mlflow_registered_model_name: Optional[str] = None,
-            mlflow_logging_config: Optional[dict] = None,
-            flatten_imports: Sequence[str] = ('llmfoundry',),
+        self,
+        save_folder: str,
+        save_interval: Union[str, int, Time],
+        huggingface_folder_name: str = 'ba{batch}',
+        precision: str = 'float32',
+        overwrite: bool = True,
+        mlflow_registered_model_name: Optional[str] = None,
+        mlflow_logging_config: Optional[dict] = None,
+        flatten_imports: Sequence[str] = ('llmfoundry',),
     ):
         _, _, self.save_dir_format_str = parse_uri(save_folder)
         self.overwrite = overwrite
@@ -168,33 +182,44 @@ class HuggingFaceCheckpointer(Callback):
             mlflow_logging_config.setdefault('task', 'llm/v1/completions')
 
             default_input_example = {
-                'prompt': np.array(['What is Machine Learning?'])
+                'prompt': np.array(['What is Machine Learning?']),
             }
             is_chat = mlflow_logging_config['task'].endswith('chat') or (
                 mlflow_logging_config['metadata'] is not None and
                 mlflow_logging_config['metadata'].get('task',
-                                                      '').endswith('chat'))
+                                                      '').endswith('chat')
+            )
             if is_chat:
                 default_input_example = {
                     'messages': [{
                         'role': 'user',
-                        'content': 'What is Machine Learning?'
-                    }]
+                        'content': 'What is Machine Learning?',
+                    }],
                 }
-            mlflow_logging_config.setdefault('input_example',
-                                             default_input_example)
+            mlflow_logging_config.setdefault(
+                'input_example',
+                default_input_example,
+            )
 
         self.mlflow_logging_config = mlflow_logging_config
 
         self.huggingface_folder_name_fstr = os.path.join(
-            'huggingface', huggingface_folder_name)
+            'huggingface',
+            huggingface_folder_name,
+        )
 
-        self.save_interval: Time = Time.from_input(save_interval,
-                                                   TimeUnit.EPOCH)
+        self.save_interval: Time = Time.from_input(
+            save_interval,
+            TimeUnit.EPOCH,
+        )
         self.check_interval = create_interval_scheduler(
-            self.save_interval, include_end_of_training=True)
+            self.save_interval,
+            include_end_of_training=True,
+        )
         self.remote_ud = maybe_create_remote_uploader_downloader_from_uri(
-            save_folder, loggers=[])
+            save_folder,
+            loggers=[],
+        )
         if self.remote_ud is not None:
             self.remote_ud._num_concurrent_uploads = 4
 
@@ -208,14 +233,16 @@ class HuggingFaceCheckpointer(Callback):
     def run_event(self, event: Event, state: State, logger: Logger) -> None:
         # The interval scheduler handles only returning True for the appropriate events
         if state.get_elapsed_duration() is not None and self.check_interval(
-                state,
-                event) and self.last_checkpoint_batch != state.timestamp.batch:
+            state,
+            event,
+        ) and self.last_checkpoint_batch != state.timestamp.batch:
             self._save_checkpoint(state, logger)
         elif event == Event.INIT:
             if not isinstance(state.model, HuggingFaceModel):
                 raise ValueError(
                     f'`HuggingFaceCheckpointer` is only compatible with `HuggingFaceModel`s. '
-                    + f'Got {type(state.model)} instead.')
+                    + f'Got {type(state.model)} instead.',
+                )
             if self.remote_ud is not None:
                 self.remote_ud.init(state, logger)
                 state.callbacks.append(self.remote_ud)
@@ -230,12 +257,13 @@ class HuggingFaceCheckpointer(Callback):
                     raise ValueError(
                         f'`mlflow_registered_model_name` was set, but no `MLFlowLogger` was found in the `logger.destinations` list. '
                         +
-                        'Please add an `MLFlowLogger` or set `mlflow_registered_model_name` to `None`.'
+                        'Please add an `MLFlowLogger` or set `mlflow_registered_model_name` to `None`.',
                     )
 
                 import mlflow
                 mlflow.environment_variables.MLFLOW_HUGGINGFACE_MODEL_MAX_SHARD_SIZE.set(
-                    '1GB')
+                    '1GB',
+                )
         elif event == Event.FIT_END:
             # Wait for all child processes spawned by the callback to finish.
             timeout = 3600
@@ -244,7 +272,7 @@ class HuggingFaceCheckpointer(Callback):
                 wait_time = time.time() - wait_start
                 if wait_time > timeout:
                     raise TimeoutError(
-                        f'Waited {wait_time} seconds for child processes to complete. Exceeded timeout of {timeout} seconds.'
+                        f'Waited {wait_time} seconds for child processes to complete. Exceeded timeout of {timeout} seconds.',
                     )
                 time.sleep(2)
 
@@ -261,7 +289,8 @@ class HuggingFaceCheckpointer(Callback):
 
         epoch_complete = state.dataloader_len == state.timestamp.batch_in_epoch
         second_to_last_epoch = state.max_duration.unit == TimeUnit.EPOCH and (
-            state.timestamp.epoch == state.max_duration.value - 1)
+            state.timestamp.epoch == state.max_duration.value - 1
+        )
         # If the save interval is specified as exactly the same number of batches as the total duration,
         # but the max duration is specified in epochs, we need a special case to identify we are on the last batch
         # and should write the mlflow checkpoint. This should occur on the last batch of the final epoch.
@@ -273,7 +302,8 @@ class HuggingFaceCheckpointer(Callback):
         if self.save_interval.unit == TimeUnit.DURATION and self.save_interval.value == 1 and state.max_duration.unit == TimeUnit.EPOCH:
             assert state.dataloader_len is not None  # for pyright
             return int(state.timestamp.batch) % math.ceil(
-                state.max_duration.value * state.dataloader_len) == 0
+                state.max_duration.value * state.dataloader_len,
+            ) == 0
 
         return False
 
@@ -284,7 +314,9 @@ class HuggingFaceCheckpointer(Callback):
         return x.item() == 0
 
     def transform_model_and_tokenizer(
-        self, model: PreTrainedModel, tokenizer: PreTrainedTokenizerBase
+        self,
+        model: PreTrainedModel,
+        tokenizer: PreTrainedTokenizerBase,
     ) -> Tuple[PreTrainedModel, PreTrainedTokenizerBase]:
         """Transform the model and tokenizer before saving.
 
@@ -315,8 +347,11 @@ class HuggingFaceCheckpointer(Callback):
         save_dir = format_name_with_dist_and_time(
             str(
                 Path(self.save_dir_format_str) /
-                self.huggingface_folder_name_fstr), state.run_name,
-            state.timestamp)
+                self.huggingface_folder_name_fstr,
+            ),
+            state.run_name,
+            state.timestamp,
+        )
 
         # Use a temporary directory if save_dir is remote.
         use_temp_dir = self.remote_ud is not None
@@ -344,7 +379,9 @@ class HuggingFaceCheckpointer(Callback):
         if version.parse(torch.__version__) > version.parse('2.2.9'):
             from torch.distributed._tensor import DTensor
             from torch.distributed.checkpoint.state_dict import (
-                StateDictOptions, get_model_state_dict)
+                StateDictOptions,
+                get_model_state_dict,
+            )
             cpu_offload = True
 
             # Add a dtensor->cpu tensor hook to avoid CUDA OOM
@@ -373,20 +410,26 @@ class HuggingFaceCheckpointer(Callback):
             for _, module in state_dict_model.named_modules():
                 if isinstance(module, FSDP):
                     hooks.append(
-                        module._register_state_dict_hook(
-                            dtensor_to_tensor_hook))
+                        module.
+                        _register_state_dict_hook(dtensor_to_tensor_hook),
+                    )
 
-            state_dict = get_model_state_dict(state_dict_model,
-                                              options=StateDictOptions(
-                                                  full_state_dict=True,
-                                                  cpu_offload=cpu_offload))
+            state_dict = get_model_state_dict(
+                state_dict_model,
+                options=StateDictOptions(
+                    full_state_dict=True,
+                    cpu_offload=cpu_offload,
+                ),
+            )
             for hook in hooks:
                 hook.remove()
         else:
             state_dict_context = fsdp_state_dict_type_context(
-                original_model, state_dict_type='full') if (
-                    (not state.is_model_ddp) and isinstance(
-                        state_dict_model, FSDP)) else contextlib.nullcontext()
+                original_model,
+                state_dict_type='full',
+            ) if ((not state.is_model_ddp) and
+                  isinstance(state_dict_model,
+                             FSDP)) else contextlib.nullcontext()
             with state_dict_context:
                 state_dict = state_dict_model.state_dict()
 
@@ -419,7 +462,8 @@ class HuggingFaceCheckpointer(Callback):
 
                 new_model_instance = type(original_model)(
                     new_base_model_instance,
-                    original_model.peft_config[active_adapter])
+                    original_model.peft_config[active_adapter],
+                )
                 new_model_instance.to(dtype=self.dtype)
             else:
                 # First create the model instance on meta device to avoid the
@@ -427,7 +471,8 @@ class HuggingFaceCheckpointer(Callback):
                 with init_empty_weights():
                     new_model_instance = type(original_model)(copied_config)
                     new_model_instance.generation_config.update(
-                        **original_model.generation_config.to_dict())
+                        **original_model.generation_config.to_dict(),
+                    )
 
             # Then load the state dict in with "assign" so that the state dict
             # is loaded properly even though the model is initially on meta device.
@@ -436,7 +481,9 @@ class HuggingFaceCheckpointer(Callback):
 
             # Transform the model and tokenizer before saving
             new_model_instance, original_tokenizer = self.transform_model_and_tokenizer(
-                new_model_instance, original_tokenizer)
+                new_model_instance,
+                original_tokenizer,
+            )
 
             log.debug('Saving Hugging Face checkpoint to disk')
             new_model_instance.save_pretrained(temp_save_dir)
@@ -456,9 +503,10 @@ class HuggingFaceCheckpointer(Callback):
                 for filename in os.listdir(temp_save_dir):
                     remote_file_name = os.path.join(save_dir, filename)
                     remote_file_uri = self.remote_ud.remote_backend.get_uri(
-                        remote_file_name)
+                        remote_file_name,
+                    )
                     log.info(
-                        f'Uploading HuggingFace formatted checkpoint to {remote_file_uri}'
+                        f'Uploading HuggingFace formatted checkpoint to {remote_file_uri}',
                     )
                     self.remote_ud.upload_file(
                         state=state,
@@ -478,21 +526,22 @@ class HuggingFaceCheckpointer(Callback):
                 log.debug('Logging Hugging Face model to MLFlow')
                 for i, mlflow_logger in enumerate(self.mlflow_loggers):
                     log.debug(
-                        f'Registering model to UC at {mlflow_logger.model_registry_prefix}.{self.mlflow_registered_model_name}'
+                        f'Registering model to UC at {mlflow_logger.model_registry_prefix}.{self.mlflow_registered_model_name}',
                     )
                     local_save_path = str(
-                        Path(temp_save_dir) / f'mlflow_save_{i}')
+                        Path(temp_save_dir) / f'mlflow_save_{i}',
+                    )
 
                     # TODO: Remove after mlflow fixes the bug that makes this necessary
                     import mlflow
                     mlflow.store._unity_catalog.registry.rest_store.get_feature_dependencies = lambda *args, **kwargs: ''
                     model_saving_kwargs: Dict[str, Any] = {
-                        'path': local_save_path
+                        'path': local_save_path,
                     }
                     if composer_model.using_peft:
                         model_saving_kwargs['flavor'] = 'peft'
-                        model_saving_kwargs[
-                            'save_pretrained_dir'] = temp_save_dir
+                        model_saving_kwargs['save_pretrained_dir'
+                                           ] = temp_save_dir
                         model_saving_kwargs[
                             'metadata'] = self.mlflow_logging_config['metadata']
                     else:
@@ -506,7 +555,10 @@ class HuggingFaceCheckpointer(Callback):
                     license_filename = _maybe_get_license_filename(
                         local_save_path,
                         self.mlflow_logging_config['metadata'].get(
-                            'pretrained_model_name', None))
+                            'pretrained_model_name',
+                            None,
+                        ),
+                    )
                     if license_filename is not None:
                         mlflow_logger._mlflow_client.log_artifact(
                             mlflow_logger._run_id,
@@ -527,7 +579,8 @@ class HuggingFaceCheckpointer(Callback):
                                 self.mlflow_registered_model_name,
                             'await_creation_for':
                                 3600,
-                        })
+                        },
+                    )
                     process.start()
                     self.child_processes.append(process)
 

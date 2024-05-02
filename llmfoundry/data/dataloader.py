@@ -3,6 +3,8 @@
 
 """Dataloader builder utilities."""
 
+from typing import Union
+
 from composer import DataSpec
 from omegaconf import DictConfig
 from transformers import PreTrainedTokenizerBase
@@ -16,7 +18,7 @@ __all__ = [
 
 
 def build_dataloader(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
-                     device_batch_size: int) -> DataSpec:
+                     device_batch_size: Union[int, float]) -> DataSpec:
     """Builds a dataloader from a config.
 
     Args:

@@ -11,15 +11,17 @@ from omegaconf import DictConfig
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
+from llmfoundry import registry
 from llmfoundry.data.finetuning.collator import (Seq2SeqFinetuningCollator,
                                                  validate_target_settings)
 from llmfoundry.data.finetuning.tasks import (DOWNLOADED_FT_DATASETS_DIRPATH,
                                               SUPPORTED_EXTENSIONS,
                                               dataset_constructor)
 from llmfoundry.data.packing import BinPackCollator, auto_packing_ratio
-from llmfoundry.data.text_data import build_streams, get_tokens_per_batch_func
+from llmfoundry.data.text_data import build_streams
 from llmfoundry.utils.exceptions import (MissingHuggingFaceURLSplitError,
                                          NotEnoughDatasetSamplesError)
+from llmfoundry.utils.registry_utils import construct_from_registry
 
 log = logging.getLogger(__name__)
 
@@ -35,9 +37,9 @@ _DEFAULT_TARGET_RESPONSES = 'last'
 _DEFAULT_TARGET_PROMPTS = 'none'
 
 
-def build_finetuning_dataloader(cfg: DictConfig,
-                                tokenizer: PreTrainedTokenizerBase,
-                                device_batch_size: int) -> DataSpec:
+def build_finetuning_dataloader(
+        cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
+        device_batch_size: Union[int, float]) -> DataSpec:
     """Builds a finetuning dataloader for training or evaluating.
 
     The underlying dataset can be built through one of two code paths:
@@ -124,7 +126,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
         tokenizer (transformers.PreTrainedTokenizer): The tokenizer used to
             prepare the data from raw text. Any missing sentinel tokens will
             be added by the collator.
-        device_batch_size (int): The size of the batches (number of examples)
+        device_batch_size (int, float): The size of the batches (number of examples)
             that the dataloader will produce.
 
     Returns:
@@ -141,8 +143,27 @@ def build_finetuning_dataloader(cfg: DictConfig,
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    collate_fn, dataloader_batch_size = _build_collate_fn(
-        cfg, tokenizer, device_batch_size)
+    replication_factor, ds_batch_size = construct_from_registry(
+        name='dataset_replication_validator',
+        registry=registry.dataset_replication_validators,
+        partial_function=False,
+        kwargs={
+            'cfg': cfg,
+            'tokenizer': tokenizer,
+            'device_batch_size': device_batch_size
+        },
+    )
+
+    collate_fn, dataloader_batch_size = construct_from_registry(
+        name='finetuning_collator',
+        registry=registry.collators,
+        partial_function=False,
+        kwargs={
+            'cfg': cfg,
+            'tokenizer': tokenizer,
+            'ds_batch_size': ds_batch_size,
+        },
+    )
 
     dataset = None  # for pyright
     sampler = None
@@ -165,7 +186,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
             cache_limit=cfg.dataset.get('cache_limit', None),
             partition_algo=cfg.dataset.get('partition_algo', 'relaxed'),
             num_canonical_nodes=cfg.dataset.get('num_canonical_nodes', None),
-            batch_size=device_batch_size,
+            batch_size=ds_batch_size,
             shuffle=cfg.dataset.get('shuffle', False),
             shuffle_algo=cfg.dataset.get('shuffle_algo', 'py1e'),
             shuffle_seed=cfg.dataset.get('shuffle_seed', 9176),
@@ -175,7 +196,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
             batching_method=cfg.dataset.get('batching_method', 'random'),
             max_seq_len=cfg.dataset.max_seq_len,
             allow_unsafe_types=cfg.dataset.get('allow_unsafe_types', False),
-            replication=cfg.dataset.get('replication', None),
+            replication=replication_factor,
         )
 
     else:
@@ -218,7 +239,7 @@ def build_finetuning_dataloader(cfg: DictConfig,
 
         # Ensure dataset is large enough.
         if cfg.drop_last:
-            world_size = dist.get_world_size()
+            world_size = dist.get_world_size() // replication_factor
             minimum_dataset_size = world_size * dataloader_batch_size
             if hasattr(dataset, '__len__'):
                 full_dataset_size = len(dataset)
@@ -231,9 +252,15 @@ def build_finetuning_dataloader(cfg: DictConfig,
                         full_dataset_size=full_dataset_size,
                         minimum_dataset_size=minimum_dataset_size)
         # Initialize sampler.
-        sampler = dist.get_sampler(dataset,
-                                   drop_last=cfg.drop_last,
-                                   shuffle=cfg.dataset.shuffle)
+        sampler = dist.get_sampler(
+            dataset,
+            drop_last=cfg.drop_last,
+            shuffle=cfg.dataset.shuffle,
+            num_replicas=dist.get_world_size() //
+            replication_factor if replication_factor > 1 else None,
+            rank=dist.get_global_rank() //
+            replication_factor if replication_factor > 1 else None,
+        )
 
     assert dataset is not None  # for pyright
     dl = DataLoader(
@@ -249,9 +276,15 @@ def build_finetuning_dataloader(cfg: DictConfig,
         timeout=cfg.get('timeout', 0),
     )
 
-    token_counting_func = get_tokens_per_batch_func()
-
-    return DataSpec(dataloader=dl, get_num_tokens_in_batch=token_counting_func)
+    return construct_from_registry(
+        name='data_spec',
+        registry=registry.data_specs,
+        partial_function=False,
+        kwargs={
+            'dl': dl,
+            'dataset_cfg': cfg.dataset
+        },
+    )
 
 
 def _validate_config(dataset_cfg: DictConfig) -> None:
@@ -333,9 +366,14 @@ def _validate_config(dataset_cfg: DictConfig) -> None:
             'dataset, or set `remote` to use a streaming dataset, or set ' +\
             '`streams` to use multiple streaming datasets,  but all were None.'
         )
-    if dataset_cfg.get('max_seq_len') is None:
+    max_seq_len = dataset_cfg.get('max_seq_len')
+    if max_seq_len is None:
         raise ValueError(
             'In the dataset config, you must set the `max_seq_len`')
+
+    if max_seq_len != int(max_seq_len):
+        raise ValueError('max_seq_len must be an integer')
+    dataset_cfg['max_seq_len'] = int(max_seq_len)
 
     # Raise an error if the target_prompts + target_responses + decoder_only_format settings
     # are invalid
@@ -425,7 +463,7 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
     return finetune_dir
 
 
-def _build_collate_fn(
+def build_collate_fn(
     dataloader_cfg: DictConfig, tokenizer: PreTrainedTokenizerBase,
     device_batch_size: int
 ) -> Tuple[Union[Seq2SeqFinetuningCollator, BinPackCollator], int]:

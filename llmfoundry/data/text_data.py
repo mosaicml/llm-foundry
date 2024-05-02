@@ -3,30 +3,27 @@
 
 """Build a StreamingTextDataset dataset and dataloader for training."""
 
-import logging
+import inspect
 import os
 from itertools import islice
-from typing import (Any, Callable, Dict, List, Mapping, Optional, Sequence,
-                    Union, cast)
+from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Union, cast
 
 import numpy as np
 import torch
-import transformers
 from composer.core.data_spec import DataSpec
-from composer.core.types import Batch
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from streaming import Stream, StreamingDataset
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
-log = logging.getLogger(__name__)
+from llmfoundry import registry
+from llmfoundry.utils.registry_utils import construct_from_registry
 
 __all__ = [
     'StreamingTextDataset',
     'build_text_dataloader',
     'ConcatenatedSequenceCollatorWrapper',
-    'get_tokens_per_batch_func',
 ]
 
 
@@ -173,7 +170,7 @@ class StreamingTextDataset(StreamingDataset):
         self.max_seq_len = max_seq_len
 
     # How to tokenize a text sample to a token sample
-    def _tokenize(self, text_sample: Mapping) -> Dict[str, List[int]]:
+    def _tokenize(self, text_sample: Mapping) -> Dict[str, list[int]]:
         if self.tokenizer._pad_token is None:
             # Some tokenizers (e.g. GPT2 tokenizer) have no padding token which causes bugs
             raise RuntimeError(
@@ -192,7 +189,7 @@ class StreamingTextDataset(StreamingDataset):
 
     # How to process a sample
     def __getitem__(self,
-                    idx: int) -> Union[Dict[str, List[int]], torch.Tensor]:
+                    idx: int) -> Union[Dict[str, list[int]], torch.Tensor]:
         sample = super().__getitem__(idx)
         if 'text' in sample:
             token_sample = self._tokenize(sample)
@@ -233,7 +230,7 @@ class ConcatenatedSequenceCollatorWrapper:
             self.split_token_id = eos_token_id
             self.bos_mode = False
 
-    def __call__(self, examples: List[Any]) -> Dict[str, torch.Tensor]:
+    def __call__(self, examples: list[Any]) -> Dict[str, torch.Tensor]:
         batch = self.base_collator(examples)
         batch['sequence_id'] = self.get_sequence_id_from_batch(batch)
         return batch
@@ -268,69 +265,55 @@ def build_streams(dataset_cfg: DictConfig):
 def build_text_dataloader(
     cfg: DictConfig,
     tokenizer: PreTrainedTokenizerBase,
-    device_batch_size: int,
+    device_batch_size: Union[int, float],
 ) -> DataSpec:
     assert cfg.name == 'text', f'Tried to build text dataloader with cfg.name={cfg.name}'
 
     # get kwargs
-    mlm_probability = cfg.dataset.pop('mlm_probability', None)
-    eos_token_id = cfg.dataset.pop('eos_token_id', None)
-    bos_token_id = cfg.dataset.pop('bos_token_id', None)
-
-    if eos_token_id is None and bos_token_id is None and (hasattr(
-            tokenizer, 'eos_token_id') or hasattr(tokenizer, 'bos_token_id')):
-        log.warning(
-            'The user has not provided an eos_token_id or bos_token_id, but the tokenizer has an eos_token_id or a bos_token_id.'
-        )
-
-    tokenizer_eos_token_id = getattr(tokenizer, 'eos_token_id', None)
-    if eos_token_id is not None and eos_token_id != tokenizer_eos_token_id:
-        eos_mismatch_str = f'Provided {eos_token_id=} does not match the eos_token_id of the tokenizer={tokenizer_eos_token_id}.'
-        if cfg.dataset.pop('override_eos_token_id_mismatch_error', False):
-            log.warning(eos_mismatch_str)
-        else:
-            raise ValueError(
-                eos_mismatch_str +
-                ' To override this error, set the override_eos_token_id_mismatch_error flag to True in the dataset config section of the YAML.'
-            )
-
-    tokenizer_bos_token_id = getattr(tokenizer, 'bos_token_id', None)
-    if bos_token_id is not None and bos_token_id != tokenizer_bos_token_id:
-        bos_mismatch_str = f'Provided {bos_token_id=} does not match the bos_token_id of the tokenizer={tokenizer_bos_token_id}.'
-        if cfg.dataset.pop('override_bos_token_id_mismatch_error', False):
-            log.warning(bos_mismatch_str)
-        else:
-            raise ValueError(
-                bos_mismatch_str +
-                ' To override this error, set the override_bos_token_id_mismatch_error flag to True in the dataset config section of the YAML.'
-            )
+    cfg.dataset['replication'], ds_batch_size = construct_from_registry(
+        name='dataset_replication_validator',
+        registry=registry.dataset_replication_validators,
+        partial_function=False,
+        kwargs={
+            'cfg': cfg,
+            'tokenizer': tokenizer,
+            'device_batch_size': device_batch_size
+        },
+    )
 
     streams = build_streams(cfg.dataset)
+
+    valid_streaming_text_dataset_parameters = inspect.signature(
+        StreamingTextDataset).parameters
+
+    dataset_config_subset_for_streaming_text_dataset = {
+        k: v
+        for k, v in cfg.dataset.items()
+        if k in valid_streaming_text_dataset_parameters
+    }
 
     # build dataset potentially with streams
     dataset = StreamingTextDataset(
         tokenizer=tokenizer,
         streams=streams,
-        batch_size=device_batch_size,
-        **cfg.dataset,
+        batch_size=ds_batch_size,
+        **dataset_config_subset_for_streaming_text_dataset,
     )
 
-    collate_fn = transformers.DataCollatorForLanguageModeling(
-        tokenizer=dataset.tokenizer,
-        mlm=mlm_probability is not None,
-        mlm_probability=mlm_probability)
-
-    if (eos_token_id is not None) or (bos_token_id is not None):
-        # Note: Will raise an error if both are non-None
-        collate_fn = ConcatenatedSequenceCollatorWrapper(
-            base_collator=collate_fn,
-            eos_token_id=eos_token_id,
-            bos_token_id=bos_token_id)
+    collate_fn, _ = construct_from_registry(
+        name='text_collator',
+        registry=registry.collators,
+        partial_function=False,
+        kwargs={
+            'cfg': cfg,
+            'tokenizer': dataset.tokenizer,
+        },
+    )
 
     dl = DataLoader(
         dataset,
         collate_fn=collate_fn,
-        batch_size=device_batch_size,
+        batch_size=ds_batch_size,
         drop_last=cfg.drop_last,
         num_workers=cfg.num_workers,
         pin_memory=cfg.get('pin_memory', True),
@@ -339,58 +322,15 @@ def build_text_dataloader(
         timeout=cfg.get('timeout', 0),
     )
 
-    # If we pretokenized, we may not have padding, in which case the
-    # tokenizer may not have a pad_token_id. In this case, we can
-    # just use the default token counting function. This is correct
-    # because we do not support training on pretokenized data with padding,
-    # and if tokenizing on the fly, we require that the tokenizer has a pad token.
-    token_counting_func = None
-    if tokenizer.pad_token_id is not None:
-        token_counting_func = get_tokens_per_batch_func()
-
-    return DataSpec(dataloader=dl, get_num_tokens_in_batch=token_counting_func)
-
-
-def get_tokens_per_batch_func(
-        decoder_only: bool = True) -> Callable[[Batch], int]:
-    """Returns a callable that counts the number of tokens in a batch.
-
-    Args:
-        pad_token_id (int): The id of the padding token.
-        decoder_only (bool, optional): Whether to expect the batch to just contain ``input_ids`` (decoder only)
-            or to also contain ``decoder_input_ids`` (encoder decoder). Defaults to ``True``.
-
-    Returns:
-        Callable[[Batch], int]: A callable that counts the number of tokens in a batch.
-    """
-
-    def get_num_samples_in_batch(batch: Batch) -> int:
-        if not isinstance(batch, Mapping) or ('attention_mask' not in batch and
-                                              'input_ids' not in batch):
-            raise ValueError(
-                'get_tokens_per_batch_func() requires a batch with an attention_mask key or an input_ids key'
-            )
-
-        if not decoder_only and 'decoder_attention_mask' not in batch:
-            raise ValueError(
-                'get_tokens_per_batch_func() for encoder decoder requires a batch with a decoder_attention_mask key'
-            )
-
-        # Count number of non padding tokens in batch
-        if 'attention_mask' in batch:
-            input_ids_tokens = int(torch.sum(batch['attention_mask']).item())
-        else:
-            input_ids_tokens = batch['input_ids'].numel()
-
-        # For encoder decoder models only
-        decoder_input_ids_tokens = 0
-        if not decoder_only:
-            decoder_input_ids_tokens = int(
-                torch.sum(batch['decoder_attention_mask']).item())
-
-        return input_ids_tokens + decoder_input_ids_tokens
-
-    return get_num_samples_in_batch
+    return construct_from_registry(
+        name='data_spec',
+        registry=registry.data_specs,
+        partial_function=False,
+        kwargs={
+            'dl': dl,
+            'dataset_cfg': cfg.dataset
+        },
+    )
 
 
 # Helpful to test if your dataloader is working locally

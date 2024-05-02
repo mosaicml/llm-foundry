@@ -31,8 +31,8 @@ from llmfoundry.data.finetuning.tasks import (DOWNLOADED_FT_DATASETS_DIRPATH,
                                               is_valid_ift_example,
                                               tokenize_formatted_example)
 from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
-                                       build_text_dataloader,
-                                       get_tokens_per_batch_func)
+                                       build_text_dataloader)
+from llmfoundry.data.utils import get_tokens_per_batch_func
 from llmfoundry.utils.builders import build_tokenizer
 # yapf: disable
 from llmfoundry.utils.exceptions import (ConsecutiveRepeatedChatRolesError,

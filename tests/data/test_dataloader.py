@@ -37,8 +37,8 @@ from llmfoundry.data.finetuning.tasks import (
 from llmfoundry.data.text_data import (
     ConcatenatedSequenceCollatorWrapper,
     build_text_dataloader,
-    get_tokens_per_batch_func,
 )
+from llmfoundry.data.utils import get_tokens_per_batch_func
 from llmfoundry.utils.builders import build_tokenizer
 # yapf: disable
 from llmfoundry.utils.exceptions import (

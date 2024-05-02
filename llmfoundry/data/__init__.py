@@ -3,15 +3,22 @@
 
 from llmfoundry.data.data import ConcatTokensDataset, NoConcatDataset
 from llmfoundry.data.dataloader import build_dataloader
-from llmfoundry.data.finetuning import (Seq2SeqFinetuningCollator,
-                                        StreamingFinetuningDataset,
-                                        build_finetuning_dataloader)
-from llmfoundry.data.packing import (BinPackCollator, auto_packing_ratio,
-                                     profile_packing)
-from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
-                                       StreamingTextDataset,
-                                       build_text_dataloader,
-                                       get_tokens_per_batch_func)
+from llmfoundry.data.finetuning import (
+    Seq2SeqFinetuningCollator,
+    StreamingFinetuningDataset,
+    build_finetuning_dataloader,
+)
+from llmfoundry.data.packing import (
+    BinPackCollator,
+    auto_packing_ratio,
+    profile_packing,
+)
+from llmfoundry.data.text_data import (
+    ConcatenatedSequenceCollatorWrapper,
+    StreamingTextDataset,
+    build_text_dataloader,
+    get_tokens_per_batch_func,
+)
 from llmfoundry.registry import dataloaders
 
 dataloaders.register('text', func=build_text_dataloader)

@@ -2,11 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from llmfoundry.models.inference_api_wrapper.fmapi import (
-    FMAPICasualLMEvalWrapper, FMAPIChatAPIEvalWrapper, FMAPIEvalInterface)
+    FMAPICasualLMEvalWrapper,
+    FMAPIChatAPIEvalWrapper,
+    FMAPIEvalInterface,
+)
 from llmfoundry.models.inference_api_wrapper.interface import \
     InferenceAPIEvalWrapper
 from llmfoundry.models.inference_api_wrapper.openai_causal_lm import (
-    OpenAICausalLMEvalWrapper, OpenAIChatAPIEvalWrapper, OpenAIEvalInterface)
+    OpenAICausalLMEvalWrapper,
+    OpenAIChatAPIEvalWrapper,
+    OpenAIEvalInterface,
+)
 
 __all__ = [
     'OpenAICausalLMEvalWrapper',

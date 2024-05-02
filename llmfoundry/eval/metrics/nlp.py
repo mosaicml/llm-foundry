@@ -15,9 +15,12 @@ from typing import Any, Callable, Dict, List
 import numpy as np
 import torch
 from composer.utils import dist
-from composer.utils.eval_client import (EvalClient, LambdaEvalClient,
-                                        LocalEvalClient,
-                                        MosaicMLLambdaEvalClient)
+from composer.utils.eval_client import (
+    EvalClient,
+    LambdaEvalClient,
+    LocalEvalClient,
+    MosaicMLLambdaEvalClient,
+)
 from torch import Tensor
 from torch.nn import functional as F
 from torchmetrics import Metric
@@ -125,9 +128,11 @@ class InContextLearningGenerationExactMatchAccuracy(InContextLearningMetric):
     def __init__(self, dist_sync_on_step: bool = False):
         # state from multiple processes
         super().__init__(dist_sync_on_step=dist_sync_on_step)
-        self.add_state('correct',
-                       default=torch.tensor(0.),
-                       dist_reduce_fx='sum')
+        self.add_state(
+            'correct',
+            default=torch.tensor(0.),
+            dist_reduce_fx='sum',
+        )
         self.add_state('total', default=torch.tensor(0.), dist_reduce_fx='sum')
         self.metric_result_dict = {
             'cleaned_output': [],
@@ -149,8 +154,9 @@ class InContextLearningGenerationExactMatchAccuracy(InContextLearningMetric):
             return ' '.join(text.split())
 
         def handle_punc(text: str) -> str:
-            exclude = set(string.punctuation +
-                          ''.join([u'‘', u'’', u'´', u'`']))
+            exclude = set(
+                string.punctuation + ''.join([u'‘', u'’', u'´', u'`']),
+            )
             return ''.join(ch if ch not in exclude else ' ' for ch in text)
 
         def lower(text: str) -> str:
@@ -160,8 +166,8 @@ class InContextLearningGenerationExactMatchAccuracy(InContextLearningMetric):
             return text.replace('_', ' ')
 
         return white_space_fix(
-            remove_articles(handle_punc(lower(
-                replace_underscore(answer))))).strip()
+            remove_articles(handle_punc(lower(replace_underscore(answer)))),
+        ).strip()
 
     def update(
         self,
@@ -177,8 +183,10 @@ class InContextLearningGenerationExactMatchAccuracy(InContextLearningMetric):
             final_answer = sample_output
 
             if stopping_criteria is not None and len(stopping_criteria) > 0:
-                final_answer = re.split('|'.join(stopping_criteria),
-                                        final_answer)[0]
+                final_answer = re.split(
+                    '|'.join(stopping_criteria),
+                    final_answer,
+                )[0]
 
             if cot_delimiter is not None and len(cot_delimiter) > 0:
                 final_answer = final_answer.split(cot_delimiter)[-1]
@@ -199,8 +207,9 @@ class InContextLearningGenerationExactMatchAccuracy(InContextLearningMetric):
             metric_result_dict['cleaned_label'].append(cleaned_sample_labels)
 
             if any(
-                    cleaned_final_answer.startswith(label)
-                    for label in cleaned_sample_labels):
+                cleaned_final_answer.startswith(label)
+                for label in cleaned_sample_labels
+            ):
                 self.correct += torch.tensor(1.0)
                 metric_result_dict['result'].append(1)
             else:
@@ -243,29 +252,35 @@ class InContextLearningLMAccuracy(InContextLearningMetric):
     def __init__(self, dist_sync_on_step: bool = False):
         # state from multiple processes
         super().__init__(dist_sync_on_step=dist_sync_on_step)
-        self.add_state('correct',
-                       default=torch.tensor(0.),
-                       dist_reduce_fx='sum')
+        self.add_state(
+            'correct',
+            default=torch.tensor(0.),
+            dist_reduce_fx='sum',
+        )
         self.add_state('total', default=torch.tensor(0.), dist_reduce_fx='sum')
         self.metric_result_dict = {
             'context': [],
             'label': [],
             'output': [],
-            'result': []
+            'result': [],
         }
 
     def update(self, batch: dict, outputs: torch.Tensor, labels: torch.Tensor):
 
         metric_result_dict = copy.deepcopy(self.metric_result_dict)
         for batch_idx, cont_idx in enumerate(batch['continuation_indices']):
-            cont_tok_pred = outputs[batch_idx].index_select(dim=0,
-                                                            index=cont_idx -
-                                                            1).argmax(dim=-1)
-            cont_tok_targ = labels[batch_idx].index_select(dim=0,
-                                                           index=cont_idx - 1)
+            cont_tok_pred = outputs[batch_idx].index_select(
+                dim=0,
+                index=cont_idx - 1,
+            ).argmax(dim=-1)
+            cont_tok_targ = labels[batch_idx].index_select(
+                dim=0,
+                index=cont_idx - 1,
+            )
 
             metric_result_dict['context'].append(
-                batch['input_ids'][batch_idx][:cont_idx[0]])
+                batch['input_ids'][batch_idx][:cont_idx[0]],
+            )
             metric_result_dict['label'].append(cont_tok_targ)
             metric_result_dict['output'].append(cont_tok_pred)
 
@@ -308,9 +323,11 @@ class InContextLearningMultipleChoiceAccuracy(InContextLearningMetric):
     def __init__(self, dist_sync_on_step: bool = False):
         # state from multiple processes
         super().__init__(dist_sync_on_step=dist_sync_on_step)
-        self.add_state('correct',
-                       default=torch.tensor(0.0),
-                       dist_reduce_fx='sum')
+        self.add_state(
+            'correct',
+            default=torch.tensor(0.0),
+            dist_reduce_fx='sum',
+        )
         self.add_state('total', default=torch.tensor(0.0), dist_reduce_fx='sum')
         self.metric_result_dict = {
             'context': [],
@@ -327,19 +344,24 @@ class InContextLearningMultipleChoiceAccuracy(InContextLearningMetric):
         perplexities = []
         for batch_idx, cont_idx in enumerate(batch['continuation_indices']):
             # continuation indices refer to indices in the original input's token space
-            cont_tok_logits = outputs[batch_idx].index_select(dim=0,
-                                                              index=cont_idx -
-                                                              1)
+            cont_tok_logits = outputs[batch_idx].index_select(
+                dim=0,
+                index=cont_idx - 1,
+            )
             # labels have been shifted left by one index, so the cont_idx needs to be shifted as well.
-            cont_tok_targ = labels[batch_idx].index_select(dim=0,
-                                                           index=cont_idx - 1)
+            cont_tok_targ = labels[batch_idx].index_select(
+                dim=0,
+                index=cont_idx - 1,
+            )
             cross_entropy = F.cross_entropy(cont_tok_logits, cont_tok_targ)
             perplexity = torch.exp(cross_entropy)
             perplexities.append(perplexity)
 
         metric_result_dict = copy.deepcopy(self.metric_result_dict)
-        for (start, end), gold_idx in zip(batch['choice_groupings'],
-                                          batch['gold_indices']):
+        for (start, end), gold_idx in zip(
+            batch['choice_groupings'],
+            batch['gold_indices'],
+        ):
             subset = perplexities[start:end]
             idx_min = subset.index(min(subset))
 
@@ -424,7 +446,7 @@ class InContextLearningCodeEvalAccuracy(InContextLearningMetric):
             'context': [],
             'output': [],
             'result': [],
-            'sample_id': []
+            'sample_id': [],
         }
 
     def get_client(self) -> EvalClient:
@@ -435,7 +457,8 @@ class InContextLearningCodeEvalAccuracy(InContextLearningMetric):
                 'Running code eval locally may be insecure. Please set environment variable CODE_EVAL_DEVICE '
                 +
                 'to LAMBDA to run on remote. To use Lambdas, spin up your instance that checks code, set the URL as '
-                + 'CODE_EVAL_URL and the API key as CODE_EVAL_APIKEY.')
+                + 'CODE_EVAL_URL and the API key as CODE_EVAL_APIKEY.',
+            )
             log.debug('Running code eval locally.')
             client = LocalEvalClient()
         elif self.eval_device == 'LAMBDA':
@@ -449,11 +472,13 @@ class InContextLearningCodeEvalAccuracy(InContextLearningMetric):
                 'variable `CODE_EVAL_DEVICE` is not set. Please set it to `CODE_EVAL_DEVICE` '
                 +
                 'to one of `LOCAL` (for unsafe local eval), `LAMBDA` (for AWS lambda '
-                + 'evaluation), or `MOSAICML` (for lambda eval through MAPI).')
+                + 'evaluation), or `MOSAICML` (for lambda eval through MAPI).',
+            )
         else:
             raise ValueError(
                 'Environment variable `CODE_EVAL_DEVICE` must be one of `LOCAL`, '
-                + f'`LAMBDA`, or `MOSAICML` but got {self.eval_device}.')
+                + f'`LAMBDA`, or `MOSAICML` but got {self.eval_device}.',
+            )
 
         return client
 
@@ -476,17 +501,25 @@ class InContextLearningCodeEvalAccuracy(InContextLearningMetric):
         self.num_generations = batch['generations_per_sample']
 
         # We need to defer the accumulator initialization because it depends on dataset size
-        self.add_state('correct',
-                       default=torch.zeros(self.dataset_size, device=device),
-                       dist_reduce_fx='sum')
-        self.add_state('total',
-                       default=torch.zeros(self.dataset_size, device=device),
-                       dist_reduce_fx='sum')
+        self.add_state(
+            'correct',
+            default=torch.zeros(self.dataset_size, device=device),
+            dist_reduce_fx='sum',
+        )
+        self.add_state(
+            'total',
+            default=torch.zeros(self.dataset_size, device=device),
+            dist_reduce_fx='sum',
+        )
         dist.barrier()
         self._initialized = True
 
-    def update(self, batch: Dict[str, Any], outputs: List[str],
-               labels: List[str]):
+    def update(
+        self,
+        batch: Dict[str, Any],
+        outputs: List[str],
+        labels: List[str],
+    ):
         """Updates the pass@k accuracy of code generation.
 
         Given a batch of prompts, test cases, and code generations, evaluates the code generations
@@ -518,17 +551,21 @@ class InContextLearningCodeEvalAccuracy(InContextLearningMetric):
 
         metric_result_dict = copy.deepcopy(self.metric_result_dict)
         for sample_id, code_gen, sample_prompt, test_inputs, test_outputs, entry_point, language in zip(
-                batch['sample_id'], outputs, batch['prompts'],
-                batch['test_inputs'], batch['test_outputs'],
-                batch['entry_points'], batch['languages']):
+            batch['sample_id'],
+            outputs,
+            batch['prompts'],
+            batch['test_inputs'],
+            batch['test_outputs'],
+            batch['entry_points'],
+            batch['languages'],
+        ):
 
             idx = sample_id
             self.total[idx] += 1.0
             metric_result_dict['sample_id'].append(sample_id)
 
-            code_gen = re.split(
-                r'\n[A-Za-z0-9#`]',
-                code_gen)[0]  # remove everything after function ends
+            code_gen = re.split(r'\n[A-Za-z0-9#`]', code_gen)[
+                0]  # remove everything after function ends
             final_code = sample_prompt + code_gen  # combine prompt with the code generation
             metric_result_dict['context'].append(sample_prompt)
             metric_result_dict['output'].append(code_gen)
@@ -564,12 +601,12 @@ class InContextLearningCodeEvalAccuracy(InContextLearningMetric):
             warnings.warn(
                 'Some samples in the dataset have less than the expected number of generations. '
                 +
-                'This is expected if you are using a subset of the dataset for evaluation.'
+                'This is expected if you are using a subset of the dataset for evaluation.',
             )
 
         if (self.correct > self.total).any().item():
             raise ValueError(
-                'Internal error some samples have more correct than  total generations. This should not happen.'
+                'Internal error some samples have more correct than  total generations. This should not happen.',
             )
 
         results = {}
@@ -615,12 +652,16 @@ class InContextLearningExpectedCalibrationError(InContextLearningMetric):
         self.n_buckets = n_buckets
         if n_buckets < 1:
             raise Exception('`n_buckets`')
-        self.add_state('bucket_totals',
-                       default=torch.zeros(n_buckets),
-                       dist_reduce_fx='sum')
-        self.add_state('bucket_correct',
-                       default=torch.zeros(n_buckets),
-                       dist_reduce_fx='sum')
+        self.add_state(
+            'bucket_totals',
+            default=torch.zeros(n_buckets),
+            dist_reduce_fx='sum',
+        )
+        self.add_state(
+            'bucket_correct',
+            default=torch.zeros(n_buckets),
+            dist_reduce_fx='sum',
+        )
 
     def update(self, batch: dict, outputs: torch.Tensor, labels: torch.Tensor):
         pass
@@ -646,7 +687,8 @@ class InContextLearningExpectedCalibrationError(InContextLearningMetric):
 
 
 class InContextLearningMCExpectedCalibrationError(
-        InContextLearningExpectedCalibrationError):
+    InContextLearningExpectedCalibrationError,
+):
     r"""Computes Expected Calibration Error (ECE) for In-context learning (ICL)
 
     multiple choice (MC) tasks. (source: https://arxiv.org/abs/2012.00955).
@@ -664,17 +706,24 @@ class InContextLearningMCExpectedCalibrationError(
         outputs = torch.softmax(outputs, dim=2)
         probabilities = []
         for batch_idx, cont_idx in enumerate(batch['continuation_indices']):
-            cont_tok_logits = outputs[batch_idx].index_select(dim=0,
-                                                              index=cont_idx -
-                                                              1)
-            cont_tok_targ = labels[batch_idx].index_select(dim=0,
-                                                           index=cont_idx - 1)
+            cont_tok_logits = outputs[batch_idx].index_select(
+                dim=0,
+                index=cont_idx - 1,
+            )
+            cont_tok_targ = labels[batch_idx].index_select(
+                dim=0,
+                index=cont_idx - 1,
+            )
             probability = cont_tok_logits.index_select(
-                dim=1, index=cont_tok_targ).diagonal().mean()
+                dim=1,
+                index=cont_tok_targ,
+            ).diagonal().mean()
             probabilities.append(probability)
 
-        for (start, end), gold_idx in zip(batch['choice_groupings'],
-                                          batch['gold_indices']):
+        for (start, end), gold_idx in zip(
+            batch['choice_groupings'],
+            batch['gold_indices'],
+        ):
             subset = probabilities[start:end]
             idx_max = subset.index(max(subset))
             confidence = torch.tensor(subset).max() / torch.tensor(subset).sum()
@@ -686,14 +735,16 @@ class InContextLearningMCExpectedCalibrationError(
 
             if idx_max == gold_idx:
                 self.bucket_correct[
-                    bucket_idx] += 1  # pyright: ignore [reportGeneralTypeIssues]
+                    bucket_idx
+                ] += 1  # pyright: ignore [reportGeneralTypeIssues]
 
             self.bucket_totals[
                 bucket_idx] += 1  # pyright: ignore [reportGeneralTypeIssues]
 
 
 class InContextLearningLMExpectedCalibrationError(
-        InContextLearningExpectedCalibrationError):
+    InContextLearningExpectedCalibrationError,
+):
     r"""Computes Expected Calibration Error (ECE) for In-context learning (ICL)
 
     language modeling (LM) tasks. (cite: https://arxiv.org/pdf/1706.04599.pdf).
@@ -710,13 +761,16 @@ class InContextLearningLMExpectedCalibrationError(
 
         outputs = torch.softmax(outputs, dim=2)
         for batch_idx, cont_idx in enumerate(batch['continuation_indices']):
-            cont_tok_logits = outputs[batch_idx].index_select(dim=0,
-                                                              index=cont_idx -
-                                                              1)
+            cont_tok_logits = outputs[batch_idx].index_select(
+                dim=0,
+                index=cont_idx - 1,
+            )
             cont_tok_pred = cont_tok_logits.argmax(dim=-1)
             confidence = cont_tok_logits.max(dim=-1).values.min()
-            cont_tok_targ = labels[batch_idx].index_select(dim=0,
-                                                           index=cont_idx - 1)
+            cont_tok_targ = labels[batch_idx].index_select(
+                dim=0,
+                index=cont_idx - 1,
+            )
             assert confidence >= 0.0 and confidence <= 1.0
             bucket_idx = int(confidence * self.n_buckets)
             if bucket_idx == self.n_buckets:
@@ -724,7 +778,8 @@ class InContextLearningLMExpectedCalibrationError(
 
             if (cont_tok_pred == cont_tok_targ).all():
                 self.bucket_correct[
-                    bucket_idx] += 1  # pyright: ignore [reportGeneralTypeIssues]
+                    bucket_idx
+                ] += 1  # pyright: ignore [reportGeneralTypeIssues]
 
             self.bucket_totals[
                 bucket_idx] += 1  # pyright: ignore [reportGeneralTypeIssues]

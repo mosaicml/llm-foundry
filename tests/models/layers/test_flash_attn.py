@@ -7,15 +7,22 @@ import pytest
 import torch
 
 from llmfoundry.models.layers.attention import (
-    attn_bias_shape, build_attn_bias, check_alibi_support, flash_attn_fn,
-    gen_slopes, is_flash_v2_installed, scaled_multihead_dot_product_attention)
+    attn_bias_shape,
+    build_attn_bias,
+    check_alibi_support,
+    flash_attn_fn,
+    gen_slopes,
+    is_flash_v2_installed,
+    scaled_multihead_dot_product_attention,
+)
 from llmfoundry.models.mpt.modeling_mpt import gen_flash_attn_padding_info
 
 
 @pytest.mark.gpu
 @pytest.mark.skipif(
     not is_flash_v2_installed(),
-    reason='GQA natively only supported by Flash Attention after v2.')
+    reason='GQA natively only supported by Flash Attention after v2.',
+)
 @pytest.mark.parametrize('kv_n_heads', [1, 4, 8])
 def test_gqa_kv_repetition(kv_n_heads: int):
     # Test that flash attention v2 with GQA (kv_n_heads < n_heads) works the same
@@ -48,8 +55,15 @@ def test_gqa_kv_repetition(kv_n_heads: int):
         training=False,
         needs_weights=False,
         flash_attn_padding_info=gen_flash_attn_padding_info(
-            bsz, seqlen_1, 0, query_1.device, None, None),
-        should_repeat_kv_for_gqa=True)
+            bsz,
+            seqlen_1,
+            0,
+            query_1.device,
+            None,
+            None,
+        ),
+        should_repeat_kv_for_gqa=True,
+    )
 
     output_1.sum().backward()
 
@@ -75,8 +89,15 @@ def test_gqa_kv_repetition(kv_n_heads: int):
         training=False,
         needs_weights=False,
         flash_attn_padding_info=gen_flash_attn_padding_info(
-            bsz, seqlen_1, 0, query_2.device, None, None),
-        should_repeat_kv_for_gqa=False)
+            bsz,
+            seqlen_1,
+            0,
+            query_2.device,
+            None,
+            None,
+        ),
+        should_repeat_kv_for_gqa=False,
+    )
 
     output_2.sum().backward()
     assert torch.allclose(output_1, output_2)
@@ -89,7 +110,7 @@ def test_gqa_kv_repetition(kv_n_heads: int):
 @pytest.mark.skipif(
     not is_flash_v2_installed(v2_version='v2.1.2'),
     reason=
-    'Using sequence id with flash attention requires flash attention v2.1.2 or higher.'
+    'Using sequence id with flash attention requires flash attention v2.1.2 or higher.',
 )
 def test_seq_id_masking_FA_v2():
     # Test that flash attention v2 with sequence id masking works correctly.
@@ -108,14 +129,22 @@ def test_seq_id_masking_FA_v2():
     value_1.requires_grad = True
 
     seq_ranges = [
-        (0, 3), (3, 5), (5, 6)
+        (0, 3),
+        (3, 5),
+        (5, 6),
     ]  # Each batch has 3 sequences of length 3, 2, and 1 respectively.
     attention_mask_in_length_1 = torch.tensor([[3, 2, 1, 0, 0, 0],
                                                [3, 2, 1, 0, 0,
                                                 0]]).to(torch.int64).cuda()
 
     flash_attn_padding_info_1 = gen_flash_attn_padding_info(
-        bsz, seqlen_1, 0, query_1.device, attention_mask_in_length_1, None)
+        bsz,
+        seqlen_1,
+        0,
+        query_1.device,
+        attention_mask_in_length_1,
+        None,
+    )
 
     output_1, _, _ = flash_attn_fn(
         query=query_1,
@@ -131,7 +160,8 @@ def test_seq_id_masking_FA_v2():
         dropout_p=0.0,
         training=False,
         needs_weights=False,
-        flash_attn_padding_info=flash_attn_padding_info_1)
+        flash_attn_padding_info=flash_attn_padding_info_1,
+    )
 
     output_1.sum().backward()
 
@@ -144,7 +174,13 @@ def test_seq_id_masking_FA_v2():
         value_2.requires_grad = True
 
         flash_attn_padding_info_2 = gen_flash_attn_padding_info(
-            bsz, seq_range[1] - seq_range[0], 0, query_2.device, None, None)
+            bsz,
+            seq_range[1] - seq_range[0],
+            0,
+            query_2.device,
+            None,
+            None,
+        )
 
         output_2, _, _ = flash_attn_fn(
             query=query_2,
@@ -160,27 +196,34 @@ def test_seq_id_masking_FA_v2():
             dropout_p=0.0,
             training=False,
             needs_weights=False,
-            flash_attn_padding_info=flash_attn_padding_info_2)
+            flash_attn_padding_info=flash_attn_padding_info_2,
+        )
 
         output_2.sum().backward()
-        assert torch.allclose(output_1[:, seq_range[0]:seq_range[1], :],
-                              output_2)
+        assert torch.allclose(
+            output_1[:, seq_range[0]:seq_range[1], :],
+            output_2,
+        )
         assert torch.allclose(
             query_1.grad[:, seq_range[0]:seq_range[1], :],  # type: ignore
-            query_2.grad)  # type: ignore
+            query_2.grad,  # type: ignore
+        )
         assert torch.allclose(
             key_1.grad[:, seq_range[0]:seq_range[1], :],  # type: ignore
-            key_2.grad)  # type: ignore
+            key_2.grad,  # type: ignore
+        )
         assert torch.allclose(
             value_1.grad[:, seq_range[0]:seq_range[1], :],  # type: ignore
-            value_2.grad)  # type: ignore
+            value_2.grad,  # type: ignore
+        )
 
 
 @pytest.mark.gpu
 @pytest.mark.skipif(
     not is_flash_v2_installed(v2_version='v2.3.0'),
     reason=
-    'Sliding window attention only supported by Flash Attention after v2.3.0.')
+    'Sliding window attention only supported by Flash Attention after v2.3.0.',
+)
 @pytest.mark.parametrize('sliding_window_size', [1, 4, 8])
 def test_sliding_window(sliding_window_size: int):
     # Test that sliding window attention works as expected.
@@ -191,14 +234,14 @@ def test_sliding_window(sliding_window_size: int):
     seqlen_1 = 8
     bsz = 2
 
-    query_1 = torch.randn(bsz, seqlen_1, n_heads * d).to(dtype=dtype,
-                                                         device=device)
+    query_1 = torch.randn(bsz, seqlen_1,
+                          n_heads * d).to(dtype=dtype, device=device)
     query_1.requires_grad = True
-    key_1 = torch.randn(bsz, seqlen_1, n_heads * d).to(dtype=dtype,
-                                                       device=device)
+    key_1 = torch.randn(bsz, seqlen_1,
+                        n_heads * d).to(dtype=dtype, device=device)
     key_1.requires_grad = True
-    value_1 = torch.randn(bsz, seqlen_1, n_heads * d).to(dtype=dtype,
-                                                         device=device)
+    value_1 = torch.randn(bsz, seqlen_1,
+                          n_heads * d).to(dtype=dtype, device=device)
     value_1.requires_grad = True
 
     output_1, _, _ = flash_attn_fn(
@@ -216,9 +259,16 @@ def test_sliding_window(sliding_window_size: int):
         training=False,
         needs_weights=False,
         flash_attn_padding_info=gen_flash_attn_padding_info(
-            bsz, seqlen_1, 0, query_1.device, None, None),
+            bsz,
+            seqlen_1,
+            0,
+            query_1.device,
+            None,
+            None,
+        ),
         should_repeat_kv_for_gqa=True,
-        sliding_window_size=sliding_window_size)
+        sliding_window_size=sliding_window_size,
+    )
 
     output_1.sum().backward()
 
@@ -229,12 +279,13 @@ def test_sliding_window(sliding_window_size: int):
     value_2 = value_1.detach().clone()
     value_2.requires_grad = True
 
-    attn_bias_2 = torch.zeros(1, 1, seqlen_1, seqlen_1).to(dtype=dtype,
-                                                           device=device)
+    attn_bias_2 = torch.zeros(1, 1, seqlen_1,
+                              seqlen_1).to(dtype=dtype, device=device)
 
     window_mask_2 = torch.tril(
-        torch.ones(seqlen_1, seqlen_1), diagonal=-(sliding_window_size + 1)).to(
-            dtype=dtype, device=device) * torch.finfo(attn_bias_2.dtype).min
+        torch.ones(seqlen_1, seqlen_1),
+        diagonal=-(sliding_window_size + 1),
+    ).to(dtype=dtype, device=device) * torch.finfo(attn_bias_2.dtype).min
     attn_bias_2 = attn_bias_2 + window_mask_2
     output_2, _, _ = scaled_multihead_dot_product_attention(
         query=query_2,
@@ -268,7 +319,8 @@ def test_sliding_window(sliding_window_size: int):
 @pytest.mark.gpu
 @pytest.mark.skipif(
     not check_alibi_support('flash'),
-    reason='ALiBi only supported by Flash Attention after v2.4.2.')
+    reason='ALiBi only supported by Flash Attention after v2.4.2.',
+)
 @pytest.mark.parametrize('n_heads', [1, 6, 8])
 def test_alibi_bias(n_heads: int):
     # Test that sliding window attention works as expected.
@@ -278,19 +330,21 @@ def test_alibi_bias(n_heads: int):
     seqlen_1 = 8
     bsz = 2
 
-    query_1 = torch.randn(bsz, seqlen_1, n_heads * d).to(dtype=dtype,
-                                                         device=device)
+    query_1 = torch.randn(bsz, seqlen_1,
+                          n_heads * d).to(dtype=dtype, device=device)
     query_1.requires_grad = True
-    key_1 = torch.randn(bsz, seqlen_1, n_heads * d).to(dtype=dtype,
-                                                       device=device)
+    key_1 = torch.randn(bsz, seqlen_1,
+                        n_heads * d).to(dtype=dtype, device=device)
     key_1.requires_grad = True
-    value_1 = torch.randn(bsz, seqlen_1, n_heads * d).to(dtype=dtype,
-                                                         device=device)
+    value_1 = torch.randn(bsz, seqlen_1,
+                          n_heads * d).to(dtype=dtype, device=device)
     value_1.requires_grad = True
-    alibi_slopes_1 = gen_slopes(n_heads=n_heads,
-                                alibi_bias_max=8,
-                                device=torch.device(device),
-                                return_1d=True)
+    alibi_slopes_1 = gen_slopes(
+        n_heads=n_heads,
+        alibi_bias_max=8,
+        device=torch.device(device),
+        return_1d=True,
+    )
     output_1, _, _ = flash_attn_fn(
         query=query_1,
         key=key_1,
@@ -306,9 +360,16 @@ def test_alibi_bias(n_heads: int):
         training=False,
         needs_weights=False,
         flash_attn_padding_info=gen_flash_attn_padding_info(
-            bsz, seqlen_1, 0, query_1.device, None, None),
+            bsz,
+            seqlen_1,
+            0,
+            query_1.device,
+            None,
+            None,
+        ),
         should_repeat_kv_for_gqa=True,
-        alibi_slopes=alibi_slopes_1)
+        alibi_slopes=alibi_slopes_1,
+    )
 
     output_1.sum().backward()
 
@@ -321,12 +382,14 @@ def test_alibi_bias(n_heads: int):
 
     def gen_bias():
         causal = True
-        bs = attn_bias_shape('torch',
-                             n_heads,
-                             seqlen_1,
-                             True,
-                             use_sequence_id=False,
-                             causal=causal)
+        bs = attn_bias_shape(
+            'torch',
+            n_heads,
+            seqlen_1,
+            True,
+            use_sequence_id=False,
+            causal=causal,
+        )
 
         attn_bias = torch.zeros(*bs, device=device)
         attn_bias = build_attn_bias(

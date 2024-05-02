@@ -31,14 +31,16 @@ class HuggingFaceModelWithFSDP(HuggingFaceModel):
     Handles preparation for FSDP wrapping.
     """
 
-    def __init__(self,
-                 model: Union[transformers.PreTrainedModel, 'PeftModel'],
-                 tokenizer: Optional[PreTrainedTokenizerBase] = None,
-                 metrics: Optional[List[Metric]] = None,
-                 eval_metrics: Optional[List[Metric]] = None,
-                 shift_labels: bool = False,
-                 init_device: Optional[str] = None,
-                 peft_config: Optional['PeftConfig'] = None):
+    def __init__(
+        self,
+        model: Union[transformers.PreTrainedModel, 'PeftModel'],
+        tokenizer: Optional[PreTrainedTokenizerBase] = None,
+        metrics: Optional[List[Metric]] = None,
+        eval_metrics: Optional[List[Metric]] = None,
+        shift_labels: bool = False,
+        init_device: Optional[str] = None,
+        peft_config: Optional['PeftConfig'] = None,
+    ):
         super().__init__(
             model,
             tokenizer,
@@ -61,7 +63,7 @@ class HuggingFaceModelWithFSDP(HuggingFaceModel):
             output = self.model(**batch)  # type: ignore (thirdparty)
         else:
             raise ValueError(
-                'Unexpected batch type. Expected a dictionary with keys corresponding to the inputs to the forward function of the Huggingface model'
+                'Unexpected batch type. Expected a dictionary with keys corresponding to the inputs to the forward function of the Huggingface model',
             )
         return output
 
@@ -72,9 +74,10 @@ class HuggingFaceModelWithFSDP(HuggingFaceModel):
         return outputs[:2]
 
     @staticmethod
-    def prepare_inner_model(model: Union[transformers.PreTrainedModel,
-                                         'PeftModel'],
-                            init_device: Optional[str] = None):
+    def prepare_inner_model(
+        model: Union[transformers.PreTrainedModel, 'PeftModel'],
+        init_device: Optional[str] = None,
+    ):
         """Prepare the inner model for FSDP wrapping.
 
         Args:

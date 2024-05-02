@@ -14,16 +14,20 @@ import torch
 from composer.utils import get_file, safe_torch_load
 from transformers import PreTrainedTokenizer
 
-from llmfoundry.utils import (convert_and_save_ft_weights,
-                              get_hf_tokenizer_from_composer_state_dict)
+from llmfoundry.utils import (
+    convert_and_save_ft_weights,
+    get_hf_tokenizer_from_composer_state_dict,
+)
 
 
-def save_ft_config(composer_config: Dict[str, Any],
-                   tokenizer: PreTrainedTokenizer,
-                   save_dir: str,
-                   infer_gpu_num: int = 1,
-                   weight_data_type: str = 'fp32',
-                   force: bool = False):
+def save_ft_config(
+    composer_config: Dict[str, Any],
+    tokenizer: PreTrainedTokenizer,
+    save_dir: str,
+    infer_gpu_num: int = 1,
+    weight_data_type: str = 'fp32',
+    force: bool = False,
+):
 
     config = configparser.ConfigParser()
     config['gpt'] = {}
@@ -31,8 +35,9 @@ def save_ft_config(composer_config: Dict[str, Any],
         config['gpt']['model_name'] = 'mpt'
         config['gpt']['head_num'] = str(composer_config['n_heads'])
         n_embd = composer_config['d_model']
-        config['gpt']['size_per_head'] = str(n_embd //
-                                             composer_config['n_heads'])
+        config['gpt']['size_per_head'] = str(
+            n_embd // composer_config['n_heads'],
+        )
         config['gpt']['inter_size'] = str(n_embd * composer_config['mlp_ratio'])
         config['gpt']['max_pos_seq_len'] = str(composer_config['max_seq_len'])
         config['gpt']['num_layer'] = str(composer_config['n_layers'])
@@ -48,11 +53,11 @@ def save_ft_config(composer_config: Dict[str, Any],
             config['gpt']['use_attention_linear_bias'] = str(True)
         if composer_config['attn_clip_qkv'] and not force:
             raise RuntimeError(
-                'clip_qkv is enabled for this MPT model. This may not work as expected in FT. Use --force to force a conversion.'
+                'clip_qkv is enabled for this MPT model. This may not work as expected in FT. Use --force to force a conversion.',
             )
         if composer_config['attn_qk_ln'] and not force:
             raise RuntimeError(
-                'qk_ln is enabled for this MPT model. This may not work as expected in FT. Use --force to force a conversion.'
+                'qk_ln is enabled for this MPT model. This may not work as expected in FT. Use --force to force a conversion.',
             )
 
         with open(os.path.join(save_dir, 'config.ini'), 'w') as configfile:
@@ -64,13 +69,13 @@ def save_ft_config(composer_config: Dict[str, Any],
 
 
 def write_ft_checkpoint_from_composer_checkpoint(
-        checkpoint_path: Union[Path, str],
-        infer_gpu_num: int,
-        save_dir: str,
-        trust_remote_code: bool,
-        output_precision: str = 'fp32',
-        local_checkpoint_save_location: Optional[Union[Path,
-                                                       str]] = None) -> None:
+    checkpoint_path: Union[Path, str],
+    infer_gpu_num: int,
+    save_dir: str,
+    trust_remote_code: bool,
+    output_precision: str = 'fp32',
+    local_checkpoint_save_location: Optional[Union[Path, str]] = None,
+) -> None:
     """Convert a Composer checkpoint to a FasterTransformer checkpoint folder.
 
     .. note:: This function may not work properly if you used surgery algorithms when you trained your model. In that case you may need to
@@ -96,11 +101,12 @@ def write_ft_checkpoint_from_composer_checkpoint(
     if local_checkpoint_save_location is None:
         tmp_dir = tempfile.TemporaryDirectory()
         local_checkpoint_save_location = Path(
-            tmp_dir.name) / 'local-composer-checkpoint.pt'
+            tmp_dir.name,
+        ) / 'local-composer-checkpoint.pt'
 
     # download the checkpoint file
     print(
-        f'Downloading checkpoint from {checkpoint_path} -> {local_checkpoint_save_location}'
+        f'Downloading checkpoint from {checkpoint_path} -> {local_checkpoint_save_location}',
     )
     get_file(str(checkpoint_path), str(local_checkpoint_save_location))
 
@@ -112,13 +118,13 @@ def write_ft_checkpoint_from_composer_checkpoint(
     # Extract Composer config from state dict
     if 'state' not in composer_state_dict:
         raise RuntimeError(
-            f'"state" is not an available key in the provided composer checkpoint. Is {local_checkpoint_save_location} ill-formed?'
+            f'"state" is not an available key in the provided composer checkpoint. Is {local_checkpoint_save_location} ill-formed?',
         )
     if 'integrations' not in composer_state_dict[
-            'state'] or 'huggingface' not in composer_state_dict['state'][
-                'integrations']:
+        'state'] or 'huggingface' not in composer_state_dict['state'][
+            'integrations']:
         raise RuntimeError(
-            'Did not find HuggingFace related state (e.g., tokenizer) in the provided composer checkpoint!'
+            'Did not find HuggingFace related state (e.g., tokenizer) in the provided composer checkpoint!',
         )
     composer_config = composer_state_dict['state']['integrations'][
         'huggingface']['model']['config']['content']
@@ -127,14 +133,18 @@ def write_ft_checkpoint_from_composer_checkpoint(
     print('#' * 30)
     print('Extracting HF Tokenizer...')
     hf_tokenizer = get_hf_tokenizer_from_composer_state_dict(
-        composer_state_dict, trust_remote_code)
+        composer_state_dict,
+        trust_remote_code,
+    )
     if hf_tokenizer is None:
         print('Warning! No HF Tokenizer found!')
 
     # Extract the model weights
     weights_state_dict = composer_state_dict['state']['model']
     torch.nn.modules.utils.consume_prefix_in_state_dict_if_present(
-        weights_state_dict, prefix='model.')
+        weights_state_dict,
+        prefix='model.',
+    )
 
     # Converting weights to desired dtype
     for k, v in weights_state_dict.items():
@@ -144,21 +154,25 @@ def write_ft_checkpoint_from_composer_checkpoint(
     # Convert the weights using the config and tokenizer to FasterTransformer format
     print('#' * 30)
     print('Saving FasterTransformer config...')
-    save_ft_config(composer_config,
-                   tokenizer=hf_tokenizer,
-                   save_dir=save_dir,
-                   weight_data_type=output_precision)
+    save_ft_config(
+        composer_config,
+        tokenizer=hf_tokenizer,
+        save_dir=save_dir,
+        weight_data_type=output_precision,
+    )
     print('#' * 30)
     print('Converting weights to FasterTransformer format...')
-    convert_and_save_ft_weights(named_params=weights_state_dict,
-                                config=composer_config,
-                                infer_gpu_num=infer_gpu_num,
-                                weight_data_type=output_precision,
-                                save_dir=save_dir)
+    convert_and_save_ft_weights(
+        named_params=weights_state_dict,
+        config=composer_config,
+        infer_gpu_num=infer_gpu_num,
+        weight_data_type=output_precision,
+        save_dir=save_dir,
+    )
 
     print('#' * 30)
     print(
-        f'FasterTransformer checkpoint folder successfully created at {save_dir}.'
+        f'FasterTransformer checkpoint folder successfully created at {save_dir}.',
     )
 
     print('Done.')
@@ -169,37 +183,42 @@ def parse_args() -> Namespace:
     """Parse commandline arguments."""
     parser = ArgumentParser(
         description=
-        'Convert an MPT Composer checkpoint into a standard FasterTransformer checkpoint folder.'
+        'Convert an MPT Composer checkpoint into a standard FasterTransformer checkpoint folder.',
     )
     parser.add_argument(
         '--composer_path',
         '-i',
         type=str,
         help='Composer checkpoint path. Can be a local file path or cloud URI',
-        required=True)
+        required=True,
+    )
     parser.add_argument(
         '--local_checkpoint_save_location',
         type=str,
         help='If specified, where to save the checkpoint file to locally. \
                             If the input ``checkpoint_path`` is already a local path, this will be a symlink. \
                             Defaults to None, which will use a temporary file.',
-        default=None)
+        default=None,
+    )
     parser.add_argument(
         '--ft_save_dir',
         '-o',
         type=str,
         help='Directory to save FasterTransformer converted checkpoint in',
-        required=True)
-    parser.add_argument('--infer_gpu_num',
-                        '-i_g',
-                        type=int,
-                        help='How many gpus for inference?',
-                        required=True)
+        required=True,
+    )
+    parser.add_argument(
+        '--infer_gpu_num',
+        '-i_g',
+        type=int,
+        help='How many gpus for inference?',
+        required=True,
+    )
     parser.add_argument(
         '--force',
         action='store_true',
         help=
-        'Force conversion to FT even if some features may not work as expected in FT'
+        'Force conversion to FT even if some features may not work as expected in FT',
     )
     parser.add_argument(
         '--output_precision',
@@ -207,11 +226,13 @@ def parse_args() -> Namespace:
         help=
         'Data type of weights in the FasterTransformer output model. Input checkpoint weights will be converted to this dtype.',
         choices=['fp32', 'fp16'],
-        default='fp32')
+        default='fp32',
+    )
     parser.add_argument(
         '--trust_remote_code',
         action='store_true',
-        help='Whether or not to use code outside of transformers module.')
+        help='Whether or not to use code outside of transformers module.',
+    )
 
     return parser.parse_args()
 
@@ -236,4 +257,5 @@ if __name__ == '__main__':
         save_dir=save_dir,
         output_precision=args.output_precision,
         local_checkpoint_save_location=args.local_checkpoint_save_location,
-        trust_remote_code=args.trust_remote_code)
+        trust_remote_code=args.trust_remote_code,
+    )

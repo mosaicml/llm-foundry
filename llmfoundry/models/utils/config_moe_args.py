@@ -34,7 +34,8 @@ def create_process_group_ranks(ranks: tuple[int]):
     distributed.all_gather_object(ranks_gather_list, ranks)
     ranks_per_subgroup = list(set(ranks_gather_list))
     group, _ = distributed.distributed_c10d.new_subgroups_by_enumeration(
-        ranks_per_subgroup)
+        ranks_per_subgroup,
+    )
     return group
 
 
@@ -86,7 +87,7 @@ def config_megablocks_moe_args(
         import megablocks
     except:
         raise RuntimeError(
-            'Requirements for MegaBlocks not installed; see install instructions in `README.md`.'
+            'Requirements for MegaBlocks not installed; see install instructions in `README.md`.',
         )
 
     ffn_config.setdefault('fp16', False)
@@ -103,10 +104,11 @@ def config_megablocks_moe_args(
     device_mesh = None
     device_mesh_cfg = ffn_config.pop('device_mesh', None)
     if moe_world_size > 1:
-        if version.parse(torch.__version__.split('.dev')[0]) < version.parse(
-                '2.2.0'):  # type: ignore
+        if version.parse(
+            torch.__version__.split('.dev')[0],
+        ) < version.parse('2.2.0'):  # type: ignore
             raise RuntimeError(
-                'MoE world size > 1 is not supported in torch version {torch.__version__}<2.2.'
+                'MoE world size > 1 is not supported in torch version {torch.__version__}<2.2.',
             )
 
         from torch.distributed._tensor.device_mesh import init_device_mesh
@@ -114,7 +116,7 @@ def config_megablocks_moe_args(
         world_size = distributed.get_world_size()
         if world_size < moe_world_size or world_size % moe_world_size:
             raise ValueError(
-                f'Invalid world size configuration: {world_size=} and {moe_world_size=}'
+                f'Invalid world size configuration: {world_size=} and {moe_world_size=}',
             )
 
         # FSDP
@@ -144,7 +146,7 @@ def config_megablocks_moe_args(
             lbl_process_group = create_set_process_group(lbl_process_group)
         elif lbl_process_group is not None:
             raise ValueError(
-                f'Unknown {lbl_process_group=}. Options are: none | expert_group | global_group | <GROUP_SIZE>.'
+                f'Unknown {lbl_process_group=}. Options are: none | expert_group | global_group | <GROUP_SIZE>.',
             )
         ffn_config['lbl_process_group'] = lbl_process_group
 

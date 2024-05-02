@@ -15,7 +15,11 @@ class CallbackWithConfig(Callback, abc.ABC):
     its other kwargs.
     """
 
-    def __init__(self, config: dict[str, Any], *args: Any,
-                 **kwargs: Any) -> None:
+    def __init__(
+        self,
+        config: dict[str, Any],
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
         del config, args, kwargs
         pass

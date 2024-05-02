@@ -46,8 +46,9 @@ class OutlierDetector:
         """
         assert self.intermediate_data_queue.maxlen is not None, 'expected maxlen defined'
 
-        if len(self.intermediate_data_queue
-              ) >= self.intermediate_data_queue.maxlen:
+        if len(
+            self.intermediate_data_queue,
+        ) >= self.intermediate_data_queue.maxlen:
             # move data from intermediate queue to slow moving average queue
             intermediate_obs = self.intermediate_data_queue.popleft()
             self.delayed_moving_average.append(intermediate_obs)
@@ -58,7 +59,8 @@ class OutlierDetector:
 
     def get_delayed_mva(self) -> Optional[float]:
         if len(self.delayed_moving_average) > 0:
-            return sum(self.delayed_moving_average) / len(
-                self.delayed_moving_average)
+            return sum(
+                self.delayed_moving_average,
+            ) / len(self.delayed_moving_average)
         else:
             return None

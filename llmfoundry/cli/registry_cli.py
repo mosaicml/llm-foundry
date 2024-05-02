@@ -23,7 +23,7 @@ def _get_registries(group: Optional[str] = None) -> list[TypedRegistry]:
 
     if group is not None and group not in registry_attr_names:
         console.print(
-            f'Group {group} not found in registry. Run `llmfoundry registry get` to see available groups.'
+            f'Group {group} not found in registry. Run `llmfoundry registry get` to see available groups.',
         )
         return []
 
@@ -44,8 +44,11 @@ def get(group: Optional[str] = None):
 
     table = Table('Registry', 'Description', 'Options', show_lines=True)
     for r in available_registries:
-        table.add_row('.'.join(r.namespace), r.description,
-                      ', '.join(r.get_all()))
+        table.add_row(
+            '.'.join(r.namespace),
+            r.description,
+            ', '.join(r.get_all()),
+        )
 
     console.print(table)
 
@@ -66,7 +69,11 @@ def find(group: str, name: str):
     find_output = r.find(name)
 
     table = Table('Module', 'File', 'Line number', 'Docstring')
-    table.add_row(find_output['module'], find_output['file'],
-                  str(find_output['line_no']), find_output['docstring'])
+    table.add_row(
+        find_output['module'],
+        find_output['file'],
+        str(find_output['line_no']),
+        find_output['docstring'],
+    )
 
     console.print(table)

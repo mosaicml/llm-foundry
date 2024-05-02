@@ -12,11 +12,18 @@ from composer.models.huggingface import peft_installed
 from composer.utils import dist
 from omegaconf import DictConfig
 from torchmetrics import Metric
-from transformers import (AutoConfig, AutoModelForCausalLM, PretrainedConfig,
-                          PreTrainedModel, PreTrainedTokenizerBase)
+from transformers import (
+    AutoConfig,
+    AutoModelForCausalLM,
+    PretrainedConfig,
+    PreTrainedModel,
+    PreTrainedTokenizerBase,
+)
 
-from llmfoundry.metrics import (DEFAULT_CAUSAL_LM_EVAL_METRICS,
-                                DEFAULT_CAUSAL_LM_TRAIN_METRICS)
+from llmfoundry.metrics import (
+    DEFAULT_CAUSAL_LM_EVAL_METRICS,
+    DEFAULT_CAUSAL_LM_TRAIN_METRICS,
+)
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithFSDP
 from llmfoundry.models.layers.attention import is_flash_v2_installed
@@ -60,20 +67,26 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         tokenizer (PreTrainedTokenizer): The tokenizer that the model will use.
     """
 
-    def __init__(self, om_model_config: DictConfig,
-                 tokenizer: PreTrainedTokenizerBase):
+    def __init__(
+        self,
+        om_model_config: DictConfig,
+        tokenizer: PreTrainedTokenizerBase,
+    ):
         model = ComposerHFCausalLM.build_inner_model(om_model_config)
 
         train_metrics, eval_metrics = ComposerHFCausalLM.build_metrics(
-            om_model_config)
+            om_model_config,
+        )
 
-        peft_config_dict = pop_config(om_model_config,
-                                      'peft_config',
-                                      must_exist=False,
-                                      convert=True)
+        peft_config_dict = pop_config(
+            om_model_config,
+            'peft_config',
+            must_exist=False,
+            convert=True,
+        )
         if peft_config_dict is not None and not peft_installed:
             raise ValueError(
-                'PEFT is not installed, but peft_config was passed. Please install LLM Foundry with the peft extra to use peft_config.'
+                'PEFT is not installed, but peft_config was passed. Please install LLM Foundry with the peft extra to use peft_config.',
             )
 
         peft_config = None
@@ -95,7 +108,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
 
     @staticmethod
     def build_metrics(
-            om_model_config: DictConfig) -> Tuple[List[Metric], List[Metric]]:
+        om_model_config: DictConfig,
+    ) -> Tuple[List[Metric], List[Metric]]:
         """Builds the training and evaluation metrics for the model.
 
         Args:
@@ -105,12 +119,16 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
 
         use_train_metrics = om_model_config.get('use_train_metrics', True)
         train_metric_names = DEFAULT_CAUSAL_LM_TRAIN_METRICS + om_model_config.get(
-            'additional_train_metrics', [])
+            'additional_train_metrics',
+            [],
+        )
         train_metrics = [
             build_metric(metric, {}) for metric in train_metric_names
         ] if use_train_metrics else []
         eval_metric_names = DEFAULT_CAUSAL_LM_EVAL_METRICS + om_model_config.get(
-            'additional_eval_metrics', [])
+            'additional_eval_metrics',
+            [],
+        )
         eval_metrics = [
             build_metric(metric, {}) for metric in eval_metric_names
         ]
@@ -119,8 +137,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
 
     @staticmethod
     def build_inner_model(
-            om_model_config: DictConfig,
-            prepare_for_fsdp: bool = False
+        om_model_config: DictConfig,
+        prepare_for_fsdp: bool = False,
     ) -> Union[PreTrainedModel, 'PeftModel']:
         """Builds the inner model for the ComposerHFCausalLM.
 
@@ -130,22 +148,27 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         """
         pretrained_model_name_or_path = om_model_config.pretrained_model_name_or_path
         pretrained_lora_id_or_path = om_model_config.get(
-            'pretrained_lora_id_or_path', None)
+            'pretrained_lora_id_or_path',
+            None,
+        )
 
         if not om_model_config.get(
-                'trust_remote_code', True
+            'trust_remote_code',
+            True,
         ) and pretrained_model_name_or_path.startswith('mosaicml/mpt'):
             raise ValueError(
                 'trust_remote_code must be set to True for MPT models. Without this, the MPT model code will come from the transformers library, '
                 +
-                'which is significantly slower and not compatible with the LLM foundry training code, rather than the code release by MosaicML.'
+                'which is significantly slower and not compatible with the LLM foundry training code, rather than the code release by MosaicML.',
             )
 
         # Set up Hugging Face args
         trust_remote_code = om_model_config.get('trust_remote_code', True)
         use_auth_token = om_model_config.get('use_auth_token', False)
-        use_flash_attention_2 = om_model_config.get('use_flash_attention_2',
-                                                    False)
+        use_flash_attention_2 = om_model_config.get(
+            'use_flash_attention_2',
+            False,
+        )
         load_in_8bit = om_model_config.get('load_in_8bit', False)
 
         # Set up config args for the model construction and base classes
@@ -157,7 +180,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         if use_flash_attention_2 and not is_flash_v2_installed():
             raise ValueError(
                 'use_flash_attention_2 is set to True, but flash-attention 2 is not installed. '
-                + 'Please `pip install llm-foundry[gpu]`.')
+                + 'Please `pip install llm-foundry[gpu]`.',
+            )
 
         # Construct the Hugging Face config to use
         config = AutoConfig.from_pretrained(
@@ -174,21 +198,23 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         # the model and then casting it back to fp32, we are monkeypatching their check.
         # https://github.com/huggingface/transformers/issues/28052
         def _autoset_attn_implementation_monkeypatch(
-                cls,  # type: ignore
-                config,  # type: ignore
-                *args,  # type: ignore
-                **kwargs):  # type: ignore
+            cls,  # type: ignore
+            config,  # type: ignore
+            *args,  # type: ignore
+            **kwargs,  # type: ignore
+        ):  # type: ignore
             config._attn_implementation = requested_attention_implementation
             return config
 
         PreTrainedModel._autoset_attn_implementation = classmethod(
-            _autoset_attn_implementation_monkeypatch)
+            _autoset_attn_implementation_monkeypatch,
+        )
 
         # set config overrides
         for k, v in om_model_config.get('config_overrides', {}).items():
             if not hasattr(config, k):
                 raise ValueError(
-                    f'config does not have attribute "{k}" to override ({k}: {v}).'
+                    f'config does not have attribute "{k}" to override ({k}: {v}).',
                 )
 
             attr = getattr(config, k)
@@ -199,7 +225,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                     raise ValueError(
                         f'Config dict override got unknown keys. ' +
                         f'Extra keys: {extra_keys}. ' +
-                        f'Expected (a subset of) keys: {list(attr.keys())}.')
+                        f'Expected (a subset of) keys: {list(attr.keys())}.',
+                    )
                 getattr(config, k).update(v)
             # necessary case to allow for rope_scaling to be overriden in llama config
             elif attr is None and isinstance(v, Mapping):
@@ -208,13 +235,13 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             elif isinstance(attr, PretrainedConfig):
                 if not isinstance(v, Mapping):
                     raise ValueError(
-                        f'Expected a dictionary for config override {k}, but got {v}.'
+                        f'Expected a dictionary for config override {k}, but got {v}.',
                     )
 
                 for _k, _v in v.items():
                     if not hasattr(attr, _k):
                         raise ValueError(
-                            f'config does not have attribute "{_k}" to override ({k}: {_k}: {_v}).'
+                            f'config does not have attribute "{_k}" to override ({k}: {_k}: {_v}).',
                         )
                     setattr(attr, _k, _v)
             else:
@@ -229,8 +256,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         # transformers modules cache. On particular systems, this operation seems to cause contention between
         # the different processes. To avoid this contention, we first create the model (on meta device) on local rank
         # zero. This will set up the transformers model cache and avoid the future contention.
-        if dist.get_local_rank() == 0 and os.path.isdir(
-                pretrained_model_name_or_path):
+        if dist.get_local_rank(
+        ) == 0 and os.path.isdir(pretrained_model_name_or_path):
             with init_empty_weights(include_buffers=False):
                 with warnings.catch_warnings():
                     warnings.simplefilter('ignore', UserWarning)
@@ -261,7 +288,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         elif resolved_init_device == 'meta':
             if om_model_config.pretrained:
                 raise ValueError(
-                    'Setting cfg.pretrained=True is not supported when init_device="meta".'
+                    'Setting cfg.pretrained=True is not supported when init_device="meta".',
                 )
             with init_empty_weights(include_buffers=False):
                 model = AutoModelForCausalLM.from_config(
@@ -270,7 +297,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                 )
         else:
             raise ValueError(
-                f'init_device="{init_device}" must be either "cpu" or "meta".')
+                f'init_device="{init_device}" must be either "cpu" or "meta".',
+            )
 
         signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_completed'
         if dist.get_local_rank() == 0:
@@ -294,11 +322,13 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         if pretrained_lora_id_or_path is not None:
             if not peft_installed:
                 raise ValueError(
-                    'PEFT is not installed, but lora_id_or_path was passed. Please install LLM Foundry with the peft extra to use lora_id_or_path.'
+                    'PEFT is not installed, but lora_id_or_path was passed. Please install LLM Foundry with the peft extra to use lora_id_or_path.',
                 )
             from peft import PeftModelForCausalLM
             model = PeftModelForCausalLM.from_pretrained(
-                model, pretrained_lora_id_or_path)
+                model,
+                pretrained_lora_id_or_path,
+            )
 
         if prepare_for_fsdp:
             ComposerHFCausalLM.prepare_inner_model(model, init_device)
@@ -311,15 +341,15 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             peft_type = peft_config_dict.get('peft_type', '')
             if peft_type.upper() != 'LORA':
                 raise ValueError(
-                    f'Only LORA is supported for peft_type, but got {peft_type}.'
+                    f'Only LORA is supported for peft_type, but got {peft_type}.',
                 )
             task_type = peft_config_dict.get('task_type', '')
             if task_type.upper() != 'CAUSAL_LM':
                 raise ValueError(
-                    f'Only CAUSAL_LM is supported for task_type, but got {task_type}.'
+                    f'Only CAUSAL_LM is supported for task_type, but got {task_type}.',
                 )
             return LoraConfig(**peft_config_dict)
         else:
             raise ValueError(
-                'PEFT is not installed, but peft_config was passed. Please install LLM Foundry with the peft extra to use peft_config.'
+                'PEFT is not installed, but peft_config was passed. Please install LLM Foundry with the peft extra to use peft_config.',
             )

@@ -10,7 +10,6 @@ from typing import (
     Any,
     Callable,
     Dict,
-    List,
     Mapping,
     Optional,
     Sequence,
@@ -297,14 +296,15 @@ def build_text_dataloader(
         kwargs={
             'cfg': cfg,
             'tokenizer': tokenizer,
-            'device_batch_size': device_batch_size
+            'device_batch_size': device_batch_size,
         },
     )
 
     streams = build_streams(cfg.dataset)
 
     valid_streaming_text_dataset_parameters = inspect.signature(
-        StreamingTextDataset).parameters
+        StreamingTextDataset,
+    ).parameters
 
     dataset_config_subset_for_streaming_text_dataset = {
         k: v
@@ -348,7 +348,7 @@ def build_text_dataloader(
         partial_function=False,
         kwargs={
             'dl': dl,
-            'dataset_cfg': cfg.dataset
+            'dataset_cfg': cfg.dataset,
         },
     )
 

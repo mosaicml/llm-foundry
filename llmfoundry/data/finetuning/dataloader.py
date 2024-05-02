@@ -22,7 +22,7 @@ from llmfoundry.data.finetuning.tasks import (
     dataset_constructor,
 )
 from llmfoundry.data.packing import BinPackCollator, auto_packing_ratio
-from llmfoundry.data.text_data import build_streams, get_tokens_per_batch_func
+from llmfoundry.data.text_data import build_streams
 from llmfoundry.utils.exceptions import (
     MissingHuggingFaceURLSplitError,
     NotEnoughDatasetSamplesError,
@@ -158,7 +158,7 @@ def build_finetuning_dataloader(
         kwargs={
             'cfg': cfg,
             'tokenizer': tokenizer,
-            'device_batch_size': device_batch_size
+            'device_batch_size': device_batch_size,
         },
     )
 
@@ -302,7 +302,7 @@ def build_finetuning_dataloader(
         partial_function=False,
         kwargs={
             'dl': dl,
-            'dataset_cfg': cfg.dataset
+            'dataset_cfg': cfg.dataset,
         },
     )
 

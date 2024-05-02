@@ -118,8 +118,7 @@ def validate_config(cfg: DictConfig):
         seq_parallel_world_size = attn_config.get('seq_parallel_world_size',
                                                   None)
         if seq_parallel_world_size is not None:
-                raise ValueError(
-                    'Training does not support sequence parallelism.')
+            raise ValueError('Training does not support sequence parallelism.')
 
 
 def _initialize_dist_with_barrier(dist_timeout: Union[int, float]):

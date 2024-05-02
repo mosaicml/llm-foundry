@@ -12,29 +12,45 @@ from typing import Any, Dict, List, Optional, Union
 import torch
 from composer import Trainer
 from composer.core.callback import Callback
-from composer.profiler import (JSONTraceHandler, Profiler, TraceHandler,
-                               cyclic_schedule)
+from composer.profiler import (
+    JSONTraceHandler,
+    Profiler,
+    TraceHandler,
+    cyclic_schedule,
+)
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from rich.traceback import install
 
 from llmfoundry.eval.metrics.nlp import InContextLearningMetric
-from llmfoundry.utils import (find_mosaicml_logger, log_train_analytics,
-                              maybe_create_mosaicml_logger)
+from llmfoundry.utils import (
+    find_mosaicml_logger,
+    log_train_analytics,
+    maybe_create_mosaicml_logger,
+)
 
 install()
 from llmfoundry.callbacks import AsyncEval
 from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.layers_registry import ffns_with_megablocks
-from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
-                                       build_algorithm, build_callback,
-                                       build_composer_model, build_evaluators,
-                                       build_logger, build_optimizer,
-                                       build_scheduler, build_tokenizer)
-from llmfoundry.utils.config_utils import (log_config, pop_config,
-                                           process_init_device,
-                                           update_batch_size_info)
+from llmfoundry.utils.builders import (
+    add_metrics_to_eval_loaders,
+    build_algorithm,
+    build_callback,
+    build_composer_model,
+    build_evaluators,
+    build_logger,
+    build_optimizer,
+    build_scheduler,
+    build_tokenizer,
+)
+from llmfoundry.utils.config_utils import (
+    log_config,
+    pop_config,
+    process_init_device,
+    update_batch_size_info,
+)
 from llmfoundry.utils.registry_utils import import_file
 
 log = logging.getLogger(__name__)
@@ -50,7 +66,8 @@ def validate_config(cfg: DictConfig):
                 if loader.label is None:
                     raise ValueError(
                         'When specifying multiple evaluation datasets, each one must include the \
-                            `label` attribute.')
+                            `label` attribute.',
+                    )
                 loaders.append(loader)
         else:
             loaders.append(eval_loader)
@@ -64,54 +81,69 @@ def validate_config(cfg: DictConfig):
     if 'icl_tasks' in cfg:
         if cfg.model.name == 'hf_t5':
             raise ValueError(
-                'ICL evaluation does not currently support Encoder-Decoder models, such as "hf_t5".'
+                'ICL evaluation does not currently support Encoder-Decoder models, such as "hf_t5".',
             )
 
-    if (cfg.model.get('fc_type', 'torch') != 'te' and 'te' not in cfg.model.get(
-            'ffn_config', {}).get('ffn_type', 'mptmlp') and
-            'fp8' in cfg.precision):
+    if (
+        cfg.model.get('fc_type', 'torch') != 'te' and 'te'
+        not in cfg.model.get('ffn_config', {}).get('ffn_type', 'mptmlp') and
+        'fp8' in cfg.precision
+    ):
         warnings.warn(
             "fp8 only supported for te.Linear layers. Either set `cfg.model.fc_typ='te'` or "
             +
-            "`cfg.model.ffn_config.ffn_type='te_ln_mlp'` to enable layers using fp8 precision."
+            "`cfg.model.ffn_config.ffn_type='te_ln_mlp'` to enable layers using fp8 precision.",
         )
 
-    if (cfg.model.get('fc_type', 'torch') == 'te' or
-            'te' in cfg.model.get('ffn_config', {}).get('ffn_type', 'mptmlp')):
+    if (
+        cfg.model.get('fc_type', 'torch') == 'te' or
+        'te' in cfg.model.get('ffn_config', {}).get('ffn_type', 'mptmlp')
+    ):
         fsdp_config = cfg.get('fsdp_config', None)
         act_ckpt = fsdp_config.get('activation_checkpointing', False)
         act_ckpt_reentrant = fsdp_config.get(
-            'activation_checkpointing_reentrant', False)
+            'activation_checkpointing_reentrant',
+            False,
+        )
         if fsdp_config is not None and act_ckpt == True and act_ckpt_reentrant == True:
             warnings.warn(
                 '`te.Linear` layers do not support activation_checkpointing with '
                 + '`activation_checkpointing_reentrant = True`. ' +
-                'Setting cfg.fsdp_config.activation_checkpointing_reentrant=False.'
+                'Setting cfg.fsdp_config.activation_checkpointing_reentrant=False.',
             )
             cfg.fsdp_config.activation_checkpointing_reentrant = False
 
     if cfg.model.get('ffn_config', {}).get('ffn_type', 'mptmlp') == 'te_ln_mlp':
         warnings.warn(
             '`te.LayerNormMLP` requires has issues with torch._dynamo. ' +
-            'Setting `torch._dynamo.config.suppress_errors = True` and falling back to eager.'
+            'Setting `torch._dynamo.config.suppress_errors = True` and falling back to eager.',
         )
         torch._dynamo.config.suppress_errors = True  # type: ignore (third-party)
 
     if cfg.model.get('load_in_8bit', False):
         raise ValueError(
-            '`load_in_8bit` is only supported for evaluation rather than training.'
+            '`load_in_8bit` is only supported for evaluation rather than training.',
         )
 
-    if cfg.model.get('ffn_config', {}).get('ffn_type',
-                                           'mptmlp') in ffns_with_megablocks:
+    if cfg.model.get('ffn_config',
+                     {}).get('ffn_type', 'mptmlp') in ffns_with_megablocks:
         moe_world_size = cfg.model.get('ffn_config',
                                        {}).get('moe_world_size', 1)
         use_orig_params = cfg.get('fsdp_config',
                                   {}).get('use_orig_params', True)
         if moe_world_size > 1 and not use_orig_params:
             raise ValueError(
-                f'MoEs with expert parallelism (moe_world_size {moe_world_size} > 1) require `use_orig_params=True`.'
+                f'MoEs with expert parallelism (moe_world_size {moe_world_size} > 1) require `use_orig_params=True`.',
             )
+
+    attn_config = cfg.model.get('attn_config', None)
+    if attn_config is not None:
+        seq_parallel_world_size = attn_config.get(
+            'seq_parallel_world_size',
+            None,
+        )
+        if seq_parallel_world_size is not None:
+            raise ValueError('Training does not support sequence parallelism.')
 
 
 def _initialize_dist_with_barrier(dist_timeout: Union[int, float]):
@@ -129,11 +161,13 @@ def _initialize_dist_with_barrier(dist_timeout: Union[int, float]):
 
 def main(cfg: DictConfig) -> Trainer:
     # Run user provided code if specified
-    code_paths = pop_config(cfg,
-                            'code_paths',
-                            must_exist=False,
-                            default_value=[],
-                            convert=True)
+    code_paths = pop_config(
+        cfg,
+        'code_paths',
+        must_exist=False,
+        default_value=[],
+        convert=True,
+    )
     # Import any user provided code
     for code_path in code_paths:
         import_file(code_path)
@@ -143,7 +177,7 @@ def main(cfg: DictConfig) -> Trainer:
         action='ignore',
         category=UserWarning,
         message=
-        'torch.distributed.*_base is a private function and will be deprecated.*'
+        'torch.distributed.*_base is a private function and will be deprecated.*',
     )
 
     # Check for incompatibilities between the model and data loaders
@@ -179,26 +213,32 @@ def main(cfg: DictConfig) -> Trainer:
     reproducibility.seed_all(seed)
 
     # Initialize pytorch distributed training process groups
-    dist_timeout: Union[int, float] = pop_config(cfg,
-                                                 'dist_timeout',
-                                                 must_exist=False,
-                                                 default_value=600.0)
-    python_log_level: Optional[str] = pop_config(cfg,
-                                                 'python_log_level',
-                                                 must_exist=False,
-                                                 default_value='debug')
+    dist_timeout: Union[int, float] = pop_config(
+        cfg,
+        'dist_timeout',
+        must_exist=False,
+        default_value=600.0,
+    )
+    python_log_level: Optional[str] = pop_config(
+        cfg,
+        'python_log_level',
+        must_exist=False,
+        default_value='debug',
+    )
     # Set logging level
     if python_log_level is not None:
         logging.basicConfig(
             # Example of format string
             # 2022-06-29 11:22:26,152: rank0[822018][MainThread]: INFO: Message here
             format=
-            f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
+            f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s',
         )
         logging.getLogger('llmfoundry').setLevel(
-            python_log_level.upper())  # Foundry module
+            python_log_level.upper(),
+        )  # Foundry module
         logging.getLogger(__name__).setLevel(
-            python_log_level.upper())  # Train script
+            python_log_level.upper(),
+        )  # Train script
 
     _initialize_dist_with_barrier(dist_timeout=dist_timeout)
 
@@ -208,176 +248,236 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Mandatory model training configs
     model_config: DictConfig = pop_config(cfg, 'model', must_exist=True)
-    tokenizer_config: Dict[str, Any] = pop_config(cfg,
-                                                  'tokenizer',
-                                                  must_exist=True,
-                                                  convert=True)
-    optimizer_config: Dict[str, Any] = pop_config(cfg,
-                                                  'optimizer',
-                                                  must_exist=True,
-                                                  convert=True)
-    scheduler_config: Dict[str, Any] = pop_config(cfg,
-                                                  'scheduler',
-                                                  must_exist=True,
-                                                  convert=True)
-    train_loader_config: DictConfig = pop_config(cfg,
-                                                 'train_loader',
-                                                 must_exist=True)
+    tokenizer_config: Dict[
+        str, Any] = pop_config(cfg, 'tokenizer', must_exist=True, convert=True)
+    optimizer_config: Dict[
+        str, Any] = pop_config(cfg, 'optimizer', must_exist=True, convert=True)
+    scheduler_config: Dict[
+        str, Any] = pop_config(cfg, 'scheduler', must_exist=True, convert=True)
+    train_loader_config: DictConfig = pop_config(
+        cfg,
+        'train_loader',
+        must_exist=True,
+    )
 
     # Optional fsdp data, fine-tuning, and eval configs
-    fsdp_config: Optional[Dict[str, Any]] = pop_config(cfg,
-                                                       'fsdp_config',
-                                                       must_exist=False,
-                                                       default_value=None,
-                                                       convert=True)
-    eval_loader_config: Optional[Union[DictConfig, ListConfig]] = pop_config(
-        cfg, 'eval_loader', must_exist=False, default_value=None)
-    icl_tasks_config: Optional[Union[ListConfig,
-                                     str]] = pop_config(cfg,
-                                                        'icl_tasks',
-                                                        must_exist=False,
-                                                        default_value=None)
-    eval_gauntlet_config: Optional[Union[DictConfig,
-                                         str]] = pop_config(cfg,
-                                                            'eval_gauntlet',
-                                                            must_exist=False,
-                                                            default_value=None)
-    icl_subset_num_batches: Optional[int] = pop_config(cfg,
-                                                       'icl_subset_num_batches',
-                                                       must_exist=False,
-                                                       default_value=None)
-    icl_seq_len: Optional[int] = pop_config(cfg,
-                                            'icl_seq_len',
-                                            must_exist=False,
-                                            default_value=None)
+    fsdp_config: Optional[Dict[str, Any]] = pop_config(
+        cfg,
+        'fsdp_config',
+        must_exist=False,
+        default_value=None,
+        convert=True,
+    )
+    eval_loader_config: Optional[
+        Union[DictConfig, ListConfig]
+    ] = pop_config(cfg, 'eval_loader', must_exist=False, default_value=None)
+    icl_tasks_config: Optional[
+        Union[ListConfig, str]
+    ] = pop_config(cfg, 'icl_tasks', must_exist=False, default_value=None)
+    if icl_tasks_config is not None:
+        seq_parallel_replication = train_loader_config.dataset.get(
+            'seq_parallel_replication',
+            None,
+        )
+        if seq_parallel_replication is not None and seq_parallel_replication != 1:
+            raise ValueError(
+                'icl eval tasks are not supported with sequence parallelism',
+            )
+    eval_gauntlet_config: Optional[
+        Union[DictConfig, str]
+    ] = pop_config(cfg, 'eval_gauntlet', must_exist=False, default_value=None)
+    icl_subset_num_batches: Optional[int] = pop_config(
+        cfg,
+        'icl_subset_num_batches',
+        must_exist=False,
+        default_value=None,
+    )
+    icl_seq_len: Optional[int] = pop_config(
+        cfg,
+        'icl_seq_len',
+        must_exist=False,
+        default_value=None,
+    )
     # Optional logging, evaluation and callback configs
-    logger_configs: Optional[DictConfig] = pop_config(cfg,
-                                                      'loggers',
-                                                      must_exist=False,
-                                                      default_value=None,
-                                                      convert=True)
-    callback_configs: Optional[DictConfig] = pop_config(cfg,
-                                                        'callbacks',
-                                                        must_exist=False,
-                                                        default_value=None,
-                                                        convert=True)
-    algorithm_configs: Optional[DictConfig] = pop_config(cfg,
-                                                         'algorithms',
-                                                         must_exist=False,
-                                                         default_value=None)
+    logger_configs: Optional[DictConfig] = pop_config(
+        cfg,
+        'loggers',
+        must_exist=False,
+        default_value=None,
+        convert=True,
+    )
+    callback_configs: Optional[DictConfig] = pop_config(
+        cfg,
+        'callbacks',
+        must_exist=False,
+        default_value=None,
+        convert=True,
+    )
+    algorithm_configs: Optional[DictConfig] = pop_config(
+        cfg,
+        'algorithms',
+        must_exist=False,
+        default_value=None,
+    )
 
     # Mandatory hyperparameters for training
-    device_train_batch_size: int = pop_config(cfg,
-                                              'device_train_batch_size',
-                                              must_exist=True)
-    device_eval_batch_size: int = pop_config(cfg,
-                                             'device_eval_batch_size',
-                                             must_exist=True)
-    max_duration: Union[int, str] = pop_config(cfg,
-                                               'max_duration',
-                                               must_exist=True)
-    eval_interval: Union[int, str] = pop_config(cfg,
-                                                'eval_interval',
-                                                default_value=1,
-                                                must_exist=False)
+    device_train_batch_size: int = pop_config(
+        cfg,
+        'device_train_batch_size',
+        must_exist=True,
+    )
+    device_eval_batch_size: int = pop_config(
+        cfg,
+        'device_eval_batch_size',
+        must_exist=True,
+    )
+    max_duration: Union[int,
+                        str] = pop_config(cfg, 'max_duration', must_exist=True)
+    eval_interval: Union[int, str] = pop_config(
+        cfg,
+        'eval_interval',
+        default_value=1,
+        must_exist=False,
+    )
     precision: str = pop_config(cfg, 'precision', must_exist=True)
     max_seq_len: int = pop_config(cfg, 'max_seq_len', must_exist=True)
 
     # Optional parameters will be set to default values if not specified.
     default_run_name: str = os.environ.get('RUN_NAME', 'llm')
-    run_name: str = pop_config(cfg,
-                               'run_name',
-                               must_exist=False,
-                               default_value=default_run_name)
-    save_folder: Optional[str] = pop_config(cfg,
-                                            'save_folder',
-                                            must_exist=False,
-                                            default_value=None)
-    is_state_dict_sharded: bool = (fsdp_config.get('state_dict_type', 'full')
-                                   == 'sharded') if fsdp_config else False
+    run_name: str = pop_config(
+        cfg,
+        'run_name',
+        must_exist=False,
+        default_value=default_run_name,
+    )
+    save_folder: Optional[str] = pop_config(
+        cfg,
+        'save_folder',
+        must_exist=False,
+        default_value=None,
+    )
+    is_state_dict_sharded: bool = (
+        fsdp_config.get('state_dict_type', 'full') == 'sharded'
+    ) if fsdp_config else False
     save_latest_filename: str = pop_config(
         cfg,
         'save_latest_filename',
         must_exist=False,
         default_value='latest-sharded-rank{rank}'
-        if is_state_dict_sharded else 'latest-rank{rank}.pt')
-    save_overwrite: bool = pop_config(cfg,
-                                      'save_overwrite',
-                                      must_exist=False,
-                                      default_value=False)
-    save_weights_only: bool = pop_config(cfg,
-                                         'save_weights_only',
-                                         must_exist=False,
-                                         default_value=False)
+        if is_state_dict_sharded else 'latest-rank{rank}.pt',
+    )
+    save_overwrite: bool = pop_config(
+        cfg,
+        'save_overwrite',
+        must_exist=False,
+        default_value=False,
+    )
+    save_weights_only: bool = pop_config(
+        cfg,
+        'save_weights_only',
+        must_exist=False,
+        default_value=False,
+    )
     save_filename: str = pop_config(
         cfg,
         'save_filename',
         must_exist=False,
-        default_value='ep{epoch}-ba{batch}-rank{rank}.pt')
-    save_interval: Union[str, int] = pop_config(cfg,
-                                                'save_interval',
-                                                must_exist=False,
-                                                default_value='1000ba')
+        default_value='ep{epoch}-ba{batch}-rank{rank}.pt',
+    )
+    save_interval: Union[str, int] = pop_config(
+        cfg,
+        'save_interval',
+        must_exist=False,
+        default_value='1000ba',
+    )
     save_num_checkpoints_to_keep: int = pop_config(
-        cfg, 'save_num_checkpoints_to_keep', must_exist=False, default_value=-1)
-    progress_bar = pop_config(cfg,
-                              'progress_bar',
-                              must_exist=False,
-                              default_value=False)
-    log_to_console: bool = pop_config(cfg,
-                                      'log_to_console',
-                                      must_exist=False,
-                                      default_value=True)
-    console_log_interval: Union[int, str] = pop_config(cfg,
-                                                       'console_log_interval',
-                                                       must_exist=False,
-                                                       default_value='1ba')
+        cfg,
+        'save_num_checkpoints_to_keep',
+        must_exist=False,
+        default_value=-1,
+    )
+    progress_bar = pop_config(
+        cfg,
+        'progress_bar',
+        must_exist=False,
+        default_value=False,
+    )
+    log_to_console: bool = pop_config(
+        cfg,
+        'log_to_console',
+        must_exist=False,
+        default_value=True,
+    )
+    console_log_interval: Union[int, str] = pop_config(
+        cfg,
+        'console_log_interval',
+        must_exist=False,
+        default_value='1ba',
+    )
     device_train_microbatch_size: Union[str, int] = pop_config(
         cfg,
         'device_train_microbatch_size',
         must_exist=False,
-        default_value='auto')
-    eval_subset_num_batches: int = pop_config(cfg,
-                                              'eval_subset_num_batches',
-                                              must_exist=False,
-                                              default_value=-1)
-    eval_first: bool = pop_config(cfg,
-                                  'eval_first',
-                                  must_exist=False,
-                                  default_value=False)
-    load_path: str = pop_config(cfg,
-                                'load_path',
-                                must_exist=False,
-                                default_value=None)
-    load_weights_only: bool = pop_config(cfg,
-                                         'load_weights_only',
-                                         must_exist=False,
-                                         default_value=False)
-    load_strict_model_weights: bool = pop_config(cfg,
-                                                 'load_strict_model_weights',
-                                                 must_exist=False,
-                                                 default_value=True)
-    load_ignore_keys: Optional[List[str]] = pop_config(cfg,
-                                                       'load_ignore_keys',
-                                                       must_exist=False,
-                                                       default_value=None)
-    save_ignore_keys: Optional[List[str]] = pop_config(cfg,
-                                                       'save_ignore_keys',
-                                                       must_exist=False,
-                                                       default_value=None)
-    compile_config: Optional[Dict[str, Any]] = pop_config(cfg,
-                                                          'compile_config',
-                                                          must_exist=False,
-                                                          default_value=None)
-    metadata: Optional[Dict[str, str]] = pop_config(cfg,
-                                                    'metadata',
-                                                    must_exist=False,
-                                                    default_value=None,
-                                                    convert=True)
-    should_log_config: bool = pop_config(cfg,
-                                         'log_config',
-                                         must_exist=False,
-                                         default_value=True)
+        default_value='auto',
+    )
+    eval_subset_num_batches: int = pop_config(
+        cfg,
+        'eval_subset_num_batches',
+        must_exist=False,
+        default_value=-1,
+    )
+    eval_first: bool = pop_config(
+        cfg,
+        'eval_first',
+        must_exist=False,
+        default_value=False,
+    )
+    load_path: str = pop_config(
+        cfg,
+        'load_path',
+        must_exist=False,
+        default_value=None,
+    )
+    load_weights_only: bool = pop_config(
+        cfg,
+        'load_weights_only',
+        must_exist=False,
+        default_value=False,
+    )
+    load_strict_model_weights: bool = pop_config(
+        cfg,
+        'load_strict_model_weights',
+        must_exist=False,
+        default_value=True,
+    )
+    load_ignore_keys: Optional[List[str]] = pop_config(
+        cfg,
+        'load_ignore_keys',
+        must_exist=False,
+        default_value=None,
+    )
+    save_ignore_keys: Optional[List[str]] = pop_config(
+        cfg,
+        'save_ignore_keys',
+        must_exist=False,
+        default_value=None,
+    )
+    compile_config: Optional[
+        Dict[str, Any]
+    ] = pop_config(cfg, 'compile_config', must_exist=False, default_value=None)
+    metadata: Optional[Dict[str, str]] = pop_config(
+        cfg,
+        'metadata',
+        must_exist=False,
+        default_value=None,
+        convert=True,
+    )
+    should_log_config: bool = pop_config(
+        cfg,
+        'log_config',
+        must_exist=False,
+        default_value=True,
+    )
 
     # Enable autoresume from model checkpoints if possible
     autoresume_default: bool = False
@@ -388,13 +488,17 @@ def main(cfg: DictConfig) -> Trainer:
         autoresume_default = True
 
     if cfg.get('autoresume') is None and autoresume_default:
-        log.info('As run_name, save_folder, and save_latest_filename are set, \
-                changing autoresume default to True...')
+        log.info(
+            'As run_name, save_folder, and save_latest_filename are set, \
+                changing autoresume default to True...',
+        )
 
-    autoresume: bool = pop_config(cfg,
-                                  'autoresume',
-                                  must_exist=False,
-                                  default_value=autoresume_default)
+    autoresume: bool = pop_config(
+        cfg,
+        'autoresume',
+        must_exist=False,
+        default_value=autoresume_default,
+    )
 
     # Pop known unused parameters that are used as interpolation variables or
     # created by update_batch_size_info.
@@ -408,13 +512,14 @@ def main(cfg: DictConfig) -> Trainer:
     # Warn users for unused parameters
     for key in cfg:
         warnings.warn(
-            f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary.'
+            f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary.',
         )
 
     # Warn if fsdp is enabled but user only has 1 GPU
     if dist.get_world_size() == 1 and fsdp_config is not None:
         warnings.warn(
-            'FSDP is not applicable for single-GPU training. Reverting to DDP.')
+            'FSDP is not applicable for single-GPU training. Reverting to DDP.',
+        )
         fsdp_config = None
 
     # Initialize context
@@ -454,37 +559,47 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Profiling
     profiler: Optional[Profiler] = None
-    profiler_cfg: Optional[DictConfig] = pop_config(cfg,
-                                                    'profiler',
-                                                    must_exist=False,
-                                                    convert=False,
-                                                    default_value=None)
+    profiler_cfg: Optional[DictConfig] = pop_config(
+        cfg,
+        'profiler',
+        must_exist=False,
+        convert=False,
+        default_value=None,
+    )
     if profiler_cfg:
-        profiler_schedule_cfg: Dict = pop_config(profiler_cfg,
-                                                 'schedule',
-                                                 must_exist=True,
-                                                 convert=True)
+        profiler_schedule_cfg: Dict = pop_config(
+            profiler_cfg,
+            'schedule',
+            must_exist=True,
+            convert=True,
+        )
         profiler_schedule = cyclic_schedule(**profiler_schedule_cfg)
         # Only support json trace handler
         profiler_trace_handlers: List[TraceHandler] = []
-        profiler_trace_cfg: Optional[Dict] = pop_config(profiler_cfg,
-                                                        'json_trace_handler',
-                                                        must_exist=False,
-                                                        default_value=None,
-                                                        convert=True)
+        profiler_trace_cfg: Optional[Dict] = pop_config(
+            profiler_cfg,
+            'json_trace_handler',
+            must_exist=False,
+            default_value=None,
+            convert=True,
+        )
         if profiler_trace_cfg:
             profiler_trace_handlers.append(
-                JSONTraceHandler(**profiler_trace_cfg))
-        profiler = Profiler(**profiler_cfg,
-                            trace_handlers=profiler_trace_handlers,
-                            schedule=profiler_schedule)
+                JSONTraceHandler(**profiler_trace_cfg),
+            )
+        profiler = Profiler(
+            **profiler_cfg,
+            trace_handlers=profiler_trace_handlers,
+            schedule=profiler_schedule,
+        )
 
     # Callbacks
     callbacks: List[Callback] = [
-        build_callback(name=str(name),
-                       kwargs=callback_cfg,
-                       train_config=om.to_container(logged_cfg))
-        for name, callback_cfg in callback_configs.items()
+        build_callback(
+            name=str(name),
+            kwargs=callback_cfg,
+            train_config=om.to_container(logged_cfg),
+        ) for name, callback_cfg in callback_configs.items()
     ] if callback_configs else []
 
     use_async_eval = any(isinstance(c, AsyncEval) for c in callbacks)
@@ -516,7 +631,7 @@ def main(cfg: DictConfig) -> Trainer:
         evaluators = []
         if eval_first:
             warnings.warn(
-                'AsyncEval callback does not support eval_first=True. Ignoring.'
+                'AsyncEval callback does not support eval_first=True. Ignoring.',
             )
             eval_first = False
 
@@ -536,10 +651,17 @@ def main(cfg: DictConfig) -> Trainer:
             callbacks.append(eval_gauntlet_callback)
 
     if mosaicml_logger is not None:
-        log_train_analytics(mosaicml_logger, model_config, train_loader_config,
-                            eval_loader_config, callback_configs,
-                            tokenizer_name, load_path, icl_tasks_config,
-                            eval_gauntlet_config)
+        log_train_analytics(
+            mosaicml_logger,
+            model_config,
+            train_loader_config,
+            eval_loader_config,
+            callback_configs,
+            tokenizer_name,
+            load_path,
+            icl_tasks_config,
+            eval_gauntlet_config,
+        )
     # Build Model
     log.info('Initializing model...')
     model = build_composer_model(
@@ -557,7 +679,8 @@ def main(cfg: DictConfig) -> Trainer:
     else:
         n_params = sum(p.numel() for p in model.parameters())
         n_trainable_params = sum(
-            p.numel() for p in model.parameters() if p.requires_grad)
+            p.numel() for p in model.parameters() if p.requires_grad
+        )
     if hasattr(model, 'n_active_params'):
         n_active_params = model.n_active_params
     else:
@@ -580,8 +703,10 @@ def main(cfg: DictConfig) -> Trainer:
                 metric_name for metric_name, metric in eval_metrics.items()
                 if not isinstance(metric, InContextLearningMetric)
             ]
-            evaluators = add_metrics_to_eval_loaders(evaluators,
-                                                     non_icl_metrics)
+            evaluators = add_metrics_to_eval_loaders(
+                evaluators,
+                non_icl_metrics,
+            )
     except Exception as e:
         if mosaicml_logger is not None:
             mosaicml_logger.log_exception(e)

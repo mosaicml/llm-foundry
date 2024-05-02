@@ -20,9 +20,10 @@ class _UniformExpertAssignment(torch.autograd.Function):
 
     @staticmethod
     def forward(
-            ctx,  # pyright: ignore[reportMissingParameterType]
-            x: torch.Tensor,
-            num_experts: int):
+        ctx,  # pyright: ignore[reportMissingParameterType]
+        x: torch.Tensor,
+        num_experts: int,
+    ):
         out = torch.arange(x.numel(), dtype=x.dtype, device=x.device)
         out = torch.remainder(out, num_experts)
         return out.view(x.shape)
@@ -30,10 +31,16 @@ class _UniformExpertAssignment(torch.autograd.Function):
 
 class LearnedRouter(torch.nn.Module):
 
-    def __init__(self, hidden_size: int, moe_num_experts: int, moe_top_k: int,
-                 moe_jitter_eps: float, moe_normalize_expert_weights: bool,
-                 uniform_expert_assignment: bool,
-                 device: Optional[torch.device]) -> None:
+    def __init__(
+        self,
+        hidden_size: int,
+        moe_num_experts: int,
+        moe_top_k: int,
+        moe_jitter_eps: float,
+        moe_normalize_expert_weights: bool,
+        uniform_expert_assignment: bool,
+        device: Optional[torch.device],
+    ) -> None:
         super().__init__()
         self.hidden_size: int = hidden_size
         self.moe_num_experts: int = moe_num_experts
@@ -52,17 +59,23 @@ class LearnedRouter(torch.nn.Module):
     def jitter(self, x: torch.Tensor) -> torch.Tensor:
         low: float = 1.0 - self.moe_jitter_eps
         high: float = 1.0 + self.moe_jitter_eps
-        noise: torch.Tensor = torch.rand(x.size(),
-                                         dtype=x.dtype,
-                                         device=x.device)
+        noise: torch.Tensor = torch.rand(
+            x.size(),
+            dtype=x.dtype,
+            device=x.device,
+        )
         return low + noise * (high - low)
 
     def _top_k(self, scores: torch.Tensor) -> torch.Tensor:
         if self.moe_top_k == 1:
             return scores.max(
-                dim=-1)  # pyright: ignore[reportGeneralTypeIssues]
-        return torch.topk(scores, self.moe_top_k,
-                          dim=-1)  # pyright: ignore[reportGeneralTypeIssues]
+                dim=-1,
+            )  # pyright: ignore[reportGeneralTypeIssues]
+        return torch.topk(
+            scores,
+            self.moe_top_k,
+            dim=-1,
+        )  # pyright: ignore[reportGeneralTypeIssues]
 
     def forward(self, x: torch.Tensor):
         if self.training and self.moe_jitter_eps is not None:
@@ -75,11 +88,13 @@ class LearnedRouter(torch.nn.Module):
                 expert_weights,
                 p=self.moe_normalize_expert_weights,
                 dim=-1,
-                keepdim=True)
+                keepdim=True,
+            )
 
-        top_experts = (_UniformExpertAssignment.apply(top_experts,
-                                                      self.moe_num_experts)
-                       if self.uniform_expert_assignment else top_experts)
+        top_experts = (
+            _UniformExpertAssignment.apply(top_experts, self.moe_num_experts)
+            if self.uniform_expert_assignment else top_experts
+        )
         scores = scores.to(x.dtype)
         expert_weights = expert_weights.to(x.dtype)
         return scores, expert_weights, top_experts
@@ -103,20 +118,32 @@ class MLP(torch.nn.Module):
         self.activation_fn: Callable = activation_fn
 
         self.w1 = torch.nn.Parameter(
-            torch.rand(moe_num_experts * ffn_hidden_size,
-                       hidden_size,
-                       device=device))
+            torch.rand(
+                moe_num_experts * ffn_hidden_size,
+                hidden_size,
+                device=device,
+            ),
+        )
         self.w2 = torch.nn.Parameter(
-            torch.rand(moe_num_experts * ffn_hidden_size,
-                       hidden_size,
-                       device=device))
+            torch.rand(
+                moe_num_experts * ffn_hidden_size,
+                hidden_size,
+                device=device,
+            ),
+        )
         self.activation_fn = activation_fn
 
     def forward(self, x: torch.Tensor, expert_idx: int) -> torch.Tensor:
-        expert_w1 = self.w1.view(self.moe_num_experts, self.ffn_hidden_size,
-                                 self.hidden_size)[expert_idx]
-        expert_w2 = self.w2.view(self.moe_num_experts, self.ffn_hidden_size,
-                                 self.hidden_size)[expert_idx]
+        expert_w1 = self.w1.view(
+            self.moe_num_experts,
+            self.ffn_hidden_size,
+            self.hidden_size,
+        )[expert_idx]
+        expert_w2 = self.w2.view(
+            self.moe_num_experts,
+            self.ffn_hidden_size,
+            self.hidden_size,
+        )[expert_idx]
 
         before_activation = x @ expert_w1.t()
         layer_1_output = self.activation_fn(before_activation)
@@ -140,26 +167,44 @@ class GLU(torch.nn.Module):
         self.moe_num_experts = moe_num_experts
 
         self.w1 = torch.nn.Parameter(
-            torch.rand(moe_num_experts * ffn_hidden_size,
-                       hidden_size,
-                       device=device))
+            torch.rand(
+                moe_num_experts * ffn_hidden_size,
+                hidden_size,
+                device=device,
+            ),
+        )
         self.v1 = torch.nn.Parameter(
-            torch.rand(moe_num_experts * ffn_hidden_size,
-                       hidden_size,
-                       device=device))
+            torch.rand(
+                moe_num_experts * ffn_hidden_size,
+                hidden_size,
+                device=device,
+            ),
+        )
         self.w2 = torch.nn.Parameter(
-            torch.rand(moe_num_experts * ffn_hidden_size,
-                       hidden_size,
-                       device=device))
+            torch.rand(
+                moe_num_experts * ffn_hidden_size,
+                hidden_size,
+                device=device,
+            ),
+        )
         self.activation_fn = activation_fn
 
     def forward(self, x: torch.Tensor, expert_idx: torch.Tensor):
-        expert_w1 = self.w1.view(self.moe_num_experts, self.ffn_hidden_size,
-                                 self.hidden_size)[expert_idx]
-        expert_v1 = self.v1.view(self.moe_num_experts, self.ffn_hidden_size,
-                                 self.hidden_size)[expert_idx]
-        expert_w2 = self.w2.view(self.moe_num_experts, self.ffn_hidden_size,
-                                 self.hidden_size)[expert_idx]
+        expert_w1 = self.w1.view(
+            self.moe_num_experts,
+            self.ffn_hidden_size,
+            self.hidden_size,
+        )[expert_idx]
+        expert_v1 = self.v1.view(
+            self.moe_num_experts,
+            self.ffn_hidden_size,
+            self.hidden_size,
+        )[expert_idx]
+        expert_w2 = self.w2.view(
+            self.moe_num_experts,
+            self.ffn_hidden_size,
+            self.hidden_size,
+        )[expert_idx]
 
         x1 = x.matmul(expert_w1.t())
         x2 = x.matmul(expert_v1.t())
@@ -185,22 +230,31 @@ class DroplessMLP(torch.nn.Module):
         self.moe_num_experts = moe_num_experts
 
         if mlp_type == 'mlp':
-            self.mlp = MLP(hidden_size=hidden_size,
-                           ffn_hidden_size=ffn_hidden_size,
-                           moe_num_experts=moe_num_experts,
-                           activation_fn=activation_fn,
-                           device=device)
+            self.mlp = MLP(
+                hidden_size=hidden_size,
+                ffn_hidden_size=ffn_hidden_size,
+                moe_num_experts=moe_num_experts,
+                activation_fn=activation_fn,
+                device=device,
+            )
         elif mlp_type == 'glu':
-            self.mlp = GLU(hidden_size=hidden_size,
-                           ffn_hidden_size=ffn_hidden_size,
-                           moe_num_experts=moe_num_experts,
-                           activation_fn=activation_fn,
-                           device=device)
+            self.mlp = GLU(
+                hidden_size=hidden_size,
+                ffn_hidden_size=ffn_hidden_size,
+                moe_num_experts=moe_num_experts,
+                activation_fn=activation_fn,
+                device=device,
+            )
         else:
             raise ValueError(f'Received unknown {mlp_type=}')
 
-    def forward(self, x: torch.Tensor, scores: torch.Tensor,
-                expert_weights: torch.Tensor, top_experts: torch.Tensor):
+    def forward(
+        self,
+        x: torch.Tensor,
+        scores: torch.Tensor,
+        expert_weights: torch.Tensor,
+        top_experts: torch.Tensor,
+    ):
         in_shape = x.shape
         hidden_size = in_shape[-1]
 
@@ -208,7 +262,9 @@ class DroplessMLP(torch.nn.Module):
         out = torch.zeros_like(x)
 
         expert_mask = torch.nn.functional.one_hot(
-            top_experts, num_classes=self.moe_num_experts).permute(2, 1, 0)
+            top_experts,
+            num_classes=self.moe_num_experts,
+        ).permute(2, 1, 0)
         for expert_idx in range(0, self.moe_num_experts):
             topk_idx, token_idx = torch.where(expert_mask[expert_idx])
             if token_idx.shape[0] == 0:

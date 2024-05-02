@@ -20,7 +20,8 @@ from llmfoundry.utils.builders import build_composer_model
 
 
 def test_remote_code_false_mpt(
-        conf_path: str = 'scripts/train/yamls/finetune/mpt-7b_dolly_sft.yaml'):
+    conf_path: str = 'scripts/train/yamls/finetune/mpt-7b_dolly_sft.yaml',
+):
     with open(conf_path) as f:
         test_cfg = om.load(f)
 
@@ -36,16 +37,18 @@ def test_remote_code_false_mpt(
     test_cfg.device = device
     test_cfg.precision = 'fp16'
 
-    tokenizer_cfg: Dict[str,
-                        Any] = om.to_container(test_cfg.tokenizer,
-                                               resolve=True)  # type: ignore
+    tokenizer_cfg: Dict[str, Any] = om.to_container(
+        test_cfg.tokenizer,
+        resolve=True,
+    )  # type: ignore
     tokenizer_name = tokenizer_cfg['name']
     tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
     with pytest.raises(
-            ValueError,
-            match='trust_remote_code must be set to True for MPT models.'):
+        ValueError,
+        match='trust_remote_code must be set to True for MPT models.',
+    ):
         _ = build_composer_model(
             name=test_cfg.model.name,
             cfg=test_cfg.model,
@@ -56,17 +59,19 @@ def test_remote_code_false_mpt(
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
 def test_tie_weights(tie_word_embeddings: bool):
     # Test that the tie_weights function sets lm_head correctly
-    hf_config = MPTConfig(init_device='cpu',
-                          d_model=128,
-                          n_heads=4,
-                          n_layers=2,
-                          expansion_ratio=2,
-                          max_seq_len=2048,
-                          attn_config={
-                              'attn_impl': 'torch',
-                          },
-                          no_bias=True,
-                          tie_word_embeddings=tie_word_embeddings)
+    hf_config = MPTConfig(
+        init_device='cpu',
+        d_model=128,
+        n_heads=4,
+        n_layers=2,
+        expansion_ratio=2,
+        max_seq_len=2048,
+        attn_config={
+            'attn_impl': 'torch',
+        },
+        no_bias=True,
+        tie_word_embeddings=tie_word_embeddings,
+    )
 
     mpt = MPTForCausalLM(hf_config)
 
@@ -78,40 +83,49 @@ def test_tie_weights(tie_word_embeddings: bool):
         assert mpt.lm_head is not None
 
 
-@pytest.mark.parametrize('model_cfg_overrides', [
-    {
-        'max_seq_len': 1024
-    },
-    {
-        'attn_config': {
-            'attn_impl': 'flash',
-        }
-    },
-    {
-        'init_config': {
-            'emb_init_std': 5
-        }
-    },
-    {
-        'max_seq_len': 1024,
-        'attn_config': {
-            'attn_impl': 'flash',
+@pytest.mark.parametrize(
+    'model_cfg_overrides',
+    [
+        {
+            'max_seq_len': 1024,
         },
-        'init_config': {
-            'emb_init_std': 5
+        {
+            'attn_config': {
+                'attn_impl': 'flash',
+            },
         },
-    },
-    pytest.param({'msl': 1024},
-                 marks=pytest.mark.xfail(reason='"msl" is a ValueError',
-                                         strict=True)),
-    pytest.param({'attn_config': {
-        'attn_iml': 'flash'
-    }},
-                 marks=pytest.mark.xfail(reason='"attn_impl" mispelled',
-                                         strict=True)),
-])
-@patch('llmfoundry.models.layers.attention.is_flash_v2_installed',
-       new=Mock(return_value=True))
+        {
+            'init_config': {
+                'emb_init_std': 5,
+            },
+        },
+        {
+            'max_seq_len': 1024,
+            'attn_config': {
+                'attn_impl': 'flash',
+            },
+            'init_config': {
+                'emb_init_std': 5,
+            },
+        },
+        pytest.param({'msl': 1024},
+                     marks=pytest.mark.xfail(
+                         reason='"msl" is a ValueError',
+                         strict=True,
+                     )),
+        pytest.param({'attn_config': {
+            'attn_iml': 'flash',
+        }},
+                     marks=pytest.mark.xfail(
+                         reason='"attn_impl" mispelled',
+                         strict=True,
+                     )),
+    ],
+)
+@patch(
+    'llmfoundry.models.layers.attention.is_flash_v2_installed',
+    new=Mock(return_value=True),
+)
 def test_hf_config_override(
     model_cfg_overrides: Dict[str, Any],
     conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml',
@@ -132,9 +146,10 @@ def test_hf_config_override(
     test_cfg.precision = 'fp16'
     test_cfg.model.attn_config = {'attn_impl': 'torch', 'alibi': True}
 
-    tokenizer_cfg: Dict[str,
-                        Any] = om.to_container(test_cfg.tokenizer,
-                                               resolve=True)  # type: ignore
+    tokenizer_cfg: Dict[str, Any] = om.to_container(
+        test_cfg.tokenizer,
+        resolve=True,
+    )  # type: ignore
     tokenizer_name = tokenizer_cfg['name']
     tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
@@ -176,8 +191,10 @@ def test_hf_config_override(
             assert getattr(hf_model.config, k) == v
 
 
-@pytest.mark.skipif('HUGGING_FACE_HUB_TOKEN' not in os.environ,
-                    reason='CI does not have access to llama2')
+@pytest.mark.skipif(
+    'HUGGING_FACE_HUB_TOKEN' not in os.environ,
+    reason='CI does not have access to llama2',
+)
 def test_rope_scaling_override():
     model_cfg = {
         'name': 'hf_causal_lm',
@@ -188,8 +205,8 @@ def test_rope_scaling_override():
             'intermediate_size': 64,
             'rope_scaling': {
                 'type': 'dynamic',
-                'factor': 0.5
-            }
+                'factor': 0.5,
+            },
         },
         'use_auth_token': True,
         'pretrained': False,
@@ -207,8 +224,10 @@ def test_rope_scaling_override():
     assert model.config.rope_scaling == {'type': 'dynamic', 'factor': 0.5}
 
 
-@pytest.mark.skipif('HUGGING_FACE_HUB_TOKEN' not in os.environ,
-                    reason='CI does not have access to Dbrx')
+@pytest.mark.skipif(
+    'HUGGING_FACE_HUB_TOKEN' not in os.environ,
+    reason='CI does not have access to Dbrx',
+)
 def test_nested_override():
     model_cfg = {
         'name': 'hf_causal_lm',
@@ -216,7 +235,7 @@ def test_nested_override():
         'config_overrides': {
             'ffn_config': {
                 'ffn_hidden_size': 500,
-            }
+            },
         },
         'use_auth_token': True,
         'pretrained': False,

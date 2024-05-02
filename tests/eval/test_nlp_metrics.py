@@ -9,12 +9,15 @@ import transformers
 
 from llmfoundry.eval.metrics import (
     InContextLearningCodeEvalAccuracy,
-    InContextLearningGenerationExactMatchAccuracy, InContextLearningLMAccuracy,
-    InContextLearningMultipleChoiceAccuracy)
+    InContextLearningGenerationExactMatchAccuracy,
+    InContextLearningLMAccuracy,
+    InContextLearningMultipleChoiceAccuracy,
+)
 
 
 def test_in_context_learning_lm_accuracy(
-        tiny_gpt2_tokenizer: transformers.AutoTokenizer):
+    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+):
     contexts = ['The dog is', 'I love to eat', 'I hate', 'The weather is']
     continuations = [' furry', ' pie', ' long lines', ' snowy']
     pad = tiny_gpt2_tokenizer.pad_token_id
@@ -23,8 +26,9 @@ def test_in_context_learning_lm_accuracy(
         tiny_gpt2_tokenizer(continuation)['input_ids']
         for context, continuation in zip(contexts, continuations)
     ]
-    inputs = torch.tensor(
-        [input + [pad] * (2048 - len(input)) for input in inputs])
+    inputs = torch.tensor([
+        input + [pad] * (2048 - len(input)) for input in inputs
+    ])
 
     cont_idxs = []
     for context, continuation in zip(contexts, continuations):
@@ -35,7 +39,7 @@ def test_in_context_learning_lm_accuracy(
     batch = {
         'continuation_indices': cont_idxs,
         'labels': inputs.roll(-1),
-        'input_ids': inputs
+        'input_ids': inputs,
     }
     logits = torch.nn.functional.one_hot(inputs.roll(-1),
                                          num_classes=pad + 1).float() * 100
@@ -50,8 +54,9 @@ def test_in_context_learning_lm_accuracy(
 
 def test_in_context_learning_qa_accuracy():
     outputs = [
-        'Correct but then some more text', 'Incorrect',
-        ' the CORREct with weird casing and spacing'
+        'Correct but then some more text',
+        'Incorrect',
+        ' the CORREct with weird casing and spacing',
     ]
     labels = [['Correct'], ['blah', 'blah2'], ['blah', 'correct']]
     batch = {'cot_delimiter': '', 'labels': labels}
@@ -66,14 +71,14 @@ def test_in_context_learning_qa_cot_accuracy():
         'chain of thought ### Correct but then some more text\n\nanother chain of thought ### Incorrect answer this time',
         'Incorrect',
         'chain of thought ### the CORREct with weird casing and spacing',
-        'incorrect chain of thought delimiter ## Correct but wrong delimiter'
+        'incorrect chain of thought delimiter ## Correct but wrong delimiter',
     ]
     labels = [['Correct'], ['blah', 'blah2'], ['blah', 'correct'], ['correct']]
     batch = {
         'cot_delimiter': ' ### ',
         'labels': labels,
         'do_normalization': True,
-        'stopping_criteria': '\n\n'
+        'stopping_criteria': '\n\n',
     }
     metric = InContextLearningGenerationExactMatchAccuracy()
     metric.update(batch, outputs, labels)
@@ -82,18 +87,21 @@ def test_in_context_learning_qa_cot_accuracy():
 
 
 def test_in_context_learning_code_eval_accuracy(
-        monkeypatch: pytest.MonkeyPatch):
+    monkeypatch: pytest.MonkeyPatch,
+):
     outputs = [
         '    return 1 if n <= 1 else fib(n - 1) + fib(n - 1)',  # incorrect
         '   if n <= 1:\n        return 1\n    return fib(n-1) + fib(n-2)',  # incorrect spacing
         '    return n * 2',  # correct
         '    return 2*n',  # correct
         '    return n + 2',  # incorrect
-        '    return n + 1'
+        '    return n + 1',
     ]  # correct
     labels = []
     prompts = [
-        'def fib(n):\n', 'def multiply_by_two(n):\n', 'def add_one(n):\n'
+        'def fib(n):\n',
+        'def multiply_by_two(n):\n',
+        'def add_one(n):\n',
     ]
     entry_points = ['fib', 'multiply_by_two', 'add_one']
     test_inputs = [['(1,)', '(2,)', '(4,)'], ['(1,)', '(2,)', '(4,)'],
@@ -109,11 +117,14 @@ def test_in_context_learning_code_eval_accuracy(
 
     transformers = pytest.importorskip('transformers')
     tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'mosaicml/mpt-7b')  # type: ignore reportUnboundVariable
+        'mosaicml/mpt-7b',
+    )  # type: ignore reportUnboundVariable
     tokenizer.pad_token = tokenizer.eos_token
-    input_ids = tokenizer.batch_encode_plus(repeat(prompts),
-                                            return_tensors='pt',
-                                            padding=True)['input_ids']
+    input_ids = tokenizer.batch_encode_plus(
+        repeat(prompts),
+        return_tensors='pt',
+        padding=True,
+    )['input_ids']
     batch = {
         # This tests deterministic beam search rather than sampling
         'input_ids': input_ids,
@@ -142,14 +153,19 @@ def test_in_context_learning_code_eval_accuracy(
 
 
 def test_in_context_learning_mc_accuracy(
-        tiny_gpt2_tokenizer: transformers.AutoTokenizer):
+    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+):
     contexts = [
-        'Q: How do you cook a cake?', 'Q: How do you cook a cake?',
-        'Q: How old is the earth?', 'Q: How old is the earth?'
+        'Q: How do you cook a cake?',
+        'Q: How do you cook a cake?',
+        'Q: How old is the earth?',
+        'Q: How old is the earth?',
     ]
     continuations = [
-        ' A: turn on the oven', ' A: do a backflip', ' A: 2 minutes',
-        ' A: 4.5 billion years'
+        ' A: turn on the oven',
+        ' A: do a backflip',
+        ' A: 2 minutes',
+        ' A: 4.5 billion years',
     ]
     gold_indices = [0, 1]
     choice_groupings = [(0, 2), (2, 4)]
@@ -159,8 +175,9 @@ def test_in_context_learning_mc_accuracy(
         tiny_gpt2_tokenizer(continuation)['input_ids']
         for context, continuation in zip(contexts, continuations)
     ]
-    inputs = torch.tensor(
-        [input + [pad] * (2048 - len(input)) for input in inputs])
+    inputs = torch.tensor([
+        input + [pad] * (2048 - len(input)) for input in inputs
+    ])
     attention_mask = ~(inputs == pad)
 
     cont_idxs = []
@@ -175,7 +192,7 @@ def test_in_context_learning_mc_accuracy(
         'input_ids': inputs,
         'attention_mask': attention_mask,
         'gold_indices': gold_indices,
-        'choice_groupings': choice_groupings
+        'choice_groupings': choice_groupings,
     }
     logits = torch.nn.functional.one_hot(inputs.roll(-1),
                                          num_classes=pad + 1).float()

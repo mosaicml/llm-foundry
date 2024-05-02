@@ -33,7 +33,9 @@ def test_flash2(model_name: str, use_flash_attention_2: bool, init_device: str):
 
         tokenizer_name = 'codellama/CodeLlama-7b-hf'
         from transformers.models.llama.modeling_llama import (
-            LlamaAttention, LlamaFlashAttention2)
+            LlamaAttention,
+            LlamaFlashAttention2,
+        )
         flash_attn_class = LlamaFlashAttention2 if use_flash_attention_2 else LlamaAttention
         attention_layers_attr = 'model.model.layers'
         attention_attr = 'self_attn'
@@ -52,7 +54,8 @@ def test_flash2(model_name: str, use_flash_attention_2: bool, init_device: str):
     tokenizer.pad_token = tokenizer.eos_token
 
     error_context = pytest.raises(
-        ValueError, match='use_flash_attention_2 is set to True'
+        ValueError,
+        match='use_flash_attention_2 is set to True',
     ) if not is_flash_v2_installed(
     ) and use_flash_attention_2 else contextlib.nullcontext()
 
@@ -65,19 +68,24 @@ def test_flash2(model_name: str, use_flash_attention_2: bool, init_device: str):
 
         # check that it actually used flash attention 2
         assert model.model.config._attn_implementation == (
-            'flash_attention_2' if use_flash_attention_2 else 'eager')
+            'flash_attention_2' if use_flash_attention_2 else 'eager'
+        )
         attention_layer = rgetattr(
-            rgetattr(model, attention_layers_attr)[0], attention_attr)
+            rgetattr(model, attention_layers_attr)[0],
+            attention_attr,
+        )
         assert isinstance(attention_layer, flash_attn_class)
 
         # Skip attempting to run forward/backward when some devices have meta params
         # because we are not instantiating a full Trainer here, which contains the logic
         # to move params off of meta device.
         if init_device == 'cpu':
-            tokenized_input = tokenizer(
-                ['Hello world blah blah', 'Goodbye world'],
-                return_tensors='pt',
-                padding=True)
+            tokenized_input = tokenizer([
+                'Hello world blah blah',
+                'Goodbye world',
+            ],
+                                        return_tensors='pt',
+                                        padding=True)
             tokenized_input['labels'] = tokenized_input['input_ids'].clone()
 
             tokenized_input = {k: v.cuda() for k, v in tokenized_input.items()}

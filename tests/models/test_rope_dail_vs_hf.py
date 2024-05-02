@@ -8,14 +8,17 @@ from omegaconf import OmegaConf as om
 
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.layers.layer_builders import build_attention_layer
-from llmfoundry.models.mpt.modeling_mpt import (gen_flash_attn_padding_info,
-                                                gen_rotary_embedding)
+from llmfoundry.models.mpt.modeling_mpt import (
+    gen_flash_attn_padding_info,
+    gen_rotary_embedding,
+)
 
 
 @pytest.mark.gpu
 @pytest.mark.parametrize(
     'attn_type',
-    ['multihead_attention', 'multiquery_attention', 'grouped_query_attention'])
+    ['multihead_attention', 'multiquery_attention', 'grouped_query_attention'],
+)
 @pytest.mark.parametrize('seq_len', [1, 233, 2048])
 def test_rope_dail_vs_hf(attn_type: str, seq_len: int, device: str = 'cuda'):
     # compare rope rotations for the dail vs hf implementations
@@ -38,13 +41,13 @@ def test_rope_dail_vs_hf(attn_type: str, seq_len: int, device: str = 'cuda'):
 
     attn0 = build_attention_layer(
         name=attn_type,
-        attn_kwargs=om.to_container(
-            cfg),  # type: ignore (to_container return broad type)
+        attn_kwargs=om.
+        to_container(cfg),  # type: ignore (to_container return broad type)
     ).to(device)
     attn1 = build_attention_layer(
         name=attn_type,
-        attn_kwargs=om.to_container(
-            cfg),  # type: ignore (to_container return broad type)
+        attn_kwargs=om.
+        to_container(cfg),  # type: ignore (to_container return broad type)
     ).to(device)
 
     attn1.load_state_dict(attn0.state_dict())
@@ -62,7 +65,7 @@ def test_rope_dail_vs_hf(attn_type: str, seq_len: int, device: str = 'cuda'):
                 'type': 'original',
                 'pos_idx_in_fp32': True,
                 'xpos_scale_base': 512,
-            }
+            },
         }
         hf_rope_config = {
             'rope_theta': 10000,
@@ -70,7 +73,7 @@ def test_rope_dail_vs_hf(attn_type: str, seq_len: int, device: str = 'cuda'):
             'rope_hf_config': {
                 'type': 'no_scaling',
                 'factor': 1.0,
-            }
+            },
         }
 
         dail_rope = gen_rotary_embedding(
@@ -79,7 +82,8 @@ def test_rope_dail_vs_hf(attn_type: str, seq_len: int, device: str = 'cuda'):
             rope_theta=dail_rope_config['rope_theta'],
             rope_dail_config=dail_rope_config['rope_dail_config'],
             rope_hf_config={},
-            max_seq_len=seq_len).to('cuda')
+            max_seq_len=seq_len,
+        ).to('cuda')
         dail_rope_w_meta_info = {
             'impl': 'dail',
             'rotary_emb': dail_rope,
@@ -93,7 +97,8 @@ def test_rope_dail_vs_hf(attn_type: str, seq_len: int, device: str = 'cuda'):
             rope_theta=hf_rope_config['rope_theta'],
             rope_dail_config={},
             rope_hf_config=hf_rope_config['rope_hf_config'],
-            max_seq_len=seq_len).to('cuda')
+            max_seq_len=seq_len,
+        ).to('cuda')
         pos = torch.arange(seq_len).unsqueeze(0).to(device='cuda')
         # adjust the position indices to account for padding tokens
         pos = torch.clamp(
@@ -107,25 +112,39 @@ def test_rope_dail_vs_hf(attn_type: str, seq_len: int, device: str = 'cuda'):
             'seq_len': seq_len,
         }
 
-        y0, _, _ = attn0(x0,
-                         past_key_value=None,
-                         attn_bias=None,
-                         attention_mask=attention_mask,
-                         rotary_emb_w_meta_info=dail_rope_w_meta_info,
-                         is_causal=True,
-                         flash_attn_padding_info=gen_flash_attn_padding_info(
-                             batch_size, seq_len, 0, torch.device(device), None,
-                             attention_mask))
+        y0, _, _ = attn0(
+            x0,
+            past_key_value=None,
+            attn_bias=None,
+            attention_mask=attention_mask,
+            rotary_emb_w_meta_info=dail_rope_w_meta_info,
+            is_causal=True,
+            flash_attn_padding_info=gen_flash_attn_padding_info(
+                batch_size,
+                seq_len,
+                0,
+                torch.device(device),
+                None,
+                attention_mask,
+            ),
+        )
 
-        y1, _, _ = attn1(x1,
-                         past_key_value=None,
-                         attn_bias=None,
-                         attention_mask=attention_mask,
-                         rotary_emb_w_meta_info=hf_rope_w_meta_info,
-                         is_causal=True,
-                         flash_attn_padding_info=gen_flash_attn_padding_info(
-                             batch_size, seq_len, 0, torch.device(device), None,
-                             attention_mask))
+        y1, _, _ = attn1(
+            x1,
+            past_key_value=None,
+            attn_bias=None,
+            attention_mask=attention_mask,
+            rotary_emb_w_meta_info=hf_rope_w_meta_info,
+            is_causal=True,
+            flash_attn_padding_info=gen_flash_attn_padding_info(
+                batch_size,
+                seq_len,
+                0,
+                torch.device(device),
+                None,
+                attention_mask,
+            ),
+        )
 
         y0 *= attention_mask.unsqueeze(-1)
         y1 *= attention_mask.unsqueeze(-1)
@@ -138,7 +157,7 @@ def test_rope_dail_vs_hf(attn_type: str, seq_len: int, device: str = 'cuda'):
 
     torch.testing.assert_close(y0, y1, rtol=1e-2, atol=1e-2)
 
-    torch_name_param_map = {n: p for n, p in attn1.named_parameters()}
+    torch_name_param_map = dict(attn1.named_parameters())
     for n, p in attn0.named_parameters():
         tp = torch_name_param_map[n]
         assert p.grad is not None

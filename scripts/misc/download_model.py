@@ -22,21 +22,28 @@ import logging
 import os
 
 from llmfoundry.utils.model_download_utils import (
-    download_from_hf_hub, download_from_http_fileserver, download_from_oras)
+    download_from_hf_hub,
+    download_from_http_fileserver,
+    download_from_oras,
+)
 
 HF_TOKEN_ENV_VAR = 'HUGGING_FACE_HUB_TOKEN'
 
-logging.basicConfig(format=f'%(asctime)s: %(levelname)s: %(name)s: %(message)s',
-                    level=logging.INFO)
+logging.basicConfig(
+    format=f'%(asctime)s: %(levelname)s: %(name)s: %(message)s',
+    level=logging.INFO,
+)
 log = logging.getLogger(__name__)
 
 
 def add_hf_parser_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument('--model', type=str, required=True)
     parser.add_argument('--prefer-safetensors', type=bool, default=True)
-    parser.add_argument('--token',
-                        type=str,
-                        default=os.getenv(HF_TOKEN_ENV_VAR))
+    parser.add_argument(
+        '--token',
+        type=str,
+        default=os.getenv(HF_TOKEN_ENV_VAR),
+    )
 
 
 def add_oras_parser_arguments(parser: argparse.ArgumentParser) -> None:
@@ -57,9 +64,11 @@ def parse_args() -> argparse.Namespace:
 
     base_parser = argparse.ArgumentParser(add_help=False)
     base_parser.add_argument('--save-dir', type=str, required=True)
-    base_parser.add_argument('--tokenizer-only',
-                             default=False,
-                             action='store_true')
+    base_parser.add_argument(
+        '--tokenizer-only',
+        default=False,
+        action='store_true',
+    )
 
     # Add subparser for downloading from Hugging Face Hub.
     hf_parser = subparsers.add_parser('hf', parents=[base_parser])
@@ -91,11 +100,14 @@ if __name__ == '__main__':
     if download_from == 'http':
         if args.tokenizer_only:
             log.warning(
-                'tokenizer-only is not currently supported for http. Downloading all files instead.'
+                'tokenizer-only is not currently supported for http. Downloading all files instead.',
             )
         try:
-            download_from_http_fileserver(args.url, args.save_dir,
-                                          args.ignore_cert)
+            download_from_http_fileserver(
+                args.url,
+                args.save_dir,
+                args.ignore_cert,
+            )
         except PermissionError as e:
             log.error(f'Not authorized to download {args.model}.')
             raise e
@@ -109,20 +121,25 @@ if __name__ == '__main__':
                     download_from = 'oras'
                 else:
                     raise ValueError(
-                        f'Invalid fallback destination {args.fallback}.')
+                        f'Invalid fallback destination {args.fallback}.',
+                    )
             else:
                 raise e
 
     if download_from == 'hf':
-        download_from_hf_hub(args.model,
-                             save_dir=args.save_dir,
-                             token=args.token,
-                             tokenizer_only=args.tokenizer_only,
-                             prefer_safetensors=args.prefer_safetensors)
+        download_from_hf_hub(
+            args.model,
+            save_dir=args.save_dir,
+            token=args.token,
+            tokenizer_only=args.tokenizer_only,
+            prefer_safetensors=args.prefer_safetensors,
+        )
     elif download_from == 'oras':
-        download_from_oras(args.model,
-                           args.config_file,
-                           args.credentials_dir,
-                           args.save_dir,
-                           tokenizer_only=args.tokenizer_only,
-                           concurrency=args.concurrency)
+        download_from_oras(
+            args.model,
+            args.config_file,
+            args.credentials_dir,
+            args.save_dir,
+            tokenizer_only=args.tokenizer_only,
+            concurrency=args.concurrency,
+        )

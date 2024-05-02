@@ -17,8 +17,11 @@ from argparse import ArgumentParser, Namespace
 
 import pandas as pd
 import requests
-from composer.utils import (get_file, maybe_create_object_store_from_uri,
-                            parse_uri)
+from composer.utils import (
+    get_file,
+    maybe_create_object_store_from_uri,
+    parse_uri,
+)
 
 from llmfoundry.utils import prompt_files as utils
 
@@ -34,7 +37,8 @@ PROMPT_DELIMITER = '\n'
 def parse_args() -> Namespace:
     """Parse commandline arguments."""
     parser = ArgumentParser(
-        description='Call prompts against a text completions endpoint')
+        description='Call prompts against a text completions endpoint',
+    )
 
     #####
     # Path Parameters
@@ -43,18 +47,21 @@ def parse_args() -> Namespace:
         '--inputs',
         nargs='+',
         help=f'List of strings, local data files (starting with {utils.PROMPTFILE_PREFIX}),' +\
-             ' and/or remote object stores'
+             ' and/or remote object stores',
         )
     parser.add_argument(
         '--prompt-delimiter',
         default='\n',
         help=
-        'Prompt delimiter for txt files. By default, a file is a single prompt')
+        'Prompt delimiter for txt files. By default, a file is a single prompt',
+    )
 
-    parser.add_argument('-o',
-                        '--output-folder',
-                        required=True,
-                        help='Remote folder to save the output')
+    parser.add_argument(
+        '-o',
+        '--output-folder',
+        required=True,
+        help='Remote folder to save the output',
+    )
 
     #####
     # Generation Parameters
@@ -62,12 +69,14 @@ def parse_args() -> Namespace:
         '--rate-limit',
         type=int,
         default=75,
-        help='Max number of calls to make to the endpoint in a second')
+        help='Max number of calls to make to the endpoint in a second',
+    )
     parser.add_argument(
         '--batch-size',
         type=int,
         default=10,
-        help='Max number of calls to make to the endpoint in a single request')
+        help='Max number of calls to make to the endpoint in a single request',
+    )
 
     #####
     # Endpoint Parameters
@@ -76,7 +85,7 @@ def parse_args() -> Namespace:
         '--endpoint',
         type=str,
         help=
-        f'OpenAI-compatible text completions endpoint to query on. If not set, will read from {ENDPOINT_URL_ENV}'
+        f'OpenAI-compatible text completions endpoint to query on. If not set, will read from {ENDPOINT_URL_ENV}',
     )
 
     parser.add_argument('--max-tokens', type=int, default=100)
@@ -100,13 +109,14 @@ async def main(args: Namespace) -> None:
 
     if args.batch_size > args.rate_limit:
         raise ValueError(
-            f'Batch size is {args.batch_size} but rate limit is set to {args.rate_limit} / s'
+            f'Batch size is {args.batch_size} but rate limit is set to {args.rate_limit} / s',
         )
 
     url = args.endpoint if args.endpoint else os.environ.get(ENDPOINT_URL_ENV)
     if not url:
         raise ValueError(
-            f'URL must be provided via --endpoint or {ENDPOINT_URL_ENV}')
+            f'URL must be provided via --endpoint or {ENDPOINT_URL_ENV}',
+        )
 
     log.info(f'Using endpoint {url}')
 
@@ -141,12 +151,16 @@ async def main(args: Namespace) -> None:
 
     total_batches = math.ceil(len(prompt_strings) / args.batch_size)
     log.info(
-        f'Generating {len(prompt_strings)} prompts in {total_batches} batches')
+        f'Generating {len(prompt_strings)} prompts in {total_batches} batches',
+    )
 
     @sleep_and_retry
     @limits(calls=total_batches, period=1)  # type: ignore
-    async def generate(session: aiohttp.ClientSession, batch: int,
-                       prompts: list):
+    async def generate(
+        session: aiohttp.ClientSession,
+        batch: int,
+        prompts: list,
+    ):
         data = copy.copy(param_data)
         data['prompt'] = prompts
         headers = {'Authorization': api_key, 'Content-Type': 'application/json'}
@@ -157,7 +171,8 @@ async def main(args: Namespace) -> None:
                     response = await resp.json()
                 except requests.JSONDecodeError:
                     raise Exception(
-                        f'Bad response: {resp.status} {resp.reason}')
+                        f'Bad response: {resp.status} {resp.reason}',
+                    )
             else:
                 raise Exception(f'Bad response: {resp.status} {resp.reason}')
 
@@ -165,8 +180,10 @@ async def main(args: Namespace) -> None:
         n_compl = response['usage']['completion_tokens']
         n_prompt = response['usage']['prompt_tokens']
         req_latency = (req_end - req_start)
-        log.info(f'Completed batch {batch}: {n_compl:,} completion' +
-                 f' tokens using {n_prompt:,} prompt tokens in {req_latency}s')
+        log.info(
+            f'Completed batch {batch}: {n_compl:,} completion' +
+            f' tokens using {n_prompt:,} prompt tokens in {req_latency}s',
+        )
 
         res = pd.DataFrame(columns=cols)
 
@@ -183,8 +200,9 @@ async def main(args: Namespace) -> None:
         tasks = []
 
         for i in range(total_batches):
-            prompts = prompt_strings[i * args.batch_size:min(
-                (i + 1) * args.batch_size, len(prompt_strings))]
+            prompts = prompt_strings[
+                i * args.batch_size:min((i + 1) *
+                                        args.batch_size, len(prompt_strings))]
 
             tasks.append(generate(session, batch, prompts))
             batch += 1
@@ -205,7 +223,8 @@ async def main(args: Namespace) -> None:
         res.to_csv(local_path, index=False)
 
         output_object_store = maybe_create_object_store_from_uri(
-            args.output_folder)
+            args.output_folder,
+        )
         if output_object_store is not None:
             _, _, output_folder_prefix = parse_uri(args.output_folder)
             remote_path = os.path.join(output_folder_prefix, file)

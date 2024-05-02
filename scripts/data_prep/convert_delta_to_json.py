@@ -34,9 +34,11 @@ from pyspark.sql.dataframe import DataFrame as SparkDataFrame
 from pyspark.sql.types import Row
 
 from llmfoundry.utils import maybe_create_mosaicml_logger
-from llmfoundry.utils.exceptions import (ClusterDoesNotExistError,
-                                         FailedToConnectToDatabricksError,
-                                         FailedToCreateSQLConnectionError)
+from llmfoundry.utils.exceptions import (
+    ClusterDoesNotExistError,
+    FailedToConnectToDatabricksError,
+    FailedToCreateSQLConnectionError,
+)
 
 MINIMUM_DB_CONNECT_DBR_VERSION = '14.1'
 MINIMUM_SQ_CONNECT_DBR_VERSION = '12.2'
@@ -44,8 +46,14 @@ MINIMUM_SQ_CONNECT_DBR_VERSION = '12.2'
 log = logging.getLogger(__name__)
 
 Result = namedtuple(
-    'Result', ['url', 'row_count', 'compressed_size', 'uncompressed_size'
-              ])  # pyright: ignore
+    'Result',
+    [
+        'url',
+        'row_count',
+        'compressed_size',
+        'uncompressed_size',
+    ],
+)  # pyright: ignore
 
 # ``collect_as_cf`` is an addon new feature monkey patch on top of the DB Connect package.
 # It allows the client to fetch the results in different formats from the server.
@@ -84,7 +92,7 @@ def to_cf(self: SparkConnectClient,
         format = cloud_pb2.ResultOptions.CloudOptions.FORMAT_ARROW
     else:
         raise ValueError(
-            f'Only formats json, csv, and arrow are supported. Got invalid type {type}'
+            f'Only formats json, csv, and arrow are supported. Got invalid type {type}',
         )
 
     ro = cloud_pb2.ResultOptions(
@@ -92,16 +100,21 @@ def to_cf(self: SparkConnectClient,
         cloudOptions=cloud_pb2.ResultOptions.CloudOptions(
             format=format,
             useCompression=False,
-        ))
+        ),
+    )
     cloud_option = any_pb2.Any()
     cloud_option.Pack(ro)
     req.request_options.append(
-        pb2.ExecutePlanRequest.RequestOption(extension=cloud_option))
+        pb2.ExecutePlanRequest.RequestOption(extension=cloud_option),
+    )
 
     # Create the iterator
-    iterator = ExecutePlanResponseReattachableIterator(req, self._stub,
-                                                       self._retry_policy,
-                                                       self._builder.metadata())
+    iterator = ExecutePlanResponseReattachableIterator(
+        req,
+        self._stub,
+        self._retry_policy,
+        self._builder.metadata(),
+    )
     # Iterate over the response
     result = []
     row_count = 0
@@ -109,15 +122,21 @@ def to_cf(self: SparkConnectClient,
 
     for response in iterator:
         if response.HasField('extension') and response.extension.Is(
-                cloud_pb2.CloudResultBatch.DESCRIPTOR):
+            cloud_pb2.CloudResultBatch.DESCRIPTOR,
+        ):
             batch = cloud_pb2.CloudResultBatch()
             if not response.extension.Is(cloud_pb2.CloudResultBatch.DESCRIPTOR):
                 raise ValueError(
-                    'Response extension is not of type CloudResultBatch.')
+                    'Response extension is not of type CloudResultBatch.',
+                )
             response.extension.Unpack(batch)
             result += [
-                Result(b.url, b.row_count, b.compressed_size,
-                       b.uncompressed_size) for b in batch.results
+                Result(
+                    b.url,
+                    b.row_count,
+                    b.compressed_size,
+                    b.uncompressed_size,
+                ) for b in batch.results
             ]
             row_count += sum(result.row_count for result in batch.results)
             is_overflow |= batch.truncated
@@ -175,7 +194,7 @@ def run_query(
     method: str,
     cursor: Optional[Cursor] = None,
     spark: Optional[SparkSession] = None,
-    collect: bool = True
+    collect: bool = True,
 ) -> Optional[Union[List[Row], DataFrame, SparkDataFrame]]:
     """Run SQL query via databricks-connect or databricks-sql.
 
@@ -208,12 +227,14 @@ def get_args(signed: List, json_output_folder: str, columns: List) -> Iterable:
         yield (i, r.url, json_output_folder, columns)
 
 
-def download(ipart: int,
-             url: str,
-             json_output_folder: str,
-             columns: Optional[List] = None,
-             resp_format: str = 'arrow',
-             compressed: bool = False) -> None:
+def download(
+    ipart: int,
+    url: str,
+    json_output_folder: str,
+    columns: Optional[List] = None,
+    resp_format: str = 'arrow',
+    compressed: bool = False,
+) -> None:
     """Thread download presigned url and save to jsonl locally.
 
     Args:
@@ -228,10 +249,14 @@ def download(ipart: int,
     if resp.status_code == 200:
         if resp_format == 'json':
             data = resp.json()
-            pd.DataFrame(data, columns=columns).to_json(os.path.join(
-                json_output_folder, 'part_' + str(ipart) + '.jsonl'),
-                                                        orient='records',
-                                                        lines=True)
+            pd.DataFrame(data, columns=columns).to_json(
+                os.path.join(
+                    json_output_folder,
+                    'part_' + str(ipart) + '.jsonl',
+                ),
+                orient='records',
+                lines=True,
+            )
             return
 
         # When resp_format is arrow:
@@ -247,21 +272,29 @@ def download(ipart: int,
 
         # Convert the PyArrow table into a pandas DataFrame
         df = table.to_pandas()
-        df.to_json(os.path.join(json_output_folder,
-                                'part_' + str(ipart) + '.jsonl'),
-                   orient='records',
-                   lines=True,
-                   force_ascii=False)
+        df.to_json(
+            os.path.join(json_output_folder, 'part_' + str(ipart) + '.jsonl'),
+            orient='records',
+            lines=True,
+            force_ascii=False,
+        )
 
 
 def download_starargs(args: Tuple) -> None:
     return download(*args)
 
 
-def fetch_data(method: str, cursor: Optional[Cursor],
-               sparkSession: Optional[SparkSession], start: int, end: int,
-               order_by: str, tablename: str, columns_str: str,
-               json_output_folder: str) -> None:
+def fetch_data(
+    method: str,
+    cursor: Optional[Cursor],
+    sparkSession: Optional[SparkSession],
+    start: int,
+    end: int,
+    order_by: str,
+    tablename: str,
+    columns_str: str,
+    json_output_folder: str,
+) -> None:
     """Fetches a specified range of rows from a given table to a json file.
 
     This function executes a SQL query to retrieve a range of rows, determined by 'start' and 'end' indexes,
@@ -297,7 +330,8 @@ def fetch_data(method: str, cursor: Optional[Cursor],
         spark_df = run_query(query, method, cursor, sparkSession, collect=False)
         if spark_df is None:
             raise RuntimeError(
-                f'Expect spark dataframe with {query} but got None')
+                f'Expect spark dataframe with {query} but got None',
+            )
         pdf = spark_df.toPandas()  # pyright: ignore
     else:  #  method == 'dbsql':
         ans = run_query(query, method, cursor, sparkSession, collect=True)
@@ -306,9 +340,11 @@ def fetch_data(method: str, cursor: Optional[Cursor],
         records = [r.asDict() for r in ans]  # pyright: ignore
         pdf = pd.DataFrame.from_dict(records)
 
-    pdf.to_json(os.path.join(json_output_folder, f'part_{start+1}_{end}.jsonl'),
-                orient='records',
-                lines=True)
+    pdf.to_json(
+        os.path.join(json_output_folder, f'part_{start+1}_{end}.jsonl'),
+        orient='records',
+        lines=True,
+    )
 
 
 def fetch(
@@ -334,29 +370,37 @@ def fetch(
     cursor = dbsql.cursor() if dbsql is not None else None
 
     try:
-        ans = run_query(f'SELECT COUNT(*) FROM {tablename}', method, cursor,
-                        sparkSession)
+        ans = run_query(
+            f'SELECT COUNT(*) FROM {tablename}',
+            method,
+            cursor,
+            sparkSession,
+        )
         nrows = [row.asDict() for row in ans][0].popitem()[1]  # pyright: ignore
         log.info(f'total_rows = {nrows}')
     except Exception as e:
         raise RuntimeError(
-            f'Error in get total rows from {tablename}. Restart sparkSession and try again'
+            f'Error in get total rows from {tablename}. Restart sparkSession and try again',
         ) from e
 
     try:
-        ans = run_query(f'SHOW COLUMNS IN {tablename}', method, cursor,
-                        sparkSession)
+        ans = run_query(
+            f'SHOW COLUMNS IN {tablename}',
+            method,
+            cursor,
+            sparkSession,
+        )
         columns = [row.asDict().popitem()[1] for row in ans]  # pyright: ignore
         order_by = columns[0]
         columns_str = ','.join(columns)
         log.info(f'order by column {order_by}')
     except Exception as e:
         raise RuntimeError(
-            f'Error in get columns from {tablename}. Restart sparkSession and try again'
+            f'Error in get columns from {tablename}. Restart sparkSession and try again',
         ) from e
 
     if method == 'dbconnect' and sparkSession is not None:
-        log.info('processes = ', processes)
+        log.info(f'{processes=}')
         df = sparkSession.table(tablename)
 
         # Running the query and collecting the data as arrow or json.
@@ -375,18 +419,29 @@ def fetch(
         for start in range(0, nrows, batch_size):
             log.warning(f'batch {start}')
             end = min(start + batch_size, nrows)
-            fetch_data(method, cursor, sparkSession, start, end, order_by,
-                       tablename, columns_str, json_output_folder)
+            fetch_data(
+                method,
+                cursor,
+                sparkSession,
+                start,
+                end,
+                order_by,
+                tablename,
+                columns_str,
+                json_output_folder,
+            )
 
     if cursor is not None:
         cursor.close()
 
 
-def validate_and_get_cluster_info(cluster_id: str,
-                                  databricks_host: str,
-                                  databricks_token: str,
-                                  http_path: Optional[str],
-                                  use_serverless: bool = False) -> tuple:
+def validate_and_get_cluster_info(
+    cluster_id: str,
+    databricks_host: str,
+    databricks_token: str,
+    http_path: Optional[str],
+    use_serverless: bool = False,
+) -> tuple:
     """Validate and get cluster info for running the Delta to JSONL conversion.
 
     Args:
@@ -411,18 +466,22 @@ def validate_and_get_cluster_info(cluster_id: str,
         stripped_runtime = re.sub(
             r'[a-zA-Z]',
             '',
-            res.spark_version.split('-scala')[0].replace(  # type: ignore
-                'x-snapshot', ''))
+            res.spark_version.split('-scala')
+            [0].replace(  # type: ignore
+                'x-snapshot', '',
+            ),
+        )
         runtime_version = re.sub(r'[.-]*$', '', stripped_runtime)
-        if version.parse(runtime_version) < version.parse(
-                MINIMUM_SQ_CONNECT_DBR_VERSION):
+        if version.parse(
+            runtime_version,
+        ) < version.parse(MINIMUM_SQ_CONNECT_DBR_VERSION):
             raise ValueError(
-                f'The minium DBR version required is {MINIMUM_SQ_CONNECT_DBR_VERSION} but got {version.parse(runtime_version)}'
+                f'The minium DBR version required is {MINIMUM_SQ_CONNECT_DBR_VERSION} but got {version.parse(runtime_version)}',
             )
 
         if http_path is None and version.parse(
-                runtime_version) >= version.parse(
-                    MINIMUM_DB_CONNECT_DBR_VERSION):
+            runtime_version,
+        ) >= version.parse(MINIMUM_DB_CONNECT_DBR_VERSION):
             method = 'dbconnect'
 
     if method == 'dbconnect':
@@ -430,14 +489,17 @@ def validate_and_get_cluster_info(cluster_id: str,
             if use_serverless:
                 session_id = str(uuid4())
                 sparkSession = DatabricksSession.builder.host(
-                    databricks_host).token(databricks_token).header(
-                        'x-databricks-session-id', session_id).getOrCreate()
+                    databricks_host,
+                ).token(
+                    databricks_token,
+                ).header('x-databricks-session-id', session_id).getOrCreate()
 
             else:
                 sparkSession = DatabricksSession.builder.remote(
                     host=databricks_host,
                     token=databricks_token,
-                    cluster_id=cluster_id).getOrCreate()
+                    cluster_id=cluster_id,
+                ).getOrCreate()
 
         except Exception as e:
             raise FailedToConnectToDatabricksError() from e
@@ -462,13 +524,15 @@ def fetch_DT(args: Namespace) -> None:
     obj = urllib.parse.urlparse(args.json_output_folder)
     if obj.scheme != '':
         raise ValueError(
-            'Check the json_output_folder and verify it is a local path!')
+            'Check the json_output_folder and verify it is a local path!',
+        )
 
     if os.path.exists(args.json_output_folder):
         if not os.path.isdir(args.json_output_folder) or os.listdir(
-                args.json_output_folder):
+            args.json_output_folder,
+        ):
             raise RuntimeError(
-                f'Output folder {args.json_output_folder} already exists and is not empty. Please remove it and retry.'
+                f'Output folder {args.json_output_folder} already exists and is not empty. Please remove it and retry.',
             )
 
     os.makedirs(args.json_output_folder, exist_ok=True)
@@ -483,10 +547,18 @@ def fetch_DT(args: Namespace) -> None:
         databricks_host=args.DATABRICKS_HOST,
         databricks_token=args.DATABRICKS_TOKEN,
         http_path=args.http_path,
-        use_serverless=args.use_serverless)
+        use_serverless=args.use_serverless,
+    )
 
-    fetch(method, args.delta_table_name, args.json_output_folder,
-          args.batch_size, args.processes, sparkSession, dbsql)
+    fetch(
+        method,
+        args.delta_table_name,
+        args.json_output_folder,
+        args.batch_size,
+        args.processes,
+        sparkSession,
+        dbsql,
+    )
 
     if dbsql is not None:
         dbsql.close()
@@ -494,41 +566,53 @@ def fetch_DT(args: Namespace) -> None:
     # combine downloaded jsonl into one big jsonl for IFT
     iterative_combine_jsons(
         args.json_output_folder,
-        os.path.join(args.json_output_folder, args.json_output_filename))
+        os.path.join(args.json_output_folder, args.json_output_filename),
+    )
 
 
 if __name__ == '__main__':
     parser = ArgumentParser(
         description=
-        'Download delta table from UC and convert to json to save local')
-    parser.add_argument('--delta_table_name',
-                        required=True,
-                        type=str,
-                        help='UC table <catalog>.<schema>.<table name>')
-    parser.add_argument('--json_output_folder',
-                        required=True,
-                        type=str,
-                        help='Local path to save the converted json')
-    parser.add_argument('--http_path',
-                        required=False,
-                        type=str,
-                        help='http_path is set then dbsql method is used')
-    parser.add_argument('--batch_size',
-                        required=False,
-                        type=int,
-                        default=1 << 30,
-                        help='row chunks to transmit a time to avoid OOM')
-    parser.add_argument('--processes',
-                        required=False,
-                        type=int,
-                        default=os.cpu_count(),
-                        help='number of processes allowed to use')
+        'Download delta table from UC and convert to json to save local',
+    )
+    parser.add_argument(
+        '--delta_table_name',
+        required=True,
+        type=str,
+        help='UC table <catalog>.<schema>.<table name>',
+    )
+    parser.add_argument(
+        '--json_output_folder',
+        required=True,
+        type=str,
+        help='Local path to save the converted json',
+    )
+    parser.add_argument(
+        '--http_path',
+        required=False,
+        type=str,
+        help='http_path is set then dbsql method is used',
+    )
+    parser.add_argument(
+        '--batch_size',
+        required=False,
+        type=int,
+        default=1 << 30,
+        help='row chunks to transmit a time to avoid OOM',
+    )
+    parser.add_argument(
+        '--processes',
+        required=False,
+        type=int,
+        default=os.cpu_count(),
+        help='number of processes allowed to use',
+    )
     parser.add_argument(
         '--cluster_id',
         required=False,
         type=str,
         help=
-        'cluster id has runtime newer than 14.1.0 and access mode of either assigned or shared can use databricks-connect.'
+        'cluster id has runtime newer than 14.1.0 and access mode of either assigned or shared can use databricks-connect.',
     )
     parser.add_argument(
         '--use_serverless',
@@ -536,7 +620,7 @@ if __name__ == '__main__':
         type=bool,
         default=False,
         help=
-        'Use serverless or not. Make sure the workspace is entitled with serverless'
+        'Use serverless or not. Make sure the workspace is entitled with serverless',
     )
     parser.add_argument(
         '--json_output_filename',
@@ -544,7 +628,7 @@ if __name__ == '__main__':
         type=str,
         default='train-00000-of-00001.jsonl',
         help=
-        'The name of the combined final jsonl that combines all partitioned jsonl'
+        'The name of the combined final jsonl that combines all partitioned jsonl',
     )
     args = parser.parse_args()
     mosaicml_logger = maybe_create_mosaicml_logger()
@@ -556,7 +640,7 @@ if __name__ == '__main__':
 
         tik = time.time()
         fetch_DT(args)
-        log.info('Elapsed time', time.time() - tik)
+        log.info(f'Elapsed time {time.time() - tik}')
 
     except Exception as e:
         if mosaicml_logger is not None:

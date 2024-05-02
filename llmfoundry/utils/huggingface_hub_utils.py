@@ -22,7 +22,9 @@ class DeleteSpecificNodes(ast.NodeTransformer):
 
 
 def convert_to_relative_import(
-        module_name: str, original_parent_module_name: Optional[str]) -> str:
+    module_name: str,
+    original_parent_module_name: Optional[str],
+) -> str:
     parts = module_name.split('.')
     if parts[-1] == original_parent_module_name:
         return '.'
@@ -88,28 +90,38 @@ def process_file(
     for node in ast.walk(tree):
         # Remove any imports matching the remove_imports_prefix
         if isinstance(
-                node,
-                ast.ImportFrom) and node.module is not None and _remove_import(
-                    node, remove_imports_prefix):
+            node,
+            ast.ImportFrom,
+        ) and node.module is not None and _remove_import(
+            node,
+            remove_imports_prefix,
+        ):
             nodes_to_remove.append(node)
         # Convert any (remaining) imports matching the flatten_imports_prefix
         # to relative imports
-        elif (isinstance(node, ast.ImportFrom) and node.module is not None and
-              _flatten_import(node, flatten_imports_prefix)):
+        elif (
+            isinstance(node, ast.ImportFrom) and node.module is not None and
+            _flatten_import(node, flatten_imports_prefix)
+        ):
             module_path = find_module_file(node.module)
-            node.module = convert_to_relative_import(node.module,
-                                                     parent_module_name)
+            node.module = convert_to_relative_import(
+                node.module,
+                parent_module_name,
+            )
             # Recursively process any llmfoundry files
             new_files_to_process.append(module_path)
         # Remove the Composer* class
-        elif (isinstance(node, ast.ClassDef) and
-              node.name.startswith('Composer')):
+        elif (
+            isinstance(node, ast.ClassDef) and node.name.startswith('Composer')
+        ):
             nodes_to_remove.append(node)
         # Remove the __all__ declaration in any __init__.py files, whose
         # enclosing module will be converted to a single file of the same name
-        elif (isinstance(node, ast.Assign) and len(node.targets) == 1 and
-              isinstance(node.targets[0], ast.Name) and
-              node.targets[0].id == '__all__'):
+        elif (
+            isinstance(node, ast.Assign) and len(node.targets) == 1 and
+            isinstance(node.targets[0], ast.Name) and
+            node.targets[0].id == '__all__'
+        ):
             nodes_to_remove.append(node)
 
     transformer = DeleteSpecificNodes(nodes_to_remove)
@@ -130,10 +142,13 @@ def process_file(
 def edit_files_for_hf_compatibility(
     folder: str,
     flatten_imports_prefix: Sequence[str] = ('llmfoundry',),
-    remove_imports_prefix: Sequence[str] = ('composer', 'omegaconf',
-                                            'llmfoundry.metrics',
-                                            'llmfoundry.eval',
-                                            'llmfoundry.utils.builders')
+    remove_imports_prefix: Sequence[str] = (
+        'composer',
+        'omegaconf',
+        'llmfoundry.metrics',
+        'llmfoundry.eval',
+        'llmfoundry.utils.builders',
+    ),
 ) -> None:
     """Edit files to be compatible with Hugging Face Hub.
 

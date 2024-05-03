@@ -136,7 +136,7 @@ def get_tokens_per_batch_func(
 def get_text_collator(
     cfg: DictConfig,
     tokenizer: PreTrainedTokenizerBase,
-    dataset_batch_size: int = -1,
+    dataset_batch_size: int,
 ) -> Tuple[Union[transformers.DataCollatorForLanguageModeling,
                  ConcatenatedSequenceCollatorWrapper], int]:
     eos_token_id = cfg.dataset.get('eos_token_id', None)

@@ -324,13 +324,24 @@ def build_text_dataloader(
         **dataset_config_subset_for_streaming_text_dataset,
     )
 
+    dataloader_cfg = {
+        'name': 'text',
+        'dataset': dataset_cfg,
+        'drop_last': drop_last,
+        'num_workers': num_workers,
+        'pin_memory': pin_memory,
+        'prefetch_factor': prefetch_factor,
+        'persistent_workers': persistent_workers,
+        'timeout': timeout,
+    }
+
     collate_fn, dataloader_batch_size = construct_from_registry(
         name='text_collator',
         registry=registry.collators,
         partial_function=False,
         kwargs={
-            'cfg': dataset_cfg,
-            'tokenizer': dataset.tokenizer,
+            'cfg': dataloader_cfg,
+            'tokenizer': tokenizer,
             'dataset_batch_size': dataset_batch_size,
         },
     )
@@ -353,7 +364,7 @@ def build_text_dataloader(
         partial_function=False,
         kwargs={
             'dl': dl,
-            'dataset_cfg': cfg.dataset,
+            'dataset_cfg': dataset_cfg,
         },
     )
 

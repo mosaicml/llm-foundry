@@ -176,7 +176,7 @@ def build_finetuning_dataloader(
         registry=registry.dataset_replication_validators,
         partial_function=False,
         kwargs={
-            'cfg': dataloader_cfg,
+            'cfg': dataset_cfg,
             'tokenizer': tokenizer,
             'device_batch_size': device_batch_size,
         },
@@ -334,7 +334,7 @@ def build_finetuning_dataloader(
         partial_function=False,
         kwargs={
             'dl': dl,
-            'dataset_cfg': dataset,
+            'dataset_cfg': dataset_cfg,
         },
     )
 
@@ -575,7 +575,7 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
     return finetune_dir
 
 
-def _build_collate_fn(
+def build_collate_fn(
     dataloader_cfg: Dict[str, Any],
     tokenizer: PreTrainedTokenizerBase,
     device_batch_size: int,

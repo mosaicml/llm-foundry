@@ -1,6 +1,6 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-from typing import Any, Callable, Iterable, Tuple, Type, Union
+from typing import Any, Callable, Dict, Iterable, Tuple, Type, Union
 
 from composer.core import Algorithm, Callback, DataSpec
 from composer.loggers import LoggerDestination
@@ -9,6 +9,7 @@ from composer.optim import ComposerScheduler
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader as TorchDataloader
 from torchmetrics import Metric
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.interfaces import CallbackWithConfig
 from llmfoundry.layers_registry import (
@@ -152,8 +153,8 @@ dataset_replication_validators = create_registry(
     'llmfoundry',
     'dataset_replication_validators',
     generic_type=Callable[
-        [DictConfig, PreTrainedTokenizerBase, Union[int, float]], Tuple[int,
-                                                                        int]],
+        [Dict[str, Any], PreTrainedTokenizerBase, Union[int, float]],
+        Tuple[int, int]],
     entry_points=True,
     description=_dataset_replication_validators_description,
 )
@@ -171,7 +172,7 @@ _collators_description = (
 collators = create_registry(
     'llmfoundry',
     'collators',
-    generic_type=Callable[[DictConfig, PreTrainedTokenizerBase, int],
+    generic_type=Callable[[Dict[str, Any], PreTrainedTokenizerBase, int],
                           Tuple[Any, int]],
     entry_points=True,
     description=_collators_description,
@@ -188,7 +189,7 @@ _data_specs_description = (
 data_specs = create_registry(
     'llmfoundry',
     'data_specs',
-    generic_type=Callable[[Union[Iterable, TorchDataloader], DictConfig],
+    generic_type=Callable[[Union[Iterable, TorchDataloader], Dict[str, Any]],
                           DataSpec],
     entry_points=True,
     description=_data_specs_description,

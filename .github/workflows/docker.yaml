@@ -19,10 +19,10 @@ jobs:
         include:
         - name: "2.3.0_cu121_flash2"
           base_image: mosaicml/pytorch:2.3.0_cu121-python3.11-ubuntu20.04
-          dep_groups: "[gpu-flash2]"
+          dep_groups: ""
         - name: "2.3.0_cu121_flash2_aws"
           base_image: mosaicml/pytorch:2.3.0_cu121-python3.11-ubuntu20.04-aws
-          dep_groups: "[gpu-flash2]"
+          dep_groups: ""
     steps:
     - name: Maximize Build Space on Worker
       uses: easimon/maximize-build-space@v4

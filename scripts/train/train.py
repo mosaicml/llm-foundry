@@ -299,21 +299,6 @@ def main(cfg: DictConfig) -> Trainer:
         )
         fsdp_config = None
 
-    # set logging level
-    if train_cfg.python_log_level is not None:
-        logging.basicConfig(
-            # Example of format string
-            # 2022-06-29 11:22:26,152: rank0[822018][MainThread]: INFO: Message here
-            format=
-            f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s',
-        )
-        logging.getLogger('llmfoundry').setLevel(
-            train_cfg.python_log_level.upper(),
-        )  # Foundry module
-        logging.getLogger(__name__).setLevel(
-            train_cfg.python_log_level.upper(),
-        )  # Train script
-
     # Initialize context
     init_context = process_init_device(model_config, fsdp_config)
     logged_cfg.update({'fsdp_config': fsdp_config}, merge=True)

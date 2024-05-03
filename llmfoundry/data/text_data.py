@@ -295,7 +295,7 @@ def build_text_dataloader(
         registry=registry.dataset_replication_validators,
         partial_function=False,
         kwargs={
-            'cfg': dataset_cfg,
+            'dataset_cfg': dataset_cfg,
             'tokenizer': tokenizer,
             'device_batch_size': device_batch_size,
         },
@@ -340,7 +340,7 @@ def build_text_dataloader(
         registry=registry.collators,
         partial_function=False,
         kwargs={
-            'cfg': dataloader_cfg,
+            'dataloader_cfg': dataloader_cfg,
             'tokenizer': tokenizer,
             'dataset_batch_size': dataset_batch_size,
         },

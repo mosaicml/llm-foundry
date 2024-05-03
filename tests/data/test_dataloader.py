@@ -260,6 +260,7 @@ def test_correct_padding(
 
     # Dataloaders
     test_cfg.eval_loader.pop('name')
+    assert isinstance(test_cfg, DictConfig)
     test_cfg = to_dict_container(test_cfg)
     eval_loader = build_text_dataloader(
         **test_cfg['eval_loader'],

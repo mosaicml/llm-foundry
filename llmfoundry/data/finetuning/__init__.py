@@ -3,10 +3,12 @@
 
 from llmfoundry.data.finetuning.collator import Seq2SeqFinetuningCollator
 from llmfoundry.data.finetuning.dataloader import build_finetuning_dataloader
-from llmfoundry.data.finetuning.tasks import (StreamingFinetuningDataset,
-                                              dataset_constructor,
-                                              is_valid_ift_example,
-                                              tokenize_formatted_example)
+from llmfoundry.data.finetuning.tasks import (
+    StreamingFinetuningDataset,
+    dataset_constructor,
+    is_valid_ift_example,
+    tokenize_formatted_example,
+)
 
 __all__ = [
     'Seq2SeqFinetuningCollator',

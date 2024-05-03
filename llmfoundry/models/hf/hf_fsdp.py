@@ -75,12 +75,16 @@ def hf_get_causal_base_model(model: PreTrainedModel) -> Any:
     if hasattr(model, 'get_decoder'):
         return model.get_decoder()
 
-    decoder_attrs = ('transformer', 'model.decoder', 'gpt_neox',
-                     'model.transformer')
+    decoder_attrs = (
+        'transformer',
+        'model.decoder',
+        'gpt_neox',
+        'model.transformer',
+    )
     causal_base_model = findattr(model, decoder_attrs)
     if causal_base_model is None:
         raise ValueError(
-            f'Unable to FSDP-wrap model {model}. Please open a github issue to add support.'
+            f'Unable to FSDP-wrap model {model}. Please open a github issue to add support.',
         )
     return causal_base_model
 
@@ -106,7 +110,7 @@ def hf_get_hidden_layers(model: PreTrainedModel) -> Any:
     layers = findattr(model, hidden_layers_attrs)
     if layers is None:
         raise ValueError(
-            f'Unable to find hidden layer for {model}. Model must have one of the following attributes: {hidden_layers_attrs}'
+            f'Unable to find hidden layer for {model}. Model must have one of the following attributes: {hidden_layers_attrs}',
         )
     return layers
 
@@ -124,8 +128,10 @@ def hf_get_init_device(init_device: Optional[str]) -> Optional[str]:
 # /end helper functions
 
 
-def prepare_hf_model_for_fsdp(model: PreTrainedModel,
-                              init_device: Optional[str]) -> None:
+def prepare_hf_model_for_fsdp(
+    model: PreTrainedModel,
+    init_device: Optional[str],
+) -> None:
     """FSDP wrap a HuggingFace model.
 
     Call specific functions
@@ -138,9 +144,10 @@ def prepare_hf_model_for_fsdp(model: PreTrainedModel,
         prepare_hf_causal_lm_model_for_fsdp(model, init_device)
 
 
-def prepare_hf_causal_lm_model_for_fsdp(model: Union[PreTrainedModel,
-                                                     'PeftModel'],
-                                        init_device: Optional[str]) -> None:
+def prepare_hf_causal_lm_model_for_fsdp(
+    model: Union[PreTrainedModel, 'PeftModel'],
+    init_device: Optional[str],
+) -> None:
     """FSDP wrap a HuggingFace decoder.
 
     Wrap any model for FSDP which follows one of the 3 existing conventions from
@@ -165,14 +172,15 @@ def prepare_hf_causal_lm_model_for_fsdp(model: Union[PreTrainedModel,
         'base_model': causal_base_model,
         'model_block': model_block,
         'lm_head': lm_head,
-        'tied_embeddings': tied_embeddings
+        'tied_embeddings': tied_embeddings,
     }
 
     for mod_name, module in modules.items():
         if module is None:
             raise ValueError(
                 f'Unable to FSDP-wrap this model! `{mod_name}` does not ' +
-                'follow common layer/weight naming conventions.')
+                'follow common layer/weight naming conventions.',
+            )
     block_type = type(model_block[0])
 
     # When using the HF LM models,
@@ -194,7 +202,8 @@ def prepare_hf_causal_lm_model_for_fsdp(model: Union[PreTrainedModel,
         active_adapters = [adapter.lower() for adapter in model.active_adapters]
         for name, module in model.named_modules():
             if peft_type in name.lower() and any(
-                    adapter in name.lower() for adapter in active_adapters):
+                adapter in name.lower() for adapter in active_adapters
+            ):
                 has_parameters = next(module.parameters(), None) is not None
                 has_buffers = next(module.buffers(), None) is not None
                 if has_parameters or has_buffers:
@@ -203,11 +212,15 @@ def prepare_hf_causal_lm_model_for_fsdp(model: Union[PreTrainedModel,
     # FSDP Wrap and Activation Checkpoint every model block
     model.fsdp_wrap_fn = lambda module: isinstance(module, block_type)
     model.activation_checkpointing_fn = lambda module: isinstance(
-        module, block_type)
+        module,
+        block_type,
+    )
 
 
-def prepare_hf_enc_dec_model_for_fsdp(model: PreTrainedModel,
-                                      init_device: Optional[str]) -> None:
+def prepare_hf_enc_dec_model_for_fsdp(
+    model: PreTrainedModel,
+    init_device: Optional[str],
+) -> None:
     """Wrap an encoder/decoder HF model.
 
     This works for T5, BART, Pegasus, PegasusX, but not all enc/dec (ProphetNet)
@@ -230,14 +243,15 @@ def prepare_hf_enc_dec_model_for_fsdp(model: PreTrainedModel,
         'encoder_block': encoder_block,
         'decoder_block': decoder_block,
         'lm_head': lm_head,
-        'tied_embeddings': tied_embeddings
+        'tied_embeddings': tied_embeddings,
     }
 
     for mod_name, module in modules.items():
         if module is None:
             raise ValueError(
                 f'Unable to FSDP-wrap this model! `{mod_name}` does not ' +
-                'follow common layer/weight naming conventions.')
+                'follow common layer/weight naming conventions.',
+            )
     decoder_block_type = type(decoder_block[0])
     encoder_block_type = type(encoder_block[0])
 
@@ -251,7 +265,9 @@ def prepare_hf_enc_dec_model_for_fsdp(model: PreTrainedModel,
     # FSDP Wrap and Activation Checkpoint every decoder block
     model.fsdp_wrap_fn = lambda module: isinstance(module, decoder_block_type)
     model.activation_checkpointing_fn = lambda module: isinstance(
-        module, decoder_block_type)
+        module,
+        decoder_block_type,
+    )
 
     if encoder_block_type == decoder_block_type:
         return
@@ -259,4 +275,6 @@ def prepare_hf_enc_dec_model_for_fsdp(model: PreTrainedModel,
     # need to wrap encoder blocks separately for ProphetNet and Marian
     model.fsdp_wrap_fn = lambda module: isinstance(module, encoder_block_type)
     model.activation_checkpointing_fn = lambda module: isinstance(
-        module, encoder_block_type)
+        module,
+        encoder_block_type,
+    )

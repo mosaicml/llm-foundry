@@ -53,9 +53,11 @@ class LPLayerNorm(torch.nn.LayerNorm):
         module_device = x.device
         downcast_x = _cast_if_autocast_enabled(x)
         downcast_weight = _cast_if_autocast_enabled(
-            self.weight) if self.weight is not None else self.weight
+            self.weight,
+        ) if self.weight is not None else self.weight
         downcast_bias = _cast_if_autocast_enabled(
-            self.bias) if self.bias is not None else self.bias
+            self.bias,
+        ) if self.bias is not None else self.bias
         with torch.autocast(enabled=False, device_type=module_device.type):
             return torch.nn.functional.layer_norm(
                 downcast_x,
@@ -66,9 +68,11 @@ class LPLayerNorm(torch.nn.LayerNorm):
             )
 
 
-def rms_norm(x: torch.Tensor,
-             weight: Optional[torch.Tensor] = None,
-             eps: float = 1e-5) -> torch.Tensor:
+def rms_norm(
+    x: torch.Tensor,
+    weight: Optional[torch.Tensor] = None,
+    eps: float = 1e-5,
+) -> torch.Tensor:
     output = x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + eps)
     if weight is not None:
         return output * weight
@@ -90,7 +94,8 @@ class RMSNorm(torch.nn.Module):
         self.eps = eps
         if weight:
             self.weight = torch.nn.Parameter(
-                torch.ones(normalized_shape, dtype=dtype, device=device))
+                torch.ones(normalized_shape, dtype=dtype, device=device),
+            )
         else:
             self.register_parameter('weight', None)
 
@@ -120,7 +125,8 @@ class LPRMSNorm(RMSNorm):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         downcast_x = _cast_if_autocast_enabled(x)
         downcast_weight = _cast_if_autocast_enabled(
-            self.weight) if self.weight is not None else self.weight
+            self.weight,
+        ) if self.weight is not None else self.weight
         with torch.autocast(enabled=False, device_type=x.device.type):
             return rms_norm(downcast_x, downcast_weight,
                             self.eps).to(dtype=x.dtype)
@@ -144,7 +150,8 @@ class TritonRMSNorm(torch.nn.Module):
         except ImportError:
             raise ImportError(
                 'triton_rms_norm requires Flash Attention to be installed. ' +
-                'Please pip install flash-attn.')
+                'Please pip install flash-attn.',
+            )
 
         if not isinstance(normalized_shape, int):
             raise ValueError('TritonRMSNorm only supports 1D tensors')
@@ -152,7 +159,8 @@ class TritonRMSNorm(torch.nn.Module):
         self.rms_norm_fn = rms_norm_fn
 
         self.weight = torch.nn.Parameter(
-            torch.ones(normalized_shape, device=device, dtype=dtype))
+            torch.ones(normalized_shape, device=device, dtype=dtype),
+        )
 
     def forward(self, x: torch.Tensor):
         # Flash Attention expect a flat tensor

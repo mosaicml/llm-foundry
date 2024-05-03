@@ -15,15 +15,22 @@ from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
 @pytest.mark.world_size(2)
 @pytest.mark.gpu
 @pytest.mark.parametrize('activation_checkpointing', [True, False])
-@pytest.mark.parametrize('activation_checkpointing_target', [
-    'grouped_query_attention', [], ['grouped_query_attention'], {
-        'mptblock': [1],
-        'grouped_query_attention': 'first-1, last-1'
-    }
-])
-def test_fsdp_act_checkpoint(activation_checkpointing: bool,
-                             activation_checkpointing_target: Union[list, str,
-                                                                    dict]):
+@pytest.mark.parametrize(
+    'activation_checkpointing_target',
+    [
+        'grouped_query_attention',
+        [],
+        ['grouped_query_attention'],
+        {
+            'mptblock': [1],
+            'grouped_query_attention': 'first-1, last-1',
+        },
+    ],
+)
+def test_fsdp_act_checkpoint(
+    activation_checkpointing: bool,
+    activation_checkpointing_target: Union[list, str, dict],
+):
     device = get_device('gpu')
     model_cfg = {
         'name': 'mpt_causal_lm',
@@ -37,7 +44,7 @@ def test_fsdp_act_checkpoint(activation_checkpointing: bool,
             'attn_type': 'grouped_query_attention',
             'kv_n_heads': 2,
         },
-        'activation_checkpointing_target': activation_checkpointing_target
+        'activation_checkpointing_target': activation_checkpointing_target,
     }
 
     fsdp_config = {
@@ -59,31 +66,41 @@ def test_fsdp_act_checkpoint(activation_checkpointing: bool,
     if not activation_checkpointing:
         assert not isinstance(
             trainer.state.model.model._fsdp_wrapped_module.transformer.
-            blocks[0], CheckpointWrapper)
+            blocks[0],
+            CheckpointWrapper,
+        )
     elif (not activation_checkpointing_target):
         module = trainer.state.model.model._fsdp_wrapped_module.transformer.blocks[
             0]._fsdp_wrapped_module
         assert isinstance(module, CheckpointWrapper)
     elif activation_checkpointing_target == [
-            'grouped_query_attention'
+        'grouped_query_attention',
     ] or activation_checkpointing_target == 'grouped_query_attention':
         assert isinstance(
             trainer.state.model.model._fsdp_wrapped_module.transformer.
-            blocks[0]._fsdp_wrapped_module.attn, CheckpointWrapper)
+            blocks[0]._fsdp_wrapped_module.attn,
+            CheckpointWrapper,
+        )
     elif activation_checkpointing_target == {
-            'mptblock': [1],
-            'grouped_query_attention': 'first-1, last-1'
+        'mptblock': [1],
+        'grouped_query_attention': 'first-1, last-1',
     }:
         assert isinstance(
             trainer.state.model.model._fsdp_wrapped_module.transformer.
-            blocks[0]._fsdp_wrapped_module.attn, CheckpointWrapper)
+            blocks[0]._fsdp_wrapped_module.attn,
+            CheckpointWrapper,
+        )
         assert isinstance(
             trainer.state.model.model._fsdp_wrapped_module.transformer.
-            blocks[1]._fsdp_wrapped_module, CheckpointWrapper)
+            blocks[1]._fsdp_wrapped_module,
+            CheckpointWrapper,
+        )
         assert isinstance(
             trainer.state.model.model._fsdp_wrapped_module.transformer.
-            blocks[2]._fsdp_wrapped_module.attn, CheckpointWrapper)
+            blocks[2]._fsdp_wrapped_module.attn,
+            CheckpointWrapper,
+        )
     else:
         raise ValueError(
-            f'Unknown activation_checkpointing_target: {activation_checkpointing_target}'
+            f'Unknown activation_checkpointing_target: {activation_checkpointing_target}',
         )

@@ -9,8 +9,11 @@ import torch
 import torch.nn as nn
 
 from llmfoundry.layers_registry import ffns_with_norm
-from llmfoundry.models.layers.layer_builders import (build_attention_layer,
-                                                     build_ffn, build_norm)
+from llmfoundry.models.layers.layer_builders import (
+    build_attention_layer,
+    build_ffn,
+    build_norm,
+)
 
 try:
     from flash_attn.bert_padding import unpad_input, pad_input  # type: ignore # yapf: disable # isort: skip
@@ -97,9 +100,15 @@ class MPTBlock(nn.Module):
             assert isinstance(attn_config['attn_type'], str)
             # Necessary to avoid passing extraneous args into attn_class while allowing the use of **kwargs
             args_to_exclude_in_attn_class = {
-                'attn_type', 'alibi', 'attn_uses_sequence_id', 'alibi_bias_max',
-                'rope', 'rope_theta', 'rope_impl', 'rope_dail_config',
-                'rope_hf_config'
+                'attn_type',
+                'alibi',
+                'attn_uses_sequence_id',
+                'alibi_bias_max',
+                'rope',
+                'rope_theta',
+                'rope_impl',
+                'rope_dail_config',
+                'rope_hf_config',
             }
             attn_config_subset_for_attn_class = {
                 k: v
@@ -120,7 +129,7 @@ class MPTBlock(nn.Module):
                     'fc_type': fc_type,
                     'device': device,
                     'bias': not no_bias,
-                    **attn_config_subset_for_attn_class
+                    **attn_config_subset_for_attn_class,
                 },
             )
             self.norm_2 = None
@@ -156,7 +165,7 @@ class MPTBlock(nn.Module):
         alibi_slopes: Optional[torch.Tensor] = None,
         flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[
-            torch.Tensor, torch.Tensor]]]:
+        torch.Tensor, torch.Tensor]]]:
         if self.fuse_norm_attn_norm:
             x, m, attn_weights, past_key_value = self.norm_attn_norm(
                 x,
@@ -221,9 +230,15 @@ class FusedNormAttentionNorm(nn.Module):
 
         # necessary to avoid passing extraneous args into attn_class while allowing the use of **kwargs
         args_to_exclude_in_attn_class = {
-            'attn_type', 'alibi', 'attn_uses_sequence_id', 'alibi_bias_max',
-            'rope', 'rope_theta', 'rope_impl', 'rope_dail_config',
-            'rope_hf_config'
+            'attn_type',
+            'alibi',
+            'attn_uses_sequence_id',
+            'alibi_bias_max',
+            'rope',
+            'rope_theta',
+            'rope_impl',
+            'rope_dail_config',
+            'rope_hf_config',
         }
         attn_config_subset_for_attn_class = {
             k: v
@@ -243,7 +258,7 @@ class FusedNormAttentionNorm(nn.Module):
                 'fc_type': fc_type,
                 'device': device,
                 'bias': not no_bias,
-                **attn_config_subset_for_attn_class
+                **attn_config_subset_for_attn_class,
             },
         )
 

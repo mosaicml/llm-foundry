@@ -8,8 +8,16 @@ import os
 import re
 import warnings
 from collections import OrderedDict
-from typing import (Any, ContextManager, Dict, Iterable, List, Optional, Tuple,
-                    Union)
+from typing import (
+    Any,
+    ContextManager,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import torch
 from composer.core import Algorithm, Callback, Evaluator
@@ -99,13 +107,16 @@ def build_eval_loaders(
         is_multi_eval = False
     else:
         raise ValueError(
-            f'Got invalid type for eval_loader_config: {type(eval_loader_config)}, {eval_loader_config=}'
+            f'Got invalid type for eval_loader_config: {type(eval_loader_config)}, {eval_loader_config=}',
         )
 
     for eval_config in eval_configs:
         label = eval_config.pop('label') if is_multi_eval else None
-        eval_dataloader = build_dataloader(eval_config, tokenizer,
-                                           device_eval_batch_size)
+        eval_dataloader = build_dataloader(
+            eval_config,
+            tokenizer,
+            device_eval_batch_size,
+        )
         eval_loader: Evaluator = Evaluator(
             label=f'eval/{label}' if is_multi_eval else 'eval',
             dataloader=eval_dataloader,
@@ -140,14 +151,15 @@ def build_icl_data_and_gauntlet(
     tokenizer: PreTrainedTokenizerBase,
     device_eval_batch_size: int,
     icl_seq_len: int,
-    icl_subset_num_batches: Optional[int] = None
+    icl_subset_num_batches: Optional[int] = None,
 ) -> Tuple[List[Evaluator], List[str], Optional[EvalGauntlet]]:
     icl_evaluators, logger_keys = build_icl_evaluators(
         icl_tasks_config,
         tokenizer,
         icl_seq_len,
         device_eval_batch_size,
-        icl_subset_num_batches=icl_subset_num_batches)
+        icl_subset_num_batches=icl_subset_num_batches,
+    )
     eval_gauntlet_cb = None
     if eval_gauntlet_config is not None:
         if isinstance(eval_gauntlet_config, str):
@@ -155,12 +167,13 @@ def build_icl_data_and_gauntlet(
                 eval_gauntlet_cfg = om.load(icl_f)
                 assert isinstance(eval_gauntlet_cfg, DictConfig)
             eval_gauntlet = to_dict_container(
-                eval_gauntlet_cfg['eval_gauntlet'])
+                eval_gauntlet_cfg['eval_gauntlet'],
+            )
         elif isinstance(eval_gauntlet_config, dict):  # pyright: ignore
             eval_gauntlet = eval_gauntlet_config
         else:
             raise ValueError(
-                f'Got invalid type for eval_gauntlet_config: {type(eval_gauntlet_config)}'
+                f'Got invalid type for eval_gauntlet_config: {type(eval_gauntlet_config)}',
             )
         eval_gauntlet['logger_keys'] = logger_keys
         eval_gauntlet['benchmark_sizes'] = {
@@ -199,7 +212,8 @@ def build_composer_model(
             pre_validation_function=ComposerModel,
             post_validation_function=None,
             kwargs={
-                **cfg, 'tokenizer': tokenizer
+                **cfg,
+                'tokenizer': tokenizer,
             },
         )
 
@@ -214,7 +228,8 @@ def build_composer_model(
         if master_weights_dtype not in str_dtype_to_torch_dtype:
             raise ValueError(
                 f'Invalid master_weights_dtype: {master_weights_dtype}. ' +
-                f'Valid options are: {list(str_dtype_to_torch_dtype.keys())}.')
+                f'Valid options are: {list(str_dtype_to_torch_dtype.keys())}.',
+            )
         dtype = str_dtype_to_torch_dtype[master_weights_dtype]
         model = model.to(dtype=dtype)
 
@@ -233,49 +248,61 @@ def build_callback(
             kwargs = {}
         if 'train_config' in kwargs:
             raise ValueError(
-                f'`train_config` is a reserved keyword for callbacks with config. Please remove it from the kwargs.'
+                f'`train_config` is a reserved keyword for callbacks with config. Please remove it from the kwargs.',
             )
         kwargs['train_config'] = train_config
         registry_to_use = registry.callbacks_with_config
 
-    return construct_from_registry(name=name,
-                                   registry=registry_to_use,
-                                   partial_function=True,
-                                   pre_validation_function=Callback,
-                                   post_validation_function=None,
-                                   kwargs=kwargs)
+    return construct_from_registry(
+        name=name,
+        registry=registry_to_use,
+        partial_function=True,
+        pre_validation_function=Callback,
+        post_validation_function=None,
+        kwargs=kwargs,
+    )
 
 
-def build_logger(name: str,
-                 kwargs: Optional[Dict[str, Any]] = None) -> LoggerDestination:
+def build_logger(
+    name: str,
+    kwargs: Optional[Dict[str, Any]] = None,
+) -> LoggerDestination:
     """Builds a logger from the registry."""
-    return construct_from_registry(name=name,
-                                   registry=registry.loggers,
-                                   partial_function=True,
-                                   pre_validation_function=LoggerDestination,
-                                   post_validation_function=None,
-                                   kwargs=kwargs)
+    return construct_from_registry(
+        name=name,
+        registry=registry.loggers,
+        partial_function=True,
+        pre_validation_function=LoggerDestination,
+        post_validation_function=None,
+        kwargs=kwargs,
+    )
 
 
-def build_algorithm(name: str,
-                    kwargs: Optional[Dict[str, Any]] = None) -> Algorithm:
+def build_algorithm(
+    name: str,
+    kwargs: Optional[Dict[str, Any]] = None,
+) -> Algorithm:
     """Builds an algorithm from the registry."""
-    return construct_from_registry(name=name,
-                                   registry=registry.algorithms,
-                                   partial_function=True,
-                                   pre_validation_function=Algorithm,
-                                   post_validation_function=None,
-                                   kwargs=kwargs)
+    return construct_from_registry(
+        name=name,
+        registry=registry.algorithms,
+        partial_function=True,
+        pre_validation_function=Algorithm,
+        post_validation_function=None,
+        kwargs=kwargs,
+    )
 
 
 def build_metric(name: str, kwargs: Optional[Dict[str, Any]] = None) -> Metric:
     """Builds a metric from the registry."""
-    return construct_from_registry(name=name,
-                                   registry=registry.metrics,
-                                   partial_function=True,
-                                   pre_validation_function=Metric,
-                                   post_validation_function=None,
-                                   kwargs=kwargs)
+    return construct_from_registry(
+        name=name,
+        registry=registry.metrics,
+        partial_function=True,
+        pre_validation_function=Metric,
+        post_validation_function=None,
+        kwargs=kwargs,
+    )
 
 
 def _extract_param_groups(
@@ -381,8 +408,11 @@ def _extract_param_groups(
     return model.parameters()
 
 
-def build_optimizer(model: torch.nn.Module, name: str,
-                    optimizer_config: Dict[str, Any]) -> Optimizer:
+def build_optimizer(
+    model: torch.nn.Module,
+    name: str,
+    optimizer_config: Dict[str, Any],
+) -> Optimizer:
 
     params = _extract_param_groups(model, optimizer_config)
     kwargs = {**optimizer_config}
@@ -390,21 +420,24 @@ def build_optimizer(model: torch.nn.Module, name: str,
     if 'params' in kwargs:
         raise ValueError(
             'The `params` will be automatically extracted from the model and ' +
-            'optimizer config. Please remove it from the optimizer config kwargs.'
+            'optimizer config. Please remove it from the optimizer config kwargs.',
         )
 
     kwargs['params'] = params
-    return construct_from_registry(name=name,
-                                   registry=registry.optimizers,
-                                   partial_function=True,
-                                   pre_validation_function=Optimizer,
-                                   post_validation_function=None,
-                                   kwargs=kwargs)
+    return construct_from_registry(
+        name=name,
+        registry=registry.optimizers,
+        partial_function=True,
+        pre_validation_function=Optimizer,
+        post_validation_function=None,
+        kwargs=kwargs,
+    )
 
 
 def build_scheduler(
-        name: str,
-        scheduler_config: Optional[Dict[str, Any]] = None) -> ComposerScheduler:
+    name: str,
+    scheduler_config: Optional[Dict[str, Any]] = None,
+) -> ComposerScheduler:
     return construct_from_registry(
         name=name,
         registry=registry.schedulers,
@@ -416,8 +449,9 @@ def build_scheduler(
 
 
 def build_tokenizer(
-        tokenizer_name: str,
-        tokenizer_kwargs: Dict[str, Any]) -> PreTrainedTokenizerBase:
+    tokenizer_name: str,
+    tokenizer_kwargs: Dict[str, Any],
+) -> PreTrainedTokenizerBase:
     os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
@@ -432,8 +466,10 @@ def build_tokenizer(
     if tokenizer_name.startswith('tiktoken'):
         tokenizer = TiktokenTokenizerWrapper(**tokenizer_kwargs)
     else:
-        tokenizer = AutoTokenizer.from_pretrained(tokenizer_name,
-                                                  **tokenizer_kwargs)
+        tokenizer = AutoTokenizer.from_pretrained(
+            tokenizer_name,
+            **tokenizer_kwargs,
+        )
 
         # HuggingFace does not respect the model_max_length kwarg, and overrides it with
         # min(kwargs['model_max_length'], original_config['model_max_length']), so we
@@ -445,7 +481,8 @@ def build_tokenizer(
 
     if not hasattr(tokenizer, 'eos_token') or tokenizer.eos_token is None:
         raise ValueError(
-            f'The tokenizer {tokenizer_name} must have an eos_token.')
+            f'The tokenizer {tokenizer_name} must have an eos_token.',
+        )
 
     if dist.is_available() and dist.is_initialized(
     ) and dist.get_world_size() > 1:
@@ -495,28 +532,30 @@ def build_icl_evaluators(
                 icl_cfg['metric_names'] = ['InContextLearningLMAccuracy']
             elif icl_cfg['icl_task_type'] == 'multiple_choice':
                 icl_cfg['metric_names'] = [
-                    'InContextLearningMultipleChoiceAccuracy'
+                    'InContextLearningMultipleChoiceAccuracy',
                 ]
             elif icl_cfg['icl_task_type'] == 'schema':
                 icl_cfg['metric_names'] = [
-                    'InContextLearningMultipleChoiceAccuracy'
+                    'InContextLearningMultipleChoiceAccuracy',
                 ]
-            elif icl_cfg[
-                    'icl_task_type'] == 'generation_task_with_answers' or icl_cfg[
-                        'icl_task_type'] == 'question_answering':
+            elif icl_cfg['icl_task_type'
+                        ] == 'generation_task_with_answers' or icl_cfg[
+                            'icl_task_type'] == 'question_answering':
                 if icl_cfg['icl_task_type'] == 'question_answering':
                     warnings.warn(
                         VersionedDeprecationWarning(
                             "ICL task type 'question_answering' is now deprecated. Use identifier 'generation_task_with_answers'",
-                            'v0.9.0'))
+                            'v0.9.0',
+                        ),
+                    )
                 icl_cfg['metric_names'] = [
-                    'InContextLearningGenerationExactMatchAccuracy'
+                    'InContextLearningGenerationExactMatchAccuracy',
                 ]
             elif icl_cfg['icl_task_type'] == 'code_evaluation':
                 icl_cfg['metric_names'] = ['InContextLearningCodeEvalAccuracy']
             else:
                 raise ValueError(
-                    f'No metric_names defined, unable to build default metrics for icl_task_type={icl_cfg["icl_task_type"]}.'
+                    f'No metric_names defined, unable to build default metrics for icl_task_type={icl_cfg["icl_task_type"]}.',
                 )
 
         if 'prompt_string' not in icl_cfg:
@@ -543,7 +582,9 @@ def build_icl_evaluators(
 
     for icl_cfg in icl_tasks_list:
         assert isinstance(
-            icl_cfg, dict), f'Expected dict, got {type(icl_cfg)}, {icl_cfg=}'
+            icl_cfg,
+            dict,
+        ), f'Expected dict, got {type(icl_cfg)}, {icl_cfg=}'
         _validate_cfg(icl_cfg)
         for num_fewshot in list(icl_cfg['num_fewshot']):
             if tokenizer.pad_token_id is None:
@@ -562,10 +603,14 @@ def build_icl_evaluators(
             hf_parsing_map = icl_cfg.get('hf_parsing_map', {})
             hf_loading_vars = icl_cfg.get('hf_loading_vars', {})
 
-            early_stopping_criteria = icl_cfg.get('early_stopping_criteria',
-                                                  None)
+            early_stopping_criteria = icl_cfg.get(
+                'early_stopping_criteria',
+                None,
+            )
             assert early_stopping_criteria is None or isinstance(
-                early_stopping_criteria, list)
+                early_stopping_criteria,
+                list,
+            )
             dataloaders = get_icl_task_dataloader(
                 icl_cfg['icl_task_type'],
                 icl_cfg['dataset_uri'],
@@ -588,24 +633,32 @@ def build_icl_evaluators(
                 cot_delimiter=icl_cfg.get('cot_delimiter', ''),
                 generation_kwargs=icl_cfg.get('generation_kwargs', {}),
                 early_stopping_criteria=early_stopping_criteria,
-                do_normalization=icl_cfg.get('do_normalization', True))
+                do_normalization=icl_cfg.get('do_normalization', True),
+            )
             if 'has_categories' in icl_cfg and icl_cfg[
-                    'has_categories'] and isinstance(dataloaders, dict):
+                'has_categories'] and isinstance(dataloaders, dict):
                 for category in dataloaders.keys():
                     logger_keys.extend([
                         f'metrics/{label}/{category}/{m}' for m in metric_names
                     ])
                     evaluators.append(
-                        Evaluator(label=f'{label}/{category}',
-                                  dataloader=dataloaders[category],
-                                  metric_names=metric_names),)
+                        Evaluator(
+                            label=f'{label}/{category}',
+                            dataloader=dataloaders[category],
+                            metric_names=metric_names,
+                        ),
+                    )
             else:
-                logger_keys.extend(
-                    [f'metrics/{label}/{m}' for m in metric_names])
+                logger_keys.extend([
+                    f'metrics/{label}/{m}' for m in metric_names
+                ])
                 evaluators.append(
-                    Evaluator(label=label,
-                              dataloader=dataloaders,
-                              metric_names=metric_names,
-                              subset_num_batches=icl_subset_num_batches))
+                    Evaluator(
+                        label=label,
+                        dataloader=dataloaders,
+                        metric_names=metric_names,
+                        subset_num_batches=icl_subset_num_batches,
+                    ),
+                )
 
     return evaluators, logger_keys

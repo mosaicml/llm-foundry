@@ -1,27 +1,38 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from composer.metrics import (LanguageCrossEntropy, LanguagePerplexity,
-                              MaskedAccuracy)
+from composer.metrics import (
+    LanguageCrossEntropy,
+    LanguagePerplexity,
+    MaskedAccuracy,
+)
 
 from llmfoundry.eval.metrics import (
     InContextLearningCodeEvalAccuracy,
-    InContextLearningGenerationExactMatchAccuracy, InContextLearningLMAccuracy,
+    InContextLearningGenerationExactMatchAccuracy,
+    InContextLearningLMAccuracy,
     InContextLearningLMExpectedCalibrationError,
     InContextLearningMCExpectedCalibrationError,
-    InContextLearningMultipleChoiceAccuracy)
+    InContextLearningMultipleChoiceAccuracy,
+)
 from llmfoundry.metrics.token_acc import TokenAccuracy
 from llmfoundry.registry import metrics
 
 metrics.register('token_accuracy', func=TokenAccuracy)
 metrics.register('lm_accuracy', func=InContextLearningLMAccuracy)
-metrics.register('lm_expected_calibration_error',
-                 func=InContextLearningLMExpectedCalibrationError)
-metrics.register('mc_expected_calibration_error',
-                 func=InContextLearningMCExpectedCalibrationError)
+metrics.register(
+    'lm_expected_calibration_error',
+    func=InContextLearningLMExpectedCalibrationError,
+)
+metrics.register(
+    'mc_expected_calibration_error',
+    func=InContextLearningMCExpectedCalibrationError,
+)
 metrics.register('mc_accuracy', func=InContextLearningMultipleChoiceAccuracy)
-metrics.register('qa_accuracy',
-                 func=InContextLearningGenerationExactMatchAccuracy)
+metrics.register(
+    'qa_accuracy',
+    func=InContextLearningGenerationExactMatchAccuracy,
+)
 metrics.register('code_eval_accuracy', func=InContextLearningCodeEvalAccuracy)
 metrics.register('language_cross_entropy', func=LanguageCrossEntropy)
 metrics.register('language_perplexity', func=LanguagePerplexity)

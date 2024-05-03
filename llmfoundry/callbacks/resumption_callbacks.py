@@ -47,7 +47,8 @@ class GlobalLRScaling(Callback):
                 if 'initial_lr' in group:
                     group['initial_lr'] *= self.lr_scale
                 log.info(
-                    f"Set LR and WD to {group['lr']}, {group['weight_decay']}")
+                    f"Set LR and WD to {group['lr']}, {group['weight_decay']}",
+                )
 
         for scheduler in state.schedulers:
             scheduler.base_lrs = [
@@ -74,11 +75,11 @@ class LayerFreezing(Callback):
     def fit_start(self, state: State, logger: Logger) -> None:
         del logger  # unused
 
-        model_layers = set(name for name, _ in state.model.named_parameters())
+        model_layers = {name for name, _ in state.model.named_parameters()}
         for layer in self.layer_names:
             if layer not in model_layers:
                 raise Exception(
-                    f'Attempted to freeze layer not found in model: {layer}\nAvailable layers: {model_layers}'
+                    f'Attempted to freeze layer not found in model: {layer}\nAvailable layers: {model_layers}',
                 )
 
         successful_freeze = False
@@ -90,4 +91,5 @@ class LayerFreezing(Callback):
 
         if not successful_freeze:
             raise Exception(
-                f"Tried to run LayerFreezing but didn't freeze any layers")
+                f"Tried to run LayerFreezing but didn't freeze any layers",
+            )

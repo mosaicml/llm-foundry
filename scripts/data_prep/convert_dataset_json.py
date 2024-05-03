@@ -26,7 +26,7 @@ def parse_args() -> Namespace:
     """Parse commandline arguments."""
     parser = ArgumentParser(
         description=
-        'Convert dataset into MDS format, optionally concatenating and tokenizing'
+        'Convert dataset into MDS format, optionally concatenating and tokenizing',
     )
     parser.add_argument('--path', type=str, required=True)
     parser.add_argument('--out_root', type=str, required=True)
@@ -36,7 +36,8 @@ def parse_args() -> Namespace:
     group.add_argument(
         '--concat_tokens',
         type=int,
-        help='Convert text to tokens and concatenate up to this many tokens')
+        help='Convert text to tokens and concatenate up to this many tokens',
+    )
     parser.add_argument('--split', type=str, default='train')
 
     parser.add_argument('--tokenizer', type=str, required=False, default=None)
@@ -47,17 +48,20 @@ def parse_args() -> Namespace:
     parsed = parser.parse_args()
 
     if os.path.isdir(parsed.out_root) and len(
-            set(os.listdir(parsed.out_root)).intersection(set(
-                parsed.split))) > 0:
+        set(os.listdir(parsed.out_root)).intersection(set(parsed.split)),
+    ) > 0:
         raise ValueError(
-            f'--out_root={parsed.out_root} contains {os.listdir(parsed.out_root)} which cannot overlap with the requested splits {parsed.splits}.'
+            f'--out_root={parsed.out_root} contains {os.listdir(parsed.out_root)} which cannot overlap with the requested splits {parsed.splits}.',
         )
 
     # Make sure we have needed concat options
-    if (parsed.concat_tokens is not None and
-            isinstance(parsed.concat_tokens, int) and parsed.tokenizer is None):
+    if (
+        parsed.concat_tokens is not None and
+        isinstance(parsed.concat_tokens, int) and parsed.tokenizer is None
+    ):
         parser.error(
-            'When setting --concat_tokens, you must specify a --tokenizer')
+            'When setting --concat_tokens, you must specify a --tokenizer',
+        )
 
     # now that we have validated them, change BOS/EOS to strings
     if parsed.bos_text is None:
@@ -99,41 +103,46 @@ def build_hf_dataset(
     else:
         data_files = path
 
-    hf_dataset = hf_datasets.load_dataset('json',
-                                          data_files=data_files,
-                                          split=split)
+    hf_dataset = hf_datasets.load_dataset(
+        'json',
+        data_files=data_files,
+        split=split,
+    )
 
     if mode == ConcatMode.NO_CONCAT:
         dataset = NoConcatDataset(hf_dataset)
     else:
         if not isinstance(tokenizer, PreTrainedTokenizerBase):
             raise ValueError(
-                f'{tokenizer=} must be of type PreTrainedTokenizerBase')
+                f'{tokenizer=} must be of type PreTrainedTokenizerBase',
+            )
         if max_length is None:
             raise ValueError(f'max_length must be set.')
         if bos_text + eos_text == '':
             test_tokens = tokenizer('test')
             if test_tokens['input_ids'][
-                    0] != tokenizer.bos_token_id and test_tokens['input_ids'][
-                        -1] != tokenizer.eos_token_id:
+                0] != tokenizer.bos_token_id and test_tokens['input_ids'][
+                    -1] != tokenizer.eos_token_id:
                 tok_error_msg = 'This tokenizer does not insert an EOS nor BOS token. '
                 tok_error_msg += 'Concatenating with this tokenizer will result in sequences being '
                 tok_error_msg += 'attached without a separating token. Please use another tokenizer, '
                 tok_error_msg += 'such as facebook/opt-125m, or specify EOS/BOS text with e.g. '
                 tok_error_msg += '--bos_text=<|endoftext|>.'
                 raise ValueError(tok_error_msg)
-        dataset = ConcatTokensDataset(hf_dataset=hf_dataset,
-                                      tokenizer=tokenizer,
-                                      max_length=max_length,
-                                      bos_text=bos_text,
-                                      eos_text=eos_text,
-                                      no_wrap=no_wrap)
+        dataset = ConcatTokensDataset(
+            hf_dataset=hf_dataset,
+            tokenizer=tokenizer,
+            max_length=max_length,
+            bos_text=bos_text,
+            eos_text=eos_text,
+            no_wrap=no_wrap,
+        )
     return dataset
 
 
 def generate_samples(
-        loader: DataLoader,
-        truncate_num_samples: Optional[int] = None
+    loader: DataLoader,
+    truncate_num_samples: Optional[int] = None,
 ) -> Iterable[Dict[str, bytes]]:
     """Generator over samples of a dataloader.
 
@@ -173,26 +182,30 @@ def main(args: Namespace) -> None:
         columns = {'text': 'str'}
 
     # Get samples
-    dataset = build_hf_dataset(path=args.path,
-                               split=args.split,
-                               mode=mode,
-                               max_length=args.concat_tokens,
-                               bos_text=args.bos_text,
-                               eos_text=args.eos_text,
-                               no_wrap=args.no_wrap,
-                               tokenizer=tokenizer)
+    dataset = build_hf_dataset(
+        path=args.path,
+        split=args.split,
+        mode=mode,
+        max_length=args.concat_tokens,
+        bos_text=args.bos_text,
+        eos_text=args.eos_text,
+        no_wrap=args.no_wrap,
+        tokenizer=tokenizer,
+    )
 
     print('here')
 
     # Write samples
     print(f'Converting to MDS format...')
     print(
-        f'Note that the progress bar is based on the dataset length before tokenization.'
+        f'Note that the progress bar is based on the dataset length before tokenization.',
     )
     print(f'It will finish at a value below 100% if tokenizing')
-    with MDSWriter(columns=columns,
-                   out=os.path.join(args.out_root),
-                   compression=args.compression) as out:
+    with MDSWriter(
+        columns=columns,
+        out=os.path.join(args.out_root),
+        compression=args.compression,
+    ) as out:
         for sample in tqdm(dataset):
             out.write(sample)
 

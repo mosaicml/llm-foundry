@@ -14,8 +14,10 @@ from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
-from llmfoundry.models.mpt.modeling_mpt import (ComposerMPTCausalLM,
-                                                MPTForCausalLM)
+from llmfoundry.models.mpt.modeling_mpt import (
+    ComposerMPTCausalLM,
+    MPTForCausalLM,
+)
 
 EOS_TOKEN_ID = 0
 
@@ -36,10 +38,18 @@ class MockMPTForCausalLM(MPTForCausalLM):
         use_cache: Optional[bool] = None,
         inputs_embeds: Optional[torch.FloatTensor] = None,
     ):
-        result = super().forward(input_ids, past_key_values, attention_mask,
-                                 sequence_id, labels, return_dict,
-                                 output_attentions, output_hidden_states,
-                                 use_cache, inputs_embeds)
+        result = super().forward(
+            input_ids,
+            past_key_values,
+            attention_mask,
+            sequence_id,
+            labels,
+            return_dict,
+            output_attentions,
+            output_hidden_states,
+            use_cache,
+            inputs_embeds,
+        )
         # Modify the logits to select the next token.
         if dist.get_global_rank() == 0:
             # Rank 0 hits EOS immediately.
@@ -55,13 +65,17 @@ class MockMPTForCausalLM(MPTForCausalLM):
 @pytest.mark.parametrize('attn_impl', ['flash', 'torch'])
 @pytest.mark.parametrize('use_alibi', [True, False])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
-@patch('llmfoundry.models.mpt.modeling_mpt.MPTForCausalLM',
-       new=MockMPTForCausalLM)
-def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool,
-                                tie_word_embeddings: bool,
-                                build_tiny_mpt: Callable[...,
-                                                         ComposerMPTCausalLM],
-                                mpt_tokenizer: PreTrainedTokenizerBase):
+@patch(
+    'llmfoundry.models.mpt.modeling_mpt.MPTForCausalLM',
+    new=MockMPTForCausalLM,
+)
+def test_mpt_generate_multi_gpu(
+    attn_impl: str,
+    use_alibi: bool,
+    tie_word_embeddings: bool,
+    build_tiny_mpt: Callable[..., ComposerMPTCausalLM],
+    mpt_tokenizer: PreTrainedTokenizerBase,
+):
     """Tests mpt generation with mutiple gpus.
 
     and generations of different lengths.
@@ -73,7 +87,7 @@ def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool,
         attn_config={
             'attn_impl': attn_impl,
             'attn_uses_sequence_id': False,
-            'alibi': use_alibi
+            'alibi': use_alibi,
         },
     )
     model = device.module_to_device(model)
@@ -83,21 +97,26 @@ def test_mpt_generate_multi_gpu(attn_impl: str, use_alibi: bool,
     model.model = FSDP(model.model)
 
     with get_precision_context('amp_bf16'):
-        _ = model.generate(device.tensor_to_device(
-            mpt_tokenizer('hello', return_tensors='pt')['input_ids']),
-                           max_new_tokens=3,
-                           eos_token_id=EOS_TOKEN_ID,
-                           use_cache=True,
-                           synced_gpus=True)
+        _ = model.generate(
+            device.tensor_to_device(
+                mpt_tokenizer('hello', return_tensors='pt')['input_ids'],
+            ),
+            max_new_tokens=3,
+            eos_token_id=EOS_TOKEN_ID,
+            use_cache=True,
+            synced_gpus=True,
+        )
 
 
 @pytest.mark.gpu
 @pytest.mark.parametrize('attn_impl', ['flash', 'torch'])
 @pytest.mark.parametrize('use_alibi', [True, False])
-def test_mpt_generate_callback(attn_impl: str, use_alibi: bool,
-                               build_tiny_mpt: Callable[...,
-                                                        ComposerMPTCausalLM],
-                               tiny_ft_dataloader: DataLoader):
+def test_mpt_generate_callback(
+    attn_impl: str,
+    use_alibi: bool,
+    build_tiny_mpt: Callable[..., ComposerMPTCausalLM],
+    tiny_ft_dataloader: DataLoader,
+):
     device = get_device('gpu')
 
     # build mpt model
@@ -106,7 +125,7 @@ def test_mpt_generate_callback(attn_impl: str, use_alibi: bool,
         attn_config={
             'attn_impl': attn_impl,
             'attn_uses_sequence_id': False,
-            'alibi': use_alibi
+            'alibi': use_alibi,
         },
     )
     model = device.module_to_device(model)
@@ -177,11 +196,13 @@ def test_gen_mpt_moe(
 
     model.eval()
 
-    with get_precision_context('amp_bf16' if composer_device.name ==
-                               'gpu' else 'fp32'):
+    with get_precision_context(
+        'amp_bf16' if composer_device.name == 'gpu' else 'fp32',
+    ):
         _ = model.generate(
             composer_device.tensor_to_device(
-                mpt_tokenizer('hello', return_tensors='pt')['input_ids']),
+                mpt_tokenizer('hello', return_tensors='pt')['input_ids'],
+            ),
             max_new_tokens=10,
         )
 
@@ -190,9 +211,11 @@ def test_gen_mpt_moe(
 @pytest.mark.parametrize('attn_impl', ['flash', 'torch'])
 @pytest.mark.parametrize('use_alibi', [True, False])
 def test_mpt_generate_callback_not_tied(
-        use_alibi: bool, attn_impl: str,
-        build_tiny_mpt: Callable[..., ComposerMPTCausalLM],
-        tiny_ft_dataloader: DataLoader):
+    use_alibi: bool,
+    attn_impl: str,
+    build_tiny_mpt: Callable[..., ComposerMPTCausalLM],
+    tiny_ft_dataloader: DataLoader,
+):
     device = get_device('gpu')
 
     # build mpt model

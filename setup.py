@@ -23,7 +23,8 @@ with open(os.path.join(_PACKAGE_REAL_PATH, '__init__.py')) as f:
 # we put parens around the version so that it becomes elem 1 of the match
 expr = re.compile(
     r"""^__version__\s*=\s*['"]([0-9]+\.[0-9]+\.[0-9]+(?:\.\w+)?)['"]""",
-    re.MULTILINE)
+    re.MULTILINE,
+)
 repo_version = expr.findall(content)[0]
 
 # Use repo README for PyPi description
@@ -58,7 +59,7 @@ install_requires = [
     'accelerate>=0.25,<0.26',  # for HF inference `device_map`
     'transformers>=4.40,<4.41',
     'mosaicml-streaming>=0.7.5,<0.8',
-    'torch>=2.2.1,<2.4',
+    'torch>=2.3.0,<2.4',
     'datasets>=2.19,<2.20',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
     'sentencepiece==0.1.97',
@@ -69,7 +70,7 @@ install_requires = [
     'onnx==1.14.0',
     'onnxruntime==1.15.1',
     'boto3>=1.21.45,<2',
-    'huggingface-hub>=0.19.0,<1.0',
+    'huggingface-hub>=0.19.0,<0.23',
     'beautifulsoup4>=4.12.2,<5',  # required for model download utils
     'tenacity>=8.2.3,<9',
     'catalogue>=2,<3',
@@ -122,14 +123,18 @@ extra_deps['megablocks'] = [
     'grouped-gemm==0.1.4',
 ]
 
-extra_deps['all-cpu'] = set(dep for key, deps in extra_deps.items()
-                            for dep in deps
-                            if 'gpu' not in key and 'megablocks' not in key)
-extra_deps['all'] = set(dep for key, deps in extra_deps.items() for dep in deps
-                        if key not in {'gpu-flash2', 'all-cpu'})
-extra_deps['all-flash2'] = set(dep for key, deps in extra_deps.items()
-                               for dep in deps
-                               if key not in {'gpu', 'all', 'all-cpu'})
+extra_deps['all-cpu'] = {
+    dep for key, deps in extra_deps.items() for dep in deps
+    if 'gpu' not in key and 'megablocks' not in key
+}
+extra_deps['all'] = {
+    dep for key, deps in extra_deps.items() for dep in deps
+    if key not in {'gpu-flash2', 'all-cpu'}
+}
+extra_deps['all-flash2'] = {
+    dep for key, deps in extra_deps.items() for dep in deps
+    if key not in {'gpu', 'all', 'all-cpu'}
+}
 
 setup(
     name=_PACKAGE_NAME,
@@ -144,7 +149,8 @@ setup(
         'llmfoundry': ['py.typed'],
     },
     packages=setuptools.find_packages(
-        exclude=['.github*', 'mcli*', 'scripts*', 'tests*']),
+        exclude=['.github*', 'mcli*', 'scripts*', 'tests*'],
+    ),
     classifiers=classifiers,
     install_requires=install_requires,
     extras_require=extra_deps,

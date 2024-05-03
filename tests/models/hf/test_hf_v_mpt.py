@@ -13,21 +13,32 @@ from llmfoundry.utils.config_utils import to_dict_container
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('attn_impl,dropout,alibi,mask_val,no_attn_mask', [
-    ('flash', 0.0, False, 1, False),
-    ('flash', 0.1, False, 1, False),
-    ('torch', 0.0, False, 1, False),
-    ('torch', 0.0, False, 0, False),
-    ('flash', 0.0, False, None, True),
-    ('torch', 0.0, False, None, True),
-])
-def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
-                          mask_val: Optional[int], no_attn_mask: bool):
+@pytest.mark.parametrize(
+    'attn_impl,dropout,alibi,mask_val,no_attn_mask',
+    [
+        ('flash', 0.0, False, 1, False),
+        ('flash', 0.1, False, 1, False),
+        ('torch', 0.0, False, 1, False),
+        ('torch', 0.0, False, 0, False),
+        ('flash', 0.0, False, None, True),
+        ('torch', 0.0, False, None, True),
+    ],
+)
+def test_compare_hf_v_mpt(
+    attn_impl: str,
+    dropout: float,
+    alibi: bool,
+    mask_val: Optional[int],
+    no_attn_mask: bool,
+):
     warnings.filterwarnings(
         action='ignore',
-        message='Torchmetrics v0.9 introduced a new argument class property')
-    warnings.filterwarnings(action='ignore',
-                            message='Using Fused Cross Entropy Loss.')
+        message='Torchmetrics v0.9 introduced a new argument class property',
+    )
+    warnings.filterwarnings(
+        action='ignore',
+        message='Using Fused Cross Entropy Loss.',
+    )
 
     conf_path = 'scripts/train/yamls/pretrain/mpt-125m.yaml'  # set cfg path
     batch_size = 2  # set batch size
@@ -44,10 +55,10 @@ def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
                 'n_layer': 2,
                 'n_embd': 64,
                 'n_head': 8,
-            }
+            },
         },
         'tokenizer': {
-            'name': 'gpt2'
+            'name': 'gpt2',
         },
     })
 
@@ -131,22 +142,25 @@ def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
 
     # generate random input branch
     batch = {}
-    batch['input_ids'] = torch.randint(low=0,
-                                       high=model_cfg.vocab_size,
-                                       size=(batch_size,
-                                             model_cfg.max_seq_len)).to(device)
-    batch['labels'] = torch.randint(low=0,
-                                    high=model_cfg.vocab_size,
-                                    size=(batch_size,
-                                          model_cfg.max_seq_len)).to(device)
+    batch['input_ids'] = torch.randint(
+        low=0,
+        high=model_cfg.vocab_size,
+        size=(batch_size, model_cfg.max_seq_len),
+    ).to(device)
+    batch['labels'] = torch.randint(
+        low=0,
+        high=model_cfg.vocab_size,
+        size=(batch_size, model_cfg.max_seq_len),
+    ).to(device)
     kpm = None
     if no_attn_mask:
         if 'attention_mask' in batch.keys():
             _ = batch.pop('attention_mask')
     else:
-        batch['attention_mask'] = torch.ones(size=(batch_size,
-                                                   model_cfg.max_seq_len),
-                                             dtype=torch.int64).to(device)
+        batch['attention_mask'] = torch.ones(
+            size=(batch_size, model_cfg.max_seq_len),
+            dtype=torch.int64,
+        ).to(device)
         # mask out some tokens
         assert mask_val is not None
         batch['attention_mask'][:, model_cfg.max_seq_len // 2:] = mask_val
@@ -175,7 +189,10 @@ def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
     hf_keys_ignore = ['.attn.masked_bias', '.attn.bias', 'lm_head']
     # HF params which need to be transposed
     _transpose = [
-        '.attn.c_attn.', '.attn.c_proj.', '.mlp.c_fc.', '.mlp.c_proj.'
+        '.attn.c_attn.',
+        '.attn.c_proj.',
+        '.mlp.c_fc.',
+        '.mlp.c_proj.',
     ]
     # HF keys which need to be replaced by the associated value
     hf_2_mosaic_key_mods = {
@@ -222,7 +239,9 @@ def test_compare_hf_v_mpt(attn_impl: str, dropout: float, alibi: bool,
     print(f'{hf_model_fwd = }\n{model_fwd = }')
 
     # given dropout seeded the same way, the mean of the outputs is extremely similar
-    assert hf_model_fwd.mean().allclose(model_fwd.mean(),
-                                        rtol=1e-04,
-                                        atol=1e-06)
+    assert hf_model_fwd.mean().allclose(
+        model_fwd.mean(),
+        rtol=1e-04,
+        atol=1e-06,
+    )
     assert hf_model_fwd.allclose(model_fwd, rtol=1e-02, atol=1e-02)

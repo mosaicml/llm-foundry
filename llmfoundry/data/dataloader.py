@@ -16,8 +16,11 @@ __all__ = [
 ]
 
 
-def build_dataloader(cfg: Dict[str, Any], tokenizer: PreTrainedTokenizerBase,
-                     device_batch_size: int) -> DataSpec:
+def build_dataloader(
+    cfg: Dict[str, Any],
+    tokenizer: PreTrainedTokenizerBase,
+    device_batch_size: int,
+) -> DataSpec:
     """Builds a dataloader from a config.
 
     Args:
@@ -28,8 +31,9 @@ def build_dataloader(cfg: Dict[str, Any], tokenizer: PreTrainedTokenizerBase,
     """
     name = cfg.pop('name')
     kwargs: Dict[str, Any] = {
-        **cfg, 'tokenizer': tokenizer,
-        'device_batch_size': device_batch_size
+        **cfg,
+        'tokenizer': tokenizer,
+        'device_batch_size': device_batch_size,
     }
 
     return construct_from_registry(

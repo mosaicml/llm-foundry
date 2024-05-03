@@ -13,23 +13,30 @@ from llmfoundry.utils.builders import build_composer_model, build_tokenizer
 
 @pytest.mark.world_size(2)
 @pytest.mark.gpu
-@pytest.mark.parametrize('peft_config', [
-    None, {
-        'peft_type': 'LORA',
-        'task_type': 'CAUSAL_LM',
-        'lora_alpha': 32,
-        'lora_dropout': 0.05,
-        'r': 16,
-        'target_modules': [
-            'q_proj',
-            'k_proj',
-            'v_proj',
-        ],
-    }
-])
+@pytest.mark.parametrize(
+    'peft_config',
+    [
+        None,
+        {
+            'peft_type': 'LORA',
+            'task_type': 'CAUSAL_LM',
+            'lora_alpha': 32,
+            'lora_dropout': 0.05,
+            'r': 16,
+            'target_modules': [
+                'q_proj',
+                'k_proj',
+                'v_proj',
+            ],
+        },
+    ],
+)
 @pytest.mark.parametrize('init_device', ['cpu', 'mixed', 'meta'])
-def test_fsdp_weight_tying(peft_config: Optional[dict], tmp_path: pathlib.Path,
-                           init_device: str):
+def test_fsdp_weight_tying(
+    peft_config: Optional[dict],
+    tmp_path: pathlib.Path,
+    init_device: str,
+):
     model_cfg = {
         'name': 'hf_causal_lm',
         'pretrained_model_name_or_path': 'codellama/CodeLlama-7b-hf',

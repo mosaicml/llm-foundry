@@ -8,8 +8,11 @@ from __future__ import annotations
 from typing import List, Mapping, Optional
 
 from composer.utils import dist
-from transformers import (AutoConfig, PreTrainedTokenizerBase,
-                          T5ForConditionalGeneration)
+from transformers import (
+    AutoConfig,
+    PreTrainedTokenizerBase,
+    T5ForConditionalGeneration,
+)
 
 from llmfoundry.metrics import DEFAULT_ENC_DEC_METRICS
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
@@ -69,7 +72,7 @@ class ComposerHFT5(HuggingFaceModelWithFSDP):
         for k, v in config_overrides.items():
             if not hasattr(config, k):
                 raise ValueError(
-                    f'config does not have attribute "{k}" to override ({k}: {v}).'
+                    f'config does not have attribute "{k}" to override ({k}: {v}).',
                 )
 
             attr = getattr(config, k)
@@ -79,7 +82,8 @@ class ComposerHFT5(HuggingFaceModelWithFSDP):
                     raise ValueError(
                         f'Config dict override got unknown keys. ' +
                         f'Extra keys: {extra_keys}. ' +
-                        f'Expected (a subset of) keys: {list(attr.keys())}.')
+                        f'Expected (a subset of) keys: {list(attr.keys())}.',
+                    )
                 getattr(config, k).update(v)
             else:
                 setattr(config, k, v)
@@ -100,28 +104,31 @@ class ComposerHFT5(HuggingFaceModelWithFSDP):
         if resolved_init_device == 'cpu':
             if pretrained:
                 model = T5ForConditionalGeneration.from_pretrained(
-                    pretrained_model_name_or_path, config=config)
+                    pretrained_model_name_or_path,
+                    config=config,
+                )
             else:
                 model = T5ForConditionalGeneration(config)
         elif resolved_init_device == 'meta':
             if pretrained:
                 raise ValueError(
-                    'Setting cfg.pretrained=True is not supported when init_device="meta".'
+                    'Setting cfg.pretrained=True is not supported when init_device="meta".',
                 )
             with init_empty_weights(include_buffers=False):
                 model = T5ForConditionalGeneration(config)
         else:
             raise ValueError(
-                f'init_device="{init_device}" must be either "cpu" or "meta".')
+                f'init_device="{init_device}" must be either "cpu" or "meta".',
+            )
 
         metrics = [
             build_metric(metric, {})
             for metric in DEFAULT_ENC_DEC_METRICS + additional_train_metrics
         ]
 
-        composer_model = super().__init__(model=model,
-                                          tokenizer=tokenizer,
-                                          metrics=metrics,
-                                          init_device=init_device)
-
-        return composer_model
+        super().__init__(
+            model=model,
+            tokenizer=tokenizer,
+            metrics=metrics,
+            init_device=init_device,
+        )

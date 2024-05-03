@@ -14,6 +14,6 @@ RUN rm setup.py
 
 # Install and uninstall foundry to cache foundry requirements
 RUN git clone -b $BRANCH_NAME https://github.com/mosaicml/llm-foundry.git
-RUN pip install --verbose --no-cache-dir "./llm-foundry${DEP_GROUPS}"
+RUN MAX_JOBS=1 pip install --verbose --no-cache-dir "./llm-foundry${DEP_GROUPS}"
 RUN pip uninstall -y llm-foundry
 RUN rm -rf llm-foundry

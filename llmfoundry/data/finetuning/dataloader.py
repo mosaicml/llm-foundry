@@ -231,7 +231,7 @@ def build_finetuning_dataloader(
             sampling_method=dataset_cfg.get('sampling_method', 'balanced'),
             sampling_granularity=dataset_cfg.get('sampling_granularity', 1),
             batching_method=dataset_cfg.get('batching_method', 'random'),
-            max_seq_len=dataset_cfg.max_seq_len,
+            max_seq_len=dataset_cfg['max_seq_len'],
             allow_unsafe_types=dataset_cfg.get('allow_unsafe_types', False),
             replication=replication_factor,
         )

@@ -141,6 +141,7 @@ def get_text_collator(
 ) -> Tuple[Union[transformers.DataCollatorForLanguageModeling,
                  ConcatenatedSequenceCollatorWrapper], int]:
     dataset_cfg = dataloader_cfg.get('dataset')
+    assert isinstance(dataset_cfg, dict)
     eos_token_id = dataset_cfg.get('eos_token_id', None)
     bos_token_id = dataset_cfg.get('bos_token_id', None)
     mlm_probability = dataset_cfg.pop('mlm_probability', None)

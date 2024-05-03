@@ -15,7 +15,6 @@ import torch
 import transformers
 from composer.core import DataSpec
 from composer.core.data_spec import _default_split_batch, _split_list
-from llmfoundry.eval.datasets.utils import stop_sequences_criteria
 from composer.utils import MissingConditionalImportError, dist, get_file
 from datasets import Dataset as HFDataset
 from datasets import IterableDataset, load_dataset
@@ -24,7 +23,8 @@ from torch.utils.data import DataLoader, Dataset
 from llmfoundry.eval.datasets.utils import (convert_tokens_to_tensors,
                                             get_continuation_span,
                                             get_fewshot_sample_idxs,
-                                            make_padded_input, strip_data,
+                                            make_padded_input,
+                                            stop_sequences_criteria, strip_data,
                                             tokenizer_needs_prefix_space,
                                             trim_context)
 from llmfoundry.utils.warnings import VersionedDeprecationWarning

@@ -40,6 +40,7 @@ from llmfoundry.data.text_data import (
 )
 from llmfoundry.data.utils import get_tokens_per_batch_func
 from llmfoundry.utils.builders import build_tokenizer
+from llmfoundry.utils.config_utils import to_dict_container
 # yapf: disable
 from llmfoundry.utils.exceptions import (
     ConsecutiveRepeatedChatRolesError,
@@ -259,8 +260,9 @@ def test_correct_padding(
 
     # Dataloaders
     test_cfg.eval_loader.pop('name')
+    test_cfg = to_dict_container(test_cfg)
     eval_loader = build_text_dataloader(
-        **test_cfg.eval_loader,
+        **test_cfg['eval_loader'],
         tokenizer=tokenizer,
         device_batch_size=batch_size,
     ).dataloader

@@ -15,7 +15,7 @@ import torch
 import transformers
 from composer.core import DataSpec
 from composer.core.data_spec import _default_split_batch, _split_list
-from composer.datasets.utils import stop_sequences_criteria
+from llmfoundry.eval.datasets.utils import stop_sequences_criteria
 from composer.utils import MissingConditionalImportError, dist, get_file
 from datasets import Dataset as HFDataset
 from datasets import IterableDataset, load_dataset

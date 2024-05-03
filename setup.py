@@ -107,6 +107,10 @@ extra_deps['gpu-flash2'] = [
     'flash-attn==2.5.8',
 ]
 
+extra_deps['te'] = [
+    'transformer_engine@git+https://github.com/NVIDIA/TransformerEngine.git@stable'
+]
+
 extra_deps['gpu'] = copy.deepcopy(extra_deps['gpu-flash2'])
 
 extra_deps['peft'] = [

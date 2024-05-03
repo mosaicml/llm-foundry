@@ -137,7 +137,7 @@ def get_tokens_per_batch_func(
 def get_text_collator(
     dataloader_cfg: Dict[str, Any],
     tokenizer: PreTrainedTokenizerBase,
-    dataset_batch_size: int = -1,
+    dataset_batch_size: int,
 ) -> Tuple[Union[transformers.DataCollatorForLanguageModeling,
                  ConcatenatedSequenceCollatorWrapper], int]:
     dataset_cfg = dataloader_cfg.get('dataset')

@@ -250,7 +250,7 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
 
     for model_cfg in model_configs:
 
-        attn_config = model_cfg.model.get('attn_config', None)
+        attn_config = model_cfg['model'].get('attn_config', None)
         if attn_config is not None:
             seq_parallel_world_size = attn_config.get(
                 'seq_parallel_world_size',

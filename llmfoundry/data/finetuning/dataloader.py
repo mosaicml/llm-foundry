@@ -286,10 +286,6 @@ def build_finetuning_dataloader(
 
         # Ensure dataset is large enough.
         if drop_last:
-            world_size = dist.get_world_size()
-
-        # Ensure dataset is large enough.
-        if cfg.drop_last:
             world_size = dist.get_world_size() // replication_factor
             minimum_dataset_size = world_size * dataloader_batch_size
             if hasattr(streaming_dataset, '__len__'):
@@ -303,6 +299,7 @@ def build_finetuning_dataloader(
                         full_dataset_size=full_dataset_size,
                         minimum_dataset_size=minimum_dataset_size,
                     )
+
         # Initialize sampler.
         sampler = dist.get_sampler(
             streaming_dataset,

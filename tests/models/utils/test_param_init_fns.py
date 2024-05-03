@@ -92,17 +92,27 @@ def test_fused_init_helper(fused: bool):
             assert (p == expected_value).all()
 
 
-@pytest.mark.parametrize('module', [
-    nn.Linear(8, 16),
-    nn.Embedding(8, 16),
-    pytest.param(nn.LayerNorm(8),
-                 marks=pytest.mark.xfail(
-                     reason='LayerNorm is skipped by init_fn_', strict=True)),
-    pytest.param(nn.Conv2d(8, 16, 3),
-                 marks=pytest.mark.xfail(
-                     reason='generic_param_init_fn_ does not init Conv layers',
-                     strict=True)),
-])
+@pytest.mark.parametrize(
+    'module',
+    [
+        nn.Linear(8, 16),
+        nn.Embedding(8, 16),
+        pytest.param(
+            nn.LayerNorm(8),
+            marks=pytest.mark.xfail(
+                reason='LayerNorm is skipped by init_fn_',
+                strict=True,
+            ),
+        ),
+        pytest.param(
+            nn.Conv2d(8, 16, 3),
+            marks=pytest.mark.xfail(
+                reason='generic_param_init_fn_ does not init Conv layers',
+                strict=True,
+            ),
+        ),
+    ],
+)
 def test_all_params_init(module: torch.nn.Module):
     fill_val = torch.finfo(torch.float16).max
 
@@ -114,8 +124,9 @@ def test_all_params_init(module: torch.nn.Module):
     cfg = om.create({
         'n_layers': 2,
     })
-    module.apply(partial(generic_param_init_fn_, init_fn_=max_fill_init_,
-                         **cfg))
+    module.apply(
+        partial(generic_param_init_fn_, init_fn_=max_fill_init_, **cfg),
+    )
     for n, p in module.named_parameters():
         if n == 'bias':
             assert (p == 0).all()
@@ -123,11 +134,18 @@ def test_all_params_init(module: torch.nn.Module):
             assert (p == fill_val).all()
 
 
-@pytest.mark.parametrize('emb_init_cfg', [
-    None, ('emb_init_std', 5), ('emb_init_std', 0), ('emb_init_uniform_lim', 2),
-    ('emb_init_uniform_lim', [-1, 4]), ('emb_init_uniform_lim', 0),
-    ('emb_init_uniform_lim', [1, 1])
-])
+@pytest.mark.parametrize(
+    'emb_init_cfg',
+    [
+        None,
+        ('emb_init_std', 5),
+        ('emb_init_std', 0),
+        ('emb_init_uniform_lim', 2),
+        ('emb_init_uniform_lim', [-1, 4]),
+        ('emb_init_uniform_lim', 0),
+        ('emb_init_uniform_lim', [1, 1]),
+    ],
+)
 def test_emb_init(emb_init_cfg: Optional[Tuple[str, Union[int, List[int]]]]):
     cfg: Dict[str, Union[int, List[int]]] = {
         'vocab_size': 64,
@@ -142,14 +160,26 @@ def test_emb_init(emb_init_cfg: Optional[Tuple[str, Union[int, List[int]]]]):
     model = nn.Sequential(
         OrderedDict([
             ('emb', nn.Embedding(dict_cfg.vocab_size, dict_cfg.in_features)),
-            ('fc1',
-             nn.Linear(dict_cfg.in_features, dict_cfg.out_features, bias=True)),
+            (
+                'fc1',
+                nn.Linear(
+                    dict_cfg.in_features,
+                    dict_cfg.out_features,
+                    bias=True,
+                ),
+            ),
             ('ln1', nn.LayerNorm(dict_cfg.out_features)),
             ('act1', nn.ReLU()),
-            ('fc2',
-             nn.Linear(dict_cfg.out_features, dict_cfg.out_features,
-                       bias=True)),
-        ]))
+            (
+                'fc2',
+                nn.Linear(
+                    dict_cfg.out_features,
+                    dict_cfg.out_features,
+                    bias=True,
+                ),
+            ),
+        ]),
+    )
 
     model.apply(partial(param_init_fns.get('kaiming_normal_'), **dict_cfg))
 
@@ -165,6 +195,7 @@ def test_emb_init(emb_init_cfg: Optional[Tuple[str, Union[int, List[int]]]]):
             assert (model.emb.weight == 0).all()
         elif isinstance(emb_init_uniform_lim, Sequence):
             assert len(emb_init_uniform_lim) <= 2
-            if len(emb_init_uniform_lim
-                  ) == 2 and emb_init_uniform_lim[0] == emb_init_uniform_lim[1]:
+            if len(
+                emb_init_uniform_lim,
+            ) == 2 and emb_init_uniform_lim[0] == emb_init_uniform_lim[1]:
                 assert (model.emb.weight == emb_init_uniform_lim[0]).all()

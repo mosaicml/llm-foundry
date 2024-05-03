@@ -16,10 +16,12 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from llmfoundry.data.finetuning.collator import validate_target_settings
-from llmfoundry.data.finetuning.tasks import (_get_example_type,
-                                              dataset_constructor,
-                                              is_valid_ift_example,
-                                              tokenize_formatted_example)
+from llmfoundry.data.finetuning.tasks import (
+    _get_example_type,
+    dataset_constructor,
+    is_valid_ift_example,
+    tokenize_formatted_example,
+)
 from llmfoundry.utils.builders import build_tokenizer
 
 HFDataset = Union[DatasetDict, Dataset, IterableDatasetDict, IterableDataset]
@@ -33,16 +35,20 @@ def parse_args() -> Namespace:
         type=str,
         required=True,
         help=
-        'Name of the dataset (e.g., first argument to `datasets.load_dataset`, for jsonl data format, it is `json`)'
+        'Name of the dataset (e.g., first argument to `datasets.load_dataset`, for jsonl data format, it is `json`)',
     )
-    parser.add_argument('--data_subset',
-                        type=str,
-                        default=None,
-                        help='(Optional) subset of data to use.')
-    parser.add_argument('--splits',
-                        nargs='+',
-                        default=['train', 'validation'],
-                        help='Which splits of the dataset to convert.')
+    parser.add_argument(
+        '--data_subset',
+        type=str,
+        default=None,
+        help='(Optional) subset of data to use.',
+    )
+    parser.add_argument(
+        '--splits',
+        nargs='+',
+        default=['train', 'validation'],
+        help='Which splits of the dataset to convert.',
+    )
     parser.add_argument('--preprocessor',
                         type=str,
                         default=None,
@@ -53,32 +59,34 @@ def parse_args() -> Namespace:
         nargs='+',
         default=[],
         help=
-        'Data file for each split. If set, its length should be exact same as len(splits)'
+        'Data file for each split. If set, its length should be exact same as len(splits)',
     )
     parser.add_argument(
         '--skip-preprocessing',
         action='store_true',
         help=
-        'Whether to skip preprocessing (e.g., if the dataset is already formatted correctly)'
+        'Whether to skip preprocessing (e.g., if the dataset is already formatted correctly)',
     )
     parser.add_argument(
         '--out_root',
         type=str,
         required=True,
         help=
-        'Root path of output directory where MDS shards will be stored. Can be a remote URI.'
+        'Root path of output directory where MDS shards will be stored. Can be a remote URI.',
     )
     parser.add_argument(
         '--local',
         type=str,
         default=None,
         help=
-        '(Optional) root path of local directory if you want to keep a local copy when out_root is remote.'
+        '(Optional) root path of local directory if you want to keep a local copy when out_root is remote.',
     )
-    parser.add_argument('--compression',
-                        type=str,
-                        default=None,
-                        help='(Optional) name of compression algorithm to use.')
+    parser.add_argument(
+        '--compression',
+        type=str,
+        default=None,
+        help='(Optional) name of compression algorithm to use.',
+    )
     parser.add_argument('--num_workers', type=int, required=False, default=None)
     parser.add_argument('--tokenizer', type=str, required=False, default=None)
     parser.add_argument('--tokenizer_kwargs', type=str, required=False)
@@ -90,30 +98,30 @@ def parse_args() -> Namespace:
         type=str,
         default='none',
         help='Used to determine which samples are valid at max_seq_len. ' +\
-             'This is the policy for when to use prompts as training targets. Default "none" means prompts are never used as training targets.'
+             'This is the policy for when to use prompts as training targets. Default "none" means prompts are never used as training targets.',
     )
     parser.add_argument(
         '--target_responses',
         type=str,
         default='last',
         help='Used to determine which samples are valid at max_seq_len. ' +\
-             'This is the policy for which responses to treat as training targets. Default "last" means the only the final response (if multi-turn) is used.'
+             'This is the policy for which responses to treat as training targets. Default "last" means the only the final response (if multi-turn) is used.',
     )
     parser.add_argument(
         '--encoder_decoder',
         action='store_true',
         help='Used to determine which samples are valid at max_seq_len. ' +\
              'Set this flag if the data are intended to be used to train an encoder-decoder model. If so, you must use the default ' +\
-            '``target_prompts`` and ``target_responses`` settings of "none" and "last", respectively.'
+            '``target_prompts`` and ``target_responses`` settings of "none" and "last", respectively.',
     )
 
     parsed = parser.parse_args()
 
     if os.path.isdir(parsed.out_root) and len(
-            set(os.listdir(parsed.out_root)).intersection(set(
-                parsed.splits))) > 0:
+        set(os.listdir(parsed.out_root)).intersection(set(parsed.splits)),
+    ) > 0:
         raise ValueError(
-            f'--out_root={parsed.out_root} contains {os.listdir(parsed.out_root)} which cannot overlap with the requested splits {parsed.splits}.'
+            f'--out_root={parsed.out_root} contains {os.listdir(parsed.out_root)} which cannot overlap with the requested splits {parsed.splits}.',
         )
 
     if parsed.tokenizer_kwargs is not None:
@@ -121,18 +129,21 @@ def parse_args() -> Namespace:
     else:
         parsed.tokenizer_kwargs = {}
 
-    if len(parsed.data_files) > 0 and len(parsed.data_files) != len(
-            parsed.splits):
+    if len(parsed.data_files) > 0 and len(
+        parsed.data_files,
+    ) != len(parsed.splits):
         raise ValueError(
-            f'If data_files is set, data_files and splits must have the same length. Got {len(parsed.data_files)=} while {len(parsed.splits)=}'
+            f'If data_files is set, data_files and splits must have the same length. Got {len(parsed.data_files)=} while {len(parsed.splits)=}',
         )
 
     return parsed
 
 
-def build_dataloader(dataset: HFDataset,
-                     batch_size: int,
-                     num_workers: Optional[int] = None) -> DataLoader:
+def build_dataloader(
+    dataset: HFDataset,
+    batch_size: int,
+    num_workers: Optional[int] = None,
+) -> DataLoader:
     if num_workers is None:
         # Multiple workers is only supported on linux machines
         if 'linux' in platform.platform().lower():
@@ -148,8 +159,10 @@ def build_dataloader(dataset: HFDataset,
     if 'macos' in platform.platform().lower() and num_workers == 0:
         prefetch_factor = None
     else:
-        prefetch_factor = max(1, 2 * batch_size //
-                              num_workers) if num_workers > 0 else 2
+        prefetch_factor = max(
+            1,
+            2 * batch_size // num_workers,
+        ) if num_workers > 0 else 2
 
     return DataLoader(
         dataset=dataset,
@@ -161,8 +174,8 @@ def build_dataloader(dataset: HFDataset,
 
 
 def generate_samples(
-        loader: DataLoader,
-        truncate_num_samples: Optional[int] = None
+    loader: DataLoader,
+    truncate_num_samples: Optional[int] = None,
 ) -> Iterable[Dict[str, bytes]]:
     """Generator over samples of a dataloader.
 
@@ -184,8 +197,11 @@ def generate_samples(
             yield {k: v[idx] for k, v in batch.items()}
 
 
-def get_columns_and_format(dataset: HFDataset, tokenizing: bool,
-                           preprocessing_fn: Callable):
+def get_columns_and_format(
+    dataset: HFDataset,
+    tokenizing: bool,
+    preprocessing_fn: Callable,
+):
     ex = preprocessing_fn(next(iter(dataset)))
     example_type = _get_example_type(ex)
     if tokenizing:
@@ -209,13 +225,15 @@ def main(args: Namespace) -> None:
     else:
         preprocessor_str = args.preprocessor
         preprocessing_fn = dataset_constructor.get_preprocessing_fn_from_str(
-            preprocessor=preprocessor_str, dataset_name=args.dataset)
+            preprocessor=preprocessor_str,
+            dataset_name=args.dataset,
+        )
         if preprocessing_fn is None:
             raise ValueError(
                 '`args.preprocessor` was not set and no preprocessing function ' +\
                 'has been registered for `args.dataset`. If this was intentional ' +\
                 '(e.g., because your dataset is already correctly formatted), ' +\
-                'include the "--skip-preprocessing" flag to avoid this error.'
+                'include the "--skip-preprocessing" flag to avoid this error.',
             )
 
     # Make sure the target settings are valid
@@ -235,23 +253,28 @@ def main(args: Namespace) -> None:
         data_file = None
         if len(args.data_files) > 0:
             data_file = args.data_files[i]
-        dataset = hf_datasets.load_dataset(path=args.dataset,
-                                           name=args.data_subset,
-                                           split=split_name,
-                                           data_files=data_file,
-                                           streaming=True)
+        dataset = hf_datasets.load_dataset(
+            path=args.dataset,
+            name=args.data_subset,
+            split=split_name,
+            data_files=data_file,
+            streaming=True,
+        )
         # Determine the output columns
         columns, example_type = get_columns_and_format(
             dataset=dataset,
             tokenizing=tokenizer is not None,
-            preprocessing_fn=preprocessing_fn)
+            preprocessing_fn=preprocessing_fn,
+        )
         # Prepare the iterables
         if example_type == 'chat':
             samples = iter(dataset)
         else:
-            loader = build_dataloader(dataset=dataset,
-                                      batch_size=512,
-                                      num_workers=args.num_workers)
+            loader = build_dataloader(
+                dataset=dataset,
+                batch_size=512,
+                num_workers=args.num_workers,
+            )
             samples = generate_samples(loader)
 
         # Write samples
@@ -262,10 +285,12 @@ def main(args: Namespace) -> None:
             keep_local = True
         else:
             keep_local = False
-        with MDSWriter(columns=columns,
-                       out=out,
-                       compression=args.compression,
-                       keep_local=keep_local) as out:
+        with MDSWriter(
+            columns=columns,
+            out=out,
+            compression=args.compression,
+            keep_local=keep_local,
+        ) as out:
             examples_removed = 0
             for sample in tqdm(samples, desc=split_name):
                 formatted_sample = preprocessing_fn(sample)
@@ -278,17 +303,20 @@ def main(args: Namespace) -> None:
                 except Exception as e:
                     raise ValueError(
                         'Encountered an error when checking example for proper formatting. ' +\
-                        f'example={formatted_sample}'
+                        f'example={formatted_sample}',
                     ) from e
                 if tokenizer is not None:
-                    sample = tokenize_formatted_example(formatted_sample,
-                                                        tokenizer=tokenizer)
+                    sample = tokenize_formatted_example(
+                        formatted_sample,
+                        tokenizer=tokenizer,
+                    )
                     if not is_valid_ift_example(
-                            args.max_seq_len,
-                            target_prompts=args.target_prompts,
-                            target_responses=args.target_responses,
-                            decoder_only_format=not args.encoder_decoder,
-                            example=sample):
+                        args.max_seq_len,
+                        target_prompts=args.target_prompts,
+                        target_responses=args.target_responses,
+                        decoder_only_format=not args.encoder_decoder,
+                        example=sample,
+                    ):
                         examples_removed += 1
                         continue
 
@@ -314,7 +342,7 @@ def main(args: Namespace) -> None:
             warnings.warn(
                 f'Dropped {examples_removed} examples where the prompt was longer than {args.max_seq_len}, '
                 +
-                'the prompt or response was empty, or the response was all padding tokens.'
+                'the prompt or response was empty, or the response was all padding tokens.',
             )
 
 

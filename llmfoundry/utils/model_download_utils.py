@@ -49,10 +49,13 @@ __all__ = [
 ]
 
 
-@tenacity.retry(retry=tenacity.retry_if_not_exception_type(
-    (ValueError, hf_hub.utils.RepositoryNotFoundError)),
-                stop=tenacity.stop_after_attempt(3),
-                wait=tenacity.wait_exponential(min=1, max=10))
+@tenacity.retry(
+    retry=tenacity.retry_if_not_exception_type(
+        (ValueError, hf_hub.utils.RepositoryNotFoundError),
+    ),
+    stop=tenacity.stop_after_attempt(3),
+    wait=tenacity.wait_exponential(min=1, max=10),
+)
 def download_from_hf_hub(
     model: str,
     save_dir: str,
@@ -83,20 +86,23 @@ def download_from_hf_hub(
     # Ignore TensorFlow, TensorFlow 2, and Flax weights as they are not supported by Composer.
     ignore_patterns = copy.deepcopy(DEFAULT_IGNORE_PATTERNS)
 
-    safetensors_available = (SAFE_WEIGHTS_NAME in repo_files or
-                             SAFE_WEIGHTS_INDEX_NAME in repo_files)
-    pytorch_available = (PYTORCH_WEIGHTS_NAME in repo_files or
-                         PYTORCH_WEIGHTS_INDEX_NAME in repo_files)
+    safetensors_available = (
+        SAFE_WEIGHTS_NAME in repo_files or SAFE_WEIGHTS_INDEX_NAME in repo_files
+    )
+    pytorch_available = (
+        PYTORCH_WEIGHTS_NAME in repo_files or
+        PYTORCH_WEIGHTS_INDEX_NAME in repo_files
+    )
 
     if safetensors_available and pytorch_available:
         if prefer_safetensors:
             log.info(
-                'Safetensors available and preferred. Excluding pytorch weights.'
+                'Safetensors available and preferred. Excluding pytorch weights.',
             )
             ignore_patterns.append(PYTORCH_WEIGHTS_PATTERN)
         else:
             log.info(
-                'Pytorch available and preferred. Excluding safetensors weights.'
+                'Pytorch available and preferred. Excluding safetensors weights.',
             )
             ignore_patterns.append(SAFE_WEIGHTS_PATTERN)
     elif safetensors_available:
@@ -106,21 +112,23 @@ def download_from_hf_hub(
     else:
         raise ValueError(
             f'No supported model weights found in repo {model}.' +
-            ' Please make sure the repo contains either safetensors or pytorch weights.'
+            ' Please make sure the repo contains either safetensors or pytorch weights.',
         )
 
     allow_patterns = TOKENIZER_FILES if tokenizer_only else None
 
     download_start = time.time()
-    hf_hub.snapshot_download(model,
-                             local_dir=save_dir,
-                             local_dir_use_symlinks=False,
-                             ignore_patterns=ignore_patterns,
-                             allow_patterns=allow_patterns,
-                             token=token)
+    hf_hub.snapshot_download(
+        model,
+        local_dir=save_dir,
+        local_dir_use_symlinks=False,
+        ignore_patterns=ignore_patterns,
+        allow_patterns=allow_patterns,
+        token=token,
+    )
     download_duration = time.time() - download_start
     log.info(
-        f'Downloaded model {model} from Hugging Face Hub in {download_duration} seconds'
+        f'Downloaded model {model} from Hugging Face Hub in {download_duration} seconds',
     )
 
 
@@ -168,15 +176,15 @@ def _recursive_download(
 
     if response.status_code == HTTPStatus.UNAUTHORIZED:
         raise PermissionError(
-            f'Not authorized to download file from {url}. Received status code {response.status_code}. '
+            f'Not authorized to download file from {url}. Received status code {response.status_code}. ',
         )
     elif response.status_code == HTTPStatus.NOT_FOUND:
         raise ValueError(
-            f'Could not find file at {url}. Received status code {response.status_code}'
+            f'Could not find file at {url}. Received status code {response.status_code}',
         )
     elif response.status_code != HTTPStatus.OK:
         raise RuntimeError(
-            f'Could not download file from {url}. Received unexpected status code {response.status_code}'
+            f'Could not download file from {url}. Received unexpected status code {response.status_code}',
         )
 
     # Assume that the URL points to a file if it does not end with a slash.
@@ -197,17 +205,20 @@ def _recursive_download(
     child_links = _extract_links_from_html(response.content.decode())
     print(child_links)
     for child_link in child_links:
-        _recursive_download(session,
-                            base_url,
-                            urljoin(path, child_link),
-                            save_dir,
-                            ignore_cert=ignore_cert)
+        _recursive_download(
+            session,
+            base_url,
+            urljoin(path, child_link),
+            save_dir,
+            ignore_cert=ignore_cert,
+        )
 
 
-@tenacity.retry(retry=tenacity.retry_if_not_exception_type(
-    (PermissionError, ValueError)),
-                stop=tenacity.stop_after_attempt(3),
-                wait=tenacity.wait_exponential(min=1, max=10))
+@tenacity.retry(
+    retry=tenacity.retry_if_not_exception_type((PermissionError, ValueError)),
+    stop=tenacity.stop_after_attempt(3),
+    wait=tenacity.wait_exponential(min=1, max=10),
+)
 def download_from_http_fileserver(
     url: str,
     save_dir: str,
@@ -228,19 +239,23 @@ def download_from_http_fileserver(
             if ignore_cert:
                 warnings.simplefilter('ignore', category=InsecureRequestWarning)
 
-            _recursive_download(session,
-                                url,
-                                '',
-                                save_dir,
-                                ignore_cert=ignore_cert)
+            _recursive_download(
+                session,
+                url,
+                '',
+                save_dir,
+                ignore_cert=ignore_cert,
+            )
 
 
-def download_from_oras(model: str,
-                       config_file: str,
-                       credentials_dir: str,
-                       save_dir: str,
-                       tokenizer_only: bool = False,
-                       concurrency: int = 10):
+def download_from_oras(
+    model: str,
+    config_file: str,
+    credentials_dir: str,
+    save_dir: str,
+    tokenizer_only: bool = False,
+    concurrency: int = 10,
+):
     """Download from an OCI-compliant registry using oras.
 
     Args:
@@ -254,7 +269,7 @@ def download_from_oras(model: str,
     """
     if shutil.which(ORAS_CLI) is None:
         raise Exception(
-            f'oras cli command `{ORAS_CLI}` is not found. Please install oras: https://oras.land/docs/installation '
+            f'oras cli command `{ORAS_CLI}` is not found. Please install oras: https://oras.land/docs/installation ',
         )
 
     def _read_secrets_file(secret_file_path: str,):
@@ -263,12 +278,14 @@ def download_from_oras(model: str,
                 return f.read().strip()
         except Exception as error:
             raise ValueError(
-                f'secrets file {secret_file_path} failed to be read') from error
+                f'secrets file {secret_file_path} failed to be read',
+            ) from error
 
     secrets = {}
     for secret in ['username', 'password', 'registry']:
         secrets[secret] = _read_secrets_file(
-            os.path.join(credentials_dir, secret))
+            os.path.join(credentials_dir, secret),
+        )
 
     with open(config_file, 'r', encoding='utf-8') as f:
         configs = yaml.safe_load(f.read())
@@ -277,8 +294,10 @@ def download_from_oras(model: str,
     path = configs[config_type][model]
     registry = secrets['registry']
 
-    def get_oras_cmd(username: Optional[str] = None,
-                     password: Optional[str] = None):
+    def get_oras_cmd(
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+    ):
         cmd = [
             ORAS_CLI,
             'pull',
@@ -298,11 +317,17 @@ def download_from_oras(model: str,
 
     cmd_without_creds = get_oras_cmd()
     log.info(f'CMD for oras cli to run: {" ".join(cmd_without_creds)}')
-    cmd_to_run = get_oras_cmd(username=secrets['username'],
-                              password=secrets['password'])
+    cmd_to_run = get_oras_cmd(
+        username=secrets['username'],
+        password=secrets['password'],
+    )
     try:
         subprocess.run(cmd_to_run, check=True)
     except subprocess.CalledProcessError as e:
         # Intercept the error and replace the cmd, which may have sensitive info.
-        raise subprocess.CalledProcessError(e.returncode, cmd_without_creds,
-                                            e.output, e.stderr)
+        raise subprocess.CalledProcessError(
+            e.returncode,
+            cmd_without_creds,
+            e.output,
+            e.stderr,
+        )

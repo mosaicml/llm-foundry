@@ -34,13 +34,12 @@ class MockState(State):
         for key in logger_keys:
             dl_name = '/'.join(key.split('/')[1:-1])
             self.eval_metrics[dl_name] = {}
-            self.eval_metrics[dl_name][
-                'InContextLearningLMAccuracy'] = InContextLearningLMAccuracy()
-            self.eval_metrics[dl_name][
-                'InContextLearningLMAccuracy'].correct = torch.tensor(accuracy *
-                                                                      100)
-            self.eval_metrics[dl_name][
-                'InContextLearningLMAccuracy'].total = torch.tensor(100)
+            self.eval_metrics[dl_name]['InContextLearningLMAccuracy'
+                                      ] = InContextLearningLMAccuracy()
+            self.eval_metrics[dl_name]['InContextLearningLMAccuracy'
+                                      ].correct = torch.tensor(accuracy * 100)
+            self.eval_metrics[dl_name]['InContextLearningLMAccuracy'
+                                      ].total = torch.tensor(100)
 
 
 class MockLogger(Logger):
@@ -53,11 +52,15 @@ class MockLogger(Logger):
         self.inmemorylogger.log_metrics(metrics)
 
 
-@pytest.mark.parametrize('averages', [{
-    'core_average': ['world_knowledge', 'language_understanding']
-}, None])
+@pytest.mark.parametrize(
+    'averages',
+    [{
+        'core_average': ['world_knowledge', 'language_understanding'],
+    }, None],
+)
 def test_gauntlet_callback(averages: Optional[dict]):
-    icl_task_config = om.OmegaConf.create("""
+    icl_task_config = om.OmegaConf.create(
+        """
             - label: jeopardy_small
               dataset_uri: eval/local_data/world_knowledge/jeopardy_small.jsonl # ADD YOUR OWN DATASET URI
               num_fewshot: [10]
@@ -68,11 +71,13 @@ def test_gauntlet_callback(averages: Optional[dict]):
               dataset_uri: eval/local_data/language_understanding/lambada_openai_small.jsonl # ADD YOUR OWN DATASET URI
               num_fewshot: [0]
               icl_task_type: language_modeling
-            """)
-    assert isinstance(icl_task_config, om.ListConfig) or isinstance(
-        icl_task_config, str)
+            """,
+    )
+    assert isinstance(icl_task_config,
+                      om.ListConfig) or isinstance(icl_task_config, str)
 
-    eval_gauntlet_config = om.OmegaConf.create("""
+    eval_gauntlet_config = om.OmegaConf.create(
+        """
                 weighting: EQUAL
                 subtract_random_baseline: true
                 rescale_accuracy: true
@@ -87,9 +92,10 @@ def test_gauntlet_callback(averages: Optional[dict]):
                     - name: lambada_openai_small
                       num_fewshot: 0
                       random_baseline: 0.0
-          """)
-    assert isinstance(eval_gauntlet_config, om.DictConfig) or isinstance(
-        eval_gauntlet_config, str)
+          """,
+    )
+    assert isinstance(eval_gauntlet_config,
+                      om.DictConfig) or isinstance(eval_gauntlet_config, str)
 
     if averages is not None:
         eval_gauntlet_config.averages = averages
@@ -97,7 +103,13 @@ def test_gauntlet_callback(averages: Optional[dict]):
 
     # test loading functionality
     _, _, eval_gauntlet_callback = build_icl_data_and_gauntlet(
-        icl_task_config, eval_gauntlet_config, tokenizer, 4, 1024, 1)
+        icl_task_config,
+        eval_gauntlet_config,
+        tokenizer,
+        4,
+        1024,
+        1,
+    )
     assert eval_gauntlet_callback is not None
     state = MockState(eval_gauntlet_callback.logger_keys)
     logger = MockLogger(state)
@@ -106,15 +118,15 @@ def test_gauntlet_callback(averages: Optional[dict]):
     result = eval_gauntlet_callback.eval_after_all(state, logger)
 
     for category in [
-            'world_knowledge',
-            'language_understanding',
+        'world_knowledge',
+        'language_understanding',
     ]:
         name = f'icl/metrics/eval_gauntlet/{category}'
         assert result[name] == pytest.approx(0.25)
 
     if averages is None:
-        assert result[
-            'icl/metrics/eval_gauntlet/default_average'] == pytest.approx(0.25)
+        assert result['icl/metrics/eval_gauntlet/default_average'
+                     ] == pytest.approx(0.25)
     else:
-        assert result[
-            'icl/metrics/eval_gauntlet/core_average'] == pytest.approx(0.25)
+        assert result['icl/metrics/eval_gauntlet/core_average'
+                     ] == pytest.approx(0.25)

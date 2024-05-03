@@ -12,8 +12,12 @@ import torch
 from torch import nn
 from torch.distributed._tensor import DTensor
 
-from llmfoundry.layers_registry import (fcs, module_init_fns, norms,
-                                        param_init_fns)
+from llmfoundry.layers_registry import (
+    fcs,
+    module_init_fns,
+    norms,
+    param_init_fns,
+)
 from llmfoundry.models.layers.dmoe import GLU, MLP
 
 try:
@@ -37,8 +41,10 @@ def torch_default_param_init_fn_(
 ) -> None:
     del kwargs  # unused, just to capture any extra args from the config
 
-    if hasattr(module, 'reset_parameters') and isinstance(
-            module.reset_parameters, Callable):
+    if hasattr(
+        module,
+        'reset_parameters',
+    ) and isinstance(module.reset_parameters, Callable):
         module.reset_parameters()
 
 
@@ -161,7 +167,7 @@ def fc_init(
 ) -> bool:
     del kwargs  # unused, just to capture any extra args
 
-    if isinstance(module, tuple(set([fcs.get(n) for n in fcs.get_all()]))):
+    if isinstance(module, tuple({fcs.get(n) for n in fcs.get_all()})):
         # Linear
         if hasattr(module, '_fused'):
             fused_init_helper_(module, init_fn_)
@@ -172,7 +178,10 @@ def fc_init(
             torch.nn.init.zeros_(module.bias)
 
         if init_div_is_residual is not False and getattr(
-                module, '_is_residual', False):
+            module,
+            '_is_residual',
+            False,
+        ):
             with torch.no_grad():
                 module.weight.div_(div_is_residual)  # type: ignore
         return True
@@ -201,7 +210,7 @@ def embedding_init(
             if isinstance(lim, Sequence):
                 if len(lim) > 2:
                     raise ValueError(
-                        f'Uniform init requires a min and a max limit. User input: {lim}.'
+                        f'Uniform init requires a min and a max limit. User input: {lim}.',
                     )
                 if lim[0] == lim[1]:
                     warnings.warn(f'Embedding layer initialized to {lim[0]}.')
@@ -227,11 +236,13 @@ def norm_init(
 ) -> bool:
     del kwargs  # unused, just to capture any extra args
 
-    if isinstance(module,
-                  tuple(set([norms.get(name) for name in norms.get_all()]))):
+    if isinstance(
+        module,
+        tuple({norms.get(name) for name in norms.get_all()}),
+    ):
         # Norm
-        if hasattr(module, 'weight') and isinstance(module.weight,
-                                                    torch.Tensor):
+        if hasattr(module,
+                   'weight') and isinstance(module.weight, torch.Tensor):
             torch.nn.init.ones_(module.weight)
         if hasattr(module, 'bias') and isinstance(module.bias, torch.Tensor):
             torch.nn.init.zeros_(module.bias)
@@ -280,7 +291,10 @@ def multihead_attention_init(
         # out proj
         init_fn_(module.out_proj.weight)
         if init_div_is_residual is not False and getattr(
-                module.out_proj, '_is_residual', False):
+            module.out_proj,
+            '_is_residual',
+            False,
+        ):
             with torch.no_grad():
                 module.out_proj.weight.div_(div_is_residual)
         if module.out_proj.bias is not None:
@@ -328,31 +342,51 @@ def moe_init(
     div_is_residual: float,
     **kwargs: Any,
 ) -> bool:
-    if megablocks is not None and isinstance(module, (
+    if megablocks is not None and isinstance(
+        module,
+        (
             megablocks.layers.moe.MoE,
             megablocks.layers.dmoe.dMoE,
             megablocks.layers.moe.ParallelMLP,
             megablocks.layers.dmoe.ParallelDroplessMLP,
-    )):
+        ),
+    ):
         if hasattr(module, 'bias') and module.bias is not None:
             # Initialize bias to 0
             torch.nn.init.zeros_(module.bias)  # type: ignore
         return True
-    elif megablocks is not None and isinstance(module,
-                                               megablocks.layers.glu.SparseGLU):
+    elif megablocks is not None and isinstance(
+        module,
+        megablocks.layers.glu.SparseGLU,
+    ):
         _megablocks_sparse_glu_generic_param_init_fn_(
-            module, init_fn_, bool(init_div_is_residual), div_is_residual)
+            module,
+            init_fn_,
+            bool(init_div_is_residual),
+            div_is_residual,
+        )
         return True
-    elif megablocks is not None and isinstance(module,
-                                               megablocks.layers.mlp.SparseMLP):
+    elif megablocks is not None and isinstance(
+        module,
+        megablocks.layers.mlp.SparseMLP,
+    ):
         _megablocks_sparse_mlp_generic_param_init_fn_(
-            module, init_fn_, bool(init_div_is_residual), div_is_residual)
+            module,
+            init_fn_,
+            bool(init_div_is_residual),
+            div_is_residual,
+        )
         return True
-    elif megablocks is not None and isinstance(module,
-                                               megablocks.layers.mlp.MLP):
-        _megablocks_mlp_generic_param_init_fn_(module, init_fn_,
-                                               bool(init_div_is_residual),
-                                               div_is_residual)
+    elif megablocks is not None and isinstance(
+        module,
+        megablocks.layers.mlp.MLP,
+    ):
+        _megablocks_mlp_generic_param_init_fn_(
+            module,
+            init_fn_,
+            bool(init_div_is_residual),
+            div_is_residual,
+        )
         return True
     elif isinstance(module, GLU):
         init_fn_(module.w1)
@@ -388,8 +422,8 @@ def generic_param_init_fn_(
         div_is_residual = 1.0
     elif init_div_is_residual is True:
         div_is_residual = math.sqrt(2 * n_layers)
-    elif isinstance(init_div_is_residual, float) or isinstance(
-            init_div_is_residual, int):
+    elif isinstance(init_div_is_residual,
+                    float) or isinstance(init_div_is_residual, int):
         div_is_residual = init_div_is_residual
     elif init_div_is_residual.isnumeric():
         # do not trust YAML parsing to always convert numbers to numbers
@@ -398,7 +432,7 @@ def generic_param_init_fn_(
         # not used, for pyright
         div_is_residual = 1.0
         raise ValueError(
-            f'Expected init_div_is_residual to be boolean or numeric, got {init_div_is_residual}'
+            f'Expected init_div_is_residual to be boolean or numeric, got {init_div_is_residual}',
         )
 
     all_module_init_fns = [
@@ -426,7 +460,8 @@ def generic_param_init_fn_(
                 f'{module.__class__.__name__} parameters are not initialized by any of the registered module_init_fns. '
                 +
                 'Please add an appropriate module_init_fn to the registry. Currently registered module_init_fns are: '
-                + ', '.join(module_init_fns.get_all()))
+                + ', '.join(module_init_fns.get_all()),
+            )
 
 
 def _megablocks_sparse_mlp_generic_param_init_fn_(
@@ -452,13 +487,16 @@ def _megablocks_sparse_mlp_generic_param_init_fn_(
     expert_process_group_size, rank, weight_parallel_group_size, weight_parallel_group_rank = 1, 0, 1, 0
     if module.expert_parallel_group is not None:
         expert_process_group_size = int(
-            module.expert_parallel_group.size())  # type: ignore
+            module.expert_parallel_group.size(),
+        )  # type: ignore
         rank = int(module.expert_parallel_group.rank())  # type: ignore
     if module.weight_parallel_group is not None:
         weight_parallel_group_size = int(
-            module.weight_parallel_group.size())  # type: ignore
+            module.weight_parallel_group.size(),
+        )  # type: ignore
         weight_parallel_group_rank = int(
-            module.weight_parallel_group.rank())  # type: ignore
+            module.weight_parallel_group.rank(),
+        )  # type: ignore
 
     hidden_size = int(module.hidden_size)  # type: ignore
 
@@ -525,19 +563,23 @@ def _megablocks_sparse_glu_generic_param_init_fn_(
         module=module,
         init_fn_=init_fn_,
         init_div_is_residual=init_div_is_residual,
-        div_is_residual=div_is_residual)
+        div_is_residual=div_is_residual,
+    )
 
     # Init ported from _megablocks_sparse_mlp_generic_param_init_fn_ for v1
     expert_process_group_size, rank, weight_parallel_group_size, weight_parallel_group_rank = 1, 0, 1, 0
     if module.expert_parallel_group is not None:
         expert_process_group_size = int(
-            module.expert_parallel_group.size())  # type: ignore
+            module.expert_parallel_group.size(),
+        )  # type: ignore
         rank = int(module.expert_parallel_group.rank())  # type: ignore
     if module.weight_parallel_group is not None:
         weight_parallel_group_size = int(
-            module.weight_parallel_group.size())  # type: ignore
+            module.weight_parallel_group.size(),
+        )  # type: ignore
         weight_parallel_group_rank = int(
-            module.weight_parallel_group.rank())  # type: ignore
+            module.weight_parallel_group.rank(),
+        )  # type: ignore
 
     hidden_size = int(module.hidden_size)  # type: ignore
 
@@ -584,11 +626,13 @@ def _megablocks_mlp_generic_param_init_fn_(
     expert_process_group_size, rank, weight_parallel_group_size, w_rank = 1, 0, 1, 0
     if module.expert_parallel_group is not None:
         expert_process_group_size = int(
-            module.expert_parallel_group.size())  # type: ignore
+            module.expert_parallel_group.size(),
+        )  # type: ignore
         rank = int(module.expert_parallel_group.rank())  # type: ignore
     if module.weight_parallel_group is not None:
         weight_parallel_group_size = int(
-            module.weight_parallel_group.size())  # type: ignore
+            module.weight_parallel_group.size(),
+        )  # type: ignore
         w_rank = int(module.weight_parallel_group.rank())  # type: ignore
 
     _init_fn_ = _flip_fan_mode(init_fn_)
@@ -660,7 +704,7 @@ def baseline_param_init_fn_(
     del kwargs  # unused, just to capture any extra args from the config
     if init_std is None:
         raise ValueError(
-            "You must set model.init_config['init_std'] to a float value to use the default initialization scheme."
+            "You must set model.init_config['init_std'] to a float value to use the default initialization scheme.",
         )
     _normal_param_init_fn_(
         module=module,
@@ -738,10 +782,12 @@ def kaiming_uniform_param_init_fn_(
 ) -> None:
     del kwargs  # unused, just to capture any extra args from the config
 
-    kaiming_uniform_ = partial(nn.init.kaiming_uniform_,
-                               a=init_gain,
-                               mode=fan_mode,
-                               nonlinearity=init_nonlinearity)
+    kaiming_uniform_ = partial(
+        nn.init.kaiming_uniform_,
+        a=init_gain,
+        mode=fan_mode,
+        nonlinearity=init_nonlinearity,
+    )
 
     generic_param_init_fn_(
         module=module,
@@ -768,10 +814,12 @@ def kaiming_normal_param_init_fn_(
 ) -> None:
     del kwargs  # unused, just to capture any extra args from the config
 
-    kaiming_normal_ = partial(torch.nn.init.kaiming_normal_,
-                              a=init_gain,
-                              mode=fan_mode,
-                              nonlinearity=init_nonlinearity)
+    kaiming_normal_ = partial(
+        torch.nn.init.kaiming_normal_,
+        a=init_gain,
+        mode=fan_mode,
+        nonlinearity=init_nonlinearity,
+    )
 
     generic_param_init_fn_(
         module=module,

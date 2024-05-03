@@ -49,9 +49,15 @@ class MissingHuggingFaceURLSplitError(ValueError):
 class NotEnoughDatasetSamplesError(ValueError):
     """Error thrown when there is not enough data to train a model."""
 
-    def __init__(self, dataset_name: str, split: str,
-                 dataloader_batch_size: int, world_size: int,
-                 full_dataset_size: int, minimum_dataset_size: int) -> None:
+    def __init__(
+        self,
+        dataset_name: str,
+        split: str,
+        dataloader_batch_size: int,
+        world_size: int,
+        full_dataset_size: int,
+        minimum_dataset_size: int,
+    ) -> None:
         self.dataset_name = dataset_name
         self.split = split
         self.dataloader_batch_size = dataloader_batch_size
@@ -64,7 +70,8 @@ class NotEnoughDatasetSamplesError(ValueError):
             f'is {minimum_dataset_size} because you are running on {world_size} gpus and '
             +
             f'your per device batch size is {dataloader_batch_size}. Please increase the number '
-            + f'of samples in your dataset to at least {minimum_dataset_size}.')
+            + f'of samples in your dataset to at least {minimum_dataset_size}.'
+        )
         super().__init__(message)
 
 
@@ -172,7 +179,8 @@ class InvalidFileExtensionError(FileNotFoundError):
         self.valid_extensions = valid_extensions
         message = (
             f'safe_load is set to True. No data files with safe extensions {valid_extensions} '
-            + f'found for dataset at local path {dataset_name}.')
+            + f'found for dataset at local path {dataset_name}.'
+        )
         super().__init__(message)
 
 

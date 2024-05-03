@@ -17,11 +17,15 @@ from llmfoundry.utils.builders import build_composer_model, build_tokenizer
 
 
 def test_peft_wraps():
-    mpt_cfg = transformers.AutoConfig.from_pretrained('mosaicml/mpt-7b',
-                                                      n_layers=2,
-                                                      trust_remote_code=True)
-    mpt = transformers.AutoModelForCausalLM.from_config(mpt_cfg,
-                                                        trust_remote_code=True)
+    mpt_cfg = transformers.AutoConfig.from_pretrained(
+        'mosaicml/mpt-7b',
+        n_layers=2,
+        trust_remote_code=True,
+    )
+    mpt = transformers.AutoModelForCausalLM.from_config(
+        mpt_cfg,
+        trust_remote_code=True,
+    )
     mpt = get_peft_model(mpt, LoraConfig())
     prepare_hf_model_for_fsdp(mpt, 'cpu')
 
@@ -35,22 +39,28 @@ def test_peft_wraps():
 
 @pytest.mark.world_size(2)
 @pytest.mark.gpu
-@pytest.mark.parametrize('peft_config', [{
-    'peft_type': 'LORA',
-    'task_type': 'CAUSAL_LM',
-    'lora_alpha': 32,
-    'lora_dropout': 0.05,
-    'r': 16,
-    'target_modules': [
-        'q_proj',
-        'k_proj',
-        'v_proj',
-    ],
-}])
+@pytest.mark.parametrize(
+    'peft_config',
+    [{
+        'peft_type': 'LORA',
+        'task_type': 'CAUSAL_LM',
+        'lora_alpha': 32,
+        'lora_dropout': 0.05,
+        'r': 16,
+        'target_modules': [
+            'q_proj',
+            'k_proj',
+            'v_proj',
+        ],
+    }],
+)
 @pytest.mark.parametrize('init_device', ['mixed'])
 @patch('torch.nn.init.kaiming_uniform_', lambda w, a: torch.nn.init.ones_(w))
-def test_lora_mixed_init(peft_config: Optional[dict], tmp_path: pathlib.Path,
-                         init_device: str):
+def test_lora_mixed_init(
+    peft_config: Optional[dict],
+    tmp_path: pathlib.Path,
+    init_device: str,
+):
     model_cfg = {
         'name': 'hf_causal_lm',
         'pretrained_model_name_or_path': 'codellama/CodeLlama-7b-hf',

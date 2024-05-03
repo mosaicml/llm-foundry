@@ -72,8 +72,9 @@ def megablocks_n_total_params(mpt_model) -> int:  # type: ignore
     n_total_params = 0
     for module in mpt_model.modules():
         if isinstance(
-                module,
-            (megablocks.layers.mlp.SparseMLP, megablocks.layers.mlp.MLP)):
+            module,
+            (megablocks.layers.mlp.SparseMLP, megablocks.layers.mlp.MLP),
+        ):
             n_w1 = _dtensor_safe_check_numel(module.w1)
             n_total_params += n_w1 * moe_world_size
             n_w2 = _dtensor_safe_check_numel(module.w2)
@@ -116,8 +117,9 @@ def megablocks_n_active_params(mpt_model) -> int:  # type: ignore
     n_active_params = 0
     for module in mpt_model.modules():
         if isinstance(
-                module,
-            (megablocks.layers.mlp.SparseMLP, megablocks.layers.mlp.MLP)):
+            module,
+            (megablocks.layers.mlp.SparseMLP, megablocks.layers.mlp.MLP),
+        ):
             n_w1 = _dtensor_safe_check_numel(module.w1)
             n_active_params += int(n_w1 / local_experts * moe_top_k)
             n_w2 = _dtensor_safe_check_numel(module.w2)
@@ -170,5 +172,6 @@ def mpt_get_active_params(mpt_model) -> int:  # type: ignore
     if not mpt_model.model.transformer.config.tie_word_embeddings:
         # Embedding layers are lookup tables, therefore are not counted in the FLOP computation
         params -= _dtensor_safe_check_numel(
-            mpt_model.model.transformer.wte.weight)
+            mpt_model.model.transformer.wte.weight,
+        )
     return params

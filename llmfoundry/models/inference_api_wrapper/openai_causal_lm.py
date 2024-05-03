@@ -36,8 +36,11 @@ MAX_RETRIES = 10
 
 class OpenAIEvalInterface(InferenceAPIEvalWrapper):
 
-    def __init__(self, om_model_config: DictConfig,
-                 tokenizer: AutoTokenizer) -> None:
+    def __init__(
+        self,
+        om_model_config: DictConfig,
+        tokenizer: AutoTokenizer,
+    ) -> None:
         super().__init__(om_model_config, tokenizer)
         try:
             import openai
@@ -45,7 +48,8 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
             raise MissingConditionalImportError(
                 extra_deps_group='openai',
                 conda_package='openai',
-                conda_channel='conda-forge') from e
+                conda_channel='conda-forge',
+            ) from e
 
         api_key = os.environ.get('OPENAI_API_KEY')
         base_url = om_model_config.get('base_url')
@@ -53,13 +57,13 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
             # Using OpenAI default, where the API key is required
             if api_key is None:
                 raise ValueError(
-                    'No OpenAI API Key found. Ensure it is saved as an environmental variable called OPENAI_API_KEY.'
+                    'No OpenAI API Key found. Ensure it is saved as an environmental variable called OPENAI_API_KEY.',
                 )
 
         else:
             # Using a custom base URL, where the API key may not be required
             log.info(
-                f'Making request to custom base URL: {base_url}{"" if api_key is not None else " (no API key set)"}'
+                f'Making request to custom base URL: {base_url}{"" if api_key is not None else " (no API key set)"}',
             )
             api_key = 'placeholder'  # This cannot be None
 
@@ -86,7 +90,8 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
             raise MissingConditionalImportError(
                 extra_deps_group='openai',
                 conda_package='openai',
-                conda_channel='conda-forge') from e
+                conda_channel='conda-forge',
+            ) from e
         tries = 0
         completion = None
         delay = 1
@@ -97,7 +102,8 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
                 break
             except RateLimitError as e:
                 if 'You exceeded your current quota' in str(
-                        e._message):  # pyright: ignore
+                    e._message,
+                ):  # pyright: ignore
                     raise e
                 delay *= 2 * (1 + random.random())
                 sleep(delay)
@@ -112,8 +118,11 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
 
 class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
 
-    def __init__(self, om_model_config: DictConfig,
-                 tokenizer: AutoTokenizer) -> None:
+    def __init__(
+        self,
+        om_model_config: DictConfig,
+        tokenizer: AutoTokenizer,
+    ) -> None:
         super().__init__(om_model_config, tokenizer)
 
         self.generate_completion = lambda prompt, num_tokens: self.client.chat.completions.create(
@@ -122,14 +131,17 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
                 'role':
                     'system',
                 'content':
-                    om_model_config.get('system_role_prompt',
-                                        'Please complete the following text: ')
+                    om_model_config.get(
+                        'system_role_prompt',
+                        'Please complete the following text: ',
+                    ),
             }, {
                 'role': 'user',
-                'content': prompt
+                'content': prompt,
             }],
             max_tokens=num_tokens,
-            temperature=0.0)
+            temperature=0.0,
+        )
 
     def retokenize(self, tokens: List[int], cont_idxs: List[int]):
         """Chat API will never respond with a word-initial space.
@@ -139,24 +151,33 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
         """
         original_len = len(tokens)
         retokenized_continuation = self.tokenizer(
-            self.tokenizer.decode(tokens[cont_idxs[0]:cont_idxs[-1] +
-                                         1]).strip())['input_ids']
+            self.tokenizer.decode(
+                tokens[cont_idxs[0]:cont_idxs[-1] + 1],
+            ).strip(),
+        )['input_ids']
 
         # replace the original continuation with the retokenized continuation + padding
         padding = [tokens[-1]] * (
-            len(tokens) - len(tokens[:cont_idxs[0]] + retokenized_continuation))
+            len(tokens) - len(tokens[:cont_idxs[0]] + retokenized_continuation)
+        )
         tokens = tokens[:cont_idxs[0]] + retokenized_continuation + padding
 
         if len(tokens) > original_len:
             # this only happens if we were already at max seq len and the continuation got LARGER
             tokens = tokens[-original_len:]
             cont_idxs = list(
-                range(original_len - len(retokenized_continuation),
-                      original_len))
+                range(
+                    original_len - len(retokenized_continuation),
+                    original_len,
+                ),
+            )
         else:
             cont_idxs = list(
-                range(cont_idxs[0],
-                      cont_idxs[0] + len(retokenized_continuation)))
+                range(
+                    cont_idxs[0],
+                    cont_idxs[0] + len(retokenized_continuation),
+                ),
+            )
         return torch.tensor(tokens), torch.tensor(cont_idxs)
 
     def rebatch(self, batch: Batch):
@@ -168,12 +189,16 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
         new_batch: Dict[str, Union[List[torch.Tensor], torch.Tensor]] = {
             'input_ids': [],
             'continuation_indices': [],
-            'labels': []
+            'labels': [],
         }
-        for tokens, cont_idxs in zip(batch['input_ids'],
-                                     batch['continuation_indices']):
-            tokens, cont_idxs = self.retokenize(tokens.tolist(),
-                                                cont_idxs.tolist())
+        for tokens, cont_idxs in zip(
+            batch['input_ids'],
+            batch['continuation_indices'],
+        ):
+            tokens, cont_idxs = self.retokenize(
+                tokens.tolist(),
+                cont_idxs.tolist(),
+            )
 
             assert isinstance(new_batch['input_ids'], list)
             new_batch['input_ids'].append(tokens)
@@ -199,8 +224,10 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
         padding_tok = self.tokenizer.pad_token_id if self.tokenizer.pad_token_id else self.tokenizer.eos_token_id
         output_logits_batch = []
         batch = self.rebatch(batch)
-        for tokens, cont_idxs in zip(batch['input_ids'],
-                                     batch['continuation_indices']):
+        for tokens, cont_idxs in zip(
+            batch['input_ids'],
+            batch['continuation_indices'],
+        ):
 
             seqlen = tokens.shape[0]
             tokens = tokens.tolist()
@@ -208,17 +235,21 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
             expected_cont_tokens = tokens[cont_idxs[0]:cont_idxs[-1] + 1]
             output_logits = torch.nn.functional.one_hot(
                 torch.tensor(tokens[1:cont_idxs[0]]),
-                num_classes=len(self.tokenizer))
+                num_classes=len(self.tokenizer),
+            )
 
             prompt = self.tokenizer.decode(tokens[:cont_idxs[0]])
             next_logit_tensor = self.get_next_token_logit_tensor(
-                prompt, num_tokens=len(expected_cont_tokens))
+                prompt,
+                num_tokens=len(expected_cont_tokens),
+            )
 
             if next_logit_tensor is not None:
                 output_logits = torch.cat([output_logits, next_logit_tensor])
             padding = torch.nn.functional.one_hot(
                 torch.full((seqlen - output_logits.shape[0],), padding_tok),
-                num_classes=len(self.tokenizer))
+                num_classes=len(self.tokenizer),
+            )
             output_logits = torch.cat([output_logits, padding])
             output_logits_batch.append(output_logits)
 
@@ -231,7 +262,8 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
         if len(completion.choices) > 0:
             tensors = []
             for t in self.tokenizer(
-                    completion.choices[0].message.content)['input_ids']:
+                completion.choices[0].message.content,
+            )['input_ids']:
                 # Not real logprobs
                 tensor = torch.tensor([0] * (len(self.tokenizer)))
                 tensor[t] = 1.0
@@ -248,15 +280,19 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
 
 class OpenAICausalLMEvalWrapper(OpenAIEvalInterface):
 
-    def __init__(self, om_model_config: DictConfig,
-                 tokenizer: AutoTokenizer) -> None:
+    def __init__(
+        self,
+        om_model_config: DictConfig,
+        tokenizer: AutoTokenizer,
+    ) -> None:
         super().__init__(om_model_config, tokenizer)
         self.generate_completion = lambda prompt, num_tokens: self.client.completions.create(
             model=self.model_name,
             prompt=prompt,
             max_tokens=num_tokens,
             logprobs=5,
-            temperature=0.0)
+            temperature=0.0,
+        )
 
     def process_result(self, completion: Optional['Completion']):
         if completion is None:
@@ -270,7 +306,8 @@ class OpenAICausalLMEvalWrapper(OpenAIEvalInterface):
         if len(completion.choices[0].logprobs.top_logprobs[0]) > 0:
             # Construct tensor of shape (vocab_size,) with logprobs for each token
             tokenizer_logprobs = dict(
-                completion.choices[0].logprobs.top_logprobs[0])
+                completion.choices[0].logprobs.top_logprobs[0],
+            )
             tensor = torch.tensor([min(tokenizer_logprobs.values()) - 1] *
                                   (len(self.tokenizer)))
             for k in tokenizer_logprobs:

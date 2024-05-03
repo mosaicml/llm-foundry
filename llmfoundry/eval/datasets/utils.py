@@ -43,7 +43,8 @@ def strip_data(example: Dict) -> Dict:
 
 
 def tokenizer_needs_prefix_space(
-        tokenizer: transformers.PreTrainedTokenizerBase) -> bool:
+    tokenizer: transformers.PreTrainedTokenizerBase,
+) -> bool:
     """Test for whether a prefix space is needed before the continuation.
 
     Sentencepiece tokenization should not have a prefix space, but gpt2 style
@@ -60,8 +61,11 @@ def tokenizer_needs_prefix_space(
     return len(test_tokens) == 1
 
 
-def trim_context(context_enc: List, continuation_enc: List,
-                 max_seq_len: int) -> List:
+def trim_context(
+    context_enc: List,
+    continuation_enc: List,
+    max_seq_len: int,
+) -> List:
     """Trims a list of tokens down to `max_seq_len` if the length of the list.
 
     plus the continuation is more than `max_seq_len`. It will always trim tokens
@@ -81,15 +85,18 @@ def trim_context(context_enc: List, continuation_enc: List,
         if context_max_subseq_len < 0:
             # can't support continuations which are longer than the max seq len
             raise Exception(
-                f'Dataset included continuation longer than the max seq len')
+                f'Dataset included continuation longer than the max seq len',
+            )
 
         # clip from the end
         context_enc = context_enc[-(context_max_subseq_len):]
     return context_enc
 
 
-def get_continuation_span(context_enc: List,
-                          continuation_enc: List) -> torch.Tensor:
+def get_continuation_span(
+    context_enc: List,
+    continuation_enc: List,
+) -> torch.Tensor:
     """Gets the list of indices of the continuation tokens for language.
 
     modeling.
@@ -105,14 +112,17 @@ def get_continuation_span(context_enc: List,
     """
     return torch.tensor(
         range(len(context_enc),
-              len(context_enc) + len(continuation_enc)))
+              len(context_enc) + len(continuation_enc)),
+    )
 
 
-def make_padded_input(context_enc: List,
-                      continuation_enc: List,
-                      max_seq_len: int,
-                      pad_tok_id: int,
-                      padding_side: str = 'right') -> torch.Tensor:
+def make_padded_input(
+    context_enc: List,
+    continuation_enc: List,
+    max_seq_len: int,
+    pad_tok_id: int,
+    padding_side: str = 'right',
+) -> torch.Tensor:
     """Takes an encoded context and continuation and clips the beginning of the.
 
     context if they're too long. Adds the padding token to the specified side.
@@ -138,7 +148,7 @@ def make_padded_input(context_enc: List,
     # token and cause errors
     if not isinstance(pad_tok_id, int):
         raise ValueError(
-            f'`pad_tok_id` must be an integer. Found {type(pad_tok_id)} instead'
+            f'`pad_tok_id` must be an integer. Found {type(pad_tok_id)} instead',
         )
     # pad length from seq to padding_length
     if padding_side == 'right':
@@ -159,7 +169,7 @@ def make_padded_input(context_enc: List,
         )
     else:
         raise ValueError(
-            f"Unknown padding_side {padding_side}. padding_side must be either 'left' or 'right'"
+            f"Unknown padding_side {padding_side}. padding_side must be either 'left' or 'right'",
         )
 
     return inp
@@ -181,17 +191,23 @@ def convert_tokens_to_tensors(batch: Dict,
     Returns:
         dict: The batch with torch tensors in the corresponding keys instead of lists of lists
     """
-    batch['input_ids'] = torch.stack(list(map(torch.tensor,
-                                              batch['input_ids'])))
+    batch['input_ids'] = torch.stack(
+        list(map(torch.tensor, batch['input_ids'])),
+    )
     if tokenize_labels:
         batch['labels'] = torch.stack(list(map(torch.tensor, batch['labels'])))
         batch['continuation_indices'] = list(
-            map(torch.tensor, batch['continuation_indices']))
+            map(torch.tensor, batch['continuation_indices']),
+        )
     return batch
 
 
-def get_fewshot_sample_idxs(dataset_size: int, num_fewshot: int,
-                            example_idx: int, rng: random.Random) -> Set[int]:
+def get_fewshot_sample_idxs(
+    dataset_size: int,
+    num_fewshot: int,
+    example_idx: int,
+    rng: random.Random,
+) -> Set[int]:
     """Samples indices without replacement. If num_fewshot exceeds the number.
 
     of unique examples in the dataset, then we will have fewer than num_fewshot examples in context.
@@ -234,8 +250,10 @@ class MultiTokenEOSCriteria(transformers.StoppingCriteria):
     ) -> None:
         self.done_tracker = [False] * batch_size
         self.stop_sequence = stop_sequence
-        self.stop_sequence_ids = tokenizer.encode(stop_sequence,
-                                                  add_special_tokens=False)
+        self.stop_sequence_ids = tokenizer.encode(
+            stop_sequence,
+            add_special_tokens=False,
+        )
 
         # sentence piece tokenizers add a superfluous underline token before string-initial \n
         # that throws off our calculation of the stop sequence length
@@ -252,10 +270,12 @@ class MultiTokenEOSCriteria(transformers.StoppingCriteria):
         self.stop_sequence_id_len = len(self.stop_sequence_ids) + 1
         self.tokenizer = tokenizer
 
-    def __call__(self,
-                 input_ids: torch.LongTensor,
-                 scores: Optional[torch.FloatTensor] = None,
-                 **kwargs: Dict[str, Any]) -> bool:
+    def __call__(
+        self,
+        input_ids: torch.LongTensor,
+        scores: Optional[torch.FloatTensor] = None,
+        **kwargs: Dict[str, Any],
+    ) -> bool:
         # For efficiency, we compare the last n tokens where n is the number of tokens in the stop_sequence
         lookback_ids_batch = input_ids[:, :][:, -self.stop_sequence_id_len:]
         lookback_tokens_batch = self.tokenizer.batch_decode(lookback_ids_batch)

@@ -18,9 +18,11 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Tuple, Union
 
 import numpy as np
-import sentencepiece as spm
-from transformers import (AutoTokenizer, PreTrainedTokenizer,
-                          PreTrainedTokenizerFast)
+from transformers import (
+    AutoTokenizer,
+    PreTrainedTokenizer,
+    PreTrainedTokenizerFast,
+)
 
 log = logging.getLogger(__name__)
 
@@ -48,12 +50,12 @@ def get_hf_tokenizer_from_composer_state_dict(
 ) -> Optional[PreTrainedTokenizer]:
     if 'state' not in state_dict:
         raise RuntimeError(
-            'Unexpected composer state dictionary. Did you pass in a full composer checkpoint?'
+            'Unexpected composer state dictionary. Did you pass in a full composer checkpoint?',
         )
     if 'integrations' not in state_dict[
-            'state'] or 'huggingface' not in state_dict['state']['integrations']:
+        'state'] or 'huggingface' not in state_dict['state']['integrations']:
         raise RuntimeError(
-            'Did not find HuggingFace related state (e.g., tokenizer) in the provided composer checkpoint!'
+            'Did not find HuggingFace related state (e.g., tokenizer) in the provided composer checkpoint!',
         )
     hf_tokenizer_state = state_dict['state']['integrations']['huggingface'][
         'tokenizer']
@@ -61,9 +63,12 @@ def get_hf_tokenizer_from_composer_state_dict(
     if hf_tokenizer_state != {}:
         if tokenizer_save_dir is None:
             unique_suffix = ''.join(
-                random.choices(string.ascii_letters + string.digits, k=6))
+                random.choices(string.ascii_letters + string.digits, k=6),
+            )
             tokenizer_save_dir = os.path.join(
-                os.getcwd(), f'tokenizer-save-dir-{unique_suffix}')
+                os.getcwd(),
+                f'tokenizer-save-dir-{unique_suffix}',
+            )
         os.makedirs(tokenizer_save_dir, exist_ok=True)
 
         for filename, saved_content in hf_tokenizer_state.items():
@@ -88,13 +93,22 @@ def get_hf_tokenizer_from_composer_state_dict(
                 with open(tokenizer_file_path, 'w') as _tmp_file:
                     _tmp_file.write(saved_content['content'])
             elif saved_content['file_extension'] == '.model':
+                try:
+                    import sentencepiece as spm
+                except ImportError as e:
+                    raise ImportError(
+                        'Your tokenizer uses `sentencepiece`. Please install `sentencepiece` to load it.',
+                    ) from e
+
                 s = spm.SentencePieceProcessor()
                 s.load_from_serialized_proto(saved_content['content'])
                 with open(tokenizer_file_path, 'wb') as _tmp_file:
                     _tmp_file.write(s.serialized_model_proto())
 
-        hf_tokenizer = load_tokenizer(tokenizer_save_dir,
-                                      trust_remote_code=trust_remote_code)
+        hf_tokenizer = load_tokenizer(
+            tokenizer_save_dir,
+            trust_remote_code=trust_remote_code,
+        )
 
         # remove 'name_or_path'
         hf_tokenizer.name_or_path = ''
@@ -104,22 +118,29 @@ def get_hf_tokenizer_from_composer_state_dict(
 
 
 def load_tokenizer(
-    tokenizer_save_dir: str, trust_remote_code: bool
+    tokenizer_save_dir: str,
+    trust_remote_code: bool,
 ) -> Union[PreTrainedTokenizer, PreTrainedTokenizerFast]:
     try:
         return AutoTokenizer.from_pretrained(
-            tokenizer_save_dir, trust_remote_code=trust_remote_code)
+            tokenizer_save_dir,
+            trust_remote_code=trust_remote_code,
+        )
     except ValueError as e:
         raise ValueError(
             f'Got error while loading tokenizer with trust_remote_code={trust_remote_code}: {e}. '
             +
             'If accessing a tokenizer defined outside of the transformers module,'
-            + ' please use --trust_remote_code.')
+            + ' please use --trust_remote_code.',
+        )
 
 
-def _write_zero_bias(weight_name: str, weight_file_path: str,
-                     bias_shape: Union[Tuple[int, ...],
-                                       int], np_data_type: np.dtype) -> None:
+def _write_zero_bias(
+    weight_name: str,
+    weight_file_path: str,
+    bias_shape: Union[Tuple[int, ...], int],
+    np_data_type: np.dtype,
+) -> None:
     """Write zeros for bias when converting MPT to FasterTransformer weights.
 
     MPT model might not have bias while FT expects bias.
@@ -132,7 +153,7 @@ def _write_zero_bias(weight_name: str, weight_file_path: str,
     """
     if 'weight' not in weight_file_path:
         raise RuntimeError(
-            f'Cannot write zero bias for {weight_name}. Input is not a weight tensor'
+            f'Cannot write zero bias for {weight_name}. Input is not a weight tensor',
         )
     log.debug(f'zero bias for weight: {weight_name}')
     bias_file_path = weight_file_path.replace('.weight', '.bias')
@@ -140,10 +161,14 @@ def _write_zero_bias(weight_name: str, weight_file_path: str,
     bias.tofile(bias_file_path)
 
 
-def _convert_weight_to_ft_each(save_dir: str, infer_gpu_num: int,
-                               tensor_name: str, config: Dict[str, Any],
-                               data: np.ndarray,
-                               np_weight_data_type: np.dtype) -> None:
+def _convert_weight_to_ft_each(
+    save_dir: str,
+    infer_gpu_num: int,
+    tensor_name: str,
+    config: Dict[str, Any],
+    data: np.ndarray,
+    np_weight_data_type: np.dtype,
+) -> None:
     """Convert each MPT weight to a FasterTransformer compatible format.
 
     Args:
@@ -164,14 +189,18 @@ def _convert_weight_to_ft_each(save_dir: str, infer_gpu_num: int,
         save_path = os.path.join(save_dir, f'model.{tensor_name}.bin')
         data.tofile(save_path)
         if 'weight' in tensor_name and config['no_bias']:
-            _write_zero_bias(tensor_name, save_path, data.shape[-1],
-                             np_weight_data_type
-                            )  # pyright: ignore [reportGeneralTypeIssues]
+            _write_zero_bias(
+                tensor_name,
+                save_path,
+                data.shape[-1],
+                np_weight_data_type,
+            )  # pyright: ignore [reportGeneralTypeIssues]
 
     elif tensor_name.find('attention.dense.weight') != -1:
         assert data.shape == (
             config['d_model'],
-            config['d_model']), f'unexpected dim for {tensor_name}'
+            config['d_model'],
+        ), f'unexpected dim for {tensor_name}'
         # nn.Linear weights are transposed
         data = data.T
         split_vals = np.split(data, infer_gpu_num, axis=0)
@@ -179,16 +208,22 @@ def _convert_weight_to_ft_each(save_dir: str, infer_gpu_num: int,
             save_path = os.path.join(save_dir, f'model.{tensor_name}.{j}.bin')
             split_vals[j].tofile(save_path)
         if config['no_bias']:
-            fake_weight_path = os.path.join(save_dir,
-                                            f'model.{tensor_name}.bin')
-            _write_zero_bias(tensor_name, fake_weight_path, data.shape[-1],
-                             np_weight_data_type
-                            )  # pyright: ignore [reportGeneralTypeIssues]
+            fake_weight_path = os.path.join(
+                save_dir,
+                f'model.{tensor_name}.bin',
+            )
+            _write_zero_bias(
+                tensor_name,
+                fake_weight_path,
+                data.shape[-1],
+                np_weight_data_type,
+            )  # pyright: ignore [reportGeneralTypeIssues]
 
     elif tensor_name.find('mlp.dense_4h_to_h.weight') != -1:
         assert data.shape == (
-            config['d_model'], config['expansion_ratio'] *
-            config['d_model']), f'unexpected dim for {tensor_name}'
+            config['d_model'],
+            config['expansion_ratio'] * config['d_model'],
+        ), f'unexpected dim for {tensor_name}'
         # nn.Linear weights are transposed
         data = data.T
         split_vals = np.split(data, infer_gpu_num, axis=0)
@@ -196,16 +231,22 @@ def _convert_weight_to_ft_each(save_dir: str, infer_gpu_num: int,
             save_path = os.path.join(save_dir, f'model.{tensor_name}.{j}.bin')
             split_vals[j].tofile(save_path)
         if config['no_bias']:
-            fake_weight_path = os.path.join(save_dir,
-                                            f'model.{tensor_name}.bin')
-            _write_zero_bias(tensor_name, fake_weight_path, data.shape[-1],
-                             np_weight_data_type
-                            )  # pyright: ignore [reportGeneralTypeIssues]
+            fake_weight_path = os.path.join(
+                save_dir,
+                f'model.{tensor_name}.bin',
+            )
+            _write_zero_bias(
+                tensor_name,
+                fake_weight_path,
+                data.shape[-1],
+                np_weight_data_type,
+            )  # pyright: ignore [reportGeneralTypeIssues]
 
     elif tensor_name.find('mlp.dense_h_to_4h.weight') != -1:
         assert data.shape == (
             config['expansion_ratio'] * config['d_model'],
-            config['d_model']), f'unexpected dim for {tensor_name}'
+            config['d_model'],
+        ), f'unexpected dim for {tensor_name}'
         # nn.Linear weights are transposed
         data = data.T
 
@@ -214,14 +255,17 @@ def _convert_weight_to_ft_each(save_dir: str, infer_gpu_num: int,
             save_path = os.path.join(save_dir, f'model.{tensor_name}.{j}.bin')
             split_vals[j].tofile(save_path)
             if config['no_bias']:
-                _write_zero_bias(tensor_name, save_path,
-                                 split_vals[j].shape[-1], np_weight_data_type
-                                )  # pyright: ignore [reportGeneralTypeIssues]
+                _write_zero_bias(
+                    tensor_name,
+                    save_path,
+                    split_vals[j].shape[-1],
+                    np_weight_data_type,
+                )  # pyright: ignore [reportGeneralTypeIssues]
 
     elif tensor_name.find('mlp.dense_h_to_4h.bias') != -1:
         assert data.shape == (
-            config['expansion_ratio'] *
-            config['d_model'],), f'unexpected dim for {tensor_name}'
+            config['expansion_ratio'] * config['d_model'],
+        ), f'unexpected dim for {tensor_name}'
         split_vals = np.split(data, infer_gpu_num, axis=-1)
         for j in range(infer_gpu_num):
             save_path = os.path.join(save_dir + f'model.{tensor_name}.{j}.bin')
@@ -229,7 +273,8 @@ def _convert_weight_to_ft_each(save_dir: str, infer_gpu_num: int,
 
     elif tensor_name.find('attention.query_key_value.bias') != -1:
         assert data.shape == (
-            3 * config['d_model'],), f'unexpected dim for {tensor_name}'
+            3 * config['d_model'],
+        ), f'unexpected dim for {tensor_name}'
 
         data = data.reshape(3, config['d_model'])
 
@@ -242,7 +287,8 @@ def _convert_weight_to_ft_each(save_dir: str, infer_gpu_num: int,
     elif tensor_name.find('attention.query_key_value.weight') != -1:
         assert data.shape == (
             3 * config['d_model'],
-            config['d_model']), f'unexpected dim for {tensor_name}'
+            config['d_model'],
+        ), f'unexpected dim for {tensor_name}'
         # nn.Linear weights are transposed
         data = data.T
 
@@ -253,20 +299,24 @@ def _convert_weight_to_ft_each(save_dir: str, infer_gpu_num: int,
             save_path = os.path.join(save_dir, f'model.{tensor_name}.{j}.bin')
             split_vals[j].tofile(save_path)
             if config['no_bias']:
-                _write_zero_bias(tensor_name, save_path,
-                                 (3, split_vals[j].shape[-1]),
-                                 np_weight_data_type
-                                )  # pyright: ignore [reportGeneralTypeIssues]
+                _write_zero_bias(
+                    tensor_name,
+                    save_path,
+                    (3, split_vals[j].shape[-1]),
+                    np_weight_data_type,
+                )  # pyright: ignore [reportGeneralTypeIssues]
 
     else:
         raise RuntimeError(f'Tensor with name {tensor_name} is not handled')
 
 
-def convert_and_save_ft_weights(named_params: dict,
-                                config: dict,
-                                infer_gpu_num: int = 1,
-                                weight_data_type: str = 'fp32',
-                                save_dir: str = '') -> None:
+def convert_and_save_ft_weights(
+    named_params: dict,
+    config: dict,
+    infer_gpu_num: int = 1,
+    weight_data_type: str = 'fp32',
+    save_dir: str = '',
+) -> None:
     """Convert a Composer MPT checkpoint to a FasterTransformer format.
 
     Args:
@@ -305,44 +355,52 @@ def convert_and_save_ft_weights(named_params: dict,
         if name == 'transformer.wpe.weight':
             assert data.shape == (
                 config['max_seq_len'],
-                config['d_model']), f'unexpected dim for {name}'
+                config['d_model'],
+            ), f'unexpected dim for {name}'
             data.tofile(os.path.join(save_dir, 'model.wpe.bin'))
         elif name == 'transformer.wte.weight':
             assert data.shape == (
                 config['vocab_size'],
-                config['d_model']), f'unexpected dim for {name}'
+                config['d_model'],
+            ), f'unexpected dim for {name}'
             data.tofile(os.path.join(save_dir, 'model.wte.bin'))
         elif name == 'transformer.norm_f.bias':
             assert data.shape == (
-                config['d_model'],), f'unexpected dim for {name}'
-            data.tofile(os.path.join(save_dir,
-                                     'model.final_layernorm.bias.bin'))
+                config['d_model'],
+            ), f'unexpected dim for {name}'
+            data.tofile(
+                os.path.join(save_dir, 'model.final_layernorm.bias.bin'),
+            )
         elif name == 'transformer.norm_f.weight':
             assert data.shape == (
-                config['d_model'],), f'unexpected dim for {name}'
-            save_path = os.path.join(save_dir,
-                                     'model.final_layernorm.weight.bin')
+                config['d_model'],
+            ), f'unexpected dim for {name}'
+            save_path = os.path.join(
+                save_dir,
+                'model.final_layernorm.weight.bin',
+            )
             data.tofile(save_path)
             if config['no_bias']:
                 _write_zero_bias(
                     name,
                     save_path,
                     data.shape[-1],
-                    np_weight_data_type  # pyright: ignore [reportGeneralTypeIssues]
+                    np_weight_data_type,  # pyright: ignore [reportGeneralTypeIssues]
                 )
         elif name == 'transformer.lm_head.weight':
             data.tofile(os.path.join(save_dir, 'model.lm_head.weight.bin'))
         else:
             for mpt_pattern, ft_pattern in param_remapping.items():
                 if name.find(mpt_pattern) != -1:
-                    new_name = name.replace('transformer.blocks.',
-                                            'layers.').replace(
-                                                mpt_pattern, ft_pattern)
+                    new_name = name.replace(
+                        'transformer.blocks.',
+                        'layers.',
+                    ).replace(mpt_pattern, ft_pattern)
                     _convert_weight_to_ft_each(
                         save_dir,
                         infer_gpu_num,
                         new_name,
                         config,
                         data,
-                        np_weight_data_type  # pyright: ignore [reportGeneralTypeIssues]
+                        np_weight_data_type,  # pyright: ignore [reportGeneralTypeIssues]
                     )

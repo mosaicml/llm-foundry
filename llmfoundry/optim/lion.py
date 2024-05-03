@@ -19,37 +19,37 @@ __all__ = [
 class DecoupledLionW(Optimizer):
     metric_functions = {
         'l2_norm/moment':
-            lambda param, optim_state, step_tensor: torch.linalg.vector_norm(
-                optim_state['exp_avg']),
+            lambda param, optim_state, step_tensor: torch.linalg.
+            vector_norm(optim_state['exp_avg']),
         'l2_norm/param':
-            lambda param, optim_state, step_tensor: torch.linalg.vector_norm(
-                param.data),
+            lambda param, optim_state, step_tensor: torch.linalg.
+            vector_norm(param.data),
         'l2_norm/update':
-            lambda param, optim_state, step_tensor: torch.linalg.vector_norm(
-                step_tensor),
+            lambda param, optim_state, step_tensor: torch.linalg.
+            vector_norm(step_tensor),
         'l2_norm/grad':
-            lambda param, optim_state, step_tensor: torch.linalg.vector_norm(
-                param.grad),
+            lambda param, optim_state, step_tensor: torch.linalg.
+            vector_norm(param.grad),
     }
 
     def __init__(
-            self,
-            params: Union[Iterable[torch.Tensor], Iterable[dict]],
-            lr: float = 1e-4,
-            betas: Tuple[float, float] = (0.9, 0.99),
-            weight_decay: float = 0.0,
+        self,
+        params: Union[Iterable[torch.Tensor], Iterable[dict]],
+        lr: float = 1e-4,
+        betas: Tuple[float, float] = (0.9, 0.99),
+        weight_decay: float = 0.0,
     ):
         if lr <= 0.:
             raise Exception(f'Invalid LR: {lr}. LR must be > 0')
-        if not all([0. <= beta <= 1. for beta in betas]):
+        if not all(0. <= beta <= 1. for beta in betas):
             raise Exception(
-                f'Invalid beta values: {betas} All betas must be between 0 and 1.'
+                f'Invalid beta values: {betas} All betas must be between 0 and 1.',
             )
         if weight_decay >= 1e-3:
             log.warning(
                 f'You are using a high value of `weight_decay={weight_decay}` for the `DecoupledLionW` optimizer. Are you sure you want to do this? '
                 +
-                f'Your model\'s weights will be multiplied by {1.0 - weight_decay} on every step!'
+                f'Your model\'s weights will be multiplied by {1.0 - weight_decay} on every step!',
             )
 
         defaults = {'lr': lr, 'betas': betas, 'weight_decay': weight_decay}
@@ -60,9 +60,16 @@ class DecoupledLionW(Optimizer):
             group['initial_lr'] = group['lr']
 
     @staticmethod
-    def lionw(p: torch.Tensor, grad: torch.Tensor, exp_avg: torch.Tensor,
-              lr: float, initial_lr: float, wd: float, beta1: float,
-              beta2: float) -> None:
+    def lionw(
+        p: torch.Tensor,
+        grad: torch.Tensor,
+        exp_avg: torch.Tensor,
+        lr: float,
+        initial_lr: float,
+        wd: float,
+        beta1: float,
+        beta2: float,
+    ) -> None:
         # stepweight decay
         if wd != 0:
             decay_factor = (lr / initial_lr) if initial_lr else 1.0
@@ -84,8 +91,10 @@ class DecoupledLionW(Optimizer):
                 loss = closure()
 
         for group in self.param_groups:
-            for p in filter(lambda p: p.grad is not None and p.requires_grad,
-                            group['params']):
+            for p in filter(
+                lambda p: p.grad is not None and p.requires_grad,
+                group['params'],
+            ):
 
                 grad, lr, initial_lr, wd, beta1, beta2, state = p.grad, group[
                     'lr'], group['initial_lr'], group[
@@ -135,8 +144,12 @@ class DecoupledLionW(Optimizer):
             optimizer_metrics[metric] = optimizer_metrics[metric]**2
         return optimizer_metrics
 
-    def report_per_parameter_metrics(self, param: torch.Tensor, name: str,
-                                     optimizer_metrics: dict):
+    def report_per_parameter_metrics(
+        self,
+        param: torch.Tensor,
+        name: str,
+        optimizer_metrics: dict,
+    ):
         lr = self.param_groups[0]['lr']
         weight_decay = self.param_groups[0]['weight_decay']
         initial_lr = self.param_groups[0]['initial_lr']
@@ -145,7 +158,9 @@ class DecoupledLionW(Optimizer):
         if param in self.state:
             param_optim_state = self.state[param]
             step_tensor = param_optim_state['exp_avg'].clone().lerp_(
-                param.grad, 1 - beta1).sign_().mul_(lr)
+                param.grad,
+                1 - beta1,
+            ).sign_().mul_(lr)
             decay_factor = (lr / initial_lr) if initial_lr else 1.0
             step_tensor.add_(param, alpha=-weight_decay * decay_factor)
             for metric in self.metric_functions:

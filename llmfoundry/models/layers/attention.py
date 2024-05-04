@@ -731,26 +731,53 @@ class StateSpaceAttention(nn.Module):
 
     def forward(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, **kwargs):
         batch_size, seq_length, _ = query.shape
+        print(f"Initial query shape: {query.shape}")
+        print(f"Initial key shape: {key.shape}")
+        print(f"Initial value shape: {value.shape}")
+
         # Project the query and key using the respective projection matrices
         query = torch.matmul(query, self.query_projection_matrix)
-        key = torch.matmul(key, self.key_projection_matrix)
+        print(f"Query after projection shape: {query.shape}")
 
-        # Reshape the projected query to match the transition matrix dimensions
-        query = query.view(batch_size, seq_length, self.state_space_size)
+        # Project key and then reshape to [batch_size * seq_length, state_space_size]
+        key = torch.matmul(key, self.key_projection_matrix)
+        key = key.reshape(batch_size * seq_length, self.state_space_size)
+        print(f"Key after projection and reshaping: {key.shape}")
+
+        # Transpose the observation matrix to match the dimensions for multiplication
+        observation_matrix_T = self.observation_matrix.transpose(0, 1)
+        print(f"Observation matrix transposed shape: {observation_matrix_T.shape}")
+
+        # Multiply the projected and reshaped key tensor with the transposed observation matrix
+        key = torch.matmul(key, observation_matrix_T)
+        print(f"Key after multiplication with observation matrix: {key.shape}")
+
+        # Reshape key to [batch_size, seq_length, state_space_size]
+        key = key.view(batch_size, seq_length, self.state_space_size)
+        print(f"Key after view shape: {key.shape}")
 
         # Apply the state transition matrix to the query
         query = torch.matmul(query, self.transition_matrix)
+        # Reshape query to have the same state_space_size dimension as key
+        query = query.view(batch_size, seq_length, self.state_space_size)
+        print(f"Query after applying transition matrix shape: {query.shape}")
 
-        # Apply the observation matrix to the key
-        key = torch.matmul(key, self.observation_matrix)
+        # Transpose the key tensor to match the dimensions of the query tensor for matrix multiplication
+        key = key.transpose(-2, -1)
+        print(f"Key after transpose shape: {key.shape}")
 
         # Compute the attention scores
-        attn_scores = torch.matmul(query, key.transpose(-2, -1))
+        attn_scores = torch.matmul(query, key)
+        print(f"Attn scores shape: {attn_scores.shape}")
+
         attn_scores = attn_scores / math.sqrt(self.state_space_size)
         attn_probs = nn.Softmax(dim=-1)(attn_scores)
+        print(f"Attn probs shape: {attn_probs.shape}")
 
         # Apply attention probabilities to the value
         context = torch.matmul(attn_probs, value)
+        print(f"Context shape: {context.shape}")
+
         return context, attn_probs
 
 def attn_bias_shape(

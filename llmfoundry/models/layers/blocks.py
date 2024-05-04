@@ -116,29 +116,43 @@ class MPTBlock(nn.Module):
                 if k not in args_to_exclude_in_attn_class
             }
 
-            self.norm_1 = build_norm(
-                name=norm_type.lower(),
-                normalized_shape=d_model,
-                device=device,
-            )
-            self.attn = build_attention_layer(
-                name=attn_config['attn_type'],
-                attn_kwargs={
-                    'd_model': d_model,
-                    'n_heads': n_heads,
-                    'fc_type': fc_type,
-                    'device': device,
-                    'bias': not no_bias,
-                    **attn_config_subset_for_attn_class,
-                },
-            )
-            self.norm_2 = None
-            if not ffn_has_norm:
-                self.norm_2 = build_norm(
+            # Check for state space attention type in the attention configuration
+            if attn_config['attn_type'] == 'state_space_attention':
+                self.attn = build_attention_layer(
+                    name='state_space_attention',
+                    attn_kwargs={
+                        'd_model': d_model,
+                        'n_heads': n_heads,
+                        'state_space_size': attn_config['state_space_size'],
+                        'device': device,
+                        'bias': not no_bias,
+                        **attn_config_subset_for_attn_class,
+                    },
+                )
+            else:
+                self.norm_1 = build_norm(
                     name=norm_type.lower(),
                     normalized_shape=d_model,
                     device=device,
                 )
+                self.attn = build_attention_layer(
+                    name=attn_config['attn_type'],
+                    attn_kwargs={
+                        'd_model': d_model,
+                        'n_heads': n_heads,
+                        'fc_type': fc_type,
+                        'device': device,
+                        'bias': not no_bias,
+                        **attn_config_subset_for_attn_class,
+                    },
+                )
+                self.norm_2 = None
+                if not ffn_has_norm:
+                    self.norm_2 = build_norm(
+                        name=norm_type.lower(),
+                        normalized_shape=d_model,
+                        device=device,
+                    )
 
         self.ffn = build_ffn(
             name=ffn_type,

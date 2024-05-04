@@ -721,22 +721,34 @@ class StateSpaceAttention(nn.Module):
         # Initialize parameters for the state space model here
         self.transition_matrix = nn.Parameter(torch.Tensor(state_space_size, state_space_size))
         self.observation_matrix = nn.Parameter(torch.Tensor(d_model, state_space_size))
+        self.query_projection_matrix = nn.Parameter(torch.Tensor(d_model, state_space_size))
+        self.key_projection_matrix = nn.Parameter(torch.Tensor(d_model, state_space_size))
         # Initialize these matrices with appropriate dimensions and values
         nn.init.xavier_uniform_(self.transition_matrix)
         nn.init.xavier_uniform_(self.observation_matrix)
+        nn.init.xavier_uniform_(self.query_projection_matrix)
+        nn.init.xavier_uniform_(self.key_projection_matrix)
 
     def forward(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, **kwargs):
-        # Implement the forward pass for the state space attention mechanism here
-        # This will involve computing the attention using the state space model dynamics
-        # and producing the output tensor
+        batch_size, seq_length, _ = query.shape
+        # Project the query and key using the respective projection matrices
+        query = torch.matmul(query, self.query_projection_matrix)
+        key = torch.matmul(key, self.key_projection_matrix)
+
+        # Reshape the projected query to match the transition matrix dimensions
+        query = query.view(batch_size, seq_length, self.state_space_size)
+
         # Apply the state transition matrix to the query
         query = torch.matmul(query, self.transition_matrix)
+
         # Apply the observation matrix to the key
         key = torch.matmul(key, self.observation_matrix)
+
         # Compute the attention scores
         attn_scores = torch.matmul(query, key.transpose(-2, -1))
         attn_scores = attn_scores / math.sqrt(self.state_space_size)
         attn_probs = nn.Softmax(dim=-1)(attn_scores)
+
         # Apply attention probabilities to the value
         context = torch.matmul(attn_probs, value)
         return context, attn_probs

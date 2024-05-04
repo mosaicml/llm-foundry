@@ -9,10 +9,12 @@ from typing import Any, Optional
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import transformers
 from einops import rearrange
 from packaging import version
 from torch import nn
+from torch.nn.parameter import Parameter
 
 from llmfoundry.layers_registry import (
     attention_classes,
@@ -707,6 +709,37 @@ class MultiQueryAttention(GroupedQueryAttention):
             sliding_window_size=sliding_window_size,
         )
 
+@attention_classes.register_class('state_space_attention')
+class StateSpaceAttention(nn.Module):
+    """State Space Attention mechanism."""
+
+    def __init__(self, d_model: int, n_heads: int, state_space_size: int, **kwargs):
+        super().__init__()
+        self.d_model = d_model
+        self.n_heads = n_heads
+        self.state_space_size = state_space_size
+        # Initialize parameters for the state space model here
+        self.transition_matrix = nn.Parameter(torch.Tensor(state_space_size, state_space_size))
+        self.observation_matrix = nn.Parameter(torch.Tensor(d_model, state_space_size))
+        # Initialize these matrices with appropriate dimensions and values
+        nn.init.xavier_uniform_(self.transition_matrix)
+        nn.init.xavier_uniform_(self.observation_matrix)
+
+    def forward(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, **kwargs):
+        # Implement the forward pass for the state space attention mechanism here
+        # This will involve computing the attention using the state space model dynamics
+        # and producing the output tensor
+        # Apply the state transition matrix to the query
+        query = torch.matmul(query, self.transition_matrix)
+        # Apply the observation matrix to the key
+        key = torch.matmul(key, self.observation_matrix)
+        # Compute the attention scores
+        attn_scores = torch.matmul(query, key.transpose(-2, -1))
+        attn_scores = attn_scores / math.sqrt(self.state_space_size)
+        attn_probs = nn.Softmax(dim=-1)(attn_scores)
+        # Apply attention probabilities to the value
+        context = torch.matmul(attn_probs, value)
+        return context, attn_probs
 
 def attn_bias_shape(
     attn_impl: str,

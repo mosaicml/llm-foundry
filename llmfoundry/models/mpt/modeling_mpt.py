@@ -62,6 +62,7 @@ from llmfoundry.models.layers.attention import (
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.layers.custom_embedding import SharedEmbedding
 from llmfoundry.models.layers.layer_builders import build_norm
+from llmfoundry.models.layers.mamba_layer import MambaLayer
 from llmfoundry.models.mpt.configuration_mpt import MPTConfig
 from llmfoundry.models.utils.config_moe_args import config_moe_args
 from llmfoundry.models.utils.mpt_param_count import (

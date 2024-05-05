@@ -97,62 +97,7 @@ class MPTBlock(nn.Module):
                 no_bias=no_bias,
             )
         else:
-            assert isinstance(attn_config['attn_type'], str)
-            # Necessary to avoid passing extraneous args into attn_class while allowing the use of **kwargs
-            args_to_exclude_in_attn_class = {
-                'attn_type',
-                'alibi',
-                'attn_uses_sequence_id',
-                'alibi_bias_max',
-                'rope',
-                'rope_theta',
-                'rope_impl',
-                'rope_dail_config',
-                'rope_hf_config',
-            }
-            attn_config_subset_for_attn_class = {
-                k: v
-                for k, v in attn_config.items()
-                if k not in args_to_exclude_in_attn_class
-            }
-
-            # Check for state space attention type in the attention configuration
-            if attn_config['attn_type'] == 'state_space_attention':
-                self.attn = build_attention_layer(
-                    name='state_space_attention',
-                    attn_kwargs={
-                        'd_model': d_model,
-                        'n_heads': n_heads,
-                        'state_space_size': attn_config['state_space_size'],
-                        'device': device,
-                        'bias': not no_bias,
-                        **attn_config_subset_for_attn_class,
-                    },
-                )
-            else:
-                self.norm_1 = build_norm(
-                    name=norm_type.lower(),
-                    normalized_shape=d_model,
-                    device=device,
-                )
-                self.attn = build_attention_layer(
-                    name=attn_config['attn_type'],
-                    attn_kwargs={
-                        'd_model': d_model,
-                        'n_heads': n_heads,
-                        'fc_type': fc_type,
-                        'device': device,
-                        'bias': not no_bias,
-                        **attn_config_subset_for_attn_class,
-                    },
-                )
-                self.norm_2 = None
-                if not ffn_has_norm:
-                    self.norm_2 = build_norm(
-                        name=norm_type.lower(),
-                        normalized_shape=d_model,
-                        device=device,
-                    )
+            self.mamba_layer = MambaLayer(d_model=d_model, **kwargs)
 
         self.ffn = build_ffn(
             name=ffn_type,
@@ -193,22 +138,18 @@ class MPTBlock(nn.Module):
                 flash_attn_padding_info=flash_attn_padding_info,
             )
         else:
-            a = self.norm_1(x)
-            b, attn_weights, past_key_value = self.attn(
-                a,
+            x, attn_weights, past_key_value = self.mamba_layer(
+                x,
                 past_key_value=past_key_value,
                 attn_bias=attn_bias,
                 rotary_emb_w_meta_info=rotary_emb_w_meta_info,
                 attention_mask=attention_mask,
                 is_causal=is_causal,
-                needs_weights=output_attentions,
+                output_attentions=output_attentions,
                 alibi_slopes=alibi_slopes,
                 flash_attn_padding_info=flash_attn_padding_info,
             )
-            x = x + self.resid_attn_dropout(b)
             m = x
-            if self.norm_2 is not None:
-                m = self.norm_2(x)
 
         batch_size, seq_len = m.size()[:2]
         indices = None

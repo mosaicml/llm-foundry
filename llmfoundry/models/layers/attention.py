@@ -717,10 +717,10 @@ class StateSpaceAttention(nn.Module):
         super().__init__()
         self.d_model = d_model
         self.n_heads = n_heads
-        self.state_space_size = state_space_size
+        self.state_space_size = state_space_size  # This will be set to n_heads * head_dim
         # Initialize parameters for the state space model here
         self.transition_matrix = nn.Parameter(torch.Tensor(state_space_size, state_space_size))
-        self.observation_matrix = nn.Parameter(torch.Tensor(d_model, state_space_size))
+        self.observation_matrix = nn.Parameter(torch.Tensor(state_space_size, d_model))
         self.query_projection_matrix = nn.Parameter(torch.Tensor(d_model, state_space_size))
         self.key_projection_matrix = nn.Parameter(torch.Tensor(d_model, state_space_size))
         # Initialize these matrices with appropriate dimensions and values
@@ -728,55 +728,54 @@ class StateSpaceAttention(nn.Module):
         nn.init.xavier_uniform_(self.observation_matrix)
         nn.init.xavier_uniform_(self.query_projection_matrix)
         nn.init.xavier_uniform_(self.key_projection_matrix)
+        # Define the output projection layer
+        self.output_projection = nn.Linear(n_heads * (d_model // n_heads), self.d_model)
+        # Initialize the output projection layer
+        nn.init.xavier_uniform_(self.output_projection.weight)
 
     def forward(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, **kwargs):
         batch_size, seq_length, _ = query.shape
-        print(f"Initial query shape: {query.shape}")
-        print(f"Initial key shape: {key.shape}")
-        print(f"Initial value shape: {value.shape}")
+
+        # Calculate the dimension of each head
+        head_dim = self.d_model // self.n_heads
 
         # Project the query and key using the respective projection matrices
         query = torch.matmul(query, self.query_projection_matrix)
-        print(f"Query after projection shape: {query.shape}")
-
-        # Project key and then reshape to [batch_size * seq_length, state_space_size]
         key = torch.matmul(key, self.key_projection_matrix)
-        key = key.reshape(batch_size * seq_length, self.state_space_size)
-        print(f"Key after projection and reshaping: {key.shape}")
 
-        # Transpose the observation matrix to match the dimensions for multiplication
-        observation_matrix_T = self.observation_matrix.transpose(0, 1)
-        print(f"Observation matrix transposed shape: {observation_matrix_T.shape}")
-
-        # Multiply the projected and reshaped key tensor with the transposed observation matrix
-        key = torch.matmul(key, observation_matrix_T)
-        print(f"Key after multiplication with observation matrix: {key.shape}")
-
-        # Reshape key to [batch_size, seq_length, state_space_size]
-        key = key.view(batch_size, seq_length, self.state_space_size)
-        print(f"Key after view shape: {key.shape}")
+        # Multiply the reshaped key tensor with the observation matrix
+        key = torch.matmul(key, self.observation_matrix)
 
         # Apply the state transition matrix to the query
         query = torch.matmul(query, self.transition_matrix)
-        # Reshape query to have the same state_space_size dimension as key
-        query = query.view(batch_size, seq_length, self.state_space_size)
-        print(f"Query after applying transition matrix shape: {query.shape}")
 
-        # Transpose the key tensor to match the dimensions of the query tensor for matrix multiplication
-        key = key.transpose(-2, -1)
-        print(f"Key after transpose shape: {key.shape}")
+        # Ensure the reshaping maintains the total number of elements in the query tensor
+        # and matches the expected dimensions for subsequent operations
+        query = query.reshape(batch_size, seq_length, self.d_model)
 
-        # Compute the attention scores
-        attn_scores = torch.matmul(query, key)
-        print(f"Attn scores shape: {attn_scores.shape}")
+        # Reshape query and key for multi-head attention computation
+        query = query.reshape(batch_size, seq_length, self.n_heads, head_dim)
+        query = query.transpose(1, 2)  # [batch_size, n_heads, seq_length, head_dim]
+        key = key.reshape(batch_size, seq_length, self.n_heads, head_dim)
+        key = key.transpose(1, 2)  # [batch_size, n_heads, seq_length, head_dim]
 
-        attn_scores = attn_scores / math.sqrt(self.state_space_size)
-        attn_probs = nn.Softmax(dim=-1)(attn_scores)
-        print(f"Attn probs shape: {attn_probs.shape}")
+        # Compute the attention scores for each head
+        attn_scores = torch.einsum('bnqd,bnkd->bnqk', query, key)
 
-        # Apply attention probabilities to the value
-        context = torch.matmul(attn_probs, value)
-        print(f"Context shape: {context.shape}")
+        # Apply the softmax function to get the attention probabilities
+        attn_probs = F.softmax(attn_scores, dim=-1)
+
+        # Reshape value to match the 'd' dimension size of attn_probs
+        value = value.reshape(batch_size, self.n_heads, seq_length, head_dim)
+
+        # Apply the einsum operation with corrected dimensions
+        context = torch.einsum('bnqk,bnkd->bnqd', attn_probs, value)
+        # Reshape context to match the input dimensions of the output projection layer
+        context = context.reshape(batch_size * seq_length, self.n_heads * head_dim)
+        # Project the context tensor back to the original d_model dimension
+        context = self.output_projection(context)
+        # Reshape context back to [batch_size, seq_length, d_model]
+        context = context.view(batch_size, seq_length, self.d_model)
 
         return context, attn_probs
 
@@ -877,10 +876,3 @@ def build_alibi_bias(
     slopes = gen_slopes(n_heads, alibi_bias_max, device=device)
     alibi_bias = alibi_bias * slopes
     return alibi_bias.to(dtype=dtype)
-
-
-attention_implementations.register('flash', func=flash_attn_fn)
-attention_implementations.register(
-    'torch',
-    func=scaled_multihead_dot_product_attention,
-)

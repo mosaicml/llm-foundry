@@ -1,10 +1,8 @@
-max_seq_len: 1024
+max_seq_len: 2048
 seed: 1
-precision: fp32
+precision: "amp_bf16"
 
-# If you are using one model, put it here:
-model_name_or_path: EleutherAI/gpt-neo-125m
-# otherwise, write a block for each model you want to test in the `models` section
+model_name_or_path: meta-llama/Meta-Llama-3-8B-Instruct
 
 models:
 -
@@ -12,36 +10,38 @@ models:
   model:
     name: hf_causal_lm
     pretrained_model_name_or_path: ${model_name_or_path}
-    init_device: mixed
     pretrained: true
+    # init_device: 'mixed'
+    gptq_config:
+      model_id: ${model_name_or_path}
+      wbits: 4
+      gs: 64
+      actorder: True
+      suffix: seed${seed}-True
+      # dataset: /nfs/scistore19/alistgrp/amoeini/group_10_merged.txt
+      # chunked: true
+      # chunk_size: 1024
+      clip: False
+      mse: False
+    use_auth_token: true
+  trim_batch: true
   tokenizer:
     name: ${model_name_or_path}
     kwargs:
       model_max_length: ${max_seq_len}
-# # if you are evaluating more than one model, list them all as YAML blocks without variable interpolation
-# -
-#   model_name: mosaicml/mpt-7b
-#   model:
-#     name: hf_causal_lm
-#     pretrained_model_name_or_path: mosaicml/mpt-7b
-#     init_device: cpu
-#     pretrained: true
-#     config_overrides:
-#       max_seq_len: ${max_seq_len}
-#   tokenizer:
-#     name: mosaicml/mpt-7b
-#     kwargs:
-#       model_max_length: ${max_seq_len}
 
+loggers:
+  wandb: 
+    project: "DASLab"
+    name: ${model_name_or_path}
+  
+# fsdp_config:
+#   sharding_strategy: FULL_SHARD
+#   mixed_precision: FULL
+#   forward_prefetch: True
+#   limit_all_gathers: True
 
-device_eval_batch_size: 4
-
-# FSDP config for model sharding
-fsdp_config:
-  sharding_strategy: FULL_SHARD
-  mixed_precision: FULL
-  forward_prefetch: True
-  limit_all_gathers: True
+device_eval_batch_size: 1
 
 icl_tasks: "eval/yamls/tasks_v0.3.yaml"
-eval_gauntlet: "eval/yamls/eval_gauntlet_v0.3.yaml"
+# eval_gauntlet: "eval/yamls/eval_gauntlet_v0.3.yaml"

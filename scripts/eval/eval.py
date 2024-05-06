@@ -30,6 +30,7 @@ from llmfoundry.utils.builders import (add_metrics_to_eval_loaders,
 from llmfoundry.utils.config_utils import (log_config, pop_config,
                                            process_init_device)
 from llmfoundry.utils.registry_utils import import_file
+from llmfoundry.utils.gptq import *
 
 log = logging.getLogger(__name__)
 
@@ -75,6 +76,23 @@ def evaluate_model(
         icl_seq_len=max_seq_len,
         icl_subset_num_batches=icl_subset_num_batches,
     )
+    
+    if model_cfg.get('trim_batch', False):
+        def _trim_batch(batch):
+            assert batch['attention_mask'].shape[1] == max_seq_len, 'No padding till max_seq_len found, disable batch_trim'
+            _max_len = batch['attention_mask'].sum(1).max()
+            for k in batch:
+                if isinstance(batch[k], torch.Tensor) and batch[k].shape[1] == max_seq_len:
+                    batch[k] = batch[k][:, :_max_len]
+            return batch
+        def _trim_collate_decorator(collate_fn):
+            def _trim_collate(batch):
+                return _trim_batch(collate_fn(batch))
+            return _trim_collate
+        for evaluator in evaluators:
+            evaluator.dataloader.dataloader.collate_fn = _trim_collate_decorator(
+                evaluator.dataloader.dataloader.collate_fn
+                )
 
     # Callbacks
     callbacks: List[Callback] = [
@@ -291,7 +309,12 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
         log_eval_analytics(mosaicml_logger, model_configs, icl_tasks,
                            eval_gauntlet_config)
 
+    import transformers
+    original_from_pretrained = transformers.AutoModelForCausalLM.from_pretrained
     for model_cfg in model_configs:
+        if model_cfg.model.get('gptq_config'):
+            transformers.AutoModelForCausalLM.from_pretrained = staticmethod(get_llama_marlin_factory(model_cfg.model.gptq_config, original_from_pretrained))
+        
         (trainer, logger_keys, eval_gauntlet_callback,
          eval_gauntlet_df) = evaluate_model(
              model_cfg=model_cfg,

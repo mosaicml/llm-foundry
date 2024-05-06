@@ -36,7 +36,7 @@ from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithFSDP
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.utils import init_empty_weights
-from llmfoundry.utils.config_utils import get_hf_config_value, pop_config
+from llmfoundry.utils.config_utils import get_hf_config_value
 
 if TYPE_CHECKING:
     from peft import PeftConfig, PeftModel

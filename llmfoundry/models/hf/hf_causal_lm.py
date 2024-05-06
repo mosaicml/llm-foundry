@@ -28,7 +28,7 @@ from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithFSDP
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.utils import init_empty_weights
-from llmfoundry.utils.config_utils import pop_config
+from llmfoundry.utils.config_utils import get_hf_config_value, pop_config
 
 if TYPE_CHECKING:
     from peft import PeftConfig, PeftModel
@@ -247,9 +247,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             else:
                 setattr(config, k, v)
 
-        if hasattr(config, 'attn_config') and config.attn_config.get(
-            'seq_parallel_world_size',
-            None,
+        if hasattr(config, 'attn_config') and get_hf_config_value(
+            config.attn_config, 'seq_parallel_world_size'
         ) is not None:
             raise NotImplementedError(
                 'Sequence Parallelism is not supported for HuggingFace models.',

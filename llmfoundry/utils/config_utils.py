@@ -26,6 +26,7 @@ import mlflow
 from composer.utils import dist, parse_uri
 from omegaconf import MISSING, DictConfig, ListConfig, MissingMandatoryValue
 from omegaconf import OmegaConf as om
+from transformers import PretrainedConfig
 
 from llmfoundry.layers_registry import ffns_with_megablocks
 from llmfoundry.models.utils import init_empty_weights
@@ -340,6 +341,21 @@ def pop_config(
         )
     else:
         return default_value
+
+
+def get_hf_config_value(config: Union[dict, PretrainedConfig], key: str) -> Any:
+    """Get a value from a Hugging Face config.
+
+    Args:
+        config (Union[dict, PretrainedConfig]): The Hugging Face config object.
+        key (str): The key to get from the config.
+
+    Returns:
+        Any: The value from the config. None if the key does not exist.
+    """
+    if isinstance(config, dict):
+        return config.get(key)
+    return getattr(config, key, None)
 
 
 def calculate_batch_size_info(

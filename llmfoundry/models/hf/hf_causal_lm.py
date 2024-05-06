@@ -248,7 +248,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                 setattr(config, k, v)
 
         if hasattr(config, 'attn_config') and get_hf_config_value(
-            config.attn_config, 'seq_parallel_world_size'
+            config.attn_config,
+            'seq_parallel_world_size',
         ) is not None:
             raise NotImplementedError(
                 'Sequence Parallelism is not supported for HuggingFace models.',

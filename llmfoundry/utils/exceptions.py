@@ -38,7 +38,7 @@ ALLOWED_MESSAGES_KEYS = {'messages'}
 ErrorContext = Literal['TrainContext'] | Literal['EvalContext']
 
 
-class ContextualError(BaseException):
+class ContextualError(Exception):
     """Error thrown when an error occurs in the context of a specific task."""
 
     context: Optional[ErrorContext] = None

@@ -29,6 +29,7 @@ from llmfoundry.utils import (
     log_train_analytics,
     maybe_create_mosaicml_logger,
 )
+from llmfoundry.utils.exceptions import ContextualError
 
 install()
 from llmfoundry.callbacks import AsyncEval
@@ -618,8 +619,9 @@ def main(cfg: DictConfig) -> Trainer:
             tokenizer,
             device_train_batch_size,
         )
-    except Exception as e:
+    except ContextualError as e:
         if mosaicml_logger is not None:
+            e.context = 'TrainContext'
             mosaicml_logger.log_exception(e)
         raise e
 
@@ -650,8 +652,9 @@ def main(cfg: DictConfig) -> Trainer:
             )
             if eval_gauntlet_callback is not None:
                 callbacks.append(eval_gauntlet_callback)
-        except Exception as e:
+        except ContextualError as e:
             if mosaicml_logger is not None:
+                e.context = 'EvalContext'
                 mosaicml_logger.log_exception(e)
             raise e
 
@@ -712,8 +715,9 @@ def main(cfg: DictConfig) -> Trainer:
                 evaluators,
                 non_icl_metrics,
             )
-    except Exception as e:
+    except ContextualError as e:
         if mosaicml_logger is not None:
+            e.context = 'EvalContext'
             mosaicml_logger.log_exception(e)
         raise e
 

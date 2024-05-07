@@ -1741,6 +1741,8 @@ def get_icl_task_dataloader(
         categories = sorted(output_files.keys())
         for category in categories:
             partition_uri = output_files[category]
+            import uuid
+            destination_path=partition_uri + '_tmp_' + uuid.uuid4().hex if dist.get_world_size() == 1 else partition_uri + '_tmp'            
             result_dls[category] = build_icl_dataloader(
                 icl_task_type=icl_task_type,
                 dataset_uri=partition_uri,
@@ -1752,7 +1754,8 @@ def get_icl_task_dataloader(
                 prompt_string=prompt_string,
                 example_delimiter=example_delimiter,
                 continuation_delimiter=continuation_delimiter,
-                destination_path=partition_uri + '_tmp',
+                # destination_path=partition_uri + '_tmp',
+                destination_path=destination_path,
                 prelimiter=question_prelimiter,
                 cot_delimiter=cot_delimiter,
                 fewshot_random_seed=fewshot_random_seed,
@@ -1764,6 +1767,7 @@ def get_icl_task_dataloader(
                 early_stopping_criteria=early_stopping_criteria,
                 do_normalization=do_normalization,
             )
+            os.remove(destination_path)
         return result_dls
     else:
         return build_icl_dataloader(

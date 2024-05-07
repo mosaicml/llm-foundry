@@ -3,7 +3,7 @@
 
 """Custom exceptions for the LLMFoundry."""
 from collections.abc import Mapping
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Union
 
 __all__ = [
     'ALLOWED_RESPONSE_KEYS',
@@ -35,7 +35,7 @@ ALLOWED_RESPONSE_KEYS = {'response', 'completion'}
 ALLOWED_PROMPT_KEYS = {'prompt'}
 ALLOWED_MESSAGES_KEYS = {'messages'}
 
-ErrorContext = Literal['TrainContext'] | Literal['EvalContext']
+ErrorContext = Union[Literal['TrainContext'], Literal['EvalContext']]
 
 
 class ContextualError(Exception):

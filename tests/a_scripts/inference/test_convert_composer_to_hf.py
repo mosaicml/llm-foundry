@@ -875,6 +875,8 @@ def test_huggingface_conversion_callback(
     mlflow_logger_mock.model_registry_prefix = ''
     mlflow_logger_mock._experiment_id = 'mlflow-experiment-id'
     mlflow_logger_mock._run_id = 'mlflow-run-id'
+    mlflow_logger_mock._enabled = True
+    mlflow_logger_mock.run_url = 'fake-url'
     trainer = Trainer(
         model=original_model,
         device='gpu',

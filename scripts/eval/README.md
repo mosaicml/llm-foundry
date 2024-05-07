@@ -472,3 +472,102 @@ When formatting samples, `prompt_string` is prepended to the beginning, then `nu
 Thus the structure of each question's preamble is `prompt | few shot examples | context | continuation delimiter`. The continuation (aka choices for MC) is then tokenized separately and the tokens of the preamble and tokens of the continuation are concatenated. It is important to note that if the continuation delimiter has a trailing space, it is stripped and instead prepended to the continuation. Furthermore, if the continuation does not have a leading space, one will be prepended.
 
 ----
+
+# New Features
+
+## Dynamic Padding
+Add `trim_batch` to model's yaml similar to below:
+
+```yaml
+models:
+-
+  trim_batch: true
+  ...
+```
+
+This will dynamically pad the batch to the maximum sequence length in the batch in contrast to padding to the maximum sequence length in the config. Obtains a speedup up to 10x for small batch sizes.
+
+## Quantization Support
+You can use the quantization features in the 🤗 Transformers. Both loading pre-quantized models and quantizing models.
+
+### Loading pre-quantized models
+Provide a 🤗 Hugging Face Hub model which includes `quantization_config` in the `config.json`.
+
+```yaml
+precision: "amp_bf16"
+
+model_name_or_path: unsloth/llama-3-8b-bnb-4bit
+
+models:
+-
+  model_name: ${model_name_or_path}
+  model:
+    name: hf_causal_lm
+    pretrained_model_name_or_path: ${model_name_or_path}
+    pretrained: true
+    ...
+...
+```
+
+### Quantizing models
+Add the `quantization_config` to the model's yaml containing the parameters supported by the [🤗 Transformers quantization:](https://huggingface.co/docs/transformers/quantization)
+
+```yaml
+precision: "amp_bf16"
+
+model_name_or_path: meta-llama/Meta-Llama-3-8B
+
+models:
+-
+  model_name: ${model_name_or_path}
+  model:
+    name: hf_causal_lm
+    pretrained_model_name_or_path: ${model_name_or_path}
+    pretrained: true
+    "quantization_config":
+        "_load_in_4bit": true
+        "_load_in_8bit": false
+        "bnb_4bit_compute_dtype": "bfloat16"
+        "bnb_4bit_quant_storage": "uint8"
+        "bnb_4bit_quant_type": "nf4"
+        "bnb_4bit_use_double_quant": true
+        "llm_int8_enable_fp32_cpu_offload": false
+        "llm_int8_has_fp16_weight": false
+        "llm_int8_skip_modules": null
+        "llm_int8_threshold": 6.0
+        "load_in_4bit": true
+        "load_in_8bit": false
+        "quant_method": "bitsandbytes"
+    ...
+...
+```
+
+### Custom GPTQ Configuration
+Although basic GPTQ is supported in the 🤗 Transformers, for more naunced control over its configuration in `llm-foundry/llmfoundry/utils/gptq.py` you can use the `gptq_config` instead:
+
+```yaml
+precision: "amp_bf16"
+
+model_name_or_path: meta-llama/Meta-Llama-3-8B
+
+models:
+-
+  model_name: ${model_name_or_path}
+  model:
+    name: hf_causal_lm
+    pretrained_model_name_or_path: ${model_name_or_path}
+    pretrained: true
+    gptq_config:
+      model_id: ${model_name_or_path}
+      wbits: 4
+      gs: 64
+      actorder: True
+      suffix: ${suffix}
+      dataset: dataset.txt
+      chunked: true
+      chunk_size: 1024
+      clip: True
+      mse: False
+    ...
+...
+```

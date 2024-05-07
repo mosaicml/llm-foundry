@@ -9,7 +9,7 @@ import warnings
 from typing import TYPE_CHECKING, Any, Dict, Mapping
 
 from composer.models.huggingface import peft_installed
-from composer.utils import dist
+from composer.utils import dist, get_device
 from omegaconf import DictConfig
 from transformers import (AutoConfig, AutoModelForCausalLM, PretrainedConfig,
                           PreTrainedModel, PreTrainedTokenizerBase)
@@ -202,12 +202,16 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         # initialize the model on the correct device
         if resolved_init_device == 'cpu':
             if om_model_config.pretrained:
+                device_map = None
+                if 'quantization_config' in config.to_dict() and config.quantization_config['quant_method'] == "gptq":
+                    device_map = get_device(None)._device
                 model = AutoModelForCausalLM.from_pretrained(
                     pretrained_model_name_or_path,
                     trust_remote_code=trust_remote_code,
                     use_auth_token=use_auth_token,
                     load_in_8bit=load_in_8bit,
                     config=config,
+                    device_map=device_map,
                 )
             else:
                 model = AutoModelForCausalLM.from_config(

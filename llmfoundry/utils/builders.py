@@ -37,6 +37,7 @@ from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.eval.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
+from llmfoundry.utils.exceptions import MisconfiguredICLDatasetError
 from llmfoundry.utils.registry_utils import construct_from_registry
 from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
@@ -603,30 +604,33 @@ def build_icl_evaluators(
                 early_stopping_criteria,
                 list,
             )
-            dataloaders = get_icl_task_dataloader(
-                icl_cfg.icl_task_type,
-                icl_cfg.dataset_uri,
-                tokenizer,
-                batch_size=icl_cfg.batch_size,
-                max_seq_len=icl_cfg.max_seq_len,
-                pad_tok_id=pad_tok_id,
-                num_fewshot=num_fewshot,
-                prompt_string=icl_cfg.prompt_string,
-                example_delimiter=icl_cfg.example_delimiter,
-                hf_loading_vars=hf_loading_vars,
-                hf_parsing_map=hf_parsing_map,
-                continuation_delimiter=icl_cfg.continuation_delimiter,
-                question_prelimiter=icl_cfg.get('question_prelimiter', ''),
-                destination_path=destination_path,
-                fewshot_random_seed=icl_cfg.fewshot_random_seed,
-                pass_at_k=icl_cfg.pass_at_k,
-                generations_per_sample=icl_cfg.generations_per_sample,
-                has_categories=icl_cfg.get('has_categories', False),
-                cot_delimiter=icl_cfg.get('cot_delimiter', ''),
-                generation_kwargs=icl_cfg.get('generation_kwargs', {}),
-                early_stopping_criteria=early_stopping_criteria,
-                do_normalization=icl_cfg.get('do_normalization', True),
-            )
+            try:
+                dataloaders = get_icl_task_dataloader(
+                    icl_cfg.icl_task_type,
+                    icl_cfg.dataset_uri,
+                    tokenizer,
+                    batch_size=icl_cfg.batch_size,
+                    max_seq_len=icl_cfg.max_seq_len,
+                    pad_tok_id=pad_tok_id,
+                    num_fewshot=num_fewshot,
+                    prompt_string=icl_cfg.prompt_string,
+                    example_delimiter=icl_cfg.example_delimiter,
+                    hf_loading_vars=hf_loading_vars,
+                    hf_parsing_map=hf_parsing_map,
+                    continuation_delimiter=icl_cfg.continuation_delimiter,
+                    question_prelimiter=icl_cfg.get('question_prelimiter', ''),
+                    destination_path=destination_path,
+                    fewshot_random_seed=icl_cfg.fewshot_random_seed,
+                    pass_at_k=icl_cfg.pass_at_k,
+                    generations_per_sample=icl_cfg.generations_per_sample,
+                    has_categories=icl_cfg.get('has_categories', False),
+                    cot_delimiter=icl_cfg.get('cot_delimiter', ''),
+                    generation_kwargs=icl_cfg.get('generation_kwargs', {}),
+                    early_stopping_criteria=early_stopping_criteria,
+                    do_normalization=icl_cfg.get('do_normalization', True),
+                )
+            except Exception as e:
+                raise MisconfiguredICLDatasetError(icl_cfg, e)
             if hasattr(
                 icl_cfg,
                 'has_categories',

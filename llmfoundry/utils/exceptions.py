@@ -246,3 +246,11 @@ class MisconfiguredHfDatasetError(ValueError):
         self.split = split
         message = f'Your dataset (name={dataset_name}, split={split}) is misconfigured. Please check your dataset format and make sure you can load your dataset locally.'
         super().__init__(message)
+
+
+class MisconfiguredICLDatasetError(ValueError):
+    """Error thrown when a ICL dataset is misconfigured."""
+
+    def __init__(self, icl_cfg: Any, exception: Exception) -> None:
+        message = f'The following ICL dataset is misconfigured. Please check your dataset format and make sure you can load your dataset locally. {icl_cfg=}\n{exception=}'
+        super().__init__(message)

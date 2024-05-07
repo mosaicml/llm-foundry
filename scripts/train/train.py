@@ -636,19 +636,24 @@ def main(cfg: DictConfig) -> Trainer:
             eval_first = False
 
     else:
-        log.info('Building eval loader...')
-        eval_icl_seq_len: int = icl_seq_len if icl_seq_len else max_seq_len
-        evaluators, _, eval_gauntlet_callback = build_evaluators(
-            eval_loader_config,
-            icl_tasks_config,
-            eval_gauntlet_config,
-            tokenizer=tokenizer,
-            device_eval_batch_size=device_eval_batch_size,
-            icl_seq_len=eval_icl_seq_len,
-            icl_subset_num_batches=icl_subset_num_batches,
-        )
-        if eval_gauntlet_callback is not None:
-            callbacks.append(eval_gauntlet_callback)
+        try:
+            log.info('Building eval loader...')
+            eval_icl_seq_len: int = icl_seq_len if icl_seq_len else max_seq_len
+            evaluators, _, eval_gauntlet_callback = build_evaluators(
+                eval_loader_config,
+                icl_tasks_config,
+                eval_gauntlet_config,
+                tokenizer=tokenizer,
+                device_eval_batch_size=device_eval_batch_size,
+                icl_seq_len=eval_icl_seq_len,
+                icl_subset_num_batches=icl_subset_num_batches,
+            )
+            if eval_gauntlet_callback is not None:
+                callbacks.append(eval_gauntlet_callback)
+        except Exception as e:
+            if mosaicml_logger is not None:
+                mosaicml_logger.log_exception(e)
+            raise e
 
     if mosaicml_logger is not None:
         log_train_analytics(

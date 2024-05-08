@@ -6,7 +6,6 @@ import functools
 import logging
 import os
 import re
-import warnings
 from collections import OrderedDict
 from typing import (
     Any,
@@ -39,7 +38,6 @@ from llmfoundry.eval.datasets.in_context_learning_evaluation import \
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
 from llmfoundry.utils.config_utils import to_dict_container, to_list_container
 from llmfoundry.utils.registry_utils import construct_from_registry
-from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
 log = logging.getLogger(__name__)
 
@@ -538,21 +536,10 @@ def build_icl_evaluators(
                 icl_cfg['metric_names'] = [
                     'InContextLearningMultipleChoiceAccuracy',
                 ]
-            elif icl_cfg['icl_task_type'
-                        ] == 'generation_task_with_answers' or icl_cfg[
-                            'icl_task_type'] == 'question_answering':
-                if icl_cfg['icl_task_type'] == 'question_answering':
-                    warnings.warn(
-                        VersionedDeprecationWarning(
-                            "ICL task type 'question_answering' is now deprecated. Use identifier 'generation_task_with_answers'",
-                            'v0.9.0',
-                        ),
-                    )
-                icl_cfg['metric_names'] = [
+            elif icl_cfg.icl_task_type == 'generation_task_with_answers':
+                icl_cfg.metric_names = [
                     'InContextLearningGenerationExactMatchAccuracy',
                 ]
-            elif icl_cfg['icl_task_type'] == 'code_evaluation':
-                icl_cfg['metric_names'] = ['InContextLearningCodeEvalAccuracy']
             else:
                 raise ValueError(
                     f'No metric_names defined, unable to build default metrics for icl_task_type={icl_cfg["icl_task_type"]}.',

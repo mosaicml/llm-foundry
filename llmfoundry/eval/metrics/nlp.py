@@ -10,15 +10,7 @@ import re
 import string
 from typing import Any, Callable, Dict, List
 
-import numpy as np
 import torch
-from composer.utils import dist
-from composer.utils.eval_client import (
-    EvalClient,
-    LambdaEvalClient,
-    LocalEvalClient,
-    MosaicMLLambdaEvalClient,
-)
 from torch import Tensor
 from torch.nn import functional as F
 from torchmetrics import Metric

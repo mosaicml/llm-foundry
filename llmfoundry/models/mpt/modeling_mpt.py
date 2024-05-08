@@ -1232,7 +1232,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             msl (int): The batch sequence length.
 
         Returns:
-            attn_flopts (int): The attention flops.
+            attn_flops (int): The attention flops.
         """
         return (
             self.model.config.n_layers * 2 * 2 *

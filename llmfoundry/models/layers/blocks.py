@@ -3,7 +3,7 @@
 
 """GPT Blocks used for the GPT Model."""
 
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Set, Tuple
 
 import torch
 import torch.nn as nn
@@ -88,6 +88,8 @@ class MPTBlock(nn.Module):
             self.norm_attn_norm = FusedNormAttentionNorm(
                 d_model=d_model,
                 n_heads=n_heads,
+                args_to_exclude_in_attn_class=self.
+                args_to_exclude_in_attn_class,
                 attn_config=attn_config,
                 ffn_has_norm=ffn_has_norm,
                 fc_type=fc_type,
@@ -99,21 +101,10 @@ class MPTBlock(nn.Module):
         else:
             assert isinstance(attn_config['attn_type'], str)
             # Necessary to avoid passing extraneous args into attn_class while allowing the use of **kwargs
-            args_to_exclude_in_attn_class = {
-                'attn_type',
-                'alibi',
-                'attn_uses_sequence_id',
-                'alibi_bias_max',
-                'rope',
-                'rope_theta',
-                'rope_impl',
-                'rope_dail_config',
-                'rope_hf_config',
-            }
             attn_config_subset_for_attn_class = {
                 k: v
                 for k, v in attn_config.items()
-                if k not in args_to_exclude_in_attn_class
+                if k not in self.args_to_exclude_in_attn_class
             }
 
             self.norm_1 = build_norm(
@@ -152,6 +143,20 @@ class MPTBlock(nn.Module):
         self.resid_attn_dropout = nn.Dropout(resid_pdrop)
         self.resid_ffn_dropout = nn.Dropout(resid_pdrop)
         self.use_pad_tok_in_ffn = use_pad_tok_in_ffn
+
+    @property
+    def args_to_exclude_in_attn_class(self):
+        return {
+            'attn_type',
+            'alibi',
+            'attn_uses_sequence_id',
+            'alibi_bias_max',
+            'rope',
+            'rope_theta',
+            'rope_impl',
+            'rope_dail_config',
+            'rope_hf_config',
+        }
 
     def forward(
         self,
@@ -196,6 +201,24 @@ class MPTBlock(nn.Module):
             if self.norm_2 is not None:
                 m = self.norm_2(x)
 
+        n = self.apply_ffn(attention_mask, m)
+        x = x + self.resid_ffn_dropout(n)
+        return x, attn_weights, past_key_value
+
+    def apply_ffn(
+        self,
+        attention_mask: Optional[torch.ByteTensor],
+        m: torch.Tensor,
+    ) -> torch.Tensor:
+        """Apply feed forward layers to the input.
+
+        Args:
+            attention_mask (Optional[torch.ByteTensor]): The attention mask.
+            m (torch.Tensor): The input.
+
+        Returns:
+            n (torch.Tensor): The output.
+        """
         batch_size, seq_len = m.size()[:2]
         indices = None
         if not self.use_pad_tok_in_ffn:
@@ -205,8 +228,7 @@ class MPTBlock(nn.Module):
         if not self.use_pad_tok_in_ffn:
             assert pad_input is not None
             n = pad_input(n, indices, batch_size, seq_len)
-        x = x + self.resid_ffn_dropout(n)
-        return x, attn_weights, past_key_value
+        return n
 
 
 class FusedNormAttentionNorm(nn.Module):
@@ -215,6 +237,7 @@ class FusedNormAttentionNorm(nn.Module):
         self,
         d_model: int,
         n_heads: int,
+        args_to_exclude_in_attn_class: Set[str],
         attn_config: Optional[Dict] = None,
         ffn_has_norm: bool = False,
         fc_type: str = 'torch',
@@ -228,18 +251,7 @@ class FusedNormAttentionNorm(nn.Module):
         assert attn_config is not None
         assert isinstance(attn_config['attn_type'], str)
 
-        # necessary to avoid passing extraneous args into attn_class while allowing the use of **kwargs
-        args_to_exclude_in_attn_class = {
-            'attn_type',
-            'alibi',
-            'attn_uses_sequence_id',
-            'alibi_bias_max',
-            'rope',
-            'rope_theta',
-            'rope_impl',
-            'rope_dail_config',
-            'rope_hf_config',
-        }
+        # Necessary to avoid passing extraneous args into attn_class while allowing the use of **kwargs
         attn_config_subset_for_attn_class = {
             k: v
             for k, v in attn_config.items()

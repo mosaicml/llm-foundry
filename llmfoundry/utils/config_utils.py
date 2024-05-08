@@ -360,19 +360,29 @@ def get_hf_config_value(config: Union[dict, PretrainedConfig], key: str) -> Any:
 
 def calculate_batch_size_info(
     global_batch_size: int,
-    device_microbatch_size: Union[int, Literal['auto']],
-) -> Tuple[int, Union[int, Literal['auto']], Union[int, Literal['auto']]]:
-    if global_batch_size % dist.get_world_size() != 0:
+    device_microbatch_size: Union[int, float, Literal['auto']],
+    data_replication_degree: int = 1,
+) -> Tuple[Union[int, float], Union[int, float, Literal['auto']], Union[
+    int, Literal['auto']]]:
+    if dist.get_world_size() % data_replication_degree != 0:
         raise ValueError(
-            f'Global batch size {global_batch_size} is not divisible by {dist.get_world_size()} '
+            f'World size {dist.get_world_size()} is not divisible by data replication degree {data_replication_degree}.',
+        )
+    if global_batch_size % (
+        dist.get_world_size() // data_replication_degree
+    ) != 0:
+        raise ValueError(
+            f'Global batchsize {global_batch_size} is not divisible by {(dist.get_world_size() // data_replication_degree)=} '
             +
             'as a result, the batch size would be truncated, please adjust `global_batch_size` '
             + f'to be divisible by world size, {dist.get_world_size()}.',
         )
-    device_batch_size = global_batch_size // dist.get_world_size()
+    device_batch_size = global_batch_size / dist.get_world_size()
+    if device_batch_size == round(device_batch_size):
+        device_batch_size = round(device_batch_size)
     if device_microbatch_size == 'auto':
         device_grad_accum = 'auto'
-    elif isinstance(device_microbatch_size, int):
+    elif isinstance(device_microbatch_size, (int, float)):
         if device_microbatch_size > device_batch_size:
             log.warn(
                 f'device_microbatch_size > device_batch_size, ' +
@@ -390,9 +400,11 @@ def calculate_batch_size_info(
 
 # Coming soon: this conversion math will be done inside Composer Trainer
 def update_batch_size_info(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    data_replication_degree = 1
     device_train_batch_size, device_train_microbatch_size, device_train_grad_accum = calculate_batch_size_info(
         cfg['global_train_batch_size'],
         cfg['device_train_microbatch_size'],
+        data_replication_degree=data_replication_degree,
     )
     cfg['n_gpus'] = dist.get_world_size()
     cfg['device_train_batch_size'] = device_train_batch_size

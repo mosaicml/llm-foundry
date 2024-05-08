@@ -399,7 +399,7 @@ def calculate_batch_size_info(
 
 
 # Coming soon: this conversion math will be done inside Composer Trainer
-def update_batch_size_info(cfg: DictConfig) -> DictConfig:
+def update_batch_size_info(cfg: Dict[str, Any]) -> Dict[str, Any]:
     data_replication_degree = 1
     device_train_batch_size, device_train_microbatch_size, device_train_grad_accum = calculate_batch_size_info(
         cfg['global_train_batch_size'],

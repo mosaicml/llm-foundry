@@ -160,7 +160,6 @@ llm-foundry currently supports five ICL formats:
 2. InContextLearningLMTaskDataset
 3. InContextLearningMultipleChoiceTaskDataset
 4. InContextLearningSchemaTaskDataset
-5. InContextLearningCodeEvalDataset
 
 ----
 
@@ -347,27 +346,6 @@ Below is a YAML section that works with the Winograd dataset in [`scripts/eval/l
     continuation_delimiter: ' ' # this separates questions from answers
 >
 
-
-----
-
-### InContextLearningCodeEvalDataset
-
-The ICL CodeEvalDataset takes a prompt, and, working with the NLP metric [InContextLearningCodeEvalAccuracy](https://docs.mosaicml.com/projects/composer/en/latest/api_reference/generated/composer.metrics.InContextLearningCodeEvalAccuracy.html), generates code which gets run against the supplied tests, as in HumanEval ([Evaluating Large Language Models Trained on Code](https://arxiv.org/abs/2107.03374)) and MBPP ([Program Synthesis with Large Language Models](https://arxiv.org/abs/2108.07732)). This generation involves many decoding steps, so can take longer per sample than other ICL tasks. An example datum:
-
-```json
-{"task_id": "JavaScript/2", "prompt": "/* Given a positive floating point number, it can be decomposed into\n  and integer part (largest integer smaller than given number) and decimals\n  (leftover part always smaller than 1).\n\n  Return the decimal part of the number.\n  >>> truncateNumber(3.5)\n  0.5\n  */\nconst truncateNumber = (number) => {\n", "canonical_solution": "  return number % 1.0;\n}\n\n", "test": "const testTruncateNumber = () => {\n  console.assert(truncateNumber(3.5) === 0.5)\n\n  console.assert(Math.abs(truncateNumber(1.33) - 0.33) < 1e-6)\n\n  console.assert(Math.abs(truncateNumber(123.456 - 0.456) < 1e-6))\n}\n\ntestTruncateNumber()\n", "entry_point": "truncateNumber", "test_inputs": ["3.5", "1.33", "123.456"], "test_outputs": ["0.5", "0.33", "0.456"], "language": "javascript"}
-```
-
-Required keys for each datum:
-
-* `prompt: str`
-* `test: str`
-* `entry_point: str`
-* `test_inputs: List[str]`
-* `test_outputs: List[str]`
-* `language: str`
-
-Code evaluation can happen locally (insecure) or inside an AWS Lambda function sandbox. This is controlled by setting the environment variable `CODE_EVAL_DEVICE` to `LOCAL` or `LAMBDA`. If set to `LAMBDA`, you must also provide `CODE_EVAL_URL` and `CODE_EVAL_APIKEY` to query the API gateway in the AWS Sandbox.
 
 ----
 

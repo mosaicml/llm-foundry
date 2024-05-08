@@ -23,7 +23,6 @@ from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from rich.traceback import install
 
-from llmfoundry.callbacks.inactivity_callback import InactivityCallback
 from llmfoundry.eval.metrics.nlp import InContextLearningMetric
 from llmfoundry.utils import (
     find_mosaicml_logger,
@@ -597,7 +596,7 @@ def main(cfg: DictConfig) -> Trainer:
     # Callbacks
     if callback_configs is not None:
         for name, callback_cfg in callback_configs.items():
-            if name == 'InactivityCallback':
+            if name == 'inactivity':
                 callback_cfg['mosaicml_logger'] = mosaicml_logger
 
     callbacks: List[Callback] = [

@@ -490,10 +490,7 @@ def log_config(cfg: Dict[str, Any]) -> None:
     print(om.to_yaml(cfg))
     loggers = cfg.get('loggers', None) or {}
     if 'wandb' in loggers:
-        try:
-            import wandb
-        except ImportError as e:
-            raise e
+        import wandb
         if wandb.run:
             wandb.config.update(cfg)
 

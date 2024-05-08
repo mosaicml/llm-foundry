@@ -100,6 +100,7 @@ class MPTBlock(nn.Module):
             )
         else:
             assert isinstance(attn_config['attn_type'], str)
+            # Necessary to avoid passing extraneous args into attn_class while allowing the use of **kwargs
             attn_config_subset_for_attn_class = {
                 k: v
                 for k, v in attn_config.items()
@@ -145,7 +146,6 @@ class MPTBlock(nn.Module):
 
     @property
     def args_to_exclude_in_attn_class(self):
-        # Necessary to avoid passing extraneous args into attn_class while allowing the use of **kwargs
         return {
             'attn_type',
             'alibi',
@@ -251,6 +251,7 @@ class FusedNormAttentionNorm(nn.Module):
         assert attn_config is not None
         assert isinstance(attn_config['attn_type'], str)
 
+        # Necessary to avoid passing extraneous args into attn_class while allowing the use of **kwargs
         attn_config_subset_for_attn_class = {
             k: v
             for k, v in attn_config.items()

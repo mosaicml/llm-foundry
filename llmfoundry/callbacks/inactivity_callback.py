@@ -1,20 +1,36 @@
-from typing import Optional
-from composer import Callback, State, Logger
 import logging
 import os
 import signal
 import threading
+from typing import Optional
+
+from composer import Callback, Logger, State
+from composer.loggers import MosaicMLLogger
+
+from llmfoundry.utils.exceptions import RunTimeoutError
 
 log = logging.getLogger(__name__)
 
-def _timeout(timeout: int):
-    log.error(f"Timeout after no Trainer events were triggered for {timeout} seconds.")
+
+def _timeout(timeout: int, mosaicml_logger: Optional[MosaicMLLogger] = None):
+    log.error(
+        f"Timeout after no Trainer events were triggered for {timeout} seconds."
+    )
+    if mosaicml_logger is not None:
+        mosaicml_logger.log_exception(RunTimeoutError(timeout=timeout))
     os.kill(os.getpid(), signal.SIGINT)
 
+
 class InactivityCallback(Callback):
-    def __init__(self, timeout: int = 1800):
+
+    def __init__(
+        self,
+        timeout: int = 1800,
+        mosaicml_logger: Optional[MosaicMLLogger] = None,
+    ):
         self.timeout = timeout
         self.timer: Optional[threading.Timer] = None
+        self.mosaicml_logger = mosaicml_logger
 
     def _reset(self):
         if self.timer is not None:
@@ -23,7 +39,9 @@ class InactivityCallback(Callback):
 
     def _timeout(self):
         self._reset()
-        self.timer = threading.Timer(self.timeout, _timeout, [self.timeout])
+        self.timer = threading.Timer(
+            self.timeout, _timeout, [self.timeout, self.mosaicml_logger]
+        )
         self.timer.start()
 
     def fit_end(self, state: State, logger: Logger):

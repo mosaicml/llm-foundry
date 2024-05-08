@@ -11,12 +11,13 @@ from composer.loggers import InMemoryLogger
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 
-from scripts.train.train import main, validate_config  # noqa: E402
-from tests.data_utils import (
-    create_arxiv_dataset,
-    create_c4_dataset_xxsmall,
-    gpt_tiny_cfg,
+from llmfoundry.utils.config_utils import (
+    make_dataclass_and_log_config,
+    update_batch_size_info,
 )
+from scripts.train.train import TrainConfig  # noqa: E402
+from scripts.train.train import TRAIN_CONFIG_KEYS, main, validate_config
+from tests.data_utils import create_c4_dataset_xxsmall, gpt_tiny_cfg
 from tests.fixtures.autouse import REPO_DIR
 
 
@@ -118,8 +119,6 @@ def test_train_multi_eval(tmp_path: pathlib.Path):
     first_eval_loader.label = 'c4'
     # Create second eval dataloader using the arxiv dataset.
     second_eval_loader = copy.deepcopy(first_eval_loader)
-    arxiv_dataset_name = create_arxiv_dataset(tmp_path)
-    second_eval_loader.data_local = arxiv_dataset_name
     second_eval_loader.label = 'arxiv'
     test_cfg.eval_loader = om.create([first_eval_loader, second_eval_loader])
     test_cfg.eval_subset_num_batches = 1  # -1 to evaluate on all batches
@@ -181,7 +180,13 @@ def test_validate_config():
         match=
         'MoEs with expert parallelism (.*) require `use_orig_params=True`.',
     ):
-        validate_config(test_cfg)
+        _, cfg_obj = make_dataclass_and_log_config(
+            test_cfg,
+            TrainConfig,
+            TRAIN_CONFIG_KEYS,
+            transforms=[update_batch_size_info],
+        )
+        validate_config(cfg_obj)
 
 
 def test_eval_metrics_with_no_train_metrics(tmp_path: pathlib.Path):

@@ -9,6 +9,7 @@ from composer.utils import reproducibility
 from omegaconf import OmegaConf as om
 
 from llmfoundry.utils.builders import build_composer_model, build_tokenizer
+from llmfoundry.utils.config_utils import to_dict_container
 
 
 @pytest.mark.gpu
@@ -69,9 +70,11 @@ def test_compare_hf_v_mpt(
         tokenizer_name=tokenizer_name,
         tokenizer_kwargs=tokenizer_kwargs,
     )
+    name = hf_cfg.model.pop('name')
+    hf_cfg.model.pop('device')
     hf_model = build_composer_model(
-        name=hf_cfg.model.name,
-        cfg=hf_cfg.model,
+        name=name,
+        cfg=to_dict_container(hf_cfg.model),
         tokenizer=tokenizer,
     ).to(device)
     hf_n_params = sum(p.numel() for p in hf_model.parameters())
@@ -121,9 +124,13 @@ def test_compare_hf_v_mpt(
     print('Initializing model...')
 
     print(model_cfg)
+    if 'name' in model_cfg:
+        name = model_cfg.pop('name')
+    if 'device' in model_cfg:
+        model_cfg.pop('device')
     model = build_composer_model(
-        name=model_cfg.name,
-        cfg=model_cfg,
+        name=name,
+        cfg=to_dict_container(model_cfg),
         tokenizer=tokenizer,
     ).to(device)
     n_params = sum(p.numel() for p in model.parameters())

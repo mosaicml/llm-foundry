@@ -7,7 +7,6 @@ from typing import Optional
 import pytest
 from composer import Trainer
 from composer.models.huggingface import maybe_get_underlying_model
-from omegaconf import OmegaConf as om
 
 from llmfoundry.utils.builders import build_composer_model, build_tokenizer
 
@@ -54,7 +53,6 @@ def test_fsdp_weight_tying(
 
     assert model_cfg is not None
     assert tokenizer_name is not None
-    model_cfg = om.create(model_cfg)
     if peft_config is not None:
         model_cfg['peft_config'] = peft_config
 
@@ -74,14 +72,15 @@ def test_fsdp_weight_tying(
         tokenizer_kwargs={'model_max_length': 32},
     )
 
+    name = model_cfg.pop('name')
     original_model = build_composer_model(
-        name=model_cfg['name'],
+        name=name,
         cfg=model_cfg,
         tokenizer=tokenizer,
     )
 
     underlying_model = maybe_get_underlying_model(original_model.model)
-    lm_head = underlying_model.lm_head if peft_config is None else underlying_model.lm_head
+    lm_head = underlying_model.lm_head
     embedding_layer = underlying_model.model.embed_tokens if peft_config is None else underlying_model.model.embed_tokens
 
     lm_head_id = id(lm_head.weight)

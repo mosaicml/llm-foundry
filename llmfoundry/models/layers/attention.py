@@ -5,10 +5,9 @@
 
 import math
 import warnings
-from typing import Any, Optional
+from typing import Any, Dict, Optional, Tuple
 
 import torch
-import torch.nn as nn
 import transformers
 from einops import rearrange
 from packaging import version
@@ -233,7 +232,6 @@ def flash_attn_fn(
     dropout_p: float = 0.0,
     training: bool = False,
     needs_weights: bool = False,
-    multiquery: bool = False,
     should_repeat_kv_for_gqa: Optional[bool] = True,
     sliding_window_size: int = -1,
     alibi_slopes: Optional[torch.Tensor] = None,
@@ -506,6 +504,54 @@ class GroupedQueryAttention(nn.Module):
         flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
         torch.Tensor, torch.Tensor]]]:
+        query, key, value = self.get_qkv(x)
+
+        if rotary_emb_w_meta_info is not None:
+            query, key, value = self._apply_rotary_embeddings(
+                rotary_emb_w_meta_info,
+                query,
+                key,
+                value,
+            )
+
+        extra_attn_kwargs = self.get_implementation_specific_args(
+            attention_mask,
+            alibi_slopes,
+            flash_attn_padding_info,
+        )
+
+        context, attn_weights, past_key_value = self.attn_fn(
+            query,
+            key,
+            value,
+            n_heads=self.n_heads,
+            kv_n_heads=self.kv_n_heads,
+            past_key_value=past_key_value,
+            softmax_scale=self.softmax_scale,
+            attn_bias=attn_bias,
+            is_causal=is_causal,
+            dropout_p=self.attn_dropout_p,
+            training=self.training,
+            needs_weights=needs_weights,
+            **extra_attn_kwargs,
+        )
+
+        return self.out_proj(context), attn_weights, past_key_value
+
+    def get_qkv(
+        self,
+        x: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Computes and returns the query, key, and value tensors.
+
+        Args:
+            x (torch.Tensor): The input tensor.
+
+        Returns:
+            query (torch.Tensor): The query tensor.
+            key (torch.Tensor): The key tensor.
+            value (torch.Tensor): The value tensor.
+        """
         qkv = self.Wqkv(x)
 
         if self.clip_qkv:
@@ -520,8 +566,6 @@ class GroupedQueryAttention(nn.Module):
             dim=2,
         )
 
-        key_padding_mask = attention_mask
-
         if self.qk_ln or self.qk_gn:
             # Applying layernorm to qk
             q_shape, k_shape = query.shape, key.shape
@@ -533,97 +577,105 @@ class GroupedQueryAttention(nn.Module):
             query = self.q_ln(query).to(dtype).view(q_shape)
             key = self.k_ln(key).to(dtype).view(k_shape)
 
-        if rotary_emb_w_meta_info is not None:
-            rotary_emb = rotary_emb_w_meta_info['rotary_emb']
-            seq_len = rotary_emb_w_meta_info['seq_len']
-            offset_info = rotary_emb_w_meta_info['offset_info']
-            bsz, seqlen = query.shape[:2]
-            query = query.view(bsz, seqlen, -1, self.head_dim)
-            key = key.view(bsz, seqlen, -1, self.head_dim)
+        return query, key, value
 
-            if rotary_emb_w_meta_info['impl'] == 'dail':
-                value = value.view(bsz, seqlen, -1, self.head_dim)
+    def _apply_rotary_embeddings(
+        self,
+        rotary_emb_w_meta_info: Dict[str, Any],
+        query: torch.Tensor,
+        key: torch.Tensor,
+        value: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        rotary_emb = rotary_emb_w_meta_info['rotary_emb']
+        seq_len = rotary_emb_w_meta_info['seq_len']
+        offset_info = rotary_emb_w_meta_info['offset_info']
+        bsz, seqlen = query.shape[:2]
+        query = query.view(bsz, seqlen, -1, self.head_dim)
+        key = key.view(bsz, seqlen, -1, self.head_dim)
 
-                kv = torch.stack([key, value], dim=2)
-                query, kv = rotary_emb(
-                    query,
-                    kv,
-                    seqlen_offset=offset_info,
-                    max_seqlen=seq_len,
+        if rotary_emb_w_meta_info['impl'] == 'dail':
+            value = value.view(bsz, seqlen, -1, self.head_dim)
+
+            kv = torch.stack([key, value], dim=2)
+            query, kv = rotary_emb(
+                query,
+                kv,
+                seqlen_offset=offset_info,
+                max_seqlen=seq_len,
+            )
+            [key, value] = torch.unbind(kv, dim=2)
+
+            value = value.view(bsz, seqlen, -1)
+        elif rotary_emb_w_meta_info['impl'] == 'hf':
+            if is_transformers_version_gte('4.38'):
+                (cos, sin) = rotary_emb(
+                    x=value,
+                    position_ids=offset_info,
                 )
-                [key, value] = torch.unbind(kv, dim=2)
+            else:
+                (cos, sin) = rotary_emb(x=value, seq_len=seq_len)
+            if is_transformers_version_gte('4.38'):
+                query, key = apply_rotary_pos_emb(
+                    q=query,
+                    k=key,
+                    cos=cos,
+                    sin=sin,
+                    position_ids=None,
+                    unsqueeze_dim=2,
+                )
+            elif is_transformers_version_gte('4.36'):
+                query, key = apply_rotary_pos_emb(
+                    q=query,
+                    k=key,
+                    cos=cos,
+                    sin=sin,
+                    position_ids=offset_info,
+                    unsqueeze_dim=2,
+                )
+            else:
+                query = query.transpose(1, 2)
+                key = key.transpose(1, 2)
+                query, key = apply_rotary_pos_emb(
+                    q=query,
+                    k=key,
+                    cos=cos,
+                    sin=sin,
+                    position_ids=offset_info,
+                )
+                query = query.transpose(1, 2)
+                key = key.transpose(1, 2)
 
-                value = value.view(bsz, seqlen, self.kv_n_heads * self.head_dim)
-            elif rotary_emb_w_meta_info['impl'] == 'hf':
-                if is_transformers_version_gte('4.38'):
-                    (cos, sin) = rotary_emb(
-                        x=value,
-                        position_ids=offset_info,
-                    )
-                else:
-                    (cos, sin) = rotary_emb(x=value, seq_len=seq_len)
-                if is_transformers_version_gte('4.38'):
-                    query, key = apply_rotary_pos_emb(
-                        q=query,
-                        k=key,
-                        cos=cos,
-                        sin=sin,
-                        position_ids=None,
-                        unsqueeze_dim=2,
-                    )
-                elif is_transformers_version_gte('4.36'):
-                    query, key = apply_rotary_pos_emb(
-                        q=query,
-                        k=key,
-                        cos=cos,
-                        sin=sin,
-                        position_ids=offset_info,
-                        unsqueeze_dim=2,
-                    )
-                else:
-                    query = query.transpose(1, 2)
-                    key = key.transpose(1, 2)
-                    query, key = apply_rotary_pos_emb(
-                        q=query,
-                        k=key,
-                        cos=cos,
-                        sin=sin,
-                        position_ids=offset_info,
-                    )
-                    query = query.transpose(1, 2)
-                    key = key.transpose(1, 2)
+        query = query.view(bsz, seqlen, -1)
+        key = key.view(bsz, seqlen, -1)
+        return query, key, value
 
-            query = query.view(bsz, seqlen, self.d_model)
-            key = key.view(bsz, seqlen, self.kv_n_heads * self.head_dim)
+    def get_implementation_specific_args(
+        self,
+        attention_mask: Optional[torch.Tensor] = None,
+        alibi_slopes: Optional[torch.Tensor] = None,
+        flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
+    ) -> dict[str, Any]:
+        """Returns attention implementation specific args.
 
-        extra_attn_kwargs = {}
+        Args:
+            attention_mask (Optional[torch.Tensor]): The attention mask.
+            alibi_slopes (Optional[torch.Tensor]): The alibi slopes.
+            flash_attn_padding_info (Optional[dict[str, torch.Tensor]]): The padding information, only required for flash attention.
+
+        Returns:
+            extra_attn_kwargs (dict[str, Any]): Implementation specific args.
+        """
         if self.attn_impl == 'flash':
-            key_padding_mask = None
             extra_attn_kwargs = {
                 'should_repeat_kv_for_gqa': not is_flash_v2_installed(),
                 'sliding_window_size': self.sliding_window_size,
                 'alibi_slopes': alibi_slopes,
                 'flash_attn_padding_info': flash_attn_padding_info,
+                'key_padding_mask': None,
             }
-
-        context, attn_weights, past_key_value = self.attn_fn(
-            query,
-            key,
-            value,
-            self.n_heads,
-            self.kv_n_heads,
-            past_key_value=past_key_value,
-            softmax_scale=self.softmax_scale,
-            attn_bias=attn_bias,
-            key_padding_mask=key_padding_mask,
-            is_causal=is_causal,
-            dropout_p=self.attn_dropout_p,
-            training=self.training,
-            needs_weights=needs_weights,
-            **extra_attn_kwargs,
-        )
-
-        return self.out_proj(context), attn_weights, past_key_value
+        else:
+            extra_attn_kwargs = {'key_padding_mask': attention_mask}
+        return extra_attn_kwargs
 
 
 @attention_classes.register_class('multihead_attention')

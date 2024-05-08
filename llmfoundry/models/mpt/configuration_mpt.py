@@ -140,7 +140,9 @@ class MPTConfig(PretrainedConfig):
         self.n_heads = n_heads
         self.n_layers = n_layers
         self.expansion_ratio = expansion_ratio
-        self.max_seq_len = max_seq_len
+        if max_seq_len != int(max_seq_len):
+            raise ValueError('max_seq_len must be an integer')
+        self.max_seq_len = int(max_seq_len)
         self.vocab_size = vocab_size
         self.resid_pdrop = resid_pdrop
         self.emb_pdrop = emb_pdrop
@@ -327,3 +329,5 @@ class MPTConfig(PretrainedConfig):
                 raise ImportError(
                     'In order to set `use_pad_tok_in_ffn=False`, please install flash-attn==1.0.9 or flash-attn==2.3.6',
                 )
+        if (self.attn_config.get('seq_parallel_world_size', 1) or 1) > 1:
+            raise NotImplementedError('Sequence Parallelism is not supported.')

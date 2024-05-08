@@ -488,7 +488,8 @@ def log_config(cfg: Dict[str, Any]) -> None:
     config with different variables.
     """
     print(om.to_yaml(cfg))
-    if 'wandb' in cfg.get('loggers', None) or {}:
+    loggers = cfg.get('loggers', None) or {}
+    if 'wandb' in loggers:
         try:
             import wandb
         except ImportError as e:
@@ -496,7 +497,7 @@ def log_config(cfg: Dict[str, Any]) -> None:
         if wandb.run:
             wandb.config.update(cfg)
 
-    if 'mlflow' in cfg.get('loggers', {}) and mlflow.active_run():
+    if 'mlflow' in loggers and mlflow.active_run():
         mlflow.log_params(params=om.to_container(cfg, resolve=True))
         _log_dataset_uri(cfg)
 

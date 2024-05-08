@@ -440,7 +440,6 @@ class MPTModel(MPTPreTrainedModel):
 
     def extract_block_args(self, block_args: Dict[str, Any]) -> Dict[str, Any]:
         """Sets the block args."""
-
         if block_args['ffn_config']['ffn_type'] in ffns_with_megablocks:
             block_args['ffn_config'] = config_moe_args(
                 block_args['ffn_config'],

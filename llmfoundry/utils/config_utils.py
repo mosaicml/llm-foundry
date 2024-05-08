@@ -488,7 +488,7 @@ def log_config(cfg: Dict[str, Any]) -> None:
     config with different variables.
     """
     print(om.to_yaml(cfg))
-    if 'wandb' in cfg.get('loggers', {}):
+    if 'wandb' in cfg.get('loggers', None) or {}:
         try:
             import wandb
         except ImportError as e:

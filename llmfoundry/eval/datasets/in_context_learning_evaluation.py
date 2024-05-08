@@ -8,7 +8,6 @@ import json
 import logging
 import os
 import random
-import warnings
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Union
 
 import torch
@@ -30,7 +29,6 @@ from llmfoundry.eval.datasets.utils import (
     tokenizer_needs_prefix_space,
     trim_context,
 )
-from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
 log = logging.getLogger(__name__)
 
@@ -1621,14 +1619,7 @@ def build_icl_dataloader(
             generation_kwargs=generation_kwargs,
         )
         effective_batchsize = batch_size
-    elif icl_task_type == 'generation_task_with_answers' or icl_task_type == 'question_answering':
-        if icl_task_type == 'question_answering':
-            warnings.warn(
-                VersionedDeprecationWarning(
-                    "ICL task type 'question_answering' is now deprecated. Use identifier 'generation_task_with_answers'",
-                    'v0.9.0',
-                ),
-            )
+    elif icl_task_type == 'generation_task_with_answers':
         dataset = InContextLearningGenerationTaskWithAnswersDataset(
             dataset_uri=dataset_uri,
             tokenizer=tokenizer,
@@ -1646,32 +1637,6 @@ def build_icl_dataloader(
             cot_delimiter=cot_delimiter,
             early_stopping_criteria=early_stopping_criteria,
             do_normalization=do_normalization,
-            generation_kwargs=generation_kwargs,
-        )
-        effective_batchsize = batch_size
-    elif icl_task_type == 'code_evaluation':
-        warnings.warn(
-            VersionedDeprecationWarning(
-                "ICL task type 'code_evaluation' is deprecated and will no longer be supported. ",
-                'v0.9.0',
-            ),
-        )
-        dataset = InContextLearningCodeEvalDataset(
-            dataset_uri=dataset_uri,
-            tokenizer=tokenizer,
-            max_seq_len=max_seq_len,
-            pad_tok_id=pad_tok_id,
-            num_fewshot=num_fewshot,
-            prompt_string=prompt_string,
-            example_delimiter=example_delimiter,
-            continuation_delimiter=continuation_delimiter,
-            destination_path=destination_path,
-            prelimiter=prelimiter,
-            fewshot_random_seed=fewshot_random_seed,
-            hf_loading_vars=hf_loading_vars,
-            hf_parsing_map=hf_parsing_map,
-            pass_at_k=pass_at_k,
-            generations_per_sample=generations_per_sample,
             generation_kwargs=generation_kwargs,
         )
         effective_batchsize = batch_size

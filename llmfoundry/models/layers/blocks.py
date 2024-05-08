@@ -67,7 +67,6 @@ class MPTBlock(nn.Module):
         device: Optional[str] = None,
         no_bias: bool = False,
         use_pad_tok_in_ffn: bool = True,
-        extra_args_to_exclude_in_attn_class: Optional[Set[str]] = None,
         **kwargs: Any,
     ):
         if attn_config is None:
@@ -84,24 +83,6 @@ class MPTBlock(nn.Module):
 
         ffn_type = ffn_config['ffn_type']
         ffn_has_norm = ffn_type in ffns_with_norm
-
-        # Necessary to avoid passing extraneous args into attn_class while allowing the use of **kwargs
-        base_args_to_exclude_in_attn_class = {
-            'attn_type',
-            'alibi',
-            'attn_uses_sequence_id',
-            'alibi_bias_max',
-            'rope',
-            'rope_theta',
-            'rope_impl',
-            'rope_dail_config',
-            'rope_hf_config',
-        }
-        if extra_args_to_exclude_in_attn_class is None:
-            extra_args_to_exclude_in_attn_class = set()
-        self.args_to_exclude_in_attn_class = base_args_to_exclude_in_attn_class.union(
-            extra_args_to_exclude_in_attn_class,
-        )
 
         if self.fuse_norm_attn_norm:
             self.norm_attn_norm = FusedNormAttentionNorm(
@@ -161,6 +142,21 @@ class MPTBlock(nn.Module):
         self.resid_attn_dropout = nn.Dropout(resid_pdrop)
         self.resid_ffn_dropout = nn.Dropout(resid_pdrop)
         self.use_pad_tok_in_ffn = use_pad_tok_in_ffn
+
+    @property
+    def args_to_exclude_in_attn_class(self):
+        # Necessary to avoid passing extraneous args into attn_class while allowing the use of **kwargs
+        return {
+            'attn_type',
+            'alibi',
+            'attn_uses_sequence_id',
+            'alibi_bias_max',
+            'rope',
+            'rope_theta',
+            'rope_impl',
+            'rope_dail_config',
+            'rope_hf_config',
+        }
 
     def forward(
         self,

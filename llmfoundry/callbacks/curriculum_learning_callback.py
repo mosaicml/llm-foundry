@@ -29,7 +29,8 @@ class CurriculumLearning(CallbackWithConfig):
 
     Args:
         train_config (Dict): The configuration of the dataset currently
-            being used.
+            being used. Note that this is the full train config and must
+            contain the 'train_loader' key.
         dataset_index (int): The index of the dataset currently being used.
     """
 

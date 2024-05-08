@@ -89,7 +89,7 @@ def calculate_batch_size_info(
         dist.get_world_size() // data_replication_degree
     ) != 0:
         raise ValueError(
-            f'Global batch size {global_batch_size} is not divisible by {(dist.get_world_size() // data_replication_degree)=} '
+            f'Global batchsize {global_batch_size} is not divisible by {(dist.get_world_size() // data_replication_degree)=} '
             +
             'as a result, the batch size would be truncated, please adjust `global_batch_size` '
             + f'to be divisible by world size, {dist.get_world_size()}.',

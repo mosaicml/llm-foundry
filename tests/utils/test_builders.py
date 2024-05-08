@@ -13,7 +13,6 @@ import torch.nn as nn
 from composer.callbacks import Generate
 from composer.core import Evaluator
 from composer.loggers import WandBLogger
-from omegaconf import DictConfig, ListConfig
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.callbacks import HuggingFaceCheckpointer
@@ -286,14 +285,15 @@ def test_build_evaluators_empty():
 def test_build_eval_loaders(monkeypatch: pytest.MonkeyPatch):
     tokenizer = TiktokenTokenizerWrapper(model_name='gpt-4')
 
-    eval_loader_cfg = DictConfig({
+    eval_loader_cfg = {
         'name': 'text',
         'dataset': {
+            'streams': None,
             # mocked, not needed
         },
         'drop_last': False,
         'num_workers': 8,
-    })
+    }
     monkeypatch.setattr(
         'llmfoundry.data.text_data.StreamingTextDataset',
         lambda *args,
@@ -307,7 +307,7 @@ def test_build_eval_loaders(monkeypatch: pytest.MonkeyPatch):
     assert eval_loaders[0].dataloader is not None
     assert eval_loaders[0].metric_names == []
 
-    multi_eval_loader_cfg = ListConfig([
+    multi_eval_loader_cfg = [
         {
             'name': 'text',
             'label': 'test1',
@@ -326,7 +326,7 @@ def test_build_eval_loaders(monkeypatch: pytest.MonkeyPatch):
             'drop_last': False,
             'num_workers': 8,
         },
-    ])
+    ]
     monkeypatch.setattr(
         'llmfoundry.data.text_data.StreamingTextDataset',
         lambda *args,

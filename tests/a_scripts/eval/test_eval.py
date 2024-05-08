@@ -13,12 +13,9 @@ from composer.loggers import InMemoryLogger
 
 from llmfoundry.utils import build_tokenizer
 from llmfoundry.utils.builders import build_composer_model
+from llmfoundry.utils.config_utils import to_dict_container
 from scripts.eval.eval import main  # noqa: E402
-from tests.data_utils import (
-    create_arxiv_dataset,
-    create_c4_dataset_xxsmall,
-    gpt_tiny_cfg,
-)
+from tests.data_utils import create_c4_dataset_xxsmall, gpt_tiny_cfg
 
 
 @pytest.fixture(autouse=True)
@@ -42,6 +39,7 @@ def eval_cfg(foundry_dir: str) -> Union[om.ListConfig, om.DictConfig]:
 
 @pytest.fixture()
 def mock_saved_model_path(eval_cfg: Union[om.ListConfig, om.DictConfig]):
+    eval_cfg = copy.deepcopy(eval_cfg)  # copy config before modifying
     model_cfg = eval_cfg.models[0]
     # set device to cpu
     device = 'cpu'
@@ -52,10 +50,11 @@ def mock_saved_model_path(eval_cfg: Union[om.ListConfig, om.DictConfig]):
         model_cfg.tokenizer.get('kwargs', {}),
     )
     # build model
+    name = model_cfg.model.pop('name')
     model = build_composer_model(
-        name=model_cfg.model.name,
-        cfg=model_cfg.model,
+        name=name,
         tokenizer=tokenizer,
+        cfg=to_dict_container(model_cfg.model),
     )
 
     # create mocked save checkpoint
@@ -73,6 +72,7 @@ def test_icl_eval(
     capfd: Any,
     mock_saved_model_path: Any,
 ):
+    eval_cfg = copy.deepcopy(eval_cfg)
     eval_cfg.models[0].load_path = mock_saved_model_path
     assert isinstance(eval_cfg, om.DictConfig)
     main(eval_cfg)
@@ -124,8 +124,6 @@ def test_loader_eval(
     first_eval_loader.label = 'c4'
     # Create second eval dataloader using the arxiv dataset.
     second_eval_loader = copy.deepcopy(first_eval_loader)
-    arxiv_dataset_name = create_arxiv_dataset(tmp_path)
-    second_eval_loader.data_local = arxiv_dataset_name
     second_eval_loader.label = 'arxiv'
     test_cfg.eval_loader = om.OmegaConf.create([
         first_eval_loader,

@@ -1,7 +1,12 @@
-data_local: ./my-adaptation-data
-data_remote:  # If blank, files must be present in data_local
-max_seq_len: 4096
-global_seed: 17
+variables:
+  global_seed: 17
+
+  data_local: ./my-adaptation-data
+  data_remote:  # If blank, files must be present in data_local
+
+  max_seq_len: 4096
+
+max_seq_len: ${variables.max_seq_len}
 
 # Run Name
 run_name:  # If left blank, will be read from env var $COMPOSER_RUN_NAME
@@ -12,7 +17,7 @@ model:
   pretrained: true
   pretrained_model_name_or_path: mosaicml/mpt-7b
   config_overrides:
-    max_seq_len: ${max_seq_len}
+    max_seq_len: ${variables.max_seq_len}
     attn_config:
       attn_impl: flash
       attn_uses_sequence_id: false
@@ -21,31 +26,31 @@ model:
 tokenizer:
   name: mosaicml/mpt-7b
   kwargs:
-    model_max_length: ${max_seq_len}
+    model_max_length: ${variables.max_seq_len}
 
 
 # Dataloaders
 train_loader:
   name: text
   dataset:
-    local: ${data_local}
-    remote: ${data_remote}
+    local: ${variables.data_local}
+    remote: ${variables.data_remote}
     split: train_small
     shuffle: true
-    max_seq_len: ${max_seq_len}
-    shuffle_seed: ${global_seed}
+    max_seq_len: ${variables.max_seq_len}
+    shuffle_seed: ${variables.global_seed}
   drop_last: true
   num_workers: 8
 
 eval_loader:
   name: text
   dataset:
-    local: ${data_local}
-    remote: ${data_remote}
+    local: ${variables.data_local}
+    remote: ${variables.data_remote}
     split: val_small
     shuffle: false
-    max_seq_len: ${max_seq_len}
-    shuffle_seed: ${global_seed}
+    max_seq_len: ${variables.max_seq_len}
+    shuffle_seed: ${variables.global_seed}
   drop_last: false
   num_workers: 8
 
@@ -76,7 +81,7 @@ eval_subset_num_batches: -1
 global_train_batch_size: 1024
 
 # System
-seed: ${global_seed}
+seed: ${variables.global_seed}
 device_eval_batch_size: 8
 device_train_microbatch_size: 8
 # device_train_microbatch_size: auto

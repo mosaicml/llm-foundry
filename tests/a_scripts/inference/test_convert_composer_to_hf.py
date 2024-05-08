@@ -31,7 +31,7 @@ from llmfoundry.utils.builders import (
     build_optimizer,
     build_tokenizer,
 )
-from llmfoundry.utils.config_utils import process_init_device
+from llmfoundry.utils.config_utils import process_init_device, to_dict_container
 from scripts.inference.convert_composer_to_hf import convert_composer_to_hf
 from tests.data_utils import make_tiny_ft_dataset
 
@@ -829,7 +829,6 @@ def test_huggingface_conversion_callback(
     )
     assert model_cfg is not None
     assert tokenizer_name is not None
-    model_cfg = om.create(model_cfg)
     if peft_config is not None:
         model_cfg['peft_config'] = peft_config
 
@@ -851,15 +850,16 @@ def test_huggingface_conversion_callback(
     )
 
     train_dataloader = build_finetuning_dataloader(
-        dataloader_cfg,
-        tokenizer,
-        device_batch_size,
+        tokenizer=tokenizer,
+        device_batch_size=device_batch_size,
+        **dataloader_cfg,
     )
 
+    name = model_cfg.pop('name')
     original_model = build_composer_model(
-        model_cfg['name'],
-        model_cfg,
-        tokenizer,
+        name,
+        tokenizer=tokenizer,
+        cfg=model_cfg,
     )
     optimizer_name = optimizer_config.pop('name')
     optimizer = build_optimizer(
@@ -973,10 +973,11 @@ def test_convert_and_generate(
         om_cfg.tokenizer.name,
         use_auth_token=model == 'llama2',
     )
+    name = om_cfg.model.pop('name')
     original_model = build_composer_model(
-        name=om_cfg['model'].name,
-        cfg=om_cfg['model'],
+        name=name,
         tokenizer=tokenizer,
+        cfg=to_dict_container(om_cfg['model']),
     )
     trainer = Trainer(
         model=original_model,
@@ -1067,10 +1068,11 @@ def test_convert_and_generate_meta(
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         om_cfg.tokenizer.name,
     )
+    name = om_cfg.model.pop('name')
     original_model = build_composer_model(
-        name=om_cfg['model'].name,
-        cfg=om_cfg['model'],
+        name=name,
         tokenizer=tokenizer,
+        cfg=to_dict_container(om_cfg['model']),
     )
     trainer = Trainer(
         model=original_model,
@@ -1226,7 +1228,6 @@ def test_mptmoe_huggingface_conversion_callback(
     tokenizer_name = 'EleutherAI/gpt-neox-20b'
     assert model_cfg is not None
     assert tokenizer_name is not None
-    model_cfg = om.create(model_cfg)
 
     fsdp_config = {
         'sharding_strategy': sharding_strategy,
@@ -1273,9 +1274,9 @@ def test_mptmoe_huggingface_conversion_callback(
     )
 
     train_dataloader = build_finetuning_dataloader(
-        dataloader_cfg,
-        tokenizer,
-        device_batch_size,
+        **dataloader_cfg,
+        tokenizer=tokenizer,
+        device_batch_size=device_batch_size,
     )
 
     optimizer_config = {
@@ -1288,11 +1289,12 @@ def test_mptmoe_huggingface_conversion_callback(
     optimizer_name = optimizer_config.pop('name')
 
     init_context = process_init_device(model_cfg, fsdp_config)
+    name = model_cfg.pop('name')
     original_model = build_composer_model(
-        name=model_cfg.name,
-        cfg=model_cfg,
+        name=name,
         tokenizer=tokenizer,
         init_context=init_context,
+        cfg=model_cfg,
     )
 
     optimizer = build_optimizer(

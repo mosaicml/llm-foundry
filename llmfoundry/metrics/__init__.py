@@ -51,7 +51,6 @@ DEFAULT_CAUSAL_LM_EVAL_METRICS = [
     'mc_expected_calibration_error',
     'mc_accuracy',
     'qa_accuracy',
-    'code_eval_accuracy',
 ]
 
 DEFAULT_ENC_DEC_METRICS = [

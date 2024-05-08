@@ -28,9 +28,9 @@ class CurriculumLearning(CallbackWithConfig):
     """Starts an epoch with a different dataset when resuming from a checkpoint.
 
     Args:
-        dataset_index (int): The index of the dataset currently being used.
-        current_dataset_config (Dict): The configuration of the dataset currently
+        train_config (Dict): The configuration of the dataset currently
             being used.
+        dataset_index (int): The index of the dataset currently being used.
     """
 
     def __init__(self, train_config: Dict, dataset_index: int):

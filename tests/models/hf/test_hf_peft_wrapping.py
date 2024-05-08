@@ -9,7 +9,6 @@ import pytest
 import torch
 import transformers
 from composer import Trainer
-from omegaconf import OmegaConf as om
 from peft import LoraConfig, get_peft_model
 
 from llmfoundry.models.hf.hf_fsdp import prepare_hf_model_for_fsdp
@@ -76,7 +75,6 @@ def test_lora_mixed_init(
 
     assert model_cfg is not None
     assert tokenizer_name is not None
-    model_cfg = om.create(model_cfg)
     model_cfg['peft_config'] = peft_config
 
     fsdp_config = {
@@ -95,8 +93,9 @@ def test_lora_mixed_init(
         tokenizer_kwargs={'model_max_length': 32},
     )
 
+    name = model_cfg.pop('name')
     original_model = build_composer_model(
-        name=model_cfg['name'],
+        name=name,
         cfg=model_cfg,
         tokenizer=tokenizer,
     )

@@ -53,9 +53,9 @@ def tiny_ft_dataloader(
     })
 
     dataloader = build_finetuning_dataloader(
-        dataloader_cfg,
-        mpt_tokenizer,
-        device_batch_size,
+        **dataloader_cfg,
+        tokenizer=mpt_tokenizer,
+        device_batch_size=device_batch_size,
     ).dataloader
 
     assert isinstance(dataloader, DataLoader)

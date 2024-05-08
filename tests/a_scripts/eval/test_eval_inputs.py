@@ -40,6 +40,8 @@ class TestHuggingFaceEvalYAMLInputs:
             with pytest.raises((
                 omegaconf.errors.ConfigKeyError,
                 omegaconf.errors.InterpolationKeyError,
+                omegaconf.errors.MissingMandatoryValue,
+                TypeError,
             )):
                 cfg[p + '-mispelled'] = cfg.pop(p)
                 main(cfg)

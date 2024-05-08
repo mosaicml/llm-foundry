@@ -10,13 +10,13 @@ from unittest.mock import Mock, patch
 
 import pytest
 import torch
-from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from transformers import AutoModelForCausalLM, PretrainedConfig
 
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils import build_tokenizer
 from llmfoundry.utils.builders import build_composer_model
+from llmfoundry.utils.config_utils import to_dict_container
 
 
 def test_remote_code_false_mpt(
@@ -49,9 +49,10 @@ def test_remote_code_false_mpt(
         ValueError,
         match='trust_remote_code must be set to True for MPT models.',
     ):
+        name = test_cfg.model.pop('name')
         _ = build_composer_model(
-            name=test_cfg.model.name,
-            cfg=test_cfg.model,
+            name=name,
+            cfg=to_dict_container(test_cfg.model),
             tokenizer=tokenizer,
         )
 
@@ -153,9 +154,10 @@ def test_hf_config_override(
     tokenizer_name = tokenizer_cfg['name']
     tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
+    name = test_cfg.model.pop('name')
     model = build_composer_model(
-        name=test_cfg.model.name,
-        cfg=test_cfg.model,
+        name=name,
+        cfg=to_dict_container(test_cfg.model),
         tokenizer=tokenizer,
     )
 
@@ -169,7 +171,7 @@ def test_hf_config_override(
 
     # load hf causal lm model with config_overrides
     hf_model_config = deepcopy(test_cfg)
-    model_cfg = DictConfig({
+    model_cfg = om.create({
         'name': 'hf_causal_lm',
         'pretrained_model_name_or_path': save_path,
         'pretrained': False,
@@ -177,9 +179,10 @@ def test_hf_config_override(
     })
     hf_model_config.model = model_cfg
 
+    name = hf_model_config.model.pop('name')
     hf_model = build_composer_model(
-        name=hf_model_config.model.name,
-        cfg=hf_model_config.model,
+        name=name,
+        cfg=to_dict_container(hf_model_config.model),
         tokenizer=tokenizer,
     )
 
@@ -212,10 +215,10 @@ def test_rope_scaling_override():
         'pretrained': False,
         'init_device': 'cpu',
     }
-    model_cfg = om.create(model_cfg)
 
+    name = model_cfg.pop('name')
     model = build_composer_model(
-        name=model_cfg.name,
+        name=name,
         cfg=model_cfg,
         tokenizer=None,  # type: ignore
     )
@@ -241,10 +244,10 @@ def test_nested_override():
         'pretrained': False,
         'init_device': 'meta',
     }
-    model_cfg = om.create(model_cfg)
 
+    name = model_cfg.pop('name')
     model = build_composer_model(
-        name=model_cfg.name,
+        name=name,
         cfg=model_cfg,
         tokenizer=None,  # type: ignore
     )

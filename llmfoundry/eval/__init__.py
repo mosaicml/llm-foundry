@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from llmfoundry.eval.datasets.in_context_learning_evaluation import (
-    InContextLearningCodeEvalDataset,
     InContextLearningDataset,
     InContextLearningGenerationTaskWithAnswersDataset,
     InContextLearningLMTaskDataset,
@@ -11,7 +10,6 @@ from llmfoundry.eval.datasets.in_context_learning_evaluation import (
     get_icl_task_dataloader,
 )
 from llmfoundry.eval.metrics.nlp import (
-    InContextLearningCodeEvalAccuracy,
     InContextLearningGenerationExactMatchAccuracy,
     InContextLearningLMAccuracy,
     InContextLearningLMExpectedCalibrationError,
@@ -25,14 +23,12 @@ __all__ = [
     'InContextLearningLMTaskDataset',
     'InContextLearningMultipleChoiceTaskDataset',
     'InContextLearningSchemaTaskDataset',
-    'InContextLearningCodeEvalDataset',
     'InContextLearningGenerationTaskWithAnswersDataset',
     'get_icl_task_dataloader',
     'InContextLearningMetric',
     'InContextLearningLMAccuracy',
     'InContextLearningMultipleChoiceAccuracy',
     'InContextLearningGenerationExactMatchAccuracy',
-    'InContextLearningCodeEvalAccuracy',
     'InContextLearningLMExpectedCalibrationError',
     'InContextLearningMCExpectedCalibrationError',
 ]

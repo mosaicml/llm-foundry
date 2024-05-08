@@ -8,7 +8,6 @@ import json
 import logging
 import os
 import random
-import warnings
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Union
 
 import torch
@@ -30,7 +29,6 @@ from llmfoundry.eval.datasets.utils import (
     tokenizer_needs_prefix_space,
     trim_context,
 )
-from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
 log = logging.getLogger(__name__)
 
@@ -42,7 +40,6 @@ __all__ = [
     'InContextLearningLMTaskDataset',
     'InContextLearningMultipleChoiceTaskDataset',
     'InContextLearningSchemaTaskDataset',
-    'InContextLearningCodeEvalDataset',
     'InContextLearningGenerationTaskWithAnswersDataset',
     'get_icl_task_dataloader',
 ]
@@ -1292,245 +1289,6 @@ class InContextLearningSchemaTaskDataset(
         return tokenized_example
 
 
-class InContextLearningCodeEvalDataset(InContextLearningDataset):
-    """A dataset that constructs batches for in-context learning code.
-
-    evaluation.
-
-    The input format is expected to be a jsonl file with the following fields:
-
-    - task_id: Label of given task
-    - prompt: The code snippet that must be completed
-    - entry_point: The entry to the function/code snippet to generate
-    - canonical_solution: Working solution
-    - test: The checker code that will run to completion if the code generation is valid and otherwise throw assertion
-    - test_inputs: List of test inputs
-    - test_outputs: List of test outputs
-    - language: The language of the code snippet
-
-    Each batch then consists of the following the structure
-
-    - input_ids: Input tensor batch x seqlen x num tokens
-    - mode: Indicates to the model that this is an ICL task and may rely on a custom code path to properly update metrics
-    - mode: Always set to 'generate'
-    - labels: Exact solution for the coding problem
-    - prompts: Prompt for the task
-    - entry_points: List of entry points
-    - test_inputs: List of test inputs
-    - test_outputs: List of test outputs
-    - languages:  List of languages
-    - pass_at_k: Passed value for pass_at_k
-    - generation_kwargs: Dictionary of kwargs needed for generation. Includes the following, which will be individually overwritten
-      by keys in generation_kwargs if set (see https://huggingface.co/docs/transformers/main_classes/text_generation#transformers.GenerationConfig
-      for more details):
-
-        - pad_token_id: ID for padding token, derived automatically
-        - num_beams: How many beams to search for generations, default set to 1
-        - do_sample: Determines whether model is sampling or greedily decoding. Always set to True
-        - use_cache: Whether or not to use past key values to speed up sampling. Always set to True
-
-    Additional Args:
-        generations_per_sample (int) (defaults to 1): The number of independently computed returned sequences for each element in the batch
-        pass_at_k (int) (defaults to 1): k for how many chances the model gets to write passing code
-    """
-
-    def __init__(
-        self,
-        generations_per_sample: int,
-        pass_at_k: Union[int, list[int]] = 1,
-        *args: Any,
-        **kwargs: Any,
-    ):
-        if isinstance(pass_at_k, int):
-            pass_at_k = [pass_at_k]
-        if generations_per_sample < max(pass_at_k):
-            raise ValueError(
-                f'generations_per_sample ({generations_per_sample}) must be greater than or equal to pass_at_k ({pass_at_k}) for code evaluation.',
-            )
-        batch_mapping = {
-            'input_ids': 'prompt',
-            'prompts': 'prompt_text',
-            'tests': 'test',
-            'labels': 'canonical_solution',
-            'entry_points': 'entry_point',
-            'test_inputs': 'test_inputs',
-            'test_outputs': 'test_outputs',
-            'languages': 'language',
-            'sample_id': 'sample_id',
-        }
-        # Linting complains if these are not set in init
-        self.max_prompt_length = 0
-        self.max_answer_length = 0
-        static_keys = [
-            'mode',
-            'pass_at_k',
-            'generation_kwargs',
-            'generations_per_sample',
-            'dataset_size',
-        ]
-        list_keys = [
-            'prompts',
-            'tests',
-            'entry_points',
-            'test_inputs',
-            'test_outputs',
-            'languages',
-            'labels',
-            'sample_id',
-        ]
-        tensor_keys = ['input_ids', 'attention_mask']
-        super().__init__(
-            context_key='prompt',
-            answer_key='canonical_solution',
-            strip_dataset=False,
-            static_keys=static_keys,
-            list_keys=list_keys,
-            tensor_keys=tensor_keys,
-            tokenize_labels=False,
-            padding_side='left',
-            batch_mapping=batch_mapping,
-            *args,
-            **kwargs,
-        )
-        self._set_max_prompt_and_answer_lengths()
-        if self.max_seq_len < self.max_prompt_length:
-            log.warning(f'`max_seq_len` {self.max_seq_len} was less than `max_prompt_len`: {self.max_prompt_length}' \
-                        + ' setting  `max_seq_len`=`max_prompt_len`')
-            self.max_seq_len = self.max_prompt_length
-        dataset_size = len(self.dataset)
-        self.dataset = self.dataset.map(self._trim_padding)
-        self.dataset = self.repeat_dataset(self.dataset, generations_per_sample)
-
-        if self.max_answer_length < self.max_seq_len - self.max_prompt_length:
-            max_new_tokens = self.max_answer_length
-        else:
-            max_new_tokens = self.max_seq_len - self.max_prompt_length
-
-        self.base_batch = {
-            'input_ids': [],
-            'mode': 'generate',
-            'labels': [],
-            'prompts': [],
-            'tests': [],
-            'entry_points': [],
-            'test_inputs': [],
-            'test_outputs': [],
-            'languages': [],
-            'pass_at_k': pass_at_k,
-            'generation_kwargs': {
-                'pad_token_id': self.pad_tok_id,
-                'num_beams': 1,  # single beam
-                'do_sample': True,
-                'temperature': 0.2,  # good default for code
-                'use_cache': True,
-                'eos_token_id': self.tokenizer.eos_token_id,
-                'max_new_tokens': max(max_new_tokens, 1),
-            },
-            'sample_id': [],
-            'pass_at_k': list(pass_at_k),
-            'generations_per_sample': generations_per_sample,
-            'dataset_size': dataset_size,
-        }
-        if 'generation_kwargs' in kwargs:
-            self.update_generation_kwargs(kwargs['generation_kwargs'])
-
-    def repeat_dataset(self, dataset: HFDataset, repetitions: int) -> HFDataset:
-
-        def _repeat_dataset():
-            for i, sample in enumerate(dataset):
-                for _ in range(repetitions):
-                    assert isinstance(sample, dict)
-                    yield {'sample_id': i, **sample}
-
-        from datasets import \
-            Dataset as HFDataset  # pyright: ignore[reportGeneralTypeIssues]
-
-        repeated_dataset = HFDataset.from_generator(_repeat_dataset)
-        assert isinstance(repeated_dataset, HFDataset)
-        return repeated_dataset
-
-    def _set_max_prompt_and_answer_lengths(self):
-        """Iterates through the dataset and finds the maximum prompt length and.
-
-        sequence lengths.
-
-        Returns:
-            None
-        """
-        max_prompt_length = 0
-        max_answer_length = 0
-        for example in self.dataset:
-            assert isinstance(example, Dict)
-            unpadded_example = [
-                token for token in example[self.context_key]
-                if token != self.pad_tok_id
-            ]
-            max_prompt_length = max(max_prompt_length, len(unpadded_example))
-
-            tokenized_answer = self.tokenizer(
-                example['canonical_solution'],
-                add_special_tokens=False,
-            )['input_ids']
-            assert isinstance(tokenized_answer, list)
-            len_tokenized_answer = len(tokenized_answer)
-            max_answer_length = max(max_answer_length, len_tokenized_answer)
-
-        self.max_prompt_length = max_prompt_length
-        self.max_answer_length = max_answer_length + _MAX_ANSWER_BUFFER_LENGTH
-
-    def _trim_padding(self, example: Dict):
-        """Adjusts padding to the maximum prompt length rather than max_seq_len.
-
-        Needs to be done after the dataset has been processed because we don't
-        know the maximum prompt length until after we've tokenized it.
-
-        Returns:
-            dataset: A HuggingFace Dataset with different padding lengths for example[self.context_key]
-        """
-        # Remove padding tokens applied during tokenization
-        unpadded_prompt = [
-            token for token in example[self.context_key]
-            if token != self.pad_tok_id
-        ]
-        # Reapply padding only to max_prompt_length
-        full_prompt = trim_context(unpadded_prompt, [], self.max_prompt_length)
-        padded_context = make_padded_input(
-            full_prompt,
-            [],
-            self.max_prompt_length,
-            self.pad_tok_id,
-            self.padding_side,
-        )
-
-        example[self.context_key] = padded_context
-        return example
-
-    def tokenize_example(
-        self,
-        prompt_and_fewshot: str,
-        ctxt: str,
-        example: Dict,
-    ) -> Dict[str, Any]:
-        """Adds extra code task details to the example dictionary.
-
-        See InContextLearningDataset for more details
-        """
-        tokenized_example = super().tokenize_example(
-            prompt_and_fewshot,
-            ctxt,
-            example,
-        )
-        tokenized_example['prompt_text'] = example['prompt']
-        tokenized_example['task_id'] = example['task_id']
-        tokenized_example['canonical_solution'] = example['canonical_solution']
-        tokenized_example['test'] = example['test']
-        tokenized_example['entry_point'] = example['entry_point']
-        tokenized_example['test_inputs'] = example['test_inputs']
-        tokenized_example['test_outputs'] = example['test_outputs']
-        tokenized_example['language'] = example['language']
-        return tokenized_example
-
-
 def build_icl_dataloader(
     icl_task_type: str,
     dataset_uri: str,
@@ -1621,14 +1379,7 @@ def build_icl_dataloader(
             generation_kwargs=generation_kwargs,
         )
         effective_batchsize = batch_size
-    elif icl_task_type == 'generation_task_with_answers' or icl_task_type == 'question_answering':
-        if icl_task_type == 'question_answering':
-            warnings.warn(
-                VersionedDeprecationWarning(
-                    "ICL task type 'question_answering' is now deprecated. Use identifier 'generation_task_with_answers'",
-                    'v0.9.0',
-                ),
-            )
+    elif icl_task_type == 'generation_task_with_answers':
         dataset = InContextLearningGenerationTaskWithAnswersDataset(
             dataset_uri=dataset_uri,
             tokenizer=tokenizer,
@@ -1649,32 +1400,6 @@ def build_icl_dataloader(
             generation_kwargs=generation_kwargs,
         )
         effective_batchsize = batch_size
-    elif icl_task_type == 'code_evaluation':
-        warnings.warn(
-            VersionedDeprecationWarning(
-                "ICL task type 'code_evaluation' is deprecated and will no longer be supported. ",
-                'v0.9.0',
-            ),
-        )
-        dataset = InContextLearningCodeEvalDataset(
-            dataset_uri=dataset_uri,
-            tokenizer=tokenizer,
-            max_seq_len=max_seq_len,
-            pad_tok_id=pad_tok_id,
-            num_fewshot=num_fewshot,
-            prompt_string=prompt_string,
-            example_delimiter=example_delimiter,
-            continuation_delimiter=continuation_delimiter,
-            destination_path=destination_path,
-            prelimiter=prelimiter,
-            fewshot_random_seed=fewshot_random_seed,
-            hf_loading_vars=hf_loading_vars,
-            hf_parsing_map=hf_parsing_map,
-            pass_at_k=pass_at_k,
-            generations_per_sample=generations_per_sample,
-            generation_kwargs=generation_kwargs,
-        )
-        effective_batchsize = batch_size
     else:
         raise Exception(f'Unrecognized ICL task type: {icl_task_type}')
 
@@ -1686,7 +1411,6 @@ def build_icl_dataloader(
         (
             InContextLearningMultipleChoiceTaskDataset,
             InContextLearningGenerationTaskWithAnswersDataset,
-            InContextLearningCodeEvalDataset,
         ),
     ):
         split_batch = dataset.split_batch

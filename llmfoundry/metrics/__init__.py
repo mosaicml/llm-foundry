@@ -8,7 +8,6 @@ from composer.metrics import (
 )
 
 from llmfoundry.eval.metrics import (
-    InContextLearningCodeEvalAccuracy,
     InContextLearningGenerationExactMatchAccuracy,
     InContextLearningLMAccuracy,
     InContextLearningLMExpectedCalibrationError,
@@ -33,7 +32,6 @@ metrics.register(
     'qa_accuracy',
     func=InContextLearningGenerationExactMatchAccuracy,
 )
-metrics.register('code_eval_accuracy', func=InContextLearningCodeEvalAccuracy)
 metrics.register('language_cross_entropy', func=LanguageCrossEntropy)
 metrics.register('language_perplexity', func=LanguagePerplexity)
 metrics.register('masked_accuracy', func=MaskedAccuracy)
@@ -53,7 +51,6 @@ DEFAULT_CAUSAL_LM_EVAL_METRICS = [
     'mc_expected_calibration_error',
     'mc_accuracy',
     'qa_accuracy',
-    'code_eval_accuracy',
 ]
 
 DEFAULT_ENC_DEC_METRICS = [
@@ -68,7 +65,6 @@ __all__ = [
     'InContextLearningMCExpectedCalibrationError',
     'InContextLearningMultipleChoiceAccuracy',
     'InContextLearningGenerationExactMatchAccuracy',
-    'InContextLearningCodeEvalAccuracy',
     'DEFAULT_CAUSAL_LM_TRAIN_METRICS',
     'DEFAULT_CAUSAL_LM_EVAL_METRICS',
     'DEFAULT_ENC_DEC_METRICS',

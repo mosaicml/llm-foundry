@@ -390,6 +390,8 @@ def _validate_config(
         'allow_pad_trimming',
         'seq_parallel_replication',
         'auto_packing_replication',
+        'eos_token_id',
+        'bos_token_id',
     }
     if not set(kwargs.keys()).issubset(allowed_additional_kwargs):
         raise ValueError(

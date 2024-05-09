@@ -560,7 +560,6 @@ def test_finetuning_dataloader_custom_split(tmp_path: pathlib.Path, split: str):
         make_tiny_ft_dataset(path=tiny_dataset_path, size=16)
 
     cfg = {
-        'name': 'finetuning',
         'dataset': {
             'hf_name': tiny_dataset_folder_path,
             'split': split,

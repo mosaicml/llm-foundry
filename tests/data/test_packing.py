@@ -177,7 +177,6 @@ def test_auto_packing_with_streaming_dataloader(tmp_path: Path):
     with MDSWriter(out=remote_dir, columns=columns, compression=None) as out:
         out.write({'prompt': 'HELLO', 'response': 'WORLD'})
     cfg = DictConfig({
-        'name': 'finetuning',
         'dataset': {
             'remote': remote_dir,
             'local': local_dir,

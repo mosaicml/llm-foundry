@@ -318,7 +318,6 @@ def test_invalid_jsonl_data():
     packing_ratio = 'auto'
     allow_pad_trimming = False
     cfg = {
-        'name': 'finetuning',
         'dataset': {
             'hf_name': 'iamroot/chat_malformatted_examples',
             'split': 'train',
@@ -374,7 +373,6 @@ def test_finetuning_dataloader(
     max_seq_len = 2048 if decoder_only_format else 1024
 
     cfg = {
-        'name': 'finetuning',
         'dataset': {
             'hf_name':
                 'iamroot/chat_formatted_examples' if use_chat_formatting else
@@ -444,7 +442,6 @@ def test_finetuning_dataloader_safe_load(
     # Clear the folder
     shutil.rmtree(DOWNLOADED_FT_DATASETS_DIRPATH, ignore_errors=True)
     cfg = DictConfig({
-        'name': 'finetuning',
         'dataset': {
             'hf_name': hf_name,
             'split': 'train',
@@ -610,7 +607,6 @@ def test_finetuning_dataloader_custom_split_remote(split: str):
     max_seq_len = 2048
 
     cfg = {
-        'name': 'finetuning',
         'dataset': {
             'hf_name': 's3://test-bucket/path/to/data',
             'split': split,
@@ -695,7 +691,6 @@ def test_finetuning_dataloader_streaming(
         }
 
     cfg = {
-        'name': 'finetuning',
         'dataset': {
             'max_seq_len': 2048,
             'decoder_only_format': True,
@@ -888,7 +883,6 @@ def test_malformed_data(
         )
 
     cfg = {
-        'name': 'finetuning',
         'dataset': {
             'hf_name': str(tiny_dataset_folder_path),
             'split': 'train',
@@ -998,7 +992,6 @@ def test_malformed_conversation_data(
         )
 
     cfg = {
-        'name': 'finetuning',
         'dataset': {
             'hf_name': str(tiny_dataset_folder_path),
             'split': 'train',
@@ -1237,7 +1230,6 @@ def test_token_counting_func_dataloader_setting(
 
     if dataloader_type == 'finetuning-hf':
         cfg = DictConfig({
-            'name': 'finetuning',
             'dataset': {
                 'hf_name': 'dummy-path',
                 'split': 'train',
@@ -1261,7 +1253,6 @@ def test_token_counting_func_dataloader_setting(
         )
     elif dataloader_type == 'finetuning-streaming':
         cfg = DictConfig({
-            'name': 'finetuning',
             'dataset': {
                 'remote': 'dummy-path',
                 'local': 'dummy-path',
@@ -1377,7 +1368,6 @@ def test_sharegpt_format(
         )
 
     cfg = {
-        'name': 'finetuning',
         'dataset': {
             'hf_name': str(tiny_dataset_folder_path),
             'preprocessing_fn': 'teknium/OpenHermes-2.5',

@@ -218,7 +218,6 @@ def test_packing_with_dataloader(packing_ratio: Any):
     reproducibility.seed_all(17)
     tokenizer = build_tokenizer('gpt2', {})
     cfg = {
-        'name': 'finetuning',
         'dataset': {
             'hf_name': 'tatsu-lab/alpaca',
             'split': 'train',

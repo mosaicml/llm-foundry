@@ -507,7 +507,6 @@ def test_finetuning_dataloader_small_data(
         )
 
     cfg = {
-        'name': 'finetuning',
         'dataset': {
             'hf_name': tiny_dataset_folder_path,
             'split': 'train',

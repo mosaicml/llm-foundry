@@ -221,11 +221,11 @@ class MPTBlock(nn.Module):
         """
         batch_size, seq_len = m.size()[:2]
         indices = None
-        if not self.use_pad_tok_in_ffn:
+        if not self.use_pad_tok_in_ffn and attention_mask is not None:
             assert unpad_input is not None
             m, indices, _, _ = unpad_input(m, attention_mask)
         n = self.ffn(m)
-        if not self.use_pad_tok_in_ffn:
+        if not self.use_pad_tok_in_ffn and attention_mask is not None:
             assert pad_input is not None
             n = pad_input(n, indices, batch_size, seq_len)
         return n

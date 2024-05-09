@@ -34,7 +34,6 @@ def tiny_ft_dataloader(
     device_batch_size: int = 1,
 ) -> DataLoader:
     dataloader_cfg = DictConfig({
-        'name': 'finetuning',
         'dataset': {
             'hf_name': str(tiny_ft_dataset_path),
             'split': 'train',

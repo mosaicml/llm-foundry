@@ -53,7 +53,6 @@ def build_finetuning_dataloader(
     pin_memory: bool = True,
     prefetch_factor: int = 2,
     persistent_workers: bool = True,
-    name: Optional[str] = None,
     timeout: int = 0,
 ) -> DataSpec:
     """Builds a finetuning dataloader for training or evaluating.
@@ -161,7 +160,7 @@ def build_finetuning_dataloader(
 
     # this full config is necessary for properly profiling the packing ratio
     dataloader_cfg = {
-        'name': name,
+        'name': 'finetuning',
         'dataset': dataset_cfg,
         'drop_last': drop_last,
         'num_workers': num_workers,

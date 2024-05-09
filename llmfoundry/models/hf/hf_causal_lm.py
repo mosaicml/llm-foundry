@@ -6,11 +6,19 @@
 import logging
 import os
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Tuple,
+    Union,
+)
 
 from composer.models.huggingface import peft_installed
 from composer.utils import dist
-from omegaconf import DictConfig
 from torchmetrics import Metric
 from transformers import (
     AutoConfig,
@@ -28,7 +36,7 @@ from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithFSDP
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.utils import init_empty_weights
-from llmfoundry.utils.config_utils import get_hf_config_value, pop_config
+from llmfoundry.utils.config_utils import get_hf_config_value
 
 if TYPE_CHECKING:
     from peft import PeftConfig, PeftModel
@@ -42,60 +50,79 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
     """Configures a :class:`.HuggingFaceModel` around a Causal LM.
 
     Args:
-        om_model_config (DictConfig): An OmegaConf DictConfig specifying the configuration options
-            cfg.pretrained_model_name_or_path (str): The name of or local path to
-                the HF Causal LM (e.g., `gpt2` to instantiate a GPT2LMHeadModel).
-            cfg.config_overrides (dict, optional): An optional dictionary of keyword
-                arguments that override the default configuration associated with
-                cfg.pretrained_model_name_or_path.
-            cfg.pretrained (bool): Whether to instantiate the model with pre-trained
-                weights coming from cfg.pretrained_model_name_or_path. If ``True``,
-                cfg.config_overrides must be compatible with the pre-trained weights.
-            cfg.init_device ('cpu' | 'meta'): Which device, 'cpu' or 'meta', to
-                initialize the model on. Currently, `meta` is only supported when
-                cfg.pretrained is ``False``. Default: ``'cpu'``.
-            cfg.peft_config (dict, optional): An optional dictionary of keyword arguments to be
-                passed to the PeftConfig constructor. If provided, the model will be wrapped in a PeftModel.
-            cfg.trust_remote_code (bool, optional): Whether to trust remote code when loading from Hugging Face
-                Hub. Default: ``True``.
-            cfg.use_auth_token (bool, optional): Whether to use the Hugging Face authentication token when
-                loading from Hugging Face Hub. Default: ``False``.
-            cfg.use_train_metrics (bool, optional): Whether to use training metrics. Default: ``True``.
-            cfg.load_in_8bit (bool, optional): Whether to load the model in 8-bit mode. Default: ``False``.
-            cfg.init_device (str, optional): Which device to initialize the model on. Default: ``'cpu'``.
-            cfg.use_flash_attention_2 (bool, optional): Whether to use flash-attention 2. Default: ``False``.
+        pretrained_model_name_or_path (str): The name of or local path to
+            the HF Causal LM (e.g., `gpt2` to instantiate a GPT2LMHeadModel).
+        config_overrides (dict, optional): An optional dictionary of keyword
+            arguments that override the default configuration associated with
+            cfg.pretrained_model_name_or_path.
+        pretrained (bool): Whether to instantiate the model with pre-trained
+            weights coming from cfg.pretrained_model_name_or_path. If ``True``,
+            cfg.config_overrides must be compatible with the pre-trained weights.
+        init_device ('cpu' | 'meta'): Which device, 'cpu' or 'meta', to
+            initialize the model on. Currently, `meta` is only supported when
+            cfg.pretrained is ``False``. Default: ``'cpu'``.
+        peft_config (dict, optional): An optional dictionary of keyword arguments to be
+            passed to the PeftConfig constructor. If provided, the model will be wrapped in a PeftModel.
+        trust_remote_code (bool, optional): Whether to trust remote code when loading from Hugging Face
+            Hub. Default: ``True``.
+        use_auth_token (bool, optional): Whether to use the Hugging Face authentication token when
+            loading from Hugging Face Hub. Default: ``False``.
+        use_train_metrics (bool, optional): Whether to use training metrics. Default: ``True``.
+        load_in_8bit (bool, optional): Whether to load the model in 8-bit mode. Default: ``False``.
+        init_device (str, optional): Which device to initialize the model on. Default: ``'cpu'``.
+        use_flash_attention_2 (bool, optional): Whether to use flash-attention 2. Default: ``False``.
         tokenizer (PreTrainedTokenizer): The tokenizer that the model will use.
     """
 
     def __init__(
         self,
-        om_model_config: DictConfig,
         tokenizer: PreTrainedTokenizerBase,
+        pretrained_model_name_or_path: str,
+        pretrained: bool = True,
+        pretrained_lora_id_or_path: Optional[str] = None,
+        trust_remote_code: bool = True,
+        use_auth_token: bool = False,
+        use_flash_attention_2: bool = False,
+        load_in_8bit: bool = False,
+        init_device: str = 'cpu',
+        config_overrides: Optional[Dict[str, Any]] = None,
+        peft_config: Optional[Dict[str, Any]] = None,
+        use_train_metrics: bool = True,
+        additional_train_metrics: Optional[List] = None,
+        additional_eval_metrics: Optional[List] = None,
     ):
-        model = ComposerHFCausalLM.build_inner_model(om_model_config)
+
+        config_overrides = config_overrides or {}
+
+        model = ComposerHFCausalLM.build_inner_model(
+            pretrained_model_name_or_path=pretrained_model_name_or_path,
+            pretrained_lora_id_or_path=pretrained_lora_id_or_path,
+            trust_remote_code=trust_remote_code,
+            init_device=init_device,
+            use_flash_attention_2=use_flash_attention_2,
+            use_auth_token=use_auth_token,
+            config_overrides=config_overrides,
+            load_in_8bit=load_in_8bit,
+            pretrained=pretrained,
+            prepare_for_fsdp=True,
+        )
 
         train_metrics, eval_metrics = ComposerHFCausalLM.build_metrics(
-            om_model_config,
+            use_train_metrics=use_train_metrics,
+            additional_train_metrics=additional_train_metrics,
+            additional_eval_metrics=additional_eval_metrics,
         )
 
-        peft_config_dict = pop_config(
-            om_model_config,
-            'peft_config',
-            must_exist=False,
-            convert=True,
-        )
-        if peft_config_dict is not None and not peft_installed:
+        if peft_config is not None and not peft_installed:
             raise ValueError(
                 'PEFT is not installed, but peft_config was passed. Please install LLM Foundry with the peft extra to use peft_config.',
             )
 
-        peft_config = None
-        if peft_config_dict is not None:
-            peft_config = self._get_peft_config(peft_config_dict)
+        peft_config_object = None
+        if peft_config is not None:
+            peft_config_object = self._get_peft_config(peft_config)
 
         # Set up config args for the model construction and base classes
-        init_device = om_model_config.get('init_device', 'cpu')
-
         super().__init__(
             model=model,
             shift_labels=True,
@@ -103,31 +130,35 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             metrics=train_metrics,
             eval_metrics=eval_metrics,
             init_device=init_device,
-            peft_config=peft_config,
+            peft_config=peft_config_object,
         )
 
     @staticmethod
     def build_metrics(
-        om_model_config: DictConfig,
+        use_train_metrics: bool,
+        additional_train_metrics: Optional[List[str]] = None,
+        additional_eval_metrics: Optional[List[str]] = None,
     ) -> Tuple[List[Metric], List[Metric]]:
         """Builds the training and evaluation metrics for the model.
 
         Args:
-            om_model_config (DictConfig): The model configuration. See `__init__` for details on allowed keys.
+            use_train_metrics (bool): Whether to use training metrics.
+            additional_train_metrics (Optional[List[str]]): Additional training metrics to include.
+            additional_eval_metrics (Optional[List[str]]): Additional evaluation metrics to include.
+
+        Returns:
+            Tuple[List[Metric], List[Metric]]: A tuple containing the list of training metrics and evaluation metrics.
         """
         from llmfoundry.utils.builders import build_metric
 
-        use_train_metrics = om_model_config.get('use_train_metrics', True)
-        train_metric_names = DEFAULT_CAUSAL_LM_TRAIN_METRICS + om_model_config.get(
-            'additional_train_metrics',
-            [],
+        train_metric_names = DEFAULT_CAUSAL_LM_TRAIN_METRICS + (
+            additional_train_metrics or []
         )
         train_metrics = [
             build_metric(metric, {}) for metric in train_metric_names
         ] if use_train_metrics else []
-        eval_metric_names = DEFAULT_CAUSAL_LM_EVAL_METRICS + om_model_config.get(
-            'additional_eval_metrics',
-            [],
+        eval_metric_names = DEFAULT_CAUSAL_LM_EVAL_METRICS + (
+            additional_eval_metrics or []
         )
         eval_metrics = [
             build_metric(metric, {}) for metric in eval_metric_names
@@ -137,42 +168,42 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
 
     @staticmethod
     def build_inner_model(
-        om_model_config: DictConfig,
+        pretrained_model_name_or_path: str,
+        pretrained_lora_id_or_path: Optional[str],
+        trust_remote_code: bool,
+        init_device: str,
+        use_flash_attention_2: bool,
+        use_auth_token: bool,
+        config_overrides: Dict[str, Any],
+        load_in_8bit: bool,
+        pretrained: bool,
         prepare_for_fsdp: bool = False,
     ) -> Union[PreTrainedModel, 'PeftModel']:
         """Builds the inner model for the ComposerHFCausalLM.
 
         Args:
-            om_model_config (DictConfig): The model configuration. See `__init__` for details on allowed keys.
+            pretrained_model_name_or_path (str): The pretrained model name or path.
+            pretrained_lora_id_or_path (Optional[str]): The pretrained LORA ID or path.
+            trust_remote_code (bool): Whether to trust remote code.
+            init_device (str): The initialization device.
+            use_flash_attention_2 (bool): Whether to use flash attention 2.
+            use_auth_token (bool): Whether to use an authentication token.
+            config_overrides (Dict[str, Any]): The configuration overrides.
+            load_in_8bit (bool): Whether to load in 8-bit.
+            prepare_for_fsdp (bool, optional): Whether to prepare the model for FSDP wrapping. Default: False.
+
+        Returns:
+            Union[PreTrainedModel, 'PeftModel']: The built inner model.
             prepare_for_fsdp (bool): Whether to prepare the model for FSDP wrapping. Default: ``False``.
         """
-        pretrained_model_name_or_path = om_model_config.pretrained_model_name_or_path
-        pretrained_lora_id_or_path = om_model_config.get(
-            'pretrained_lora_id_or_path',
-            None,
-        )
-
-        if not om_model_config.get(
-            'trust_remote_code',
-            True,
-        ) and pretrained_model_name_or_path.startswith('mosaicml/mpt'):
+        if not trust_remote_code and pretrained_model_name_or_path.startswith(
+            'mosaicml/mpt',
+        ):
             raise ValueError(
                 'trust_remote_code must be set to True for MPT models. Without this, the MPT model code will come from the transformers library, '
                 +
                 'which is significantly slower and not compatible with the LLM foundry training code, rather than the code release by MosaicML.',
             )
-
-        # Set up Hugging Face args
-        trust_remote_code = om_model_config.get('trust_remote_code', True)
-        use_auth_token = om_model_config.get('use_auth_token', False)
-        use_flash_attention_2 = om_model_config.get(
-            'use_flash_attention_2',
-            False,
-        )
-        load_in_8bit = om_model_config.get('load_in_8bit', False)
-
-        # Set up config args for the model construction and base classes
-        init_device = om_model_config.get('init_device', 'cpu')
         # Resolve "mixed" init device to either "cpu" or "meta"
         resolved_init_device = hf_get_init_device(init_device)
         requested_attention_implementation = 'flash_attention_2' if use_flash_attention_2 else 'eager'
@@ -211,7 +242,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         )
 
         # set config overrides
-        for k, v in om_model_config.get('config_overrides', {}).items():
+        for k, v in config_overrides.items():
             if not hasattr(config, k):
                 raise ValueError(
                     f'config does not have attribute "{k}" to override ({k}: {v}).',
@@ -258,7 +289,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         # We need to have all non-zero local ranks be not-pretrained
         # Rank 0 will still be pretrained, and distribute the weights appropriately
         if dist.get_local_rank() != 0 and init_device == 'mixed':
-            om_model_config.pretrained = False
+            pretrained = False
 
         # If the HuggingFace model is coming from a local folder, Hugging Face copies the modules into the
         # transformers modules cache. On particular systems, this operation seems to cause contention between
@@ -280,7 +311,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
 
         # initialize the model on the correct device
         if resolved_init_device == 'cpu':
-            if om_model_config.pretrained:
+            if pretrained:
                 model = AutoModelForCausalLM.from_pretrained(
                     pretrained_model_name_or_path,
                     trust_remote_code=trust_remote_code,
@@ -294,7 +325,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                     trust_remote_code=trust_remote_code,
                 )
         elif resolved_init_device == 'meta':
-            if om_model_config.pretrained:
+            if pretrained:
                 raise ValueError(
                     'Setting cfg.pretrained=True is not supported when init_device="meta".',
                 )

@@ -6,21 +6,11 @@
 import copy
 import functools
 import logging
-import os
 import re
 import string
-import warnings
 from typing import Any, Callable, Dict, List
 
-import numpy as np
 import torch
-from composer.utils import dist
-from composer.utils.eval_client import (
-    EvalClient,
-    LambdaEvalClient,
-    LocalEvalClient,
-    MosaicMLLambdaEvalClient,
-)
 from torch import Tensor
 from torch.nn import functional as F
 from torchmetrics import Metric
@@ -32,7 +22,6 @@ __all__ = [
     'InContextLearningLMAccuracy',
     'InContextLearningMultipleChoiceAccuracy',
     'InContextLearningGenerationExactMatchAccuracy',
-    'InContextLearningCodeEvalAccuracy',
     'InContextLearningLMExpectedCalibrationError',
     'InContextLearningMCExpectedCalibrationError',
 ]
@@ -406,223 +395,6 @@ class InContextLearningMultipleChoiceAccuracy(InContextLearningMetric):
         assert isinstance(self.correct, Tensor)
         assert isinstance(self.total, Tensor)
         return self.correct.float() / self.total
-
-
-class InContextLearningCodeEvalAccuracy(InContextLearningMetric):
-    r"""Computes accuracy for In-context learning (ICL) code evaluation tasks.
-
-    ICL code eval tasks consist of some number of example code eval tasks (referred to as the 'context'), followed by a test task where the model must
-    complete the code, where we term the code completion a 'continuation'.
-
-    In each case, the model constructs a given number of continuations (termed pass@K for K continuations), and each continuation is run against a set of test cases. The model is considered
-    correct if at least one of the proposed continuations passes all the test cases.
-
-    Runs on AWS Lambdas by default.
-
-    Adds metric state variables:
-        correct (float): The number of instances where the predictions passed all the test cases.
-        total (float): The number of total instances that were predicted.
-
-    Args:
-        dist_sync_on_step (bool, optional): Synchronize metric state across processes at
-            each forward() before returning the value at the step. Default: ``False``.
-    """
-
-    # Make torchmetrics call update only once
-    full_state_update = False
-
-    def __init__(self, dist_sync_on_step: bool = False):
-        # state from multiple processes
-        super().__init__(dist_sync_on_step=dist_sync_on_step)
-
-        self._initialized = False
-        self.dataset_size = 0
-        self.pass_at_k = []
-        self.num_generations = 0
-        self.eval_device = os.environ.get('CODE_EVAL_DEVICE', None)
-        if self.eval_device is not None:
-            self.eval_device = self.eval_device.upper()
-        self.metric_result_dict = {
-            'context': [],
-            'output': [],
-            'result': [],
-            'sample_id': [],
-        }
-
-    def get_client(self) -> EvalClient:
-        """Returns a client for the appropriate remote platform."""
-        client = None
-        if self.eval_device == 'LOCAL':
-            warnings.warn(
-                'Running code eval locally may be insecure. Please set environment variable CODE_EVAL_DEVICE '
-                +
-                'to LAMBDA to run on remote. To use Lambdas, spin up your instance that checks code, set the URL as '
-                + 'CODE_EVAL_URL and the API key as CODE_EVAL_APIKEY.',
-            )
-            log.debug('Running code eval locally.')
-            client = LocalEvalClient()
-        elif self.eval_device == 'LAMBDA':
-            client = LambdaEvalClient()
-        elif self.eval_device == 'MOSAICML':
-            client = MosaicMLLambdaEvalClient()
-        elif self.eval_device is None:
-            raise ValueError(
-                'Attempting to use InContextLearningCodeEvalAccuracy but environment '
-                +
-                'variable `CODE_EVAL_DEVICE` is not set. Please set it to `CODE_EVAL_DEVICE` '
-                +
-                'to one of `LOCAL` (for unsafe local eval), `LAMBDA` (for AWS lambda '
-                + 'evaluation), or `MOSAICML` (for lambda eval through MAPI).',
-            )
-        else:
-            raise ValueError(
-                'Environment variable `CODE_EVAL_DEVICE` must be one of `LOCAL`, '
-                + f'`LAMBDA`, or `MOSAICML` but got {self.eval_device}.',
-            )
-
-        return client
-
-    def estimator(self, n: int, c: int, k: int) -> float:
-        """Computes the pass@k metric.
-
-        Given the number of generated samples, n, the number of correct samples, c, and the k of interest,
-        this function calculates pass@k as 1 - comb(n - c, k) / comb(n, k) as per the definition of
-        pass@k in the HumanEval paper (https://arxiv.org/abs/2107.03374) and it's associated implementation:
-        https://github.com/openai/human-eval.
-        """
-        if n - c < k:
-            return 1.0
-        return 1.0 - float(np.prod(1.0 - k / np.arange(n - c + 1, n + 1)))
-
-    def _initialize_state(self, batch: dict[str, Any]):
-        device = batch['input_ids'].device
-        self.dataset_size = batch['dataset_size']
-        self.pass_at_k = batch['pass_at_k']
-        self.num_generations = batch['generations_per_sample']
-
-        # We need to defer the accumulator initialization because it depends on dataset size
-        self.add_state(
-            'correct',
-            default=torch.zeros(self.dataset_size, device=device),
-            dist_reduce_fx='sum',
-        )
-        self.add_state(
-            'total',
-            default=torch.zeros(self.dataset_size, device=device),
-            dist_reduce_fx='sum',
-        )
-        dist.barrier()
-        self._initialized = True
-
-    def update(
-        self,
-        batch: Dict[str, Any],
-        outputs: List[str],
-        labels: List[str],
-    ):
-        """Updates the pass@k accuracy of code generation.
-
-        Given a batch of prompts, test cases, and code generations, evaluates the code generations
-        against the test cases and augments the pass@k accuracy of the batch to the values so far.
-
-        Args:
-            batch (Dict[str, Any]): A batch of data produced by the InContextLearningCodeEvalDataset, with
-            the prompt, test cases, and entry points. This will be a dictionary that must have the following
-            arguments:
-            {
-                'prompts': List[str],
-                'test_inputs': List[List[str]],
-                'test_outputs': List[List[str]],
-                'entry_points': List[str],
-                'languages': List[str],
-                'generation_kwargs': Dict[str, Any]
-            }
-            outputs (List[str]): A list of code generations in the format of HF generate with beam search,
-            which is the a list of strings in groups of beam_size e.g. for beam size 2 and batch size 2, the list
-            will be of the format [prompt 1 gen 1, prompt 1 gen 2, prompt 2 gen 1, prompt 2 gen 2]
-            labels (List[str]): A list of the correct code generations, for compatibility with existing HF generate
-            functionalities. This is not used.
-        """
-        if not self._initialized:
-            self._initialize_state(batch)
-
-        del labels  # never used
-        client = self.get_client()
-
-        metric_result_dict = copy.deepcopy(self.metric_result_dict)
-        for sample_id, code_gen, sample_prompt, test_inputs, test_outputs, entry_point, language in zip(
-            batch['sample_id'],
-            outputs,
-            batch['prompts'],
-            batch['test_inputs'],
-            batch['test_outputs'],
-            batch['entry_points'],
-            batch['languages'],
-        ):
-
-            idx = sample_id
-            self.total[idx] += 1.0
-            metric_result_dict['sample_id'].append(sample_id)
-
-            code_gen = re.split(r'\n[A-Za-z0-9#`]', code_gen)[
-                0]  # remove everything after function ends
-            final_code = sample_prompt + code_gen  # combine prompt with the code generation
-            metric_result_dict['context'].append(sample_prompt)
-            metric_result_dict['output'].append(code_gen)
-
-            test_results = []
-            for test_input, test_output in zip(test_inputs, test_outputs):
-                payload = {
-                    'code': final_code,
-                    'input': test_input,
-                    'output': test_output,
-                    'entry_point': entry_point,
-                    'language': language,
-                }
-
-                result = client.invoke([[[payload]]])[0][0][0]
-                test_results.append(result)
-
-            if all(test_results):
-                self.correct[idx] += 1.0
-                metric_result_dict['result'].append(1)
-            else:
-                metric_result_dict['result'].append(0)
-
-        client.close()  # pyright: ignore [reportOptionalMemberAccess]
-        return metric_result_dict
-
-    def compute(self):
-        assert isinstance(self.correct, Tensor)
-        assert isinstance(self.total, Tensor)
-        complete = self.total == self.num_generations  # so that eval subset batches can be used
-
-        if complete.sum() < (self.total != 0).sum():
-            warnings.warn(
-                'Some samples in the dataset have less than the expected number of generations. '
-                +
-                'This is expected if you are using a subset of the dataset for evaluation.',
-            )
-
-        if (self.correct > self.total).any().item():
-            raise ValueError(
-                'Internal error some samples have more correct than  total generations. This should not happen.',
-            )
-
-        results = {}
-        n = self.num_generations
-
-        for k in self.pass_at_k:
-            pass_at_k = sum([
-                self.estimator(n, int(c.item()), k)
-                for c in self.correct[complete]
-            ]) / complete.sum().item()
-            results[f'pass@{k}'] = torch.tensor(pass_at_k)
-
-        if len(results) == 1:  # backwards compatibility
-            return list(results.values())[0]
-
-        return results
 
 
 class InContextLearningExpectedCalibrationError(InContextLearningMetric):

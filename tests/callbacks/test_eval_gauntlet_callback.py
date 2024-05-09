@@ -13,6 +13,7 @@ from transformers import AutoTokenizer
 
 from llmfoundry.eval.metrics.nlp import InContextLearningLMAccuracy
 from llmfoundry.utils.builders import build_icl_data_and_gauntlet
+from llmfoundry.utils.config_utils import to_dict_container
 
 
 @pytest.fixture(autouse=True)
@@ -73,8 +74,9 @@ def test_gauntlet_callback(averages: Optional[dict]):
               icl_task_type: language_modeling
             """,
     )
-    assert isinstance(icl_task_config,
-                      om.ListConfig) or isinstance(icl_task_config, str)
+    icl_task_config_list: List[om.DictConfig
+                              ] = list(icl_task_config)  # type: ignore
+    assert all(isinstance(c, om.DictConfig) for c in icl_task_config_list)
 
     eval_gauntlet_config = om.OmegaConf.create(
         """
@@ -94,22 +96,16 @@ def test_gauntlet_callback(averages: Optional[dict]):
                       random_baseline: 0.0
           """,
     )
-    assert isinstance(eval_gauntlet_config,
-                      om.DictConfig) or isinstance(eval_gauntlet_config, str)
+    assert isinstance(eval_gauntlet_config, om.DictConfig)
 
     if averages is not None:
         eval_gauntlet_config.averages = averages
     tokenizer = AutoTokenizer.from_pretrained('EleutherAI/gpt-neox-20b')
 
     # test loading functionality
-    _, _, eval_gauntlet_callback = build_icl_data_and_gauntlet(
-        icl_task_config,
-        eval_gauntlet_config,
-        tokenizer,
-        4,
-        1024,
-        1,
-    )
+    _, _, eval_gauntlet_callback = build_icl_data_and_gauntlet([
+        to_dict_container(c) for c in icl_task_config_list
+    ], to_dict_container(eval_gauntlet_config), tokenizer, 4, 1024, 1)
     assert eval_gauntlet_callback is not None
     state = MockState(eval_gauntlet_callback.logger_keys)
     logger = MockLogger(state)

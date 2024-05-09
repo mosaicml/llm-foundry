@@ -507,7 +507,7 @@ def log_config(cfg: Dict[str, Any]) -> None:
             wandb.config.update(cfg)
 
     if 'mlflow' in loggers and mlflow.active_run():
-        mlflow.log_params(params=om.to_container(cfg, resolve=True))
+        mlflow.log_params(params=cfg)
         _log_dataset_uri(cfg)
 
 

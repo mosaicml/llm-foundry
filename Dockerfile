@@ -18,5 +18,5 @@ RUN pip install --no-cache-dir "./llm-foundry${DEP_GROUPS}"
 RUN pip uninstall -y llm-foundry
 RUN rm -rf llm-foundry
 
-# Install TE
+# Install TE after llm-foundry to ensure all the shared libraries are linked correctly
 RUN pip install --verbose git+https://github.com/NVIDIA/TransformerEngine.git@main

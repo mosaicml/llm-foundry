@@ -18,5 +18,5 @@ RUN pip uninstall -y llm-foundry
 RUN rm -rf llm-foundry
 RUN git clone --branch stable --recursive https://github.com/NVIDIA/TransformerEngine.git
 RUN cd TransformerEngine && git submodule update --init --recursive
-RUN export NVTE_FRAMEWORK=pytorch && pip install .
+RUN export NVTE_FRAMEWORK=pytorch && MAX_JOBS=1 pip install .
 RUN cd ..

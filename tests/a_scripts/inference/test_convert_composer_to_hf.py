@@ -849,6 +849,7 @@ def test_huggingface_conversion_callback(
         tokenizer_kwargs={'model_max_length': max_seq_len},
     )
 
+    dataloader_cfg.pop('name')
     train_dataloader = build_finetuning_dataloader(
         tokenizer=tokenizer,
         device_batch_size=device_batch_size,

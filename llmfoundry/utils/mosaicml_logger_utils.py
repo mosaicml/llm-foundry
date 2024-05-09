@@ -10,7 +10,6 @@ from composer.loggers.mosaicml_logger import (
     MOSAICML_ACCESS_TOKEN_ENV_VAR,
     MOSAICML_PLATFORM_ENV_VAR,
 )
-from omegaconf import DictConfig, ListConfig
 
 __all__ = [
     'maybe_create_mosaicml_logger',
@@ -50,9 +49,9 @@ def find_mosaicml_logger(
 
 def log_eval_analytics(
     mosaicml_logger: MosaicMLLogger,
-    model_configs: ListConfig,
-    icl_tasks: Union[str, ListConfig],
-    eval_gauntlet_config: Optional[Union[str, DictConfig]],
+    model_configs: List[Dict[str, Any]],
+    icl_tasks: Union[str, List[Dict[str, Any]]],
+    eval_gauntlet_config: Optional[Union[str, Dict[str, Any]]],
 ):
     """Logs analytics for runs using the `eval.py` script."""
     metrics: Dict[str, Any] = {
@@ -84,14 +83,14 @@ def log_eval_analytics(
 
 def log_train_analytics(
     mosaicml_logger: MosaicMLLogger,
-    model_config: DictConfig,
-    train_loader_config: DictConfig,
-    eval_loader_config: Optional[Union[DictConfig, ListConfig]],
-    callback_configs: Optional[DictConfig],
+    model_config: Dict[str, Any],
+    train_loader_config: Dict[str, Any],
+    eval_loader_config: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]],
+    callback_configs: Optional[Dict[str, Any]],
     tokenizer_name: str,
     load_path: Optional[str],
-    icl_tasks_config: Optional[Union[ListConfig, str]],
-    eval_gauntlet: Optional[Union[DictConfig, str]],
+    icl_tasks_config: Optional[Union[List[Dict[str, Any]], str]],
+    eval_gauntlet: Optional[Union[Dict[str, Any], str]],
 ):
     """Logs analytics for runs using the `train.py` script."""
     train_loader_dataset = train_loader_config.get('dataset', {})
@@ -128,10 +127,10 @@ def log_train_analytics(
     if eval_loader_config is not None:
         metrics['llmfoundry/eval_loaders'] = []
 
-        if isinstance(eval_loader_config, ListConfig):
-            eval_loader_configs: ListConfig = eval_loader_config
+        if isinstance(eval_loader_config, list):
+            eval_loader_configs: list = eval_loader_config
         else:
-            eval_loader_configs = ListConfig([eval_loader_config])
+            eval_loader_configs = [eval_loader_config]
 
         for loader_config in eval_loader_configs:
             eval_loader_info = {}

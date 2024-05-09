@@ -42,6 +42,7 @@ from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils import build_tokenizer
 from llmfoundry.utils.builders import build_composer_model
+from llmfoundry.utils.config_utils import to_dict_container
 
 
 def get_config(
@@ -54,9 +55,12 @@ def get_config(
     return cast(DictConfig, test_cfg)
 
 
-def _load_tokenizer_cfg(cfg: DictConfig) -> Dict:
-    config = om.to_container(cfg, resolve=True)
-    assert isinstance(config, Dict)
+def _load_tokenizer_cfg(cfg: Union[Dict[str, Any], DictConfig]) -> Dict:
+    if isinstance(cfg, DictConfig):
+        config = to_dict_container(cfg)
+    else:
+        assert isinstance(cfg, dict)
+        config = cfg
     return config
 
 
@@ -103,9 +107,10 @@ def _get_objs(
         tokenizer_cfg.get('kwargs', {}),
     )
 
+    name = test_cfg.model.pop('name')
     model = build_composer_model(
-        name=test_cfg.model.name,
-        cfg=test_cfg.model,
+        name=name,
+        cfg=to_dict_container(test_cfg.model),
         tokenizer=tokenizer,
     )
 
@@ -354,9 +359,10 @@ def test_full_forward_and_backward_gpt2_small(batch_size: int = 2):
         tokenizer_cfg.get('kwargs', {}),
     )
 
+    name = neo_cfg.model.pop('name')
     model = build_composer_model(
-        name=neo_cfg.model.name,
-        cfg=neo_cfg.model,
+        name=name,
+        cfg=to_dict_container(neo_cfg.model),
         tokenizer=tokenizer,
     ).to(device)
 
@@ -412,9 +418,10 @@ def test_full_forward_and_backward_t5_small(batch_size: int = 2):
         tokenizer_cfg.get('kwargs', {}),
     )
 
+    name = t5_cfg.model.pop('name')
     model = build_composer_model(
-        name=t5_cfg.model.name,
-        cfg=t5_cfg.model,
+        name=name,
+        cfg=to_dict_container(t5_cfg.model),
         tokenizer=tokenizer,
     ).to(device)
 
@@ -511,9 +518,10 @@ def test_determinism(
         tokenizer_cfg.get('kwargs', {}),
     )
 
+    name = test_cfg.model.pop('name')
     model_1 = build_composer_model(
-        name=test_cfg.model.name,
-        cfg=test_cfg.model,
+        name=name,
+        cfg=to_dict_container(test_cfg.model),
         tokenizer=tokenizer,
     )
     model_2 = copy.deepcopy(model_1)
@@ -590,9 +598,10 @@ def test_loss_fn():
         tokenizer_cfg.get('kwargs', {}),
     )
 
+    name = test_cfg.model.pop('name')
     model_1 = build_composer_model(
-        name=test_cfg.model.name,
-        cfg=test_cfg.model,
+        name=name,
+        cfg=to_dict_container(test_cfg.model),
         tokenizer=tokenizer,
     )
     model_2 = copy.deepcopy(model_1)
@@ -693,9 +702,10 @@ def test_loss_reduction(loss_fn_config: str):
         tokenizer_cfg.get('kwargs', {}),
     )
 
+    name = test_cfg.model.pop('name')
     model_1 = build_composer_model(
-        name=test_cfg.model.name,
-        cfg=test_cfg.model,
+        name=name,
+        cfg=to_dict_container(test_cfg.model),
         tokenizer=tokenizer,
     )
     model_2 = copy.deepcopy(model_1)
@@ -799,15 +809,14 @@ def test_opt_wrapping(peft_config: Optional[dict[str, str]]):
     if peft_config is not None:
         conf['model']['peft_config'] = peft_config
 
-    config = DictConfig(conf)
-
-    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(config.tokenizer)
+    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(conf['tokenizer'])
     tokenizer = build_tokenizer(
-        config.tokenizer.name,
+        conf['tokenizer']['name'],
         tokenizer_cfg.get('kwargs', {}),
     )
 
-    model = ComposerHFCausalLM(config.model, tokenizer)
+    conf['model'].pop('name')
+    model = ComposerHFCausalLM(**conf['model'], tokenizer=tokenizer)
 
     # check that all the modules we except are blocked from FSDP wrapping
     underlying_model = maybe_get_underlying_model(model.model)
@@ -840,7 +849,8 @@ def test_lora_id():
         tokenizer_cfg.get('kwargs', {}),
     )
 
-    model = ComposerHFCausalLM(config.model, tokenizer)
+    config.model.pop('name')
+    model = ComposerHFCausalLM(**config.model, tokenizer=tokenizer)
 
     assert isinstance(model.model, peft.PeftModelForCausalLM)
 
@@ -948,7 +958,7 @@ def test_mpt_creation(
     assert len(mpt.transformer.blocks) == 2
 
     d_model = hf_config.d_model
-    if ffn_hidden_size is None:
+    if ffn_hidden_size is None:  # type: ignore (sometimes it may not be none)
         ffn_hidden_size = int(hf_config.d_model * hf_config.expansion_ratio)
     for block in mpt.transformer.blocks:
         assert isinstance(block, MPTBlock)

@@ -3,12 +3,11 @@
 
 import logging
 import tempfile
-from typing import Callable, Dict, Iterable, List, Literal, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Tuple
 
 import numpy as np
 import torch
 from composer.utils import dist
-from omegaconf import DictConfig
 from transformers import PreTrainedTokenizerBase
 
 log = logging.getLogger(__name__)
@@ -318,7 +317,7 @@ def _repad(
 
 
 def auto_packing_ratio(
-    dataloader_cfg: DictConfig,
+    dataloader_cfg: Dict[str, Any],
     tokenizer: PreTrainedTokenizerBase,
     device_batch_size: int,
     num_packing_ratios: int = 20,
@@ -352,20 +351,21 @@ def auto_packing_ratio(
     # Set the seed so that auto packing is deterministic.
     reproducibility.seed_all(0)
 
-    max_seq_len = dataloader_cfg.dataset.max_seq_len
     # If max_seq_len is very small, skip profiling and select packing ratio of 1.
+    dataset_config = dataloader_cfg['dataset']
+    max_seq_len = dataset_config.get('max_seq_len')
     if max_seq_len <= 100:
         return 1
 
     min_ratio = 1
     max_ratio = max_seq_len / 100
     profiling_results = profile_packing(
-        dataloader_cfg,
-        tokenizer,
-        min_ratio,
-        max_ratio,
-        num_packing_ratios,
-        device_batch_size,
+        dataloader_cfg=dataloader_cfg,
+        tokenizer=tokenizer,
+        min_ratio=min_ratio,
+        max_ratio=max_ratio,
+        num_packing_ratios=num_packing_ratios,
+        device_batch_size=device_batch_size,
     )
 
     # Obtain the maximum packing_ratio/minimum padding that has no waste.
@@ -392,7 +392,7 @@ def auto_packing_ratio(
 
 
 def profile_packing(
-    dataloader_cfg: DictConfig,
+    dataloader_cfg: Dict[str, Any],
     tokenizer: PreTrainedTokenizerBase,
     min_ratio: float,
     max_ratio: float,
@@ -416,39 +416,40 @@ def profile_packing(
 
     from llmfoundry.data.dataloader import build_dataloader
 
-    max_seq_len = dataloader_cfg.dataset.get('max_seq_len')
-    max_leftovers_to_keep = dataloader_cfg.dataset.get(
-        'max_leftovers_to_keep',
-        None,
-    )
+    dataset_cfg = dataloader_cfg['dataset']
+    max_seq_len = dataset_cfg.get('max_seq_len')
+    max_leftovers_to_keep = dataset_cfg.get('max_leftovers_to_keep', None)
 
     # Turn off packing and sequence parallelism for the dataloader (we want raw, pre-packed, full-length examples)
     dataloader_cfg = copy.deepcopy(dataloader_cfg)
-    dataloader_cfg.dataset.packing_ratio = 1.0
-    dataloader_cfg.dataset.auto_packing_replication = dataloader_cfg.dataset.get(
-        'seq_parallel_replication',
-        1,
-    ) or 1
-    dataloader_cfg.dataset.seq_parallel_replication = 1
-    dataloader_cfg.drop_last = False
-    dataloader_cfg.num_workers = 0
-    dataloader_cfg.prefetch_factor = None
-    dataloader_cfg.persistent_workers = False
+    dataloader_cfg.update({
+        'drop_last': False,
+        'num_workers': 0,
+        'prefetch_factor': None,
+        'persistent_workers': False,
+    })
+    dataloader_cfg['dataset']['packing_ratio'] = 1.0
+    dataloader_cfg['dataset']['auto_packing_replication'
+                             ] = dataloader_cfg['dataset'].get(
+                                 'seq_parallel_replication',
+                                 1,
+                             ) or 1
+    dataloader_cfg['dataset']['seq_parallel_replication'] = 1
 
     # If streaming dataset, use a temporary local folder for profiling
     local_rank_zero = dist.get_global_rank() - dist.get_local_rank()
-    if dataloader_cfg.dataset.get('remote') is not None:
+    if dataloader_cfg['dataset'].get('remote') is not None:
         tmp_path_to_broadcast = tempfile.TemporaryDirectory().name
         gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
         tmp_path = gathered_paths[local_rank_zero]
-        dataloader_cfg.dataset.local = tmp_path
+        dataloader_cfg['dataset']['local'] = tmp_path
 
-    if dataloader_cfg.dataset.get('streams') is not None:
-        for stream_config in dataloader_cfg.dataset.streams.values():
+    if dataloader_cfg['dataset'].get('streams') is not None:
+        for stream_config in dataloader_cfg['dataset']['streams'].values():
             tmp_path_to_broadcast = tempfile.TemporaryDirectory().name
             gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
             tmp_path = gathered_paths[local_rank_zero]
-            stream_config.local = tmp_path
+            stream_config['local'] = tmp_path
 
     # Determine the packing_ratio values we'll try
     packing_ratios, raw_batch_sizes = [], []

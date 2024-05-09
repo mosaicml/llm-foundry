@@ -2,10 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import copy
-from typing import Any, Callable
+from typing import Any, Callable, Dict
 
 import pytest
-from omegaconf import DictConfig
 from pytest import fixture
 from transformers import PreTrainedTokenizerBase
 
@@ -14,9 +13,10 @@ from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
 from llmfoundry.utils.builders import build_composer_model, build_tokenizer
 
 
-def _build_model(config: DictConfig, tokenizer: PreTrainedTokenizerBase):
+def _build_model(config: Dict[str, Any], tokenizer: PreTrainedTokenizerBase):
+    name = config.pop('name')
     model = build_composer_model(
-        name=config.name,
+        name=name,
         cfg=config,
         tokenizer=tokenizer,
     )
@@ -34,13 +34,13 @@ def build_tiny_mpt(
 ) -> Callable[..., ComposerMPTCausalLM]:
 
     def build(**kwargs: Any) -> ComposerMPTCausalLM:
-        config = DictConfig({
+        config = {
             'name': 'mpt_causal_lm',
             'd_model': 128,
             'n_heads': 4,
             'n_layers': 2,
             'expansion_ratio': 2,
-        })
+        }
         config.update(kwargs)
         model = _build_model(config, mpt_tokenizer)
         assert isinstance(model, ComposerMPTCausalLM)
@@ -62,12 +62,12 @@ def build_tiny_hf_mpt(
             'expansion_ratio': 2,
         }
         config_overrides.update(kwargs)
-        config = DictConfig({
+        config = {
             'name': 'hf_causal_lm',
             'pretrained_model_name_or_path': 'mosaicml/mpt-7b',
             'pretrained': False,
             'config_overrides': config_overrides,
-        })
+        }
         model = _build_model(config, mpt_tokenizer)
         assert isinstance(model, ComposerHFCausalLM)
         return model

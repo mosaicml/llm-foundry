@@ -14,6 +14,7 @@ from llmfoundry.models.inference_api_wrapper import (
 )
 from llmfoundry.tokenizers import TiktokenTokenizerWrapper
 from llmfoundry.utils.builders import build_icl_evaluators
+from llmfoundry.utils.config_utils import to_list_container
 
 
 @pytest.fixture(scope='module')
@@ -112,7 +113,7 @@ def test_openai_api_eval_wrapper(tmp_path: str, openai_api_key_env_var: str):
 
         task_cfg = load_icl_config()
         evaluators, _ = build_icl_evaluators(
-            task_cfg.icl_tasks,
+            to_list_container(task_cfg.icl_tasks),
             tokenizer,
             1024,
             2,
@@ -152,7 +153,7 @@ def test_chat_api_eval_wrapper(tmp_path: str, openai_api_key_env_var: str):
 
         task_cfg = load_icl_config()
         evaluators, _ = build_icl_evaluators(
-            task_cfg.icl_tasks,
+            to_list_container(task_cfg.icl_tasks),
             tokenizer,
             1024,
             2,

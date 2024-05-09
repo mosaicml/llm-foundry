@@ -6,7 +6,6 @@ from typing import Union
 import pytest
 from composer import Trainer
 from composer.utils import get_device
-from omegaconf import OmegaConf as om
 from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import \
     CheckpointWrapper
 
@@ -47,7 +46,6 @@ def test_fsdp_act_checkpoint(
         },
         'activation_checkpointing_target': activation_checkpointing_target,
     }
-    model_cfg = om.create(model_cfg)
 
     fsdp_config = {
         'activation_checkpointing': activation_checkpointing,
@@ -55,7 +53,7 @@ def test_fsdp_act_checkpoint(
         'activation_cpu_offload': False,
     }
 
-    model = ComposerMPTCausalLM(model_cfg)
+    model = ComposerMPTCausalLM(**model_cfg)
     model = device.module_to_device(model)
 
     trainer = Trainer(

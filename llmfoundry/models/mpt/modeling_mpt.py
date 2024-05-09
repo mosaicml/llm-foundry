@@ -39,8 +39,6 @@ if is_flash_v2_installed():
     except Exception as e:
         raise e
 
-from omegaconf import DictConfig
-from omegaconf import OmegaConf as om
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from transformers.modeling_outputs import (
     BaseModelOutputWithPast,
@@ -367,15 +365,9 @@ class MPTModel(MPTPreTrainedModel):
             )
         self.emb_drop = nn.Dropout(config.emb_pdrop)
         self.mb_args = None
-        block_args = config.to_dict()
-        if block_args['ffn_config']['ffn_type'] in ffns_with_megablocks:
-            block_args['ffn_config'] = config_moe_args(
-                block_args['ffn_config'],
-                config.d_model,
-                config.expansion_ratio,
-                config.n_layers,
-            )
-            self.mb_args = block_args['ffn_config'].get('args')
+        self.shift_labels = True
+
+        block_args = self.extract_block_args(config.to_dict())
 
         self.blocks = nn.ModuleList([
             MPTBlock(
@@ -443,6 +435,18 @@ class MPTModel(MPTPreTrainedModel):
 
         log.debug(self)
         log.debug(f'Using {self.config.init_config["name"]} initialization.')
+
+    def extract_block_args(self, block_args: Dict[str, Any]) -> Dict[str, Any]:
+        """Sets the block args."""
+        if block_args['ffn_config']['ffn_type'] in ffns_with_megablocks:
+            block_args['ffn_config'] = config_moe_args(
+                block_args['ffn_config'],
+                block_args['d_model'],
+                block_args['expansion_ratio'],
+                block_args['n_layers'],
+            )
+            self.mb_args = block_args['ffn_config'].get('args')
+        return block_args
 
     def get_input_embeddings(self) -> Union[SharedEmbedding, nn.Embedding]:
         return self.wte
@@ -583,16 +587,16 @@ class MPTModel(MPTPreTrainedModel):
             )
         elif input_ids is not None:
             bsz = input_ids.size(0)
-            S = input_ids.size(1)
             x = self.wte(input_ids)
             input_device = input_ids.device
         elif inputs_embeds is not None:
             bsz = inputs_embeds.size(0)
-            S = inputs_embeds.size(1)
             x = inputs_embeds
             input_device = inputs_embeds.device
         else:
             raise ValueError('You must specify input_ids or inputs_embeds')
+
+        S = self.get_sequence_length(x)
 
         assert (
             S <= self.config.max_seq_len
@@ -745,6 +749,17 @@ class MPTModel(MPTPreTrainedModel):
             hidden_states=all_hidden_states,
             attentions=all_self_attns,
         )
+
+    def get_sequence_length(self, x: torch.Tensor) -> int:
+        """Returns the sequence length.
+
+        Args:
+            x (torch.Tensor): The input Tensor.
+
+        Returns:
+            S (int): The sequence length.
+        """
+        return x.size(1)
 
     # Param Initialization, needed for device='meta' fast initialization
     def param_init_fn(self, module: nn.Module) -> None:
@@ -1052,8 +1067,11 @@ class ComposerMPTCausalLM(HuggingFaceModel):
 
     def __init__(
         self,
-        om_model_config: DictConfig,
         tokenizer: Optional[PreTrainedTokenizerBase] = None,
+        use_train_metrics: Optional[bool] = True,
+        additional_train_metrics: Optional[List] = None,
+        loss_fn: Optional[Union[str, Dict]] = 'fused_crossentropy',
+        **kwargs: Dict[str, Any],
     ):
         from llmfoundry.metrics import (
             DEFAULT_CAUSAL_LM_EVAL_METRICS,
@@ -1061,27 +1079,18 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         )
         from llmfoundry.utils.builders import build_metric
 
-        resolved_om_model_config = om.to_container(
-            om_model_config,
-            resolve=True,
-        )
-        assert isinstance(resolved_om_model_config, dict)
+        additional_train_metrics = additional_train_metrics or []
 
-        hf_config = MPTConfig.from_dict(resolved_om_model_config)
-        model = MPTForCausalLM(hf_config)
-
-        use_train_metrics = om_model_config.get('use_train_metrics', True)
-        train_metric_names = DEFAULT_CAUSAL_LM_TRAIN_METRICS + resolved_om_model_config.get(
-            'additional_train_metrics',
-            [],
+        model = MPTForCausalLM(
+            MPTConfig(use_train_metrics=use_train_metrics, **kwargs),
         )
+
+        use_train_metrics = use_train_metrics
+        train_metric_names = DEFAULT_CAUSAL_LM_TRAIN_METRICS + additional_train_metrics
         train_metrics = [
             build_metric(metric, {}) for metric in train_metric_names
         ] if use_train_metrics else []
-        eval_metric_names = DEFAULT_CAUSAL_LM_EVAL_METRICS + resolved_om_model_config.get(
-            'additional_eval_metrics',
-            [],
-        )
+        eval_metric_names = DEFAULT_CAUSAL_LM_EVAL_METRICS + additional_train_metrics
         eval_metrics = [
             build_metric(metric, {}) for metric in eval_metric_names
         ]
@@ -1092,11 +1101,11 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             use_logits=True,
             metrics=train_metrics,
             eval_metrics=eval_metrics,
-            shift_labels=True,
+            shift_labels=model.transformer.shift_labels,
             allow_embedding_resizing=True,
         )
 
-        loss_fn_config = om_model_config.get('loss_fn', 'fused_crossentropy')
+        loss_fn_config = loss_fn
         if loss_fn_config == 'fused_crossentropy':
             try:
                 from flash_attn.losses.cross_entropy import \
@@ -1148,7 +1157,11 @@ class ComposerMPTCausalLM(HuggingFaceModel):
 
     def loss(self, outputs: CausalLMOutputWithPast,
              batch: Mapping) -> Union[dict, torch.Tensor]:
-        targets = self.get_targets(batch)
+        if self.model.transformer.shift_labels:
+            targets = self.get_targets(batch)
+        else:
+            targets = batch['labels']
+
         losses = self.loss_fn(
             outputs.logits.view(-1, outputs.logits.size(-1)),
             targets.view(-1),
@@ -1158,6 +1171,12 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             loss = losses.sum()
         else:
             loss = losses.sum() / (targets != self.loss_fn.ignore_index).sum()
+            if 'sample_weighing_factor' in batch:
+                if batch['sample_weighing_factor'].shape[0] > 1:
+                    raise ValueError(
+                        'Sample weighing factor is not supported when batch["sample_weighing_factor"].shape[0] > 1.',
+                    )
+                loss = loss * batch['sample_weighing_factor'][0].item()
 
         if self.config.ffn_config['ffn_type'] in ffns_with_megablocks:
             # MegaBlocks MoE load balancing loss
@@ -1195,9 +1214,19 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         params = self.n_active_params
         params_flops_per_token = 2 * params
         params_flops_per_seq = params_flops_per_token * msl
-        attn_flops_per_seq = (
+        attn_flops_per_seq = self.get_attention_flops(msl)
+        return (params_flops_per_seq + attn_flops_per_seq) * 3 * bs
+
+    def get_attention_flops(self, msl: int) -> int:
+        """Computes the attention flops for the batch.
+
+        Args:
+            msl (int): The batch sequence length.
+
+        Returns:
+            attn_flops (int): The attention flops.
+        """
+        return (
             self.model.config.n_layers * 2 * 2 *
             (self.model.config.d_model * (msl**2))
         )
-
-        return (params_flops_per_seq + attn_flops_per_seq) * 3 * bs

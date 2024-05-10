@@ -1,3 +1,6 @@
+# Copyright 2024 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 import logging
 import os
 import signal
@@ -14,7 +17,7 @@ log = logging.getLogger(__name__)
 
 def _timeout(timeout: int, mosaicml_logger: Optional[MosaicMLLogger] = None):
     log.error(
-        f"Timeout after no Trainer events were triggered for {timeout} seconds."
+        f'Timeout after no Trainer events were triggered for {timeout} seconds.',
     )
     if mosaicml_logger is not None:
         mosaicml_logger.log_exception(RunTimeoutError(timeout=timeout))
@@ -40,7 +43,9 @@ class InactivityCallback(Callback):
     def _timeout(self):
         self._reset()
         self.timer = threading.Timer(
-            self.timeout, _timeout, [self.timeout, self.mosaicml_logger]
+            self.timeout,
+            _timeout,
+            [self.timeout, self.mosaicml_logger],
         )
         self.timer.start()
 

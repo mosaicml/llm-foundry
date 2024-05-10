@@ -34,7 +34,6 @@ def tiny_ft_dataloader(
     device_batch_size: int = 1,
 ) -> DataLoader:
     dataloader_cfg = DictConfig({
-        'name': 'finetuning',
         'dataset': {
             'hf_name': str(tiny_ft_dataset_path),
             'split': 'train',
@@ -53,9 +52,9 @@ def tiny_ft_dataloader(
     })
 
     dataloader = build_finetuning_dataloader(
-        dataloader_cfg,
-        mpt_tokenizer,
-        device_batch_size,
+        **dataloader_cfg,
+        tokenizer=mpt_tokenizer,
+        device_batch_size=device_batch_size,
     ).dataloader
 
     assert isinstance(dataloader, DataLoader)

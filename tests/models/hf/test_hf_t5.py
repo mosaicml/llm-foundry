@@ -23,4 +23,4 @@ def test_experimental_hf_t5():
     tokenizer = transformers.T5Tokenizer.from_pretrained('t5-base')
 
     with pytest.warns(ExperimentalWarning):
-        _ = ComposerHFT5(cfg, tokenizer)
+        _ = ComposerHFT5(**cfg, tokenizer=tokenizer)

@@ -8,6 +8,7 @@ from omegaconf import OmegaConf as om
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from llmfoundry.utils.builders import build_icl_evaluators
+from llmfoundry.utils.config_utils import to_list_container
 
 
 def load_icl_config(conf_path: str = 'tests/data/test_tasks.yaml'):
@@ -23,7 +24,7 @@ def run_test(
 ):
     task_cfg = load_icl_config()
     evaluators, _ = build_icl_evaluators(
-        task_cfg.icl_tasks,
+        to_list_container(task_cfg.icl_tasks),
         tokenizer,
         1024,
         8,

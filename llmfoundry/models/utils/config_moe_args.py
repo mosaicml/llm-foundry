@@ -3,6 +3,7 @@
 
 """Helper function to configure MPT with MoEs."""
 
+import inspect
 from typing import Union
 
 import torch
@@ -143,7 +144,10 @@ def config_megablocks_moe_args(
         elif lbl_process_group == 'global_group':
             lbl_process_group = distributed.group.WORLD
         elif isinstance(lbl_process_group, int):
-            lbl_process_group = create_set_process_group(lbl_process_group)
+            if lbl_process_group > 1:
+                lbl_process_group = create_set_process_group(lbl_process_group)
+            else:
+                lbl_process_group = None
         elif lbl_process_group is not None:
             raise ValueError(
                 f'Unknown {lbl_process_group=}. Options are: none | expert_group | global_group | <GROUP_SIZE>.',
@@ -152,6 +156,14 @@ def config_megablocks_moe_args(
 
     ffn_hidden_size = resolve_ffn_hidden_size(d_model, expansion_ratio)
     ffn_config.setdefault('ffn_hidden_size', ffn_hidden_size)
+
+    args_to_keep_in_ffn_config = inspect.signature(
+        megablocks.layers.arguments.Arguments,
+    ).parameters
+
+    ffn_config = {
+        k: v for k, v in ffn_config.items() if k in args_to_keep_in_ffn_config
+    }
 
     args = megablocks.layers.arguments.Arguments(
         hidden_size=d_model,

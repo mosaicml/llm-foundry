@@ -266,8 +266,8 @@ def main(cfg: DictConfig) -> Trainer:
     fsdp_config: Optional[Dict[str, Any]] = train_cfg.fsdp_config
 
     eval_loader_config = train_cfg.eval_loader if train_cfg.eval_loader is not None else train_cfg.eval_loaders
-    icl_tasks_config = train_cfg.icl_tasks
-    eval_gauntlet_config = train_cfg.eval_gauntlet
+    icl_tasks_config = train_cfg.icl_tasks or train_cfg.icl_tasks_str
+    eval_gauntlet_config = train_cfg.eval_gauntlet or train_cfg.eval_gauntlet_str
 
     # Optional parameters will be set to default values if not specified.
     default_run_name: str = os.environ.get('RUN_NAME', 'llm')

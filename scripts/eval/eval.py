@@ -192,7 +192,7 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     )
 
     model_configs = eval_config.models
-    eval_gauntlet_config = eval_config.eval_gauntlet
+    eval_gauntlet_config = eval_config.eval_gauntlet or eval_config.eval_gauntlet_str
 
     fsdp_config = eval_config.fsdp_config
 

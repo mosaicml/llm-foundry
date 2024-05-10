@@ -597,6 +597,8 @@ def main(cfg: DictConfig) -> Trainer:
     if callback_configs is not None:
         for name, callback_cfg in callback_configs.items():
             if name == 'inactivity':
+                log.info('Adding inactivity callback...')
+                log.info(callback_cfg)
                 callback_cfg['mosaicml_logger'] = mosaicml_logger
 
     callbacks: List[Callback] = [
@@ -606,6 +608,8 @@ def main(cfg: DictConfig) -> Trainer:
             train_config=om.to_container(logged_cfg),
         ) for name, callback_cfg in callback_configs.items()
     ] if callback_configs else []
+
+    log.info('Callbacks: %s', callbacks)
 
     use_async_eval = any(isinstance(c, AsyncEval) for c in callbacks)
 

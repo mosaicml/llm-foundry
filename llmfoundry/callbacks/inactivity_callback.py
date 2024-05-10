@@ -25,12 +25,12 @@ class InactivityCallback(Callback):
 
     def __init__(
         self,
-        timeout: int = 30,
+        timeout: int = 1800,
         mosaicml_logger: Optional[MosaicMLLogger] = None,
     ):
         self.timeout = timeout
-        self.timer: Optional[threading.Timer] = None
         self.mosaicml_logger = mosaicml_logger
+        self.timer: Optional[threading.Timer] = None
 
     def _reset(self):
         if self.timer is not None:

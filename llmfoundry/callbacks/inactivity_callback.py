@@ -24,6 +24,7 @@ class InactivityCallback(Callback):
     def _timeout(self):
         self._reset()
         self.timer = threading.Timer(self.timeout, _timeout, [self.timeout])
+        self.timer.daemon = False
         self.timer.start()
 
     def fit_end(self, state: State, logger: Logger):

@@ -365,11 +365,6 @@ def main(cfg: DictConfig) -> Trainer:
     callback_configs = train_cfg.callbacks or {}
 
     # Callbacks
-    if callback_configs is not None:
-        for name, callback_cfg in callback_configs.items():
-            if name == 'inactivity':
-                callback_cfg['mosaicml_logger'] = mosaicml_logger
-
     callbacks: List[Callback] = [
         build_callback(
             name=str(name),

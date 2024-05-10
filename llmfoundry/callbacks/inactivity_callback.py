@@ -16,24 +16,26 @@ log = logging.getLogger(__name__)
 
 
 def _timeout(timeout: int, mosaicml_logger: Optional[MosaicMLLogger] = None):
-    log.error(
-        f'Timeout after no Trainer events were triggered for {timeout} seconds.',
-    )
+    log.error(f'Timeout after {timeout} seconds of inactivity after fit_end.',)
     if mosaicml_logger is not None:
         mosaicml_logger.log_exception(RunTimeoutError(timeout=timeout))
     os.kill(os.getpid(), signal.SIGINT)
 
 
-class InactivityCallback(Callback):
+class RunTimeoutCallback(Callback):
 
     def __init__(
         self,
         timeout: int = 1800,
-        mosaicml_logger: Optional[MosaicMLLogger] = None,
     ):
         self.timeout = timeout
-        self.mosaicml_logger = mosaicml_logger
+        self.mosaicml_logger: Optional[MosaicMLLogger] = None
         self.timer: Optional[threading.Timer] = None
+
+    def init(self, state: State, logger: Logger):
+        for callback in state.callbacks:
+            if isinstance(callback, MosaicMLLogger):
+                self.mosaicml_logger = callback
 
     def _reset(self):
         if self.timer is not None:

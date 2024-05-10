@@ -19,11 +19,13 @@ from llmfoundry.callbacks.eval_gauntlet_callback import EvalGauntlet
 from llmfoundry.callbacks.eval_output_logging_callback import EvalOutputLogging
 from llmfoundry.callbacks.fdiff_callback import FDiffMetrics
 from llmfoundry.callbacks.hf_checkpointer import HuggingFaceCheckpointer
-from llmfoundry.callbacks.inactivity_callback import InactivityCallback
-from llmfoundry.callbacks.log_mbmoe_tok_per_expert_callback import \
-    MegaBlocksMoE_TokPerExpert
-from llmfoundry.callbacks.monolithic_ckpt_callback import \
-    MonolithicCheckpointSaver
+from llmfoundry.callbacks.inactivity_callback import RunTimeoutCallback
+from llmfoundry.callbacks.log_mbmoe_tok_per_expert_callback import (
+    MegaBlocksMoE_TokPerExpert,
+)
+from llmfoundry.callbacks.monolithic_ckpt_callback import (
+    MonolithicCheckpointSaver,
+)
 from llmfoundry.callbacks.resumption_callbacks import (
     GlobalLRScaling,
     LayerFreezing,
@@ -48,7 +50,7 @@ callbacks.register('scheduled_gc', func=ScheduledGarbageCollector)
 callbacks.register('oom_observer', func=OOMObserver)
 callbacks.register('eval_output_logging', func=EvalOutputLogging)
 callbacks.register('mbmoe_tok_per_expert', func=MegaBlocksMoE_TokPerExpert)
-callbacks.register('inactivity', func=InactivityCallback)
+callbacks.register('inactivity', func=RunTimeoutCallback)
 
 callbacks_with_config.register('async_eval', func=AsyncEval)
 callbacks_with_config.register('curriculum_learning', func=CurriculumLearning)

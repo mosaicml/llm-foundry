@@ -47,6 +47,7 @@ class InactivityCallback(Callback):
             _timeout,
             [self.timeout, self.mosaicml_logger],
         )
+        self.timer.daemon = True
         self.timer.start()
 
     def fit_end(self, state: State, logger: Logger):

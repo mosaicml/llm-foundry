@@ -306,14 +306,14 @@ class MPTConfig(PretrainedConfig):
                     + 'pip install flash-attn==1.0.6 --no-build-isolation \n' +
                     'pip install git+https://github.com/NVIDIA/TransformerEngine.git@144e4888b2cdd60bd52e706d5b7a79cb9c1a7156',
                 )
+
+        self.ffn_config['fc_type'] = self.fc_type
         if self.ffn_config['ffn_type'] == 'mptgeglu':
             raise ValueError(
                 'API CHANGE: `ffn_type=="mptgeglu"` changed to `ffn_type=="mptglu"`. '
                 +
                 'See [#829](https://github.com/mosaicml/llm-foundry/pull/829) for details.',
             )
-        elif self.ffn_config['ffn_type'] in ['mptmlp', 'mptglu']:
-            self.ffn_config['fc_type'] = self.fc_type
         elif self.ffn_config['ffn_type'] in ffns_with_megablocks:
             self.ffn_config['return_bias'] = False
         elif self.ffn_config['ffn_type'] == 'te_ln_mlp':

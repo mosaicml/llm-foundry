@@ -3,6 +3,7 @@
 
 """A HuggingFace-style model configuration."""
 
+import copy
 import warnings
 from typing import Any, Dict, Optional, Union
 
@@ -55,15 +56,15 @@ class MPTConfig(PretrainedConfig):
         resid_pdrop: float = 0.0,
         emb_pdrop: float = 0.0,
         learned_pos_emb: bool = True,
-        attn_config: Dict = attn_config_defaults,
-        ffn_config: Dict = ffn_config_defaults,
+        attn_config: Optional[Dict] = None,
+        ffn_config: Optional[Dict] = None,
         init_device: str = 'cpu',
         logit_scale: Optional[Union[float, str]] = None,
         no_bias: bool = False,
         embedding_fraction: float = 1.0,
         norm_type: str = 'low_precision_layernorm',
         use_cache: bool = False,
-        init_config: Dict = init_config_defaults,
+        init_config: Optional[Dict] = None,
         fc_type: str = 'torch',
         tie_word_embeddings: bool = True,
         use_pad_tok_in_ffn: bool = True,
@@ -147,15 +148,21 @@ class MPTConfig(PretrainedConfig):
         self.resid_pdrop = resid_pdrop
         self.emb_pdrop = emb_pdrop
         self.learned_pos_emb = learned_pos_emb
-        self.attn_config = attn_config
-        self.ffn_config = ffn_config
+        self.attn_config = attn_config if attn_config is not None else copy.deepcopy(
+            attn_config_defaults,
+        )
+        self.ffn_config = ffn_config if ffn_config is not None else copy.deepcopy(
+            ffn_config_defaults,
+        )
         self.init_device = init_device
         self.logit_scale = logit_scale
         self.no_bias = no_bias
         self.embedding_fraction = embedding_fraction
         self.norm_type = norm_type
         self.use_cache = use_cache
-        self.init_config = init_config
+        self.init_config = init_config if init_config is not None else copy.deepcopy(
+            init_config_defaults,
+        )
         self.fc_type = fc_type
         self.use_pad_tok_in_ffn = use_pad_tok_in_ffn
 

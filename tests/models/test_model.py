@@ -1001,6 +1001,7 @@ def test_mb_mpt_creation():
             'ffn_type': 'mb_moe',
             'ffn_hidden_size': 1024,
             'ffn_act_fn': 'silu',
+            'moe_world_size': 1,
         },
     )
 

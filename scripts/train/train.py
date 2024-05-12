@@ -196,9 +196,11 @@ def _initialize_dist_with_barrier(dist_timeout: Union[int, float]):
 
 def main(cfg: DictConfig) -> Trainer:
     log.info("Starting training script...")
-    log.info("python path in training script: " + '\n'.join(sys.path))
     if os.environ.get('OVERRIDE_EXCEPTHOOK', 'false') == 'true':
-        raise ValueError('ExceptHook is disabled. This is a test error.')
+        raise ValueError(
+            'ExceptHook is disabled. This is a test error. The python path is: '
+            + '\n'.join(sys.path)
+        )
 
     code_paths = cfg.get('code_paths', [])
     # Import any user provided code

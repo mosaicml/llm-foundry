@@ -35,7 +35,7 @@ ALLOWED_RESPONSE_KEYS = {'response', 'completion'}
 ALLOWED_PROMPT_KEYS = {'prompt'}
 ALLOWED_MESSAGES_KEYS = {'messages'}
 
-ErrorContext = Union[Literal['TrainContext'], Literal['EvalContext']]
+ErrorContext = Union[Literal['TrainDataloader'], Literal['EvalDataloader']]
 
 
 class ContextualError(Exception):

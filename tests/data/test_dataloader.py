@@ -40,6 +40,7 @@ from llmfoundry.data.text_data import (
 )
 from llmfoundry.data.utils import get_tokens_per_batch_func
 from llmfoundry.utils.builders import build_tokenizer
+from llmfoundry.utils.config_utils import to_dict_container
 # yapf: disable
 from llmfoundry.utils.exceptions import (
     ConsecutiveRepeatedChatRolesError,
@@ -245,7 +246,7 @@ def test_correct_padding(
     test_cfg = get_config(
         conf_path='scripts/train/yamls/pretrain/mpt-125m.yaml',
     )
-    test_cfg.data_local = data_local
+    test_cfg.variables.data_local = data_local
     test_cfg.eval_loader.dataset.split = split
     test_cfg.dataset = om.create({
         'num_canonical_nodes': 1,
@@ -258,10 +259,13 @@ def test_correct_padding(
     )
 
     # Dataloaders
+    test_cfg.eval_loader.pop('name')
+    assert isinstance(test_cfg, DictConfig)
+    test_cfg = to_dict_container(test_cfg)
     eval_loader = build_text_dataloader(
-        test_cfg.eval_loader,
-        tokenizer,
-        batch_size,
+        **test_cfg['eval_loader'],
+        tokenizer=tokenizer,
+        device_batch_size=batch_size,
     ).dataloader
     batch = next(iter(eval_loader))
 
@@ -314,7 +318,6 @@ def test_invalid_jsonl_data():
     packing_ratio = 'auto'
     allow_pad_trimming = False
     cfg = {
-        'name': 'finetuning',
         'dataset': {
             'hf_name': 'iamroot/chat_malformatted_examples',
             'split': 'train',
@@ -347,9 +350,9 @@ def test_invalid_jsonl_data():
 
     with pytest.raises(MisconfiguredHfDatasetError):
         build_finetuning_dataloader(
-            cfg,
-            tokenizer,
-            device_batch_size,
+            **cfg,
+            tokenizer=tokenizer,
+            device_batch_size=device_batch_size,
         ).dataloader
 
 
@@ -370,7 +373,6 @@ def test_finetuning_dataloader(
     max_seq_len = 2048 if decoder_only_format else 1024
 
     cfg = {
-        'name': 'finetuning',
         'dataset': {
             'hf_name':
                 'iamroot/chat_formatted_examples' if use_chat_formatting else
@@ -410,9 +412,9 @@ def test_finetuning_dataloader(
         expected_keys += ['decoder_attention_mask', 'decoder_input_ids']
 
     loader = build_finetuning_dataloader(
-        cfg,
-        tokenizer,
-        device_batch_size,
+        tokenizer=tokenizer,
+        device_batch_size=device_batch_size,
+        **cfg,
     ).dataloader
     batch_ix = 0
     for batch in loader:
@@ -440,7 +442,6 @@ def test_finetuning_dataloader_safe_load(
     # Clear the folder
     shutil.rmtree(DOWNLOADED_FT_DATASETS_DIRPATH, ignore_errors=True)
     cfg = DictConfig({
-        'name': 'finetuning',
         'dataset': {
             'hf_name': hf_name,
             'split': 'train',
@@ -463,7 +464,11 @@ def test_finetuning_dataloader_safe_load(
     tokenizer = build_tokenizer('gpt2', {})
 
     with expectation:
-        _ = build_finetuning_dataloader(cfg, tokenizer, 1)
+        _ = build_finetuning_dataloader(
+            tokenizer=tokenizer,
+            device_batch_size=1,
+            **cfg,
+        )
 
     # If no raised errors, we should expect downloaded files with only safe file types.
     if expectation == does_not_raise():
@@ -499,7 +504,6 @@ def test_finetuning_dataloader_small_data(
         )
 
     cfg = {
-        'name': 'finetuning',
         'dataset': {
             'hf_name': tiny_dataset_folder_path,
             'split': 'train',
@@ -532,7 +536,11 @@ def test_finetuning_dataloader_small_data(
         )
 
     with error_context:
-        _ = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
+        _ = build_finetuning_dataloader(
+            tokenizer=tokenizer,
+            device_batch_size=device_batch_size,
+            **cfg,
+        )
 
     if dist.get_global_rank() == 0:
         shutil.rmtree(tiny_dataset_folder_path)
@@ -552,7 +560,6 @@ def test_finetuning_dataloader_custom_split(tmp_path: pathlib.Path, split: str):
         make_tiny_ft_dataset(path=tiny_dataset_path, size=16)
 
     cfg = {
-        'name': 'finetuning',
         'dataset': {
             'hf_name': tiny_dataset_folder_path,
             'split': split,
@@ -577,7 +584,11 @@ def test_finetuning_dataloader_custom_split(tmp_path: pathlib.Path, split: str):
         tokenizer_kwargs={'model_max_length': max_seq_len},
     )
 
-    _ = build_finetuning_dataloader(cfg, tokenizer, 4)
+    _ = build_finetuning_dataloader(
+        tokenizer=tokenizer,
+        device_batch_size=4,
+        **cfg,
+    )
 
 
 def mock_get_file(path: str, destination: str, overwrite: bool = False):
@@ -595,7 +606,6 @@ def test_finetuning_dataloader_custom_split_remote(split: str):
     max_seq_len = 2048
 
     cfg = {
-        'name': 'finetuning',
         'dataset': {
             'hf_name': 's3://test-bucket/path/to/data',
             'split': split,
@@ -625,7 +635,11 @@ def test_finetuning_dataloader_custom_split_remote(split: str):
         'llmfoundry.data.finetuning.dataloader.get_file',
         wraps=mock_get_file,
     ) as f:
-        _ = build_finetuning_dataloader(cfg, tokenizer, 4)
+        _ = build_finetuning_dataloader(
+            tokenizer=tokenizer,
+            device_batch_size=4,
+            **cfg,
+        )
         for call in f.call_args_list:
             path_arg = call.kwargs['path']
             dest_arg = call.kwargs['destination']
@@ -676,7 +690,6 @@ def test_finetuning_dataloader_streaming(
         }
 
     cfg = {
-        'name': 'finetuning',
         'dataset': {
             'max_seq_len': 2048,
             'decoder_only_format': True,
@@ -698,7 +711,11 @@ def test_finetuning_dataloader_streaming(
 
     cfg = om.create(cfg)
 
-    dataloader = build_finetuning_dataloader(cfg, tokenizer, 2).dataloader
+    dataloader = build_finetuning_dataloader(
+        tokenizer=tokenizer,
+        device_batch_size=2,
+        **cfg,
+    ).dataloader
 
     expected_keys = ['input_ids', 'labels']
     for batch in dataloader:
@@ -865,7 +882,6 @@ def test_malformed_data(
         )
 
     cfg = {
-        'name': 'finetuning',
         'dataset': {
             'hf_name': str(tiny_dataset_folder_path),
             'split': 'train',
@@ -909,9 +925,9 @@ def test_malformed_data(
 
     with error_context:
         dl = build_finetuning_dataloader(
-            cfg,
-            tokenizer,
-            device_batch_size,
+            tokenizer=tokenizer,
+            device_batch_size=device_batch_size,
+            **cfg,
         ).dataloader
 
     if not any(invalid_prompt_response_params):
@@ -975,7 +991,6 @@ def test_malformed_conversation_data(
         )
 
     cfg = {
-        'name': 'finetuning',
         'dataset': {
             'hf_name': str(tiny_dataset_folder_path),
             'split': 'train',
@@ -1028,9 +1043,9 @@ def test_malformed_conversation_data(
 
     with error_context:
         build_finetuning_dataloader(
-            cfg,
-            tokenizer,
-            device_batch_size,
+            tokenizer=tokenizer,
+            device_batch_size=device_batch_size,
+            **cfg,
         ).dataloader
 
 
@@ -1083,9 +1098,9 @@ def test_finetune_dataloader_pure_pad_responses():
 
     device_batch_size = 1
     dataloader = build_finetuning_dataloader(
-        cfg,
-        tokenizer,
-        device_batch_size,
+        tokenizer=tokenizer,
+        device_batch_size=device_batch_size,
+        **cfg,
     ).dataloader
 
     # We should be able to iterate through this dataset without crashing
@@ -1214,7 +1229,6 @@ def test_token_counting_func_dataloader_setting(
 
     if dataloader_type == 'finetuning-hf':
         cfg = DictConfig({
-            'name': 'finetuning',
             'dataset': {
                 'hf_name': 'dummy-path',
                 'split': 'train',
@@ -1231,10 +1245,13 @@ def test_token_counting_func_dataloader_setting(
             lambda *args,
             **kwargs: [],
         )
-        dl = build_finetuning_dataloader(cfg, gptt, batch_size)
+        dl = build_finetuning_dataloader(
+            tokenizer=gptt,
+            device_batch_size=batch_size,
+            **cfg,
+        )
     elif dataloader_type == 'finetuning-streaming':
         cfg = DictConfig({
-            'name': 'finetuning',
             'dataset': {
                 'remote': 'dummy-path',
                 'local': 'dummy-path',
@@ -1252,9 +1269,13 @@ def test_token_counting_func_dataloader_setting(
             lambda *args,
             **kwargs: [],
         )
-        dl = build_finetuning_dataloader(cfg, gptt, batch_size)
+        dl = build_finetuning_dataloader(
+            tokenizer=gptt,
+            device_batch_size=batch_size,
+            **cfg,
+        )
     elif dataloader_type == 'text':
-        cfg = DictConfig({
+        cfg = {
             'name': 'text',
             'dataset': {
                 'local': 'dummy-path',
@@ -1265,7 +1286,7 @@ def test_token_counting_func_dataloader_setting(
                 'shuffle_seed': 0,
             },
             **common_args,
-        })
+        }
         ds_mock = MagicMock()
         ds_mock.tokenizer = gptt
         monkeypatch.setattr(
@@ -1273,11 +1294,14 @@ def test_token_counting_func_dataloader_setting(
             lambda *args,
             **kwargs: ds_mock,
         )
-        dl = build_text_dataloader(cfg, gptt, batch_size)
+        cfg.pop('name')
+        dl = build_text_dataloader(
+            **cfg,
+            tokenizer=gptt,
+            device_batch_size=batch_size,
+        )
     else:
         raise NotImplementedError()
-
-    cfg = om.create(cfg)
 
     batch_collated = dl.dataloader.collate_fn(batch_tokenized)  # type: ignore
     actual_token_count = dl.get_num_tokens_in_batch(batch_collated)
@@ -1286,12 +1310,12 @@ def test_token_counting_func_dataloader_setting(
 
 
 def test_build_unknown_dataloader():
-    cfg = DictConfig({
+    cfg = {
         'name': 'unknown',
-    })
+    }
     tokenizer = MagicMock()
     with pytest.raises(catalogue.RegistryError):
-        _ = build_dataloader(cfg, tokenizer, 2)
+        _ = build_dataloader(cfg=cfg, tokenizer=tokenizer, device_batch_size=2)
 
 
 invalid_conversation_params_sharegpt = [
@@ -1343,7 +1367,6 @@ def test_sharegpt_format(
         )
 
     cfg = {
-        'name': 'finetuning',
         'dataset': {
             'hf_name': str(tiny_dataset_folder_path),
             'preprocessing_fn': 'teknium/OpenHermes-2.5',
@@ -1389,7 +1412,7 @@ def test_sharegpt_format(
 
     with error_context:
         build_finetuning_dataloader(
-            cfg,
-            tokenizer,
-            device_batch_size,
+            tokenizer=tokenizer,
+            device_batch_size=device_batch_size,
+            **cfg,
         ).dataloader

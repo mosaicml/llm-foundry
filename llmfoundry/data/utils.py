@@ -2,13 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-from typing import Callable, Iterable, Mapping, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, Mapping, Tuple, Union
 
 import torch
 import transformers
 from composer.core.data_spec import DataSpec
 from composer.core.types import Batch
-from omegaconf import DictConfig
 from torch.utils.data import DataLoader as TorchDataloader
 from transformers import PreTrainedTokenizerBase
 
@@ -20,9 +19,12 @@ from llmfoundry.data.text_data import ConcatenatedSequenceCollatorWrapper
 log = logging.getLogger(__name__)
 
 
-def _validate_cfg(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase):
-    eos_token_id = cfg.dataset.get('eos_token_id', None)
-    bos_token_id = cfg.dataset.get('bos_token_id', None)
+def _validate_cfg(
+    dataset_cfg: Dict[str, Any],
+    tokenizer: PreTrainedTokenizerBase,
+):
+    eos_token_id = dataset_cfg.get('eos_token_id', None)
+    bos_token_id = dataset_cfg.get('bos_token_id', None)
 
     if eos_token_id is None and bos_token_id is None and (
         hasattr(tokenizer, 'eos_token_id') or
@@ -35,7 +37,7 @@ def _validate_cfg(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase):
     tokenizer_eos_token_id = getattr(tokenizer, 'eos_token_id', None)
     if eos_token_id is not None and eos_token_id != tokenizer_eos_token_id:
         eos_mismatch_str = f'Provided {eos_token_id=} does not match the eos_token_id of the tokenizer={tokenizer_eos_token_id}.'
-        if cfg.dataset.pop('override_eos_token_id_mismatch_error', False):
+        if dataset_cfg.pop('override_eos_token_id_mismatch_error', False):
             log.warning(eos_mismatch_str)
         else:
             raise ValueError(
@@ -46,7 +48,7 @@ def _validate_cfg(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase):
     tokenizer_bos_token_id = getattr(tokenizer, 'bos_token_id', None)
     if bos_token_id is not None and bos_token_id != tokenizer_bos_token_id:
         bos_mismatch_str = f'Provided {bos_token_id=} does not match the bos_token_id of the tokenizer={tokenizer_bos_token_id}.'
-        if cfg.dataset.pop('override_bos_token_id_mismatch_error', False):
+        if dataset_cfg.pop('override_bos_token_id_mismatch_error', False):
             log.warning(bos_mismatch_str)
         else:
             raise ValueError(
@@ -54,20 +56,19 @@ def _validate_cfg(cfg: DictConfig, tokenizer: PreTrainedTokenizerBase):
                 ' To override this error, set the override_bos_token_id_mismatch_error flag to True in the dataset config section of the YAML.',
             )
 
-    max_seq_len = cfg.dataset.get('max_seq_len')
+    max_seq_len = dataset_cfg.get('max_seq_len')
     if max_seq_len is not None:
         if max_seq_len != int(max_seq_len):
             raise ValueError('max_seq_len must be an integer')
-        cfg.dataset['max_seq_len'] = int(max_seq_len)
+        dataset_cfg['max_seq_len'] = int(max_seq_len)
 
 
 def validate_ds_replication(
-    cfg: DictConfig,
+    dataset_cfg: Dict[str, Any],
     tokenizer: PreTrainedTokenizerBase,
     device_batch_size: Union[int, float],
 ) -> Tuple[int, int]:
-    _validate_cfg(cfg, tokenizer)
-    dataset_cfg = cfg.dataset
+    _validate_cfg(dataset_cfg, tokenizer)
     if (dataset_cfg.get('seq_parallel_replication', 1) or 1) > 1:
         raise NotImplementedError('Sequence parallelism is not supported.')
     if not isinstance(device_batch_size, int):
@@ -77,7 +78,7 @@ def validate_ds_replication(
 
 def get_data_spec(
     dl: Union[Iterable, TorchDataloader],
-    dataset_cfg: DictConfig,
+    dataset_cfg: Dict[str, Any],
 ) -> DataSpec:
     del dataset_cfg
     token_counting_func = get_tokens_per_batch_func()
@@ -134,14 +135,16 @@ def get_tokens_per_batch_func(
 
 
 def get_text_collator(
-    cfg: DictConfig,
+    dataloader_cfg: Dict[str, Any],
     tokenizer: PreTrainedTokenizerBase,
     dataset_batch_size: int,
 ) -> Tuple[Union[transformers.DataCollatorForLanguageModeling,
                  ConcatenatedSequenceCollatorWrapper], int]:
-    eos_token_id = cfg.dataset.get('eos_token_id', None)
-    bos_token_id = cfg.dataset.get('bos_token_id', None)
-    mlm_probability = cfg.dataset.pop('mlm_probability', None)
+    dataset_cfg = dataloader_cfg.get('dataset')
+    assert isinstance(dataset_cfg, dict)
+    eos_token_id = dataset_cfg.get('eos_token_id', None)
+    bos_token_id = dataset_cfg.get('bos_token_id', None)
+    mlm_probability = dataset_cfg.pop('mlm_probability', None)
     collate_fn = transformers.DataCollatorForLanguageModeling(
         tokenizer=tokenizer,
         mlm=mlm_probability is not None,
@@ -160,8 +163,8 @@ def get_text_collator(
 
 
 def get_finetuning_collator(
-    cfg: DictConfig,
+    dataloader_cfg: Dict[str, Any],
     tokenizer: PreTrainedTokenizerBase,
     dataset_batch_size: int,
 ) -> Tuple[Union[Seq2SeqFinetuningCollator, BinPackCollator], int]:
-    return build_collate_fn(cfg, tokenizer, dataset_batch_size)
+    return build_collate_fn(dataloader_cfg, tokenizer, dataset_batch_size)

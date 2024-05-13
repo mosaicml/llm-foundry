@@ -4,8 +4,11 @@
 # This is not the right YAML if you are trying to finetune a HuggingFace pretrained model. #
 ############################################################################################
 
-max_seq_len: 2048
-global_seed: 17
+variables:
+  global_seed: 17
+  max_seq_len: 2048
+
+max_seq_len: ${variables.max_seq_len}
 
 # Run Name
 run_name:  # If left blank, will be read from env var $RUN_NAME
@@ -19,7 +22,7 @@ model:
   n_heads: 16  # Modified 24->16 so that d_head == 128 to satisfy FlashAttention
   n_layers: 24
   expansion_ratio: 4
-  max_seq_len: ${max_seq_len}
+  max_seq_len: ${variables.max_seq_len}
   vocab_size: 50368
   attn_config:
     attn_impl: flash
@@ -30,7 +33,7 @@ model:
 tokenizer:
   name: EleutherAI/gpt-neox-20b
   kwargs:
-    model_max_length: ${max_seq_len}
+    model_max_length: ${variables.max_seq_len}
 
 # Local data to load into huggingface datasets
 dataset: &hf_dataset
@@ -45,7 +48,7 @@ train_loader: &train_loader
   dataset:
     <<: *hf_dataset
     split: train
-    max_seq_len: ${max_seq_len}
+    max_seq_len: ${variables.max_seq_len}
     allow_pad_trimming: false
     decoder_only_format: true
     shuffle: true
@@ -97,7 +100,7 @@ eval_subset_num_batches: -1
 global_train_batch_size: 128
 
 # System
-seed: ${global_seed}
+seed: ${variables.global_seed}
 device_eval_batch_size: 4
 device_train_microbatch_size: 4
 # device_train_microbatch_size: auto

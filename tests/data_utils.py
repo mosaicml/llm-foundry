@@ -299,13 +299,13 @@ def gpt_tiny_cfg(dataset_name: str, device: str):
         test_cfg = om.load(f)
     assert isinstance(test_cfg, DictConfig)
 
-    test_cfg.data_local = dataset_name
+    test_cfg.variables.data_local = dataset_name
     test_cfg.global_train_batch_size = 8
     test_cfg.device_eval_batch_size = 4
     test_cfg.device_train_microbatch_size = 4
     test_cfg.max_duration = '4ba'
     test_cfg.eval_interval = '4ba'
-    test_cfg.run_name = 'gpt-mini-integration-test'
+    test_cfg.variables.run_name = 'gpt-mini-integration-test'
 
     if device == 'cpu':
         test_cfg.model.init_device = 'cpu'

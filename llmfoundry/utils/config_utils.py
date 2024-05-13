@@ -2,15 +2,29 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import contextlib
+import copy
 import logging
 import math
 import os
 import warnings
-from typing import Any, Dict, List, Literal, Mapping, Optional, Tuple, Union
+from dataclasses import dataclass, fields
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Literal,
+    Mapping,
+    Optional,
+    Set,
+    Tuple,
+    TypeVar,
+    Union,
+)
 
 import mlflow
 from composer.utils import dist, parse_uri
-from omegaconf import DictConfig, ListConfig
+from omegaconf import MISSING, DictConfig, ListConfig, MissingMandatoryValue
 from omegaconf import OmegaConf as om
 from transformers import PretrainedConfig
 
@@ -28,8 +42,277 @@ __all__ = [
 ]
 
 
-def pop_config(
+@dataclass
+class EvalConfig:
+    # Eval Config required parameters:
+    models: List[Dict[str, Any]] = MISSING
+    max_seq_len: int = MISSING
+    device_eval_batch_size: int = MISSING
+
+    # Eval Config optional parameters:
+    code_paths: Optional[List[str]] = None
+
+    # Eval hyperparameters
+    eval_gauntlet: Optional[Dict[str, Any]] = None
+    eval_gauntlet_str: Optional[str] = None
+    eval_loader: Optional[Dict[str, Any]] = None
+    eval_loaders: Optional[List[Dict[str, Any]]] = None
+    eval_subset_num_batches: int = -1
+    icl_subset_num_batches: Optional[int] = None
+    # One of icl_tasks or icl_tasks_str must be specified
+    icl_tasks: Optional[List[Dict[str, Any]]] = None
+    icl_tasks_str: Optional[str] = None
+
+    # Logging parameters
+    python_log_level: Optional[str] = 'debug'
+    loggers: Optional[Dict[str, Any]] = None
+    log_config: bool = True
+
+    # Model/run parameters
+    seed: int = 17
+    precision: str = 'amp_bf16'
+    run_name: Optional[str] = None
+    metadata: Optional[Dict[str, str]] = None
+
+    # Distributed parameters
+    dist_timeout: Union[float, int] = 600.0
+    fsdp_config: Optional[Dict[str, Any]] = None
+
+    # Callback parameters
+    callbacks: Optional[Dict[str, Any]] = None
+
+    # Variables to ignore
+    variables: Optional[Dict[str, Any]] = None
+
+
+EVAL_CONFIG_KEYS = {field.name for field in fields(EvalConfig)}
+
+
+@dataclass
+class TrainConfig:
+    """Dataclass for training configuration."""
+
+    # Mandatory model training parameters
+    model: Dict[str, Any] = MISSING
+    tokenizer: Dict[str, Any] = MISSING
+    optimizer: Dict[str, Any] = MISSING
+    scheduler: Dict[str, Any] = MISSING
+    train_loader: Dict[str, Any] = MISSING
+    device_train_batch_size: int = MISSING
+    device_eval_batch_size: int = MISSING
+    max_duration: Union[int, str] = MISSING
+    eval_interval: Union[int, str] = MISSING
+    max_seq_len: int = MISSING
+    seed: int = MISSING
+
+    # Precision
+    precision: str = 'amp_bf16'
+
+    # Code paths to import
+    code_paths: Optional[List[str]] = None
+
+    # Cuda allocation configuration
+    max_split_size_mb: Optional[int] = None
+    expandable_segments: bool = False
+    cuda_load_lazy: bool = False
+
+    # Distributed training parameters
+    dist_timeout: Union[int, float] = 600.0
+    fsdp_config: Optional[Dict[str, Any]] = None
+
+    # Evaluation parameters
+    eval_loader: Optional[Dict[str, Any]] = None
+    eval_loaders: Optional[List[Dict[str, Any]]
+                          ] = None  # should not be set by the user
+    icl_tasks: Optional[List[Dict[str, Any]]] = None
+    icl_tasks_str: Optional[str] = None  # should not be set by the user
+    eval_gauntlet: Optional[Dict[str, Any]] = None
+    eval_gauntlet_str: Optional[str] = None  # should not be set by the user
+    icl_subset_num_batches: Optional[int] = None
+    icl_seq_len: Optional[int] = None
+
+    # Logging
+    loggers: Optional[Dict[str, Any]] = None
+    progress_bar: bool = False
+    log_to_console: bool = True
+    python_log_level: Optional[str] = 'debug'
+    console_log_interval: Union[int, str] = '1ba'
+    log_config: bool = True
+
+    # Callbacks
+    callbacks: Optional[Dict[str, Any]] = None
+    algorithms: Optional[Dict[str, Any]] = None
+
+    # Checkpoints
+    save_folder: Optional[str] = None
+    save_latest_filename: Optional[str] = None
+    save_overwrite: bool = False
+    save_weights_only: bool = False
+    save_filename: Optional[str] = None
+    save_interval: Union[str, int] = '1000ba'
+    save_num_checkpoints_to_keep: int = -1
+    load_path: Optional[str] = None
+    load_weights_only: bool = False
+    load_strict_model_weights: bool = True
+    load_ignore_keys: Optional[List[str]] = None
+    save_ignore_keys: Optional[List[str]] = None
+
+    # Dataloader
+    device_train_microbatch_size: Union[str, int] = 'auto'
+    global_train_batch_size: Optional[int] = None
+
+    # Eval dataloader
+    eval_subset_num_batches: int = -1
+    eval_first: bool = False
+    compile_config: Optional[Dict[str, Any]] = None
+
+    # Metadata
+    metadata: Optional[Dict[str, Any]] = None
+    run_name: Optional[str] = None
+
+    # Resumption
+    autoresume: bool = False
+
+    # Profiling
+    profiler: Optional[Dict[str, Any]] = None
+
+    # Variables to ignore
+    variables: Optional[Dict[str, Any]] = None
+
+
+TRAIN_CONFIG_KEYS = {field.name for field in fields(TrainConfig)}
+
+
+def forbid_config_key(cfg_dict: Dict[str, Any], key: str):
+    if key in cfg_dict:
+        raise ValueError(
+            f'Config key `{key}` should not be set. Please remove it from the config.',
+        )
+
+
+def to_dict_container(cfg: Union[DictConfig, Dict[str, Any]]) -> Dict[str, Any]:
+    maybe_dict = to_container(cfg)
+    if isinstance(maybe_dict, dict):
+        return maybe_dict
+    else:
+        raise ValueError(f'Expected a dict-like type, got {type(maybe_dict)}')
+
+
+def to_list_container(
+    cfg: Union[ListConfig, List[Dict[str, Any]]],
+) -> List[Dict[str, Any]]:
+    maybe_list = to_container(cfg)
+    if isinstance(maybe_list, list):
+        return maybe_list
+    else:
+        raise ValueError(f'Expected a list-like type, got {type(maybe_list)}')
+
+
+def to_container(
+    cfg: Optional[Union[DictConfig, ListConfig, Dict[str, Any],
+                        List[Dict[str, Any]]]],
+) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
+    """Converts a DictConfig or ListConfig to a dict or list.
+
+    `omegaconf.to_container` does not handle nested DictConfig or ListConfig
+    objects, so this function is used to convert them to dicts or lists.
+    """
+    if isinstance(cfg, DictConfig):
+        ret = om.to_container(cfg, resolve=True)
+        assert isinstance(ret, dict)
+        return ret  # type: ignore (return type is correct and converting all keys to str would be unnecessarily costly)
+    elif isinstance(cfg, ListConfig):
+        ret = om.to_container(cfg, resolve=True)
+        assert isinstance(ret, list)
+        return ret  # type: ignore (see above)
+    else:
+        return cfg  # type: ignore (dicts and lists are already in the correct format)
+
+
+T = TypeVar('T')
+
+
+def make_dataclass_and_log_config(
     cfg: DictConfig,
+    dataclass_constructor: Callable[..., T],
+    dataclass_fields: Set[str],
+    transforms: Optional[List[Callable[[Dict[str, Any]], Dict[str,
+                                                              Any]]]] = None,
+    icl_tasks_required: bool = False,
+) -> Tuple[Dict[str, Any], T]:
+    """Converts a DictConfig to a dataclass and creates a logged config."""
+    # Resolve all interpolation variables as early as possible
+    unstructured_config = om.to_container(cfg, resolve=True)
+    assert isinstance(unstructured_config, dict)
+    assert all(isinstance(k, str) for k in unstructured_config.keys())
+    unstructured_config = {str(k): v for k, v in unstructured_config.items()}
+
+    # Flatten union types before creating structured config:
+    if 'eval_gauntlet' in unstructured_config:
+        forbid_config_key(unstructured_config, 'eval_gauntlet_str')
+        if isinstance(unstructured_config['eval_gauntlet'], str):
+            unstructured_config['eval_gauntlet_str'] = unstructured_config.pop(
+                'eval_gauntlet',
+            )
+    if (loader := unstructured_config.get('eval_loader', None)) is not None:
+        forbid_config_key(unstructured_config, 'eval_loaders')
+        if isinstance(loader, list):
+            unstructured_config['eval_loaders'] = unstructured_config.pop(
+                'eval_loader',
+            )
+    if 'icl_tasks' in unstructured_config:
+        forbid_config_key(unstructured_config, 'icl_tasks_str')
+        if isinstance(unstructured_config['icl_tasks'], str):
+            unstructured_config['icl_tasks_str'] = unstructured_config.pop(
+                'icl_tasks',
+            )
+    else:
+        if icl_tasks_required:
+            raise MissingMandatoryValue(
+                'icl_tasks must be specified in the config',
+            )
+
+    # Create copy of config for logging
+    logged_cfg: Dict[str, Any] = copy.deepcopy(unstructured_config)
+
+    # Apply transforms to the unstructured config before constructing dataclass
+    for transform in transforms or []:
+        unstructured_config = transform(unstructured_config)
+
+    logged_cfg.update(unstructured_config, merge=True)
+
+    arg_config_keys = set(unstructured_config.keys())
+    extraneous_keys = set.difference(arg_config_keys, dataclass_fields)
+
+    if 'variables' not in unstructured_config:
+        unstructured_config['variables'] = {}
+
+    for key in extraneous_keys:
+        warnings.warn(
+            f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary. Interpreting {key} as a variable for logging purposes. Top-level variables are deprecated and will not be supported in future releases. Please place any variables under the `variables` key.',
+            category=DeprecationWarning,
+        )
+        unstructured_config['variables'][key] = unstructured_config.pop(key)
+
+    dataclass_dict_config: DictConfig = om.structured(
+        dataclass_constructor(**unstructured_config),
+    )
+
+    # Error on missing mandatory values:
+    for key in dataclass_fields:
+        _ = dataclass_dict_config[key]
+
+    # Convert DictConfig to dict for dataclass constructor so that child
+    # configs are not DictConfigs
+    dataclass_config: T = dataclass_constructor(
+        **to_dict_container(dataclass_dict_config),
+    )
+
+    return logged_cfg, dataclass_config
+
+
+def pop_config(
+    cfg: Union[Dict[str, Any], DictConfig],
     key: str,
     must_exist: bool = True,
     default_value: Any = None,
@@ -77,19 +360,29 @@ def get_hf_config_value(config: Union[dict, PretrainedConfig], key: str) -> Any:
 
 def calculate_batch_size_info(
     global_batch_size: int,
-    device_microbatch_size: Union[int, Literal['auto']],
-) -> Tuple[int, Union[int, Literal['auto']], Union[int, Literal['auto']]]:
-    if global_batch_size % dist.get_world_size() != 0:
+    device_microbatch_size: Union[int, float, Literal['auto']],
+    data_replication_degree: int = 1,
+) -> Tuple[Union[int, float], Union[int, float, Literal['auto']], Union[
+    int, Literal['auto']]]:
+    if dist.get_world_size() % data_replication_degree != 0:
         raise ValueError(
-            f'Global batch size {global_batch_size} is not divisible by {dist.get_world_size()} '
+            f'World size {dist.get_world_size()} is not divisible by data replication degree {data_replication_degree}.',
+        )
+    if global_batch_size % (
+        dist.get_world_size() // data_replication_degree
+    ) != 0:
+        raise ValueError(
+            f'Global batchsize {global_batch_size} is not divisible by {(dist.get_world_size() // data_replication_degree)=} '
             +
             'as a result, the batch size would be truncated, please adjust `global_batch_size` '
             + f'to be divisible by world size, {dist.get_world_size()}.',
         )
-    device_batch_size = global_batch_size // dist.get_world_size()
+    device_batch_size = global_batch_size / dist.get_world_size()
+    if device_batch_size == round(device_batch_size):
+        device_batch_size = round(device_batch_size)
     if device_microbatch_size == 'auto':
         device_grad_accum = 'auto'
-    elif isinstance(device_microbatch_size, int):
+    elif isinstance(device_microbatch_size, (int, float)):
         if device_microbatch_size > device_batch_size:
             log.warn(
                 f'device_microbatch_size > device_batch_size, ' +
@@ -106,40 +399,43 @@ def calculate_batch_size_info(
 
 
 # Coming soon: this conversion math will be done inside Composer Trainer
-def update_batch_size_info(cfg: DictConfig) -> DictConfig:
+def update_batch_size_info(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    data_replication_degree = 1
     device_train_batch_size, device_train_microbatch_size, device_train_grad_accum = calculate_batch_size_info(
-        cfg.global_train_batch_size,
-        cfg.device_train_microbatch_size,
+        cfg['global_train_batch_size'],
+        cfg['device_train_microbatch_size'],
+        data_replication_degree=data_replication_degree,
     )
-    cfg.n_gpus = dist.get_world_size()
-    cfg.device_train_batch_size = device_train_batch_size
-    cfg.device_train_microbatch_size = device_train_microbatch_size
-    cfg.device_train_grad_accum = device_train_grad_accum
+    cfg['n_gpus'] = dist.get_world_size()
+    cfg['device_train_batch_size'] = device_train_batch_size
+    cfg['device_train_microbatch_size'] = device_train_microbatch_size
+    cfg['device_train_grad_accum'] = device_train_grad_accum
     # Safely set `device_eval_batch_size` if not provided by user
     if 'device_eval_batch_size' not in cfg:
-        if cfg.device_train_microbatch_size == 'auto':
-            cfg.device_eval_batch_size = 1  # TODO debug auto eval microbatching
+        if cfg['device_train_microbatch_size'] == 'auto':
+            cfg['device_eval_batch_size'
+               ] = 1  # TODO debug auto eval microbatching
         else:
-            cfg.device_eval_batch_size = cfg.device_train_microbatch_size
+            cfg['device_eval_batch_size'] = cfg['device_train_microbatch_size']
     return cfg
 
 
-def process_init_device(model_cfg: DictConfig, fsdp_config: Optional[Dict]):
+def process_init_device(model_cfg: Dict[str, Any], fsdp_config: Optional[Dict]):
     # Restrict model init_device to 'meta' and 'cpu',
     # using 'cuda' vs. 'cuda:id' is tricky and can lead to common user errors
     # when multiple GPUs are available.
     # Also 'meta' is only valid when using FSDP
     init_context = contextlib.nullcontext()
     if 'init_device' in model_cfg:
-        assert model_cfg.init_device in ['meta', 'cpu', 'mixed']
-        if fsdp_config is None and model_cfg.init_device == 'meta':
+        assert model_cfg['init_device'] in ['meta', 'cpu', 'mixed']
+        if fsdp_config is None and model_cfg['init_device'] == 'meta':
             warnings.warn(
                 "Using `cfg.model.init_device='meta'` is only valid when using FSDP! " +\
                 "Reverting to `cfg.model.init_device='cpu'`.")
-            model_cfg.init_device = 'cpu'
-        if model_cfg.init_device == 'meta':
+            model_cfg['init_device'] = 'cpu'
+        if model_cfg['init_device'] == 'meta':
             init_context = init_empty_weights()
-        if model_cfg.init_device == 'mixed':
+        if model_cfg['init_device'] == 'mixed':
             if fsdp_config is None:
                 raise NotImplementedError(
                     'Using init_device `mixed` is only supported with FSDP. ' +
@@ -168,7 +464,7 @@ def process_init_device(model_cfg: DictConfig, fsdp_config: Optional[Dict]):
             raise ValueError(
                 'device_mesh must be specified in fsdp_config when using MoE with moe_world_size > 1.',
             )
-        model_cfg.ffn_config.device_mesh = fsdp_config['device_mesh']
+        model_cfg['ffn_config']['device_mesh'] = fsdp_config['device_mesh']
 
     # No mixed precision needed for weights when they're already 16 bits
     master_dtype = model_cfg.get('master_weights_dtype')
@@ -197,27 +493,25 @@ def process_init_device(model_cfg: DictConfig, fsdp_config: Optional[Dict]):
     return init_context
 
 
-def log_config(cfg: DictConfig) -> None:
+def log_config(cfg: Dict[str, Any]) -> None:
     """Logs the current config and updates the wandb and mlflow configs.
 
     This function can be called multiple times to update the wandb and MLflow
     config with different variables.
     """
     print(om.to_yaml(cfg))
-    if 'wandb' in cfg.get('loggers', {}):
-        try:
-            import wandb
-        except ImportError as e:
-            raise e
+    loggers = cfg.get('loggers', None) or {}
+    if 'wandb' in loggers:
+        import wandb
         if wandb.run:
-            wandb.config.update(om.to_container(cfg, resolve=True))
+            wandb.config.update(cfg)
 
-    if 'mlflow' in cfg.get('loggers', {}) and mlflow.active_run():
-        mlflow.log_params(params=om.to_container(cfg, resolve=True))
+    if 'mlflow' in loggers and mlflow.active_run():
+        mlflow.log_params(params=cfg)
         _log_dataset_uri(cfg)
 
 
-def _parse_source_dataset(cfg: DictConfig) -> List[Tuple[str, str, str]]:
+def _parse_source_dataset(cfg: Dict[str, Any]) -> List[Tuple[str, str, str]]:
     """Parse a run config for dataset information.
 
     Given a config dictionary, parse through it to determine what the datasource
@@ -233,7 +527,7 @@ def _parse_source_dataset(cfg: DictConfig) -> List[Tuple[str, str, str]]:
     data_paths = []
 
     # Handle train loader if it exists
-    train_dataset = cfg.get('train_loader', {}).get('dataset', {})
+    train_dataset: Dict = cfg.get('train_loader', {}).get('dataset', {})
     train_split = train_dataset.get('split', None)
     train_source_path = cfg.get('source_dataset_train', None)
     _process_data_source(
@@ -246,13 +540,14 @@ def _parse_source_dataset(cfg: DictConfig) -> List[Tuple[str, str, str]]:
 
     # Handle eval_loader which might be a list or a single dictionary
     eval_data_loaders = cfg.get('eval_loader', {})
-    if not isinstance(eval_data_loaders, ListConfig):
+    if not isinstance(eval_data_loaders, list):
         eval_data_loaders = [
             eval_data_loaders,
         ]  # Normalize to list if it's a single dictionary
 
     for eval_data_loader in eval_data_loaders:
-        eval_dataset = eval_data_loader.get('dataset', {})
+        assert isinstance(eval_data_loader, dict)  # pyright type check
+        eval_dataset: Dict = eval_data_loader.get('dataset', {})
         eval_split = eval_dataset.get('split', None)
         eval_source_path = cfg.get('source_dataset_eval', None)
         _process_data_source(
@@ -320,7 +615,7 @@ def _process_data_source(
         log.warning('DataSource Not Found.')
 
 
-def _log_dataset_uri(cfg: DictConfig) -> None:
+def _log_dataset_uri(cfg: Dict[str, Any]) -> None:
     """Logs dataset tracking information to MLflow.
 
     Args:

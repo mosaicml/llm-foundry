@@ -4,7 +4,6 @@
 """Natively supported in-context learning evaluation datasets."""
 
 from llmfoundry.eval.datasets.in_context_learning_evaluation import (
-    InContextLearningCodeEvalDataset,
     InContextLearningDataset,
     InContextLearningGenerationTaskWithAnswersDataset,
     InContextLearningLMTaskDataset,
@@ -28,7 +27,6 @@ __all__ = [
     'InContextLearningDataset',
     'InContextLearningGenerationTaskWithAnswersDataset',
     'InContextLearningLMTaskDataset',
-    'InContextLearningCodeEvalDataset',
     'InContextLearningMultipleChoiceTaskDataset',
     'InContextLearningSchemaTaskDataset',
     'get_icl_task_dataloader',

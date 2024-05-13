@@ -21,20 +21,16 @@ from composer.profiler import (
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
-from rich.traceback import install
 
+from llmfoundry.callbacks import AsyncEval
+from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.eval.metrics.nlp import InContextLearningMetric
+from llmfoundry.layers_registry import ffns_with_megablocks
 from llmfoundry.utils import (
     find_mosaicml_logger,
     log_train_analytics,
     maybe_create_mosaicml_logger,
 )
-
-install()
-
-from llmfoundry.callbacks import AsyncEval
-from llmfoundry.data.dataloader import build_dataloader
-from llmfoundry.layers_registry import ffns_with_megablocks
 from llmfoundry.utils.builders import (
     add_metrics_to_eval_loaders,
     build_algorithm,

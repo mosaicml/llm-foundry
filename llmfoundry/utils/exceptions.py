@@ -35,13 +35,13 @@ ALLOWED_RESPONSE_KEYS = {'response', 'completion'}
 ALLOWED_PROMPT_KEYS = {'prompt'}
 ALLOWED_MESSAGES_KEYS = {'messages'}
 
-ErrorContext = Union[Literal['TrainDataloader'], Literal['EvalDataloader']]
+ErrorLocation = Union[Literal['TrainDataloader'], Literal['EvalDataloader']]
 
 
 class ContextualError(Exception):
     """Error thrown when an error occurs in the context of a specific task."""
 
-    location: Optional[ErrorContext] = None
+    location: Optional[ErrorLocation] = None
 
 
 # Finetuning dataloader exceptions

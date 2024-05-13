@@ -540,8 +540,8 @@ def main(cfg: DictConfig) -> Trainer:
 
 if __name__ == '__main__':
     log.setLevel(logging.INFO)
-    log.info("the pythonpath from foundry is: " + '\n'.join(sys.path))
-    log.info(
+    log.warn("the pythonpath from foundry is: " + '\n'.join(sys.path))
+    log.warn(
         "the override excepthook is" +
         os.environ.get("OVERRIDE_EXCEPTHOOK", 'false')
     )

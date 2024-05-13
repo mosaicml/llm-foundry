@@ -539,11 +539,16 @@ def main(cfg: DictConfig) -> Trainer:
 
 
 if __name__ == '__main__':
+    log.setLevel(logging.INFO)
     log.info("the pythonpath from foundry is: " + '\n'.join(sys.path))
     log.info(
         "the override excepthook is" +
         os.environ.get("OVERRIDE_EXCEPTHOOK", 'false')
     )
+    parameters_file = os.environ.get('PARAMETERS', None)
+    if parameters_file is not None:
+        parameters_dir = os.path.dirname(parameters_file)
+        sys.path = [parameters_dir] + sys.path
     yaml_path, args_list = sys.argv[1], sys.argv[2:]
 
     # Disable resolving environment variables through omegaconf.

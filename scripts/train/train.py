@@ -21,20 +21,16 @@ from composer.profiler import (
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
-from rich.traceback import install
 
+from llmfoundry.callbacks import AsyncEval
+from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.eval.metrics.nlp import InContextLearningMetric
+from llmfoundry.layers_registry import ffns_with_megablocks
 from llmfoundry.utils import (
     find_mosaicml_logger,
     log_train_analytics,
     maybe_create_mosaicml_logger,
 )
-
-install()
-
-from llmfoundry.callbacks import AsyncEval
-from llmfoundry.data.dataloader import build_dataloader
-from llmfoundry.layers_registry import ffns_with_megablocks
 from llmfoundry.utils.builders import (
     add_metrics_to_eval_loaders,
     build_algorithm,
@@ -539,16 +535,15 @@ def main(cfg: DictConfig) -> Trainer:
 
 
 if __name__ == '__main__':
-    log.setLevel(logging.INFO)
-    log.warn("the pythonpath from foundry is: " + '\n'.join(sys.path))
+    log.setLevel(logging.DEBUG)
+    log.warn(
+        "the pythonpath and excepthook from foundry is: " + '\n'.join(sys.path)
+    )
+    log.warn(sys.excepthook)
     log.warn(
         "the override excepthook is" +
         os.environ.get("OVERRIDE_EXCEPTHOOK", 'false')
     )
-    parameters_file = os.environ.get('PARAMETERS', None)
-    if parameters_file is not None:
-        parameters_dir = os.path.dirname(parameters_file)
-        sys.path = [parameters_dir] + sys.path
     yaml_path, args_list = sys.argv[1], sys.argv[2:]
 
     # Disable resolving environment variables through omegaconf.

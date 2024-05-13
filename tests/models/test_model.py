@@ -980,6 +980,37 @@ def test_mpt_creation(
 
 
 @pytest.mark.gpu
+def test_mb_mpt_creation():
+    # Test that the config constructs the model as expected.
+    hf_config = MPTConfig(
+        init_device='cpu',
+        d_model=128,
+        n_heads=4,
+        n_layers=2,
+        expansion_ratio=2,
+        max_seq_len=2048,
+        emb_pdrop=0.1,
+        resid_pdrop=0.2,
+        attn_config={
+            'attn_impl': 'torch',
+        },
+        norm_type='low_precision_layernorm',
+        no_bias=True,
+        tie_word_embeddings=False,
+        ffn_config={
+            'ffn_type': 'mb_moe',
+            'ffn_hidden_size': 1024,
+            'ffn_act_fn': {
+                'name': 'gelu',
+            },
+            'moe_world_size': 1,
+        },
+    )
+
+    _ = MPTForCausalLM(hf_config)
+
+
+@pytest.mark.gpu
 @pytest.mark.parametrize('attention_impl', ['flash', 'torch'])
 @pytest.mark.parametrize(
     'pos_emb_config',

@@ -41,7 +41,7 @@ ErrorContext = Union[Literal['TrainContext'], Literal['EvalContext']]
 class ContextualError(Exception):
     """Error thrown when an error occurs in the context of a specific task."""
 
-    context: Optional[ErrorContext] = None
+    location: Optional[ErrorContext] = None
 
 
 # Finetuning dataloader exceptions

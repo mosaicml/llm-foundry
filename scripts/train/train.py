@@ -621,7 +621,7 @@ def main(cfg: DictConfig) -> Trainer:
         )
     except ContextualError as e:
         if mosaicml_logger is not None:
-            e.context = 'TrainContext'
+            e.location = 'TrainDataloader'
             mosaicml_logger.log_exception(e)
         raise e
 
@@ -654,7 +654,7 @@ def main(cfg: DictConfig) -> Trainer:
                 callbacks.append(eval_gauntlet_callback)
         except ContextualError as e:
             if mosaicml_logger is not None:
-                e.context = 'EvalContext'
+                e.location = 'EvalDataloader'
                 mosaicml_logger.log_exception(e)
             raise e
 
@@ -717,7 +717,7 @@ def main(cfg: DictConfig) -> Trainer:
             )
     except ContextualError as e:
         if mosaicml_logger is not None:
-            e.context = 'EvalContext'
+            e.location = 'EvalDataloader'
             mosaicml_logger.log_exception(e)
         raise e
 

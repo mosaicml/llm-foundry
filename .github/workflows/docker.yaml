@@ -72,7 +72,18 @@ jobs:
 
         echo "IMAGE_TAG=${IMAGE_TAG}" >> ${GITHUB_ENV}
         echo "IMAGE_CACHE=${IMAGE_CACHE}" >> ${GITHUB_ENV}
+    
+    - name: Disk space report after modification
+      shell: bash
+      run: |
+        echo "Memory and swap:"
+        sudo free
+        echo
+        sudo swapon --show
+        echo
 
+        echo "Available storage:"
+        sudo df -h
     - name: Build and Push the Docker Image
       uses: docker/build-push-action@v3
       with:

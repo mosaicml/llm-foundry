@@ -14,9 +14,7 @@ RUN rm setup.py
 
 # Install and uninstall foundry to cache foundry requirements
 RUN pip install --verbose --no-cache-dir "./llm-foundry${DEP_GROUPS}"
+RUN pip install --verbose --no-cache-dir git+https://github.com/NVIDIA/TransformerEngine.git@main
 RUN pip uninstall -y llm-foundry
+RUN pip uninstall -y transformer-engine
 RUN rm -rf llm-foundry
-RUN git clone --branch stable --recursive https://github.com/NVIDIA/TransformerEngine.git
-RUN cd TransformerEngine && git submodule update --init --recursive
-RUN export NVTE_FRAMEWORK=pytorch && MAX_JOBS=1 pip install .
-RUN cd ..

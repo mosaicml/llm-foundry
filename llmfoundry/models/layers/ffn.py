@@ -3,8 +3,8 @@
 
 """MPT Blocks used for the MPT Model."""
 
+import copy
 import logging
-from copy import deepcopy
 from functools import partial
 from typing import Any, Callable, List, Optional, Union
 
@@ -20,6 +20,7 @@ from llmfoundry.layers_registry import (
 )
 from llmfoundry.models.layers.dmoe import dMoE
 from llmfoundry.models.layers.layer_builders import build_fc
+from llmfoundry.models.mpt.configuration_mpt import fc_type_defaults
 
 try:
     import transformer_engine.pytorch as te
@@ -67,7 +68,7 @@ def resolve_ffn_act_fn(
     """
     if config is None:
         config = _FFN_ACT_FN_DEFAULT
-    config = deepcopy(config)
+    config = copy.deepcopy(config)
     name = config.pop('name')
     if not hasattr(torch.nn.functional, name):
         raise ValueError(f'Unrecognized activation function name ({name}).')
@@ -140,21 +141,26 @@ class MPTMLP(nn.Module):
             ffn_hidden_size,
         )
 
-        assert isinstance(fc_type, dict)
-        fc_type_name = fc_type['name']
+        if fc_type is None:
+            self.fc_type = copy.deepcopy(fc_type_defaults)
+            self.fc_type['bias'] = bias
+            self.fc_type['device'] = device
+        else:
+            self.fc_type = fc_type
+        self.fc_type_name = self.fc_type['name']
 
         self.up_proj = build_fc(
-            name=fc_type_name,
+            name=self.fc_type_name,
             in_features=d_model,
             out_features=ffn_hidden_size,
-            fc_kwargs=fc_type,
+            fc_kwargs=self.fc_type,
         )
         self.act = act_fn
         self.down_proj = build_fc(
-            name=fc_type_name,
+            name=self.fc_type_name,
             in_features=ffn_hidden_size,
             out_features=d_model,
-            fc_kwargs=fc_type,
+            fc_kwargs=self.fc_type,
         )
         self.down_proj._is_residual = True
 
@@ -184,14 +190,13 @@ class MPTGLU(MPTMLP):
             bias=bias,
         )
 
-        assert isinstance(fc_type, dict)
-        fc_type_name = fc_type['name']
+        assert isinstance(self.fc_type, dict)
 
         self.gate_proj = build_fc(
-            name=fc_type_name,
+            name=self.fc_type_name,
             in_features=d_model,
             out_features=self.up_proj.out_features,
-            fc_kwargs=fc_type,
+            fc_kwargs=self.fc_type,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

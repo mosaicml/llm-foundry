@@ -410,7 +410,7 @@ class GroupedQueryAttention(nn.Module):
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
-        fc_type: str = 'torch',
+        fc_type: dict[str, Any] = None,
         device: Optional[str] = None,
         bias: bool = True,
         sliding_window_size: int = -1,
@@ -428,6 +428,8 @@ class GroupedQueryAttention(nn.Module):
         self.sliding_window_size = sliding_window_size
 
         self.head_dim = d_model // n_heads
+
+        fc_type_name = fc_type.pop('name')
 
         if self.kv_n_heads <= 0:
             raise ValueError('kv_n_heads should be greater than zero.')
@@ -449,15 +451,11 @@ class GroupedQueryAttention(nn.Module):
             self.softmax_scale = 1 / math.sqrt(self.d_model / self.n_heads)
         self.attn_dropout_p = attn_pdrop
 
-        fc_kwargs: dict[str, Any] = {
-            'bias': bias,
-        }
-        fc_kwargs['device'] = device
         self.Wqkv = build_fc(
-            name=fc_type,
+            name=fc_type_name,
             in_features=self.d_model,
             out_features=self.d_model + 2 * self.kv_n_heads * self.head_dim,
-            fc_kwargs=fc_kwargs,
+            fc_kwargs=fc_type,
         )
         # for param init fn; enables shape based init of fused layers
         fuse_splits = [
@@ -484,10 +482,10 @@ class GroupedQueryAttention(nn.Module):
         self.attn_fn = attention_implementations.get(self.attn_impl)
 
         self.out_proj = build_fc(
-            name=fc_type,
+            name=fc_type_name,
             in_features=self.d_model,
             out_features=self.d_model,
-            fc_kwargs=fc_kwargs,
+            fc_kwargs=fc_type,
         )
         self.out_proj._is_residual = True
 
@@ -696,7 +694,7 @@ class MultiheadAttention(GroupedQueryAttention):
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
-        fc_type: str = 'torch',
+        fc_type: dict[str, Any] = None,
         device: Optional[str] = None,
         bias: bool = True,
         sliding_window_size: int = -1,
@@ -737,7 +735,7 @@ class MultiQueryAttention(GroupedQueryAttention):
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
-        fc_type: str = 'torch',
+        fc_type: dict[str, Any] = None,
         device: Optional[str] = None,
         bias: bool = True,
         sliding_window_size: int = -1,

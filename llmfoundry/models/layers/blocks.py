@@ -63,7 +63,7 @@ class MPTBlock(nn.Module):
         ffn_config: Optional[Dict] = None,
         resid_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
-        fc_type: str = 'torch',
+        fc_type: dict[str, Any] = None,
         device: Optional[str] = None,
         no_bias: bool = False,
         use_pad_tok_in_ffn: bool = True,
@@ -76,6 +76,10 @@ class MPTBlock(nn.Module):
             ffn_config = {
                 'ffn_type': 'mptmlp',
             }
+
+        fc_type['bias'] = not no_bias
+        fc_type['device'] = device
+
         self.fuse_norm_attn_norm = kwargs.get('fuse_norm_attn_norm', False)
 
         del kwargs  # unused, just to capture any extra args from the config
@@ -240,7 +244,7 @@ class FusedNormAttentionNorm(nn.Module):
         args_to_exclude_in_attn_class: Set[str],
         attn_config: Optional[Dict] = None,
         ffn_has_norm: bool = False,
-        fc_type: str = 'torch',
+        fc_type: dict[str, Any] = None,
         resid_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
         device: Optional[str] = None,

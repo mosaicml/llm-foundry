@@ -127,7 +127,7 @@ class MPTMLP(nn.Module):
         self,
         d_model: int,
         expansion_ratio: Union[int, float],
-        fc_type: str = 'torch',
+        fc_type: dict[str, Any] = None,
         ffn_hidden_size: Optional[int] = None,
         act_fn: Callable[[torch.Tensor], torch.Tensor] = _DEFAULT_ACT_FN,
         device: Optional[str] = None,
@@ -139,24 +139,21 @@ class MPTMLP(nn.Module):
             expansion_ratio,
             ffn_hidden_size,
         )
-        self.fc_kwargs: dict[str, Any] = {
-            'bias': bias,
-        }
 
-        self.fc_kwargs['device'] = device
+        fc_type_name = fc_type.pop('name')
 
         self.up_proj = build_fc(
-            name=fc_type,
+            name=fc_type_name,
             in_features=d_model,
             out_features=ffn_hidden_size,
-            fc_kwargs=self.fc_kwargs,
+            fc_kwargs=fc_type,
         )
         self.act = act_fn
         self.down_proj = build_fc(
-            name=fc_type,
+            name=fc_type_name,
             in_features=ffn_hidden_size,
             out_features=d_model,
-            fc_kwargs=self.fc_kwargs,
+            fc_kwargs=fc_type,
         )
         self.down_proj._is_residual = True
 
@@ -170,7 +167,7 @@ class MPTGLU(MPTMLP):
         self,
         d_model: int,
         expansion_ratio: Union[int, float],
-        fc_type: str = 'torch',
+        fc_type: dict[str, Any] = None,
         ffn_hidden_size: Optional[int] = None,
         act_fn: Callable[[torch.Tensor], torch.Tensor] = _DEFAULT_ACT_FN,
         device: Optional[str] = None,
@@ -185,11 +182,14 @@ class MPTGLU(MPTMLP):
             device=device,
             bias=bias,
         )
+
+        fc_type_name = fc_type.pop('name')
+
         self.gate_proj = build_fc(
-            name=fc_type,
+            name=fc_type_name,
             in_features=d_model,
             out_features=self.up_proj.out_features,
-            fc_kwargs=self.fc_kwargs,
+            fc_kwargs=fc_type,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -199,7 +199,7 @@ class MPTGLU(MPTMLP):
 def build_mptglu(
     d_model: int,
     expansion_ratio: Union[int, float],
-    fc_type: str = 'torch',
+    fc_type: dict[str, Any] = None,
     ffn_hidden_size: Optional[int] = None,
     ffn_act_fn: Optional[dict] = None,
     device: Optional[str] = None,
@@ -219,7 +219,7 @@ def build_mptglu(
 def build_mptmlp(
     d_model: int,
     expansion_ratio: Union[int, float],
-    fc_type: str = 'torch',
+    fc_type: dict[str, Any] = None,
     ffn_hidden_size: Optional[int] = None,
     ffn_act_fn: Optional[dict] = None,
     device: Optional[str] = None,
@@ -239,7 +239,7 @@ def build_mptmlp(
 def build_te_ln_mlp(
     d_model: int,
     expansion_ratio: Union[int, float],
-    fc_type: str = 'torch',
+    fc_type: dict[str, Any] = None,
     ffn_hidden_size: Optional[int] = None,
     ffn_act_fn: Optional[dict] = None,
     device: Optional[str] = None,
@@ -280,7 +280,7 @@ def build_torch_dmoe(
     moe_normalize_expert_weights = kwargs.pop('moe_normalize_expert_weights')
     uniform_expert_assignment = kwargs.pop('uniform_expert_assignment')
 
-    fc_type = kwargs.pop('fc_type', 'torch')
+    fc_type = kwargs.pop('fc_type', None)
     del fc_type  # Unused
 
     if len(kwargs) > 0:

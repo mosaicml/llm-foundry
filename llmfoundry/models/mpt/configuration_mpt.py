@@ -329,6 +329,7 @@ class MPTConfig(PretrainedConfig):
                     'pip install git+https://github.com/NVIDIA/TransformerEngine.git@144e4888b2cdd60bd52e706d5b7a79cb9c1a7156',
                 )
 
+        self.ffn_config['fc_type'] = self.fc_type
         if self.ffn_config['ffn_type'] == 'mptgeglu':
             raise ValueError(
                 'API CHANGE: `ffn_type=="mptgeglu"` changed to `ffn_type=="mptglu"`. '

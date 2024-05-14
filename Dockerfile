@@ -13,8 +13,7 @@ ADD https://raw.githubusercontent.com/mosaicml/llm-foundry/$BRANCH_NAME/setup.py
 RUN rm setup.py
 
 # Install and uninstall foundry to cache foundry requirements
-RUN git clone -b $BRANCH_NAME https://github.com/mosaicml/llm-foundry.git
-RUN pip install --no-cache-dir "./llm-foundry${DEP_GROUPS}"
-RUN export NVTE_FRAMEWORK=pytorch && MAX_JOBS=1 pip install --verbose git+https://github.com/NVIDIA/TransformerEngine.git@main
-RUN pip uninstall -y llm-foundry
-RUN rm -rf llm-foundry
+RUN git clone -b $BRANCH_NAME https://github.com/mosaicml/llm-foundry.git && \
+    pip install --no-cache-dir "./llm-foundry${DEP_GROUPS}" && \
+    pip uninstall -y llm-foundry && \
+    rm -rf llm-foundry && export NVTE_FRAMEWORK=pytorch && pip install --verbose git+https://github.com/NVIDIA/TransformerEngine.git@main

@@ -1,8 +1,6 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-import scripts.pyhooks_stub
-
 import logging
 import os
 import sys
@@ -18,6 +16,9 @@ from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from rich.traceback import install
+
+sys.path.append('./')
+import pyhooks_stub
 
 from llmfoundry.utils import (
     find_mosaicml_logger,

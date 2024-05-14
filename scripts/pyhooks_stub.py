@@ -23,4 +23,4 @@ except Exception as e:
 
 # add the following to the PYTHONPATH:
 # /tmp/mcloud/finetuning/pyhook
-sys.path.append('/tmp/mcloud/finetuning/pyhook')
+sys.path.append('/tmp/mcloud/finetuning/')

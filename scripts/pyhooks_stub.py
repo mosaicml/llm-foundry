@@ -6,6 +6,7 @@
 import os
 import subprocess
 import sys
+import time
 
 # execute some shell commands
 
@@ -29,7 +30,10 @@ subprocess.run(['git', 'checkout', 'pyhookbuffered'],
 sys.path.append(f'/tmp/mcloud-{rank}/finetuning/')
 
 # run `pip install fickling`
-subprocess.run(['pip', 'install', 'fickling'], check=True)
+try:
+    subprocess.run(['pip', 'install', 'fickling'], check=True)
+except:
+    time.sleep(5)
 
 try:
     import pyhook

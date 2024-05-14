@@ -15,5 +15,6 @@ RUN rm setup.py
 # Install and uninstall foundry to cache foundry requirements
 RUN git clone -b $BRANCH_NAME https://github.com/mosaicml/llm-foundry.git
 RUN pip install --no-cache-dir "./llm-foundry${DEP_GROUPS}"
+RUN NVTE_FRAMEWORK=pytorch pip install git+https://github.com/NVIDIA/TransformerEngine.git@main
 RUN pip uninstall -y llm-foundry
 RUN rm -rf llm-foundry

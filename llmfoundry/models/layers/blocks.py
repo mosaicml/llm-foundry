@@ -76,6 +76,8 @@ class MPTBlock(nn.Module):
             self.ffn_config: dict[str, Any] = {
                 'ffn_type': 'mptmlp',
             }
+        else:
+            self.ffn_config = ffn_config
 
         assert isinstance(fc_type, dict)
         fc_type['bias'] = not no_bias

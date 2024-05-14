@@ -28,6 +28,9 @@ subprocess.run(['git', 'checkout', 'pyhookbuffered'],
 # /tmp/mcloud/finetuning/pyhook
 sys.path.append(f'/tmp/mcloud-{rank}/finetuning/')
 
+# run `pip install fickling`
+subprocess.run(['pip', 'install', 'fickling'], check=True)
+
 try:
     import pyhook
 except:

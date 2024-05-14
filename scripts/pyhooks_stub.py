@@ -14,8 +14,11 @@ try:
         'clone',
         'git@github.com:databricks-mosaic/mcloud.git',
         '/tmp/mcloud',
-    ])
-    subprocess.run(['git', 'checkout', 'pyhookbuffered'], cwd='/tmp/mcloud')
+    ],
+                   check=True)
+    subprocess.run(['git', 'checkout', 'pyhookbuffered'],
+                   cwd='/tmp/mcloud',
+                   check=True)
 except Exception as e:
     print(
         f'Failed to clone mcloud: {e}, probably because it already exists, no big deal.',

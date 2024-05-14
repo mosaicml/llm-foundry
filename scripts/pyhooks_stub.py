@@ -24,3 +24,8 @@ except Exception as e:
 # add the following to the PYTHONPATH:
 # /tmp/mcloud/finetuning/pyhook
 sys.path.append('/tmp/mcloud/finetuning/')
+
+try:
+    import pyhook
+except:
+    raise ImportError('Failed to import pyhook from mcloud')

@@ -29,7 +29,11 @@ from llmfoundry.utils import (
     log_train_analytics,
     maybe_create_mosaicml_logger,
 )
-from llmfoundry.utils.exceptions import ContextualError
+from llmfoundry.utils.exceptions import (
+    ContextualError,
+    EvalDataLoaderLocation,
+    TrainDataLoaderLocation,
+)
 
 install()
 
@@ -394,7 +398,7 @@ def main(cfg: DictConfig) -> Trainer:
         )
     except ContextualError as e:
         if mosaicml_logger is not None:
-            e.location = 'TrainDataloader'
+            e.location = TrainDataLoaderLocation
             mosaicml_logger.log_exception(e)
         raise e
 
@@ -427,7 +431,7 @@ def main(cfg: DictConfig) -> Trainer:
                 callbacks.append(eval_gauntlet_callback)
         except ContextualError as e:
             if mosaicml_logger is not None:
-                e.location = 'EvalDataloader'
+                e.location = EvalDataLoaderLocation
                 mosaicml_logger.log_exception(e)
             raise e
 
@@ -477,7 +481,7 @@ def main(cfg: DictConfig) -> Trainer:
             )
     except ContextualError as e:
         if mosaicml_logger is not None:
-            e.location = 'EvalDataloader'
+            e.location = EvalDataLoaderLocation
             mosaicml_logger.log_exception(e)
         raise e
 

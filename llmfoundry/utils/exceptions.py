@@ -3,7 +3,7 @@
 
 """Custom exceptions for the LLMFoundry."""
 from collections.abc import Mapping
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 __all__ = [
     'ALLOWED_RESPONSE_KEYS',
@@ -79,13 +79,17 @@ class NotEnoughDatasetSamplesError(ValueError):
 class UnknownExampleTypeError(KeyError):
     """Error thrown when an unknown example type is used in a task."""
 
-    def __init__(self, example: Mapping) -> None:
+    def __init__(self, example: Union[Mapping, str]) -> None:
         self.example = example
-        message = (
-            f'Found keys {example.keys()} in dataset. Unknown example type. For prompt and response '
-            f'finetuning, the valid prompt keys are {ALLOWED_PROMPT_KEYS} and the valid response keys are '
-            f'{ALLOWED_RESPONSE_KEYS}. For chat finetuning, the allowed keys are {ALLOWED_MESSAGES_KEYS}'
-        )
+        if isinstance(example, Mapping):
+            message = (
+                f'Found keys {example.keys()} in dataset. Unknown example type. For prompt and response '
+                f'finetuning, the valid prompt keys are {ALLOWED_PROMPT_KEYS} and the valid response keys are '
+                f'{ALLOWED_RESPONSE_KEYS}. For chat finetuning, the allowed keys are {ALLOWED_MESSAGES_KEYS}'
+            )
+        else:
+            message = f'Unknown example type: {example}. Could there be an extra column in your dataset?'
+
         super().__init__(message)
 
 

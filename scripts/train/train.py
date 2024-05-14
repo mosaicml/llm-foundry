@@ -200,7 +200,7 @@ def _initialize_dist_with_barrier(dist_timeout: Union[int, float]):
 
 def main(cfg: DictConfig) -> Trainer:
     code_paths = cfg.get('code_paths', [])
-    code_paths += ['/tmp/mcloud/finetuning/pyhook_scripts/setup_pyhook.py']
+    code_paths += ['/tmp/mcloud-0/finetuning/pyhook_scripts/setup_pyhook.py']
     # Import any user provided code
     for code_path in code_paths:
         import_file(code_path)

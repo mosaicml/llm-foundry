@@ -185,7 +185,7 @@ def evaluate_model(
 def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     # Run user provided code if specified
     code_paths = cfg.get('code_paths', [])
-    code_paths += ['/tmp/mcloud/finetuning/pyhook_scripts/setup_pyhook.py']
+    code_paths += ['/tmp/mcloud-0/finetuning/pyhook_scripts/setup_pyhook.py']
     for code_path in code_paths:
         import_file(code_path)
 

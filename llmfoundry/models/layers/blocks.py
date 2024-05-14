@@ -73,7 +73,7 @@ class MPTBlock(nn.Module):
             attn_config = attn_config_defaults
 
         if ffn_config is None:
-            ffn_config = {
+            self.ffn_config: dict[str, Any] = {
                 'ffn_type': 'mptmlp',
             }
 
@@ -81,12 +81,14 @@ class MPTBlock(nn.Module):
         fc_type['bias'] = not no_bias
         fc_type['device'] = device
 
+        self.ffn_config['fc_type'] = fc_type
+
         self.fuse_norm_attn_norm = kwargs.get('fuse_norm_attn_norm', False)
 
         del kwargs  # unused, just to capture any extra args from the config
         super().__init__()
 
-        ffn_type = ffn_config['ffn_type']
+        ffn_type = self.ffn_config['ffn_type']
         ffn_has_norm = ffn_type in ffns_with_norm
 
         if self.fuse_norm_attn_norm:
@@ -142,7 +144,7 @@ class MPTBlock(nn.Module):
             expansion_ratio=expansion_ratio,
             device=device,
             bias=not no_bias,
-            ffn_kwargs=ffn_config,
+            ffn_kwargs=self.ffn_config,
         )
 
         self.resid_attn_dropout = nn.Dropout(resid_pdrop)

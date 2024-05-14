@@ -430,7 +430,7 @@ class GroupedQueryAttention(nn.Module):
         self.head_dim = d_model // n_heads
 
         assert isinstance(fc_type, dict)
-        fc_type_name = fc_type.pop('name')
+        fc_type_name = fc_type['name']
 
         if self.kv_n_heads <= 0:
             raise ValueError('kv_n_heads should be greater than zero.')

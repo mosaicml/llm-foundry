@@ -141,7 +141,7 @@ class MPTMLP(nn.Module):
         )
 
         assert isinstance(fc_type, dict)
-        fc_type_name = fc_type.pop('name')
+        fc_type_name = fc_type['name']
 
         self.up_proj = build_fc(
             name=fc_type_name,
@@ -185,7 +185,7 @@ class MPTGLU(MPTMLP):
         )
 
         assert isinstance(fc_type, dict)
-        fc_type_name = fc_type.pop('name')
+        fc_type_name = fc_type['name']
 
         self.gate_proj = build_fc(
             name=fc_type_name,

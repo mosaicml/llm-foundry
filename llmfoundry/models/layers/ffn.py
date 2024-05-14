@@ -127,7 +127,7 @@ class MPTMLP(nn.Module):
         self,
         d_model: int,
         expansion_ratio: Union[int, float],
-        fc_type: dict[str, Any] = None,
+        fc_type: Optional[dict[str, Any]] = None,
         ffn_hidden_size: Optional[int] = None,
         act_fn: Callable[[torch.Tensor], torch.Tensor] = _DEFAULT_ACT_FN,
         device: Optional[str] = None,
@@ -140,6 +140,7 @@ class MPTMLP(nn.Module):
             ffn_hidden_size,
         )
 
+        assert isinstance(fc_type, dict)
         fc_type_name = fc_type.pop('name')
 
         self.up_proj = build_fc(
@@ -167,7 +168,7 @@ class MPTGLU(MPTMLP):
         self,
         d_model: int,
         expansion_ratio: Union[int, float],
-        fc_type: dict[str, Any] = None,
+        fc_type: Optional[dict[str, Any]] = None,
         ffn_hidden_size: Optional[int] = None,
         act_fn: Callable[[torch.Tensor], torch.Tensor] = _DEFAULT_ACT_FN,
         device: Optional[str] = None,
@@ -183,6 +184,7 @@ class MPTGLU(MPTMLP):
             bias=bias,
         )
 
+        assert isinstance(fc_type, dict)
         fc_type_name = fc_type.pop('name')
 
         self.gate_proj = build_fc(
@@ -199,7 +201,7 @@ class MPTGLU(MPTMLP):
 def build_mptglu(
     d_model: int,
     expansion_ratio: Union[int, float],
-    fc_type: dict[str, Any] = None,
+    fc_type: Optional[dict[str, Any]] = None,
     ffn_hidden_size: Optional[int] = None,
     ffn_act_fn: Optional[dict] = None,
     device: Optional[str] = None,
@@ -219,7 +221,7 @@ def build_mptglu(
 def build_mptmlp(
     d_model: int,
     expansion_ratio: Union[int, float],
-    fc_type: dict[str, Any] = None,
+    fc_type: Optional[dict[str, Any]] = None,
     ffn_hidden_size: Optional[int] = None,
     ffn_act_fn: Optional[dict] = None,
     device: Optional[str] = None,
@@ -239,7 +241,7 @@ def build_mptmlp(
 def build_te_ln_mlp(
     d_model: int,
     expansion_ratio: Union[int, float],
-    fc_type: dict[str, Any] = None,
+    fc_type: Optional[dict[str, Any]] = None,
     ffn_hidden_size: Optional[int] = None,
     ffn_act_fn: Optional[dict] = None,
     device: Optional[str] = None,

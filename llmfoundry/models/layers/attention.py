@@ -410,7 +410,7 @@ class GroupedQueryAttention(nn.Module):
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
-        fc_type: dict[str, Any] = None,
+        fc_type: Optional[dict[str, Any]] = None,
         device: Optional[str] = None,
         bias: bool = True,
         sliding_window_size: int = -1,
@@ -429,6 +429,7 @@ class GroupedQueryAttention(nn.Module):
 
         self.head_dim = d_model // n_heads
 
+        assert isinstance(fc_type, dict)
         fc_type_name = fc_type.pop('name')
 
         if self.kv_n_heads <= 0:
@@ -694,7 +695,7 @@ class MultiheadAttention(GroupedQueryAttention):
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
-        fc_type: dict[str, Any] = None,
+        fc_type: Optional[dict[str, Any]] = None,
         device: Optional[str] = None,
         bias: bool = True,
         sliding_window_size: int = -1,
@@ -735,7 +736,7 @@ class MultiQueryAttention(GroupedQueryAttention):
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
-        fc_type: dict[str, Any] = None,
+        fc_type: Optional[dict[str, Any]] = None,
         device: Optional[str] = None,
         bias: bool = True,
         sliding_window_size: int = -1,

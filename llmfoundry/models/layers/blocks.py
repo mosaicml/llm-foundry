@@ -63,7 +63,7 @@ class MPTBlock(nn.Module):
         ffn_config: Optional[Dict] = None,
         resid_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
-        fc_type: dict[str, Any] = None,
+        fc_type: Optional[dict[str, Any]] = None,
         device: Optional[str] = None,
         no_bias: bool = False,
         use_pad_tok_in_ffn: bool = True,
@@ -77,6 +77,7 @@ class MPTBlock(nn.Module):
                 'ffn_type': 'mptmlp',
             }
 
+        assert isinstance(fc_type, dict)
         fc_type['bias'] = not no_bias
         fc_type['device'] = device
 
@@ -244,7 +245,7 @@ class FusedNormAttentionNorm(nn.Module):
         args_to_exclude_in_attn_class: Set[str],
         attn_config: Optional[Dict] = None,
         ffn_has_norm: bool = False,
-        fc_type: dict[str, Any] = None,
+        fc_type: Optional[dict[str, Any]] = None,
         resid_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
         device: Optional[str] = None,
@@ -254,6 +255,7 @@ class FusedNormAttentionNorm(nn.Module):
         super().__init__()
         assert attn_config is not None
         assert isinstance(attn_config['attn_type'], str)
+        assert isinstance(fc_type, dict)
 
         # Necessary to avoid passing extraneous args into attn_class while allowing the use of **kwargs
         attn_config_subset_for_attn_class = {

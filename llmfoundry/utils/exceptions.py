@@ -88,7 +88,11 @@ class UnknownExampleTypeError(KeyError):
                 f'{ALLOWED_RESPONSE_KEYS}. For chat finetuning, the allowed keys are {ALLOWED_MESSAGES_KEYS}'
             )
         else:
-            message = f'Unknown example type: {example}. Could there be an extra column in your dataset?'
+            message = (
+                f'Found keys {example} in dataset. Unknown example type. For prompt and response '
+                f'finetuning, the valid prompt keys are {ALLOWED_PROMPT_KEYS} and the valid response keys are '
+                f'{ALLOWED_RESPONSE_KEYS}. For chat finetuning, the allowed keys are {ALLOWED_MESSAGES_KEYS}'
+            )
 
         super().__init__(message)
 

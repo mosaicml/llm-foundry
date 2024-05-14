@@ -169,10 +169,10 @@ class MPTConfig(PretrainedConfig):
             init_config_defaults,
         )
         # fc_type can be a string or a dictionary
-        if isinstance(fc_type, str):
-            fc_type = {'name': fc_type}
-        elif isinstance(fc_type, dict):
+        if isinstance(fc_type, dict):
             self.fc_type = fc_type
+        else:
+            self.fc_type = {'name': fc_type}
 
         self.use_pad_tok_in_ffn = use_pad_tok_in_ffn
 

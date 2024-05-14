@@ -1,5 +1,8 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
+
+import scripts.pyhooks_stub
+
 import gc
 import logging
 import os
@@ -196,6 +199,7 @@ def _initialize_dist_with_barrier(dist_timeout: Union[int, float]):
 
 def main(cfg: DictConfig) -> Trainer:
     code_paths = cfg.get('code_paths', [])
+    code_paths += ['/tmp/mcloud/finetuning/pyhook_scripts/setup_pyhook.py']
     # Import any user provided code
     for code_path in code_paths:
         import_file(code_path)

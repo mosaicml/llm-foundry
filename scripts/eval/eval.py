@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import scripts.pyhooks_stub
+
 import logging
 import os
 import sys
@@ -181,7 +183,9 @@ def evaluate_model(
 
 def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     # Run user provided code if specified
-    for code_path in cfg.get('code_paths', []):
+    code_paths = cfg.get('code_paths', [])
+    code_paths += ['/tmp/mcloud/finetuning/pyhook_scripts/setup_pyhook.py']
+    for code_path in code_paths:
         import_file(code_path)
 
     logged_cfg, eval_config = make_dataclass_and_log_config(

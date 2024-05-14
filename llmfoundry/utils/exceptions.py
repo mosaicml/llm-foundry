@@ -254,3 +254,12 @@ class MisconfiguredHfDatasetError(ValueError):
         self.split = split
         message = f'Your dataset (name={dataset_name}, split={split}) is misconfigured. Please check your dataset format and make sure you can load your dataset locally.'
         super().__init__(message)
+
+
+class RunTimeoutError(RuntimeError):
+    """Error thrown when a run times out."""
+
+    def __init__(self, timeout: int) -> None:
+        self.timeout = timeout
+        message = f'Run timed out after {timeout} seconds.'
+        super().__init__(message)

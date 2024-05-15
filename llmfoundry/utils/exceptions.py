@@ -36,8 +36,8 @@ ALLOWED_PROMPT_KEYS = {'prompt'}
 ALLOWED_MESSAGES_KEYS = {'messages'}
 
 ErrorLocation = Union[Literal['TrainDataloader'], Literal['EvalDataloader']]
-TrainDataLoaderLocation = Literal['TrainDataloader']
-EvalDataLoaderLocation = Literal['EvalDataloader']
+TrainDataLoaderLocation = 'TrainDataloader'
+EvalDataLoaderLocation = 'EvalDataloader'
 
 
 class ContextualError(Exception):

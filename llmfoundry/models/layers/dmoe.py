@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from functools import partial
-from typing import Callable, Optional, Union
+from typing import Callable, Optional, Tuple, Union
 
 import torch
 import torch.nn.functional as F
@@ -72,7 +72,7 @@ class LearnedRouter(torch.nn.Module):
         )
         return low + noise * (high - low)
 
-    def _top_k(self, scores: torch.Tensor) -> torch.Tensor:
+    def _top_k(self, scores: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         if self.moe_top_k == 1:
             values, indices = scores.max(
                 dim=-1,

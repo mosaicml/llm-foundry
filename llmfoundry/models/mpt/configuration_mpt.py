@@ -14,12 +14,6 @@ from llmfoundry.models.layers.attention import (
     check_alibi_support,
     is_flash_v2_installed,
 )
-from llmfoundry.models.utils import (
-    attn_config_defaults,
-    fc_type_defaults,
-    ffn_config_defaults,
-    init_config_defaults,
-)
 
 # NOTE: All utils are imported directly even if unused so that
 # HuggingFace can detect all the needed files to copy into its modules folder.
@@ -30,25 +24,10 @@ from llmfoundry.models.layers.layer_builders import build_norm, build_fc, build_
 from llmfoundry.models.layers.dmoe import dMoE  # type: ignore (see note)
 from llmfoundry.layers_registry import norms  # type: ignore (see note)
 from llmfoundry.utils.registry_utils import construct_from_registry  # type: ignore (see note)
-
-ffn_config_defaults: Dict = {
-    'ffn_type': 'mptmlp',
-}
-
-init_config_defaults: Dict = {
-    'name': 'kaiming_normal_',
-    'fan_mode': 'fan_in',
-    'init_nonlinearity': 'relu',
-    'init_div_is_residual': True,
-    'emb_init_std': None,
-    'emb_init_uniform_lim': None,
-    'init_std': None,
-    'init_gain': 0.0,
-}
-
-fc_type_defaults: Dict = {
-    'name': 'torch',
-}
+from llmfoundry.models.utils.config_defaults import (
+    attn_config_defaults, ffn_config_defaults, init_config_defaults,
+    fc_type_defaults
+)  # type: ignore (see note)
 
 
 class MPTConfig(PretrainedConfig):

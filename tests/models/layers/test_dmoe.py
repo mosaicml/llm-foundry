@@ -79,6 +79,7 @@ def test_dmoe(
     mlp_type: str,
     moe_world_size: int,
     moe_normalize_expert_weights: Union[float, int],
+    hidden_size: int,
     two_d_input: bool,
 ):
     if moe_world_size > moe_num_experts or moe_num_experts % moe_world_size != 0:

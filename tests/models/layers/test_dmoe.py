@@ -221,10 +221,11 @@ def test_dmoe_defaults(two_d_input: bool,):
     dtype = _get_torch_dtype(fp16, bf16)
     x = _get_all_inputs(input_shape, dtype)[rank]
 
-    # Construct DDP torch dMoE
+    # Construct DDP torch dMoE. torch_dmoe does not currently support bias.
     device = torch.device(f'cuda:{dist.get_rank()}')
     common_args = {
         'device': device,
+        'bias': False,
     }
 
     torch_dmoe = dMoE(**common_args).to(device, dtype=dtype)

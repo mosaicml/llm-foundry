@@ -87,7 +87,7 @@ def test_dmoe(
     rank = dist.get_rank()
     batch_size = 2
     seq_len = 3
-    hidden_size = 128
+    hidden_size = 1024
     if two_d_input:
         input_shape = [batch_size * seq_len, hidden_size]
     else:

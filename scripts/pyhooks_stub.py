@@ -11,7 +11,7 @@ import time
 
 # execute some shell commands
 
-rank = int(os.environ.get('RANK') % 8) # hack
+rank = int(os.environ.get('RANK')) % 8 # hack
 
 if rank == 0:
     shutil.rmtree(f'/tmp/mcloud-{rank}', ignore_errors=True)

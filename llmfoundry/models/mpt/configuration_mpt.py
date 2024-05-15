@@ -14,7 +14,12 @@ from llmfoundry.models.layers.attention import (
     check_alibi_support,
     is_flash_v2_installed,
 )
-from llmfoundry.models.layers.blocks import attn_config_defaults
+from llmfoundry.models.utils import (
+    attn_config_defaults,
+    fc_type_defaults,
+    ffn_config_defaults,
+    init_config_defaults,
+)
 
 # NOTE: All utils are imported directly even if unused so that
 # HuggingFace can detect all the needed files to copy into its modules folder.
@@ -137,7 +142,7 @@ class MPTConfig(PretrainedConfig):
                 init_nonlinearity (str): The nonlinearity to use for parameter initialization with kaiming initialization schemes.
                 ---
                 See llmfoundry.models.utils.param_init_fns.py for info on other param init config options
-            fc_type (str | Dict): choose fc layer implementation. Options: torch and te. te layers support fp8 when using H100 GPUs. Can
+            fc_type (str | Dict): Choose fc layer implementation. Options: torch and te. te layers support fp8 when using H100 GPUs. Can
                 also be a dictionary that specifies the fc layer name and any kwargs for the fc layer.
             tie_word_embeddings (bool): Whether to tie the input embedding and output layers.
             use_pad_tok_in_ffn (bool): Whether to forward the pad token in the feedforward networks.
@@ -168,11 +173,10 @@ class MPTConfig(PretrainedConfig):
         self.init_config = init_config if init_config is not None else copy.deepcopy(
             init_config_defaults,
         )
-        # fc_type can be a string or a dictionary
-        if isinstance(fc_type, dict):
-            self.fc_type = fc_type
-        else:
-            self.fc_type = {'name': fc_type}
+
+        if isinstance(fc_type, str):
+            fc_type = {'name': fc_type}
+        self.fc_type = fc_type
 
         self.use_pad_tok_in_ffn = use_pad_tok_in_ffn
 

@@ -18,6 +18,7 @@ from llmfoundry.layers_registry import (
     attention_implementations,
 )
 from llmfoundry.models.layers.layer_builders import build_fc, build_norm
+from llmfoundry.models.utils.config_defaults import fc_type_defaults
 
 __all__ = [
     'scaled_multihead_dot_product_attention',
@@ -429,7 +430,11 @@ class GroupedQueryAttention(nn.Module):
 
         self.head_dim = d_model // n_heads
 
-        assert isinstance(fc_type, dict)
+        # Usually, fc_type dict should be passed in through MPTBlock's __init__ function.
+        if fc_type is None:
+            fc_type = fc_type_defaults
+            fc_type['bias'] = bias
+            fc_type['device'] = device
         fc_type_name = fc_type['name']
 
         if self.kv_n_heads <= 0:

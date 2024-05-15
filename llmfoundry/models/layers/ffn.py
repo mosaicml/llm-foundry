@@ -20,6 +20,7 @@ from llmfoundry.layers_registry import (
 )
 from llmfoundry.models.layers.dmoe import dMoE
 from llmfoundry.models.layers.layer_builders import build_fc
+from llmfoundry.models.utils.config_defaults import fc_type_defaults
 
 try:
     import transformer_engine.pytorch as te
@@ -140,7 +141,11 @@ class MPTMLP(nn.Module):
             ffn_hidden_size,
         )
 
-        assert isinstance(fc_type, dict)
+        # Usually, fc_type dict should be passed in through MPTBlock's __init__ function.
+        if fc_type is None:
+            fc_type = fc_type_defaults
+            fc_type['bias'] = bias
+            fc_type['device'] = device
         self.fc_type = fc_type
         self.fc_type_name = self.fc_type['name']
 

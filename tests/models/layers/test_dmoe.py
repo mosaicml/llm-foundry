@@ -257,6 +257,8 @@ def test_dmoe_defaults(two_d_input: bool,):
     )
     mb_dmoe_optimizer = optim.SGD(mb_dmoe.parameters(), lr=0.1)
 
+    print(args)
+
     # Generate inputs based on hidden_size in megablocks arguments
     batch_size = 2
     seq_len = 3

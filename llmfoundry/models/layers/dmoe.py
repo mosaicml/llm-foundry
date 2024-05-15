@@ -74,15 +74,13 @@ class LearnedRouter(torch.nn.Module):
 
     def _top_k(self, scores: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         if self.moe_top_k == 1:
-            values, indices = scores.max(
-                dim=-1,
-            )  # pyright: ignore[reportGeneralTypeIssues]
+            values, indices = scores.max(dim=-1,)
             return values.unsqueeze(-1), indices.unsqueeze(-1)
         return torch.topk(
             scores,
             self.moe_top_k,
             dim=-1,
-        )  # pyright: ignore[reportGeneralTypeIssues]
+        )
 
     def forward(self, x: torch.Tensor):
         if self.training and self.moe_jitter_eps is not None:

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Custom exceptions for the LLMFoundry."""
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Literal, Optional, Union
 
 __all__ = [
     'ALLOWED_RESPONSE_KEYS',
@@ -34,9 +34,19 @@ ALLOWED_RESPONSE_KEYS = {'response', 'completion'}
 ALLOWED_PROMPT_KEYS = {'prompt'}
 ALLOWED_MESSAGES_KEYS = {'messages'}
 
+ErrorLocation = Union[Literal['TrainDataloader'], Literal['EvalDataloader']]
+TrainDataLoaderLocation = 'TrainDataloader'
+EvalDataLoaderLocation = 'EvalDataloader'
+
+
+class ContextualError(Exception):
+    """Error thrown when an error occurs in the context of a specific task."""
+
+    location: Optional[ErrorLocation] = None
+
 
 # Finetuning dataloader exceptions
-class MissingHuggingFaceURLSplitError(ValueError):
+class MissingHuggingFaceURLSplitError(ValueError, ContextualError):
     """Error thrown when there's no split used in HF dataset config."""
 
     def __init__(self) -> None:
@@ -45,7 +55,7 @@ class MissingHuggingFaceURLSplitError(ValueError):
         super().__init__(message)
 
 
-class NotEnoughDatasetSamplesError(ValueError):
+class NotEnoughDatasetSamplesError(ValueError, ContextualError):
     """Error thrown when there is not enough data to train a model."""
 
     def __init__(
@@ -75,7 +85,7 @@ class NotEnoughDatasetSamplesError(ValueError):
 
 
 ## Tasks exceptions
-class UnknownExampleTypeError(KeyError):
+class UnknownExampleTypeError(KeyError, ContextualError):
     """Error thrown when an unknown example type is used in a task."""
 
     def __init__(self, example_keys: str) -> None:
@@ -89,7 +99,7 @@ class UnknownExampleTypeError(KeyError):
         super().__init__(message)
 
 
-class NotEnoughChatDataError(ValueError):
+class NotEnoughChatDataError(ValueError, ContextualError):
     """Error thrown when there is not enough chat data to train a model."""
 
     def __init__(self) -> None:
@@ -97,7 +107,7 @@ class NotEnoughChatDataError(ValueError):
         super().__init__(message)
 
 
-class ConsecutiveRepeatedChatRolesError(ValueError):
+class ConsecutiveRepeatedChatRolesError(ValueError, ContextualError):
     """Error thrown when there are consecutive repeated chat roles."""
 
     def __init__(self, repeated_role: str) -> None:
@@ -106,7 +116,7 @@ class ConsecutiveRepeatedChatRolesError(ValueError):
         super().__init__(message)
 
 
-class InvalidLastChatMessageRoleError(ValueError):
+class InvalidLastChatMessageRoleError(ValueError, ContextualError):
     """Error thrown when the last message role in a chat example is invalid."""
 
     def __init__(self, last_role: str, expected_roles: set[str]) -> None:
@@ -116,7 +126,7 @@ class InvalidLastChatMessageRoleError(ValueError):
         super().__init__(message)
 
 
-class IncorrectMessageKeyQuantityError(ValueError):
+class IncorrectMessageKeyQuantityError(ValueError, ContextualError):
     """Error thrown when a message has an incorrect number of keys."""
 
     def __init__(self, keys: List[str]) -> None:
@@ -125,7 +135,7 @@ class IncorrectMessageKeyQuantityError(ValueError):
         super().__init__(message)
 
 
-class InvalidRoleError(ValueError):
+class InvalidRoleError(ValueError, ContextualError):
     """Error thrown when a role is invalid."""
 
     def __init__(self, role: str, valid_roles: set[str]) -> None:
@@ -135,7 +145,7 @@ class InvalidRoleError(ValueError):
         super().__init__(message)
 
 
-class InvalidContentTypeError(TypeError):
+class InvalidContentTypeError(TypeError, ContextualError):
     """Error thrown when the content type is invalid."""
 
     def __init__(self, content_type: type) -> None:
@@ -144,7 +154,7 @@ class InvalidContentTypeError(TypeError):
         super().__init__(message)
 
 
-class InvalidPromptTypeError(TypeError):
+class InvalidPromptTypeError(TypeError, ContextualError):
     """Error thrown when the prompt type is invalid."""
 
     def __init__(self, prompt_type: type) -> None:
@@ -153,7 +163,7 @@ class InvalidPromptTypeError(TypeError):
         super().__init__(message)
 
 
-class InvalidResponseTypeError(TypeError):
+class InvalidResponseTypeError(TypeError, ContextualError):
     """Error thrown when the response type is invalid."""
 
     def __init__(self, response_type: type) -> None:
@@ -162,7 +172,7 @@ class InvalidResponseTypeError(TypeError):
         super().__init__(message)
 
 
-class InvalidPromptResponseKeysError(ValueError):
+class InvalidPromptResponseKeysError(ValueError, ContextualError):
     """Error thrown when missing expected prompt and response keys."""
 
     def __init__(self, mapping: Dict[str, str], example: Dict[str, Any]):
@@ -171,7 +181,7 @@ class InvalidPromptResponseKeysError(ValueError):
         super().__init__(message)
 
 
-class InvalidFileExtensionError(FileNotFoundError):
+class InvalidFileExtensionError(FileNotFoundError, ContextualError):
     """Error thrown when a file extension is not a safe extension."""
 
     def __init__(self, dataset_name: str, valid_extensions: List[str]) -> None:
@@ -184,7 +194,7 @@ class InvalidFileExtensionError(FileNotFoundError):
         super().__init__(message)
 
 
-class UnableToProcessPromptResponseError(ValueError):
+class UnableToProcessPromptResponseError(ValueError, ContextualError):
     """Error thrown when a prompt and response cannot be processed."""
 
     def __init__(self, input: Dict) -> None:
@@ -194,7 +204,7 @@ class UnableToProcessPromptResponseError(ValueError):
 
 
 ## Convert Delta to JSON exceptions
-class ClusterDoesNotExistError(ValueError):
+class ClusterDoesNotExistError(ValueError, ContextualError):
     """Error thrown when the cluster does not exist."""
 
     def __init__(self, cluster_id: str) -> None:
@@ -203,7 +213,7 @@ class ClusterDoesNotExistError(ValueError):
         super().__init__(message)
 
 
-class FailedToCreateSQLConnectionError(RuntimeError):
+class FailedToCreateSQLConnectionError(RuntimeError, ContextualError):
     """Error thrown when client can't sql connect to Databricks."""
 
     def __init__(self) -> None:
@@ -211,7 +221,7 @@ class FailedToCreateSQLConnectionError(RuntimeError):
         super().__init__(message)
 
 
-class FailedToConnectToDatabricksError(RuntimeError):
+class FailedToConnectToDatabricksError(RuntimeError, ContextualError):
     """Error thrown when the client fails to connect to Databricks."""
 
     def __init__(self) -> None:
@@ -220,7 +230,7 @@ class FailedToConnectToDatabricksError(RuntimeError):
 
 
 ## Convert Text to MDS exceptions
-class InputFolderMissingDataError(ValueError):
+class InputFolderMissingDataError(ValueError, ContextualError):
     """Error thrown when the input folder is missing data."""
 
     def __init__(self, input_folder: str) -> None:
@@ -229,7 +239,7 @@ class InputFolderMissingDataError(ValueError):
         super().__init__(message)
 
 
-class OutputFolderNotEmptyError(FileExistsError):
+class OutputFolderNotEmptyError(FileExistsError, ContextualError):
     """Error thrown when the output folder is not empty."""
 
     def __init__(self, output_folder: str) -> None:
@@ -238,7 +248,7 @@ class OutputFolderNotEmptyError(FileExistsError):
         super().__init__(message)
 
 
-class MisconfiguredHfDatasetError(ValueError):
+class MisconfiguredHfDatasetError(ValueError, ContextualError):
     """Error thrown when a HuggingFace dataset is misconfigured."""
 
     def __init__(self, dataset_name: str, split: str) -> None:

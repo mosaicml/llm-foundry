@@ -63,33 +63,26 @@ def _get_torch_dtype(fp16: bool, bf16: bool) -> Optional[torch.dtype]:
 )
 @pytest.mark.gpu
 @pytest.mark.world_size(2)
-#@pytest.mark.parametrize('moe_num_experts', [1, 2, 4, 8])
-#@pytest.mark.parametrize('mlp_type', ['glu', 'mlp'])
-#@pytest.mark.parametrize('moe_world_size', [1, 2])
-#@pytest.mark.parametrize('moe_normalize_expert_weights', [1, 2.0])
-#@pytest.mark.parametrize('two_d_input', [True, False])
-@pytest.mark.parametrize('mlp_type', ['mlp'])
-@pytest.mark.parametrize('moe_normalize_expert_weights', [None])
-@pytest.mark.parametrize('moe_num_experts', [1])
-@pytest.mark.parametrize('moe_world_size', [1])
-@pytest.mark.parametrize('two_d_input', [True])
-@pytest.mark.parametrize('hidden_size', [32, 64, 96, 128, 160, 192, 224, 256])
+@pytest.mark.parametrize('moe_num_experts', [1, 2, 4, 8])
+@pytest.mark.parametrize('mlp_type', ['glu', 'mlp'])
+@pytest.mark.parametrize('moe_world_size', [1, 2])
+@pytest.mark.parametrize('moe_normalize_expert_weights', [1, 2.0])
+@pytest.mark.parametrize('two_d_input', [True, False])
 def test_dmoe(
     moe_num_experts: int,
     mlp_type: str,
     moe_world_size: int,
     moe_normalize_expert_weights: Union[float, int],
-    hidden_size: int,
     two_d_input: bool,
 ):
     if moe_world_size > moe_num_experts or moe_num_experts % moe_world_size != 0:
         pytest.skip('Mismatch between moe_world_size and moe_num_experts.')
-    moe_top_k = min(1, moe_num_experts)
+    moe_top_k = min(2, moe_num_experts)
     # Generate inputs
     rank = dist.get_rank()
     batch_size = 2
     seq_len = 3
-    hidden_size = hidden_size
+    hidden_size = 256
     if two_d_input:
         input_shape = [batch_size * seq_len, hidden_size]
     else:
@@ -148,8 +141,6 @@ def test_dmoe(
     args = megablocks.layers.arguments.Arguments(**mp_dmoe_args,)
     mb_dmoe = megablocks.layers.dmoe.dMoE(args).to(device)
     mb_dmoe.router = DDP(mb_dmoe.router, device_ids=[rank])
-
-    print(args)
 
     if moe_world_size > 1:
         assert device_mesh is not None
@@ -258,8 +249,6 @@ def test_dmoe_defaults(two_d_input: bool,):
         options=StateDictOptions(full_state_dict=True,),
     )
     mb_dmoe_optimizer = optim.SGD(mb_dmoe.parameters(), lr=0.1)
-
-    print(args)
 
     # Generate inputs based on hidden_size in megablocks arguments
     batch_size = 2

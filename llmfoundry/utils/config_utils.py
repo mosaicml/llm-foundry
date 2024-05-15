@@ -28,6 +28,7 @@ from omegaconf import MISSING, DictConfig, ListConfig, MissingMandatoryValue
 from omegaconf import OmegaConf as om
 from transformers import PretrainedConfig
 
+from llmfoundry.data.finetuning.tasks import SUPPORTED_EXTENSIONS
 from llmfoundry.layers_registry import ffns_with_megablocks
 from llmfoundry.models.utils import init_empty_weights
 
@@ -594,10 +595,7 @@ def _process_data_source(
         backend, _, _ = parse_uri(hf_path)
         if hf_path.startswith('dbfs:'):
             assert cfg_split
-            possible_files = [
-                f'{cfg_split}.json', f'{cfg_split}.jsonl', f'{cfg_split}.txt',
-                f'{cfg_split}.csv', f'{cfg_split}.parquet'
-            ]
+            possible_files = [f'{train_split}.{ext}' for ext in ALLOWED_FILE_EXTENSIONS]
             for file in possible_files:
                 path = os.path.join(hf_path[len('dbfs:'):], file)
                 if _verify_uc_path(path):

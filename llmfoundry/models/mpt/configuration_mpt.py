@@ -168,7 +168,6 @@ class MPTConfig(PretrainedConfig):
         self.init_config = init_config if init_config is not None else copy.deepcopy(
             init_config_defaults,
         )
-        # fc_type can be a string or a dictionary
         if isinstance(fc_type, dict):
             self.fc_type = fc_type
         else:

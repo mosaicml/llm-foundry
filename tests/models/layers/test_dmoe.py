@@ -147,6 +147,8 @@ def test_dmoe(
     mb_dmoe = megablocks.layers.dmoe.dMoE(args).to(device)
     mb_dmoe.router = DDP(mb_dmoe.router, device_ids=[rank])
 
+    print(args)
+
     if moe_world_size > 1:
         assert device_mesh is not None
         two_d_placements: List[Placement] = [Replicate(), Shard(0)]

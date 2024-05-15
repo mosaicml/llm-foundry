@@ -75,6 +75,8 @@ def test_dmoe(
     moe_normalize_expert_weights: Union[float, int],
     two_d_input: bool,
 ):
+    if moe_world_size > moe_num_experts or moe_num_experts % moe_world_size != 0:
+        pytest.skip('Mismatch between moe_world_size and moe_num_experts.')
     # Generate inputs
     rank = dist.get_rank()
     batch_size = 2
@@ -207,7 +209,6 @@ def test_dmoe(
 @pytest.mark.world_size(2)
 @pytest.mark.parametrize('two_d_input', [True, False])
 def test_dmoe_defaults(two_d_input: bool,):
-
     rank = dist.get_rank()
     fp16 = False
     bf16 = True
@@ -256,7 +257,7 @@ def test_dmoe_defaults(two_d_input: bool,):
         input_shape = [batch_size * seq_len, hidden_size]
     else:
         input_shape = [batch_size, seq_len, hidden_size]
-    
+
     x = _get_all_inputs(input_shape, dtype)[rank]
 
     # Load mb_dmoe state dict to torch dmoe

@@ -12,6 +12,9 @@ ARG DEP_GROUPS
 ADD https://raw.githubusercontent.com/mosaicml/llm-foundry/$BRANCH_NAME/setup.py setup.py
 RUN rm setup.py
 
+# Install TransformerEngine
+RUN NVTE_FRAMEWORK=pytorch MAX_JOBS=1 pip install --verbose git+https://github.com/NVIDIA/TransformerEngine.git@main
+
 # Install and uninstall foundry to cache foundry requirements
 RUN git clone -b $BRANCH_NAME https://github.com/mosaicml/llm-foundry.git
 RUN pip install --no-cache-dir "./llm-foundry${DEP_GROUPS}"

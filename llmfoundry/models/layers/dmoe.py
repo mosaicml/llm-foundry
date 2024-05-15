@@ -74,9 +74,10 @@ class LearnedRouter(torch.nn.Module):
 
     def _top_k(self, scores: torch.Tensor) -> torch.Tensor:
         if self.moe_top_k == 1:
-            return scores.max(
+            values, indices = scores.max(
                 dim=-1,
             )  # pyright: ignore[reportGeneralTypeIssues]
+            return values.unsqueeze(-1), indices.unsqueeze(-1)
         return torch.topk(
             scores,
             self.moe_top_k,
@@ -270,14 +271,7 @@ class DroplessMLP(torch.nn.Module):
         expert_mask = torch.nn.functional.one_hot(
             top_experts,
             num_classes=self.moe_num_experts,
-        )
-        
-        if expert_mask.dim() == 3:
-            expert_mask = expert_mask.permute(2, 1, 0)
-        elif expert_mask.dim() == 2:
-            expert_mask = expert_mask.t()
-        else:
-            raise ValueError(f'Unexpected expert mask dimensions of {expert_mask.dims()}')
+        ).permute(2, 1, 0)
         for expert_idx in range(0, self.moe_num_experts):
             topk_idx, token_idx = torch.where(expert_mask[expert_idx])
             if token_idx.shape[0] == 0:

@@ -14,16 +14,19 @@ rank = os.environ.get('RANK')
 if rank is None:
     raise ValueError('RANK not set')
 
-subprocess.run([
-    'git',
-    'clone',
-    'git@github.com:databricks-mosaic/mcloud.git',
-    f'/tmp/mcloud-{rank}',
-],
-               check=True)
-subprocess.run(['git', 'checkout', 'pyhookbuffered'],
-               cwd=f'/tmp/mcloud-{rank}',
-               check=True)
+try:
+    subprocess.run([
+        'git',
+        'clone',
+        'git@github.com:databricks-mosaic/mcloud.git',
+        f'/tmp/mcloud-{rank}',
+    ],
+                   check=True)
+    subprocess.run(['git', 'checkout', 'pyhookbuffered'],
+                   cwd=f'/tmp/mcloud-{rank}',
+                   check=True)
+except:
+    print('repo already exists, nbd')
 
 # add the following to the PYTHONPATH:
 # /tmp/mcloud/finetuning/pyhook

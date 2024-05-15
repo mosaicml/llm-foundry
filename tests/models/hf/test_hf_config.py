@@ -134,6 +134,7 @@ def test_hf_config_override(
     from transformers.models.auto.configuration_auto import CONFIG_MAPPING
     CONFIG_MAPPING._extra_content['mpt'] = MPTConfig
     AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)
+    MPTConfig.register_for_auto_class()
 
     with open(conf_path) as f:
         test_cfg = om.load(f)

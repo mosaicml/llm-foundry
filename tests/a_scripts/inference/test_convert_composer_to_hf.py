@@ -10,6 +10,7 @@ from argparse import Namespace
 from typing import Any, Callable, Dict, Optional, cast
 from unittest.mock import ANY, MagicMock, patch
 
+import catalogue
 import pytest
 import torch
 import transformers
@@ -25,7 +26,8 @@ from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from llmfoundry.callbacks import HuggingFaceCheckpointer
 from llmfoundry.callbacks.hf_checkpointer import _maybe_get_license_filename
 from llmfoundry.data.finetuning import build_finetuning_dataloader
-from llmfoundry.models.mpt import MPTConfig
+from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
+from llmfoundry.utils import edit_files_for_hf_compatibility
 from llmfoundry.utils.builders import (
     build_composer_model,
     build_optimizer,
@@ -1407,63 +1409,50 @@ def test_mptmoe_huggingface_conversion_callback(
     delete_transformers_cache()
 
 
-# def test_mpt_convert_simple():
-#     delete_transformers_cache()
+def test_mpt_convert_simple(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
+):
+    delete_transformers_cache()
 
-#     om_cfg = get_config(
-#         conf_path='scripts/train/yamls/pretrain/testing.yaml',
-#     )
-#     om_cfg['model']['init_device'] = 'cpu'
-#     om_cfg['tie_word_embeddings'] = True
-#     tokenizer = transformers.AutoTokenizer.from_pretrained(
-#         om_cfg.tokenizer.name,
-#     )
-#     name = om_cfg.model.pop('name')
-#     original_model = build_composer_model(
-#         name=name,
-#         tokenizer=tokenizer,
-#         cfg=to_dict_container(om_cfg['model']),
-#     )
-#     trainer = Trainer(
-#         model=original_model,
-#         device='cpu',
-#     )
-#     trainer.save_checkpoint('checkpoint.pt')
+    from transformers.models.auto.configuration_auto import CONFIG_MAPPING
+    CONFIG_MAPPING._extra_content['mpt'] = MPTConfig
+    MPTConfig.register_for_auto_class()
+    MPTForCausalLM.register_for_auto_class('AutoModelForCausalLM')
 
-#     args = Namespace(
-#         composer_path='checkpoint.pt',
-#         hf_output_path='hf-output-folder',
-#         output_precision='fp32',
-#         local_checkpoint_save_location=None,
-#         hf_repo_for_upload=None,
-#         trust_remote_code=False,
-#         test_uploaded_model=False,
-#     )
-#     convert_composer_to_hf(args)
+    model_cfg = {
+        'name': 'mpt_causal_lm',
+        'init_device': 'cpu',
+        'd_model': 64,
+        'n_heads': 2,
+        'n_layers': 2,
+        'expansion_ratio': 4,
+        'max_seq_len': 256,
+        'vocab_size': 50368,
+        'attn_config': {
+            'attn_impl': 'torch',
+        },
+        'loss_fn': 'torch_crossentropy',
+        'tie_word_embeddings': False,
+    }
 
-#     loaded_config = transformers.AutoConfig.from_pretrained(
-#         'hf-output-folder',
-#         trust_remote_code=True,
-#     )
-#     loaded_model = transformers.AutoModelForCausalLM.from_pretrained(
-#         'hf-output-folder',
-#         config=loaded_config,
-#         trust_remote_code=True,
-#     )
-#     tokenizer = transformers.AutoTokenizer.from_pretrained(
-#         'hf-output-folder',
-#         trust_remote_code=True,
-#     )
+    original_model = build_composer_model(
+        name='mpt_causal_lm',
+        tokenizer=None,
+        cfg=model_cfg,
+    )
 
-#     device = 'cpu'
-#     precision = torch.float32
-#     original_model.to(device)
-#     original_model.to(precision)
-#     loaded_model.to(device)
-#     loaded_model.to(precision)
+    original_model.model.save_pretrained(tmp_path)
 
-#     output = loaded_model.generate(
-#         tokenizer('hello', return_tensors='pt')['input_ids'].
+    edit_files_for_hf_compatibility(tmp_path)
+
+    monkeypatch.setattr(catalogue, 'REGISTRY', {})
+
+    _ = transformers.AutoModelForCausalLM.from_pretrained(
+        tmp_path,
+        trust_remote_code=True,
+    )
+
+    delete_transformers_cache()
 
 
 @pytest.mark.parametrize(

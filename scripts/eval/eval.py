@@ -79,7 +79,9 @@ def evaluate_model(
     
     if model_cfg.get('trim_batch', False):
         def _trim_batch(batch):
-            assert batch['attention_mask'].shape[1] == max_seq_len, 'No padding till max_seq_len found, disable batch_trim'
+            if batch['attention_mask'].shape[1] != max_seq_len:
+                log.info('No padding till max_seq_len found, disable batch_trim maybe')
+                return batch
             _max_len = batch['attention_mask'].sum(1).max()
             for k in batch:
                 if isinstance(batch[k], torch.Tensor) and batch[k].shape[1] == max_seq_len:
@@ -283,9 +285,10 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
             # Example of format string
             # 2022-06-29 11:22:26,152: rank0[822018][MainThread]: INFO: Message here
             format=
-            f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s'
+            f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s',
+            level=logging.getLevelName(python_log_level.upper())
         )
-        logging.getLogger('llmfoundry').setLevel(python_log_level.upper())
+        # logging.getLogger('llmfoundry').setLevel(python_log_level.upper())
 
     eval_gauntlet_df = None
     models_df = None

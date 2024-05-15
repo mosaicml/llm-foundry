@@ -1416,6 +1416,8 @@ def test_mpt_convert_simple(
     delete_transformers_cache()
 
     from transformers.models.auto.configuration_auto import CONFIG_MAPPING
+    original_config_auto_class = MPTConfig._auto_class
+    original_model_auto_class = MPTForCausalLM._auto_class
     CONFIG_MAPPING._extra_content['mpt'] = MPTConfig
     MPTConfig.register_for_auto_class()
     MPTForCausalLM.register_for_auto_class('AutoModelForCausalLM')
@@ -1454,6 +1456,10 @@ def test_mpt_convert_simple(
     )
 
     delete_transformers_cache()
+
+    del CONFIG_MAPPING._extra_content['mpt']
+    MPTConfig._auto_class = original_config_auto_class
+    MPTForCausalLM._auto_class = original_model_auto_class
 
 
 @pytest.mark.parametrize(

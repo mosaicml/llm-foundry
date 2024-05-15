@@ -1442,9 +1442,9 @@ def test_mpt_convert_simple(
         cfg=model_cfg,
     )
 
-    original_model.model.save_pretrained(tmp_path)
+    original_model.model.save_pretrained(str(tmp_path))
 
-    edit_files_for_hf_compatibility(tmp_path)
+    edit_files_for_hf_compatibility(str(tmp_path))
 
     monkeypatch.setattr(catalogue, 'REGISTRY', {})
 

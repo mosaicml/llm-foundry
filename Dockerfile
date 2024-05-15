@@ -13,7 +13,8 @@ ADD https://raw.githubusercontent.com/mosaicml/llm-foundry/$BRANCH_NAME/setup.py
 RUN rm setup.py
 
 # Install TransformerEngine
-RUN NVTE_FRAMEWORK=pytorch CMAKE_BUILD_PARALLEL_LEVEL=4 MAX_JOBS=1 pip install --verbose git+https://github.com/NVIDIA/TransformerEngine.git@main
+RUN NVTE_FRAMEWORK=pytorch CMAKE_BUILD_PARALLEL_LEVEL=4 MAX_JOBS=1 pip install --verbose git+https://github.com/j316chuck/TransformerEngine.git@chuck/fix_main
+
 
 # Install and uninstall foundry to cache foundry requirements
 RUN git clone -b $BRANCH_NAME https://github.com/mosaicml/llm-foundry.git

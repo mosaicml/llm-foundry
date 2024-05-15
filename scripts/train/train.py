@@ -29,6 +29,11 @@ from llmfoundry.utils import (
     log_train_analytics,
     maybe_create_mosaicml_logger,
 )
+from llmfoundry.utils.exceptions import (
+    ContextualError,
+    EvalDataLoaderLocation,
+    TrainDataLoaderLocation,
+)
 
 install()
 
@@ -391,8 +396,9 @@ def main(cfg: DictConfig) -> Trainer:
             tokenizer,
             train_cfg.device_train_batch_size,
         )
-    except Exception as e:
+    except ContextualError as e:
         if mosaicml_logger is not None:
+            e.location = TrainDataLoaderLocation
             mosaicml_logger.log_exception(e)
         raise e
 
@@ -409,19 +415,25 @@ def main(cfg: DictConfig) -> Trainer:
             train_cfg.eval_first = False
 
     else:
-        log.info('Building eval loader...')
-        eval_icl_seq_len: int = train_cfg.icl_seq_len if train_cfg.icl_seq_len else train_cfg.max_seq_len
-        evaluators, _, eval_gauntlet_callback = build_evaluators(
-            eval_loader_config,
-            icl_tasks_config,
-            eval_gauntlet_config,
-            tokenizer=tokenizer,
-            device_eval_batch_size=train_cfg.device_eval_batch_size,
-            icl_seq_len=eval_icl_seq_len,
-            icl_subset_num_batches=train_cfg.icl_subset_num_batches,
-        )
-        if eval_gauntlet_callback is not None:
-            callbacks.append(eval_gauntlet_callback)
+        try:
+            log.info('Building eval loader...')
+            eval_icl_seq_len: int = train_cfg.icl_seq_len if train_cfg.icl_seq_len else train_cfg.max_seq_len
+            evaluators, _, eval_gauntlet_callback = build_evaluators(
+                eval_loader_config,
+                icl_tasks_config,
+                eval_gauntlet_config,
+                tokenizer=tokenizer,
+                device_eval_batch_size=train_cfg.device_eval_batch_size,
+                icl_seq_len=eval_icl_seq_len,
+                icl_subset_num_batches=train_cfg.icl_subset_num_batches,
+            )
+            if eval_gauntlet_callback is not None:
+                callbacks.append(eval_gauntlet_callback)
+        except ContextualError as e:
+            if mosaicml_logger is not None:
+                e.location = EvalDataLoaderLocation
+                mosaicml_logger.log_exception(e)
+            raise e
 
     if mosaicml_logger is not None:
         log_train_analytics(
@@ -467,8 +479,9 @@ def main(cfg: DictConfig) -> Trainer:
                 evaluators,
                 non_icl_metrics,
             )
-    except Exception as e:
+    except ContextualError as e:
         if mosaicml_logger is not None:
+            e.location = EvalDataLoaderLocation
             mosaicml_logger.log_exception(e)
         raise e
 

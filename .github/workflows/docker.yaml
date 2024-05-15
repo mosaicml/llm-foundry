@@ -85,3 +85,6 @@ jobs:
           BRANCH_NAME=${{ github.head_ref || github.ref_name }}
           BASE_IMAGE=${{ matrix.base_image }}
           DEP_GROUPS=${{ matrix.dep_groups }}
+    - name: Check CPU utilization
+      run: top -bn1
+      if: always()

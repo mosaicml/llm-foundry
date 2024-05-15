@@ -4,7 +4,7 @@
 import copy
 from contextlib import nullcontext
 from functools import partial
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import pytest
 import torch
@@ -66,12 +66,13 @@ def _get_torch_dtype(fp16: bool, bf16: bool) -> Optional[torch.dtype]:
 @pytest.mark.parametrize('moe_num_experts', [8])
 @pytest.mark.parametrize('mlp_type', ['glu', 'mlp'])
 @pytest.mark.parametrize('moe_world_size', [1, 2])
-@pytest.mark.parametrize('moe_normalize_expert_weights', [1, 2])
+@pytest.mark.parametrize('moe_normalize_expert_weights', [1, 2.0])
 @pytest.mark.parametrize('two_d_input', [True, False])
 def test_dmoe(
     moe_num_experts: int,
     mlp_type: str,
     moe_world_size: int,
+    moe_normalize_expert_weights: Union[float, int],
     two_d_input: bool,
 ):
     # Generate inputs
@@ -96,7 +97,7 @@ def test_dmoe(
         'moe_top_k': 2,
         'activation_fn': partial(F.gelu, approximate='none'),
         'moe_jitter_eps': 0.0,  # Disable randomiztion
-        'moe_normalize_expert_weights': 1,
+        'moe_normalize_expert_weights': moe_normalize_expert_weights,
         'uniform_expert_assignment': False,
         'bias': False,
         'device': device,

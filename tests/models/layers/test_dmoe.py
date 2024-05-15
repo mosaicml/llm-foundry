@@ -73,6 +73,7 @@ def _get_torch_dtype(fp16: bool, bf16: bool) -> Optional[torch.dtype]:
 @pytest.mark.parametrize('moe_num_experts', [1])
 @pytest.mark.parametrize('moe_world_size', [1])
 @pytest.mark.parametrize('two_d_input', [True])
+@pytest.mark.parametrize('hidden_size', [32, 64, 96, 128, 160, 192, 224, 256])
 def test_dmoe(
     moe_num_experts: int,
     mlp_type: str,
@@ -87,7 +88,7 @@ def test_dmoe(
     rank = dist.get_rank()
     batch_size = 2
     seq_len = 3
-    hidden_size = 192
+    hidden_size = hidden_size
     if two_d_input:
         input_shape = [batch_size * seq_len, hidden_size]
     else:

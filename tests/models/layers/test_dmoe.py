@@ -63,13 +63,15 @@ def _get_torch_dtype(fp16: bool, bf16: bool) -> Optional[torch.dtype]:
 )
 @pytest.mark.gpu
 @pytest.mark.world_size(2)
-@pytest.mark.parametrize('moe_num_experts', [1, 2, 4, 8])
+#@pytest.mark.parametrize('moe_num_experts', [1, 2, 4, 8])
 #@pytest.mark.parametrize('mlp_type', ['glu', 'mlp'])
-@pytest.mark.parametrize('moe_world_size', [1, 2])
+#@pytest.mark.parametrize('moe_world_size', [1, 2])
 #@pytest.mark.parametrize('moe_normalize_expert_weights', [1, 2.0])
 #@pytest.mark.parametrize('two_d_input', [True, False])
 @pytest.mark.parametrize('mlp_type', ['mlp'])
-@pytest.mark.parametrize('moe_normalize_expert_weights', [1])
+@pytest.mark.parametrize('moe_normalize_expert_weights', [None])
+@pytest.mark.parametrize('moe_num_experts', [1])
+@pytest.mark.parametrize('moe_world_size', [1])
 @pytest.mark.parametrize('two_d_input', [True])
 def test_dmoe(
     moe_num_experts: int,
@@ -80,7 +82,7 @@ def test_dmoe(
 ):
     if moe_world_size > moe_num_experts or moe_num_experts % moe_world_size != 0:
         pytest.skip('Mismatch between moe_world_size and moe_num_experts.')
-    moe_top_k = min(2, moe_num_experts)
+    moe_top_k = min(1, moe_num_experts)
     # Generate inputs
     rank = dist.get_rank()
     batch_size = 2

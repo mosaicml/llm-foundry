@@ -16,4 +16,4 @@ RUN rm setup.py
 RUN git clone -b $BRANCH_NAME https://github.com/mosaicml/llm-foundry.git && \
     pip install --no-cache-dir "./llm-foundry${DEP_GROUPS}" && \
     pip uninstall -y llm-foundry && \
-    rm -rf llm-foundry && export NVTE_FRAMEWORK=pytorch && pip install --verbose git+https://github.com/NVIDIA/TransformerEngine.git@main
+    rm -rf llm-foundry && export NVTE_FRAMEWORK=pytorch && MAX_JOBS=1 pip install --verbose git+https://github.com/NVIDIA/TransformerEngine.git@main

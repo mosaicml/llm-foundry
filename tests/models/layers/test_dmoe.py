@@ -100,11 +100,11 @@ def test_dmoe(
     # Construct DDP torch dMoE
     device = torch.device(f'cuda:{dist.get_rank()}')
     common_args = {
-        'hidden_size': hidden_size,
-        'ffn_hidden_size': hidden_size,
+        #'hidden_size': hidden_size,
+        #'ffn_hidden_size': hidden_size,
         'moe_top_k': moe_top_k,
         'activation_fn': partial(F.gelu, approximate='none'),
-        #'moe_jitter_eps': 0.0,  # Disable randomiztion
+        'moe_jitter_eps': 0.0,  # Disable randomiztion
         'moe_normalize_expert_weights': moe_normalize_expert_weights,
         'uniform_expert_assignment': False,
         'bias': False,

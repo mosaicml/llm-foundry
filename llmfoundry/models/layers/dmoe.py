@@ -270,7 +270,14 @@ class DroplessMLP(torch.nn.Module):
         expert_mask = torch.nn.functional.one_hot(
             top_experts,
             num_classes=self.moe_num_experts,
-        ).permute(2, 1, 0)
+        )
+        
+        if expert_mask.dims() == 3:
+            expert_mask = expert_mask.permute(2, 1, 0)
+        elif expert_mask.dims() == 2:
+            expert_mask = expert_mask.t()
+        else:
+            raise ValueError(f'Unexpected expert mask dimensions of {expert_mask.dims()}')
         for expert_idx in range(0, self.moe_num_experts):
             topk_idx, token_idx = torch.where(expert_mask[expert_idx])
             if token_idx.shape[0] == 0:

@@ -28,7 +28,6 @@ from omegaconf import MISSING, DictConfig, ListConfig, MissingMandatoryValue
 from omegaconf import OmegaConf as om
 from transformers import PretrainedConfig
 
-from llmfoundry.data.finetuning.tasks import SUPPORTED_EXTENSIONS
 from llmfoundry.layers_registry import ffns_with_megablocks
 from llmfoundry.models.utils import init_empty_weights
 
@@ -581,6 +580,7 @@ def _process_data_source(
         true_split (str): The split of the dataset to be added (i.e. train or eval)
         data_paths (List[Tuple[str, str, str]]): A list of tuples formatted as (data type, path, split)
     """
+    from llmfoundry.data.finetuning.tasks import SUPPORTED_EXTENSIONS
     # Check for Delta table
     if source_dataset_path and len(source_dataset_path.split('.')) == 3:
         data_paths.append(('delta_table', source_dataset_path, true_split))
@@ -595,7 +595,7 @@ def _process_data_source(
         backend, _, _ = parse_uri(hf_path)
         if hf_path.startswith('dbfs:'):
             assert cfg_split
-            possible_files = [f'{train_split}.{ext}' for ext in ALLOWED_FILE_EXTENSIONS]
+            possible_files = [f'{train_split}.{ext}' for ext in SUPPORTED_EXTENSIONS]
             for file in possible_files:
                 path = os.path.join(hf_path[len('dbfs:'):], file)
                 if _verify_uc_path(path):

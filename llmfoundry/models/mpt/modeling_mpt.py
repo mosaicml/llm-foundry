@@ -1157,7 +1157,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
 
     def loss(self, outputs: CausalLMOutputWithPast,
              batch: Mapping) -> Union[dict, torch.Tensor]:
-        if self.model.transformer.shift_labels:
+        if self.shift_labels:
             targets = self.get_targets(batch)
         else:
             targets = batch['labels']

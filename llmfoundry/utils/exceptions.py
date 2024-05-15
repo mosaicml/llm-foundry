@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Custom exceptions for the LLMFoundry."""
-from collections.abc import Mapping
 from typing import Any, Dict, List
 
 __all__ = [
@@ -79,13 +78,14 @@ class NotEnoughDatasetSamplesError(ValueError):
 class UnknownExampleTypeError(KeyError):
     """Error thrown when an unknown example type is used in a task."""
 
-    def __init__(self, example: Mapping) -> None:
-        self.example = example
+    def __init__(self, example_keys: str) -> None:
+        self.example = example_keys
         message = (
-            f'Found keys {example.keys()} in dataset. Unknown example type. For prompt and response '
+            f'Found keys {example_keys} in dataset. Unknown example type. For prompt and response '
             f'finetuning, the valid prompt keys are {ALLOWED_PROMPT_KEYS} and the valid response keys are '
             f'{ALLOWED_RESPONSE_KEYS}. For chat finetuning, the allowed keys are {ALLOWED_MESSAGES_KEYS}'
         )
+
         super().__init__(message)
 
 

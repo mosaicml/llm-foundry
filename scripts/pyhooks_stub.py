@@ -32,9 +32,9 @@ if rank == '0':
 sys.path.append(f'/tmp/mcloud-0/finetuning/')
 
 while True:
-    try:
-        import pyhook
+    if os.path.exists(
+        '/tmp/mcloud-0/finetuning/pyhook_scripts/setup_pyhook.py',
+    ):
         break
-    except:
-        print('Failed to import pyhook from mcloud')
-        time.sleep(5)
+    else:
+        time.sleep(1)

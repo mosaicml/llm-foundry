@@ -207,19 +207,11 @@ def test_dmoe(
 @pytest.mark.world_size(2)
 @pytest.mark.parametrize('two_d_input', [True, False])
 def test_dmoe_defaults(two_d_input: bool,):
-    # Generate inputs
+
     rank = dist.get_rank()
-    batch_size = 2
-    seq_len = 3
-    hidden_size = 128
-    if two_d_input:
-        input_shape = [batch_size * seq_len, hidden_size]
-    else:
-        input_shape = [batch_size, seq_len, hidden_size]
     fp16 = False
     bf16 = True
     dtype = _get_torch_dtype(fp16, bf16)
-    x = _get_all_inputs(input_shape, dtype)[rank]
 
     # Construct DDP torch dMoE. torch_dmoe does not currently support bias.
     device = torch.device(f'cuda:{dist.get_rank()}')
@@ -255,6 +247,17 @@ def test_dmoe_defaults(two_d_input: bool,):
         options=StateDictOptions(full_state_dict=True,),
     )
     mb_dmoe_optimizer = optim.SGD(mb_dmoe.parameters(), lr=0.1)
+
+    # Generate inputs based on hidden_size in megablocks arguments
+    batch_size = 2
+    seq_len = 3
+    hidden_size = args.hidden_size
+    if two_d_input:
+        input_shape = [batch_size * seq_len, hidden_size]
+    else:
+        input_shape = [batch_size, seq_len, hidden_size]
+    
+    x = _get_all_inputs(input_shape, dtype)[rank]
 
     # Load mb_dmoe state dict to torch dmoe
     torch_dmoe.module.load_state_dict(mb_dmoe_state_dict, strict=True)

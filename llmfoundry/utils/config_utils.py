@@ -592,7 +592,17 @@ def _process_data_source(
     elif 'hf_name' in dataset:
         hf_path = dataset['hf_name']
         backend, _, _ = parse_uri(hf_path)
-        if backend:
+        if hf_path.startswith('dbfs:'):
+            assert cfg_split
+            possible_files = [
+                f'{cfg_split}.json', f'{cfg_split}.jsonl', f'{cfg_split}.txt',
+                f'{cfg_split}.csv', f'{cfg_split}.parquet'
+            ]
+            for file in possible_files:
+                path = os.path.join(hf_path[len('dbfs:'):], file)
+                if _verify_uc_path(path):
+                    data_paths.append(('uc_volume', path, true_split))
+        elif backend:
             hf_path = os.path.join(hf_path, cfg_split) if cfg_split else hf_path
             data_paths.append((backend, hf_path, true_split))
         elif os.path.exists(hf_path):
@@ -656,3 +666,37 @@ def _log_dataset_uri(cfg: Dict[str, Any]) -> None:
         mlflow.log_input(
             mlflow.data.meta_dataset.MetaDataset(source, name=split),
         )
+
+
+def _verify_uc_path(path: str) -> bool:
+    """Verify a UC path exists.
+    Args:
+        path (str): UnityCatalog path
+    Returns:
+        (bool): If path exists or not
+    """
+    try:
+        from databricks.sdk import WorkspaceClient
+
+        w = WorkspaceClient()
+    except ImportError:
+        log.warning(
+            'Cannot verify the path of `UCVolumeDatasetSource` because of missing' + \
+            '`databricks-sdk`. Please install `databricks-sdk` via ' + \
+            '`pip install -U databricks-sdk`. This does not block creating ' + \
+            '`UCVolumeDatasetSource`, but your `UCVolumeDatasetSource` might be invalid.'
+        )
+        return False
+    except Exception:
+        log.warning(
+            'Cannot verify the path of `UCVolumeDatasetSource` due to a connection failure ' + \
+            'with Databricks workspace. Please run `mlflow.login()` to log in to Databricks. ' + \
+            'This does not block creating `UCVolumeDatasetSource`, but your ' + \
+            '`UCVolumeDatasetSource` might be invalid.')
+        return False
+
+    try:
+        w.files.get_metadata(path)
+        return True
+    except Exception:
+        return False

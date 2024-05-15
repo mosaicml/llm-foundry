@@ -1767,7 +1767,8 @@ def get_icl_task_dataloader(
                 early_stopping_criteria=early_stopping_criteria,
                 do_normalization=do_normalization,
             )
-            os.remove(destination_path)
+            if dist.get_world_size() == 1:
+                os.remove(destination_path)
         return result_dls
     else:
         return build_icl_dataloader(

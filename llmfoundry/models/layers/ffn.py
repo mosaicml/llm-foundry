@@ -3,8 +3,8 @@
 
 """MPT Blocks used for the MPT Model."""
 
-import copy
 import logging
+from copy import deepcopy
 from functools import partial
 from typing import Any, Callable, List, Optional, Union
 
@@ -20,7 +20,6 @@ from llmfoundry.layers_registry import (
 )
 from llmfoundry.models.layers.dmoe import dMoE
 from llmfoundry.models.layers.layer_builders import build_fc
-from llmfoundry.models.mpt.configuration_mpt import fc_type_defaults
 
 try:
     import transformer_engine.pytorch as te
@@ -68,7 +67,7 @@ def resolve_ffn_act_fn(
     """
     if config is None:
         config = _FFN_ACT_FN_DEFAULT
-    config = copy.deepcopy(config)
+    config = deepcopy(config)
     name = config.pop('name')
     if not hasattr(torch.nn.functional, name):
         raise ValueError(f'Unrecognized activation function name ({name}).')
@@ -141,12 +140,8 @@ class MPTMLP(nn.Module):
             ffn_hidden_size,
         )
 
-        if fc_type is None:
-            self.fc_type = copy.deepcopy(fc_type_defaults)
-            self.fc_type['bias'] = bias
-            self.fc_type['device'] = device
-        else:
-            self.fc_type = fc_type
+        assert isinstance(fc_type, dict)
+        self.fc_type = fc_type
         self.fc_type_name = self.fc_type['name']
 
         self.up_proj = build_fc(
@@ -189,8 +184,6 @@ class MPTGLU(MPTMLP):
             device=device,
             bias=bias,
         )
-
-        assert isinstance(self.fc_type, dict)
 
         self.gate_proj = build_fc(
             name=self.fc_type_name,

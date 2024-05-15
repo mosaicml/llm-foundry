@@ -3,7 +3,6 @@
 
 """GPT Blocks used for the GPT Model."""
 
-import copy
 from typing import Any, Dict, Optional, Set, Tuple
 
 import torch
@@ -15,7 +14,6 @@ from llmfoundry.models.layers.layer_builders import (
     build_ffn,
     build_norm,
 )
-from llmfoundry.models.mpt.configuration_mpt import fc_type_defaults
 
 try:
     from flash_attn.bert_padding import unpad_input, pad_input  # type: ignore # yapf: disable # isort: skip
@@ -81,8 +79,7 @@ class MPTBlock(nn.Module):
         else:
             self.ffn_config = ffn_config
 
-        if fc_type is None:
-            fc_type = copy.deepcopy(fc_type_defaults)
+        assert isinstance(fc_type, dict)
         fc_type['bias'] = not no_bias
         fc_type['device'] = device
 
@@ -262,11 +259,7 @@ class FusedNormAttentionNorm(nn.Module):
         super().__init__()
         assert attn_config is not None
         assert isinstance(attn_config['attn_type'], str)
-
-        if fc_type is None:
-            fc_type = copy.deepcopy(fc_type_defaults)
-            fc_type['bias'] = not no_bias
-            fc_type['device'] = device
+        assert isinstance(fc_type, dict)
 
         # Necessary to avoid passing extraneous args into attn_class while allowing the use of **kwargs
         attn_config_subset_for_attn_class = {

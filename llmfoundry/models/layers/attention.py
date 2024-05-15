@@ -3,7 +3,6 @@
 
 """Attention layers."""
 
-import copy
 import math
 import warnings
 from typing import Any, Dict, Optional, Tuple
@@ -19,7 +18,6 @@ from llmfoundry.layers_registry import (
     attention_implementations,
 )
 from llmfoundry.models.layers.layer_builders import build_fc, build_norm
-from llmfoundry.models.mpt.configuration_mpt import fc_type_defaults
 
 __all__ = [
     'scaled_multihead_dot_product_attention',
@@ -431,13 +429,8 @@ class GroupedQueryAttention(nn.Module):
 
         self.head_dim = d_model // n_heads
 
-        if fc_type is None:
-            self.fc_type = copy.deepcopy(fc_type_defaults)
-            self.fc_type['bias'] = bias
-            self.fc_type['device'] = device
-        else:
-            self.fc_type = fc_type
-        self.fc_type_name = self.fc_type['name']
+        assert isinstance(fc_type, dict)
+        fc_type_name = fc_type['name']
 
         if self.kv_n_heads <= 0:
             raise ValueError('kv_n_heads should be greater than zero.')
@@ -460,10 +453,10 @@ class GroupedQueryAttention(nn.Module):
         self.attn_dropout_p = attn_pdrop
 
         self.Wqkv = build_fc(
-            name=self.fc_type_name,
+            name=fc_type_name,
             in_features=self.d_model,
             out_features=self.d_model + 2 * self.kv_n_heads * self.head_dim,
-            fc_kwargs=self.fc_type,
+            fc_kwargs=fc_type,
         )
         # for param init fn; enables shape based init of fused layers
         fuse_splits = [
@@ -490,10 +483,10 @@ class GroupedQueryAttention(nn.Module):
         self.attn_fn = attention_implementations.get(self.attn_impl)
 
         self.out_proj = build_fc(
-            name=self.fc_type_name,
+            name=fc_type_name,
             in_features=self.d_model,
             out_features=self.d_model,
-            fc_kwargs=self.fc_type,
+            fc_kwargs=fc_type,
         )
         self.out_proj._is_residual = True
 

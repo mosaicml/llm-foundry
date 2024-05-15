@@ -11,11 +11,9 @@ import time
 
 # execute some shell commands
 
-rank = os.environ.get('RANK')
-if rank is None:
-    raise ValueError('RANK not set')
+rank = int(os.environ.get('RANK') % 8) # hack
 
-if rank == '0':
+if rank == 0:
     shutil.rmtree(f'/tmp/mcloud-{rank}', ignore_errors=True)
     subprocess.run([
         'git',
@@ -31,6 +29,7 @@ if rank == '0':
 
 sys.path.append(f'/tmp/mcloud-0/finetuning/')
 
+# extremely primitive dist barrier
 while True:
     if os.path.exists(
         '/tmp/mcloud-0/finetuning/pyhook_scripts/setup_pyhook.py',

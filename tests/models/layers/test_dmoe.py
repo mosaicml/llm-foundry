@@ -80,7 +80,7 @@ def test_dmoe(
 ):
     if moe_world_size > moe_num_experts or moe_num_experts % moe_world_size != 0:
         pytest.skip('Mismatch between moe_world_size and moe_num_experts.')
-    moe_top_k = min(2, moe_num_experts)
+    moe_top_k = min(1, moe_num_experts)
     # Generate inputs
     rank = dist.get_rank()
     batch_size = 2

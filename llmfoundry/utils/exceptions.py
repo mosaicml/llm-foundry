@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Custom exceptions for the LLMFoundry."""
-from collections.abc import Mapping
 from typing import Any, Dict, List, Literal, Optional, Union
 
 __all__ = [

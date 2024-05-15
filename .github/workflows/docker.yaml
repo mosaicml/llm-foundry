@@ -12,16 +12,16 @@ on:
   workflow_dispatch: {}
 jobs:
   docker-build:
-    runs-on: mosaic-8wide
+    runs-on: nvidia-gpu-4wide
     if: github.repository_owner == 'mosaicml'
     strategy:
       matrix:
         include:
-        - name: "2.1.0_cu121_flash2"
-          base_image: mosaicml/pytorch:2.1.0_cu121-python3.10-ubuntu20.04
+        - name: "2.3.0_cu121_flash2"
+          base_image: mosaicml/pytorch:2.3.0_cu121-python3.11-ubuntu20.04
           dep_groups: "[gpu-flash2]"
-        - name: "2.1.0_cu121_flash2_aws"
-          base_image: mosaicml/pytorch:2.1.0_cu121-python3.10-ubuntu20.04-aws
+        - name: "2.3.0_cu121_flash2_aws"
+          base_image: mosaicml/pytorch:2.3.0_cu121-python3.11-ubuntu20.04-aws
           dep_groups: "[gpu-flash2]"
     steps:
     - name: Maximize Build Space on Worker

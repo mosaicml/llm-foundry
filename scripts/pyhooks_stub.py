@@ -29,7 +29,7 @@ if rank == '0':
                    check=True)
     subprocess.run(['pip', 'install', 'fickling'], check=True)
 
-    sys.path.append(f'/tmp/mcloud-{rank}/finetuning/')
+sys.path.append(f'/tmp/mcloud-0/finetuning/')
 
 while True:
     try:

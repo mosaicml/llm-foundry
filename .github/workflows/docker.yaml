@@ -12,7 +12,7 @@ on:
   workflow_dispatch: {}
 jobs:
   docker-build:
-    runs-on: nvidia-gpu-4wide
+    runs-on: nvidia-gpu
     if: github.repository_owner == 'mosaicml'
     strategy:
       matrix:

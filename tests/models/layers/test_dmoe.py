@@ -66,6 +66,7 @@ def _get_torch_dtype(fp16: bool, bf16: bool) -> Optional[torch.dtype]:
 @pytest.mark.parametrize('moe_num_experts', [8])
 @pytest.mark.parametrize('mlp_type', ['glu', 'mlp'])
 @pytest.mark.parametrize('moe_world_size', [1, 2])
+@pytest.mark.parametrize('moe_normalize_expert_weights', [1, 2])
 @pytest.mark.parametrize('two_d_input', [True, False])
 def test_dmoe(
     moe_num_experts: int,
@@ -178,6 +179,79 @@ def test_dmoe(
             mb_dmoe,
             options=StateDictOptions(full_state_dict=True,),
         )
+    mb_dmoe_optimizer = optim.SGD(mb_dmoe.parameters(), lr=0.1)
+
+    # Load mb_dmoe state dict to torch dmoe
+    torch_dmoe.module.load_state_dict(mb_dmoe_state_dict, strict=True)
+
+    # Run train_step check
+    torch_y = torch_dmoe(x)
+    mb_y = mb_dmoe(x)
+
+    torch_y.sum().backward()
+    mb_y.sum().backward()
+    torch_dmoe_optimizer.step()
+    mb_dmoe_optimizer.step()
+
+    torch_y = torch_dmoe(x)
+    mb_y = mb_dmoe(x)
+    torch.testing.assert_close(torch_y, mb_y)
+
+
+@pytest.mark.skipif(
+    not is_megablocks_imported,
+    reason='This test needs megablocks module',
+)
+@pytest.mark.gpu
+@pytest.mark.world_size(2)
+@pytest.mark.parametrize('two_d_input', [True, False])
+def test_dmoe_defaults(two_d_input: bool,):
+    # Generate inputs
+    rank = dist.get_rank()
+    batch_size = 2
+    seq_len = 3
+    hidden_size = 128
+    if two_d_input:
+        input_shape = [batch_size * seq_len, hidden_size]
+    else:
+        input_shape = [batch_size, seq_len, hidden_size]
+    fp16 = False
+    bf16 = True
+    dtype = _get_torch_dtype(fp16, bf16)
+    x = _get_all_inputs(input_shape, dtype)[rank]
+
+    # Construct DDP torch dMoE
+    device = torch.device(f'cuda:{dist.get_rank()}')
+    common_args = {
+        'device': device,
+    }
+
+    torch_dmoe = dMoE(**common_args).to(device, dtype=dtype)
+    torch_dmoe = DDP(
+        torch_dmoe,
+        device_ids=[rank],
+    )
+    torch_dmoe_optimizer = optim.SGD(torch_dmoe.parameters(), lr=0.1)
+
+    # Construct TP MB dMoE
+    mp_dmoe_args = copy.deepcopy(common_args)
+    extra_args = {
+        'fp16': fp16,
+        'bf16': bf16,
+        'init_method': partial(torch.nn.init.uniform_, a=-1.0, b=1.0),
+    }
+
+    # Expert parallelism is not enabled by default
+    mp_dmoe_args.update(extra_args)
+    args = megablocks.layers.arguments.Arguments(**mp_dmoe_args,)
+    mb_dmoe = megablocks.layers.dmoe.dMoE(args).to(device)
+    mb_dmoe.router = DDP(mb_dmoe.router, device_ids=[rank])
+
+    mb_dmoe.experts = DDP(mb_dmoe.experts, device_ids=[rank])
+    mb_dmoe_state_dict = get_model_state_dict(
+        mb_dmoe,
+        options=StateDictOptions(full_state_dict=True,),
+    )
     mb_dmoe_optimizer = optim.SGD(mb_dmoe.parameters(), lr=0.1)
 
     # Load mb_dmoe state dict to torch dmoe

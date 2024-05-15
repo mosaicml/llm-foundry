@@ -77,6 +77,7 @@ def test_dmoe(
 ):
     if moe_world_size > moe_num_experts or moe_num_experts % moe_world_size != 0:
         pytest.skip('Mismatch between moe_world_size and moe_num_experts.')
+    moe_top_k = min(2, moe_num_experts)
     # Generate inputs
     rank = dist.get_rank()
     batch_size = 2
@@ -96,7 +97,7 @@ def test_dmoe(
     common_args = {
         'hidden_size': hidden_size,
         'ffn_hidden_size': hidden_size,
-        'moe_top_k': 2,
+        'moe_top_k': moe_top_k,
         'activation_fn': partial(F.gelu, approximate='none'),
         'moe_jitter_eps': 0.0,  # Disable randomiztion
         'moe_normalize_expert_weights': moe_normalize_expert_weights,

@@ -16,7 +16,7 @@ if rank is None:
     raise ValueError('RANK not set')
 
 if rank == '0':
-    shutil.rmtree('/tmp/mcloud', ignore_errors=True)
+    shutil.rmtree(f'/tmp/mcloud-{rank}', ignore_errors=True)
     subprocess.run([
         'git',
         'clone',

@@ -25,8 +25,10 @@ from llmfoundry.models.layers.dmoe import dMoE  # type: ignore (see note)
 from llmfoundry.layers_registry import norms  # type: ignore (see note)
 from llmfoundry.utils.registry_utils import construct_from_registry  # type: ignore (see note)
 from llmfoundry.models.utils.config_defaults import (
-    attn_config_defaults, ffn_config_defaults, init_config_defaults,
-    fc_type_defaults
+    attn_config_defaults,
+    ffn_config_defaults,
+    init_config_defaults,
+    fc_type_defaults,
 )  # type: ignore (see note)
 
 

@@ -7,7 +7,6 @@ from typing import Any, Dict, Mapping
 from unittest.mock import Mock, patch
 
 import pytest
-from composer.utils import dist
 from omegaconf import OmegaConf as om
 from transformers import PretrainedConfig
 

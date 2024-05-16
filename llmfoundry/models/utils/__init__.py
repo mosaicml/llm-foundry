@@ -6,6 +6,12 @@ from llmfoundry.models.utils.act_ckpt import (
     check_mapping_blocks_overlap,
     pass_on_block_idx,
 )
+from llmfoundry.models.utils.config_defaults import (
+    attn_config_defaults,
+    fc_type_defaults,
+    ffn_config_defaults,
+    init_config_defaults,
+)
 from llmfoundry.models.utils.config_moe_args import config_moe_args
 from llmfoundry.models.utils.meta_init_context import (
     init_empty_weights,
@@ -27,4 +33,8 @@ __all__ = [
     'build_act_ckpt_mod_to_blocks',
     'pass_on_block_idx',
     'check_mapping_blocks_overlap',
+    'ffn_config_defaults',
+    'attn_config_defaults',
+    'init_config_defaults',
+    'fc_type_defaults',
 ]

@@ -1,9 +1,11 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Callable, Optional
+from functools import partial
+from typing import Callable, Optional, Tuple, Union
 
 import torch
+import torch.nn.functional as F
 
 __all__ = [
     'dMoE',
@@ -12,6 +14,8 @@ __all__ = [
     'GLU',
     'DroplessMLP',
 ]
+
+DEFAULT_ACTIVATION_FN = partial(F.gelu, approximate='tanh')
 
 
 # Add option to route tokens uniformly across experts. We use
@@ -36,8 +40,8 @@ class LearnedRouter(torch.nn.Module):
         hidden_size: int,
         moe_num_experts: int,
         moe_top_k: int,
-        moe_jitter_eps: float,
-        moe_normalize_expert_weights: bool,
+        moe_jitter_eps: Optional[float],
+        moe_normalize_expert_weights: Optional[Union[int, float]],
         uniform_expert_assignment: bool,
         device: Optional[torch.device],
     ) -> None:
@@ -45,8 +49,9 @@ class LearnedRouter(torch.nn.Module):
         self.hidden_size: int = hidden_size
         self.moe_num_experts: int = moe_num_experts
         self.moe_top_k: int = moe_top_k
-        self.moe_jitter_eps: float = moe_jitter_eps
-        self.moe_normalize_expert_weights: bool = moe_normalize_expert_weights
+        self.moe_jitter_eps: Optional[float] = moe_jitter_eps
+        self.moe_normalize_expert_weights: Optional[Union[
+            int, float]] = moe_normalize_expert_weights
         self.uniform_expert_assignment: bool = uniform_expert_assignment
 
         self.layer: torch.nn.Module = torch.nn.Linear(
@@ -57,6 +62,7 @@ class LearnedRouter(torch.nn.Module):
         )
 
     def jitter(self, x: torch.Tensor) -> torch.Tensor:
+        assert self.moe_jitter_eps is not None
         low: float = 1.0 - self.moe_jitter_eps
         high: float = 1.0 + self.moe_jitter_eps
         noise: torch.Tensor = torch.rand(
@@ -66,16 +72,15 @@ class LearnedRouter(torch.nn.Module):
         )
         return low + noise * (high - low)
 
-    def _top_k(self, scores: torch.Tensor) -> torch.Tensor:
+    def _top_k(self, scores: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         if self.moe_top_k == 1:
-            return scores.max(
-                dim=-1,
-            )  # pyright: ignore[reportGeneralTypeIssues]
+            values, indices = scores.max(dim=-1,)
+            return values.unsqueeze(-1), indices.unsqueeze(-1)
         return torch.topk(
             scores,
             self.moe_top_k,
             dim=-1,
-        )  # pyright: ignore[reportGeneralTypeIssues]
+        )
 
     def forward(self, x: torch.Tensor):
         if self.training and self.moe_jitter_eps is not None:
@@ -288,17 +293,17 @@ class dMoE(torch.nn.Module):
 
     def __init__(
         self,
-        hidden_size: int,
-        ffn_hidden_size: int,
-        moe_num_experts: int,
-        moe_top_k: int,
-        mlp_type: str,
-        activation_fn: Callable,
-        moe_jitter_eps: float,
-        moe_normalize_expert_weights: bool,
-        uniform_expert_assignment: bool,
-        bias: bool,
         device: Optional[torch.device],
+        hidden_size: int = 1024,
+        ffn_hidden_size: int = 4096,
+        moe_num_experts: int = 1,
+        moe_top_k: int = 1,
+        mlp_type: str = 'mlp',
+        activation_fn: Callable = DEFAULT_ACTIVATION_FN,
+        moe_jitter_eps: Optional[float] = None,
+        moe_normalize_expert_weights: Optional[Union[int, float]] = None,
+        uniform_expert_assignment: bool = False,
+        bias: bool = True,
     ):
         super().__init__()
 

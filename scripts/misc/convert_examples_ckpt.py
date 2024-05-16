@@ -17,7 +17,7 @@ from composer.utils import (
     safe_torch_load,
 )
 
-from llmfoundry.models.mpt.configuration_mpt import (
+from llmfoundry.models.utils.config_defaults import (
     attn_config_defaults,
     init_config_defaults,
 )

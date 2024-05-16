@@ -107,7 +107,7 @@ def build_fc(
     kwargs = {
         'in_features': in_features,
         'out_features': out_features,
-        **fc_kwargs,
+        **{k: v for k, v in fc_kwargs.items() if k != 'name'},
     }
 
     return construct_from_registry(

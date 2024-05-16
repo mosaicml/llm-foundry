@@ -2,16 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import tempfile
 from copy import deepcopy
-from pathlib import Path
 from typing import Any, Dict, Mapping
 from unittest.mock import Mock, patch
 
 import pytest
-import torch
 from omegaconf import OmegaConf as om
-from transformers import AutoModelForCausalLM, PretrainedConfig
+from transformers import PretrainedConfig
 
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils import build_tokenizer
@@ -92,7 +89,7 @@ def test_tie_weights(tie_word_embeddings: bool):
         },
         {
             'attn_config': {
-                'attn_impl': 'flash',
+                'attn_pdrop': 1.0,
             },
         },
         {
@@ -103,7 +100,7 @@ def test_tie_weights(tie_word_embeddings: bool):
         {
             'max_seq_len': 1024,
             'attn_config': {
-                'attn_impl': 'flash',
+                'attn_pdrop': 1.0,
             },
             'init_config': {
                 'emb_init_std': 5,
@@ -131,21 +128,8 @@ def test_hf_config_override(
     model_cfg_overrides: Dict[str, Any],
     conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml',
 ):
-    from transformers.models.auto.configuration_auto import CONFIG_MAPPING
-    CONFIG_MAPPING._extra_content['mpt'] = MPTConfig
-    AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)
-
     with open(conf_path) as f:
         test_cfg = om.load(f)
-
-    # Build Model
-    # For fast initialization, use `meta` device
-    print('Initializing model...')
-    device = 'cpu'
-    test_cfg.model.init_device = device
-    test_cfg.device = device
-    test_cfg.precision = 'fp16'
-    test_cfg.model.attn_config = {'attn_impl': 'torch', 'alibi': True}
 
     tokenizer_cfg: Dict[str, Any] = om.to_container(
         test_cfg.tokenizer,
@@ -154,26 +138,19 @@ def test_hf_config_override(
     tokenizer_name = tokenizer_cfg['name']
     tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
-    name = test_cfg.model.pop('name')
-    model = build_composer_model(
-        name=name,
-        cfg=to_dict_container(test_cfg.model),
-        tokenizer=tokenizer,
-    )
 
-    # save model
-    tmp_dir = tempfile.TemporaryDirectory()
-    save_path = tmp_dir.name
+    tiny_overrides = {
+        'n_layers': 2,
+        'd_model': 128,
+    }
 
-    tokenizer.save_pretrained(save_path)
-    model.config.save_pretrained(save_path)
-    torch.save(model.state_dict(), Path(save_path) / 'pytorch_model.bin')
+    model_cfg_overrides.update(tiny_overrides)
 
     # load hf causal lm model with config_overrides
     hf_model_config = deepcopy(test_cfg)
     model_cfg = om.create({
         'name': 'hf_causal_lm',
-        'pretrained_model_name_or_path': save_path,
+        'pretrained_model_name_or_path': 'mosaicml/mpt-7b',
         'pretrained': False,
         'config_overrides': model_cfg_overrides,
     })

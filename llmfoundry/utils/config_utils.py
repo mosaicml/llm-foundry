@@ -580,6 +580,7 @@ def _process_data_source(
         true_split (str): The split of the dataset to be added (i.e. train or eval)
         data_paths (List[Tuple[str, str, str]]): A list of tuples formatted as (data type, path, split)
     """
+    print('---- PROCESSING DATA SOURCE')
     # Check for Delta table
     if source_dataset_path and len(source_dataset_path.split('.')) == 3:
         data_paths.append(('delta_table', source_dataset_path, true_split))

@@ -590,14 +590,16 @@ def _process_data_source(
         )
     # Check for HF path
     elif 'hf_name' in dataset:
+        print(f'---- Starts with hf name')
         hf_path = dataset['hf_name']
         backend, _, _ = parse_uri(hf_path)
         if hf_path.startswith('dbfs:'):
+            print(f'---- Starts with dbfs')
             assert cfg_split
             from llmfoundry.data.finetuning.tasks import SUPPORTED_EXTENSIONS
             possible_files = [f'{cfg_split}.{ext}' for ext in SUPPORTED_EXTENSIONS]
             for file in possible_files:
-                print(f'CHECKING FILE: {file}')
+                print(f'---- CHECKING FILE: {file}')
                 path = os.path.join(hf_path[len('dbfs:'):], file)
                 if _verify_uc_path(path):
                     print('---- UC VOLUME FOUND')

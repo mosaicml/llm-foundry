@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import shutil
 from copy import deepcopy
 from typing import Any, Dict, Mapping
 from unittest.mock import Mock, patch
@@ -81,45 +80,6 @@ def test_tie_weights(tie_word_embeddings: bool):
         assert mpt.lm_head is None
     else:
         assert mpt.lm_head is not None
-
-
-# TODO(GRT-2435): Change to fixture
-def delete_transformers_cache():
-    # Only delete the files on local rank 0, otherwise race conditions are created
-    if not dist.get_local_rank() == 0:
-        return
-
-    hf_cache_home = os.path.expanduser(
-        os.getenv(
-            'HF_HOME',
-            os.path.join(
-                os.getenv('XDG_CACHE_HOME', '~/.cache'),
-                'huggingface',
-            ),
-        ),
-    )
-    HF_MODULES_CACHE = os.getenv(
-        'HF_MODULES_CACHE',
-        os.path.join(hf_cache_home, 'modules'),
-    )
-    if os.path.exists(HF_MODULES_CACHE) and os.path.isdir(HF_MODULES_CACHE):
-        shutil.rmtree(HF_MODULES_CACHE)
-
-
-# def test_mpt_convert_simple(
-#     monkeypatch: pytest.MonkeyPatch,
-#     tmp_path: pathlib.Path,
-# ):
-#     delete_transformers_cache()
-
-#     from transformers.models.auto.configuration_auto import CONFIG_MAPPING
-#     original_config_auto_class = MPTConfig._auto_class
-#     original_model_auto_class = MPTForCausalLM._auto_class
-#     CONFIG_MAPPING._extra_content['mpt'] = MPTConfig
-#     MPTConfig.register_for_auto_class()
-#     MPTForCausalLM.register_for_auto_class('AutoModelForCausalLM')
-
-#     delete_transformers_cache()
 
 
 @pytest.mark.parametrize(

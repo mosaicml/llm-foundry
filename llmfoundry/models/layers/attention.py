@@ -3,6 +3,7 @@
 
 """Attention layers."""
 
+import copy
 import math
 import warnings
 from typing import Any, Dict, Optional, Tuple
@@ -432,7 +433,7 @@ class GroupedQueryAttention(nn.Module):
 
         # Usually, fc_type dict should be passed in through MPTBlock's __init__ function.
         if fc_type is None:
-            fc_type = fc_type_defaults
+            fc_type = copy.deepcopy(fc_type_defaults)
             fc_type['bias'] = bias
             fc_type['device'] = device
         fc_type_name = fc_type['name']

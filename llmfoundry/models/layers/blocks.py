@@ -3,6 +3,7 @@
 
 """GPT Blocks used for the GPT Model."""
 
+import copy
 from typing import Any, Dict, Optional, Set, Tuple
 
 import torch
@@ -58,7 +59,7 @@ class MPTBlock(nn.Module):
             self.ffn_config = ffn_config
 
         if fc_type is None:
-            fc_type = fc_type_defaults
+            fc_type = copy.deepcopy(fc_type_defaults)
         fc_type['bias'] = not no_bias
         fc_type['device'] = device
 
@@ -241,7 +242,7 @@ class FusedNormAttentionNorm(nn.Module):
 
         # Usually, fc_type dict should be passed in through MPTBlock's __init__ function.
         if fc_type is None:
-            fc_type = fc_type_defaults
+            fc_type = copy.deepcopy(fc_type_defaults)
             fc_type['bias'] = not no_bias
             fc_type['device'] = device
 

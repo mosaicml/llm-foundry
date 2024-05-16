@@ -580,7 +580,6 @@ def _process_data_source(
         true_split (str): The split of the dataset to be added (i.e. train or eval)
         data_paths (List[Tuple[str, str, str]]): A list of tuples formatted as (data type, path, split)
     """
-    print('---- PROCESSING DATA SOURCE')
     # Check for Delta table
     if source_dataset_path and len(source_dataset_path.split('.')) == 3:
         data_paths.append(('delta_table', source_dataset_path, true_split))
@@ -591,20 +590,25 @@ def _process_data_source(
         )
     # Check for HF path
     elif 'hf_name' in dataset:
-        print(f'---- Starts with hf name')
         hf_path = dataset['hf_name']
         backend, _, _ = parse_uri(hf_path)
+        unsupported_file = True
         if hf_path.startswith('dbfs:'):
-            print(f'---- Starts with dbfs')
             assert cfg_split
             from llmfoundry.data.finetuning.tasks import SUPPORTED_EXTENSIONS
-            possible_files = [f'{cfg_split}{ext}' for ext in SUPPORTED_EXTENSIONS]
+            possible_files = [
+                f'{cfg_split}{ext}' for ext in SUPPORTED_EXTENSIONS
+            ]
             for file in possible_files:
-                print(f'---- CHECKING FILE: {file}')
                 path = os.path.join(hf_path[len('dbfs:'):], file)
                 if _verify_uc_path(path):
-                    print('---- UC VOLUME FOUND')
                     data_paths.append(('uc_volume', path, true_split))
+                    unsupported_file = True
+                    break
+            if unsupported_file:
+                log.warning(
+                    f'{hf_path} does not contain a supported file extension.',
+                )
         elif backend:
             hf_path = os.path.join(hf_path, cfg_split) if cfg_split else hf_path
             data_paths.append((backend, hf_path, true_split))
@@ -673,6 +677,7 @@ def _log_dataset_uri(cfg: Dict[str, Any]) -> None:
 
 def _verify_uc_path(path: str) -> bool:
     """Verify a UC path exists.
+
     Args:
         path (str): UnityCatalog path
     Returns:
@@ -687,7 +692,7 @@ def _verify_uc_path(path: str) -> bool:
             'Cannot verify the path of `UCVolumeDatasetSource` because of missing' + \
             '`databricks-sdk`. Please install `databricks-sdk` via ' + \
             '`pip install -U databricks-sdk`. This does not block creating ' + \
-            '`UCVolumeDatasetSource`, but your `UCVolumeDatasetSource` might be invalid.'
+            '`UCVolumeDatasetSource`, but your `UCVolumeDatasetSource` might be invalid.',
         )
         return False
     except Exception:

@@ -599,6 +599,7 @@ def _process_data_source(
             for file in possible_files:
                 path = os.path.join(hf_path[len('dbfs:'):], file)
                 if _verify_uc_path(path):
+                    print('---- UC VOLUME FOUND')
                     data_paths.append(('uc_volume', path, true_split))
         elif backend:
             hf_path = os.path.join(hf_path, cfg_split) if cfg_split else hf_path

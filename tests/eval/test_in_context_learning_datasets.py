@@ -12,7 +12,6 @@ import torch
 import transformers
 from composer import Evaluator
 from composer.core import DataSpec
-from composer.datasets.utils import MultiTokenEOSCriteria
 from composer.loggers import InMemoryLogger
 from composer.models import HuggingFaceModel
 from composer.trainer import Trainer
@@ -24,6 +23,7 @@ from llmfoundry.eval.datasets import (
     InContextLearningGenerationTaskWithAnswersDataset,
     InContextLearningMultipleChoiceTaskDataset,
     InContextLearningSchemaTaskDataset,
+    MultiTokenEOSCriteria,
     get_continuation_span,
     get_fewshot_sample_idxs,
     get_icl_task_dataloader,

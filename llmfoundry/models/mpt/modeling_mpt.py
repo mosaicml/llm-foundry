@@ -77,6 +77,7 @@ from llmfoundry.models.utils.param_init_fns import (
     generic_param_init_fn_,  # type: ignore (see note)
 )
 from llmfoundry.models.layers.ffn import resolve_ffn_act_fn  # type: ignore (see note)
+from llmfoundry.models.layers.fc import fcs  # type: ignore (see note)
 
 from llmfoundry.models.utils.act_ckpt import (
     pass_on_block_idx,

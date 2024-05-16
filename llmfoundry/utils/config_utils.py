@@ -598,7 +598,7 @@ def _process_data_source(
             print(f'---- Starts with dbfs')
             assert cfg_split
             from llmfoundry.data.finetuning.tasks import SUPPORTED_EXTENSIONS
-            possible_files = [f'{cfg_split}.{ext}' for ext in SUPPORTED_EXTENSIONS]
+            possible_files = [f'{cfg_split}{ext}' for ext in SUPPORTED_EXTENSIONS]
             for file in possible_files:
                 print(f'---- CHECKING FILE: {file}')
                 path = os.path.join(hf_path[len('dbfs:'):], file)

@@ -603,7 +603,7 @@ def _process_data_source(
                 path = os.path.join(hf_path[len('dbfs:'):], file)
                 if _verify_uc_path(path):
                     data_paths.append(('uc_volume', path, true_split))
-                    unsupported_file = True
+                    unsupported_file = False
                     break
             if unsupported_file:
                 log.warning(
@@ -695,7 +695,7 @@ def _verify_uc_path(path: str) -> bool:
             '`UCVolumeDatasetSource`, but your `UCVolumeDatasetSource` might be invalid.',
         )
         return False
-    except Exception:
+    except ValueError:
         log.warning(
             'Cannot verify the path of `UCVolumeDatasetSource` due to a connection failure ' + \
             'with Databricks workspace. Please run `mlflow.login()` to log in to Databricks. ' + \
@@ -706,5 +706,5 @@ def _verify_uc_path(path: str) -> bool:
     try:
         w.files.get_metadata(path)
         return True
-    except Exception:
+    except AttributeError:
         return False

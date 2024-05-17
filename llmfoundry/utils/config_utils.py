@@ -600,12 +600,7 @@ def _process_data_source(
                 f'{cfg_split}{ext}' for ext in SUPPORTED_EXTENSIONS
             ]
             for file in possible_files:
-                path = os.path.join(uc_path, file)
-                print('---- COMPARING')
-                print(os.path.join(hf_path[len('dbfs:'):], file))
-                print(path)
-                print('1 ', type(path))
-                print('2 ', type(os.path.join(hf_path[len('dbfs:'):], file)))
+                path = '/' + os.path.join(uc_path, file)
                 if _verify_uc_path(path):
                     data_paths.append(('uc_volume', path, true_split))
                     unsupported_file = False

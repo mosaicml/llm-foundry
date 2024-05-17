@@ -606,6 +606,7 @@ def _process_data_source(
                 print('---- DEBUG ', path.startswith('/'))
                 if not path.startswith('/'):
                     path = '/' + path
+                print('---- DEBUG ', path)
                 if _verify_uc_path(path):
                     data_paths.append(('uc_volume', path, true_split))
                     unsupported_file = False

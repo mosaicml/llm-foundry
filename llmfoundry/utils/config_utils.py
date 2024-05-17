@@ -603,6 +603,7 @@ def _process_data_source(
                 path = os.path.join(uc_path, file)
                 print('---- COMPARING')
                 print(os.path.join(hf_path[len('dbfs:'):], file))
+                print(path)
                 print('1 ', type(path))
                 print('2 ', type(os.path.join(hf_path[len('dbfs:'):], file)))
                 if _verify_uc_path(path):

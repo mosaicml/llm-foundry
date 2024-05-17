@@ -601,6 +601,10 @@ def _process_data_source(
             ]
             for file in possible_files:
                 path = os.path.join(uc_path, file)
+                print('---- COMPARING')
+                print(os.path.join(hf_path[len('dbfs:'):], file))
+                print('1 ', type(path))
+                print('2 ', type(os.path.join(hf_path[len('dbfs:'):], file)))
                 if _verify_uc_path(path):
                     data_paths.append(('uc_volume', path, true_split))
                     unsupported_file = False
@@ -705,9 +709,7 @@ def _verify_uc_path(path: str) -> bool:
         return False
 
     try:
-        print(w.files.get_metadata(path))
         w.files.get_metadata(path)
         return True
     except (NotFound, PermissionDenied) as e:
-        print(e)
         return False

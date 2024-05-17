@@ -591,7 +591,7 @@ def _process_data_source(
     # Check for HF path
     elif 'hf_name' in dataset:
         hf_path = dataset['hf_name']
-        backend, volume, path = parse_uri(hf_path)
+        backend, volume, uc_path = parse_uri(hf_path)
         unsupported_file = True
         if backend == 'dbfs':
             assert cfg_split
@@ -600,8 +600,7 @@ def _process_data_source(
                 f'{cfg_split}{ext}' for ext in SUPPORTED_EXTENSIONS
             ]
             for file in possible_files:
-                path = os.path.join(volume, path, file)
-                print(f'---- ATTEMPTING THIS PATH {path}')
+                path = os.path.join(volume, uc_path, file)
                 if _verify_uc_path(path):
                     data_paths.append(('uc_volume', path, true_split))
                     unsupported_file = False

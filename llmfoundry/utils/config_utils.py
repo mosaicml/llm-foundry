@@ -24,7 +24,6 @@ from typing import (
 
 import mlflow
 from composer.utils import dist, parse_uri
-from databricks.sdk.errors.platform import NotFound, PermissionDenied
 from omegaconf import MISSING, DictConfig, ListConfig, MissingMandatoryValue
 from omegaconf import OmegaConf as om
 from transformers import PretrainedConfig
@@ -684,6 +683,7 @@ def _verify_uc_path(path: str) -> bool:
     Returns:
         (bool): If path exists or not
     """
+    from databricks.sdk.errors.platform import NotFound, PermissionDenied
     try:
         from databricks.sdk import WorkspaceClient
 

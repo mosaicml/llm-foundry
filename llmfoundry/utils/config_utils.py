@@ -600,7 +600,7 @@ def _process_data_source(
                 f'{cfg_split}{ext}' for ext in SUPPORTED_EXTENSIONS
             ]
             for file in possible_files:
-                path = os.path.join(volume, uc_path, file)
+                path = os.path.join(hf_path[len('dbfs:'):], file)
                 print(f'---- ATTEMPTING THIS PATH {path}')
                 if _verify_uc_path(path):
                     data_paths.append(('uc_volume', path, true_split))

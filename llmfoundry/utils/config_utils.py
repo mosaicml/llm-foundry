@@ -24,6 +24,7 @@ from typing import (
 
 import mlflow
 from composer.utils import dist, parse_uri
+from databricks.sdk.errors.platform import NotFound, PermissionDenied
 from omegaconf import MISSING, DictConfig, ListConfig, MissingMandatoryValue
 from omegaconf import OmegaConf as om
 from transformers import PretrainedConfig
@@ -591,16 +592,16 @@ def _process_data_source(
     # Check for HF path
     elif 'hf_name' in dataset:
         hf_path = dataset['hf_name']
-        backend, _, _ = parse_uri(hf_path)
+        backend, volume, path = parse_uri(hf_path)
         unsupported_file = True
-        if hf_path.startswith('dbfs:'):
+        if backend == 'dbfs':
             assert cfg_split
             from llmfoundry.data.finetuning.tasks import SUPPORTED_EXTENSIONS
             possible_files = [
                 f'{cfg_split}{ext}' for ext in SUPPORTED_EXTENSIONS
             ]
             for file in possible_files:
-                path = os.path.join(hf_path[len('dbfs:'):], file)
+                path = os.path.join(volume, path, file)
                 if _verify_uc_path(path):
                     data_paths.append(('uc_volume', path, true_split))
                     unsupported_file = False
@@ -695,7 +696,7 @@ def _verify_uc_path(path: str) -> bool:
             '`UCVolumeDatasetSource`, but your `UCVolumeDatasetSource` might be invalid.',
         )
         return False
-    except ValueError:
+    except Exception:
         log.warning(
             'Cannot verify the path of `UCVolumeDatasetSource` due to a connection failure ' + \
             'with Databricks workspace. Please run `mlflow.login()` to log in to Databricks. ' + \
@@ -706,5 +707,5 @@ def _verify_uc_path(path: str) -> bool:
     try:
         w.files.get_metadata(path)
         return True
-    except AttributeError:
+    except (NotFound, PermissionDenied):
         return False

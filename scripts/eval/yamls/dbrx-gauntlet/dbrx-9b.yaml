@@ -5,6 +5,7 @@
 
 # Specify icl_tasks and or eval_gauntlet to run
 eval_gauntlet: eval/yamls/eval_gauntlet_v0.3.yaml
+icl_tasks: eval/yamls/tasks_v0.3.yaml
 
 models:
   - model_name: dbrx-9b

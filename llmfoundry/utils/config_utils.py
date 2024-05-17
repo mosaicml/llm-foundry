@@ -601,6 +601,7 @@ def _process_data_source(
             ]
             for file in possible_files:
                 path = os.path.join(volume, uc_path, file)
+                print(f'---- ATTEMPTING THIS PATH {path}')
                 if _verify_uc_path(path):
                     data_paths.append(('uc_volume', path, true_split))
                     unsupported_file = False

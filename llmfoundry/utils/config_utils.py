@@ -591,7 +591,7 @@ def _process_data_source(
     # Check for HF path
     elif 'hf_name' in dataset:
         hf_path = dataset['hf_name']
-        backend, volume, uc_path = parse_uri(hf_path)
+        backend, _, uc_path = parse_uri(hf_path)
         unsupported_file = True
         if backend == 'dbfs':
             assert cfg_split
@@ -600,8 +600,7 @@ def _process_data_source(
                 f'{cfg_split}{ext}' for ext in SUPPORTED_EXTENSIONS
             ]
             for file in possible_files:
-                path = os.path.join(hf_path[len('dbfs:'):], file)
-                print(f'---- ATTEMPTING THIS PATH {path}')
+                path = os.path.join(uc_path, file)
                 if _verify_uc_path(path):
                     data_paths.append(('uc_volume', path, true_split))
                     unsupported_file = False
@@ -689,7 +688,6 @@ def _verify_uc_path(path: str) -> bool:
         from databricks.sdk import WorkspaceClient
 
         w = WorkspaceClient()
-        print('---- GOT WORKSPACE')
     except ImportError:
         log.warning(
             'Cannot verify the path of `UCVolumeDatasetSource` because of missing' + \
@@ -709,9 +707,7 @@ def _verify_uc_path(path: str) -> bool:
     try:
         print(w.files.get_metadata(path))
         w.files.get_metadata(path)
-        print('---- GOT FILES')
         return True
     except (NotFound, PermissionDenied) as e:
-        print('---- FOUND ERROR')
         print(e)
         return False

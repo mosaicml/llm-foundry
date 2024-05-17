@@ -710,5 +710,5 @@ def _verify_uc_path(path: str) -> bool:
     try:
         w.files.get_metadata(path)
         return True
-    except (NotFound, PermissionDenied) as e:
+    except (NotFound, PermissionDenied):
         return False

@@ -601,6 +601,9 @@ def _process_data_source(
             ]
             for file in possible_files:
                 path = os.path.join(uc_path, file)
+                # Ensure path starts with '/'
+                if not path.startswith('/'):
+                    path = '/' + path
                 if _verify_uc_path(path):
                     data_paths.append(('uc_volume', path, true_split))
                     unsupported_file = False
@@ -705,9 +708,6 @@ def _verify_uc_path(path: str) -> bool:
         return False
 
     try:
-        # Ensure path starts with '/'
-        if not path.startswith('/'):
-            path = '/' + path
         w.files.get_metadata(path)
         return True
     except (NotFound, PermissionDenied) as e:

@@ -122,7 +122,7 @@ class ChatTemplateError(ValueError, ContextualError):
     def __init__(
         self,
         template: str,
-        sample: Dict[str, Any],
+        sample: List[Dict[str, Any]],
         inner_message: str,
     ) -> None:
         self.template = template

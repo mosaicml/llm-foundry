@@ -134,7 +134,11 @@ class InContextLearningDataset(Dataset):
         static_keys: Optional[List] = None,
         list_keys: Optional[List] = None,
         tensor_keys: Optional[List] = None,
+        prepend_tokens: Optional[int] = None,
+        append_tokens: Optional[int] = None,
     ):
+        self.prepend_tokens = prepend_tokens
+        self.append_tokens = append_tokens
         self.tokenizer = tokenizer
         self.prefix_space = tokenizer_needs_prefix_space(self.tokenizer)
 
@@ -386,6 +390,8 @@ class InContextLearningDataset(Dataset):
         """
         tokenized_example = {}
         # Always add special tokens to preamble
+        prompt_and_fewshot = f'{"."*self.prepend_tokens} {prompt_and_fewshot}' if self.prepend_tokens is not None else prompt_and_fewshot
+        prompt_and_fewshot = f'{prompt_and_fewshot} {"."*self.append_tokens}' if self.append_tokens is not None else prompt_and_fewshot
         preamble = self.tokenizer(prompt_and_fewshot)['input_ids']
         assert isinstance(preamble, list)
         preamble = self._fix_eos_on_preamble(preamble)
@@ -1311,6 +1317,8 @@ def build_icl_dataloader(
     generation_kwargs: Dict,
     early_stopping_criteria: Optional[List[str]] = None,
     do_normalization: bool = True,
+    prepend_tokens: Optional[int] = None,
+    append_tokens: Optional[int] = None,
 ) -> DataSpec:
     """Factory method that builds the specific dataset for the specified.
 
@@ -1339,6 +1347,8 @@ def build_icl_dataloader(
             hf_loading_vars=hf_loading_vars,
             hf_parsing_map=hf_parsing_map,
             generation_kwargs=generation_kwargs,
+            prepend_tokens=prepend_tokens,
+            append_tokens=append_tokens,
         )
         batch_size = max(dataset.num_choices, batch_size)
         effective_batchsize = batch_size // dataset.num_choices
@@ -1358,6 +1368,8 @@ def build_icl_dataloader(
             hf_loading_vars=hf_loading_vars,
             hf_parsing_map=hf_parsing_map,
             generation_kwargs=generation_kwargs,
+            prepend_tokens=prepend_tokens,
+            append_tokens=append_tokens,
         )
         batch_size = max(dataset.num_choices, batch_size)
         effective_batchsize = batch_size // dataset.num_choices
@@ -1377,6 +1389,8 @@ def build_icl_dataloader(
             hf_loading_vars=hf_loading_vars,
             hf_parsing_map=hf_parsing_map,
             generation_kwargs=generation_kwargs,
+            prepend_tokens=prepend_tokens,
+            append_tokens=append_tokens,
         )
         effective_batchsize = batch_size
     elif icl_task_type == 'generation_task_with_answers':
@@ -1398,6 +1412,8 @@ def build_icl_dataloader(
             early_stopping_criteria=early_stopping_criteria,
             do_normalization=do_normalization,
             generation_kwargs=generation_kwargs,
+            prepend_tokens=prepend_tokens,
+            append_tokens=append_tokens,
         )
         effective_batchsize = batch_size
     else:
@@ -1532,6 +1548,8 @@ def get_icl_task_dataloader(
     generation_kwargs: Optional[Dict] = None,
     early_stopping_criteria: Optional[List[str]] = None,
     do_normalization: bool = True,
+    prepend_tokens: Optional[int] = None,
+    append_tokens: Optional[int] = None,
 ) -> Union[DataSpec, Dict[str, DataSpec]]:
     r"""Constructs a dataloader (or dataloaders if has_categories is True)
 
@@ -1656,6 +1674,8 @@ def get_icl_task_dataloader(
                 generation_kwargs=generation_kwargs,
                 early_stopping_criteria=early_stopping_criteria,
                 do_normalization=do_normalization,
+                prepend_tokens=prepend_tokens,
+                append_tokens=append_tokens,
             )
         return result_dls
     else:
@@ -1681,4 +1701,6 @@ def get_icl_task_dataloader(
             generation_kwargs=generation_kwargs,
             early_stopping_criteria=early_stopping_criteria,
             do_normalization=do_normalization,
+            prepend_tokens=prepend_tokens,
+            append_tokens=append_tokens,
         )

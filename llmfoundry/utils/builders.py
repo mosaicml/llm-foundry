@@ -65,6 +65,8 @@ def build_evaluators(
     device_eval_batch_size: int,
     icl_seq_len: int,
     icl_subset_num_batches: Optional[int],
+    prepend_tokens: Optional[int] = None,
+    append_tokens: Optional[int] = None,
 ) -> Tuple[List[Evaluator], List[str], Optional[EvalGauntlet]]:
 
     evaluators = []
@@ -85,6 +87,8 @@ def build_evaluators(
             device_eval_batch_size,
             icl_seq_len,
             icl_subset_num_batches,
+            prepend_tokens=prepend_tokens,
+            append_tokens=append_tokens,
         )
         evaluators.extend(icl_evaluators)
 
@@ -150,6 +154,8 @@ def build_icl_data_and_gauntlet(
     device_eval_batch_size: int,
     icl_seq_len: int,
     icl_subset_num_batches: Optional[int] = None,
+    prepend_tokens: Optional[int] = None,
+    append_tokens: Optional[int] = None,
 ) -> Tuple[List[Evaluator], List[str], Optional[EvalGauntlet]]:
     icl_evaluators, logger_keys = build_icl_evaluators(
         icl_tasks_config,
@@ -157,6 +163,8 @@ def build_icl_data_and_gauntlet(
         icl_seq_len,
         device_eval_batch_size,
         icl_subset_num_batches=icl_subset_num_batches,
+        prepend_tokens=prepend_tokens,
+        append_tokens=append_tokens,
     )
     eval_gauntlet_cb = None
     if eval_gauntlet_config is not None:
@@ -503,6 +511,8 @@ def build_icl_evaluators(
     default_batch_size: int,
     destination_dir: Optional[str] = None,
     icl_subset_num_batches: Optional[int] = None,
+    prepend_tokens: Optional[int] = None,
+    append_tokens: Optional[int] = None,
 ) -> Tuple[List[Evaluator], List[str]]:
     if destination_dir is None:
         destination_dir = os.getcwd()
@@ -621,6 +631,8 @@ def build_icl_evaluators(
                 generation_kwargs=icl_cfg.get('generation_kwargs', {}),
                 early_stopping_criteria=early_stopping_criteria,
                 do_normalization=icl_cfg.get('do_normalization', True),
+                prepend_tokens=prepend_tokens,
+                append_tokens=append_tokens,
             )
             if 'has_categories' in icl_cfg and icl_cfg[
                 'has_categories'] and isinstance(dataloaders, dict):

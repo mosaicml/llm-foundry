@@ -68,6 +68,8 @@ def evaluate_model(
     logged_config: Dict[str, Any],
     should_log_config: bool = True,
     load_path: Optional[str] = None,
+    prepend_tokens: Optional[int] = None,
+    append_tokens: Optional[int] = None,
 ):
     log.info(f'Evaluating model: {model_name}')
     # Build tokenizer and model
@@ -84,6 +86,8 @@ def evaluate_model(
         device_eval_batch_size=device_eval_batch_size,
         icl_seq_len=max_seq_len,
         icl_subset_num_batches=icl_subset_num_batches,
+        prepend_tokens=prepend_tokens,
+        append_tokens=append_tokens,
     )
 
     # Callbacks

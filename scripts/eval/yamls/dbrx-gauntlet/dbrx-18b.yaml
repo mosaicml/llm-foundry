@@ -10,11 +10,10 @@ models:
 - model_name: dbrx-18b
   load_path: s3://bucket/checkpoints/dbrx-9b/checkpoint-1000000  # TODO: Update with correct save folder
   tokenizer:
-    name: openai-community/gpt2
+    name: tiktoken
     kwargs:
       token: true
-      name: openai-community/gpt2
-      eos_token_id: 50256
+      name: gpt-4
   model:
     name: mpt_causal_lm
     d_model: 3072

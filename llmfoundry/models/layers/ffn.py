@@ -319,7 +319,7 @@ def mb_setup_args(
     bias: bool,
     kwargs: dict[str, Any],
 ) -> tuple['megablocks.layers.arguments.Arguments', int, ProcessGroup]:
-    """Setup the MegaBlocks args
+    """Setup the MegaBlocks args.
 
     Args:
         d_model (int): The dimension of the input and output of the FFN.
@@ -364,6 +364,7 @@ def mb_setup_args(
 
     return args, moe_world_size, expert_parallel_group
 
+
 def attach_ffn_mb_args(
     ffn: nn.Module,
     expert_parallel_group: ProcessGroup,
@@ -379,6 +380,7 @@ def attach_ffn_mb_args(
     ffn.experts.mlp.hidden_size = args.ffn_hidden_size
     ffn.experts.mlp.expert_parallel_group = expert_parallel_group
     ffn.experts.mlp.weight_parallel_group = args.weight_parallel_group
+
 
 def set_ffn_device_mesh(
     ffn: nn.Module,
@@ -422,15 +424,15 @@ def set_ffn_device_mesh(
             'device_mesh': submesh,
         }
 
-def moe_fused_init_setup(
-    ffn: nn.Module,
-):
+
+def moe_fused_init_setup(ffn: nn.Module,):
     """Attach the _stack_dim attribute to the FFN.
 
     Args:
         ffn (nn.Module): The FFN module.
     """
     ffn.experts.mlp._stack_dim = 0
+
 
 def build_mb_moe(
     d_model: int,
@@ -458,9 +460,7 @@ def build_mb_moe(
 
     ffn = megablocks.layers.moe.MoE(args)
 
-    moe_fused_init_setup(
-        ffn=ffn,
-    )
+    moe_fused_init_setup(ffn=ffn,)
     attach_ffn_mb_args(
         ffn=ffn,
         expert_parallel_group=expert_parallel_group,
@@ -473,6 +473,7 @@ def build_mb_moe(
     )
 
     return ffn
+
 
 def dmoe_fused_init_setup(
     ffn: nn.Module,
@@ -493,7 +494,7 @@ def dmoe_fused_init_setup(
         0,
         [(n + 1) * args.ffn_hidden_size for n in range(n_exp - 1)],
     )
-    
+
 
 def build_mb_dmoe(
     d_model: int,

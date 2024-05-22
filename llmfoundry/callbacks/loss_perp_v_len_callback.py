@@ -2,14 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import warnings
-from typing import Dict, Mapping, Optional, Tuple, Union
+from typing import Any, Dict, Mapping, Optional, Tuple
 
 import torch
 from composer.core import Callback, State
 from composer.loggers import Logger, MLFlowLogger
 from composer.utils import dist
-from flash_attn.losses.cross_entropy import \
-    CrossEntropyLoss as FusedCrossEntropyLoss
 from torchmetrics import Metric
 
 from llmfoundry.models.mpt import ComposerMPTCausalLM
@@ -200,7 +198,7 @@ class LossPerpVLen(Metric):
         labels: torch.Tensor,
         logits: torch.Tensor,
         sequence_id: Optional[torch.Tensor],
-        loss_fn: Union[torch.nn.CrossEntropyLoss, FusedCrossEntropyLoss],
+        loss_fn: Any,
     ) -> None:
         """Updates the internal state with results from a new batch.
 
@@ -208,7 +206,7 @@ class LossPerpVLen(Metric):
             labels (torch.Tensor): A Tensor of ground-truth values to compare against.
             logits (torch.Tensor): A Tensor of labels.
             sequence_id (torch.Tensor | None): The sequence ids for tokens.
-            loss_fn (torch.nn.CrossEntropyLoss | flash_attn.losses.cross_entropy.CrossEntropyLoss): The cross entropy loss to use.
+            loss_fn (Any): The cross entropy loss to use.
         """
         valid_labels_mask = torch.where(
             labels != self.ignore_index,

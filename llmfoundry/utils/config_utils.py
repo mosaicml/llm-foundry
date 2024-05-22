@@ -589,7 +589,7 @@ def _process_data_source(
             ('uc_volume', source_dataset_path[len('dbfs:'):], true_split),
         )
     # Check for HF path
-    elif 'hf_name' in dataset:
+    elif 'hf_name' in dataset and dataset['hf_name']:
         hf_path = dataset['hf_name']
         backend, _, _ = parse_uri(hf_path)
         if backend:
@@ -600,7 +600,7 @@ def _process_data_source(
         else:
             data_paths.append(('hf', hf_path, true_split))
     # Check for remote path
-    elif 'remote' in dataset:
+    elif 'remote' in dataset and dataset['remote']:
         remote_path = dataset['remote']
         backend, _, _ = parse_uri(remote_path)
         if backend:

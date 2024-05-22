@@ -68,12 +68,14 @@ def create_set_process_group(k: int):
 def get_megablocks_device_mesh(
     device_mesh_cfg: Optional[tuple[int]],
     moe_world_size: int,
+    world_size: int,
 ) -> DeviceMesh:
     """Helper function to get the device mesh for MegaBlocks MoE.
 
     Args:
         device_mesh_cfg (Optional[tuple[int]]): The device mesh configuration specification.
         moe_world_size (int): The MoE world size.
+        world_size (int): The world size.
 
     Raises:
         ValueError: If the device mesh configuration is not valid.
@@ -157,6 +159,7 @@ def config_megablocks_moe_args(
         device_mesh = get_device_mesh(
             device_mesh_cfg=device_mesh_cfg,
             moe_world_size=moe_world_size,
+            world_size=world_size,
         )
 
         ffn_config['moe_expert_model_parallelism'] = True

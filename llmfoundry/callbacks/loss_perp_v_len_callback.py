@@ -1,7 +1,6 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-import warnings
 from typing import Any, Dict, Mapping, Optional, Tuple
 
 import torch
@@ -43,14 +42,6 @@ class LossPerpVsContextLengthLogger(Callback):
         self.loss_perp_v_len = LossPerpVLen(ignore_index)
 
     def after_backward(self, state: State, logger: Logger) -> None:
-        if all(
-            not isinstance(destination, MLFlowLogger)
-            for destination in logger.destinations
-        ):
-            warnings.warn(
-                'Did not find MLflow in the list of loggers. LossPerpVsContextLengthLogger only works properly with the MLflow logger.',
-            )
-
         if not isinstance(state.model, ComposerMPTCausalLM):
             raise ValueError(
                 'LossPerpVsContextLengthLogger only supported for ComposerMPTCausalLM models.',
@@ -129,11 +120,20 @@ class LossPerpVsContextLengthLogger(Callback):
                 columns.append(
                     'batch_index',
                 )  # Add batch as the last column name
-                logger.log_table(
-                    columns=columns, # type: ignore
-                    rows=v,
-                    name=f'metrics/train/LossPerpVLenTable/{k}',
-                )
+                MLFlowLogger_not_found = True
+                for destination in logger.destinations:
+                    if isinstance(destination, MLFlowLogger):
+                        destination.log_table(
+                            columns=columns,
+                            rows=v,
+                            name=f'metrics/train/LossPerpVLenTable/{k}',
+                            step=state.timestamp.batch.value,
+                        )
+                        MLFlowLogger_not_found = False
+                if MLFlowLogger_not_found:
+                    raise NotImplementedError(
+                        'Did not find MLflow in the list of loggers. LossPerpVsContextLengthLogger is only implemented for the MLflow logger.',
+                    )
             self.metric_dict = {}
 
     def preprocess_metric_inputs(

@@ -22,7 +22,8 @@ from llmfoundry.callbacks.hf_checkpointer import HuggingFaceCheckpointer
 from llmfoundry.callbacks.log_mbmoe_tok_per_expert_callback import (
     MegaBlocksMoE_TokPerExpert,
 )
-from llmfoundry.callbacks.loss_perp_v_len_callback import LossPerpVsContextLengthLogger
+from llmfoundry.callbacks.loss_perp_v_len_callback import \
+    LossPerpVsContextLengthLogger
 from llmfoundry.callbacks.monolithic_ckpt_callback import (
     MonolithicCheckpointSaver,
 )
@@ -70,4 +71,4 @@ __all__ = [
     'AsyncEval',
     'CurriculumLearning',
     'LossPerpVsContextLengthLogger',
-] 
+]

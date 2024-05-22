@@ -1,6 +1,5 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-import copy
 from unittest.mock import MagicMock
 
 import pytest
@@ -13,14 +12,14 @@ from composer.loggers import Logger
 from composer.utils import get_device
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
-from llmfoundry.utils.registry_utils import construct_from_registry
-from llmfoundry import registry
 
+from llmfoundry import registry
 from llmfoundry.data.text_data import (
     StreamingTextDataset,
     build_text_dataloader,
 )
 from llmfoundry.utils.builders import build_composer_model
+from llmfoundry.utils.registry_utils import construct_from_registry
 
 
 @pytest.mark.gpu
@@ -147,7 +146,7 @@ def test_loss_perp_v_len_callback(
                 'log_batch_interval': 100,
                 'compute_batch_interval': 1,
             },
-        ) 
+        )
 
         callback.loss_perp_v_len = callback.loss_perp_v_len.to(loss.device)
         state = State(

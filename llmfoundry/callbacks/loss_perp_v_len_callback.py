@@ -14,7 +14,7 @@ from llmfoundry.models.mpt import ComposerMPTCausalLM
 
 __all__ = [
     'LossPerpVsContextLengthLogger',
-] 
+]
 
 
 class LossPerpVsContextLengthLogger(Callback):

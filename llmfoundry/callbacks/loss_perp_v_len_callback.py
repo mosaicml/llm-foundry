@@ -21,8 +21,10 @@ __all__ = [
 class LossPerpVsContextLengthLogger(Callback):
     """Logs the average loss and perplexity for every context length.
 
+    Note: Currently only works with MLFlow logger.
+
     Args:
-        log_batch_interval (int): The interval for logging. Currently only works with MLFlow logger. Currently logging takes longer because MLFlow downloads the table, appends rows to it, and then re-uploads it. Once this is fixed, log_batch_interval will be removed and this will always log as soon as the metric is computed.
+        log_batch_interval (int): The interval for logging. Currently logging takes longer because MLFlow downloads the table, appends rows to it, and then re-uploads it. Once this is fixed, log_batch_interval will be removed and this will always log as soon as the metric is computed.
         compute_batch_interval (int): The interval for computing the metric.
         ignore_index (int): Specifies a target value that is ignored for computing loss.
     """
@@ -43,20 +45,28 @@ class LossPerpVsContextLengthLogger(Callback):
         self.metric_dict = {}
         self.loss_perp_v_len = LossPerpVLen(ignore_index)
 
-    def after_backward(self, state: State, logger: Logger) -> None:
+    def init(self, state: State, logger: Logger) -> None:
         if not isinstance(state.model, ComposerMPTCausalLM):
             raise ValueError(
                 'LossPerpVsContextLengthLogger only supported for ComposerMPTCausalLM models.',
             )
+        if state.model.shift_labels is None:
+            raise ValueError(
+                'state.model.shift_labels should be set for LossPerpVsContextLengthLogger.',
+            )
+        if all(
+            not isinstance(destination, MLFlowLogger)
+            for destination in logger.destinations
+        ):
+            raise NotImplementedError(
+                'Did not find MLflow in the list of loggers. LossPerpVsContextLengthLogger is only implemented for the MLflow logger.',
+            )
 
+    def after_backward(self, state: State, logger: Logger) -> None:
         if state.timestamp.batch.value % self.compute_batch_interval == 0:
             sequence_id = state.batch['sequence_id'
                                      ] if 'sequence_id' in state.batch else None
             labels = state.batch['labels']
-            if state.model.shift_labels is None:
-                raise ValueError(
-                    'state.model.shift_labels should be set for LossPerpVsContextLengthLogger.',
-                )
             if state.model.shift_labels:
                 labels[:, :-1] = labels[:, 1:].detach().clone()
                 labels[:, -1] = -100
@@ -65,10 +75,6 @@ class LossPerpVsContextLengthLogger(Callback):
                 'seq_parallel_world_size',
                 1,
             )
-            if not isinstance(seq_parallel_world_size, int):
-                raise ValueError(
-                    f'seq_parallel_world_size should be an int. Found {type(seq_parallel_world_size)=}',
-                )
             seq_parallel_rank = state.model.model.transformer.seq_parallel_rank if seq_parallel_world_size > 1 else 0
 
             if isinstance(state.outputs, Mapping):
@@ -122,7 +128,6 @@ class LossPerpVsContextLengthLogger(Callback):
                 columns.append(
                     'batch_index',
                 )  # Add batch as the last column name
-                MLFlowLogger_not_found = True
                 for destination in logger.destinations:
                     if isinstance(destination, MLFlowLogger):
                         destination.log_table(
@@ -131,11 +136,6 @@ class LossPerpVsContextLengthLogger(Callback):
                             name=f'metrics/train/LossPerpVLenTable/{k}',
                             step=state.timestamp.batch.value,
                         )
-                        MLFlowLogger_not_found = False
-                if MLFlowLogger_not_found:
-                    raise NotImplementedError(
-                        'Did not find MLflow in the list of loggers. LossPerpVsContextLengthLogger is only implemented for the MLflow logger.',
-                    )
             self.metric_dict = {}
 
     def preprocess_metric_inputs(

@@ -10,17 +10,19 @@ from composer.utils import dist
 from torchmetrics import Metric
 
 from llmfoundry.models.mpt import ComposerMPTCausalLM
+from llmfoundry.utils.warnings import experimental_class
 
 __all__ = [
     'LossPerpVsContextLengthLogger',
 ]
 
 
+@experimental_class('LossPerpVsContextLengthLogger')
 class LossPerpVsContextLengthLogger(Callback):
     """Logs the average loss and perplexity for every context length.
 
     Args:
-        log_batch_interval (int): The interval for logging.
+        log_batch_interval (int): The interval for logging. Currently only works with MLFlow logger. Currently logging takes longer because MLFlow downloads the table, appends rows to it, and then re-uploads it. Once this is fixed, log_batch_interval will be removed and this will always log as soon as the metric is computed.
         compute_batch_interval (int): The interval for computing the metric.
         ignore_index (int): Specifies a target value that is ignored for computing loss.
     """

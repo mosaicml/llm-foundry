@@ -19,6 +19,7 @@ from typing import (
     MutableMapping,
     Optional,
     Tuple,
+    Type,
     Union,
 )
 
@@ -1082,9 +1083,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
 
         additional_train_metrics = additional_train_metrics or []
 
-        model = MPTForCausalLM(
-            MPTConfig(use_train_metrics=use_train_metrics, **kwargs),
-        )
+        model = self.model_class(self.config_class(**kwargs),)
 
         use_train_metrics = use_train_metrics
         train_metric_names = DEFAULT_CAUSAL_LM_TRAIN_METRICS + additional_train_metrics
@@ -1133,6 +1132,14 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             raise ValueError(
                 f'Specified loss_fn={self.loss_fn} not recognized. `loss_fn` must be one of [`fused_crossentropy`, `torch_crossentropy`].',
             )
+
+    @property
+    def model_class(self) -> Type[MPTForCausalLM]:
+        return MPTForCausalLM
+
+    @property
+    def config_class(self) -> Type[MPTConfig]:
+        return MPTConfig
 
     def get_targets(self, batch: Mapping) -> torch.Tensor:
         targets = torch.roll(batch['labels'], shifts=-1)

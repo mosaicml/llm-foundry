@@ -45,8 +45,14 @@ class ContextualError(Exception):
     location: Optional[ErrorLocation] = None
 
 
+class UserError(Exception):
+    """The superclass for all user-attributable errors."""
+
+    is_user_error = True
+
+
 # Finetuning dataloader exceptions
-class MissingHuggingFaceURLSplitError(ValueError, ContextualError):
+class MissingHuggingFaceURLSplitError(ValueError, ContextualError, UserError):
     """Error thrown when there's no split used in HF dataset config."""
 
     def __init__(self) -> None:
@@ -55,7 +61,7 @@ class MissingHuggingFaceURLSplitError(ValueError, ContextualError):
         super().__init__(message)
 
 
-class NotEnoughDatasetSamplesError(ValueError, ContextualError):
+class NotEnoughDatasetSamplesError(ValueError, ContextualError, UserError):
     """Error thrown when there is not enough data to train a model."""
 
     def __init__(
@@ -85,7 +91,7 @@ class NotEnoughDatasetSamplesError(ValueError, ContextualError):
 
 
 ## Tasks exceptions
-class UnknownExampleTypeError(KeyError, ContextualError):
+class UnknownExampleTypeError(KeyError, ContextualError, UserError):
     """Error thrown when an unknown example type is used in a task."""
 
     def __init__(self, example_keys: str) -> None:
@@ -99,7 +105,7 @@ class UnknownExampleTypeError(KeyError, ContextualError):
         super().__init__(message)
 
 
-class NotEnoughChatDataError(ValueError, ContextualError):
+class NotEnoughChatDataError(ValueError, ContextualError, UserError):
     """Error thrown when there is not enough chat data to train a model."""
 
     def __init__(self) -> None:
@@ -107,7 +113,7 @@ class NotEnoughChatDataError(ValueError, ContextualError):
         super().__init__(message)
 
 
-class ConsecutiveRepeatedChatRolesError(ValueError, ContextualError):
+class ConsecutiveRepeatedChatRolesError(ValueError, ContextualError, UserError):
     """Error thrown when there are consecutive repeated chat roles."""
 
     def __init__(self, repeated_role: str) -> None:
@@ -116,7 +122,7 @@ class ConsecutiveRepeatedChatRolesError(ValueError, ContextualError):
         super().__init__(message)
 
 
-class InvalidLastChatMessageRoleError(ValueError, ContextualError):
+class InvalidLastChatMessageRoleError(ValueError, ContextualError, UserError):
     """Error thrown when the last message role in a chat example is invalid."""
 
     def __init__(self, last_role: str, expected_roles: set[str]) -> None:
@@ -126,7 +132,7 @@ class InvalidLastChatMessageRoleError(ValueError, ContextualError):
         super().__init__(message)
 
 
-class IncorrectMessageKeyQuantityError(ValueError, ContextualError):
+class IncorrectMessageKeyQuantityError(ValueError, ContextualError, UserError):
     """Error thrown when a message has an incorrect number of keys."""
 
     def __init__(self, keys: List[str]) -> None:
@@ -135,7 +141,7 @@ class IncorrectMessageKeyQuantityError(ValueError, ContextualError):
         super().__init__(message)
 
 
-class InvalidRoleError(ValueError, ContextualError):
+class InvalidRoleError(ValueError, ContextualError, UserError):
     """Error thrown when a role is invalid."""
 
     def __init__(self, role: str, valid_roles: set[str]) -> None:
@@ -145,7 +151,7 @@ class InvalidRoleError(ValueError, ContextualError):
         super().__init__(message)
 
 
-class InvalidContentTypeError(TypeError, ContextualError):
+class InvalidContentTypeError(TypeError, ContextualError, UserError):
     """Error thrown when the content type is invalid."""
 
     def __init__(self, content_type: type) -> None:
@@ -154,7 +160,7 @@ class InvalidContentTypeError(TypeError, ContextualError):
         super().__init__(message)
 
 
-class InvalidPromptTypeError(TypeError, ContextualError):
+class InvalidPromptTypeError(TypeError, ContextualError, UserError):
     """Error thrown when the prompt type is invalid."""
 
     def __init__(self, prompt_type: type) -> None:
@@ -163,7 +169,7 @@ class InvalidPromptTypeError(TypeError, ContextualError):
         super().__init__(message)
 
 
-class InvalidResponseTypeError(TypeError, ContextualError):
+class InvalidResponseTypeError(TypeError, ContextualError, UserError):
     """Error thrown when the response type is invalid."""
 
     def __init__(self, response_type: type) -> None:
@@ -172,7 +178,7 @@ class InvalidResponseTypeError(TypeError, ContextualError):
         super().__init__(message)
 
 
-class InvalidPromptResponseKeysError(ValueError, ContextualError):
+class InvalidPromptResponseKeysError(ValueError, ContextualError, UserError):
     """Error thrown when missing expected prompt and response keys."""
 
     def __init__(self, mapping: Dict[str, str], example: Dict[str, Any]):
@@ -181,7 +187,7 @@ class InvalidPromptResponseKeysError(ValueError, ContextualError):
         super().__init__(message)
 
 
-class InvalidFileExtensionError(FileNotFoundError, ContextualError):
+class InvalidFileExtensionError(FileNotFoundError, ContextualError, UserError):
     """Error thrown when a file extension is not a safe extension."""
 
     def __init__(self, dataset_name: str, valid_extensions: List[str]) -> None:
@@ -194,7 +200,11 @@ class InvalidFileExtensionError(FileNotFoundError, ContextualError):
         super().__init__(message)
 
 
-class UnableToProcessPromptResponseError(ValueError, ContextualError):
+class UnableToProcessPromptResponseError(
+    ValueError,
+    ContextualError,
+    UserError,
+):
     """Error thrown when a prompt and response cannot be processed."""
 
     def __init__(self, input: Dict) -> None:
@@ -204,7 +214,7 @@ class UnableToProcessPromptResponseError(ValueError, ContextualError):
 
 
 ## Convert Delta to JSON exceptions
-class ClusterDoesNotExistError(ValueError, ContextualError):
+class ClusterDoesNotExistError(ValueError, ContextualError, UserError):
     """Error thrown when the cluster does not exist."""
 
     def __init__(self, cluster_id: str) -> None:
@@ -213,15 +223,24 @@ class ClusterDoesNotExistError(ValueError, ContextualError):
         super().__init__(message)
 
 
-class FailedToCreateSQLConnectionError(RuntimeError, ContextualError):
+class FailedToCreateSQLConnectionError(
+    RuntimeError,
+    ContextualError,
+    UserError,
+):
     """Error thrown when client can't sql connect to Databricks."""
 
     def __init__(self) -> None:
-        message = 'Failed to create sql connection to db workspace. To use sql connect, you need to provide http_path and cluster_id!'
+        message = 'Failed to create sql connection to db workspace. ' + \
+            'To use sql connect, you need to provide http_path and cluster_id!'
         super().__init__(message)
 
 
-class FailedToConnectToDatabricksError(RuntimeError, ContextualError):
+class FailedToConnectToDatabricksError(
+    RuntimeError,
+    ContextualError,
+    UserError,
+):
     """Error thrown when the client fails to connect to Databricks."""
 
     def __init__(self) -> None:
@@ -230,7 +249,7 @@ class FailedToConnectToDatabricksError(RuntimeError, ContextualError):
 
 
 ## Convert Text to MDS exceptions
-class InputFolderMissingDataError(ValueError, ContextualError):
+class InputFolderMissingDataError(ValueError, ContextualError, UserError):
     """Error thrown when the input folder is missing data."""
 
     def __init__(self, input_folder: str) -> None:
@@ -239,7 +258,7 @@ class InputFolderMissingDataError(ValueError, ContextualError):
         super().__init__(message)
 
 
-class OutputFolderNotEmptyError(FileExistsError, ContextualError):
+class OutputFolderNotEmptyError(FileExistsError, ContextualError, UserError):
     """Error thrown when the output folder is not empty."""
 
     def __init__(self, output_folder: str) -> None:
@@ -248,13 +267,14 @@ class OutputFolderNotEmptyError(FileExistsError, ContextualError):
         super().__init__(message)
 
 
-class MisconfiguredHfDatasetError(ValueError, ContextualError):
+class MisconfiguredHfDatasetError(ValueError, ContextualError, UserError):
     """Error thrown when a HuggingFace dataset is misconfigured."""
 
     def __init__(self, dataset_name: str, split: str) -> None:
         self.dataset_name = dataset_name
         self.split = split
-        message = f'Your dataset (name={dataset_name}, split={split}) is misconfigured. Please check your dataset format and make sure you can load your dataset locally.'
+        message = f'Your dataset (name={dataset_name}, split={split}) is misconfigured. ' + \
+            'Please check your dataset format and make sure you can load your dataset locally.'
         super().__init__(message)
 
 

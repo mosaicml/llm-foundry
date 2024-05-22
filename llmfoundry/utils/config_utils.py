@@ -614,7 +614,7 @@ def _process_data_source(
             data_paths.append(('local', remote_path, true_split))
     # Check for local path
     elif 'local' in dataset and dataset['local']:
-        data_paths.append(('local', remote_path, true_split))
+        data_paths.append(('local', dataset['local'], true_split))
     else:
         log.warning('DataSource Not Found.')
 

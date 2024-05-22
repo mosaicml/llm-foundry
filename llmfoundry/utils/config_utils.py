@@ -581,7 +581,7 @@ def _process_data_source(
         true_split (str): The split of the dataset to be added (i.e. train or eval)
         data_paths (List[Tuple[str, str, str]]): A list of tuples formatted as (data type, path, split)
     """
-    print(f'---- SOURCE DATASET {source_dataset_path}')
+    print(f"---- SOURCE DATASET {source_dataset_path}")
     # Check for Delta table
     if source_dataset_path and len(source_dataset_path.split('.')) == 3:
         data_paths.append(('delta_table', source_dataset_path, true_split))
@@ -592,7 +592,7 @@ def _process_data_source(
         )
     # Check for HF path
     elif 'hf_name' in dataset and dataset['hf_name']:
-        print(f'---- HF FOUND {dataset['hf_name']}')
+        print(f"---- HF FOUND {dataset['hf_name']}")
         hf_path = dataset['hf_name']
         backend, _, _ = parse_uri(hf_path)
         if backend:
@@ -604,7 +604,7 @@ def _process_data_source(
             data_paths.append(('hf', hf_path, true_split))
     # Check for remote path
     elif 'remote' in dataset and dataset['remote']:
-        print(f'---- REMOTE FOUND {dataset['remote']}')
+        print(f"---- REMOTE FOUND {dataset['remote']}")
         remote_path = dataset['remote']
         backend, _, _ = parse_uri(remote_path)
         if backend:
@@ -616,7 +616,7 @@ def _process_data_source(
         else:
             data_paths.append(('local', remote_path, true_split))
     elif 'local' in dataset and dataset['local']:
-        print(f'---- LOCAL FOUND {dataset['local']}')
+        print(f"---- LOCAL FOUND {dataset['local']}")
         data_paths.append(('local', dataset['local'], true_split))
     else:
         log.warning('DataSource Not Found.')

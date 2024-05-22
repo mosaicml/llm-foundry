@@ -147,7 +147,7 @@ def test_loss_perp_v_len_callback(
                 'log_batch_interval': 100,
                 'compute_batch_interval': 1,
             },
-        )
+        ) 
 
         callback.loss_perp_v_len = callback.loss_perp_v_len.to(loss.device)
         state = State(

@@ -530,6 +530,7 @@ def _parse_source_dataset(cfg: Dict[str, Any]) -> List[Tuple[str, str, str]]:
     train_dataset: Dict = cfg.get('train_loader', {}).get('dataset', {})
     train_split = train_dataset.get('split', None)
     train_source_path = cfg.get('source_dataset_train', None)
+    print(f'---- FOUND DATASPLIT: {train_dataset}, {train_split}, {train_source_path}')
     _process_data_source(
         train_source_path,
         train_dataset,
@@ -580,6 +581,7 @@ def _process_data_source(
         true_split (str): The split of the dataset to be added (i.e. train or eval)
         data_paths (List[Tuple[str, str, str]]): A list of tuples formatted as (data type, path, split)
     """
+    print(f'---- SOURCE DATASET {source_dataset_path}')
     # Check for Delta table
     if source_dataset_path and len(source_dataset_path.split('.')) == 3:
         data_paths.append(('delta_table', source_dataset_path, true_split))
@@ -589,7 +591,8 @@ def _process_data_source(
             ('uc_volume', source_dataset_path[len('dbfs:'):], true_split),
         )
     # Check for HF path
-    elif 'hf_name' in dataset:
+    elif 'hf_name' in dataset and dataset['hf_name']:
+        print(f'---- HF FOUND {dataset['hf_name']}')
         hf_path = dataset['hf_name']
         backend, _, _ = parse_uri(hf_path)
         if backend:
@@ -600,7 +603,8 @@ def _process_data_source(
         else:
             data_paths.append(('hf', hf_path, true_split))
     # Check for remote path
-    elif 'remote' in dataset:
+    elif 'remote' in dataset and dataset['remote']:
+        print(f'---- REMOTE FOUND {dataset['remote']}')
         remote_path = dataset['remote']
         backend, _, _ = parse_uri(remote_path)
         if backend:
@@ -611,6 +615,9 @@ def _process_data_source(
             data_paths.append((backend, remote_path, true_split))
         else:
             data_paths.append(('local', remote_path, true_split))
+    elif 'local' in dataset and dataset['local']:
+        print(f'---- LOCAL FOUND {dataset['local']}')
+        data_paths.append(('local', dataset['local'], true_split))
     else:
         log.warning('DataSource Not Found.')
 
@@ -622,6 +629,8 @@ def _log_dataset_uri(cfg: Dict[str, Any]) -> None:
         cfg (DictConfig): A config dictionary of a run
     """
     # Figure out which data source to use
+    print(f'---- FOUND CONFIG')
+    print(cfg)
     data_paths = _parse_source_dataset(cfg)
 
     dataset_source_mapping = {

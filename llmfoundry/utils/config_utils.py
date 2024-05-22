@@ -612,7 +612,7 @@ def _process_data_source(
         else:
             # No backend detected so assume local path
             data_paths.append(('local', remote_path, true_split))
-    # Check for remote path
+    # Check for local path
     elif 'local' in dataset and dataset['local']:
         data_paths.append(('local', remote_path, true_split))
     else:

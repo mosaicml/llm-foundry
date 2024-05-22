@@ -2,12 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import warnings
-from typing import Dict, Mapping, Optional, Tuple
+from typing import Dict, Mapping, Optional, Tuple, Union
 
 import torch
 from composer.core import Callback, State
 from composer.loggers import Logger, MLFlowLogger
 from composer.utils import dist
+from flash_attn.losses.cross_entropy import \
+    CrossEntropyLoss as FusedCrossEntropyLoss
 from torchmetrics import Metric
 
 from llmfoundry.models.mpt import ComposerMPTCausalLM
@@ -104,6 +106,7 @@ class LossPerpVsContextLengthLogger(Callback):
                 labels,
                 logits,
                 sequence_id,
+                state.model.loss_fn,
             )
 
     def batch_end(self, state: State, logger: Logger) -> None:
@@ -163,12 +166,7 @@ class LossPerpVLen(Metric):
     ):
         super().__init__(dist_sync_on_step=dist_sync_on_step)
 
-        self.needs_batch = True
         self.ignore_index = ignore_index
-        self.loss_fn = torch.nn.CrossEntropyLoss(
-            ignore_index=ignore_index,
-            reduction='none',
-        )
         self.add_state('sum_loss', default=torch.Tensor(), dist_reduce_fx='sum')
         self.add_state(
             'sum_perplexity',
@@ -202,6 +200,7 @@ class LossPerpVLen(Metric):
         labels: torch.Tensor,
         logits: torch.Tensor,
         sequence_id: Optional[torch.Tensor],
+        loss_fn: Union[torch.nn.CrossEntropyLoss, FusedCrossEntropyLoss],
     ) -> None:
         """Updates the internal state with results from a new batch.
 
@@ -209,6 +208,7 @@ class LossPerpVLen(Metric):
             labels (torch.Tensor): A Tensor of ground-truth values to compare against.
             logits (torch.Tensor): A Tensor of labels.
             sequence_id (torch.Tensor | None): The sequence ids for tokens.
+            loss_fn (torch.nn.CrossEntropyLoss | flash_attn.losses.cross_entropy.CrossEntropyLoss): The cross entropy loss to use.
         """
         valid_labels_mask = torch.where(
             labels != self.ignore_index,
@@ -216,7 +216,7 @@ class LossPerpVLen(Metric):
             torch.zeros_like(labels),
         )
         bsz, seq_len = labels.shape
-        loss = self.loss_fn(logits.view(bsz * seq_len, -1), labels.view(-1))
+        loss = loss_fn(logits.view(bsz * seq_len, -1), labels.view(-1))
         loss = loss.view(bsz, seq_len)
         perplexity = torch.exp(loss)
 

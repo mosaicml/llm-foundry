@@ -610,7 +610,11 @@ def _process_data_source(
             ) if cfg_split else remote_path
             data_paths.append((backend, remote_path, true_split))
         else:
+            # No backend detected so assume local path
             data_paths.append(('local', remote_path, true_split))
+    # Check for remote path
+    elif 'local' in dataset and dataset['local']:
+        data_paths.append(('local', remote_path, true_split))
     else:
         log.warning('DataSource Not Found.')
 

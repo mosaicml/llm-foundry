@@ -499,6 +499,7 @@ def log_config(cfg: Dict[str, Any]) -> None:
     This function can be called multiple times to update the wandb and MLflow
     config with different variables.
     """
+    print(f'---- LOG CONFIG')
     print(om.to_yaml(cfg))
     loggers = cfg.get('loggers', None) or {}
     if 'wandb' in loggers:

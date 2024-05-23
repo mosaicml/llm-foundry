@@ -49,7 +49,7 @@ class ContextualError(Exception):
 class MissingHuggingFaceURLSplitError(ValueError, ContextualError):
     """Error thrown when there's no split used in HF dataset config."""
 
-    def __init__(self) -> None:
+    def __init__(self, *_) -> None:
         message = 'When using a HuggingFace dataset from a URL, you must set the ' + \
                     '`split` key in the dataset config.'
         super().__init__(message)
@@ -66,6 +66,7 @@ class NotEnoughDatasetSamplesError(ValueError, ContextualError):
         world_size: int,
         full_dataset_size: int,
         minimum_dataset_size: int,
+        *_,
     ) -> None:
         self.dataset_name = dataset_name
         self.split = split
@@ -102,7 +103,7 @@ class UnknownExampleTypeError(KeyError, ContextualError):
 class NotEnoughChatDataError(ValueError, ContextualError):
     """Error thrown when there is not enough chat data to train a model."""
 
-    def __init__(self) -> None:
+    def __init__(self, *_) -> None:
         message = 'Chat example must have at least two messages'
         super().__init__(message)
 
@@ -119,7 +120,7 @@ class ConsecutiveRepeatedChatRolesError(ValueError, ContextualError):
 class InvalidLastChatMessageRoleError(ValueError, ContextualError):
     """Error thrown when the last message role in a chat example is invalid."""
 
-    def __init__(self, last_role: str, expected_roles: set[str]) -> None:
+    def __init__(self, last_role: str, expected_roles: set[str], *_) -> None:
         self.last_role = last_role
         self.expected_roles = expected_roles
         message = f'Invalid last message role: {last_role}. Expected one of: {expected_roles}'
@@ -138,7 +139,7 @@ class IncorrectMessageKeyQuantityError(ValueError, ContextualError):
 class InvalidRoleError(ValueError, ContextualError):
     """Error thrown when a role is invalid."""
 
-    def __init__(self, role: str, valid_roles: set[str]) -> None:
+    def __init__(self, role: str, valid_roles: set[str], *_) -> None:
         self.role = role
         self.valid_roles = valid_roles
         message = f'Expected role to be one of {valid_roles} but found: {role}'

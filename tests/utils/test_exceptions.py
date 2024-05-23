@@ -58,13 +58,16 @@ def test_exception_serialization():
     failed_exceptions = {}
 
     for exception in exceptions:
+        exc_str = str(exception)
         pkl = pickle.dumps(exception)
         try:
-            pickle.loads(pkl)
+            unpickled_exc = pickle.loads(pkl)
+            unpickled_exc_str = str(unpickled_exc)
+            assert exc_str == unpickled_exc_str
         except Exception as e:
             failed_exceptions[exception.__class__.__name__] = str(e)
 
     if failed_exceptions:
         raise AssertionError(
-            f'Failed to serialize/deserialize the following exceptions: {failed_exceptions}',
+            f'Failed to serialize/deserialize the following exceptions: {failed_exceptions.keys()}\n\n{failed_exceptions=}',
         )

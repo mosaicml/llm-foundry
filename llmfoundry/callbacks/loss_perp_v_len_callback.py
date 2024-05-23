@@ -98,7 +98,7 @@ class LossPerpVsContextLengthLogger(Callback):
                 seq_parallel_world_size,
                 seq_parallel_rank,
             )
-            print(f'Before update {state.timestamp.batch.value=}')
+
             self.loss_perp_v_len.update(
                 labels,
                 logits,
@@ -110,7 +110,6 @@ class LossPerpVsContextLengthLogger(Callback):
         if (
             state.timestamp.batch.value - 1
         ) % self.compute_batch_interval == 0:  # state.timestamp.batch.value - 1 because batch is incremented before batch_end (https://github.com/mosaicml/composer/blob/57c7b72b9df41b0c9777bad1c2bec17f3103c31f/composer/trainer/trainer.py#L2478C1-L2484C55)
-            print(f'Before compute {state.timestamp.batch.value=}')
             current_metric_dict = self.loss_perp_v_len.compute()
             if dist.get_global_rank() == 0:
                 for k, v in current_metric_dict.items():
@@ -308,14 +307,6 @@ class LossPerpVLen(Metric):
             self.sum_loss_seq_id += torch.sum(loss, dim=(0, 1))
             self.sum_perplexity_seq_id += torch.sum(perplexity, dim=(0, 1))
             self.sum_length_seq_id += torch.sum(mask, dim=(0, 1))
-        print(f'{self.sum_loss.device=}, {self.sum_loss=}')
-        print(f'{self.sum_perplexity.device=}, {self.sum_perplexity=}')
-        print(f'{self.sum_length.device=}, {self.sum_length=}')
-        print(f'{self.sum_loss_seq_id.device=}, {self.sum_loss_seq_id=}')
-        print(
-            f'{self.sum_perplexity_seq_id.device=}, {self.sum_perplexity_seq_id=}',
-        )
-        print(f'{self.sum_length_seq_id.device=}, {self.sum_length_seq_id=}')
 
     def compute(self) -> Dict[str, torch.Tensor]:
         """Aggregate the state over all processes to compute the metric.

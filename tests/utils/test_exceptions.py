@@ -1,6 +1,7 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import json
 import pickle
 from typing import Dict
 
@@ -69,5 +70,6 @@ def test_exception_serialization():
 
     if failed_exceptions:
         raise AssertionError(
-            f'Failed to serialize/deserialize the following exceptions: {failed_exceptions.keys()}\n\n{failed_exceptions=}',
+            f'Failed to serialize/deserialize the following exceptions: {failed_exceptions.keys()}\n\n'
+            + json.dumps(failed_exceptions, indent=2),
         )

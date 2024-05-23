@@ -41,11 +41,29 @@ TrainDataLoaderLocation = 'TrainDataloader'
 EvalDataLoaderLocation = 'EvalDataloader'
 
 
-class ContextualError(Exception):
+class SerializableError():
+
+    def __str__(self) -> str:
+        return str(self.error)
+
+    def __setstate__(self, state: str):
+        super().__init__(state)
+
+    def __getstate__(self) -> str:
+        return str(super())
+
+
+class ContextualError(Exception, SerializableError):
     """Error thrown when an error occurs in the context of a specific task."""
 
     location: Optional[ErrorLocation] = None
     error_attribution: Optional[ErrorAttribution] = None
+
+    def __init__(self, message: str) -> None:
+        self.error = message
+
+    def __str__(self) -> str:
+        return self.error
 
 
 class UserError(ContextualError):
@@ -67,7 +85,7 @@ class InternalError(ContextualError):
 
 
 # Finetuning dataloader exceptions
-class MissingHuggingFaceURLSplitError(ValueError, UserError):
+class MissingHuggingFaceURLSplitError(UserError):
     """Error thrown when there's no split used in HF dataset config."""
 
     def __init__(self) -> None:
@@ -76,7 +94,7 @@ class MissingHuggingFaceURLSplitError(ValueError, UserError):
         super().__init__(message)
 
 
-class NotEnoughDatasetSamplesError(ValueError, UserError):
+class NotEnoughDatasetSamplesError(UserError):
     """Error thrown when there is not enough data to train a model."""
 
     def __init__(
@@ -106,7 +124,7 @@ class NotEnoughDatasetSamplesError(ValueError, UserError):
 
 
 ## Tasks exceptions
-class UnknownExampleTypeError(KeyError, UserError):
+class UnknownExampleTypeError(UserError):
     """Error thrown when an unknown example type is used in a task."""
 
     def __init__(self, example_keys: str) -> None:
@@ -120,7 +138,7 @@ class UnknownExampleTypeError(KeyError, UserError):
         super().__init__(message)
 
 
-class NotEnoughChatDataError(ValueError, UserError):
+class NotEnoughChatDataError(UserError):
     """Error thrown when there is not enough chat data to train a model."""
 
     def __init__(self) -> None:
@@ -128,7 +146,7 @@ class NotEnoughChatDataError(ValueError, UserError):
         super().__init__(message)
 
 
-class ConsecutiveRepeatedChatRolesError(ValueError, UserError):
+class ConsecutiveRepeatedChatRolesError(UserError):
     """Error thrown when there are consecutive repeated chat roles."""
 
     def __init__(self, repeated_role: str) -> None:
@@ -137,7 +155,7 @@ class ConsecutiveRepeatedChatRolesError(ValueError, UserError):
         super().__init__(message)
 
 
-class InvalidLastChatMessageRoleError(ValueError, UserError):
+class InvalidLastChatMessageRoleError(UserError):
     """Error thrown when the last message role in a chat example is invalid."""
 
     def __init__(self, last_role: str, expected_roles: set[str]) -> None:
@@ -147,7 +165,7 @@ class InvalidLastChatMessageRoleError(ValueError, UserError):
         super().__init__(message)
 
 
-class IncorrectMessageKeyQuantityError(ValueError, UserError):
+class IncorrectMessageKeyQuantityError(UserError):
     """Error thrown when a message has an incorrect number of keys."""
 
     def __init__(self, keys: List[str]) -> None:
@@ -156,7 +174,7 @@ class IncorrectMessageKeyQuantityError(ValueError, UserError):
         super().__init__(message)
 
 
-class InvalidRoleError(ValueError, UserError):
+class InvalidRoleError(UserError):
     """Error thrown when a role is invalid."""
 
     def __init__(self, role: str, valid_roles: set[str]) -> None:
@@ -166,7 +184,7 @@ class InvalidRoleError(ValueError, UserError):
         super().__init__(message)
 
 
-class InvalidContentTypeError(TypeError, UserError):
+class InvalidContentTypeError(UserError):
     """Error thrown when the content type is invalid."""
 
     def __init__(self, content_type: type) -> None:
@@ -175,7 +193,7 @@ class InvalidContentTypeError(TypeError, UserError):
         super().__init__(message)
 
 
-class InvalidPromptTypeError(TypeError, UserError):
+class InvalidPromptTypeError(UserError):
     """Error thrown when the prompt type is invalid."""
 
     def __init__(self, prompt_type: type) -> None:
@@ -184,7 +202,7 @@ class InvalidPromptTypeError(TypeError, UserError):
         super().__init__(message)
 
 
-class InvalidResponseTypeError(TypeError, UserError):
+class InvalidResponseTypeError(UserError):
     """Error thrown when the response type is invalid."""
 
     def __init__(self, response_type: type) -> None:
@@ -193,7 +211,7 @@ class InvalidResponseTypeError(TypeError, UserError):
         super().__init__(message)
 
 
-class InvalidPromptResponseKeysError(ValueError, UserError):
+class InvalidPromptResponseKeysError(UserError):
     """Error thrown when missing expected prompt and response keys."""
 
     def __init__(self, mapping: Dict[str, str], example: Dict[str, Any]):
@@ -202,7 +220,7 @@ class InvalidPromptResponseKeysError(ValueError, UserError):
         super().__init__(message)
 
 
-class InvalidFileExtensionError(FileNotFoundError, UserError):
+class InvalidFileExtensionError(UserError):
     """Error thrown when a file extension is not a safe extension."""
 
     def __init__(self, dataset_name: str, valid_extensions: List[str]) -> None:
@@ -216,7 +234,6 @@ class InvalidFileExtensionError(FileNotFoundError, UserError):
 
 
 class UnableToProcessPromptResponseError(
-    ValueError,
     UserError,
 ):
     """Error thrown when a prompt and response cannot be processed."""
@@ -228,7 +245,7 @@ class UnableToProcessPromptResponseError(
 
 
 ## Convert Delta to JSON exceptions
-class ClusterDoesNotExistError(ValueError, NetworkError):
+class ClusterDoesNotExistError(NetworkError):
     """Error thrown when the cluster does not exist."""
 
     def __init__(self, cluster_id: str) -> None:
@@ -238,7 +255,6 @@ class ClusterDoesNotExistError(ValueError, NetworkError):
 
 
 class FailedToCreateSQLConnectionError(
-    RuntimeError,
     NetworkError,
 ):
     """Error thrown when client can't sql connect to Databricks."""
@@ -250,7 +266,6 @@ class FailedToCreateSQLConnectionError(
 
 
 class FailedToConnectToDatabricksError(
-    RuntimeError,
     NetworkError,
 ):
     """Error thrown when the client fails to connect to Databricks."""
@@ -261,7 +276,7 @@ class FailedToConnectToDatabricksError(
 
 
 ## Convert Text to MDS exceptions
-class InputFolderMissingDataError(ValueError, UserError):
+class InputFolderMissingDataError(UserError):
     """Error thrown when the input folder is missing data."""
 
     def __init__(self, input_folder: str) -> None:
@@ -270,7 +285,7 @@ class InputFolderMissingDataError(ValueError, UserError):
         super().__init__(message)
 
 
-class OutputFolderNotEmptyError(FileExistsError, UserError):
+class OutputFolderNotEmptyError(UserError):
     """Error thrown when the output folder is not empty."""
 
     def __init__(self, output_folder: str) -> None:
@@ -279,7 +294,7 @@ class OutputFolderNotEmptyError(FileExistsError, UserError):
         super().__init__(message)
 
 
-class MisconfiguredHfDatasetError(ValueError, UserError):
+class MisconfiguredHfDatasetError(UserError):
     """Error thrown when a HuggingFace dataset is misconfigured."""
 
     def __init__(self, dataset_name: str, split: str) -> None:
@@ -290,7 +305,7 @@ class MisconfiguredHfDatasetError(ValueError, UserError):
         super().__init__(message)
 
 
-class RunTimeoutError(RuntimeError, InternalError):
+class RunTimeoutError(InternalError):
     """Error thrown when a run times out."""
 
     def __init__(self, timeout: int) -> None:

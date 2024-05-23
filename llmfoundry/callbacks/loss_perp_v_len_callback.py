@@ -115,7 +115,8 @@ class LossPerpVsContextLengthLogger(Callback):
                 for k, v in current_metric_dict.items():
                     v = v.tolist()
                     v.append(
-                        state.timestamp.batch.value,
+                        state.timestamp.batch.value -
+                        1,  # state.timestamp.batch.value - 1 because batch is incremented before batch_end (https://github.com/mosaicml/composer/blob/57c7b72b9df41b0c9777bad1c2bec17f3103c31f/composer/trainer/trainer.py#L2478C1-L2484C55)
                     )  # Add the current batch index as the last column
                     if k not in self.metric_dict:
                         self.metric_dict[k] = []

@@ -55,6 +55,7 @@ from llmfoundry.utils.config_utils import (
     TRAIN_CONFIG_KEYS,
     TrainConfig,
     log_config,
+    log_log_dataset_uri,
     make_dataclass_and_log_config,
     pop_config,
     process_init_device,
@@ -530,6 +531,7 @@ def main(cfg: DictConfig) -> Trainer:
     if train_cfg.log_config:
         log.info('Logging config')
         log_config(logged_cfg)
+    log_dataset_uri(train_cfg)
     torch.cuda.empty_cache()
     gc.collect()
 

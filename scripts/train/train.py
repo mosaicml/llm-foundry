@@ -55,7 +55,7 @@ from llmfoundry.utils.config_utils import (
     TRAIN_CONFIG_KEYS,
     TrainConfig,
     log_config,
-    log_log_dataset_uri,
+    log_dataset_uri,
     make_dataclass_and_log_config,
     pop_config,
     process_init_device,

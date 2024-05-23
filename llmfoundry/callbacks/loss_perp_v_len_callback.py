@@ -107,7 +107,9 @@ class LossPerpVsContextLengthLogger(Callback):
             )
 
     def batch_end(self, state: State, logger: Logger) -> None:
-        if state.timestamp.batch.value % self.compute_batch_interval == 0:
+        if (
+            state.timestamp.batch.value - 1
+        ) % self.compute_batch_interval == 0:  # state.timestamp.batch.value - 1 because batch is incremented before batch_end (https://github.com/mosaicml/composer/blob/57c7b72b9df41b0c9777bad1c2bec17f3103c31f/composer/trainer/trainer.py#L2478C1-L2484C55)
             print(f'Before compute {state.timestamp.batch.value=}')
             current_metric_dict = self.loss_perp_v_len.compute()
             if dist.get_global_rank() == 0:
@@ -120,7 +122,7 @@ class LossPerpVsContextLengthLogger(Callback):
                         self.metric_dict[k] = []
                     self.metric_dict[k].append(v)
         if state.timestamp.batch.value % self.log_batch_interval == 0 and dist.get_global_rank(
-        ) == 0:
+        ) == 0:  # state.timestamp.batch.value - 1 because batch is incremented before batch_end (https://github.com/mosaicml/composer/blob/57c7b72b9df41b0c9777bad1c2bec17f3103c31f/composer/trainer/trainer.py#L2478C1-L2484C55)
             for k, v in self.metric_dict.items():
                 columns = []
                 columns = [

@@ -625,6 +625,9 @@ def log_dataset_uri(cfg: Dict[str, Any]) -> None:
     Args:
         cfg (DictConfig): A config dictionary of a run
     """
+    loggers = cfg.get('loggers', None) or {}
+    if 'mlflow' not in loggers or not mlflow.active_run():
+        return
     # Figure out which data source to use
     data_paths = _parse_source_dataset(cfg)
 

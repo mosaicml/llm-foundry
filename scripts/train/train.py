@@ -531,9 +531,7 @@ def main(cfg: DictConfig) -> Trainer:
     if train_cfg.log_config:
         log.info('Logging config')
         log_config(logged_cfg)
-    loggers = logged_cfg.get('loggers', None) or {}
-    if 'mlflow' in loggers and mlflow.active_run():
-        log_dataset_uri(logged_cfg)
+    log_dataset_uri(logged_cfg)
     torch.cuda.empty_cache()
     gc.collect()
 

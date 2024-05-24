@@ -84,9 +84,11 @@ def test_log_dataset_uri():
         }},
         source_dataset_train='huggingface/train_dataset',
         source_dataset_eval='huggingface/eval_dataset',
+        loggers={'mlflow': {}}
     )
 
-    with patch('mlflow.log_input') as mock_log_input:
+    with patch('mlflow.log_input') as mock_log_input, \
+         patch('mlflow.active_run', return_value=True):
         log_dataset_uri(cfg)
         assert mock_log_input.call_count == 2
         meta_dataset_calls = [

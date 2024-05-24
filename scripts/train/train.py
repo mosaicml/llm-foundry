@@ -488,6 +488,7 @@ def main(cfg: DictConfig) -> Trainer:
     compile_config = train_cfg.compile_config
     # Build the Trainer
     log.info('Building trainer...')
+    log.info(f"bigning debug use remote uploader v2: {train_cfg.use_remote_uploader_v2}")
     trainer = Trainer(
         run_name=run_name,
         seed=seed,

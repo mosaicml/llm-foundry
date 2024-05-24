@@ -17,7 +17,10 @@ def create_exception_object(exception_name: str):
     )
     # get required arg types of exception class by inspecting its __init__ method
 
-    required_args = inspect.get_annotations(exception_class.__init__)
+    if hasattr(inspect, 'get_annotations'):
+        required_args = inspect.get_annotations(exception_class.__init__)
+    else:
+        required_args = exception_class.__init__.__annotations__  # python 3.9 and below
 
     # create a dictionary of required args with default values
 

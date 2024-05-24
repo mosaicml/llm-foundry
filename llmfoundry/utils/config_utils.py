@@ -177,6 +177,10 @@ class TrainConfig:
     # Profiling
     profiler: Optional[Dict[str, Any]] = None
 
+    # MLFlow datasets
+    source_dataset_train: Optional[Dict[str, Any]] = None
+    source_dataset_eval: Optional[Dict[str, Any]] = None
+
     # Variables to ignore
     variables: Optional[Dict[str, Any]] = None
 

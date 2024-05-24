@@ -551,6 +551,7 @@ def _parse_source_dataset(cfg: TrainConfig) -> List[Tuple[str, str, str]]:
         ]  # Normalize to list if it's a single dictionary
 
     for eval_data_loader in eval_data_loaders:
+        print(f'---- DEBUG {eval_data_loader}, {type(eval_data_loader)}')
         assert isinstance(eval_data_loader, dict)  # pyright type check
         eval_dataset: Dict = eval_data_loader.get('dataset', {})
         eval_split = eval_dataset.get('split', None)

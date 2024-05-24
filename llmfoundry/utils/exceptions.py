@@ -42,17 +42,7 @@ TrainDataLoaderLocation = 'TrainDataloader'
 EvalDataLoaderLocation = 'EvalDataloader'
 
 
-class BaseSerializableError:
-
-    def __getstate__(self):
-        return self.__dict__
-
-    def __setstate__(self, state: Dict[str, Any]):
-        for key, value in state.items():
-            setattr(self, key, value)
-
-
-class BaseContextualError(Exception, BaseSerializableError):
+class BaseContextualError():
     """Error thrown when an error occurs in the context of a specific task."""
 
     location: Optional[FailureLocation] = None
@@ -60,6 +50,9 @@ class BaseContextualError(Exception, BaseSerializableError):
 
     def __init__(self, message: str) -> None:
         self.error = message
+
+    def __str__(self) -> str:
+        return self.error
 
 
 class UserError(BaseContextualError):

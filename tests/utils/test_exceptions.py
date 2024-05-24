@@ -51,7 +51,7 @@ def create_exception_object(exception_name: str):
         arg: get_default_value(arg_type)
         for arg, arg_type in required_args.items()
     }
-    return exception_class(*kwargs.values())
+    return exception_class(**kwargs)
 
 
 def filter_exceptions(exceptions: List[str]):

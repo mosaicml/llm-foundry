@@ -515,6 +515,7 @@ def main(cfg: DictConfig) -> Trainer:
         save_num_checkpoints_to_keep=train_cfg.save_num_checkpoints_to_keep,
         save_overwrite=train_cfg.save_overwrite,
         save_weights_only=train_cfg.save_weights_only,
+        use_remote_uploader_v2=train_cfg.use_remote_uploader_v2,
         load_path=train_cfg.load_path,
         load_weights_only=train_cfg.load_weights_only,
         load_strict_model_weights=train_cfg.load_strict_model_weights,

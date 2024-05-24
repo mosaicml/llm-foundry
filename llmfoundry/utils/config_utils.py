@@ -156,6 +156,7 @@ class TrainConfig:
     load_strict_model_weights: bool = True
     load_ignore_keys: Optional[List[str]] = None
     save_ignore_keys: Optional[List[str]] = None
+    use_remote_uploader_v2: bool = False
 
     # Dataloader
     device_train_microbatch_size: Union[str, int] = 'auto'

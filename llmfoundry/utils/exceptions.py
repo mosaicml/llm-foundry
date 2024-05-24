@@ -42,7 +42,7 @@ TrainDataLoaderLocation = 'TrainDataloader'
 EvalDataLoaderLocation = 'EvalDataloader'
 
 
-class BaseContextualError():
+class BaseContextualError:
     """Error thrown when an error occurs in the context of a specific task."""
 
     location: Optional[FailureLocation] = None

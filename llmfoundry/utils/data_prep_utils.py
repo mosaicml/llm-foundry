@@ -81,11 +81,19 @@ def merge_shard_groups(root: str) -> None:
 
 
 @retry(ObjectStoreTransientError, num_attempts=5)
-def _download_file(
+def download_file(
     object_store: ObjectStore,
     object_name: str,
     output_filename: str,
 ) -> None:
+    """
+    Downloads a file from an object store.
+
+    Args:
+        object_store (ObjectStore): Object store to download from
+        object_name (str): Name of object to download
+        output_filename (str): Local filename to write to
+    """
     object_store.download_object(
         object_name=object_name,
         filename=output_filename,
@@ -126,7 +134,7 @@ class DownloadingIterable:
                     object_name.strip('/'),
                 )
 
-                _download_file(
+                download_file(
                     object_store=self.object_store,
                     object_name=object_name,
                     output_filename=output_filename,

@@ -35,14 +35,14 @@ ALLOWED_RESPONSE_KEYS = {'response', 'completion'}
 ALLOWED_PROMPT_KEYS = {'prompt'}
 ALLOWED_MESSAGES_KEYS = {'messages'}
 
-ErrorLocation = Union[Literal['TrainDataloader'], Literal['EvalDataloader']]
-ErrorAttribution = Union[Literal['UserError'], Literal['InternalError'],
-                         Literal['NetworkError']]
+FailureLocation = Union[Literal['TrainDataloader'], Literal['EvalDataloader']]
+FailureAttribution = Union[Literal['UserError'], Literal['InternalError'],
+                           Literal['NetworkError']]
 TrainDataLoaderLocation = 'TrainDataloader'
 EvalDataLoaderLocation = 'EvalDataloader'
 
 
-class SerializableError:
+class BaseSerialaziableError:
 
     def __getstate__(self):
         return self.__dict__
@@ -52,29 +52,29 @@ class SerializableError:
             setattr(self, key, value)
 
 
-class ContextualError(Exception, SerializableError):
+class BaseContextualError(Exception, BaseSerialaziableError):
     """Error thrown when an error occurs in the context of a specific task."""
 
-    location: Optional[ErrorLocation] = None
-    error_attribution: Optional[ErrorAttribution] = None
+    location: Optional[FailureLocation] = None
+    error_attribution: Optional[FailureAttribution] = None
 
     def __init__(self, message: str) -> None:
         self.error = message
 
 
-class UserError(ContextualError):
+class UserError(BaseContextualError):
     """Error thrown when an error is caused by user input."""
 
     error_attribution = 'UserError'
 
 
-class NetworkError(ContextualError):
+class NetworkError(BaseContextualError):
     """Error thrown when an error is caused by a network issue."""
 
     error_attribution = 'NetworkError'
 
 
-class InternalError(ContextualError):
+class InternalError(BaseContextualError):
     """Error thrown when an error is caused by an internal issue."""
 
     error_attribution = 'InternalError'

@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 
 import pytest
 
-from llmfoundry.utils.exceptions import __all__ as all_exceptions
+import llmfoundry.utils.exceptions as foundry_exceptions
 
 
 def create_exception_object(exception_name: str):
@@ -52,11 +52,15 @@ def create_exception_object(exception_name: str):
 def filter_exceptions(exceptions: List[str]):
     return [
         exception for exception in exceptions
-        if ('Error' in exception or 'Exception' in exception)
+        if ('Error' in exception or 'Exception' in exception) and
+        ('Base' not in exception)
     ]
 
 
-@pytest.mark.parametrize('exception_name', filter_exceptions(all_exceptions))
+@pytest.mark.parametrize(
+    'exception_name',
+    filter_exceptions(dir(foundry_exceptions)),
+)
 def test_exception_serialization(exception_name: str):
     exception = create_exception_object(exception_name)
 

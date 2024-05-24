@@ -534,6 +534,7 @@ def _parse_source_dataset(cfg: TrainConfig) -> List[Tuple[str, str, str]]:
     train_dataset: TrainConfig = cfg.train_loader.get('dataset', {})
     train_split = train_dataset.get('split', None)
     train_source_path = cfg.source_dataset_train
+    print(f'---- VERBOSE {train_source_path}')
     _process_data_source(
         train_source_path,
         train_dataset,

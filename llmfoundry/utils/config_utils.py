@@ -511,7 +511,7 @@ def log_config(cfg: Dict[str, Any]) -> None:
         mlflow.log_params(params=cfg)
 
 
-def _parse_source_dataset(cfg: Dict[str, Any]) -> List[Tuple[str, str, str]]:
+def _parse_source_dataset(cfg: TrainConfig) -> List[Tuple[str, str, str]]:
     """Parse a run config for dataset information.
 
     Given a config dictionary, parse through it to determine what the datasource
@@ -527,9 +527,9 @@ def _parse_source_dataset(cfg: Dict[str, Any]) -> List[Tuple[str, str, str]]:
     data_paths = []
 
     # Handle train loader if it exists
-    train_dataset: Dict = cfg.get('train_loader', {}).get('dataset', {})
+    train_dataset: Dict = cfg.train_loader.get('dataset', {})
     train_split = train_dataset.get('split', None)
-    train_source_path = cfg.get('source_dataset_train', None)
+    train_source_path = cfg.source_dataset_train
     _process_data_source(
         train_source_path,
         train_dataset,
@@ -539,7 +539,7 @@ def _parse_source_dataset(cfg: Dict[str, Any]) -> List[Tuple[str, str, str]]:
     )
 
     # Handle eval_loader which might be a list or a single dictionary
-    eval_data_loaders = cfg.get('eval_loader', {})
+    eval_data_loaders = cfg.eval_loader
     if not isinstance(eval_data_loaders, list):
         eval_data_loaders = [
             eval_data_loaders,
@@ -549,7 +549,7 @@ def _parse_source_dataset(cfg: Dict[str, Any]) -> List[Tuple[str, str, str]]:
         assert isinstance(eval_data_loader, dict)  # pyright type check
         eval_dataset: Dict = eval_data_loader.get('dataset', {})
         eval_split = eval_dataset.get('split', None)
-        eval_source_path = cfg.get('source_dataset_eval', None)
+        eval_source_path = cfg.source_dataset_eval
         _process_data_source(
             eval_source_path,
             eval_dataset,

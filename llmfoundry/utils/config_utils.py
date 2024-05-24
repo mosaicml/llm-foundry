@@ -527,7 +527,7 @@ def _parse_source_dataset(cfg: TrainConfig) -> List[Tuple[str, str, str]]:
     data_paths = []
 
     # Handle train loader if it exists
-    train_dataset: Dict = cfg.train_loader.get('dataset', {})
+    train_dataset: TrainConfig = cfg.train_loader.get('dataset', {})
     train_split = train_dataset.get('split', None)
     train_source_path = cfg.source_dataset_train
     _process_data_source(

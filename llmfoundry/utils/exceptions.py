@@ -43,14 +43,12 @@ EvalDataLoaderLocation = 'EvalDataloader'
 
 class SerializableError():
 
-    def __str__(self) -> str:
-        return str(self.error)
+    def __getstate__(self):
+        return self.__dict__
 
-    def __setstate__(self, state: str):
-        super().__init__(state)
-
-    def __getstate__(self) -> str:
-        return str(super())
+    def __setstate__(self, state: Dict[str, Any]):
+        for key, value in state.items():
+            setattr(self, key, value)
 
 
 class ContextualError(Exception, SerializableError):

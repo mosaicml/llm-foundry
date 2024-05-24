@@ -7,8 +7,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from llmfoundry.utils.config_utils import (
-    _log_dataset_uri,
     _parse_source_dataset,
+    log_dataset_uri,
 )
 
 mlflow = pytest.importorskip('mlflow')
@@ -84,10 +84,12 @@ def test_log_dataset_uri():
         }},
         source_dataset_train='huggingface/train_dataset',
         source_dataset_eval='huggingface/eval_dataset',
+        loggers={'mlflow': {}},
     )
 
-    with patch('mlflow.log_input') as mock_log_input:
-        _log_dataset_uri(cfg)
+    with patch('mlflow.log_input') as mock_log_input, \
+         patch('mlflow.active_run', return_value=True):
+        log_dataset_uri(cfg)
         assert mock_log_input.call_count == 2
         meta_dataset_calls = [
             args[0] for args, _ in mock_log_input.call_args_list

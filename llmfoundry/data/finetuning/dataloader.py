@@ -291,12 +291,12 @@ def build_finetuning_dataloader(
                 full_dataset_size = len(streaming_dataset)
                 if full_dataset_size < minimum_dataset_size:
                     raise NotEnoughDatasetSamplesError(
-                        dataset_cfg['hf_name'],
-                        split,
-                        dataloader_batch_size,
-                        world_size,
-                        full_dataset_size,
-                        minimum_dataset_size,
+                        dataset_name=dataset_cfg['hf_name'],
+                        split=split,
+                        dataloader_batch_size=dataloader_batch_size,
+                        world_size=world_size,
+                        full_dataset_size=full_dataset_size,
+                        minimum_dataset_size=minimum_dataset_size,
                     )
 
         # Initialize sampler.

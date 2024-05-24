@@ -39,7 +39,7 @@ __all__ = [
     'update_batch_size_info',
     'process_init_device',
     'log_config',
-    'log_dataset_uri'
+    'log_dataset_uri',
 ]
 
 

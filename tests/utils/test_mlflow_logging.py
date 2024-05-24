@@ -7,8 +7,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from llmfoundry.utils.config_utils import (
-    log_dataset_uri,
     _parse_source_dataset,
+    log_dataset_uri,
 )
 
 mlflow = pytest.importorskip('mlflow')
@@ -84,7 +84,7 @@ def test_log_dataset_uri():
         }},
         source_dataset_train='huggingface/train_dataset',
         source_dataset_eval='huggingface/eval_dataset',
-        loggers={'mlflow': {}}
+        loggers={'mlflow': {}},
     )
 
     with patch('mlflow.log_input') as mock_log_input, \

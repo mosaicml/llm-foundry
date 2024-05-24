@@ -1,20 +1,19 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import contextlib
 import inspect
 import pickle
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Type
 
 import pytest
 
 import llmfoundry.utils.exceptions as foundry_exceptions
 
 
-def create_exception_object(exception_name: str):
-    exception_class = getattr(
-        __import__('llmfoundry.utils.exceptions', fromlist=[exception_name]),
-        exception_name,
-    )
+def create_exception_object(
+    exception_class: Type[foundry_exceptions.BaseContextualError],
+):
     # get required arg types of exception class by inspecting its __init__ method
 
     if hasattr(inspect, 'get_annotations'):
@@ -25,6 +24,7 @@ def create_exception_object(exception_name: str):
         required_args = exception_class.__init__.__annotations__  # python 3.9 and below
 
     # create a dictionary of required args with default values
+    required_args.pop('kwargs', None)
 
     def get_default_value(arg_type: Optional[type] = None):
         if arg_type == Dict[str,
@@ -51,26 +51,46 @@ def create_exception_object(exception_name: str):
         arg: get_default_value(arg_type)
         for arg, arg_type in required_args.items()
     }
-    return exception_class(*kwargs.values())
+    return exception_class(**kwargs)  # type: ignore
 
 
-def filter_exceptions(exceptions: List[str]):
-    return [
-        exception for exception in exceptions
-        if ('Error' in exception or 'Exception' in exception) and
-        ('Base' not in exception)
+def filter_exceptions(possible_exceptions: List[str]):
+    attrs = [
+        getattr(foundry_exceptions, exception)
+        for exception in possible_exceptions
     ]
+    classes = [attr for attr in attrs if inspect.isclass(attr)]
+    exceptions = [
+        exception_class for exception_class in classes
+        if issubclass(exception_class, foundry_exceptions.BaseContextualError)
+    ]
+    return exceptions
 
 
 @pytest.mark.parametrize(
-    'exception_name',
+    'exception_class',
     filter_exceptions(dir(foundry_exceptions)),
 )
-def test_exception_serialization(exception_name: str):
-    exception = create_exception_object(exception_name)
+def test_exception_serialization(
+    exception_class: Type[foundry_exceptions.BaseContextualError],
+):
+    excluded_base_classes = [
+        foundry_exceptions.InternalError,
+        foundry_exceptions.UserError,
+        foundry_exceptions.NetworkError,
+        foundry_exceptions.BaseContextualError,
+    ]
+
+    exception = create_exception_object(exception_class)
+
+    expect_reduce_error = exception.__class__ in excluded_base_classes
+    error_context = pytest.raises(
+        NotImplementedError,
+    ) if expect_reduce_error else contextlib.nullcontext()
 
     exc_str = str(exception)
-    pkl = pickle.dumps(exception)
-    unpickled_exc = pickle.loads(pkl)
-    unpickled_exc_str = str(unpickled_exc)
-    assert exc_str == unpickled_exc_str
+    with error_context:
+        pkl = pickle.dumps(exception)
+        unpickled_exc = pickle.loads(pkl)
+        unpickled_exc_str = str(unpickled_exc)
+        assert exc_str == unpickled_exc_str

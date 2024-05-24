@@ -28,6 +28,7 @@ __all__ = [
     'InputFolderMissingDataError',
     'OutputFolderNotEmptyError',
     'MisconfiguredHfDatasetError',
+    'RunTimeoutError',
 ]
 
 ALLOWED_RESPONSE_KEYS = {'response', 'completion'}
@@ -59,9 +60,6 @@ class ContextualError(Exception, SerializableError):
 
     def __init__(self, message: str) -> None:
         self.error = message
-
-    def __str__(self) -> str:
-        return self.error
 
 
 class UserError(ContextualError):

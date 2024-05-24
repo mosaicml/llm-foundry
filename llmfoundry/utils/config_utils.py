@@ -534,7 +534,7 @@ def _parse_source_dataset(cfg: TrainConfig) -> List[Tuple[str, str, str]]:
     train_dataset: TrainConfig = cfg.train_loader.get('dataset', {})
     train_split = train_dataset.get('split', None)
     train_source_path = cfg.source_dataset_train
-    print(f'---- VERBOSE {train_source_path}')
+    print(f'---- VERBOSE {cfg}')
     _process_data_source(
         train_source_path,
         train_dataset,
@@ -545,24 +545,25 @@ def _parse_source_dataset(cfg: TrainConfig) -> List[Tuple[str, str, str]]:
 
     # Handle eval_loader which might be a list or a single dictionary
     eval_data_loaders = cfg.eval_loader
-    if not isinstance(eval_data_loaders, list):
-        eval_data_loaders = [
-            eval_data_loaders,
-        ]  # Normalize to list if it's a single dictionary
+    if eval_data_loaders:
+        if not isinstance(eval_data_loaders, list):
+            eval_data_loaders = [
+                eval_data_loaders,
+            ]  # Normalize to list if it's a single dictionary
 
-    for eval_data_loader in eval_data_loaders:
-        print(f'---- DEBUG {eval_data_loader}, {type(eval_data_loader)}')
-        assert isinstance(eval_data_loader, dict)  # pyright type check
-        eval_dataset: Dict = eval_data_loader.get('dataset', {})
-        eval_split = eval_dataset.get('split', None)
-        eval_source_path = cfg.source_dataset_eval
-        _process_data_source(
-            eval_source_path,
-            eval_dataset,
-            eval_split,
-            'eval',
-            data_paths,
-        )
+        for eval_data_loader in eval_data_loaders:
+            print(f'---- DEBUG {eval_data_loader}, {type(eval_data_loader)}')
+            assert isinstance(eval_data_loader, dict)  # pyright type check
+            eval_dataset: Dict = eval_data_loader.get('dataset', {})
+            eval_split = eval_dataset.get('split', None)
+            eval_source_path = cfg.source_dataset_eval
+            _process_data_source(
+                eval_source_path,
+                eval_dataset,
+                eval_split,
+                'eval',
+                data_paths,
+            )
 
     return data_paths
 

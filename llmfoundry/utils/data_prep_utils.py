@@ -86,8 +86,7 @@ def download_file(
     object_name: str,
     output_filename: str,
 ) -> None:
-    """
-    Downloads a file from an object store.
+    """Downloads a file from an object store.
 
     Args:
         object_store (ObjectStore): Object store to download from

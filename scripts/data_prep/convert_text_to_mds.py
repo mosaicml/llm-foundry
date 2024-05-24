@@ -332,8 +332,11 @@ def is_already_processed(
                 done_file = os.path.join(tmp_dir, DONE_FILENAME)
                 download_file(
                     object_store=output_object_store,
-                    object_name=os.path.join(output_folder_prefix, DONE_FILENAME),
-                    output_filename=done_file
+                    object_name=os.path.join(
+                        output_folder_prefix,
+                        DONE_FILENAME,
+                    ),
+                    output_filename=done_file,
                 )
                 with open(done_file) as df:
                     done_file_contents = df.read().splitlines()

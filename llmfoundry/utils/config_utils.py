@@ -39,6 +39,7 @@ __all__ = [
     'update_batch_size_info',
     'process_init_device',
     'log_config',
+    'log_dataset_uri',
 ]
 
 
@@ -508,7 +509,6 @@ def log_config(cfg: Dict[str, Any]) -> None:
 
     if 'mlflow' in loggers and mlflow.active_run():
         mlflow.log_params(params=cfg)
-        _log_dataset_uri(cfg)
 
 
 def _parse_source_dataset(cfg: Dict[str, Any]) -> List[Tuple[str, str, str]]:
@@ -619,12 +619,15 @@ def _process_data_source(
         log.warning('DataSource Not Found.')
 
 
-def _log_dataset_uri(cfg: Dict[str, Any]) -> None:
+def log_dataset_uri(cfg: Dict[str, Any]) -> None:
     """Logs dataset tracking information to MLflow.
 
     Args:
         cfg (DictConfig): A config dictionary of a run
     """
+    loggers = cfg.get('loggers', None) or {}
+    if 'mlflow' not in loggers or not mlflow.active_run():
+        return
     # Figure out which data source to use
     data_paths = _parse_source_dataset(cfg)
 

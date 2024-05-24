@@ -94,3 +94,5 @@ def test_exception_serialization(
         unpickled_exc = pickle.loads(pkl)
         unpickled_exc_str = str(unpickled_exc)
         assert exc_str == unpickled_exc_str
+        assert exception.location == unpickled_exc.location
+        assert exception.error_attribution == unpickled_exc.error_attribution

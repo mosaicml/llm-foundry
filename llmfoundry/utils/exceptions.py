@@ -42,7 +42,7 @@ TrainDataLoaderLocation = 'TrainDataloader'
 EvalDataLoaderLocation = 'EvalDataloader'
 
 
-class SerializableError():
+class SerializableError:
 
     def __getstate__(self):
         return self.__dict__

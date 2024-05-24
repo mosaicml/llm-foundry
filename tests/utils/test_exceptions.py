@@ -18,7 +18,7 @@ def create_exception_object(exception_name: str):
     # get required arg types of exception class by inspecting its __init__ method
 
     if hasattr(inspect, 'get_annotations'):
-        required_args = inspect.get_annotations(
+        required_args = inspect.get_annotations( # type: ignore
             exception_class.__init__,
         )  # type: ignore
     else:

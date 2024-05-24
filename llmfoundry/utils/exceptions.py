@@ -152,7 +152,6 @@ class ChatTemplateError(ValueError, UserError):
         super().__init__(message)
 
 
-
 class InvalidLastChatMessageRoleError(ValueError, UserError):
     """Error thrown when the last message role in a chat example is invalid."""
 

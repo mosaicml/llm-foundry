@@ -534,7 +534,6 @@ def _parse_source_dataset(cfg: TrainConfig) -> List[Tuple[str, str, str]]:
     train_dataset: TrainConfig = cfg.train_loader.get('dataset', {})
     train_split = train_dataset.get('split', None)
     train_source_path = cfg.source_dataset_train
-    print(f'---- VERBOSE {cfg}')
     _process_data_source(
         train_source_path,
         train_dataset,
@@ -632,6 +631,9 @@ def log_dataset_uri(cfg: Dict[str, Any]) -> None:
     Args:
         cfg (DictConfig): A config dictionary of a run
     """
+    loggers = cfg.get('loggers', None) or {}
+    if 'mlflow' not in loggers or not mlflow.active_run():
+        return
     # Figure out which data source to use
     data_paths = _parse_source_dataset(cfg)
 

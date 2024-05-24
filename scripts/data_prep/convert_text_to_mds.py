@@ -24,6 +24,7 @@ from llmfoundry.data import ConcatTokensDataset
 from llmfoundry.utils import maybe_create_mosaicml_logger
 from llmfoundry.utils.data_prep_utils import (
     DownloadingIterable,
+    download_file,
     merge_shard_groups,
 )
 from llmfoundry.utils.exceptions import (
@@ -329,9 +330,13 @@ def is_already_processed(
         try:
             with tempfile.TemporaryDirectory() as tmp_dir:
                 done_file = os.path.join(tmp_dir, DONE_FILENAME)
-                output_object_store.download_object(
-                    os.path.join(output_folder_prefix, DONE_FILENAME),
-                    done_file,
+                download_file(
+                    object_store=output_object_store,
+                    object_name=os.path.join(
+                        output_folder_prefix,
+                        DONE_FILENAME,
+                    ),
+                    output_filename=done_file,
                 )
                 with open(done_file) as df:
                     done_file_contents = df.read().splitlines()

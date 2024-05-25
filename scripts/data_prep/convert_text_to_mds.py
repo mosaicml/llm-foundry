@@ -94,7 +94,7 @@ class ConcatTokensFromFilesDataset(AbstractConcatTokensDataset):
                 # Add the EOS token to the buffer to separate files.
                 buffer += self.eos_tokens
 
-        # Finish up the last of the tokens.
+        # Yield any remaining samples of size max_length.
         while len(buffer) >= self.max_length:
             concat_sample = buffer[:self.max_length]
             buffer = buffer[self.max_length:] if self.should_wrap else []

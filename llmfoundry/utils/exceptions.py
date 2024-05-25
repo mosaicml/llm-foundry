@@ -76,7 +76,7 @@ class MissingHuggingFaceURLSplitError(ValueError, UserError):
         super().__init__(message)
 
 
-class NotEnoughDatasetSamplesError(ValueError, UserError):
+class NotEnoughDatasetSamplesError(UserError):
     """Error thrown when there is not enough data to train a model."""
 
     def __init__(

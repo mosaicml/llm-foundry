@@ -15,6 +15,7 @@ from llmfoundry.utils.builders import build_tokenizer
 from llmfoundry.utils.exceptions import (
     ALLOWED_PROMPT_KEYS,
     ALLOWED_RESPONSE_KEYS,
+    ChatTemplateError,
 )
 
 
@@ -268,6 +269,39 @@ def test_multi_turn_chat_slicing(tokenizer_name: str, messages_format: bool):
 
     full_chat = tok.apply_chat_template(convo, tokenize=False)
     assert reconstructed_chat == full_chat
+
+
+def test_fail_chat_template():
+    convo = [
+        {
+            'role':
+                'system',  # this will fail because the tokenizer doesn't have a system role
+            'content': 'everyone thinks you are so cool',
+        },
+        {
+            'role': 'user',
+            'content': 'hiiii',
+        },
+        {
+            'role': 'assistant',
+            'content': 'yassss',
+        },
+    ]
+
+    example = {'messages': convo}
+
+    class DummyTokenizer:
+
+        def __init__(self) -> None:
+            self.chat_template = 'Hello, World!'
+
+        def apply_chat_template(self, **_):
+            raise ValueError('This tokenizer does not support the system role')
+
+    tok = DummyTokenizer()
+
+    with pytest.raises(ChatTemplateError):
+        _slice_chat_formatted_example(example, tok)
 
 
 def test_tokenize_no_labels_bos_pr():

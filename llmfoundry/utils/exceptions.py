@@ -76,7 +76,7 @@ class MissingHuggingFaceURLSplitError(ValueError, UserError):
         super().__init__(message)
 
 
-class NotEnoughDatasetSamplesError(ValueError, UserError):
+class NotEnoughDatasetSamplesError(UserError):
     """Error thrown when there is not enough data to train a model."""
 
     def __init__(
@@ -134,6 +134,21 @@ class ConsecutiveRepeatedChatRolesError(ValueError, UserError):
     def __init__(self, repeated_role: str) -> None:
         self.repeated_role = repeated_role
         message = f'Conversation roles must alternate but found {repeated_role} repeated consecutively.'
+        super().__init__(message)
+
+
+class ChatTemplateError(ValueError, UserError):
+    """Error thrown when a chat template fails to process a sample."""
+
+    def __init__(
+        self,
+        template: str,
+        sample: List[Dict[str, Any]],
+        inner_message: str,
+    ) -> None:
+        self.template = template
+        self.sample = sample
+        message = f'Failed to process sample {sample} with template {template}. {inner_message}'
         super().__init__(message)
 
 

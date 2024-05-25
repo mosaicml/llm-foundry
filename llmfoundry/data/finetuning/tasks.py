@@ -69,6 +69,7 @@ from llmfoundry.utils.exceptions import (
     ALLOWED_MESSAGES_KEYS,
     ALLOWED_PROMPT_KEYS,
     ALLOWED_RESPONSE_KEYS,
+    ChatTemplateError,
     ConsecutiveRepeatedChatRolesError,
     IncorrectMessageKeyQuantityError,
     InvalidContentTypeError,
@@ -245,15 +246,22 @@ def _slice_chat_formatted_example(
         messages_through_current_turn: List[Dict[str, str]],
         conversation_through_previous_turn: str,
     ) -> Tuple[str, str]:
-        full_conversation = tokenizer.apply_chat_template(
-            messages_through_current_turn,
-            tokenize=False,
-        )
-        prompt_with_history = tokenizer.apply_chat_template(
-            messages_through_current_turn[:-1],
-            tokenize=False,
-            add_generation_prompt=True,
-        )
+        try:
+            full_conversation = tokenizer.apply_chat_template(
+                messages_through_current_turn,
+                tokenize=False,
+            )
+            prompt_with_history = tokenizer.apply_chat_template(
+                messages_through_current_turn[:-1],
+                tokenize=False,
+                add_generation_prompt=True,
+            )
+        except Exception as e:
+            raise ChatTemplateError(
+                tokenizer.chat_template,
+                sample=messages_through_current_turn,
+                inner_message=str(e),
+            )
         if conversation_through_previous_turn != full_conversation[:len(
             conversation_through_previous_turn,
         )]:

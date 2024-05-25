@@ -59,6 +59,13 @@ class BaseContextualError(Exception):
         super().__init__(message)
 
     def __reduce__(self):
+        """Adjust the reduce behavior for pickling.
+
+        Because we have custom exception subclasses with constructor args, we
+        need to adjust the reduce behavior to ensure that the exception can be
+        pickled. This allows error propagation across processes in
+        multiprocessing.
+        """
         if self.__class__ == BaseContextualError:
             raise NotImplementedError(
                 'BaseContextualError is a base class and cannot be pickled.',
@@ -77,7 +84,7 @@ class UserError(BaseContextualError):
     def __reduce__(self):
         if self.__class__ == UserError:
             raise NotImplementedError(
-                'BaseContextualError is a base class and cannot be pickled.',
+                'UserError is a base class and cannot be pickled.',
             )
 
         return super().__reduce__()
@@ -91,7 +98,7 @@ class NetworkError(BaseContextualError):
     def __reduce__(self):
         if self.__class__ == NetworkError:
             raise NotImplementedError(
-                'BaseContextualError is a base class and cannot be pickled.',
+                'NetworkError is a base class and cannot be pickled.',
             )
 
         return super().__reduce__()
@@ -105,7 +112,7 @@ class InternalError(BaseContextualError):
     def __reduce__(self):
         if self.__class__ == InternalError:
             raise NotImplementedError(
-                'BaseContextualError is a base class and cannot be pickled.',
+                'InternalError is a base class and cannot be pickled.',
             )
 
         return super().__reduce__()
@@ -196,7 +203,7 @@ class ChatTemplateError(UserError):
             message,
             template=template,
             sample=sample,
-            inner_message=inner_message
+            inner_message=inner_message,
         )
 
 

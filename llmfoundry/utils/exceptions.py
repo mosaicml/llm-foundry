@@ -182,6 +182,24 @@ class ConsecutiveRepeatedChatRolesError(UserError):
         super().__init__(message, repeated_role=repeated_role)
 
 
+class ChatTemplateError(UserError):
+    """Error thrown when a chat template fails to process a sample."""
+
+    def __init__(
+        self,
+        template: str,
+        sample: List[Dict[str, Any]],
+        inner_message: str,
+    ) -> None:
+        message = f'Failed to process sample {sample} with template {template}. {inner_message}'
+        super().__init__(
+            message,
+            template=template,
+            sample=sample,
+            inner_message=inner_message
+        )
+
+
 class InvalidLastChatMessageRoleError(UserError):
     """Error thrown when the last message role in a chat example is invalid."""
 

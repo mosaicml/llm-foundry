@@ -56,8 +56,7 @@ class BaseContextualError(Exception):
             setattr(self, key, value)
             self.serializable_attributes.append(key)
 
-    def __str__(self) -> str:
-        return self.error
+        super().__init__(message)
 
     def __reduce__(self):
         if self.__class__ == BaseContextualError:

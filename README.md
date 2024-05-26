@@ -169,11 +169,11 @@ pip install -e ".[gpu]"  # or `pip install -e .` if no NVIDIA GPU.
 ```
 
 ### TransformerEngine and amp_fp8 support
-NVIDIA H100 GPUs have FP8 support; this additionally requires the following installations:
+NVIDIA H100 GPUs have FP8 support; we have installed Flash Attention and Transformer in our Docker images already (see above). If you are not using our Docker images, you can install these packages with:
 <!--pytest.mark.skip-->
 ```bash
-pip install flash-attn==1.0.7 --no-build-isolation
-pip install git+https://github.com/NVIDIA/TransformerEngine.git@v0.10
+pip install flash-attn --no-build-isolation
+pip install git+https://github.com/NVIDIA/TransformerEngine.git@stable
 ```
 
 See [here](https://github.com/mosaicml/llm-foundry/blob/main/TUTORIAL.md#TransformerEngine-and-amp_fp8-support) for more details on enabling TransformerEngine layers and amp_fp8.

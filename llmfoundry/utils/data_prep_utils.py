@@ -7,6 +7,8 @@ from glob import glob
 from typing import List, Optional
 
 from composer.utils import ObjectStore
+from composer.utils.object_store import ObjectStoreTransientError
+from composer.utils.retrying import retry
 
 __all__ = [
     'merge_shard_groups',
@@ -78,6 +80,26 @@ def merge_shard_groups(root: str) -> None:
         out.write(text)
 
 
+@retry(ObjectStoreTransientError, num_attempts=5)
+def download_file(
+    object_store: ObjectStore,
+    object_name: str,
+    output_filename: str,
+) -> None:
+    """Downloads a file from an object store.
+
+    Args:
+        object_store (ObjectStore): Object store to download from
+        object_name (str): Name of object to download
+        output_filename (str): Local filename to write to
+    """
+    object_store.download_object(
+        object_name=object_name,
+        filename=output_filename,
+        overwrite=True,
+    )
+
+
 class DownloadingIterable:
 
     def __init__(
@@ -110,10 +132,11 @@ class DownloadingIterable:
                     self.output_folder,
                     object_name.strip('/'),
                 )
-                self.object_store.download_object(
+
+                download_file(
+                    object_store=self.object_store,
                     object_name=object_name,
-                    filename=output_filename,
-                    overwrite=True,
+                    output_filename=output_filename,
                 )
 
             with open(output_filename) as _txt_file:

@@ -10,6 +10,7 @@ from argparse import Namespace
 from typing import Any, Callable, Dict, Optional, cast
 from unittest.mock import ANY, MagicMock, patch
 
+import catalogue
 import pytest
 import torch
 import transformers
@@ -25,7 +26,8 @@ from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from llmfoundry.callbacks import HuggingFaceCheckpointer
 from llmfoundry.callbacks.hf_checkpointer import _maybe_get_license_filename
 from llmfoundry.data.finetuning import build_finetuning_dataloader
-from llmfoundry.models.mpt import MPTConfig
+from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
+from llmfoundry.utils import edit_files_for_hf_compatibility
 from llmfoundry.utils.builders import (
     build_composer_model,
     build_optimizer,
@@ -1405,6 +1407,59 @@ def test_mptmoe_huggingface_conversion_callback(
     dist.barrier()
 
     delete_transformers_cache()
+
+
+def test_mpt_convert_simple(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+):
+    delete_transformers_cache()
+
+    from transformers.models.auto.configuration_auto import CONFIG_MAPPING
+    original_config_auto_class = MPTConfig._auto_class
+    original_model_auto_class = MPTForCausalLM._auto_class
+    CONFIG_MAPPING._extra_content['mpt'] = MPTConfig
+    MPTConfig.register_for_auto_class()
+    MPTForCausalLM.register_for_auto_class('AutoModelForCausalLM')
+
+    model_cfg = {
+        'name': 'mpt_causal_lm',
+        'init_device': 'cpu',
+        'd_model': 64,
+        'n_heads': 2,
+        'n_layers': 2,
+        'expansion_ratio': 4,
+        'max_seq_len': 256,
+        'vocab_size': 50368,
+        'attn_config': {
+            'attn_impl': 'torch',
+        },
+        'loss_fn': 'torch_crossentropy',
+        'tie_word_embeddings': False,
+    }
+
+    original_model = build_composer_model(
+        name='mpt_causal_lm',
+        tokenizer=None,
+        cfg=model_cfg,
+    )
+
+    original_model.model.save_pretrained(str(tmp_path))
+
+    edit_files_for_hf_compatibility(str(tmp_path))
+
+    monkeypatch.setattr(catalogue, 'REGISTRY', {})
+
+    _ = transformers.AutoModelForCausalLM.from_pretrained(
+        tmp_path,
+        trust_remote_code=True,
+    )
+
+    delete_transformers_cache()
+
+    del CONFIG_MAPPING._extra_content['mpt']
+    MPTConfig._auto_class = original_config_auto_class
+    MPTForCausalLM._auto_class = original_model_auto_class
 
 
 @pytest.mark.parametrize(

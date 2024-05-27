@@ -40,6 +40,8 @@ if is_flash_v2_installed():
     except Exception as e:
         raise e
 
+import logging
+
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from transformers.modeling_outputs import (
     BaseModelOutputWithPast,
@@ -62,31 +64,16 @@ from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.layers.custom_embedding import SharedEmbedding
 from llmfoundry.models.layers.layer_builders import build_norm
 from llmfoundry.models.mpt.configuration_mpt import MPTConfig
+from llmfoundry.models.utils.act_ckpt import (
+    build_act_ckpt_mod_to_blocks,
+    check_mapping_blocks_overlap,
+    pass_on_block_idx,
+)
 from llmfoundry.models.utils.config_moe_args import config_moe_args
 from llmfoundry.models.utils.mpt_param_count import (
     mpt_get_active_params,
     mpt_get_total_params,
 )
-
-# NOTE: All utils are imported directly even if unused so that
-# HuggingFace can detect all the needed files to copy into its modules folder.
-# Otherwise, certain modules are missing.
-# isort: off
-from llmfoundry.models.utils.meta_init_context import \
-    init_empty_weights  # type: ignore (see note)
-from llmfoundry.models.utils.param_init_fns import (
-    generic_param_init_fn_,  # type: ignore (see note)
-)
-from llmfoundry.models.layers.ffn import resolve_ffn_act_fn  # type: ignore (see note)
-from llmfoundry.models.layers.fc import fcs  # type: ignore (see note)
-
-from llmfoundry.models.utils.act_ckpt import (
-    pass_on_block_idx,
-    build_act_ckpt_mod_to_blocks,
-    check_mapping_blocks_overlap,
-)
-
-import logging
 
 log = logging.getLogger(__name__)
 

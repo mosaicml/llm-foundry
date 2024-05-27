@@ -240,10 +240,10 @@ def edit_files_for_hf_compatibility(
     with open(os.path.join(folder, 'config.json'), 'r') as _f:
         config = json.load(_f)
 
-    # If the config file exists, the entrypoint files are specified in the auto map
+    # If the config file exists, the entrypoint files would be specified in the auto map
     entrypoint_files = set()
     if config_file_exists:
-        for key, value in config['auto_map'].items():
+        for key, value in config.get('auto_map', {}).items():
             # Only keep the modeling entrypoints, e.g. AutoModelForCausalLM
             if 'model' not in key.lower():
                 continue

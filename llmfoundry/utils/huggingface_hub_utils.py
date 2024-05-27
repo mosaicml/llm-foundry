@@ -273,6 +273,8 @@ def edit_files_for_hf_compatibility(
                     files_processed_and_queued.add(file)
 
     # For each entrypoint, determine which imports are missing, and add them
+    # This is because HF does not recursively search imports when determining
+    # which files to copy into its modules cache
     all_relative_imports = {
         os.path.splitext(os.path.basename(f))[0]
         for f in files_processed_and_queued

@@ -7,9 +7,11 @@ import os
 import tempfile
 from argparse import ArgumentParser, Namespace
 from concurrent.futures import ProcessPoolExecutor
+from functools import partial
 from glob import glob
-from typing import Iterable, List, Tuple, cast
+from typing import Dict, Iterable, List, Tuple, cast
 
+import numpy as np
 import psutil
 from composer.utils import (
     ObjectStore,
@@ -18,9 +20,9 @@ from composer.utils import (
 )
 from streaming import MDSWriter
 from tqdm import tqdm
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from llmfoundry.data import ConcatTokensDataset
+from llmfoundry.data.data import AbstractConcatTokensDataset
 from llmfoundry.utils import maybe_create_mosaicml_logger
 from llmfoundry.utils.data_prep_utils import (
     DownloadingIterable,
@@ -35,6 +37,68 @@ from llmfoundry.utils.exceptions import (
 log = logging.getLogger(__name__)
 
 DONE_FILENAME = '.text_to_mds_conversion_done'
+
+
+class ConcatTokensFromFilesDataset(AbstractConcatTokensDataset):
+    """An IterableDataset that returns token samples for MDSWriter from files.
+
+    Returns dicts of {'tokens': bytes}
+
+    Each file is considered a sequence.
+    """
+
+    def __init__(
+        self,
+        files: Iterable[str],
+        tokenizer: PreTrainedTokenizerBase,
+        max_length: int,
+        bos_text: str,
+        eos_text: str,
+        no_wrap: bool,
+    ):
+        self.files = files
+        super().__init__(tokenizer, max_length, bos_text, eos_text, no_wrap)
+
+    def __iter__(self) -> Iterable[Dict[str, bytes]]:
+
+        buffer = []
+        for file in self.files:
+            with open(file, 'r') as f:
+                buffer += self.bos_tokens
+                first_chunk = True
+                # Read the file in 1MB chunks to avoid memory issues
+                for chunk in iter(partial(f.read, 1000000), ''):
+                    # Tokenize the chunk
+                    encoded = self.tokenizer(
+                        chunk,
+                        truncation=False,
+                        padding=False,
+                    )
+                    iids = encoded['input_ids']
+
+                    # If this is not the first chunk, remove the BOS token
+                    if not first_chunk:
+                        if iids[0] == self.tokenizer.bos_token_id:
+                            iids = iids[1:]
+
+                    # Add the tokens to the buffer
+                    buffer += iids
+                    while len(buffer) >= self.max_length:
+                        concat_sample = buffer[:self.max_length]
+                        buffer = buffer[self.
+                                        max_length:] if self.should_wrap else []
+                        yield {'tokens': np.asarray(concat_sample).tobytes()}
+
+                    first_chunk = False
+
+                # Add the EOS token to the buffer to separate files.
+                buffer += self.eos_tokens
+
+        # Yield any remaining samples of size max_length.
+        while len(buffer) >= self.max_length:
+            concat_sample = buffer[:self.max_length]
+            buffer = buffer[self.max_length:] if self.should_wrap else []
+            yield {'tokens': np.asarray(concat_sample).tobytes()}
 
 
 def parse_args() -> Namespace:
@@ -277,8 +341,8 @@ def download_and_convert(
 
         # Use the ConcatTokensDataset from LLM-foundry to concatenate sequences of tokens up
         # to the maximum sequence length
-        dataset = ConcatTokensDataset(
-            hf_dataset=downloading_iter,
+        dataset = ConcatTokensFromFilesDataset(
+            files=downloading_iter,
             max_length=concat_tokens,
             tokenizer=tokenizer,
             eos_text=eos_text,

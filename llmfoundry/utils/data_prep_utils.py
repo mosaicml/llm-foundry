@@ -108,7 +108,7 @@ class DownloadingIterable:
         output_folder: str,
         object_store: Optional[ObjectStore],
     ):
-        """Iterable that downloads files from an object store before yielding.
+        """Iterable that downloads files before yielding the local filename.
 
         If object_store is None, input_folder_prefix is treated as a local path.
 
@@ -138,7 +138,4 @@ class DownloadingIterable:
                     object_name=object_name,
                     output_filename=output_filename,
                 )
-
-            with open(output_filename) as _txt_file:
-                txt = _txt_file.read()
-            yield {'text': txt}
+            yield output_filename

@@ -193,7 +193,13 @@ def parse_args() -> Namespace:
         default=False,
         help='If true, allows custom code to be executed to load the tokenizer',
     )
-
+    parser.add_argument(
+        '--logging-level',
+        type=str,
+        required=False,
+        default='INFO',
+        help='Logging level for the script. Default is INFO.',
+    )
     parsed = parser.parse_args()
 
     # Set eos token.
@@ -577,8 +583,26 @@ def _args_str(original_args: Namespace) -> str:
     return str(args)
 
 
+def _configure_logging(logging_level: str):
+    """Configure logging.
+
+    Args:
+        logging_level (str): Logging level.
+    """
+    logging.basicConfig(
+        format=
+        f'%(asctime)s: [%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s',
+    )
+    logging_level = logging_level.upper()
+    logging.getLogger('llmfoundry').setLevel(logging_level)
+    logging.getLogger(__name__).setLevel(logging_level)
+    log.info(f'Logging level set to {logging_level}')
+
+
 if __name__ == '__main__':
     args = parse_args()
+    _configure_logging(args.logging_level)
+
     mosaicml_logger = maybe_create_mosaicml_logger()
 
     try:

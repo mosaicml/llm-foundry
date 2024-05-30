@@ -915,7 +915,8 @@ def test_malformed_data(
     if add_unknown_example_type:
         error_context = pytest.raises(
             UnknownExampleTypeError,
-            match=r'.*Unknown example type',
+            match=
+            r'\[("|\')(\w+)("|\')(?:,\s*("|\')(\w+)("|\'))*\].*Unknown example type',
         )
     if add_too_many_example_keys:
         error_context = pytest.raises(

@@ -148,7 +148,7 @@ def _get_example_type(example: Example) -> ExampleType:
     ):
         return 'prompt_response'
     else:
-        raise UnknownExampleTypeError(str(example.keys()))
+        raise UnknownExampleTypeError(str(list(example.keys())))
 
 
 def _is_empty_or_nonexistent(dirpath: str) -> bool:

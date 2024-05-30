@@ -542,7 +542,7 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
             except FileNotFoundError as e:
                 if extension == SUPPORTED_EXTENSIONS[-1]:
                     files_searched = [
-                        f'{name}/{split}{ext}' for ext in SUPPORTED_EXTENSIONS
+                        f'{name[:-len(extension)]}{ext}' for ext in SUPPORTED_EXTENSIONS
                     ]
                     raise FileNotFoundError(
                         f'Could not find a file with any of ' + \

@@ -172,6 +172,15 @@ class UnknownExampleTypeError(UserError):
 
         super().__init__(message, example_keys=example_keys)
 
+class ExampleDatasetKeyCaseError(UserError):
+    """Error thrown when keys in a dataset example are not in lowercase, potentially matching the expected example types if corrected."""
+
+    def __init__(self, example_keys: str) -> None:
+        message = (
+            f"Found keys {example_keys} in the dataset. All keys in datasets must be in lowercase. "
+            f"Please ensure all keys are formatted correctly."
+        )
+        super().__init__(message, example_keys=example_keys)
 
 class NotEnoughChatDataError(UserError):
     """Error thrown when there is not enough chat data to train a model."""

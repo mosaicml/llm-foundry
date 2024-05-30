@@ -187,8 +187,9 @@ def test_tokenize_instruct_example_well_formed():
 
     for prompt_key in ALLOWED_PROMPT_KEYS:
         for response_key in ALLOWED_RESPONSE_KEYS:
-
-            example = {prompt_key: 'prompt', response_key: 'response'}
+            
+            # We allow case insensitive keys.
+            example = {prompt_key: 'Prompt', response_key: 'response'}
             tokenized_example = tokenize_formatted_example(example, tokenizer)
             assert 'input_ids' in tokenized_example['turns'][0]
             assert 'labels' in tokenized_example['turns'][0]

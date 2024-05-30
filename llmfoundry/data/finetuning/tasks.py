@@ -134,17 +134,19 @@ def _get_example_type(example: Example) -> ExampleType:
         raise TypeError(
             f'Expected example to be a Mapping, but found {type(example)}',
         )
+    # We lowercase the keys to make the check case-insensitive
+    example_lowercase = {k.lower(): v for k, v in example.items()}
     if (
-        len(example.keys()) == 1 and any(
-            allowed_message_key in example
+        len(example_lowercase.keys()) == 1 and any(
+            allowed_message_key in example_lowercase
             for allowed_message_key in ALLOWED_MESSAGES_KEYS
         )
     ):
         return 'chat'
     elif (
-        len(example.keys()) == 2 and
-        any(p in example for p in ALLOWED_PROMPT_KEYS) and
-        any(r in example for r in ALLOWED_RESPONSE_KEYS)
+        len(example_lowercase.keys()) == 2 and
+        any(p in example_lowercase for p in ALLOWED_PROMPT_KEYS) and
+        any(r in example_lowercase for r in ALLOWED_RESPONSE_KEYS)
     ):
         return 'prompt_response'
     else:

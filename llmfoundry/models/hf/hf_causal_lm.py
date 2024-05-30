@@ -20,6 +20,7 @@ from typing import (
 from composer.models.huggingface import peft_installed
 from composer.utils import dist
 from torchmetrics import Metric
+import torch
 from transformers import (
     AutoConfig,
     AutoModelForCausalLM,
@@ -45,6 +46,26 @@ __all__ = ['ComposerHFCausalLM']
 
 log = logging.getLogger(__name__)
 
+
+def replace_linear_layers_with_te(model: torch.nn.Module):
+    try:
+        import transformer_engine.pytorch as te
+    except:
+        pass
+
+    for name, module in model.named_children():
+        if isinstance(module, torch.nn.Linear):
+            # Create a new te.Linear layer with the same dimensions
+            te_layer = te.Linear(module.in_features, module.out_features)
+            # Copy the weights and bias
+            te_layer.weight = module.weight
+            te_layer.bias = module.bias
+            # Replace the module in the model
+            setattr(model, name, te_layer)
+        else:
+            # Recursively apply to child modules
+            replace_linear_layers_with_te(module)
+    return model
 
 class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
     """Configures a :class:`.HuggingFaceModel` around a Causal LM.
@@ -72,7 +93,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         init_device (str, optional): Which device to initialize the model on. Default: ``'cpu'``.
         use_flash_attention_2 (bool, optional): Whether to use flash-attention 2. Default: ``False``.
         tokenizer (PreTrainedTokenizer): The tokenizer that the model will use.
-    """
+        load_in_te (bool, optional): Whether to replace the model's torch.linear layers with te.Linear. Default: ``False``.
+   """
 
     def __init__(
         self,
@@ -90,6 +112,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         use_train_metrics: bool = True,
         additional_train_metrics: Optional[List] = None,
         additional_eval_metrics: Optional[List] = None,
+        load_in_te: bool = False,
     ):
 
         config_overrides = config_overrides or {}
@@ -105,6 +128,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             load_in_8bit=load_in_8bit,
             pretrained=pretrained,
             prepare_for_fsdp=True,
+            load_in_te=load_in_te,
         )
 
         train_metrics, eval_metrics = ComposerHFCausalLM.build_metrics(
@@ -178,6 +202,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         load_in_8bit: bool,
         pretrained: bool,
         prepare_for_fsdp: bool = False,
+        load_in_te: bool = False,
     ) -> Union[PreTrainedModel, 'PeftModel']:
         """Builds the inner model for the ComposerHFCausalLM.
 
@@ -368,7 +393,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                 model,
                 pretrained_lora_id_or_path,
             )
-
+        if load_in_te:
+            replace_linear_layers_with_te(model)
         if prepare_for_fsdp:
             ComposerHFCausalLM.prepare_inner_model(model, init_device)
         return model

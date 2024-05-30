@@ -35,7 +35,7 @@ import importlib
 import logging
 import os
 import warnings
-from collections.abc import Mapping
+from collections.abc import KeysView, Mapping
 from functools import partial
 from pathlib import Path
 from typing import (
@@ -71,6 +71,7 @@ from llmfoundry.utils.exceptions import (
     ALLOWED_RESPONSE_KEYS,
     ChatTemplateError,
     ConsecutiveRepeatedChatRolesError,
+    ExampleDatasetKeyCaseError,
     IncorrectMessageKeyQuantityError,
     InvalidContentTypeError,
     InvalidFileExtensionError,
@@ -134,21 +135,30 @@ def _get_example_type(example: Example) -> ExampleType:
         raise TypeError(
             f'Expected example to be a Mapping, but found {type(example)}',
         )
-    if (
-        len(example.keys()) == 1 and any(
+
+    def match_keys(keys: KeysView) -> ExampleType:
+        if len(keys) == 1 and any(
             allowed_message_key in example
             for allowed_message_key in ALLOWED_MESSAGES_KEYS
-        )
-    ):
-        return 'chat'
-    elif (
-        len(example.keys()) == 2 and
-        any(p in example for p in ALLOWED_PROMPT_KEYS) and
-        any(r in example for r in ALLOWED_RESPONSE_KEYS)
-    ):
-        return 'prompt_response'
-    else:
+        ):
+            return 'chat'
+        elif (
+            len(example.keys()) == 2 and
+            any(p in example for p in ALLOWED_PROMPT_KEYS) and
+            any(r in example for r in ALLOWED_RESPONSE_KEYS)
+        ):
+            return 'prompt_response'
         raise UnknownExampleTypeError(str(example.keys()))
+
+    try:
+        example_type = match_keys(example.keys())
+    except UnknownExampleTypeError:
+        # We try to match the keys in lower case again.
+        example_lower = {key.lower(): value for key, value in example.items()}
+        match_keys(example_lower.keys())
+        # If there is a match then we let the user know that the keys are case senssitive.
+        raise ExampleDatasetKeyCaseError(str(example.keys()))
+    return example_type
 
 
 def _is_empty_or_nonexistent(dirpath: str) -> bool:

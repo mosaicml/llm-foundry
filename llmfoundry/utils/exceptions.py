@@ -1,6 +1,5 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """Custom exceptions for the LLMFoundry."""
 from typing import Any, Dict, List, Literal, Optional, Union
 
@@ -61,10 +60,10 @@ class BaseContextualError(Exception):
     def __reduce__(self):
         """Adjust the reduce behavior for pickling.
 
-        Because we have custom exception subclasses with constructor args, we
-        need to adjust the reduce behavior to ensure that the exception can be
-        pickled. This allows error propagation across processes in
-        multiprocessing.
+        Because we have custom exception subclasses with constructor
+        args, we need to adjust the reduce behavior to ensure that the
+        exception can be pickled. This allows error propagation across
+        processes in multiprocessing.
         """
         if self.__class__ == BaseContextualError:
             raise NotImplementedError(
@@ -170,6 +169,21 @@ class UnknownExampleTypeError(UserError):
             f'{ALLOWED_RESPONSE_KEYS}. For chat finetuning, the allowed keys are {ALLOWED_MESSAGES_KEYS}'
         )
 
+        super().__init__(message, example_keys=example_keys)
+
+
+class ExampleDatasetKeyCaseError(UserError):
+    """Error thrown when keys in a dataset example are not in lowercase.
+
+    This error checks for keys that could potentially match the expected
+    example types if corrected.
+    """
+
+    def __init__(self, example_keys: str) -> None:
+        message = (
+            f"Found keys {example_keys} in the dataset. All keys in datasets must be in lowercase. "
+            f"Please ensure all keys are formatted correctly."
+        )
         super().__init__(message, example_keys=example_keys)
 
 

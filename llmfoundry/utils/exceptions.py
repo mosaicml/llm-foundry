@@ -360,16 +360,18 @@ class RunTimeoutError(InternalError):
 
 class DatasetMissingFileError(UserError):
     """Error thrown when a dataset cannot find a file."""
+
     def __init__(self, file_name: List[str]) -> None:
         message = "Could not find the file '{file_name}' with any of the supported extensions: "
-        message += ", ".join(SUPPORTED_EXTENSIONS) + '.'
-        message += " Please check your train / eval data and try again."
+        message += ', '.join(SUPPORTED_EXTENSIONS) + '.'
+        message += ' Please check your train / eval data and try again.'
         super().__init__(message, file_name=file_name)
 
 
 class DatasetInvalidFolderError(UserError):
     """Error thrown when a dataset folder is invalid."""
+
     def __init__(self, folder_path: str) -> None:
         message = f"Could not find objects at the path '{folder_path}'. "
-        message += "Please check your `input_folder` and try again."
+        message += 'Please check your `input_folder` and try again.'
         super().__init__(message, folder_path=folder_path)

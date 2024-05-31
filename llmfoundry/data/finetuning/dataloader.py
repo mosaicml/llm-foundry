@@ -29,6 +29,7 @@ from llmfoundry.utils.exceptions import (
     MissingHuggingFaceURLSplitError,
     NotEnoughDatasetSamplesError,
 )
+from llmfoundry.utils.mosaicml_logger_utils import maybe_create_mosaicml_logger
 from llmfoundry.utils.registry_utils import construct_from_registry
 
 log = logging.getLogger(__name__)
@@ -246,10 +247,15 @@ def build_finetuning_dataloader(
         # If dataset is a remote path, download it first.
         backend, _, _ = parse_uri(dataset_name_or_path)
         if backend not in ['', None]:
-            dataset_name_or_path = _download_remote_hf_dataset(
-                remote_path=dataset_name_or_path,
-                split=split,
-            )
+            try:
+                dataset_name_or_path = _download_remote_hf_dataset(
+                    remote_path=dataset_name_or_path,
+                    split=split,
+                )
+            except DatasetMissingFileError as e:
+                if mosaicml_logger is not None:
+                    mosaicml_logger.log_exception(e)
+                raise e
             split = split.replace('-', '_')
 
         # Get the preprocessing function.
@@ -542,7 +548,9 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
                 get_file(path=name, destination=destination, overwrite=True)
             except FileNotFoundError as e:
                 if extension == SUPPORTED_EXTENSIONS[-1]:
-                    raise DatasetMissingFileError(file_name=f"name/{split}") from e
+                    raise DatasetMissingFileError(
+                        file_name=f'name/{split}',
+                    ) from e
                 else:
                     log.debug(
                         f'Could not find {name}, looking for another extension',
@@ -676,6 +684,8 @@ if __name__ == '__main__':
         'persistent_workers': False,
         'timeout': 0,
     })
+
+    mosaicml_logger = maybe_create_mosaicml_logger()
 
     tokenizer_name = 'EleutherAI/gpt-neox-20b'
     tokenizer_kwargs = {'model_max_length': cfg.dataset.max_seq_len}

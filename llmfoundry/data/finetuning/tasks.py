@@ -35,7 +35,7 @@ import importlib
 import logging
 import os
 import warnings
-from collections.abc import Mapping
+from collections.abc import KeysView, Mapping
 from functools import partial
 from pathlib import Path
 from typing import (
@@ -71,6 +71,7 @@ from llmfoundry.utils.exceptions import (
     ALLOWED_RESPONSE_KEYS,
     ChatTemplateError,
     ConsecutiveRepeatedChatRolesError,
+    ExampleDatasetKeyCaseError,
     IncorrectMessageKeyQuantityError,
     InvalidContentTypeError,
     InvalidFileExtensionError,
@@ -134,20 +135,28 @@ def _get_example_type(example: Example) -> ExampleType:
         raise TypeError(
             f'Expected example to be a Mapping, but found {type(example)}',
         )
-    if (
-        len(example.keys()) == 1 and any(
+
+    def match_keys(keys: KeysView) -> str:
+        if len(keys) == 1 and any(
             allowed_message_key in example
             for allowed_message_key in ALLOWED_MESSAGES_KEYS
-        )
-    ):
-        return 'chat'
-    elif (
-        len(example.keys()) == 2 and
-        any(p in example for p in ALLOWED_PROMPT_KEYS) and
-        any(r in example for r in ALLOWED_RESPONSE_KEYS)
-    ):
-        return 'prompt_response'
+        ):
+            return 'chat'
+        elif (
+            len(example.keys()) == 2 and
+            any(p in example for p in ALLOWED_PROMPT_KEYS) and
+            any(r in example for r in ALLOWED_RESPONSE_KEYS)
+        ):
+            return 'prompt_response'
+        return 'unknown'
+
+    example_type = match_keys(example.keys())
+    if example_type != 'unknown':
+        return example_type
     else:
+        # We try to match the keys in lowercase to give a more informative error message.
+        if match_keys([key.lower() for key in example.keys()]) != 'unknown':
+            raise ExampleDatasetKeyCaseError(str(example.keys()))
         raise UnknownExampleTypeError(str(example.keys()))
 
 

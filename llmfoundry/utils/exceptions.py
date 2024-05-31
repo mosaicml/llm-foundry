@@ -4,8 +4,6 @@
 """Custom exceptions for the LLMFoundry."""
 from typing import Any, Dict, List, Literal, Optional, Union
 
-from llmfoundry.data.finetuning.tasks import SUPPORTED_EXTENSIONS
-
 __all__ = [
     'ALLOWED_RESPONSE_KEYS',
     'ALLOWED_PROMPT_KEYS',
@@ -361,9 +359,9 @@ class RunTimeoutError(InternalError):
 class DatasetMissingFileError(UserError):
     """Error thrown when a dataset cannot find a file."""
 
-    def __init__(self, file_name: str) -> None:
+    def __init__(self, file_name: str, supported_extensions: List[str]) -> None:
         message = "Could not find the file '{file_name}' with any of the supported extensions: "
-        message += ', '.join(SUPPORTED_EXTENSIONS) + '.'
+        message += ', '.join(supported_extensions) + '.'
         message += ' Please check your train / eval data and try again.'
         super().__init__(message, file_name=file_name)
 

@@ -364,7 +364,7 @@ class DatasetMissingFileError(UserError):
     def __init__(
         self,
         file_name: str,
-        supported_extensions: Optional[List[str]] = None,
+        supported_extensions: Union[List[str], None] = None,
     ) -> None:
         message = "Could not find the file '{file_name}' with any of the supported extensions: "
         if supported_extensions is not None:

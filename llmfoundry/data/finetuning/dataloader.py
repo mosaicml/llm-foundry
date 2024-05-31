@@ -550,7 +550,7 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
                 if extension == SUPPORTED_EXTENSIONS[-1]:
                     raise DatasetMissingFileError(
                         file_name=f'name/{split}',
-                        supported_extensions=SUPPORTED_EXTENSIONS
+                        supported_extensions=SUPPORTED_EXTENSIONS,
                     ) from e
                 else:
                     log.debug(

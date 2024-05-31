@@ -180,7 +180,7 @@ def _initialize_dist_with_barrier(dist_timeout: Union[int, float]):
     Args:
         dist_timeout (Union[int, float]): Timeout for initializing the process group
     """
-    log.debug('Initializing dist with device...')
+    log.debug('Hack here to see it works: Initializing dist with device...')
     dist.initialize_dist(get_device(None), timeout=dist_timeout)
     log.debug('Testing barrier with device...')
     dist.barrier()

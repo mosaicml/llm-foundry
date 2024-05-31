@@ -29,6 +29,8 @@ __all__ = [
     'OutputFolderNotEmptyError',
     'MisconfiguredHfDatasetError',
     'RunTimeoutError',
+    'DatasetMissingFileError',
+    'DatasetInvalidFolderError',
 ]
 
 ALLOWED_RESPONSE_KEYS = {'response', 'completion'}

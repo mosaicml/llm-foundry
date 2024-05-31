@@ -39,19 +39,26 @@ __all__ = [
 import logging
 log = logging.getLogger(__name__)
 
-original_init = torch.utils.data.dataloader._MultiProcessingDataLoaderIter.__init__
+import torch.multiprocessing as mp
 
-def new_init(self, *args, **kwargs):
-    """New __init__ method that prints worker process IDs."""
-    original_init(self, *args, **kwargs)
+# Save a reference to the original _try_put_index method
+original_try_put_index = torch.utils.data.dataloader._MultiProcessingDataLoaderIter._try_put_index
 
+def new_try_put_index(self, *args, **kwargs):
+    """New _try_put_index method that prints worker process IDs."""
     # Print the PIDs of all worker processes
-    if self._worker_pids_set:
-        for worker_id, worker_pid in enumerate(self._worker_pids):
-            log.warning(f"I am in foundry: Worker {worker_id} started with PID: {worker_pid}")
+    if not hasattr(self, '_printed_worker_pids'):
+        self._printed_worker_pids = True
+        for worker in self._workers:
+            log.warning(f"Worker started with PID: {worker.pid}")
 
-# Assign the new __init__ method to the _MultiProcessingDataLoaderIter class
-torch.utils.data.dataloader._MultiProcessingDataLoaderIter.__init__ = new_init
+    # Call the original method
+    return original_try_put_index(self, *args, **kwargs)
+
+# Assign the new _try_put_index method to the _MultiProcessingDataLoaderIter class
+torch.utils.data.dataloader._MultiProcessingDataLoaderIter._try_put_index = new_try_put_index
+mp.set_start_method('spawn', force=True)
+
 
 
 class StreamingTextDataset(StreamingDataset):

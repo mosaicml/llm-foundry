@@ -30,6 +30,7 @@ from llmfoundry.utils.data_prep_utils import (
     merge_shard_groups,
 )
 from llmfoundry.utils.exceptions import (
+    DatasetInvalidFolderError,
     InputFolderMissingDataError,
     OutputFolderNotEmptyError,
 )
@@ -232,10 +233,13 @@ def get_object_names(input_folder: str) -> List[str]:
     object_store = maybe_create_object_store_from_uri(input_folder)
     if object_store is not None:
         _, _, folder_prefix = parse_uri(input_folder)
-        names = [
-            name for name in object_store.list_objects(folder_prefix)
-            if name.endswith('.txt')
-        ]
+        try:
+            names = [
+                name for name in object_store.list_objects(folder_prefix)
+                if name.endswith('.txt')
+            ]
+        except FileNotFoundError as e:
+            raise DatasetInvalidFolderError(input_folder) from e
     else:
         # input_folder is a local folder
         names = [

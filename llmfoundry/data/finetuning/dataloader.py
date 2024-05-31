@@ -25,6 +25,7 @@ from llmfoundry.data.packing import BinPackCollator, auto_packing_ratio
 from llmfoundry.data.text_data import build_streams
 from llmfoundry.utils.config_utils import to_dict_container
 from llmfoundry.utils.exceptions import (
+    DatasetMissingFileError,
     MissingHuggingFaceURLSplitError,
     NotEnoughDatasetSamplesError,
 )
@@ -541,14 +542,7 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
                 get_file(path=name, destination=destination, overwrite=True)
             except FileNotFoundError as e:
                 if extension == SUPPORTED_EXTENSIONS[-1]:
-                    files_searched = [
-                        f'{name}/{split}{ext}' for ext in SUPPORTED_EXTENSIONS
-                    ]
-                    raise FileNotFoundError(
-                        f'Could not find a file with any of ' + \
-                        f'the supported extensions: {SUPPORTED_EXTENSIONS}\n' + \
-                        f'at {files_searched}',
-                    ) from e
+                    raise DatasetMissingFileError(file_name=f"name/{split}") from e
                 else:
                     log.debug(
                         f'Could not find {name}, looking for another extension',

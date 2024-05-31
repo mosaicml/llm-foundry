@@ -36,6 +36,23 @@ __all__ = [
     'ConcatenatedSequenceCollatorWrapper',
 ]
 
+import logging
+log = logging.getLogger(__name__)
+
+original_init = torch.utils.data.dataloader._MultiProcessingDataLoaderIter.__init__
+
+def new_init(self, *args, **kwargs):
+    """New __init__ method that prints worker process IDs."""
+    original_init(self, *args, **kwargs)
+
+    # Print the PIDs of all worker processes
+    if self._worker_pids_set:
+        for worker_id, worker_pid in enumerate(self._worker_pids):
+            log.warning(f"I am in foundry: Worker {worker_id} started with PID: {worker_pid}")
+
+# Assign the new __init__ method to the _MultiProcessingDataLoaderIter class
+torch.utils.data.dataloader._MultiProcessingDataLoaderIter.__init__ = new_init
+
 
 class StreamingTextDataset(StreamingDataset):
     """Generic text dataset using MosaicML's StreamingDataset.
@@ -323,6 +340,8 @@ def build_text_dataloader(
             'device_batch_size': device_batch_size,
         },
     )
+
+    log.warning(f"I am in foundry 2:building streams")
 
     streams = build_streams(
         streams=dataset_cfg.pop('streams')

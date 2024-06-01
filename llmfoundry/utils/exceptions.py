@@ -364,11 +364,10 @@ class DatasetMissingFileError(UserError):
     def __init__(
         self,
         file_name: str,
-        supported_extensions: Union[List[str], None] = None,
+        supported_extensions: List[str],
     ) -> None:
         message = "Could not find the file '{file_name}' with any of the supported extensions: "
-        if supported_extensions is not None:
-            message += ', '.join(supported_extensions) + '.'
+        message += ', '.join(supported_extensions) + '.'
         message += ' Please check your train / eval data and try again.'
         super().__init__(message, file_name=file_name)
 

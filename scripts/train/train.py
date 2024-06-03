@@ -423,7 +423,8 @@ def main(cfg: DictConfig) -> Trainer:
                 device_eval_batch_size=train_cfg.device_eval_batch_size,
                 icl_seq_len=eval_icl_seq_len,
                 icl_subset_num_batches=train_cfg.icl_subset_num_batches,
-                eval_drop_last=train_cfg.eval_drop_last if train_cfg.eval_drop_last else False,
+                eval_drop_last=train_cfg.eval_drop_last
+                if train_cfg.eval_drop_last else False,
             )
             if eval_gauntlet_callback is not None:
                 callbacks.append(eval_gauntlet_callback)

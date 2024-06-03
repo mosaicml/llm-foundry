@@ -37,15 +37,15 @@ def run_test(
     for i, e in enumerate(evaluators):
         batch = next(e.dataloader.dataloader.__iter__())
         # Check that the dataloader is the correct length for the first task.
-        if i == 0 and hasattr(e.dataloader.dataloader, '__len__'):
+        if i == 0:
             if eval_drop_last:
                 assert len(
                     e.dataloader.dataloader,
-                ) == EXPECTED_FIRST_DATALOADER_LEN - 1
+                ) == EXPECTED_FIRST_DATALOADER_LEN - 1  # pyright: ignore
             else:
                 assert len(
                     e.dataloader.dataloader,
-                ) == EXPECTED_FIRST_DATALOADER_LEN
+                ) == EXPECTED_FIRST_DATALOADER_LEN  # pyright: ignore
 
         inputs = batch['input_ids'][0]
         if 'continuation_indices' in batch:

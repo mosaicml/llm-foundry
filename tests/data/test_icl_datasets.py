@@ -11,6 +11,9 @@ from llmfoundry.utils.builders import build_icl_evaluators
 from llmfoundry.utils.config_utils import to_list_container
 
 
+EXPECTED_FIRST_DATALOADER_LEN = 52  # scripts/eval/local_data/world_knowledge/jeopardy_all.jsonl
+
+
 def load_icl_config(conf_path: str = 'tests/data/test_tasks.yaml'):
     with open(conf_path) as f:
         test_cfg = om.load(f)
@@ -21,6 +24,7 @@ def run_test(
     dir: pathlib.Path,
     tokenizer: PreTrainedTokenizerBase,
     bos_tok: str = '',
+    eval_drop_last: bool = False,
 ):
     task_cfg = load_icl_config()
     evaluators, _ = build_icl_evaluators(
@@ -29,11 +33,17 @@ def run_test(
         1024,
         8,
         destination_dir=str(dir),
+        eval_drop_last=eval_drop_last,
     )
-
-    for e in evaluators:
+    for i, e in enumerate(evaluators):
         batch = next(e.dataloader.dataloader.__iter__())
-
+        # Check that the dataloader is the correct length for the first task.
+        if i == 0:
+            if eval_drop_last:
+                assert len(e.dataloader.dataloader) == EXPECTED_FIRST_DATALOADER_LEN - 1
+            else: 
+                assert len(e.dataloader.dataloader) == EXPECTED_FIRST_DATALOADER_LEN
+        
         inputs = batch['input_ids'][0]
         if 'continuation_indices' in batch:
             continuation_indices = list(batch['continuation_indices'][0])
@@ -76,15 +86,15 @@ def run_test(
             assert full_example == bos_tok + "Tom gave Ralph a lift to school so Ralph wouldn't have to walk.\nThe city councilmen refused the demonstrators a permit because the city councilmen feared violence"
             assert answer == ' feared violence'
 
-
 @pytest.mark.parametrize(
-    'tokenizer_name,bos_token',
-    [('facebook/opt-6.7b', '</s>'), ('EleutherAI/gpt-neox-20b', '')],
+    'tokenizer_name,bos_token,eval_drop_last',
+    [('facebook/opt-6.7b', '</s>', True), ('EleutherAI/gpt-neox-20b', '', False)],
 )
-def test_icl_task_tokenizer(
+def test_icl_task_tokenizer_and_dataloader(
     tmp_path: pathlib.Path,
     tokenizer_name: str,
     bos_token: str,
+    eval_drop_last: bool,
 ):
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
-    run_test(tmp_path, tokenizer, bos_token)
+    run_test(tmp_path, tokenizer, bos_token, eval_drop_last)

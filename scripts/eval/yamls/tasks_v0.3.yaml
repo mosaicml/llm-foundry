@@ -136,11 +136,11 @@ icl_tasks:
   dataset_uri: eval/local_data/symbolic_problem_solving/bigbench_cs_algorithms.jsonl
   num_fewshot: [10]
   icl_task_type: language_modeling
--
-  label: bigbench_operators
-  dataset_uri: eval/local_data/symbolic_problem_solving/bigbench_operators.jsonl
-  num_fewshot: [3]
-  icl_task_type: language_modeling
+# -
+#   label: bigbench_operators
+#   dataset_uri: eval/local_data/symbolic_problem_solving/bigbench_operators.jsonl
+#   num_fewshot: [3]
+#   icl_task_type: language_modeling
 -
   label: simple_arithmetic_nospaces
   dataset_uri: eval/local_data/symbolic_problem_solving/simple_arithmetic_nospaces.jsonl

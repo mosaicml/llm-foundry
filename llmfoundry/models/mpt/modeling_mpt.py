@@ -19,6 +19,7 @@ from typing import (
     MutableMapping,
     Optional,
     Tuple,
+    Type,
     Union,
 )
 
@@ -38,6 +39,8 @@ if is_flash_v2_installed():
             RotaryEmbedding as DAILRotaryEmbedding
     except Exception as e:
         raise e
+
+import logging
 
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from transformers.modeling_outputs import (
@@ -61,30 +64,23 @@ from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.layers.custom_embedding import SharedEmbedding
 from llmfoundry.models.layers.layer_builders import build_norm
 from llmfoundry.models.mpt.configuration_mpt import MPTConfig
+from llmfoundry.models.utils.act_ckpt import (
+    build_act_ckpt_mod_to_blocks,
+    check_mapping_blocks_overlap,
+    pass_on_block_idx,
+)
 from llmfoundry.models.utils.config_moe_args import config_moe_args
 from llmfoundry.models.utils.mpt_param_count import (
     mpt_get_active_params,
     mpt_get_total_params,
 )
 
-# NOTE: All utils are imported directly even if unused so that
-# HuggingFace can detect all the needed files to copy into its modules folder.
-# Otherwise, certain modules are missing.
+# Import the fcs and param_init_fns here so that the recursive code creating the files for hf checkpoints can find them
+# These are the exceptions because fc.py and param_init_fns.py are not imported in any other place in the import tree
 # isort: off
-from llmfoundry.models.utils.meta_init_context import \
-    init_empty_weights  # type: ignore (see note)
-from llmfoundry.models.utils.param_init_fns import (
-    generic_param_init_fn_,  # type: ignore (see note)
-)
-from llmfoundry.models.layers.ffn import resolve_ffn_act_fn  # type: ignore (see note)
-
-from llmfoundry.models.utils.act_ckpt import (
-    pass_on_block_idx,
-    build_act_ckpt_mod_to_blocks,
-    check_mapping_blocks_overlap,
-)
-
-import logging
+from llmfoundry.models.layers.fc import fcs  #  type: ignore
+from llmfoundry.models.utils.param_init_fns import generic_param_init_fn_  # type: ignore
+# isort: on
 
 log = logging.getLogger(__name__)
 
@@ -367,14 +363,7 @@ class MPTModel(MPTPreTrainedModel):
         self.mb_args = None
         self.shift_labels = True
 
-        block_args = self.extract_block_args(config.to_dict())
-
-        self.blocks = nn.ModuleList([
-            MPTBlock(
-                device=config.init_device,
-                **block_args,
-            ) for _ in range(config.n_layers)
-        ])
+        self.blocks = self.construct_blocks(config=config,)
 
         # Tag all modules in the transformer blocks with the corresponding block_idx and max_block_idx
         for i, block in enumerate(self.blocks):
@@ -435,6 +424,24 @@ class MPTModel(MPTPreTrainedModel):
 
         log.debug(self)
         log.debug(f'Using {self.config.init_config["name"]} initialization.')
+
+    def construct_blocks(self, config: MPTConfig) -> nn.ModuleList:
+        """Construct the nn.ModuleList with the Transformer blocks.
+
+        Args:
+            config (MPTConfig): The configuration object.
+
+        Returns:
+            nn.ModuleList: The list of Transformer blocks.
+        """
+        block_args = self.extract_block_args(config.to_dict())
+
+        return nn.ModuleList([
+            MPTBlock(
+                device=config.init_device,
+                **block_args,
+            ) for _ in range(config.n_layers)
+        ])
 
     def extract_block_args(self, block_args: Dict[str, Any]) -> Dict[str, Any]:
         """Sets the block args."""
@@ -786,7 +793,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
         super().__init__(config)
         log.info(f'Instantiating an MPTForCausalLM model from {__file__}')
 
-        self.transformer: MPTModel = MPTModel(config)
+        self.transformer: MPTModel = self.backbone_model_class(config)
 
         self.lm_head = None
         if not config.tie_word_embeddings:
@@ -817,6 +824,10 @@ class MPTForCausalLM(MPTPreTrainedModel):
                         f"{logit_scale=} is not recognized as an option; use numeric value or 'inv_sqrt_d_model'.",
                     )
             self.logit_scale = logit_scale
+
+    @property
+    def backbone_model_class(self) -> Type[MPTModel]:
+        return MPTModel
 
     def get_input_embeddings(self) -> Union[SharedEmbedding, nn.Embedding]:
         return self.transformer.get_input_embeddings()
@@ -1081,9 +1092,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
 
         additional_train_metrics = additional_train_metrics or []
 
-        model = MPTForCausalLM(
-            MPTConfig(use_train_metrics=use_train_metrics, **kwargs),
-        )
+        model = self.model_class(self.config_class(**kwargs),)
 
         use_train_metrics = use_train_metrics
         train_metric_names = DEFAULT_CAUSAL_LM_TRAIN_METRICS + additional_train_metrics
@@ -1133,6 +1142,14 @@ class ComposerMPTCausalLM(HuggingFaceModel):
                 f'Specified loss_fn={self.loss_fn} not recognized. `loss_fn` must be one of [`fused_crossentropy`, `torch_crossentropy`].',
             )
 
+    @property
+    def model_class(self) -> Type[MPTForCausalLM]:
+        return MPTForCausalLM
+
+    @property
+    def config_class(self) -> Type[MPTConfig]:
+        return MPTConfig
+
     def get_targets(self, batch: Mapping) -> torch.Tensor:
         targets = torch.roll(batch['labels'], shifts=-1)
         targets[:, -1] = -100
@@ -1157,7 +1174,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
 
     def loss(self, outputs: CausalLMOutputWithPast,
              batch: Mapping) -> Union[dict, torch.Tensor]:
-        if self.model.transformer.shift_labels:
+        if self.shift_labels:
             targets = self.get_targets(batch)
         else:
             targets = batch['labels']

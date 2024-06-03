@@ -3,6 +3,7 @@
 
 """GPT Blocks used for the GPT Model."""
 
+import copy
 from typing import Any, Dict, Optional, Set, Tuple
 
 import torch
@@ -14,6 +15,10 @@ from llmfoundry.models.layers.layer_builders import (
     build_ffn,
     build_norm,
 )
+from llmfoundry.models.utils.config_defaults import (
+    attn_config_defaults,
+    fc_type_defaults,
+)
 
 try:
     from flash_attn.bert_padding import unpad_input, pad_input  # type: ignore # yapf: disable # isort: skip
@@ -24,32 +29,6 @@ __all__ = [
     'MPTBlock',
     'FusedNormAttentionNorm',
 ]
-
-attn_config_defaults: Dict = {
-    'attn_type': 'multihead_attention',
-    'attn_pdrop': 0.0,
-    'attn_impl': 'flash',
-    'qk_ln': False,
-    'qk_gn': False,
-    'clip_qkv': None,
-    'softmax_scale': None,
-    'attn_uses_sequence_id': False,
-    'sliding_window_size': -1,
-    'alibi': False,
-    'alibi_bias_max': 8,
-    'rope': False,
-    'rope_theta': 10000,
-    'rope_impl': 'dail',
-    'rope_dail_config': {
-        'type': 'original',
-        'pos_idx_in_fp32': True,
-        'xpos_scale_base': 512,
-    },
-    'rope_hf_config': {
-        'type': 'no_scaling',
-        'factor': 1.0,
-    },
-}
 
 
 class MPTBlock(nn.Module):
@@ -63,7 +42,7 @@ class MPTBlock(nn.Module):
         ffn_config: Optional[Dict] = None,
         resid_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
-        fc_type: str = 'torch',
+        fc_type: Optional[dict[str, Any]] = None,
         device: Optional[str] = None,
         no_bias: bool = False,
         use_pad_tok_in_ffn: bool = True,
@@ -73,15 +52,25 @@ class MPTBlock(nn.Module):
             attn_config = attn_config_defaults
 
         if ffn_config is None:
-            ffn_config = {
+            self.ffn_config: dict[str, Any] = {
                 'ffn_type': 'mptmlp',
             }
+        else:
+            self.ffn_config = ffn_config
+
+        if fc_type is None:
+            fc_type = copy.deepcopy(fc_type_defaults)
+        fc_type['bias'] = not no_bias
+        fc_type['device'] = device
+
+        self.ffn_config['fc_type'] = fc_type
+
         self.fuse_norm_attn_norm = kwargs.get('fuse_norm_attn_norm', False)
 
         del kwargs  # unused, just to capture any extra args from the config
         super().__init__()
 
-        ffn_type = ffn_config['ffn_type']
+        ffn_type = self.ffn_config['ffn_type']
         ffn_has_norm = ffn_type in ffns_with_norm
 
         if self.fuse_norm_attn_norm:
@@ -137,7 +126,7 @@ class MPTBlock(nn.Module):
             expansion_ratio=expansion_ratio,
             device=device,
             bias=not no_bias,
-            ffn_kwargs=ffn_config,
+            ffn_kwargs=self.ffn_config,
         )
 
         self.resid_attn_dropout = nn.Dropout(resid_pdrop)
@@ -240,7 +229,7 @@ class FusedNormAttentionNorm(nn.Module):
         args_to_exclude_in_attn_class: Set[str],
         attn_config: Optional[Dict] = None,
         ffn_has_norm: bool = False,
-        fc_type: str = 'torch',
+        fc_type: Optional[dict[str, Any]] = None,
         resid_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
         device: Optional[str] = None,
@@ -250,6 +239,12 @@ class FusedNormAttentionNorm(nn.Module):
         super().__init__()
         assert attn_config is not None
         assert isinstance(attn_config['attn_type'], str)
+
+        # Usually, fc_type dict should be passed in through MPTBlock's __init__ function.
+        if fc_type is None:
+            fc_type = copy.deepcopy(fc_type_defaults)
+            fc_type['bias'] = not no_bias
+            fc_type['device'] = device
 
         # Necessary to avoid passing extraneous args into attn_class while allowing the use of **kwargs
         attn_config_subset_for_attn_class = {

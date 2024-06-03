@@ -1,0 +1,71 @@
+# Eval pre-trained sizes of DBRX models. See these docs for more information
+# about pre-training your own DBRX model:
+# https://docs.mosaicml.com/projects/mcli/en/latest/pretraining/pretraining.html#supported-models
+
+# Specify icl_tasks and or eval_gauntlet to run
+eval_gauntlet: eval/yamls/eval_gauntlet_v0.3.yaml
+icl_tasks: eval/yamls/tasks_v0.3.yaml
+
+models:
+- model_name: dbrx-73b
+  load_path: s3://bucket/checkpoints/dbrx-9b/checkpoint-1000000  # TODO: Update with correct save folder
+  tokenizer:
+    name: tiktoken
+    kwargs:
+      token: true
+      name: gpt-4
+  model:
+    name: mpt_causal_lm
+    d_model: 5120
+    n_heads: 40
+    no_bias: true
+    n_layers: 32
+    norm_type: low_precision_layernorm
+    ffn_config:
+      ffn_type: torch_dmoe
+      mlp_type: glu
+      moe_top_k: 4
+      ffn_act_fn:
+        name: silu
+      moe_jitter_eps: 0
+      moe_num_experts: 16
+      uniform_expert_assignment: false
+      moe_normalize_expert_weights: 1
+    vocab_size: 100352
+    attn_config:
+      rope: true
+      alibi: false
+      clip_qkv: 8
+      attn_impl: flash
+      attn_type: grouped_query_attention
+      kv_n_heads: 8
+      rope_theta: 500000
+      attn_uses_sequence_id: true
+    init_device: meta
+    max_seq_len: 4096
+    param_init_fn: kaiming_normal_
+    expansion_ratio: 1.75
+    init_nonlinearity: relu
+    use_train_metrics: false
+    fuse_norm_attn_norm: true
+    tie_word_embeddings: false
+    activation_checkpointing_target:
+    - norm_attn_norm
+
+precision: amp_bf16
+fsdp_config:
+  verbose: false
+  device_mesh:
+  - 8
+  mixed_precision: PURE
+  state_dict_type: sharded
+  use_orig_params: true
+  limit_all_gathers: true
+  sharding_strategy: FULL_SHARD
+  activation_cpu_offload: false
+  activation_checkpointing: false
+  activation_checkpointing_reentrant: false
+seed: 17
+max_seq_len: 4096
+dist_timeout: 1200
+device_eval_batch_size: 2

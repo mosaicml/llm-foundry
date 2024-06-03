@@ -21,3 +21,8 @@ icl_tasks:
   dataset_uri: scripts/eval/local_data/world_knowledge/triviaqa_small.jsonl  # ADD YOUR OWN DATASET URI
   num_fewshot: [0, 1]
   icl_task_type: generation_task_with_answers
+-
+  label: bigbench_operators
+  dataset_uri: eval/local_data/symbolic_problem_solving/bigbench_operators.jsonl
+  num_fewshot: [3]
+  icl_task_type: language_modeling

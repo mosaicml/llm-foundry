@@ -30,10 +30,16 @@ def run_test(
         to_list_container(task_cfg.icl_tasks),
         tokenizer,
         1024,
-        8,
+        default_batch_size=8,
         destination_dir=str(dir),
         eval_drop_last=eval_drop_last,
     )
+    if eval_drop_last:
+        # Drop the Evualator for eval/local_data/symbolic_problem_solving/bigbench_operators.jsonl as it won't evenly divide even 1 batch.
+        assert len(evaluators) == 4
+    else: 
+        assert len(evaluators) == 5
+
     for i, e in enumerate(evaluators):
         batch = next(e.dataloader.dataloader.__iter__())
         # Check that the dataloader is the correct length for the first task.

@@ -631,6 +631,11 @@ def build_icl_evaluators(
             if 'has_categories' in icl_cfg and icl_cfg[
                 'has_categories'] and isinstance(dataloaders, dict):
                 for category in dataloaders.keys():
+                    if len(dataloaders[category].dataloader) == 0:
+                        log.warning(
+                            f'No data for {label}/{category}, skipping. May have been filtered out by eval_drop_last={eval_drop_last} and batch size={default_batch_size}.',
+                        )
+                        continue
                     logger_keys.extend([
                         f'metrics/{label}/{category}/{m}' for m in metric_names
                     ])
@@ -642,6 +647,11 @@ def build_icl_evaluators(
                         ),
                     )
             else:
+                if len(dataloaders.dataloader) == 0:  # type: ignore
+                    log.warning(
+                        f'No data for {label}, skipping. May have been filtered out by eval_drop_last={eval_drop_last} and batch size={default_batch_size}.',
+                    )
+                    continue
                 logger_keys.extend([
                     f'metrics/{label}/{m}' for m in metric_names
                 ])

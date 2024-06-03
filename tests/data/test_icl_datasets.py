@@ -40,11 +40,11 @@ def run_test(
         if i == 0:
             if eval_drop_last:
                 assert len(
-                    e.dataloader.dataloader
+                    e.dataloader.dataloader,
                 ) == EXPECTED_FIRST_DATALOADER_LEN - 1
             else:
                 assert len(
-                    e.dataloader.dataloader
+                    e.dataloader.dataloader,
                 ) == EXPECTED_FIRST_DATALOADER_LEN
 
         inputs = batch['input_ids'][0]

@@ -131,6 +131,7 @@ class TrainConfig:
     eval_gauntlet_str: Optional[str] = None  # should not be set by the user
     icl_subset_num_batches: Optional[int] = None
     icl_seq_len: Optional[int] = None
+    eval_drop_last: Optional[bool] = False
 
     # Logging
     loggers: Optional[Dict[str, Any]] = None

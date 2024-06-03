@@ -1311,6 +1311,7 @@ def build_icl_dataloader(
     generation_kwargs: Dict,
     early_stopping_criteria: Optional[List[str]] = None,
     do_normalization: bool = True,
+    eval_drop_last: bool = False,
 ) -> DataSpec:
     """Factory method that builds the specific dataset for the specified.
 
@@ -1421,6 +1422,7 @@ def build_icl_dataloader(
             batch_size=effective_batchsize,
             sampler=sampler,
             collate_fn=dataset.collate_fn,
+            drop_last=eval_drop_last,
         ),
         device_transforms=None,
         get_num_samples_in_batch=dataset.get_num_samples_in_batch,
@@ -1532,6 +1534,7 @@ def get_icl_task_dataloader(
     generation_kwargs: Optional[Dict] = None,
     early_stopping_criteria: Optional[List[str]] = None,
     do_normalization: bool = True,
+    eval_drop_last: bool = False,
 ) -> Union[DataSpec, Dict[str, DataSpec]]:
     r"""Constructs a dataloader (or dataloaders if has_categories is True)
 
@@ -1656,6 +1659,7 @@ def get_icl_task_dataloader(
                 generation_kwargs=generation_kwargs,
                 early_stopping_criteria=early_stopping_criteria,
                 do_normalization=do_normalization,
+                eval_drop_last=eval_drop_last,
             )
         return result_dls
     else:
@@ -1681,4 +1685,5 @@ def get_icl_task_dataloader(
             generation_kwargs=generation_kwargs,
             early_stopping_criteria=early_stopping_criteria,
             do_normalization=do_normalization,
+            eval_drop_last=eval_drop_last,
         )

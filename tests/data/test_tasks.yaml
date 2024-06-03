@@ -23,6 +23,6 @@ icl_tasks:
   icl_task_type: generation_task_with_answers
 -
   label: bigbench_operators
-  dataset_uri: scripts/eval/local_data/symbolic_problem_solving/bigbench_operators.jsonl
+  dataset_uri: scripts/eval/local_data/symbolic_problem_solving/bigbench_operators.jsonl  # ADD YOUR OWN DATASET URI
   num_fewshot: [3]
   icl_task_type: language_modeling

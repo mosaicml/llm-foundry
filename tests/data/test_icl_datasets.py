@@ -35,9 +35,9 @@ def run_test(
         eval_drop_last=eval_drop_last,
     )
     if eval_drop_last:
-        # Drop the Evualator for eval/local_data/symbolic_problem_solving/bigbench_operators.jsonl as it won't evenly divide even 1 batch.
+        # Drop the evaualotr for eval/local_data/symbolic_problem_solving/bigbench_operators.jsonl as it won't evenly divide even 1 batch.
         assert len(evaluators) == 4
-    else: 
+    else:
         assert len(evaluators) == 5
 
     for i, e in enumerate(evaluators):

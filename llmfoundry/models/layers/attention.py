@@ -3,20 +3,23 @@
 
 """Attention layers."""
 
+import copy
 import math
 import warnings
-from typing import Any, Optional
+from typing import Any, Dict, Optional, Tuple
 
 import torch
-import torch.nn as nn
 import transformers
 from einops import rearrange
 from packaging import version
 from torch import nn
 
-from llmfoundry.layers_registry import (attention_classes,
-                                        attention_implementations)
+from llmfoundry.layers_registry import (
+    attention_classes,
+    attention_implementations,
+)
 from llmfoundry.models.layers.layer_builders import build_fc, build_norm
+from llmfoundry.models.utils.config_defaults import fc_type_defaults
 
 __all__ = [
     'scaled_multihead_dot_product_attention',
@@ -54,20 +57,24 @@ def is_transformers_version_gte(hf_version: str) -> bool:
 
 def check_alibi_support(attention_impl: str) -> bool:
     return attention_impl != 'flash' or is_flash_v2_installed(
-        v2_version='v2.4.2')
+        v2_version='v2.4.2',
+    )
 
 
 from transformers.models.llama.modeling_llama import apply_rotary_pos_emb
 
 
-def _reset_is_causal(num_query_tokens: int, num_key_tokens: int,
-                     original_is_causal: bool) -> bool:
+def _reset_is_causal(
+    num_query_tokens: int,
+    num_key_tokens: int,
+    original_is_causal: bool,
+) -> bool:
     # disable causal when it is not needed
     # necessary for flash for generation with kv_cache
     if original_is_causal and num_query_tokens != num_key_tokens:
         if num_query_tokens != 1:
             raise NotImplementedError(
-                'MPT does not support query and key with different number of tokens, unless number of query tokens is 1.'
+                'MPT does not support query and key with different number of tokens, unless number of query tokens is 1.',
             )
         else:
             return False
@@ -147,11 +154,10 @@ def scaled_multihead_dot_product_attention(
         _s_k = max(0, attn_bias.size(3) - s_k)
         attn_bias = attn_bias[:, :, _s_q:, _s_k:]
 
-        if (attn_bias.size(-1) != 1 and
-                attn_bias.size(-1) != s_k) or (attn_bias.size(-2) != 1 and
-                                               attn_bias.size(-2) != s_q):
+        if (attn_bias.size(-1) != 1 and attn_bias.size(-1) != s_k
+           ) or (attn_bias.size(-2) != 1 and attn_bias.size(-2) != s_q):
             raise RuntimeError(
-                f'attn_bias (shape: {attn_bias.shape}) is expected to broadcast to shape: {attn_weight.shape}.'
+                f'attn_bias (shape: {attn_bias.shape}) is expected to broadcast to shape: {attn_weight.shape}.',
             )
         attn_weight = attn_weight + attn_bias
 
@@ -164,10 +170,12 @@ def scaled_multihead_dot_product_attention(
                 'and applying it within the attention module can cause ' +\
                 'unnecessary computation/memory usage. Consider integrating ' +\
                 'into attn_bias once and passing that to each attention ' +\
-                'module instead.'
+                'module instead.',
             )
         attn_weight = attn_weight.masked_fill(
-            ~key_padding_mask.view((b, 1, 1, s_k)), min_val)
+            ~key_padding_mask.view((b, 1, 1, s_k)),
+            min_val,
+        )
 
     if is_causal and (not q.size(2) == 1):
         s = max(s_q, s_k)
@@ -176,16 +184,20 @@ def scaled_multihead_dot_product_attention(
         causal_mask = causal_mask.to(torch.bool)
         causal_mask = ~causal_mask
         causal_mask = causal_mask[-s_q:, -s_k:]
-        attn_weight = attn_weight.masked_fill(causal_mask.view(1, 1, s_q, s_k),
-                                              min_val)
+        attn_weight = attn_weight.masked_fill(
+            causal_mask.view(1, 1, s_q, s_k),
+            min_val,
+        )
 
     attn_weight = torch.softmax(attn_weight, dim=-1)
 
     if dropout_p:
-        attn_weight = torch.nn.functional.dropout(attn_weight,
-                                                  p=dropout_p,
-                                                  training=training,
-                                                  inplace=True)
+        attn_weight = torch.nn.functional.dropout(
+            attn_weight,
+            p=dropout_p,
+            training=training,
+            inplace=True,
+        )
 
     out = attn_weight.to(v.dtype).matmul(v)
     out = rearrange(out, 'b h s d -> b s (h d)')
@@ -195,8 +207,10 @@ def scaled_multihead_dot_product_attention(
     return out, None, past_key_value
 
 
-def check_valid_inputs(*tensors: torch.Tensor,
-                       valid_dtypes: Optional[list[torch.dtype]] = None):
+def check_valid_inputs(
+    *tensors: torch.Tensor,
+    valid_dtypes: Optional[list[torch.dtype]] = None,
+):
     if valid_dtypes is None:
         valid_dtypes = [torch.float16, torch.bfloat16]
     for tensor in tensors:
@@ -220,7 +234,6 @@ def flash_attn_fn(
     dropout_p: float = 0.0,
     training: bool = False,
     needs_weights: bool = False,
-    multiquery: bool = False,
     should_repeat_kv_for_gqa: Optional[bool] = True,
     sliding_window_size: int = -1,
     alibi_slopes: Optional[torch.Tensor] = None,
@@ -236,7 +249,8 @@ def flash_attn_fn(
         from flash_attn import bert_padding, flash_attn_interface  # type: ignore # yapf: disable # isort: skip
     except:
         raise RuntimeError(
-            'Please install flash-attn==1.0.9 or flash-attn==2.3.6')
+            'Please install flash-attn==1.0.9 or flash-attn==2.3.6',
+        )
 
     check_valid_inputs(query, key, value)
 
@@ -261,21 +275,27 @@ def flash_attn_fn(
     max_seqlen_k = flash_attn_padding_info['max_seqlen_k']
 
     query_unpad = bert_padding.index_first_axis(
-        rearrange(query, 'b s ... -> (b s) ...'), indices_q)
+        rearrange(query, 'b s ... -> (b s) ...'),
+        indices_q,
+    )
     query_unpad = rearrange(query_unpad, 'nnz (h d) -> nnz h d', h=n_heads)
 
     key_unpad = bert_padding.index_first_axis(
-        rearrange(key, 'b s ... -> (b s) ...'), indices_k)
+        rearrange(key, 'b s ... -> (b s) ...'),
+        indices_k,
+    )
     key_unpad = rearrange(key_unpad, 'nnz (h d) -> nnz h d', h=kv_n_heads)
 
     value_unpad = bert_padding.index_first_axis(
-        rearrange(value, 'b s ... -> (b s) ...'), indices_v)
+        rearrange(value, 'b s ... -> (b s) ...'),
+        indices_v,
+    )
     value_unpad = rearrange(value_unpad, 'nnz (h d) -> nnz h d', h=kv_n_heads)
 
-    if (kv_n_heads < n_heads) and (not is_flash_v2_installed()) and (
-            not should_repeat_kv_for_gqa):
+    if (kv_n_heads < n_heads) and (not is_flash_v2_installed()
+                                  ) and (not should_repeat_kv_for_gqa):
         raise ValueError(
-            'For Grouped Query Attention or Multi Query Attention, should_repeat_kv_for_gqa should be set to True if not using Flash Attention v2.'
+            'For Grouped Query Attention or Multi Query Attention, should_repeat_kv_for_gqa should be set to True if not using Flash Attention v2.',
         )
 
     if should_repeat_kv_for_gqa:
@@ -287,10 +307,16 @@ def flash_attn_fn(
             # - pytorch docs
             #
             # hopefully the kernels can utilize this and we're jot just wasting BW here
-            key_unpad = key_unpad.expand(key_unpad.size(0), n_heads,
-                                         key_unpad.size(-1))
-            value_unpad = value_unpad.expand(value_unpad.size(0), n_heads,
-                                             value_unpad.size(-1))
+            key_unpad = key_unpad.expand(
+                key_unpad.size(0),
+                n_heads,
+                key_unpad.size(-1),
+            )
+            value_unpad = value_unpad.expand(
+                value_unpad.size(0),
+                n_heads,
+                value_unpad.size(-1),
+            )
         # grouped query case
         elif kv_n_heads < n_heads:
             # Each query belong to a group of kv heads of group size n_heads // kv_n_heads
@@ -301,10 +327,12 @@ def flash_attn_fn(
 
             key_unpad = repeat_kv_for_gqa(
                 key_unpad.view(1, key_unpad.size(0), kv_n_heads, -1),
-                n_heads // kv_n_heads).view(key_unpad.size(0), n_heads, -1)
+                n_heads // kv_n_heads,
+            ).view(key_unpad.size(0), n_heads, -1)
             value_unpad = repeat_kv_for_gqa(
                 value_unpad.view(1, value_unpad.size(0), kv_n_heads, -1),
-                n_heads // kv_n_heads).view(value_unpad.size(0), n_heads, -1)
+                n_heads // kv_n_heads,
+            ).view(value_unpad.size(0), n_heads, -1)
 
     dropout_p = dropout_p if training else 0.0
 
@@ -322,14 +350,16 @@ def flash_attn_fn(
             dropout_p=dropout_p,
             softmax_scale=softmax_scale,
             causal=reset_is_causal,
-            return_attn_probs=needs_weights)
+            return_attn_probs=needs_weights,
+        )
     elif is_flash_v2_installed():
         alibi_kwargs = {}
         if check_alibi_support('flash'):
             alibi_kwargs = {'alibi_slopes': alibi_slopes}
         elif alibi_slopes is not None:
             raise ValueError(
-                'alibi_slopes is only supported for flash-attn>=2.4.2')
+                'alibi_slopes is only supported for flash-attn>=2.4.2',
+            )
         output_unpad = flash_attn_interface.flash_attn_varlen_func(
             q=query_unpad,
             k=key_unpad,
@@ -343,14 +373,19 @@ def flash_attn_fn(
             causal=reset_is_causal,
             return_attn_probs=needs_weights,
             window_size=(sliding_window_size, sliding_window_size),
-            **alibi_kwargs)
+            **alibi_kwargs,
+        )
     else:
         raise RuntimeError(
-            'flash-attn==1.0.9 or flash-attn==2.4.2 is required.')
+            'flash-attn==1.0.9 or flash-attn==2.4.2 is required.',
+        )
 
     output = bert_padding.pad_input(
-        rearrange(output_unpad, 'nnz h d -> nnz (h d)'), indices_q, batch_size,
-        seqlen)
+        rearrange(output_unpad, 'nnz h d -> nnz (h d)'),
+        indices_q,
+        batch_size,
+        seqlen,
+    )
     return output, None, past_key_value
 
 
@@ -377,7 +412,7 @@ class GroupedQueryAttention(nn.Module):
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
-        fc_type: str = 'torch',
+        fc_type: Optional[dict[str, Any]] = None,
         device: Optional[str] = None,
         bias: bool = True,
         sliding_window_size: int = -1,
@@ -396,17 +431,24 @@ class GroupedQueryAttention(nn.Module):
 
         self.head_dim = d_model // n_heads
 
+        # Usually, fc_type dict should be passed in through MPTBlock's __init__ function.
+        if fc_type is None:
+            fc_type = copy.deepcopy(fc_type_defaults)
+            fc_type['bias'] = bias
+            fc_type['device'] = device
+        fc_type_name = fc_type['name']
+
         if self.kv_n_heads <= 0:
             raise ValueError('kv_n_heads should be greater than zero.')
 
         if self.kv_n_heads > self.n_heads:
             raise ValueError(
-                'The number of KV heads should be less than or equal to Q heads.'
+                'The number of KV heads should be less than or equal to Q heads.',
             )
 
         if self.n_heads % self.kv_n_heads != 0:
             raise ValueError(
-                'Each Q head should get the same number of KV heads, so n_heads must be divisible by kv_n_heads.'
+                'Each Q head should get the same number of KV heads, so n_heads must be divisible by kv_n_heads.',
             )
         if qk_ln and qk_gn:
             raise ValueError('Only one of qk_ln and qk_gn can be set to True.')
@@ -416,15 +458,11 @@ class GroupedQueryAttention(nn.Module):
             self.softmax_scale = 1 / math.sqrt(self.d_model / self.n_heads)
         self.attn_dropout_p = attn_pdrop
 
-        fc_kwargs: dict[str, Any] = {
-            'bias': bias,
-        }
-        fc_kwargs['device'] = device
         self.Wqkv = build_fc(
-            name=fc_type,
+            name=fc_type_name,
             in_features=self.d_model,
             out_features=self.d_model + 2 * self.kv_n_heads * self.head_dim,
-            fc_kwargs=fc_kwargs,
+            fc_kwargs=fc_type,
         )
         # for param init fn; enables shape based init of fused layers
         fuse_splits = [
@@ -451,10 +489,10 @@ class GroupedQueryAttention(nn.Module):
         self.attn_fn = attention_implementations.get(self.attn_impl)
 
         self.out_proj = build_fc(
-            name=fc_type,
+            name=fc_type_name,
             in_features=self.d_model,
             out_features=self.d_model,
-            fc_kwargs=fc_kwargs,
+            fc_kwargs=fc_type,
         )
         self.out_proj._is_residual = True
 
@@ -470,7 +508,55 @@ class GroupedQueryAttention(nn.Module):
         alibi_slopes: Optional[torch.Tensor] = None,
         flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
-            torch.Tensor, torch.Tensor]]]:
+        torch.Tensor, torch.Tensor]]]:
+        query, key, value = self.get_qkv(x)
+
+        if rotary_emb_w_meta_info is not None:
+            query, key, value = self._apply_rotary_embeddings(
+                rotary_emb_w_meta_info,
+                query,
+                key,
+                value,
+            )
+
+        extra_attn_kwargs = self.get_implementation_specific_args(
+            attention_mask,
+            alibi_slopes,
+            flash_attn_padding_info,
+        )
+
+        context, attn_weights, past_key_value = self.attn_fn(
+            query,
+            key,
+            value,
+            n_heads=self.n_heads,
+            kv_n_heads=self.kv_n_heads,
+            past_key_value=past_key_value,
+            softmax_scale=self.softmax_scale,
+            attn_bias=attn_bias,
+            is_causal=is_causal,
+            dropout_p=self.attn_dropout_p,
+            training=self.training,
+            needs_weights=needs_weights,
+            **extra_attn_kwargs,
+        )
+
+        return self.out_proj(context), attn_weights, past_key_value
+
+    def get_qkv(
+        self,
+        x: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Computes and returns the query, key, and value tensors.
+
+        Args:
+            x (torch.Tensor): The input tensor.
+
+        Returns:
+            query (torch.Tensor): The query tensor.
+            key (torch.Tensor): The key tensor.
+            value (torch.Tensor): The value tensor.
+        """
         qkv = self.Wqkv(x)
 
         if self.clip_qkv:
@@ -485,8 +571,6 @@ class GroupedQueryAttention(nn.Module):
             dim=2,
         )
 
-        key_padding_mask = attention_mask
-
         if self.qk_ln or self.qk_gn:
             # Applying layernorm to qk
             q_shape, k_shape = query.shape, key.shape
@@ -498,89 +582,105 @@ class GroupedQueryAttention(nn.Module):
             query = self.q_ln(query).to(dtype).view(q_shape)
             key = self.k_ln(key).to(dtype).view(k_shape)
 
-        if rotary_emb_w_meta_info is not None:
-            rotary_emb = rotary_emb_w_meta_info['rotary_emb']
-            seq_len = rotary_emb_w_meta_info['seq_len']
-            offset_info = rotary_emb_w_meta_info['offset_info']
-            bsz, seqlen = query.shape[:2]
-            query = query.view(bsz, seqlen, -1, self.head_dim)
-            key = key.view(bsz, seqlen, -1, self.head_dim)
+        return query, key, value
 
-            if rotary_emb_w_meta_info['impl'] == 'dail':
-                value = value.view(bsz, seqlen, -1, self.head_dim)
+    def _apply_rotary_embeddings(
+        self,
+        rotary_emb_w_meta_info: Dict[str, Any],
+        query: torch.Tensor,
+        key: torch.Tensor,
+        value: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        rotary_emb = rotary_emb_w_meta_info['rotary_emb']
+        seq_len = rotary_emb_w_meta_info['seq_len']
+        offset_info = rotary_emb_w_meta_info['offset_info']
+        bsz, seqlen = query.shape[:2]
+        query = query.view(bsz, seqlen, -1, self.head_dim)
+        key = key.view(bsz, seqlen, -1, self.head_dim)
 
-                kv = torch.stack([key, value], dim=2)
-                query, kv = rotary_emb(query,
-                                       kv,
-                                       seqlen_offset=offset_info,
-                                       max_seqlen=seq_len)
-                [key, value] = torch.unbind(kv, dim=2)
+        if rotary_emb_w_meta_info['impl'] == 'dail':
+            value = value.view(bsz, seqlen, -1, self.head_dim)
 
-                value = value.view(bsz, seqlen, self.kv_n_heads * self.head_dim)
-            elif rotary_emb_w_meta_info['impl'] == 'hf':
-                if is_transformers_version_gte('4.38'):
-                    (cos, sin) = rotary_emb(
-                        x=value,
-                        position_ids=offset_info,
-                    )
-                else:
-                    (cos, sin) = rotary_emb(x=value, seq_len=seq_len)
-                if is_transformers_version_gte('4.38'):
-                    query, key = apply_rotary_pos_emb(q=query,
-                                                      k=key,
-                                                      cos=cos,
-                                                      sin=sin,
-                                                      position_ids=None,
-                                                      unsqueeze_dim=2)
-                elif is_transformers_version_gte('4.36'):
-                    query, key = apply_rotary_pos_emb(q=query,
-                                                      k=key,
-                                                      cos=cos,
-                                                      sin=sin,
-                                                      position_ids=offset_info,
-                                                      unsqueeze_dim=2)
-                else:
-                    query = query.transpose(1, 2)
-                    key = key.transpose(1, 2)
-                    query, key = apply_rotary_pos_emb(q=query,
-                                                      k=key,
-                                                      cos=cos,
-                                                      sin=sin,
-                                                      position_ids=offset_info)
-                    query = query.transpose(1, 2)
-                    key = key.transpose(1, 2)
+            kv = torch.stack([key, value], dim=2)
+            query, kv = rotary_emb(
+                query,
+                kv,
+                seqlen_offset=offset_info,
+                max_seqlen=seq_len,
+            )
+            [key, value] = torch.unbind(kv, dim=2)
 
-            query = query.view(bsz, seqlen, self.d_model)
-            key = key.view(bsz, seqlen, self.kv_n_heads * self.head_dim)
+            value = value.view(bsz, seqlen, -1)
+        elif rotary_emb_w_meta_info['impl'] == 'hf':
+            if is_transformers_version_gte('4.38'):
+                (cos, sin) = rotary_emb(
+                    x=value,
+                    position_ids=offset_info,
+                )
+            else:
+                (cos, sin) = rotary_emb(x=value, seq_len=seq_len)
+            if is_transformers_version_gte('4.38'):
+                query, key = apply_rotary_pos_emb(
+                    q=query,
+                    k=key,
+                    cos=cos,
+                    sin=sin,
+                    position_ids=None,
+                    unsqueeze_dim=2,
+                )
+            elif is_transformers_version_gte('4.36'):
+                query, key = apply_rotary_pos_emb(
+                    q=query,
+                    k=key,
+                    cos=cos,
+                    sin=sin,
+                    position_ids=offset_info,
+                    unsqueeze_dim=2,
+                )
+            else:
+                query = query.transpose(1, 2)
+                key = key.transpose(1, 2)
+                query, key = apply_rotary_pos_emb(
+                    q=query,
+                    k=key,
+                    cos=cos,
+                    sin=sin,
+                    position_ids=offset_info,
+                )
+                query = query.transpose(1, 2)
+                key = key.transpose(1, 2)
 
-        extra_attn_kwargs = {}
+        query = query.view(bsz, seqlen, -1)
+        key = key.view(bsz, seqlen, -1)
+        return query, key, value
+
+    def get_implementation_specific_args(
+        self,
+        attention_mask: Optional[torch.Tensor] = None,
+        alibi_slopes: Optional[torch.Tensor] = None,
+        flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
+    ) -> dict[str, Any]:
+        """Returns attention implementation specific args.
+
+        Args:
+            attention_mask (Optional[torch.Tensor]): The attention mask.
+            alibi_slopes (Optional[torch.Tensor]): The alibi slopes.
+            flash_attn_padding_info (Optional[dict[str, torch.Tensor]]): The padding information, only required for flash attention.
+
+        Returns:
+            extra_attn_kwargs (dict[str, Any]): Implementation specific args.
+        """
         if self.attn_impl == 'flash':
-            key_padding_mask = None
             extra_attn_kwargs = {
                 'should_repeat_kv_for_gqa': not is_flash_v2_installed(),
                 'sliding_window_size': self.sliding_window_size,
                 'alibi_slopes': alibi_slopes,
                 'flash_attn_padding_info': flash_attn_padding_info,
+                'key_padding_mask': None,
             }
-
-        context, attn_weights, past_key_value = self.attn_fn(
-            query,
-            key,
-            value,
-            self.n_heads,
-            self.kv_n_heads,
-            past_key_value=past_key_value,
-            softmax_scale=self.softmax_scale,
-            attn_bias=attn_bias,
-            key_padding_mask=key_padding_mask,
-            is_causal=is_causal,
-            dropout_p=self.attn_dropout_p,
-            training=self.training,
-            needs_weights=needs_weights,
-            **extra_attn_kwargs,
-        )
-
-        return self.out_proj(context), attn_weights, past_key_value
+        else:
+            extra_attn_kwargs = {'key_padding_mask': attention_mask}
+        return extra_attn_kwargs
 
 
 @attention_classes.register_class('multihead_attention')
@@ -601,7 +701,7 @@ class MultiheadAttention(GroupedQueryAttention):
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
-        fc_type: str = 'torch',
+        fc_type: Optional[dict[str, Any]] = None,
         device: Optional[str] = None,
         bias: bool = True,
         sliding_window_size: int = -1,
@@ -642,7 +742,7 @@ class MultiQueryAttention(GroupedQueryAttention):
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
-        fc_type: str = 'torch',
+        fc_type: Optional[dict[str, Any]] = None,
         device: Optional[str] = None,
         bias: bool = True,
         sliding_window_size: int = -1,
@@ -666,8 +766,13 @@ class MultiQueryAttention(GroupedQueryAttention):
 
 
 def attn_bias_shape(
-        attn_impl: str, n_heads: int, seq_len: int, alibi: bool, causal: bool,
-        use_sequence_id: bool) -> Optional[tuple[int, int, int, int]]:
+    attn_impl: str,
+    n_heads: int,
+    seq_len: int,
+    alibi: bool,
+    causal: bool,
+    use_sequence_id: bool,
+) -> Optional[tuple[int, int, int, int]]:
     if attn_impl == 'flash':
         return None
     elif attn_impl == 'torch':
@@ -705,16 +810,19 @@ def build_attn_bias(
                     alibi_bias_max=alibi_bias_max,
                     device=device,
                     dtype=dtype,
-                ))
+                ),
+            )
         return attn_bias
     else:
         raise ValueError(f'{attn_impl=} is an invalid setting.')
 
 
-def gen_slopes(n_heads: int,
-               alibi_bias_max: int = 8,
-               device: Optional[torch.device] = None,
-               return_1d: bool = False) -> torch.Tensor:
+def gen_slopes(
+    n_heads: int,
+    alibi_bias_max: int = 8,
+    device: Optional[torch.device] = None,
+    return_1d: bool = False,
+) -> torch.Tensor:
     _n_heads = 2**math.ceil(math.log2(n_heads))
     m = torch.arange(1, _n_heads + 1, dtype=torch.float32, device=device)
     m = m.mul(alibi_bias_max / _n_heads)
@@ -744,8 +852,11 @@ def build_alibi_bias(
         # generate 1 x Heads x SeqLen x SeqLen alibi bias mask
         # otherwise the mask is 1 x Heads x 1 x SeqLen (which is broadcast to the appropriate size)
         alibi_bias = alibi_bias - torch.arange(
-            1 - seq_len, 1, dtype=torch.int32, device=device).view(
-                1, 1, seq_len, 1)
+            1 - seq_len,
+            1,
+            dtype=torch.int32,
+            device=device,
+        ).view(1, 1, seq_len, 1)
         alibi_bias = alibi_bias.abs().mul(-1)
 
     slopes = gen_slopes(n_heads, alibi_bias_max, device=device)
@@ -754,5 +865,7 @@ def build_alibi_bias(
 
 
 attention_implementations.register('flash', func=flash_attn_fn)
-attention_implementations.register('torch',
-                                   func=scaled_multihead_dot_product_attention)
+attention_implementations.register(
+    'torch',
+    func=scaled_multihead_dot_product_attention,
+)

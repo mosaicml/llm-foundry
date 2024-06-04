@@ -22,6 +22,8 @@ def test_json_script_from_api(tmp_path: Path):
                 'bos_text': None,
                 'eos_text': None,
                 'no_wrap': False,
-                'num_workers': None
-            }))
+                'num_workers': None,
+            },
+        ),
+    )
     assert os.path.exists(path)

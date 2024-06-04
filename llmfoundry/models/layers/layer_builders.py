@@ -5,9 +5,14 @@ from typing import Any, Dict, List, Optional, Union
 
 import torch
 
-from llmfoundry.layers_registry import (attention_classes, fcs, ffns,
-                                        ffns_with_megablocks, ffns_with_norm,
-                                        norms)
+from llmfoundry.layers_registry import (
+    attention_classes,
+    fcs,
+    ffns,
+    ffns_with_megablocks,
+    ffns_with_norm,
+    norms,
+)
 from llmfoundry.utils.registry_utils import construct_from_registry
 
 __all__ = [
@@ -28,10 +33,12 @@ def build_norm(
         'device': device,
     }
 
-    return construct_from_registry(name=name,
-                                   registry=norms,
-                                   pre_validation_function=torch.nn.Module,
-                                   kwargs=kwargs)
+    return construct_from_registry(
+        name=name,
+        registry=norms,
+        pre_validation_function=torch.nn.Module,
+        kwargs=kwargs,
+    )
 
 
 def build_ffn(
@@ -67,7 +74,8 @@ def build_ffn(
         registry=registry_to_use,
         post_validation_function=_validation_function,
         partial_function=False,
-        kwargs=kwargs)
+        kwargs=kwargs,
+    )
 
     if name in ffns_with_norm:
         result._has_norm = True
@@ -82,10 +90,12 @@ def build_attention_layer(
     name: str,
     attn_kwargs: Dict[str, Any],
 ):
-    return construct_from_registry(name=name,
-                                   registry=attention_classes,
-                                   pre_validation_function=torch.nn.Module,
-                                   kwargs=attn_kwargs)
+    return construct_from_registry(
+        name=name,
+        registry=attention_classes,
+        pre_validation_function=torch.nn.Module,
+        kwargs=attn_kwargs,
+    )
 
 
 def build_fc(
@@ -97,10 +107,12 @@ def build_fc(
     kwargs = {
         'in_features': in_features,
         'out_features': out_features,
-        **fc_kwargs,
+        **{k: v for k, v in fc_kwargs.items() if k != 'name'},
     }
 
-    return construct_from_registry(name=name,
-                                   registry=fcs,
-                                   pre_validation_function=torch.nn.Module,
-                                   kwargs=kwargs)
+    return construct_from_registry(
+        name=name,
+        registry=fcs,
+        pre_validation_function=torch.nn.Module,
+        kwargs=kwargs,
+    )

@@ -22,14 +22,16 @@ def get_dtype(dtype: str):
     else:
         raise NotImplementedError(
             f'dtype {dtype} is not supported. ' +
-            f'We only support fp32, fp16, and bf16 currently')
+            f'We only support fp32, fp16, and bf16 currently',
+        )
 
 
 def compare_dtype(dtype: torch.dtype, param_dtype: torch.dtype):
     if dtype != param_dtype:
         raise ValueError(
             f'dtype type is: {dtype} but model dtype is: {param_dtype}. ' +
-            f"The expected dtype and model dtype don't match.")
+            f"The expected dtype and model dtype don't match.",
+        )
 
 
 def main(config: DictConfig):
@@ -54,7 +56,7 @@ def main(config: DictConfig):
         'replace_method': 'auto',
         'enable_cuda_graph': False,
         'tensor_parallel': {
-            'tp_size': 0
+            'tp_size': 0,
         },
     }
 
@@ -64,10 +66,11 @@ def main(config: DictConfig):
         tokenizer_name=tokenizer_name,
         tokenizer_kwargs=tokenizer_kwargs,
     )
+    name = config.model.pop('name')
     composer_model = build_composer_model(
-        name=config.model.name,
-        cfg=config.model,
+        name=name,
         tokenizer=tokenizer,
+        cfg=config.model,
     )
     model = composer_model.model
     model.eval()
@@ -87,17 +90,18 @@ def main(config: DictConfig):
     print('n_params is: ', n_params)
 
     print(
-        'name, latency (s), throughput (tokens/s), latency_per_sequence_output_token (ms)'
+        'name, latency (s), throughput (tokens/s), latency_per_sequence_output_token (ms)',
     )
     print('=' * 75)
 
     for batch_size in config.batch_sizes:
         for input_length in config.input_lengths:
             for output_length in config.output_lengths:
-                batch = torch.randint(0,
-                                      config.model.vocab_size - 1,
-                                      size=(batch_size,
-                                            input_length)).to(device)
+                batch = torch.randint(
+                    0,
+                    config.model.vocab_size - 1,
+                    size=(batch_size, input_length),
+                ).to(device)
 
                 # We're just going to have generate eos, padding tokens be
                 # ignored by HF generate
@@ -111,12 +115,14 @@ def main(config: DictConfig):
                         start_time = time.time()
                     with torch.no_grad():
                         with autocast_context:
-                            model.generate(batch,
-                                           max_new_tokens=output_length,
-                                           use_cache=config.use_cache,
-                                           attention_mask=attention_mask,
-                                           eos_token_id=None,
-                                           pad_token_id=None)
+                            model.generate(
+                                batch,
+                                max_new_tokens=output_length,
+                                use_cache=config.use_cache,
+                                attention_mask=attention_mask,
+                                eos_token_id=None,
+                                pad_token_id=None,
+                            )
 
                 torch.cuda.synchronize()
                 mean_time = (time.time() - start_time) / config.num_batches
@@ -127,7 +133,7 @@ def main(config: DictConfig):
 
                 run_name = f'{config.benchmark_name}_{batch_size}_{input_length}_{output_length}'
                 print(
-                    f'{run_name}, {mean_time:.3f}, {tokens_per_second:.3f}, {ms_per_seq_output_token:.3f}'
+                    f'{run_name}, {mean_time:.3f}, {tokens_per_second:.3f}, {ms_per_seq_output_token:.3f}',
                 )
 
 

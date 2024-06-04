@@ -36,7 +36,7 @@ def make_tiny_ft_dataset(
     if add_bad_data_dropped:
         if pad_token is None:
             raise ValueError(
-                'pad_token, start_token, and end_token must be specified if add_bad_data is True'
+                'pad_token, start_token, and end_token must be specified if add_bad_data is True',
             )
         # empty prompt
         samples.append({'prompt': '', 'response': 'goodbye'})
@@ -47,14 +47,14 @@ def make_tiny_ft_dataset(
         # prompt just None
         samples.append({
             'prompt': None,
-            'response': 'goodbye'
+            'response': 'goodbye',
         })  # type: ignore (intentional test)
 
     if add_invalid_response_type:
         # response just None
         samples.append({
             'prompt': 'hello',
-            'response': None
+            'response': None,
         })  # type: ignore (intentional test)
 
     if add_too_many_example_keys:
@@ -62,13 +62,13 @@ def make_tiny_ft_dataset(
         samples.append({
             'prompt': 'hello',
             'response': 'goodbye',
-            'completion': 'bar'
+            'completion': 'bar',
         })
 
     if add_just_bos_eos_pad:
         if pad_token is None or start_token is None or end_token is None:
             raise ValueError(
-                'pad_token, start_token, and end_token must be specified if add_just_bos_eos is True'
+                'pad_token, start_token, and end_token must be specified if add_just_bos_eos is True',
             )
         # prompt just start
         samples.append({'prompt': start_token, 'response': 'goodbye'})
@@ -106,14 +106,14 @@ def make_tiny_conversation_ft_dataset(
     good_sample = {
         'messages': [{
             'role': 'system',
-            'content': 'A conversation between a user and a helpful assistant.'
+            'content': 'A conversation between a user and a helpful assistant.',
         }, {
             'role': 'user',
-            'content': "Hi there. What's the capital of the moon?"
+            'content': "Hi there. What's the capital of the moon?",
         }, {
             'role': 'assistant',
-            'content': "This question doesn't make sense."
-        }]
+            'content': "This question doesn't make sense.",
+        }],
     }
 
     samples = [good_sample] * size
@@ -125,14 +125,14 @@ def make_tiny_conversation_ft_dataset(
                 'role':
                     'system',
                 'content':
-                    'A conversation between a user and a helpful assistant.'
+                    'A conversation between a user and a helpful assistant.',
             }, {
                 'role': 'user',
-                'content': "Hi there. What's the capital of the moon?"
+                'content': "Hi there. What's the capital of the moon?",
             }, {
                 'role': 'system',
-                'content': "This question doesn't make sense."
-            }]
+                'content': "This question doesn't make sense.",
+            }],
         })
 
     if add_invalid_message_key_quantity:
@@ -144,8 +144,8 @@ def make_tiny_conversation_ft_dataset(
                 'content':
                     'A conversation between a user and a helpful assistant.',
                 'extra_key':
-                    'extra value'
-            }]
+                    'extra value',
+            }],
         })
 
     if add_invalid_role:
@@ -155,14 +155,14 @@ def make_tiny_conversation_ft_dataset(
                 'role':
                     'system',
                 'content':
-                    'A conversation between a user and a helpful assistant.'
+                    'A conversation between a user and a helpful assistant.',
             }, {
                 'role': 'foo',
-                'content': "Hi there. What's the capital of the moon?"
+                'content': "Hi there. What's the capital of the moon?",
             }, {
                 'role': 'assistant',
-                'content': "This question doesn't make sense."
-            }]
+                'content': "This question doesn't make sense.",
+            }],
         })
 
     if add_invalid_content_type:
@@ -172,14 +172,14 @@ def make_tiny_conversation_ft_dataset(
                 'role':
                     'system',
                 'content':
-                    'A conversation between a user and a helpful assistant.'
+                    'A conversation between a user and a helpful assistant.',
             }, {
                 'role': 'user',
-                'content': "Hi there. What's the capital of the moon?"
+                'content': "Hi there. What's the capital of the moon?",
             }, {
                 'role': 'assistant',
-                'content': None
-            }]
+                'content': None,
+            }],
         })  # type: ignore (intentional test)
 
     if add_not_alternating_roles:
@@ -189,14 +189,14 @@ def make_tiny_conversation_ft_dataset(
                 'role':
                     'system',
                 'content':
-                    'A conversation between a user and a helpful assistant.'
+                    'A conversation between a user and a helpful assistant.',
             }, {
                 'role': 'assistant',
-                'content': "Hi there. What's the capital of the moon?"
+                'content': "Hi there. What's the capital of the moon?",
             }, {
                 'role': 'assistant',
-                'content': "This question doesn't make sense."
-            }]
+                'content': "This question doesn't make sense.",
+            }],
         })
 
     def messages_to_conversation(sample: Dict):
@@ -244,14 +244,18 @@ def create_c4_dataset_xxsmall(path: Path) -> str:
                 'bos_text': '',
                 'eos_text': '<|endoftext|>',
                 'no_wrap': False,
-                'num_workers': 8
-            }))
+                'num_workers': 8,
+            },
+        ),
+    )
 
     # copy the small downloaded_split to other c4 splits for mocking purposes
     mocked_splits = ['train', 'val']
     for mocked_split in mocked_splits:
-        shutil.copytree(os.path.join(c4_dir, 'val_xxsmall'),
-                        os.path.join(c4_dir, mocked_split))
+        shutil.copytree(
+            os.path.join(c4_dir, 'val_xxsmall'),
+            os.path.join(c4_dir, mocked_split),
+        )
     assert os.path.exists(c4_dir)
     return c4_dir
 
@@ -276,8 +280,10 @@ def create_arxiv_dataset(path: Path) -> str:
                 'bos_text': None,
                 'eos_text': None,
                 'no_wrap': False,
-                'num_workers': None
-            }))
+                'num_workers': None,
+            },
+        ),
+    )
 
     return arxiv_dir
 
@@ -293,13 +299,13 @@ def gpt_tiny_cfg(dataset_name: str, device: str):
         test_cfg = om.load(f)
     assert isinstance(test_cfg, DictConfig)
 
-    test_cfg.data_local = dataset_name
+    test_cfg.variables.data_local = dataset_name
     test_cfg.global_train_batch_size = 8
     test_cfg.device_eval_batch_size = 4
     test_cfg.device_train_microbatch_size = 4
     test_cfg.max_duration = '4ba'
     test_cfg.eval_interval = '4ba'
-    test_cfg.run_name = 'gpt-mini-integration-test'
+    test_cfg.variables.run_name = 'gpt-mini-integration-test'
 
     if device == 'cpu':
         test_cfg.model.init_device = 'cpu'

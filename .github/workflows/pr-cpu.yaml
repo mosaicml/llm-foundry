@@ -15,12 +15,12 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 jobs:
   pytest-cpu:
-    uses: mosaicml/ci-testing/.github/workflows/pytest-cpu.yaml@v0.0.3
+    uses: mosaicml/ci-testing/.github/workflows/pytest-cpu.yaml@v0.0.5
     strategy:
       matrix:
         include:
-        - name: "cpu-2.2.1"
-          container: mosaicml/pytorch:2.2.1_cpu-python3.11-ubuntu20.04
+        - name: "cpu-2.3.0"
+          container: mosaicml/pytorch:2.3.0_cpu-python3.11-ubuntu20.04
           markers: "not gpu"
           pytest_command: "coverage run -m pytest"
     name: ${{ matrix.name }}

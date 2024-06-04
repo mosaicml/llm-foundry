@@ -24,24 +24,30 @@ def str_to_bool(value: Union[bool, str]):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="""
+    parser = argparse.ArgumentParser(
+        description="""
         Parse run configs to get MPT training throughput.
         MFU and HFU are defined in https://arxiv.org/abs/2205.05198
         All FLOP calculations do not include norm, act, residual, etc.
-        """)
+        """,
+    )
 
     parser.add_argument('--project', type=str, default='tput')
     parser.add_argument('--filters', type=str, default=[], nargs='+')
-    parser.add_argument('-s',
-                        '--save-path',
-                        type=str,
-                        default='benchmark_results')
-    parser.add_argument('-p',
-                        '--print-results',
-                        type=str_to_bool,
-                        nargs='?',
-                        const=True,
-                        default=False)
+    parser.add_argument(
+        '-s',
+        '--save-path',
+        type=str,
+        default='benchmark_results',
+    )
+    parser.add_argument(
+        '-p',
+        '--print-results',
+        type=str_to_bool,
+        nargs='?',
+        const=True,
+        default=False,
+    )
 
     return parser.parse_args()
 
@@ -68,9 +74,15 @@ def get_runs(args: argparse.Namespace):
             print(model_name)
             raise ValueError
         model_size = int(model_name[:-1])
-        return (gpu_type, model_precision, model_name_size, model_size,
-                r.submitted_config.parameters['max_seq_len'], num_gpu,
-                r.submitted_config.parameters['global_train_batch_size'])
+        return (
+            gpu_type,
+            model_precision,
+            model_name_size,
+            model_size,
+            r.submitted_config.parameters['max_seq_len'],
+            num_gpu,
+            r.submitted_config.parameters['global_train_batch_size'],
+        )
 
     unique_runs = {sort_key(i): i for i in runs}
     runs = [unique_runs[r] for r in unique_runs]
@@ -84,7 +96,7 @@ def filter_runs(runs: List[msdk.Run]):
     for run in runs:
         if run.status == msdk.RunStatus('FAILED'):
             print(
-                f"run {run.name} has FAILED (likely due to OOM error but we'd recommend checking.)"
+                f"run {run.name} has FAILED (likely due to OOM error but we'd recommend checking.)",
             )
             pop_runs.append(run)
 
@@ -161,8 +173,8 @@ def parse_run(run: msdk.Run) -> Dict[str, Any]:
     # there are 2 FLOPS per mac; there is A=Q*K^T and out=A*V ops (ie mult by 2)
     attn_flops_per_seq = n_layers * 2 * 2 * (d_model * (seq_len**2))
     # there are 2 ops in bwd pass and 1 in fwd pass so we mult by 3
-    mfu_w_attn = (3 * flops_per_seq + 3 * attn_flops_per_seq) * throughput / (
-        gpus * GPU_AVAILABLE_FLOPS)
+    mfu_w_attn = (3 * flops_per_seq + 3 * attn_flops_per_seq
+                 ) * throughput / (gpus * GPU_AVAILABLE_FLOPS)
 
     if activation_checkpointing:
         hfu_w_attn = (4 * flops_per_seq + 4 * attn_flops_per_seq
@@ -170,8 +182,8 @@ def parse_run(run: msdk.Run) -> Dict[str, Any]:
     else:
         hfu_w_attn = mfu_w_attn
 
-    model_tflop = int(
-        (3 * flops_per_seq + 3 * attn_flops_per_seq) * throughput / gpus / 1e12)
+    model_tflop = int((3 * flops_per_seq + 3 * attn_flops_per_seq) *
+                      throughput / gpus / 1e12,)
 
     return {
         'Model':
@@ -225,7 +237,7 @@ def main(args: argparse.Namespace):
     for run in runs:
         try:
             results.append(parse_run(run))
-        except Exception as e:
+        except Exception as e:  # noqa: PERF203
             print(f'{run.name=} not parsed')
             print(e)
 

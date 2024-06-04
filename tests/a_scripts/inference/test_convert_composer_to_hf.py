@@ -10,6 +10,7 @@ from argparse import Namespace
 from typing import Any, Callable, Dict, Optional, cast
 from unittest.mock import ANY, MagicMock, patch
 
+import catalogue
 import pytest
 import torch
 import transformers
@@ -25,10 +26,14 @@ from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from llmfoundry.callbacks import HuggingFaceCheckpointer
 from llmfoundry.callbacks.hf_checkpointer import _maybe_get_license_filename
 from llmfoundry.data.finetuning import build_finetuning_dataloader
-from llmfoundry.models.mpt import MPTConfig
-from llmfoundry.utils.builders import (build_composer_model, build_optimizer,
-                                       build_tokenizer)
-from llmfoundry.utils.config_utils import process_init_device
+from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
+from llmfoundry.utils import edit_files_for_hf_compatibility
+from llmfoundry.utils.builders import (
+    build_composer_model,
+    build_optimizer,
+    build_tokenizer,
+)
+from llmfoundry.utils.config_utils import process_init_device, to_dict_container
 from scripts.inference.convert_composer_to_hf import convert_composer_to_hf
 from tests.data_utils import make_tiny_ft_dataset
 
@@ -45,8 +50,10 @@ def _save_model_mock(*args: Any, path: str, **kwargs: Any):
     os.makedirs(path, exist_ok=True)
 
 
-def check_hf_tokenizer_equivalence(tokenizer1: PreTrainedTokenizerBase,
-                                   tokenizer2: PreTrainedTokenizerBase):
+def check_hf_tokenizer_equivalence(
+    tokenizer1: PreTrainedTokenizerBase,
+    tokenizer2: PreTrainedTokenizerBase,
+):
     """WARNING: Parameters are updated within the check so don't call check_hf_tokenizer_equivalence on the same
 
     params more than once
@@ -62,12 +69,15 @@ def check_hf_tokenizer_equivalence(tokenizer1: PreTrainedTokenizerBase,
 
     # we only care about the file and class name, not the full import path
     assert str(type(tokenizer1)).split('.')[-2:] == str(
-        type(tokenizer2)).split('.')[-2:]
+        type(tokenizer2),
+    ).split('.')[-2:]
 
     expected_tokenizer_output = tokenizer2(
-        'This is some text that should get tokenizer !? @ totallyarealtoken')
+        'This is some text that should get tokenizer !? @ totallyarealtoken',
+    )
     actual_tokenizer_output = tokenizer1(
-        'This is some text that should get tokenizer !? @ totallyarealtoken')
+        'This is some text that should get tokenizer !? @ totallyarealtoken',
+    )
     assert expected_tokenizer_output == actual_tokenizer_output
 
     # we remove the actual _tokenizer object because it is an instantiated object and so does not pass equality
@@ -86,8 +96,10 @@ def check_hf_tokenizer_equivalence(tokenizer1: PreTrainedTokenizerBase,
         tokenizer2.__dict__.pop('tokens_trie')
 
     # extra key that is not important
-    if hasattr(tokenizer1, 'deprecation_warnings') or hasattr(
-            tokenizer2, 'deprecation_warnings'):
+    if hasattr(
+        tokenizer1,
+        'deprecation_warnings',
+    ) or hasattr(tokenizer2, 'deprecation_warnings'):
         tokenizer1.__dict__.pop('deprecation_warnings')
         tokenizer2.__dict__.pop('deprecation_warnings')
 
@@ -140,9 +152,13 @@ def check_hf_tokenizer_equivalence(tokenizer1: PreTrainedTokenizerBase,
     # The tokenizer name is changed in transformers 4.31 when changing the tokenizer mapping, so we remove it and compare
     # if necessary. Checks whether the names are subsets of each other.
     tokenizer1_name = tokenizer1.__dict__['init_kwargs'].get(
-        'auto_map', {}).get('AutoTokenizer', [None])[0]
+        'auto_map',
+        {},
+    ).get('AutoTokenizer', [None])[0]
     tokenizer2_name = tokenizer2.__dict__['init_kwargs'].get(
-        'auto_map', {}).get('AutoTokenizer', [None])[0]
+        'auto_map',
+        {},
+    ).get('AutoTokenizer', [None])[0]
     if tokenizer1_name is not None and tokenizer2_name is not None:
         assert tokenizer1_name in tokenizer2_name or tokenizer2_name in tokenizer1_name
     tokenizer1.__dict__['init_kwargs'].pop('auto_map', None)
@@ -165,8 +181,8 @@ def check_hf_tokenizer_equivalence(tokenizer1: PreTrainedTokenizerBase,
     tokenizer2.__dict__['init_kwargs'].pop('added_tokens_decoder', None)
     # If the additional special tokens are the same (or a subset of each other), or if one of them is empty, then we are good
     assert additional_special_tokens_1.issubset(
-        additional_special_tokens_2) or additional_special_tokens_2.issubset(
-            additional_special_tokens_1)
+        additional_special_tokens_2,
+    ) or additional_special_tokens_2.issubset(additional_special_tokens_1)
 
     # The special token attributes may be strings or they may be AddedToken objects, so we just check string values
     # First check that they have the same attrs
@@ -200,9 +216,11 @@ def remove_moe_world_size(config: MPTConfig):
             config.ffn_config.pop('moe_world_size')
 
 
-def check_hf_model_equivalence(model1: PreTrainedModel,
-                               model2: PreTrainedModel,
-                               just_lora: bool = False):
+def check_hf_model_equivalence(
+    model1: PreTrainedModel,
+    model2: PreTrainedModel,
+    just_lora: bool = False,
+):
     remove_moe_world_size(model1.config)
     remove_moe_world_size(model2.config)
 
@@ -227,12 +245,14 @@ def check_hf_model_equivalence(model1: PreTrainedModel,
         assert auto_map_1 == {'AutoConfig': 'configuration_mpt.MPTConfig'}
         assert auto_map_2 == {
             'AutoConfig': 'configuration_mpt.MPTConfig',
-            'AutoModelForCausalLM': 'modeling_mpt.MPTForCausalLM'
+            'AutoModelForCausalLM': 'modeling_mpt.MPTForCausalLM',
         }
 
     assert expected_model_config_dict == new_model_config_dict
-    for (n1, p1), (_, p2) in zip(model1.named_parameters(),
-                                 model2.named_parameters()):
+    for (n1, p1), (
+        _,
+        p2,
+    ) in zip(model1.named_parameters(), model2.named_parameters()):
         if not just_lora or 'lora' in n1:
             assert torch.equal(p1.cpu(), p2.cpu())
 
@@ -246,16 +266,22 @@ def delete_transformers_cache():
     hf_cache_home = os.path.expanduser(
         os.getenv(
             'HF_HOME',
-            os.path.join(os.getenv('XDG_CACHE_HOME', '~/.cache'),
-                         'huggingface')))
-    HF_MODULES_CACHE = os.getenv('HF_MODULES_CACHE',
-                                 os.path.join(hf_cache_home, 'modules'))
+            os.path.join(
+                os.getenv('XDG_CACHE_HOME', '~/.cache'),
+                'huggingface',
+            ),
+        ),
+    )
+    HF_MODULES_CACHE = os.getenv(
+        'HF_MODULES_CACHE',
+        os.path.join(hf_cache_home, 'modules'),
+    )
     if os.path.exists(HF_MODULES_CACHE) and os.path.isdir(HF_MODULES_CACHE):
         shutil.rmtree(HF_MODULES_CACHE)
 
 
 def get_config(
-        conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml'
+    conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml',
 ) -> DictConfig:
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
     with open(conf_path) as f:
@@ -272,7 +298,8 @@ def test_callback_inits():
     hf_checkpointer = HuggingFaceCheckpointer(
         save_folder='test',
         save_interval='1ba',
-        mlflow_registered_model_name='test_model_name')
+        mlflow_registered_model_name='test_model_name',
+    )
 
     assert hf_checkpointer.mlflow_logging_config['task'] == 'llm/v1/completions'
 
@@ -301,15 +328,25 @@ class MockSpawnProcess:
 @pytest.mark.parametrize('log_to_mlflow', [True, False])
 @pytest.mark.parametrize(
     'hf_save_interval,save_interval,max_duration,expected_hf_checkpoints,expected_normal_checkpoints',
-    [('3ba', '2ba', '4ba', 2, 2), ('1dur', '2ba', '1ep', 1, 2)])
+    [('3ba', '2ba', '4ba', 2, 2), ('1dur', '2ba', '1ep', 1, 2)],
+)
 @patch('os.cpu_count', MagicMock(return_value=1))
-@patch('llmfoundry.callbacks.hf_checkpointer.SpawnProcess',
-       new=MockSpawnProcess)
+@patch(
+    'llmfoundry.callbacks.hf_checkpointer.SpawnProcess',
+    new=MockSpawnProcess,
+)
 def test_huggingface_conversion_callback_interval(
-        tmp_path: pathlib.Path, log_to_mlflow: bool, hf_save_interval: str,
-        save_interval: str, max_duration: str, expected_hf_checkpoints: int,
-        expected_normal_checkpoints: int, tiny_ft_dataloader: DataLoader,
-        mpt_tokenizer: PreTrainedTokenizerBase, build_tiny_mpt: Callable):
+    tmp_path: pathlib.Path,
+    log_to_mlflow: bool,
+    hf_save_interval: str,
+    save_interval: str,
+    max_duration: str,
+    expected_hf_checkpoints: int,
+    expected_normal_checkpoints: int,
+    tiny_ft_dataloader: DataLoader,
+    mpt_tokenizer: PreTrainedTokenizerBase,
+    build_tiny_mpt: Callable,
+):
     delete_transformers_cache()
 
     dist.initialize_dist(get_device('gpu'))
@@ -332,8 +369,11 @@ def test_huggingface_conversion_callback_interval(
 
     optimizer_config = _OPTIMIZER_CFG()
     optimizer_name = optimizer_config.pop('name')
-    optimizer = build_optimizer(original_model, optimizer_name,
-                                optimizer_config)
+    optimizer = build_optimizer(
+        original_model,
+        optimizer_name,
+        optimizer_config,
+    )
 
     mlflow_logger_mock = MagicMock(spec=MLFlowLogger)
     mlflow_logger_mock.state_dict = lambda *args, **kwargs: {}
@@ -375,17 +415,20 @@ def test_huggingface_conversion_callback_interval(
         name for name in os.listdir(os.path.join(tmp_path, 'checkpoints'))
         if name != 'huggingface'
     ]
-    huggingface_checkpoints = [
-        name for name in os.listdir(
-            os.path.join(tmp_path, 'checkpoints', 'huggingface'))
-    ]
+    huggingface_checkpoints = list(
+        os.listdir(os.path.join(tmp_path, 'checkpoints', 'huggingface')),
+    )
     assert len(normal_checkpoints) == expected_normal_checkpoints
     assert len(huggingface_checkpoints) == expected_hf_checkpoints
 
     # Load the last huggingface checkpoint
     loaded_model = transformers.AutoModelForCausalLM.from_pretrained(
-        os.path.join(tmp_path, 'checkpoints', 'huggingface',
-                     f'ba{batches_per_epoch}'),
+        os.path.join(
+            tmp_path,
+            'checkpoints',
+            'huggingface',
+            f'ba{batches_per_epoch}',
+        ),
         trust_remote_code=True,
     )
 
@@ -403,20 +446,29 @@ def test_huggingface_conversion_callback_interval(
     loaded_model.config.init_device = original_model.model.config.init_device
 
     loaded_tokenizer = transformers.AutoTokenizer.from_pretrained(
-        os.path.join(tmp_path, 'checkpoints', 'huggingface',
-                     f'ba{batches_per_epoch}'),
+        os.path.join(
+            tmp_path,
+            'checkpoints',
+            'huggingface',
+            f'ba{batches_per_epoch}',
+        ),
         trust_remote_code=True,
     )
 
-    check_hf_model_equivalence(trainer.state.model.model.to(precision),
-                               loaded_model)
+    check_hf_model_equivalence(
+        trainer.state.model.model.to(precision),
+        loaded_model,
+    )
     check_hf_tokenizer_equivalence(mpt_tokenizer, loaded_tokenizer)
 
     delete_transformers_cache()
 
 
-def _get_model_and_tokenizer(model: str, max_seq_len: int,
-                             tie_word_embeddings: bool):
+def _get_model_and_tokenizer(
+    model: str,
+    max_seq_len: int,
+    tie_word_embeddings: bool,
+):
     if model == 'mpt':
         model_cfg = {
             'name': 'mpt_causal_lm',
@@ -480,7 +532,7 @@ def _get_model_and_tokenizer(model: str, max_seq_len: int,
         assert tie_word_embeddings is None
         if 'HUGGING_FACE_HUB_TOKEN' not in os.environ:
             pytest.skip(
-                'The CI cluster does not have access to the Llama models, so skip this test.'
+                'The CI cluster does not have access to the Llama models, so skip this test.',
             )
         model_cfg = {
             'name': 'hf_causal_lm',
@@ -500,8 +552,10 @@ def _get_model_and_tokenizer(model: str, max_seq_len: int,
     return model_cfg, tokenizer_name
 
 
-def _assert_mlflow_logger_calls(mlflow_logger_mock: MagicMock,
-                                peft_config: Optional[dict] = None):
+def _assert_mlflow_logger_calls(
+    mlflow_logger_mock: MagicMock,
+    peft_config: Optional[dict] = None,
+):
     if dist.get_global_rank() == 0:
         assert mlflow_logger_mock.save_model.call_count == 1
         if peft_config is not None:
@@ -515,7 +569,7 @@ def _assert_mlflow_logger_calls(mlflow_logger_mock: MagicMock,
             import numpy as np
 
             default_input_example = {
-                'prompt': np.array(['What is Machine Learning?'])
+                'prompt': np.array(['What is Machine Learning?']),
             }
 
             expectation = {
@@ -524,7 +578,7 @@ def _assert_mlflow_logger_calls(mlflow_logger_mock: MagicMock,
                 'path': ANY,
                 'task': 'llm/v1/completions',
                 'input_example': default_input_example,
-                'metadata': {}
+                'metadata': {},
             }
         mlflow_logger_mock.save_model.assert_called_with(**expectation)
         assert mlflow_logger_mock.register_model_with_run_id.call_count == 1
@@ -563,22 +617,24 @@ def _get_dataloader_cfg(tiny_dataset_folder_path: str, max_seq_len: int):
         'pin_memory': False,
         'prefetch_factor': None,
         'persistent_workers': False,
-        'timeout': 0
+        'timeout': 0,
     }
     return dataloader_cfg
 
 
-def _assert_checkpoint_equivalence(tmp_path: pathlib.Path,
-                                   expected_normal_checkpoints: int,
-                                   expected_hf_checkpoints: int,
-                                   trainer: Trainer,
-                                   batches_per_epoch: int,
-                                   precision: torch.dtype,
-                                   model: str,
-                                   tokenizer: PreTrainedTokenizerBase,
-                                   original_model: ComposerModel,
-                                   fsdp_state_dict_type: Optional[str] = None,
-                                   peft_config: Optional[dict] = None):
+def _assert_checkpoint_equivalence(
+    tmp_path: pathlib.Path,
+    expected_normal_checkpoints: int,
+    expected_hf_checkpoints: int,
+    trainer: Trainer,
+    batches_per_epoch: int,
+    precision: torch.dtype,
+    model: str,
+    tokenizer: PreTrainedTokenizerBase,
+    original_model: ComposerModel,
+    fsdp_state_dict_type: Optional[str] = None,
+    peft_config: Optional[dict] = None,
+):
     """Asserts the equivalence of checkpoints.
 
     Asserts equivalence of checkpoints between the original mpt model and the converted hf model.
@@ -605,14 +661,18 @@ def _assert_checkpoint_equivalence(tmp_path: pathlib.Path,
             name for name in os.listdir(os.path.join(tmp_path, 'checkpoints'))
             if name != 'huggingface'
         ]
-        huggingface_checkpoints = [
-            name for name in os.listdir(
-                os.path.join(tmp_path, 'checkpoints', 'huggingface'))
-        ]
+        huggingface_checkpoints = list(
+            os.listdir(os.path.join(tmp_path, 'checkpoints', 'huggingface')),
+        )
 
         checkpoint_files = os.listdir(
-            os.path.join(tmp_path, 'checkpoints', 'huggingface',
-                         huggingface_checkpoints[-1]))
+            os.path.join(
+                tmp_path,
+                'checkpoints',
+                'huggingface',
+                huggingface_checkpoints[-1],
+            ),
+        )
         if peft_config is not None:
             assert 'adapter_config.json' in checkpoint_files
             assert 'adapter_model.safetensors' in checkpoint_files
@@ -625,23 +685,31 @@ def _assert_checkpoint_equivalence(tmp_path: pathlib.Path,
         with patch.dict('sys.modules', {'flash_attn': None}):
             if peft_config is not None:
                 composer_model = trainer.state.model.module if trainer.state.is_model_ddp else trainer.state.model
-                composer_model.model.base_model.save_pretrained(tmp_path /
-                                                                'base-model')
+                composer_model.model.base_model.save_pretrained(
+                    tmp_path / 'base-model',
+                )
 
-            checkpoint_path = os.path.join(tmp_path, 'checkpoints',
-                                           'huggingface',
-                                           f'ba{batches_per_epoch}')
+            checkpoint_path = os.path.join(
+                tmp_path,
+                'checkpoints',
+                'huggingface',
+                f'ba{batches_per_epoch}',
+            )
 
             if peft_config is not None:
-                with open(os.path.join(checkpoint_path,
-                                       'adapter_config.json')) as _f:
+                with open(
+                    os.path.join(checkpoint_path, 'adapter_config.json'),
+                ) as _f:
                     adapter_config = json.load(_f)
 
-                adapter_config['base_model_name_or_path'] = str(tmp_path /
-                                                                'base-model')
+                adapter_config['base_model_name_or_path'] = str(
+                    tmp_path / 'base-model',
+                )
 
-                with open(os.path.join(checkpoint_path, 'adapter_config.json'),
-                          'w') as _f:
+                with open(
+                    os.path.join(checkpoint_path, 'adapter_config.json'),
+                    'w',
+                ) as _f:
                     json.dump(adapter_config, _f)
 
             # Load the last huggingface checkpoint
@@ -667,8 +735,12 @@ def _assert_checkpoint_equivalence(tmp_path: pathlib.Path,
             loaded_model.config.init_device = original_model.model.config.init_device
 
         loaded_tokenizer = transformers.AutoTokenizer.from_pretrained(
-            os.path.join(tmp_path, 'checkpoints', 'huggingface',
-                         f'ba{batches_per_epoch}'),
+            os.path.join(
+                tmp_path,
+                'checkpoints',
+                'huggingface',
+                f'ba{batches_per_epoch}',
+            ),
             trust_remote_code=True,
         )
 
@@ -676,7 +748,8 @@ def _assert_checkpoint_equivalence(tmp_path: pathlib.Path,
             trainer.state.model.model.to(precision) if fsdp_state_dict_type
             is not None else trainer.state.model.module.model.to(precision),
             loaded_model,
-            just_lora=peft_config is not None)
+            just_lora=peft_config is not None,
+        )
         check_hf_tokenizer_equivalence(tokenizer, loaded_tokenizer)
 
 
@@ -690,27 +763,34 @@ def _assert_checkpoint_equivalence(tmp_path: pathlib.Path,
         ('mptmoe', None, None),
         ('neo', None, None),
         ('llama2', None, None),
-        ('llama2', None, {
-            'peft_type': 'LORA',
-            'task_type': 'CAUSAL_LM',
-            'lora_alpha': 32,
-            'lora_dropout': 0.05,
-            'r': 16,
-            'target_modules': [
-                'q_proj',
-                'k_proj',
-                'v_proj',
-            ],
-        }),
+        (
+            'llama2',
+            None,
+            {
+                'peft_type': 'LORA',
+                'task_type': 'CAUSAL_LM',
+                'lora_alpha': 32,
+                'lora_dropout': 0.05,
+                'r': 16,
+                'target_modules': [
+                    'q_proj',
+                    'k_proj',
+                    'v_proj',
+                ],
+            },
+        ),
     ],
 )
 @pytest.mark.parametrize('fsdp_state_dict_type', ['full', 'sharded', None])
 @pytest.mark.parametrize(
     'hf_save_interval,save_interval,max_duration,expected_hf_checkpoints,expected_normal_checkpoints',
-    [('1ba', '1ba', '1ba', 1, 1)])
+    [('1ba', '1ba', '1ba', 1, 1)],
+)
 @patch('os.cpu_count', MagicMock(return_value=1))
-@patch('llmfoundry.callbacks.hf_checkpointer.SpawnProcess',
-       new=MockSpawnProcess)
+@patch(
+    'llmfoundry.callbacks.hf_checkpointer.SpawnProcess',
+    new=MockSpawnProcess,
+)
 def test_huggingface_conversion_callback(
     model: str,
     tmp_path: pathlib.Path,
@@ -740,14 +820,17 @@ def test_huggingface_conversion_callback(
         save_folder=os.path.join(tmp_path, 'checkpoints'),
         save_interval=hf_save_interval,
         precision=precision_str,
-        mlflow_registered_model_name='dummy-registered-name')
+        mlflow_registered_model_name='dummy-registered-name',
+    )
 
     # Get small version of each model
     model_cfg, tokenizer_name = _get_model_and_tokenizer(
-        model, max_seq_len, tie_word_embeddings)
+        model,
+        max_seq_len,
+        tie_word_embeddings,
+    )
     assert model_cfg is not None
     assert tokenizer_name is not None
-    model_cfg = om.create(model_cfg)
     if peft_config is not None:
         model_cfg['peft_config'] = peft_config
 
@@ -768,17 +851,25 @@ def test_huggingface_conversion_callback(
         tokenizer_kwargs={'model_max_length': max_seq_len},
     )
 
+    dataloader_cfg.pop('name')
     train_dataloader = build_finetuning_dataloader(
-        dataloader_cfg,
-        tokenizer,
-        device_batch_size,
+        tokenizer=tokenizer,
+        device_batch_size=device_batch_size,
+        **dataloader_cfg,
     )
 
-    original_model = build_composer_model(model_cfg['name'], model_cfg,
-                                          tokenizer)
+    name = model_cfg.pop('name')
+    original_model = build_composer_model(
+        name,
+        tokenizer=tokenizer,
+        cfg=model_cfg,
+    )
     optimizer_name = optimizer_config.pop('name')
-    optimizer = build_optimizer(original_model, optimizer_name,
-                                optimizer_config)
+    optimizer = build_optimizer(
+        original_model,
+        optimizer_name,
+        optimizer_config,
+    )
 
     mlflow_logger_mock = MagicMock(spec=MLFlowLogger)
     mlflow_logger_mock.state_dict = lambda *args, **kwargs: {}
@@ -787,9 +878,12 @@ def test_huggingface_conversion_callback(
     mlflow_logger_mock.model_registry_prefix = ''
     mlflow_logger_mock._experiment_id = 'mlflow-experiment-id'
     mlflow_logger_mock._run_id = 'mlflow-run-id'
+    mlflow_logger_mock._enabled = True
+    mlflow_logger_mock.run_url = 'fake-url'
     trainer = Trainer(
         model=original_model,
         device='gpu',
+        precision='amp_bf16',
         fsdp_config=fsdp_config if fsdp_state_dict_type is not None else None,
         train_dataloader=train_dataloader,
         save_folder=os.path.join(tmp_path, 'checkpoints'),
@@ -806,9 +900,11 @@ def test_huggingface_conversion_callback(
 
     # summon full params to check equivalence
     from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
-    with FSDP.summon_full_params(trainer.state.model,
-                                 writeback=False,
-                                 recurse=True):
+    with FSDP.summon_full_params(
+        trainer.state.model,
+        writeback=False,
+        recurse=True,
+    ):
         _assert_checkpoint_equivalence(
             tmp_path=tmp_path,
             expected_normal_checkpoints=expected_normal_checkpoints,
@@ -820,7 +916,8 @@ def test_huggingface_conversion_callback(
             model=model,
             tokenizer=tokenizer,
             fsdp_state_dict_type=fsdp_state_dict_type,
-            peft_config=peft_config)
+            peft_config=peft_config,
+        )
 
     dist.barrier()
     delete_transformers_cache()
@@ -833,33 +930,40 @@ def test_huggingface_conversion_callback(
      pytest.param('mptmoe', None, marks=pytest.mark.gpu), ('neo', None),
      ('llama2', None)],
 )
-def test_convert_and_generate(model: str, tie_word_embeddings: bool,
-                              tmp_path: pathlib.Path):
+def test_convert_and_generate(
+    model: str,
+    tie_word_embeddings: bool,
+    tmp_path: pathlib.Path,
+):
     delete_transformers_cache()
 
     om_cfg = None
     if model == 'mpt':
         om_cfg = get_config(
-            conf_path='scripts/train/yamls/pretrain/testing.yaml')
+            conf_path='scripts/train/yamls/pretrain/testing.yaml',
+        )
         om_cfg['tie_word_embeddings'] = tie_word_embeddings
     elif model == 'mptmoe':
         om_cfg = get_config(
-            conf_path='scripts/train/yamls/pretrain/testing-moe.yaml')
+            conf_path='scripts/train/yamls/pretrain/testing-moe.yaml',
+        )
     elif model == 'neo':
         assert tie_word_embeddings is None
         om_cfg = get_config(
-            conf_path='scripts/train/yamls/pretrain/gpt-neo-125m.yaml')
+            conf_path='scripts/train/yamls/pretrain/gpt-neo-125m.yaml',
+        )
         om_cfg['model']['config_overrides']['hidden_size'] = 36
     elif model == 'llama2':
         assert tie_word_embeddings is None
         if 'HUGGING_FACE_HUB_TOKEN' not in os.environ:
             pytest.skip(
-                'The CI cluster does not have access to the Llama models, so skip this test.'
+                'The CI cluster does not have access to the Llama models, so skip this test.',
             )
         om_cfg = get_config(
-            conf_path='scripts/train/yamls/pretrain/gpt-neo-125m.yaml')
-        om_cfg['model'][
-            'pretrained_model_name_or_path'] = 'meta-llama/Llama-2-7b-hf'
+            conf_path='scripts/train/yamls/pretrain/gpt-neo-125m.yaml',
+        )
+        om_cfg['model']['pretrained_model_name_or_path'
+                       ] = 'meta-llama/Llama-2-7b-hf'
         om_cfg['model']['config_overrides']['num_hidden_layers'] = 2
         om_cfg['model']['use_auth_token'] = True
         om_cfg['tokenizer']['name'] = 'meta-llama/Llama-2-7b-hf'
@@ -869,33 +973,45 @@ def test_convert_and_generate(model: str, tie_word_embeddings: bool,
 
     om_cfg['model']['init_device'] = 'cpu'
     tokenizer = transformers.AutoTokenizer.from_pretrained(
-        om_cfg.tokenizer.name, use_auth_token=model == 'llama2')
-    original_model = build_composer_model(
-        name=om_cfg['model'].name,
-        cfg=om_cfg['model'],
-        tokenizer=tokenizer,
+        om_cfg.tokenizer.name,
+        use_auth_token=model == 'llama2',
     )
-    trainer = Trainer(model=original_model,
-                      device='cpu' if not model == 'mptmoe' else 'gpu')
+    name = om_cfg.model.pop('name')
+    original_model = build_composer_model(
+        name=name,
+        tokenizer=tokenizer,
+        cfg=to_dict_container(om_cfg['model']),
+    )
+    trainer = Trainer(
+        model=original_model,
+        device='cpu' if not model == 'mptmoe' else 'gpu',
+    )
     trainer.save_checkpoint(os.path.join(tmp_path, 'checkpoint.pt'))
 
-    args = Namespace(composer_path=os.path.join(tmp_path, 'checkpoint.pt'),
-                     hf_output_path=os.path.join(tmp_path, 'hf-output-folder'),
-                     output_precision='fp32',
-                     local_checkpoint_save_location=None,
-                     hf_repo_for_upload=None,
-                     trust_remote_code=False,
-                     test_uploaded_model=False)
+    args = Namespace(
+        composer_path=os.path.join(tmp_path, 'checkpoint.pt'),
+        hf_output_path=os.path.join(tmp_path, 'hf-output-folder'),
+        output_precision='fp32',
+        local_checkpoint_save_location=None,
+        hf_repo_for_upload=None,
+        trust_remote_code=False,
+        test_uploaded_model=False,
+    )
     convert_composer_to_hf(args)
 
     loaded_config = transformers.AutoConfig.from_pretrained(
-        os.path.join(tmp_path, 'hf-output-folder'), trust_remote_code=True)
+        os.path.join(tmp_path, 'hf-output-folder'),
+        trust_remote_code=True,
+    )
     loaded_model = transformers.AutoModelForCausalLM.from_pretrained(
         os.path.join(tmp_path, 'hf-output-folder'),
         config=loaded_config,
-        trust_remote_code=True)
+        trust_remote_code=True,
+    )
     tokenizer = transformers.AutoTokenizer.from_pretrained(
-        os.path.join(tmp_path, 'hf-output-folder'), trust_remote_code=True)
+        os.path.join(tmp_path, 'hf-output-folder'),
+        trust_remote_code=True,
+    )
 
     device = 'cuda' if model == 'mptmoe' else 'cpu'
     precision = torch.bfloat16 if model == 'mptmoe' else torch.float32
@@ -904,32 +1020,44 @@ def test_convert_and_generate(model: str, tie_word_embeddings: bool,
     loaded_model.to(device)
     loaded_model.to(precision)
 
-    output = loaded_model.generate(tokenizer(
-        'hello', return_tensors='pt')['input_ids'].to(device),
-                                   max_new_tokens=1)
+    output = loaded_model.generate(
+        tokenizer('hello', return_tensors='pt')['input_ids'].to(device),
+        max_new_tokens=1,
+    )
     assert output.shape == (1, 2 + (1 if model == 'llama2' else 0))
 
-    assert sum(p.numel() for p in original_model.model.parameters()) == sum(
-        p.numel() for p in loaded_model.parameters())
+    assert sum(p.numel() for p in original_model.model.parameters()
+              ) == sum(p.numel() for p in loaded_model.parameters())
     assert all(
         str(type(module1)).split('.')[-1] == str(type(module2)).split('.')[-1]
-        for module1, module2 in zip(original_model.model.modules(),
-                                    loaded_model.modules()))
-    for p1, p2 in zip(original_model.model.parameters(),
-                      loaded_model.parameters()):
+        for module1, module2 in
+        zip(original_model.model.modules(), loaded_model.modules())
+    )
+    for p1, p2 in zip(
+        original_model.model.parameters(),
+        loaded_model.parameters(),
+    ):
         assert torch.allclose(p1, p2)
 
     delete_transformers_cache()
 
 
-@pytest.mark.parametrize('conf_path', [
-    'scripts/train/yamls/pretrain/testing.yaml',
-    pytest.param('scripts/train/yamls/pretrain/testing-moe.yaml',
-                 marks=pytest.mark.gpu),
-])
+@pytest.mark.parametrize(
+    'conf_path',
+    [
+        'scripts/train/yamls/pretrain/testing.yaml',
+        pytest.param(
+            'scripts/train/yamls/pretrain/testing-moe.yaml',
+            marks=pytest.mark.gpu,
+        ),
+    ],
+)
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
-def test_convert_and_generate_meta(tie_word_embeddings: str,
-                                   tmp_path: pathlib.Path, conf_path: str):
+def test_convert_and_generate_meta(
+    tie_word_embeddings: str,
+    tmp_path: pathlib.Path,
+    conf_path: str,
+):
     delete_transformers_cache()
 
     from composer.utils import dist
@@ -941,44 +1069,53 @@ def test_convert_and_generate_meta(tie_word_embeddings: str,
     om_cfg['model']['init_device'] = 'cpu'
     om_cfg['tie_word_embeddings'] = tie_word_embeddings
     tokenizer = transformers.AutoTokenizer.from_pretrained(
-        om_cfg.tokenizer.name)
-    original_model = build_composer_model(
-        name=om_cfg['model'].name,
-        cfg=om_cfg['model'],
-        tokenizer=tokenizer,
+        om_cfg.tokenizer.name,
     )
-    trainer = Trainer(model=original_model,
-                      device='cpu' if not 'moe' in conf_path else 'gpu')
+    name = om_cfg.model.pop('name')
+    original_model = build_composer_model(
+        name=name,
+        tokenizer=tokenizer,
+        cfg=to_dict_container(om_cfg['model']),
+    )
+    trainer = Trainer(
+        model=original_model,
+        device='cpu' if not 'moe' in conf_path else 'gpu',
+    )
     trainer.save_checkpoint(os.path.join(tmp_path_gathered, 'checkpoint.pt'))
 
     # patch in the meta device for testing
-    sd = torch.load(os.path.join(tmp_path_gathered, 'checkpoint.pt'),
-                    map_location='cpu')
+    sd = torch.load(
+        os.path.join(tmp_path_gathered, 'checkpoint.pt'),
+        map_location='cpu',
+    )
     sd['state']['integrations']['huggingface']['model']['config']['content'][
         'init_device'] = 'meta'
     torch.save(sd, os.path.join(tmp_path_gathered, 'checkpoint.pt'))
 
-    args = Namespace(composer_path=os.path.join(tmp_path_gathered,
-                                                'checkpoint.pt'),
-                     hf_output_path=os.path.join(tmp_path_gathered,
-                                                 'hf-output-folder'),
-                     output_precision='fp32',
-                     local_checkpoint_save_location=None,
-                     hf_repo_for_upload=None,
-                     trust_remote_code=False,
-                     test_uploaded_model=False)
+    args = Namespace(
+        composer_path=os.path.join(tmp_path_gathered, 'checkpoint.pt'),
+        hf_output_path=os.path.join(tmp_path_gathered, 'hf-output-folder'),
+        output_precision='fp32',
+        local_checkpoint_save_location=None,
+        hf_repo_for_upload=None,
+        trust_remote_code=False,
+        test_uploaded_model=False,
+    )
     convert_composer_to_hf(args)
 
     loaded_config = transformers.AutoConfig.from_pretrained(
         os.path.join(tmp_path_gathered, 'hf-output-folder'),
-        trust_remote_code=True)
+        trust_remote_code=True,
+    )
     loaded_model = transformers.AutoModelForCausalLM.from_pretrained(
         os.path.join(tmp_path_gathered, 'hf-output-folder'),
         config=loaded_config,
-        trust_remote_code=True)
+        trust_remote_code=True,
+    )
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         os.path.join(tmp_path_gathered, 'hf-output-folder'),
-        trust_remote_code=True)
+        trust_remote_code=True,
+    )
 
     device = 'cuda' if 'moe' in conf_path else 'cpu'
     precision = torch.bfloat16 if 'moe' in conf_path else torch.float32
@@ -987,19 +1124,23 @@ def test_convert_and_generate_meta(tie_word_embeddings: str,
     loaded_model.to(device)
     loaded_model.to(precision)
 
-    output = loaded_model.generate(tokenizer(
-        'hello', return_tensors='pt')['input_ids'].to(device),
-                                   max_new_tokens=1)
+    output = loaded_model.generate(
+        tokenizer('hello', return_tensors='pt')['input_ids'].to(device),
+        max_new_tokens=1,
+    )
     assert output.shape == (1, 2)
 
-    assert sum(p.numel() for p in original_model.model.parameters()) == sum(
-        p.numel() for p in loaded_model.parameters())
+    assert sum(p.numel() for p in original_model.model.parameters()
+              ) == sum(p.numel() for p in loaded_model.parameters())
     assert all(
         str(type(module1)).split('.')[-1] == str(type(module2)).split('.')[-1]
-        for module1, module2 in zip(original_model.model.modules(),
-                                    loaded_model.modules()))
-    for p1, p2 in zip(original_model.model.parameters(),
-                      loaded_model.parameters()):
+        for module1, module2 in
+        zip(original_model.model.modules(), loaded_model.modules())
+    )
+    for p1, p2 in zip(
+        original_model.model.parameters(),
+        loaded_model.parameters(),
+    ):
         assert torch.allclose(p1, p2)
 
     delete_transformers_cache()
@@ -1090,7 +1231,6 @@ def test_mptmoe_huggingface_conversion_callback(
     tokenizer_name = 'EleutherAI/gpt-neox-20b'
     assert model_cfg is not None
     assert tokenizer_name is not None
-    model_cfg = om.create(model_cfg)
 
     fsdp_config = {
         'sharding_strategy': sharding_strategy,
@@ -1126,7 +1266,7 @@ def test_mptmoe_huggingface_conversion_callback(
         'pin_memory': False,
         'prefetch_factor': None,
         'persistent_workers': False,
-        'timeout': 0
+        'timeout': 0,
     }
 
     dataloader_cfg = om.create(dataloader_cfg)
@@ -1137,9 +1277,9 @@ def test_mptmoe_huggingface_conversion_callback(
     )
 
     train_dataloader = build_finetuning_dataloader(
-        dataloader_cfg,
-        tokenizer,
-        device_batch_size,
+        **dataloader_cfg,
+        tokenizer=tokenizer,
+        device_batch_size=device_batch_size,
     )
 
     optimizer_config = {
@@ -1152,15 +1292,19 @@ def test_mptmoe_huggingface_conversion_callback(
     optimizer_name = optimizer_config.pop('name')
 
     init_context = process_init_device(model_cfg, fsdp_config)
+    name = model_cfg.pop('name')
     original_model = build_composer_model(
-        name=model_cfg.name,
-        cfg=model_cfg,
+        name=name,
         tokenizer=tokenizer,
         init_context=init_context,
+        cfg=model_cfg,
     )
 
-    optimizer = build_optimizer(original_model, optimizer_name,
-                                optimizer_config)
+    optimizer = build_optimizer(
+        original_model,
+        optimizer_name,
+        optimizer_config,
+    )
     trainer = Trainer(
         model=original_model,
         device='gpu',
@@ -1182,9 +1326,11 @@ def test_mptmoe_huggingface_conversion_callback(
 
     # summon full params to check equivalence
     from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
-    with FSDP.summon_full_params(trainer.state.model,
-                                 writeback=False,
-                                 recurse=True):
+    with FSDP.summon_full_params(
+        trainer.state.model,
+        writeback=False,
+        recurse=True,
+    ):
         loaded_model = None
         loaded_tokenizer = None
         # Only rank zero is saving the huggingface checkpoints, so only check
@@ -1195,10 +1341,11 @@ def test_mptmoe_huggingface_conversion_callback(
                 for name in os.listdir(os.path.join(tmp_path, 'checkpoints'))
                 if name != 'huggingface'
             ]
-            huggingface_checkpoints = [
-                name for name in os.listdir(
-                    os.path.join(tmp_path, 'checkpoints', 'huggingface'))
-            ]
+            huggingface_checkpoints = list(
+                os.listdir(
+                    os.path.join(tmp_path, 'checkpoints', 'huggingface'),
+                ),
+            )
             assert len(normal_checkpoints) == expected_normal_checkpoints
             assert len(huggingface_checkpoints) == expected_hf_checkpoints
 
@@ -1207,8 +1354,12 @@ def test_mptmoe_huggingface_conversion_callback(
             with patch.dict('sys.modules', {'flash_attn': None}):
                 # Load the last huggingface checkpoint
                 loaded_model = transformers.AutoModelForCausalLM.from_pretrained(
-                    os.path.join(tmp_path, 'checkpoints', 'huggingface',
-                                 f'ba1'),
+                    os.path.join(
+                        tmp_path,
+                        'checkpoints',
+                        'huggingface',
+                        f'ba1',
+                    ),
                     trust_remote_code=True,
                 )
 
@@ -1218,16 +1369,22 @@ def test_mptmoe_huggingface_conversion_callback(
             loaded_model.config.torch_dtype = original_model.model.config.torch_dtype
 
             loaded_tokenizer = transformers.AutoTokenizer.from_pretrained(
-                os.path.join(tmp_path, 'checkpoints', 'huggingface',
-                             f'ba{batches_per_epoch}'),
+                os.path.join(
+                    tmp_path,
+                    'checkpoints',
+                    'huggingface',
+                    f'ba{batches_per_epoch}',
+                ),
                 trust_remote_code=True,
             )
         for n, p in trainer.state.model.model.named_parameters():
             if isinstance(p, DTensor):
                 submodule_name, param_name = '.'.join(
-                    n.split('.')[:-1]), n.split('.')[-1]
+                    n.split('.')[:-1],
+                ), n.split('.')[-1]
                 submodule = trainer.state.model.model.get_submodule(
-                    submodule_name)
+                    submodule_name,
+                )
                 param_tensor = p.full_tensor()
                 param = torch.nn.Parameter(param_tensor)
                 submodule.register_parameter(param_name, param)
@@ -1252,11 +1409,67 @@ def test_mptmoe_huggingface_conversion_callback(
     delete_transformers_cache()
 
 
+def test_mpt_convert_simple(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+):
+    delete_transformers_cache()
+
+    from transformers.models.auto.configuration_auto import CONFIG_MAPPING
+    original_config_auto_class = MPTConfig._auto_class
+    original_model_auto_class = MPTForCausalLM._auto_class
+    CONFIG_MAPPING._extra_content['mpt'] = MPTConfig
+    MPTConfig.register_for_auto_class()
+    MPTForCausalLM.register_for_auto_class('AutoModelForCausalLM')
+
+    model_cfg = {
+        'name': 'mpt_causal_lm',
+        'init_device': 'cpu',
+        'd_model': 64,
+        'n_heads': 2,
+        'n_layers': 2,
+        'expansion_ratio': 4,
+        'max_seq_len': 256,
+        'vocab_size': 50368,
+        'attn_config': {
+            'attn_impl': 'torch',
+        },
+        'loss_fn': 'torch_crossentropy',
+        'tie_word_embeddings': False,
+    }
+
+    original_model = build_composer_model(
+        name='mpt_causal_lm',
+        tokenizer=None,
+        cfg=model_cfg,
+    )
+
+    original_model.model.save_pretrained(str(tmp_path))
+
+    edit_files_for_hf_compatibility(str(tmp_path))
+
+    monkeypatch.setattr(catalogue, 'REGISTRY', {})
+
+    _ = transformers.AutoModelForCausalLM.from_pretrained(
+        tmp_path,
+        trust_remote_code=True,
+    )
+
+    delete_transformers_cache()
+
+    del CONFIG_MAPPING._extra_content['mpt']
+    MPTConfig._auto_class = original_config_auto_class
+    MPTForCausalLM._auto_class = original_model_auto_class
+
+
 @pytest.mark.parametrize(
     'license_file_name',
-    ['LICENSE', 'LICENSE.txt', 'license', 'license.md', None])
-def test_license_file_finder(tmp_path: pathlib.Path,
-                             license_file_name: Optional[str]):
+    ['LICENSE', 'LICENSE.txt', 'license', 'license.md', None],
+)
+def test_license_file_finder(
+    tmp_path: pathlib.Path,
+    license_file_name: Optional[str],
+):
     if license_file_name is not None:
         with open(os.path.join(tmp_path, license_file_name), 'w') as f:
             f.write('test')

@@ -3,15 +3,17 @@
 
 """A HuggingFace-style model configuration."""
 
+import copy
 import warnings
 from typing import Any, Dict, Optional, Union
 
 from transformers import PretrainedConfig
 
 from llmfoundry.layers_registry import ffns_with_megablocks
-from llmfoundry.models.layers.attention import (check_alibi_support,
-                                                is_flash_v2_installed)
-from llmfoundry.models.layers.blocks import attn_config_defaults
+from llmfoundry.models.layers.attention import (
+    check_alibi_support,
+    is_flash_v2_installed,
+)
 
 # NOTE: All utils are imported directly even if unused so that
 # HuggingFace can detect all the needed files to copy into its modules folder.
@@ -22,21 +24,12 @@ from llmfoundry.models.layers.layer_builders import build_norm, build_fc, build_
 from llmfoundry.models.layers.dmoe import dMoE  # type: ignore (see note)
 from llmfoundry.layers_registry import norms  # type: ignore (see note)
 from llmfoundry.utils.registry_utils import construct_from_registry  # type: ignore (see note)
-
-ffn_config_defaults: Dict = {
-    'ffn_type': 'mptmlp',
-}
-
-init_config_defaults: Dict = {
-    'name': 'kaiming_normal_',
-    'fan_mode': 'fan_in',
-    'init_nonlinearity': 'relu',
-    'init_div_is_residual': True,
-    'emb_init_std': None,
-    'emb_init_uniform_lim': None,
-    'init_std': None,
-    'init_gain': 0.0,
-}
+from llmfoundry.models.utils.config_defaults import (
+    attn_config_defaults,
+    ffn_config_defaults,
+    init_config_defaults,
+    fc_type_defaults,
+)  # type: ignore (see note)
 
 
 class MPTConfig(PretrainedConfig):
@@ -53,16 +46,16 @@ class MPTConfig(PretrainedConfig):
         resid_pdrop: float = 0.0,
         emb_pdrop: float = 0.0,
         learned_pos_emb: bool = True,
-        attn_config: Dict = attn_config_defaults,
-        ffn_config: Dict = ffn_config_defaults,
+        attn_config: Optional[Dict] = None,
+        ffn_config: Optional[Dict] = None,
         init_device: str = 'cpu',
         logit_scale: Optional[Union[float, str]] = None,
         no_bias: bool = False,
         embedding_fraction: float = 1.0,
         norm_type: str = 'low_precision_layernorm',
         use_cache: bool = False,
-        init_config: Dict = init_config_defaults,
-        fc_type: str = 'torch',
+        init_config: Optional[Dict] = None,
+        fc_type: Union[str, Dict] = 'torch',
         tie_word_embeddings: bool = True,
         use_pad_tok_in_ffn: bool = True,
         **kwargs: Any,
@@ -130,7 +123,8 @@ class MPTConfig(PretrainedConfig):
                 init_nonlinearity (str): The nonlinearity to use for parameter initialization with kaiming initialization schemes.
                 ---
                 See llmfoundry.models.utils.param_init_fns.py for info on other param init config options
-            fc_type (str): choose fc layer implementation. Options: torch and te. te layers support fp8 when using H100 GPUs.
+            fc_type (str | Dict): Choose fc layer implementation. Options: torch and te. te layers support fp8 when using H100 GPUs. Can
+                also be a dictionary that specifies the fc layer name and any kwargs for the fc layer.
             tie_word_embeddings (bool): Whether to tie the input embedding and output layers.
             use_pad_tok_in_ffn (bool): Whether to forward the pad token in the feedforward networks.
         """
@@ -138,32 +132,44 @@ class MPTConfig(PretrainedConfig):
         self.n_heads = n_heads
         self.n_layers = n_layers
         self.expansion_ratio = expansion_ratio
-        self.max_seq_len = max_seq_len
+        if max_seq_len != int(max_seq_len):
+            raise ValueError('max_seq_len must be an integer')
+        self.max_seq_len = int(max_seq_len)
         self.vocab_size = vocab_size
         self.resid_pdrop = resid_pdrop
         self.emb_pdrop = emb_pdrop
         self.learned_pos_emb = learned_pos_emb
-        self.attn_config = attn_config
-        self.ffn_config = ffn_config
+        self.attn_config = attn_config if attn_config is not None else copy.deepcopy(
+            attn_config_defaults,
+        )
+        self.ffn_config = ffn_config if ffn_config is not None else copy.deepcopy(
+            ffn_config_defaults,
+        )
         self.init_device = init_device
         self.logit_scale = logit_scale
         self.no_bias = no_bias
         self.embedding_fraction = embedding_fraction
         self.norm_type = norm_type
         self.use_cache = use_cache
-        self.init_config = init_config
+        self.init_config = init_config if init_config is not None else copy.deepcopy(
+            init_config_defaults,
+        )
+
+        if isinstance(fc_type, str):
+            fc_type = {'name': fc_type}
         self.fc_type = fc_type
+
         self.use_pad_tok_in_ffn = use_pad_tok_in_ffn
 
         if 'name' in kwargs:
             del kwargs['name']
         if 'loss_fn' in kwargs:
             del kwargs['loss_fn']
-        if self.attn_config.get('alibi', False) or self.attn_config.get(
-                'rope', False):
+        if self.attn_config.get('alibi',
+                                False) or self.attn_config.get('rope', False):
             self.learned_pos_emb = False
             warnings.warn(
-                f'alibi or rope is turned on, setting `learned_pos_emb` to `False.`'
+                f'alibi or rope is turned on, setting `learned_pos_emb` to `False.`',
             )
         # tie_word_embeddings is set in Huggingface's PretrainedConfig __init__
         super().__init__(
@@ -173,8 +179,11 @@ class MPTConfig(PretrainedConfig):
 
         self._validate_config()
 
-    def _set_config_defaults(self, config: Dict[str, Any],
-                             config_defaults: Dict[str, Any]) -> Dict[str, Any]:
+    def _set_config_defaults(
+        self,
+        config: Dict[str, Any],
+        config_defaults: Dict[str, Any],
+    ) -> Dict[str, Any]:
         # set config defaults
         for k, v in config_defaults.items():
             if k not in config:
@@ -182,7 +191,9 @@ class MPTConfig(PretrainedConfig):
             elif isinstance(v, dict):
                 # recursively set default values for any sub-dicts
                 config[k] = self._set_config_defaults(
-                    config[k] if (config[k] is not None) else {}, v)
+                    config[k] if (config[k] is not None) else {},
+                    v,
+                )
         return config
 
     def _validate_config(self) -> None:
@@ -199,78 +210,98 @@ class MPTConfig(PretrainedConfig):
             self.init_config,
             init_config_defaults,
         )
+        self.fc_type = self._set_config_defaults(
+            self.fc_type,
+            fc_type_defaults,
+        )
 
         if self.d_model % self.n_heads != 0:
             raise ValueError('d_model must be divisible by n_heads')
         if any(
-                prob < 0 or prob > 1 for prob in
-            [self.attn_config['attn_pdrop'], self.resid_pdrop, self.emb_pdrop]):
+            prob < 0 or prob > 1 for prob in
+            [self.attn_config['attn_pdrop'], self.resid_pdrop, self.emb_pdrop]
+        ):
             raise ValueError(
-                "self.attn_config['attn_pdrop'], resid_pdrop, emb_pdrop are probabilities and must be between 0 and 1"
+                "self.attn_config['attn_pdrop'], resid_pdrop, emb_pdrop are probabilities and must be between 0 and 1",
             )
         if self.attn_config['attn_impl'] not in ['torch', 'flash']:
             raise ValueError(
-                f"Unknown attn_impl={self.attn_config['attn_impl']}")
+                f"Unknown attn_impl={self.attn_config['attn_impl']}",
+            )
         if self.attn_config['alibi'] and not check_alibi_support(
-                self.attn_config['attn_impl']):
+            self.attn_config['attn_impl'],
+        ):
             raise NotImplementedError(
-                'alibi only implemented with torch and flash (v2.4.2 or higher) attention.'
+                'alibi only implemented with torch and flash (v2.4.2 or higher) attention.',
             )
         if self.attn_config['attn_uses_sequence_id'] and not (
-                self.attn_config['attn_impl'] == 'torch' or
-            (self.attn_config['attn_impl'] == 'flash' and
-             is_flash_v2_installed(v2_version='v2.1.2'))):
-            raise NotImplementedError(
-                'attn_uses_sequence_id only implemented with torch and flash (v2.1.2 or higher) attention.'
+            self.attn_config['attn_impl'] == 'torch' or (
+                self.attn_config['attn_impl'] == 'flash' and
+                is_flash_v2_installed(v2_version='v2.1.2')
             )
-        if self.attn_config['rope'] and (self.attn_config['rope_impl']
-                                         not in ['dail', 'hf']):
-            raise ValueError(
-                'If rope is being used then rope_impl should be either "dail", or "hf".'
+        ):
+            raise NotImplementedError(
+                'attn_uses_sequence_id only implemented with torch and flash (v2.1.2 or higher) attention.',
             )
         if self.attn_config['rope'] and (
-                self.attn_config['rope_impl']
-                == 'hf') and self.attn_config['rope_hf_config']['type'] not in [
-                    'no_scaling', 'linear', 'dynamic'
-                ]:
+            self.attn_config['rope_impl'] not in ['dail', 'hf']
+        ):
             raise ValueError(
-                'If using hf implementation of rope, the type should be one of "no_scaling", "linear" or "dynamic".'
+                'If rope is being used then rope_impl should be either "dail", or "hf".',
             )
-        if self.attn_config['rope'] and (self.attn_config['rope_impl']
-                                         == 'dail'):
+        if self.attn_config['rope'] and (
+            self.attn_config['rope_impl'] == 'hf'
+        ) and self.attn_config['rope_hf_config']['type'] not in [
+            'no_scaling',
+            'linear',
+            'dynamic',
+        ]:
+            raise ValueError(
+                'If using hf implementation of rope, the type should be one of "no_scaling", "linear" or "dynamic".',
+            )
+        if self.attn_config['rope'] and (
+            self.attn_config['rope_impl'] == 'dail'
+        ):
             if self.attn_config['rope_dail_config']['type'] not in [
-                    'original', 'xpos'
+                'original',
+                'xpos',
             ]:
                 raise ValueError(
-                    'If using the dail implementation of rope, the type should be one of "original" or "xpos".'
+                    'If using the dail implementation of rope, the type should be one of "original" or "xpos".',
                 )
             if not is_flash_v2_installed(v2_version='2.0.1'):
                 raise ImportError(
-                    'If using the dail implementation of rope, the flash_attn library v2.0.1 or higher must be installed. Please check the instructions at https://github.com/mosaicml/llm-foundry/blob/main/TUTORIAL.md#what-kinds-of-positional-embeddings-does-llm-foundry-support'
+                    'If using the dail implementation of rope, the flash_attn library v2.0.1 or higher must be installed. Please check the instructions at https://github.com/mosaicml/llm-foundry/blob/main/TUTORIAL.md#what-kinds-of-positional-embeddings-does-llm-foundry-support',
                 )
         if self.attn_config['sliding_window_size'] != -1 and not (
-                self.attn_config['attn_impl'] == 'flash' and
-                is_flash_v2_installed(v2_version='v2.3.0')):
+            self.attn_config['attn_impl'] == 'flash' and
+            is_flash_v2_installed(v2_version='v2.3.0')
+        ):
             raise NotImplementedError(
-                'sliding window only implemented with flash attention v2.3.0 or higher.'
+                'sliding window only implemented with flash attention v2.3.0 or higher.',
             )
         if self.embedding_fraction > 1 or self.embedding_fraction <= 0:
             raise ValueError(
-                'model.embedding_fraction must be between 0 (exclusive) and 1 (inclusive)!'
+                'model.embedding_fraction must be between 0 (exclusive) and 1 (inclusive)!',
             )
-        if isinstance(self.logit_scale,
-                      str) and self.logit_scale != 'inv_sqrt_d_model':
+        if isinstance(
+            self.logit_scale,
+            str,
+        ) and self.logit_scale != 'inv_sqrt_d_model':
             raise ValueError(
-                f"{self.logit_scale=} is not recognized as an option; use numeric value or 'inv_sqrt_d_model'."
+                f"{self.logit_scale=} is not recognized as an option; use numeric value or 'inv_sqrt_d_model'.",
             )
         if self.init_config.get('name', None) is None:
             raise ValueError(f"{self.init_config=} 'name' needs to be set.")
-        if not (self.learned_pos_emb or self.attn_config['alibi'] or
-                self.attn_config['rope']):
+        if not (
+            self.learned_pos_emb or self.attn_config['alibi'] or
+            self.attn_config['rope']
+        ):
             warnings.warn(
-                f'Positional information not being provided to the model using either learned_pos_emb or alibi or rope.'
+                f'Positional information not being provided to the model using either learned_pos_emb or alibi or rope.',
             )
-        if self.fc_type == 'te' or self.ffn_config['ffn_type'] == 'te_ln_mlp':
+        if self.fc_type['name'] == 'te' or self.ffn_config['ffn_type'
+                                                          ] == 'te_ln_mlp':
             try:
                 import transformer_engine.pytorch as te
                 del te  # unused
@@ -280,28 +311,30 @@ class MPTConfig(PretrainedConfig):
                     +
                     'The required version of transformer_engine also requires FlashAttention v1.0.6 is installed:\n'
                     + 'pip install flash-attn==1.0.6 --no-build-isolation \n' +
-                    'pip install git+https://github.com/NVIDIA/TransformerEngine.git@144e4888b2cdd60bd52e706d5b7a79cb9c1a7156'
+                    'pip install git+https://github.com/NVIDIA/TransformerEngine.git@144e4888b2cdd60bd52e706d5b7a79cb9c1a7156',
                 )
+
+        self.ffn_config['fc_type'] = self.fc_type
         if self.ffn_config['ffn_type'] == 'mptgeglu':
             raise ValueError(
                 'API CHANGE: `ffn_type=="mptgeglu"` changed to `ffn_type=="mptglu"`. '
                 +
-                'See [#829](https://github.com/mosaicml/llm-foundry/pull/829) for details.'
+                'See [#829](https://github.com/mosaicml/llm-foundry/pull/829) for details.',
             )
-        elif self.ffn_config['ffn_type'] in ['mptmlp', 'mptglu']:
-            self.ffn_config['fc_type'] = self.fc_type
         elif self.ffn_config['ffn_type'] in ffns_with_megablocks:
             self.ffn_config['return_bias'] = False
         elif self.ffn_config['ffn_type'] == 'te_ln_mlp':
             self.ffn_config['bias'] = not self.no_bias
             if 'ffn_act_fn' in self.ffn_config.keys():
                 raise ValueError(
-                    f'Transformer Engine block does not support custom activation functions.'
+                    f'Transformer Engine block does not support custom activation functions.',
                 )
         if not self.use_pad_tok_in_ffn:
             try:
                 from flash_attn.bert_padding import unpad_input, pad_input  # type: ignore # yapf: disable # isort: skip
             except:
                 raise ImportError(
-                    'In order to set `use_pad_tok_in_ffn=False`, please install flash-attn==1.0.9 or flash-attn==2.3.6'
+                    'In order to set `use_pad_tok_in_ffn=False`, please install flash-attn==1.0.9 or flash-attn==2.3.6',
                 )
+        if (self.attn_config.get('seq_parallel_world_size', 1) or 1) > 1:
+            raise NotImplementedError('Sequence Parallelism is not supported.')

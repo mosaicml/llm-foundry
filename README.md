@@ -113,8 +113,8 @@ If you have success/failure using LLM Foundry on other systems, please let us kn
 
 | Device         | Torch Version | Cuda Version | Status                       |
 | -------------- | ------------- | ------------ | ---------------------------- |
-| A100-40GB/80GB | 2.2.1         | 12.1         | :white_check_mark: Supported |
-| H100-80GB      | 2.2.1         | 12.1         | :white_check_mark: Supported |
+| A100-40GB/80GB | 2.3.0         | 12.1         | :white_check_mark: Supported |
+| H100-80GB      | 2.3.0         | 12.1         | :white_check_mark: Supported |
 
 ## MosaicML Docker Images
 We highly recommend using our prebuilt Docker images. You can find them here: https://hub.docker.com/orgs/mosaicml/repositories.
@@ -122,15 +122,15 @@ We highly recommend using our prebuilt Docker images. You can find them here: ht
 The `mosaicml/pytorch` images are pinned to specific PyTorch and CUDA versions, and are stable and rarely updated.
 
 The `mosaicml/llm-foundry` images are built with new tags upon every commit to the `main` branch.
-You can select a specific commit hash such as `mosaicml/llm-foundry:2.2.1_cu121_flash2-36ab1ba` or take the latest one using `mosaicml/llm-foundry:2.2.1_cu121_flash2-latest`.
+You can select a specific commit hash such as `mosaicml/llm-foundry:2.3.0_cu121_flash2-36ab1ba` or take the latest one using `mosaicml/llm-foundry:2.3.0_cu121_flash2-latest`.
 
 **Please Note:** The `mosaicml/llm-foundry` images do not come with the `llm-foundry` package preinstalled, just the dependencies. You will still need to `pip install llm-foundry` either from PyPi or from source.
 
 | Docker Image                                           | Torch Version | Cuda Version      | LLM Foundry dependencies installed? |
 | ------------------------------------------------------ | ------------- | ----------------- | ----------------------------------- |
-| `mosaicml/pytorch:2.2.1_cu121-python3.11-ubuntu20.04`  | 2.2.1         | 12.1 (Infiniband) | No                                  |
-| `mosaicml/llm-foundry:2.2.1_cu121_flash2-latest`       | 2.2.1         | 12.1 (Infiniband) | Yes                                 |
-| `mosaicml/llm-foundry:2.2.1_cu121_flash2_aws-latest`   | 2.2.1         | 12.1 (EFA)        | Yes                                 |
+| `mosaicml/pytorch:2.3.0_cu121-python3.11-ubuntu20.04`  | 2.3.0         | 12.1 (Infiniband) | No                                  |
+| `mosaicml/llm-foundry:2.3.0_cu121_flash2-latest`       | 2.3.0         | 12.1 (Infiniband) | Yes                                 |
+| `mosaicml/llm-foundry:2.3.0_cu121_flash2_aws-latest`   | 2.3.0         | 12.1 (EFA)        | Yes                                 |
 
 
 # Installation
@@ -169,11 +169,11 @@ pip install -e ".[gpu]"  # or `pip install -e .` if no NVIDIA GPU.
 ```
 
 ### TransformerEngine and amp_fp8 support
-NVIDIA H100 GPUs have FP8 support; this additionally requires the following installations:
+NVIDIA H100 GPUs have FP8 support; we have installed Flash Attention and Transformer in our Docker images already (see above). If you are not using our Docker images, you can install these packages with:
 <!--pytest.mark.skip-->
 ```bash
-pip install flash-attn==1.0.7 --no-build-isolation
-pip install git+https://github.com/NVIDIA/TransformerEngine.git@v0.10
+pip install flash-attn --no-build-isolation
+pip install git+https://github.com/NVIDIA/TransformerEngine.git@stable
 ```
 
 See [here](https://github.com/mosaicml/llm-foundry/blob/main/TUTORIAL.md#TransformerEngine-and-amp_fp8-support) for more details on enabling TransformerEngine layers and amp_fp8.

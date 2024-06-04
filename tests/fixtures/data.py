@@ -27,12 +27,13 @@ def tiny_ft_dataset_path(tmp_path: Path, dataset_size: int = 4) -> Path:
 
 @fixture
 @patch('os.cpu_count', MagicMock(return_value=1))
-def tiny_ft_dataloader(tiny_ft_dataset_path: Path,
-                       mpt_tokenizer: PreTrainedTokenizerBase,
-                       max_seq_len: int = 128,
-                       device_batch_size: int = 1) -> DataLoader:
+def tiny_ft_dataloader(
+    tiny_ft_dataset_path: Path,
+    mpt_tokenizer: PreTrainedTokenizerBase,
+    max_seq_len: int = 128,
+    device_batch_size: int = 1,
+) -> DataLoader:
     dataloader_cfg = DictConfig({
-        'name': 'finetuning',
         'dataset': {
             'hf_name': str(tiny_ft_dataset_path),
             'split': 'train',
@@ -47,13 +48,13 @@ def tiny_ft_dataloader(tiny_ft_dataset_path: Path,
         'pin_memory': False,
         'prefetch_factor': 2,
         'persistent_workers': False,
-        'timeout': 0
+        'timeout': 0,
     })
 
     dataloader = build_finetuning_dataloader(
-        dataloader_cfg,
-        mpt_tokenizer,
-        device_batch_size,
+        **dataloader_cfg,
+        tokenizer=mpt_tokenizer,
+        device_batch_size=device_batch_size,
     ).dataloader
 
     assert isinstance(dataloader, DataLoader)

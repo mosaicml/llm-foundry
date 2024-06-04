@@ -8,9 +8,18 @@ from contextlib import nullcontext
 from typing import Any, Dict, List, Optional, Union
 
 import torch
-from transformers import (AutoConfig, AutoModelForCausalLM, AutoTokenizer,
-                          PreTrainedModel, PreTrainedTokenizerBase,
-                          StoppingCriteria, StoppingCriteriaList, TextStreamer)
+from transformers import (
+    AutoConfig,
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    PreTrainedModel,
+    PreTrainedTokenizerBase,
+    StoppingCriteria,
+    StoppingCriteriaList,
+    TextStreamer,
+)
+
+from llmfoundry.utils.exceptions import ChatTemplateError
 
 DEFAULT_SYSTEM_PROMPT = 'You are a friendly chatbot who aims to be helpful and honest.'
 
@@ -54,12 +63,14 @@ class Conversation:
         cli_instructions: The instructions to display to the user.
     """
 
-    def __init__(self,
-                 model: PreTrainedModel,
-                 tokenizer: PreTrainedTokenizerBase,
-                 generate_kwargs: Dict[str, Any],
-                 system_prompt: str,
-                 stop_tokens: Optional[List[str]] = None) -> None:
+    def __init__(
+        self,
+        model: PreTrainedModel,
+        tokenizer: PreTrainedTokenizerBase,
+        generate_kwargs: Dict[str, Any],
+        system_prompt: str,
+        stop_tokens: Optional[List[str]] = None,
+    ) -> None:
         if stop_tokens is None:
             stop_tokens = ['<|endoftext|>', '<|im_end|>']
         self.model = model
@@ -69,21 +80,28 @@ class Conversation:
         if len(stop_token_ids) != len(stop_tokens):
             warnings.warn(
                 f'Not all stop tokens were found in the tokenizer vocabulary: {stop_tokens}\n'
-                + 'Generation may stop or continue unexpectedly.')
+                + 'Generation may stop or continue unexpectedly.',
+            )
 
         class StopOnTokens(StoppingCriteria):
 
-            def __call__(self, input_ids: torch.LongTensor,
-                         scores: torch.FloatTensor, **kwargs: Any) -> bool:
+            def __call__(
+                self,
+                input_ids: torch.LongTensor,
+                scores: torch.FloatTensor,
+                **kwargs: Any,
+            ) -> bool:
                 del kwargs  # unused
                 for stop_id in stop_token_ids:
                     if input_ids[0][-1] == stop_id:
                         return True
                 return False
 
-        self.streamer = TextStreamer(tokenizer,
-                                     skip_prompt=True,
-                                     skip_special_tokens=True)
+        self.streamer = TextStreamer(
+            tokenizer,
+            skip_prompt=True,
+            skip_special_tokens=True,
+        )
         self.generate_kwargs = {
             **generate_kwargs,
             'stopping_criteria':
@@ -104,27 +122,40 @@ class Conversation:
         )
 
     def _history_to_chat_conversation(self) -> List[Dict[str, str]]:
-        msg_history = []
-        for chat_msg in self.history:
-            msg_history.append(chat_msg.to_dict())
+        msg_history = [chat_msg.to_dict() for chat_msg in self.history]
         return msg_history
 
     def _history_as_formatted_str(self) -> str:
         chat_conversation = self._history_to_chat_conversation()
-        return self.tokenizer.apply_chat_template(
-            chat_conversation,
-            tokenize=False,
-            add_generation_prompt=False,
-        )
+        try:
+            return self.tokenizer.apply_chat_template(
+                chat_conversation,
+                tokenize=False,
+                add_generation_prompt=False,
+            )
+        except Exception as e:
+            raise ChatTemplateError(
+                inner_message=str(e),
+                template=self.tokenizer.chat_template,
+                sample=chat_conversation,
+            )
 
     def turn(self, user_inp: str) -> None:
         self.history.append(ChatMessage('user', user_inp))
         chat_conversation = self._history_to_chat_conversation()
-        tokenized_chat = self.tokenizer.apply_chat_template(
-            chat_conversation,
-            tokenize=True,
-            add_generation_prompt=True,
-            return_tensors='pt')
+        try:
+            tokenized_chat = self.tokenizer.apply_chat_template(
+                chat_conversation,
+                tokenize=True,
+                add_generation_prompt=True,
+                return_tensors='pt',
+            )
+        except Exception as e:
+            raise ChatTemplateError(
+                inner_message=str(e),
+                template=self.tokenizer.chat_template,
+                sample=chat_conversation,
+            )
         tokenized_chat = tokenized_chat.to(self.model.device)
         # also stream to stdout
         maybe_synchronize()
@@ -135,8 +166,10 @@ class Conversation:
         end = time.time()
         print(f'\nTook {end - start:.2f} seconds')
         new_tokens = output_ids[0, len(tokenized_chat[0]):]
-        assistant_response = self.tokenizer.decode(new_tokens,
-                                                   skip_special_tokens=True)
+        assistant_response = self.tokenizer.decode(
+            new_tokens,
+            skip_special_tokens=True,
+        )
         self.history.append(ChatMessage('assistant', assistant_response))
 
     def __call__(self) -> None:
@@ -179,7 +212,8 @@ def get_dtype(dtype: str):
     else:
         raise NotImplementedError(
             f'dtype {dtype} is not supported. ' +
-            'We only support fp32, fp16, and bf16 currently')
+            'We only support fp32, fp16, and bf16 currently',
+        )
 
 
 def str2bool(v: Union[str, bool]):
@@ -207,61 +241,79 @@ def str_or_bool(v: Union[str, bool]):
 def parse_args() -> Namespace:
     """Parse commandline arguments."""
     parser = ArgumentParser(
-        description='Load a HF CausalLM Model and use it to generate text.')
+        description='Load a HF CausalLM Model and use it to generate text.',
+    )
     parser.add_argument('-n', '--name_or_path', type=str, required=True)
     parser.add_argument('--max_new_tokens', type=int, default=512)
     parser.add_argument('--max_seq_len', type=int, default=None)
     parser.add_argument('--temperature', type=float, default=1.0)
     parser.add_argument('--top_k', type=int, default=50)
     parser.add_argument('--top_p', type=float, default=1.0)
-    parser.add_argument('--do_sample',
-                        type=str2bool,
-                        nargs='?',
-                        const=True,
-                        default=True)
-    parser.add_argument('--use_cache',
-                        type=str2bool,
-                        nargs='?',
-                        const=True,
-                        default=True)
+    parser.add_argument(
+        '--do_sample',
+        type=str2bool,
+        nargs='?',
+        const=True,
+        default=True,
+    )
+    parser.add_argument(
+        '--use_cache',
+        type=str2bool,
+        nargs='?',
+        const=True,
+        default=True,
+    )
     parser.add_argument('--eos_token_id', type=str, default=None)
     parser.add_argument('--pad_token_id', type=str, default=None)
-    parser.add_argument('--model_dtype',
-                        type=str,
-                        choices=['fp32', 'fp16', 'bf16'],
-                        default=None)
-    parser.add_argument('--autocast_dtype',
-                        type=str,
-                        choices=['fp32', 'fp16', 'bf16'],
-                        default=None)
-    parser.add_argument('--warmup',
-                        type=str2bool,
-                        nargs='?',
-                        const=True,
-                        default=True)
-    parser.add_argument('--trust_remote_code',
-                        type=str2bool,
-                        nargs='?',
-                        const=True,
-                        default=True)
-    parser.add_argument('--use_auth_token',
-                        type=str_or_bool,
-                        nargs='?',
-                        const=True,
-                        default=None)
+    parser.add_argument(
+        '--model_dtype',
+        type=str,
+        choices=['fp32', 'fp16', 'bf16'],
+        default=None,
+    )
+    parser.add_argument(
+        '--autocast_dtype',
+        type=str,
+        choices=['fp32', 'fp16', 'bf16'],
+        default=None,
+    )
+    parser.add_argument(
+        '--warmup',
+        type=str2bool,
+        nargs='?',
+        const=True,
+        default=True,
+    )
+    parser.add_argument(
+        '--trust_remote_code',
+        type=str2bool,
+        nargs='?',
+        const=True,
+        default=True,
+    )
+    parser.add_argument(
+        '--use_auth_token',
+        type=str_or_bool,
+        nargs='?',
+        const=True,
+        default=None,
+    )
     parser.add_argument('--revision', type=str, default=None)
     parser.add_argument('--device', type=str, default=None)
     parser.add_argument('--device_map', type=str, default=None)
     parser.add_argument('--attn_impl', type=str, default=None)
     parser.add_argument('--seed', type=int, default=42)
-    parser.add_argument('--system_prompt',
-                        type=str,
-                        default=DEFAULT_SYSTEM_PROMPT)
+    parser.add_argument(
+        '--system_prompt',
+        type=str,
+        default=DEFAULT_SYSTEM_PROMPT,
+    )
     parser.add_argument(
         '--stop_tokens',
         type=str,
         default='<|endoftext|> <|im_end|>',
-        help='A string of tokens to stop generation on; will be split on spaces.'
+        help=
+        'A string of tokens to stop generation on; will be split on spaces.',
     )
     return parser.parse_args()
 
@@ -298,8 +350,10 @@ def main(args: Namespace) -> None:
         'revision': args.revision,
     }
     try:
-        config = AutoConfig.from_pretrained(args.name_or_path,
-                                            **from_pretrained_kwargs)
+        config = AutoConfig.from_pretrained(
+            args.name_or_path,
+            **from_pretrained_kwargs,
+        )
         if args.attn_impl is not None and hasattr(config, 'attn_config'):
             config.attn_config['attn_impl'] = args.attn_impl
         if hasattr(config, 'init_device') and device is not None:
@@ -313,17 +367,19 @@ def main(args: Namespace) -> None:
             +
             'or by setting the environment variable `export HUGGING_FACE_HUB_TOKEN=... '
             +
-            'using your access token from https://huggingface.co/settings/tokens.'
+            'using your access token from https://huggingface.co/settings/tokens.',
         ) from e
 
     # Load HF Model
     print(f'Loading HF model with dtype={model_dtype}...')
     try:
-        model = AutoModelForCausalLM.from_pretrained(args.name_or_path,
-                                                     config=config,
-                                                     torch_dtype=model_dtype,
-                                                     device_map=device_map,
-                                                     **from_pretrained_kwargs)
+        model = AutoModelForCausalLM.from_pretrained(
+            args.name_or_path,
+            config=config,
+            torch_dtype=model_dtype,
+            device_map=device_map,
+            **from_pretrained_kwargs,
+        )
         model.eval()
         print(f'n_params={sum(p.numel() for p in model.parameters())}')
         if device is not None:
@@ -336,15 +392,17 @@ def main(args: Namespace) -> None:
             +
             'or by setting the environment variable `export HUGGING_FACE_HUB_TOKEN=... '
             +
-            'using your access token from https://huggingface.co/settings/tokens.'
+            'using your access token from https://huggingface.co/settings/tokens.',
         ) from e
 
     print('\nLoading HF tokenizer...')
-    tokenizer = AutoTokenizer.from_pretrained(args.name_or_path,
-                                              **from_pretrained_kwargs)
+    tokenizer = AutoTokenizer.from_pretrained(
+        args.name_or_path,
+        **from_pretrained_kwargs,
+    )
     if tokenizer.pad_token_id is None:
         warnings.warn(
-            'pad_token_id is not set for the tokenizer. Using eos_token_id as pad_token_id.'
+            'pad_token_id is not set for the tokenizer. Using eos_token_id as pad_token_id.',
         )
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = 'left'
@@ -368,19 +426,21 @@ def main(args: Namespace) -> None:
         autocast_context = nullcontext()
         print('NOT using autocast...')
 
-    conversation = Conversation(model=model,
-                                tokenizer=tokenizer,
-                                system_prompt=args.system_prompt,
-                                generate_kwargs=generate_kwargs,
-                                stop_tokens=args.stop_tokens.split())
+    conversation = Conversation(
+        model=model,
+        tokenizer=tokenizer,
+        system_prompt=args.system_prompt,
+        generate_kwargs=generate_kwargs,
+        stop_tokens=args.stop_tokens.split(),
+    )
 
     # Warmup
     if args.warmup:
         print('Warming up...')
         with autocast_context:
             conversation.turn('Write a welcome message to the user.')
-            conversation.history = conversation.history[:
-                                                        1]  # keep system prompt
+            conversation.history = conversation.history[:1
+                                                       ]  # keep system prompt
 
     print('Starting conversation...')
     with autocast_context:

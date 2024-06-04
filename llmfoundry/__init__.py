@@ -12,20 +12,37 @@ import logging
 from llmfoundry.utils.logging_utils import SpecificWarningFilter
 
 # Filter out Hugging Face warning for not using a pinned revision of the model
-hf_dynamic_modules_logger = logging.getLogger(
-    'transformers.dynamic_module_utils')
+logger = logging.getLogger('transformers.dynamic_module_utils')
 new_files_warning_filter = SpecificWarningFilter(
-    'A new version of the following files was downloaded from')
+    'A new version of the following files was downloaded from',
+)
 
-hf_dynamic_modules_logger.addFilter(new_files_warning_filter)
+logger.addFilter(new_files_warning_filter)
 
-from llmfoundry import (algorithms, callbacks, cli, data, eval, interfaces,
-                        loggers, metrics, models, optim, tokenizers, utils)
+from llmfoundry import (
+    algorithms,
+    callbacks,
+    cli,
+    data,
+    eval,
+    interfaces,
+    loggers,
+    metrics,
+    models,
+    optim,
+    tokenizers,
+    utils,
+)
 from llmfoundry.data import StreamingFinetuningDataset, StreamingTextDataset
 from llmfoundry.eval import InContextLearningDataset, InContextLearningMetric
 from llmfoundry.models.hf import ComposerHFCausalLM
-from llmfoundry.models.mpt import (ComposerMPTCausalLM, MPTConfig,
-                                   MPTForCausalLM, MPTModel, MPTPreTrainedModel)
+from llmfoundry.models.mpt import (
+    ComposerMPTCausalLM,
+    MPTConfig,
+    MPTForCausalLM,
+    MPTModel,
+    MPTPreTrainedModel,
+)
 from llmfoundry.optim import DecoupledLionW
 
 __all__ = [
@@ -54,4 +71,4 @@ __all__ = [
     'utils',
 ]
 
-__version__ = '0.8.0.dev0'
+__version__ = '0.9.0.dev0'

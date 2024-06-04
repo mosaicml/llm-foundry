@@ -1,10 +1,14 @@
-data_local: ./my-copy-c4
-data_remote:  # If blank, files must be present in data_local
-max_seq_len: 128
-global_seed: 17
+variables:
+  data_local: ./my-copy-c4
+  data_remote:  # If blank, files must be present in data_local
+  max_seq_len: 128
+  global_seed: 17
 
-# Run Name
-run_name:  # If left blank, will be read from env var $RUN_NAME
+  # Run Name
+  run_name:  # If left blank, will be read from env var $RUN_NAME
+
+max_seq_len: ${variables.max_seq_len}
+run_name: ${variables.run_name}
 
 # Model
 model:
@@ -14,7 +18,7 @@ model:
   n_heads: 2
   n_layers: 2
   expansion_ratio: 4
-  max_seq_len: ${max_seq_len}
+  max_seq_len: ${variables.max_seq_len}
   vocab_size: 50368
   attn_config:
     attn_impl: torch
@@ -24,30 +28,30 @@ model:
 tokenizer:
   name: EleutherAI/gpt-neox-20b
   kwargs:
-    model_max_length: ${max_seq_len}
+    model_max_length: ${variables.max_seq_len}
 
 # Dataloaders
 train_loader:
   name: text
   dataset:
-    local: ${data_local}
-    remote: ${data_remote}
+    local: ${variables.data_local}
+    remote: ${variables.data_remote}
     split: train
     shuffle: true
-    max_seq_len: ${max_seq_len}
-    shuffle_seed: ${global_seed}
+    max_seq_len: ${variables.max_seq_len}
+    shuffle_seed: ${variables.global_seed}
   drop_last: true
   num_workers: 8
 
 eval_loader:
   name: text
   dataset:
-    local: ${data_local}
-    remote: ${data_remote}
+    local: ${variables.data_local}
+    remote: ${variables.data_remote}
     split: val
     shuffle: false
-    max_seq_len: ${max_seq_len}
-    shuffle_seed: ${global_seed}
+    max_seq_len: ${variables.max_seq_len}
+    shuffle_seed: ${variables.global_seed}
   drop_last: false
   num_workers: 8
 
@@ -78,7 +82,7 @@ eval_subset_num_batches: -1
 global_train_batch_size: 256
 
 # System
-seed: ${global_seed}
+seed: ${variables.global_seed}
 device_eval_batch_size: 16
 device_train_microbatch_size: 16
 # device_train_microbatch_size: auto

@@ -41,6 +41,7 @@ class StreamingTextDataset(StreamingDataset):
         tokenizer (Tokenizer): HuggingFace tokenizer to
             tokenize samples.
         max_seq_len (int): The max sequence length of each sample.
+        token_encoding_type (str): The type of the token encoding, either 'int16', 'int32', or 'int64'.
         streams (Sequence[Stream], optional): One or more Streams to stream/cache samples from,
             which may be upsampled or downsampled. StreamingDataset uses either ``streams`` or
             ``remote``/``local``. Defaults to ``None``.
@@ -106,7 +107,7 @@ class StreamingTextDataset(StreamingDataset):
         self,
         tokenizer: PreTrainedTokenizerBase,
         max_seq_len: int,
-        token_encoding_type: str = 'int32',
+        token_encoding_type: str = 'int64',
         streams: Optional[Sequence[Stream]] = None,
         remote: Optional[str] = None,
         local: Optional[str] = None,
@@ -206,7 +207,8 @@ class StreamingTextDataset(StreamingDataset):
     ) -> torch.Tensor:
         return torch.from_numpy(
             np.frombuffer(
-                sample['tokens'], dtype=getattr(np, self.token_encoding_type)
+                sample['tokens'],
+                dtype=getattr(np, self.token_encoding_type),
             )[:self.max_seq_len].copy(),
         )
 

@@ -1,7 +1,11 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from llmfoundry.data.data import ConcatTokensDataset, NoConcatDataset
+from llmfoundry.data.data import (
+    ConcatTokensDataset,
+    NoConcatDataset,
+    stream_remote_local_validate,
+)
 from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.data.finetuning import (
     Seq2SeqFinetuningCollator,
@@ -55,4 +59,5 @@ __all__ = [
     'auto_packing_ratio',
     'profile_packing',
     'ConcatenatedSequenceCollatorWrapper',
+    'stream_remote_local_validate',
 ]

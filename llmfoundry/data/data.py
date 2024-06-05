@@ -5,7 +5,7 @@
 import os
 import warnings
 from abc import ABC, abstractmethod
-from typing import Dict, Iterable, Union
+from typing import Dict, Iterable, Optional, Union
 
 import datasets as hf_datasets
 import numpy as np
@@ -153,3 +153,17 @@ class ConcatTokensDataset(AbstractConcatTokensDataset):
                     # convert to bytes to store in MDS binary format
                     'tokens': np.asarray(concat_sample).tobytes(),
                 }
+
+
+def stream_remote_local_validate(
+    remote: Optional[str],
+    local: Optional[str],
+    split: Optional[str],
+):
+    if remote is None or (local == remote):
+        if local is not None and os.path.isdir(local):
+            contents = set(os.listdir(local))
+            if split is not None and split not in contents:
+                raise ValueError(
+                    f'Local directory {local} does not contain split {split}',
+                )

@@ -356,7 +356,7 @@ def download_and_convert(
             no_wrap=no_wrap,
         )
 
-        columns = {'tokens': 'bytes'}
+        columns = {'tokens': 'ndarray'}
 
         log.info('Converting to MDS format...')
         with MDSWriter(

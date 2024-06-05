@@ -62,7 +62,9 @@ class TestTrainingYAMLInputs:
     def test_misspelled_mandatory_params_fail(self, cfg: DictConfig) -> None:
         """Check that mandatory misspelled inputs fail to train."""
         cfg.trai_loader = cfg.pop('train_loader')
-        with pytest.raises((omegaconf.errors.MissingMandatoryValue, TypeError)):
+        with pytest.raises(
+            (omegaconf.errors.MissingMandatoryValue, TypeError, ValueError),
+        ):
             main(cfg)
 
     def test_missing_mandatory_parameters_fail(self, cfg: DictConfig) -> None:
@@ -113,10 +115,7 @@ class TestTrainingYAMLInputs:
             updated_param = param + '-misspelling'
             cfg[updated_param] = orig_value
             with pytest.raises(ValueError):
-                try:
-                    main(cfg)
-                except:
-                    pass
+                main(cfg)
             # restore configs.
             cfg = copy.deepcopy(old_cfg)
 

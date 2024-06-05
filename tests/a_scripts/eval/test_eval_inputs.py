@@ -68,10 +68,7 @@ class TestHuggingFaceEvalYAMLInputs:
             updated_param = param + '-mispelling'
             cfg[updated_param] = orig_value
             with pytest.raises(ValueError):
-                try:
-                    main(cfg)
-                except:
-                    pass
+                main(cfg)
             # restore configs.
             cfg = copy.deepcopy(old_cfg)
 

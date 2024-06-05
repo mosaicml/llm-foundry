@@ -106,6 +106,7 @@ class StreamingTextDataset(StreamingDataset):
         self,
         tokenizer: PreTrainedTokenizerBase,
         max_seq_len: int,
+        token_encoding_type: str = 'int32',
         streams: Optional[Sequence[Stream]] = None,
         remote: Optional[str] = None,
         local: Optional[str] = None,
@@ -136,6 +137,12 @@ class StreamingTextDataset(StreamingDataset):
             raise ValueError(
                 f'StreamingTextDataset() got an unexpected keyword argument: {kwargs}',
             )
+
+        if token_encoding_type not in ['int16', 'int32', 'int64']:
+            raise ValueError(
+                f'The token_encoding_type must be one of [\'int16\', \'int32\', \'int64\'], but got {token_encoding_type}',
+            )
+        self.token_encoding_type = token_encoding_type
 
         if local is not None and (remote is None or (local == remote)):
             if os.path.isdir(local):
@@ -198,8 +205,9 @@ class StreamingTextDataset(StreamingDataset):
         sample: Dict[str, Any],
     ) -> torch.Tensor:
         return torch.from_numpy(
-            np.frombuffer(sample['tokens'],
-                          dtype=np.int64)[:self.max_seq_len].copy(),
+            np.frombuffer(
+                sample['tokens'], dtype=getattr(np, self.token_encoding_type)
+            )[:self.max_seq_len].copy(),
         )
 
     # How to process a sample

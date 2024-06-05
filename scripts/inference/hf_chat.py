@@ -19,6 +19,8 @@ from transformers import (
     TextStreamer,
 )
 
+from llmfoundry.utils.exceptions import ChatTemplateError
+
 DEFAULT_SYSTEM_PROMPT = 'You are a friendly chatbot who aims to be helpful and honest.'
 
 
@@ -125,21 +127,35 @@ class Conversation:
 
     def _history_as_formatted_str(self) -> str:
         chat_conversation = self._history_to_chat_conversation()
-        return self.tokenizer.apply_chat_template(
-            chat_conversation,
-            tokenize=False,
-            add_generation_prompt=False,
-        )
+        try:
+            return self.tokenizer.apply_chat_template(
+                chat_conversation,
+                tokenize=False,
+                add_generation_prompt=False,
+            )
+        except Exception as e:
+            raise ChatTemplateError(
+                inner_message=str(e),
+                template=self.tokenizer.chat_template,
+                sample=chat_conversation,
+            )
 
     def turn(self, user_inp: str) -> None:
         self.history.append(ChatMessage('user', user_inp))
         chat_conversation = self._history_to_chat_conversation()
-        tokenized_chat = self.tokenizer.apply_chat_template(
-            chat_conversation,
-            tokenize=True,
-            add_generation_prompt=True,
-            return_tensors='pt',
-        )
+        try:
+            tokenized_chat = self.tokenizer.apply_chat_template(
+                chat_conversation,
+                tokenize=True,
+                add_generation_prompt=True,
+                return_tensors='pt',
+            )
+        except Exception as e:
+            raise ChatTemplateError(
+                inner_message=str(e),
+                template=self.tokenizer.chat_template,
+                sample=chat_conversation,
+            )
         tokenized_chat = tokenized_chat.to(self.model.device)
         # also stream to stdout
         maybe_synchronize()

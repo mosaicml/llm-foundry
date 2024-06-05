@@ -310,7 +310,7 @@ def build_torch_dmoe(
     )
 
 
-def _mb_setup_args(
+def mb_setup_args(
     d_model: int,
     expansion_ratio: Union[int, float],
     ffn_hidden_size: Optional[int],
@@ -319,6 +319,21 @@ def _mb_setup_args(
     bias: bool,
     kwargs: dict[str, Any],
 ) -> tuple['megablocks.layers.arguments.Arguments', int, ProcessGroup]:
+    """Setup the MegaBlocks args.
+
+    Args:
+        d_model (int): The dimension of the input and output of the FFN.
+        expansion_ratio (Union[int, float]): The expansion ratio of the FFN.
+        ffn_hidden_size (Optional[int]): The hidden size of the FFN.
+        ffn_act_fn (Optional[dict]): The activation function of the FFN.
+        device (Optional[str]): The device to run the FFN on.
+        bias (bool): Whether to include bias in the FFN.
+        kwargs (dict[str, Any]): Additional kwargs.
+
+    Returns:
+        tuple['megablocks.layers.arguments.Arguments', int, ProcessGroup]:
+            The MegaBlocks args, the MoE world size, and the expert parallel group.
+    """
     if megablocks is None:
         raise RuntimeError(
             'Requirements for megablocks not installed; see install instructions in `README.md`.',
@@ -350,18 +365,59 @@ def _mb_setup_args(
     return args, moe_world_size, expert_parallel_group
 
 
-def _patch_ffn_mb(
+def attach_ffn_mb_args(
     ffn: nn.Module,
-    moe_world_size: int,
     expert_parallel_group: ProcessGroup,
-    device_mesh: DeviceMesh,
     args: 'megablocks.layers.arguments.Arguments',
 ):
-    # Attach args to MLP directly for use in param_init_fn
+    """Attach arguments used in parameter initialization to the FFN.
+
+    Args:
+        ffn (nn.Module): The FFN module.
+        expert_parallel_group (ProcessGroup): The expert parallel process group.
+        args (megablocks.layers.arguments.Arguments): The arguments for MegaBlocks.
+    """
     ffn.experts.mlp.hidden_size = args.ffn_hidden_size
     ffn.experts.mlp.expert_parallel_group = expert_parallel_group
     ffn.experts.mlp.weight_parallel_group = args.weight_parallel_group
 
+
+def get_fsdp_submesh_2d(device_mesh: DeviceMesh):
+    """Get the submesh for FSDP.
+
+    Args:
+        device_mesh (DeviceMesh): The full device mesh.
+
+    Returns:
+        DeviceMesh: The submesh for FSDP.
+    """
+    if device_mesh.mesh.ndim == 2:
+        submesh = device_mesh['weight_parallel']
+    elif device_mesh.mesh.ndim == 3:
+        raise RuntimeError(f'HSDP + MoE is not supported.')
+    else:
+        raise ValueError(f'{device_mesh.mesh.ndim=} not supported for MoE.')
+
+    return submesh
+
+
+def set_ffn_device_mesh(
+    ffn: nn.Module,
+    moe_world_size: int,
+    device_mesh: DeviceMesh,
+    get_fsdp_submesh: Callable[[DeviceMesh], DeviceMesh],
+):
+    """Sets the device mesh in FSDP kwargs.
+
+    Args:
+        ffn (nn.Module): The FFN module.
+        moe_world_size (int): The MoE world size.
+        device_mesh (DeviceMesh): The full device mesh.
+
+    Raises:
+        RuntimeError: If the device mesh is 3D.
+        ValueError: If the device mesh is not 2D or 3D.
+    """
     if moe_world_size > 1:
         expert_mesh = device_mesh['expert_parallel']
         expert_placements: List[Placement] = [Shard(0)]
@@ -377,16 +433,20 @@ def _patch_ffn_mb(
         for name, dtensorified_param in dtensorified_params:
             ffn.experts.mlp.register_parameter(name, dtensorified_param)
 
-        if device_mesh.mesh.ndim == 2:
-            submesh = device_mesh['weight_parallel']
-        elif device_mesh.mesh.ndim == 3:
-            raise RuntimeError(f'HSDP + MoE is not supported.')
-        else:
-            raise ValueError(f'{device_mesh.mesh.ndim=} not supported for MoE.')
+        submesh = get_fsdp_submesh(device_mesh)
 
         ffn.experts._fsdp_kwargs_dict = {
             'device_mesh': submesh,
         }
+
+
+def moe_fused_init_setup(ffn: nn.Module,):
+    """Attach the _stack_dim attribute to the FFN.
+
+    Args:
+        ffn (nn.Module): The FFN module.
+    """
+    ffn.experts.mlp._stack_dim = 0
 
 
 def build_mb_moe(
@@ -403,7 +463,7 @@ def build_mb_moe(
             'Requirements for megablocks not installed; see install instructions in `README.md`.',
         )
 
-    args, moe_world_size, expert_parallel_group = _mb_setup_args(
+    args, moe_world_size, expert_parallel_group = mb_setup_args(
         d_model=d_model,
         expansion_ratio=expansion_ratio,
         ffn_hidden_size=ffn_hidden_size,
@@ -415,19 +475,41 @@ def build_mb_moe(
 
     ffn = megablocks.layers.moe.MoE(args)
 
-    # Fused initialization setup
-    # For param_init_fn, enables shape based init of stacked layers
-    ffn.experts.mlp._stack_dim = 0
-
-    _patch_ffn_mb(
+    moe_fused_init_setup(ffn=ffn,)
+    attach_ffn_mb_args(
+        ffn=ffn,
+        expert_parallel_group=expert_parallel_group,
+        args=args,
+    )
+    set_ffn_device_mesh(
         ffn=ffn,
         moe_world_size=moe_world_size,
-        expert_parallel_group=expert_parallel_group,
         device_mesh=kwargs['device_mesh'],
-        args=args,
+        get_fsdp_submesh=get_fsdp_submesh_2d,
     )
 
     return ffn
+
+
+def dmoe_fused_init_setup(
+    ffn: nn.Module,
+    args: 'megablocks.layers.arguments.Arguments',
+    moe_world_size: int,
+):
+    """Attach the _fused attribute to the dMoE model.
+
+    This is used for parameter initialization.
+
+    Args:
+        ffn (nn.Module): The FFN module.
+        args (megablocks.layers.arguments.Arguments): The arguments for MegaBlocks.
+        moe_world_size (int): The MoE world size.
+    """
+    n_exp = min(1, args.moe_num_experts // moe_world_size)
+    ffn.experts.mlp._fused = (
+        0,
+        [(n + 1) * args.ffn_hidden_size for n in range(n_exp - 1)],
+    )
 
 
 def build_mb_dmoe(
@@ -444,7 +526,7 @@ def build_mb_dmoe(
             'Requirements for megablocks not installed; see install instructions in `README.md`.',
         )
 
-    args, moe_world_size, expert_parallel_group = _mb_setup_args(
+    args, moe_world_size, expert_parallel_group = mb_setup_args(
         d_model=d_model,
         expansion_ratio=expansion_ratio,
         ffn_hidden_size=ffn_hidden_size,
@@ -456,20 +538,21 @@ def build_mb_dmoe(
 
     ffn = megablocks.layers.dmoe.dMoE(args)
 
-    # Fused initialization setup
-    # For param_init_fn, enables shape based init of fused layers
-    n_exp = min(1, args.moe_num_experts // moe_world_size)
-    ffn.experts.mlp._fused = (
-        0,
-        [(n + 1) * args.ffn_hidden_size for n in range(n_exp - 1)],
+    dmoe_fused_init_setup(
+        ffn=ffn,
+        args=args,
+        moe_world_size=moe_world_size,
     )
-
-    _patch_ffn_mb(
+    attach_ffn_mb_args(
+        ffn=ffn,
+        expert_parallel_group=expert_parallel_group,
+        args=args,
+    )
+    set_ffn_device_mesh(
         ffn=ffn,
         moe_world_size=moe_world_size,
-        expert_parallel_group=expert_parallel_group,
         device_mesh=kwargs['device_mesh'],
-        args=args,
+        get_fsdp_submesh=get_fsdp_submesh_2d,
     )
 
     return ffn

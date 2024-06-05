@@ -39,6 +39,7 @@ __all__ = [
     'update_batch_size_info',
     'process_init_device',
     'log_config',
+    'log_dataset_uri',
 ]
 
 
@@ -508,7 +509,6 @@ def log_config(cfg: Dict[str, Any]) -> None:
 
     if 'mlflow' in loggers and mlflow.active_run():
         mlflow.log_params(params=cfg)
-        _log_dataset_uri(cfg)
 
 
 def _parse_source_dataset(cfg: Dict[str, Any]) -> List[Tuple[str, str, str]]:
@@ -589,7 +589,7 @@ def _process_data_source(
             ('uc_volume', source_dataset_path[len('dbfs:'):], true_split),
         )
     # Check for HF path
-    elif 'hf_name' in dataset:
+    elif 'hf_name' in dataset and dataset['hf_name']:
         hf_path = dataset['hf_name']
         backend, _, uc_path = parse_uri(hf_path)
         unsupported_file = True
@@ -620,7 +620,7 @@ def _process_data_source(
         else:
             data_paths.append(('hf', hf_path, true_split))
     # Check for remote path
-    elif 'remote' in dataset:
+    elif 'remote' in dataset and dataset['remote']:
         remote_path = dataset['remote']
         backend, _, _ = parse_uri(remote_path)
         if backend:
@@ -630,17 +630,24 @@ def _process_data_source(
             ) if cfg_split else remote_path
             data_paths.append((backend, remote_path, true_split))
         else:
+            # No backend detected so assume local path
             data_paths.append(('local', remote_path, true_split))
+    # Check for local path
+    elif 'local' in dataset and dataset['local']:
+        data_paths.append(('local', dataset['local'], true_split))
     else:
         log.warning('DataSource Not Found.')
 
 
-def _log_dataset_uri(cfg: Dict[str, Any]) -> None:
+def log_dataset_uri(cfg: Dict[str, Any]) -> None:
     """Logs dataset tracking information to MLflow.
 
     Args:
         cfg (DictConfig): A config dictionary of a run
     """
+    loggers = cfg.get('loggers', None) or {}
+    if 'mlflow' not in loggers or not mlflow.active_run():
+        return
     # Figure out which data source to use
     data_paths = _parse_source_dataset(cfg)
 

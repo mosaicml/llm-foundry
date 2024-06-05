@@ -289,8 +289,8 @@ def make_dataclass_and_log_config(
         unstructured_config['variables'] = {}
 
     for key in extraneous_keys:
-        warnings.warn(
-            f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary. Interpreting {key} as a variable for logging purposes. Top-level variables are deprecated and will not be supported in future releases. Please place any variables under the `variables` key.',
+        raise ValueError(
+            f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary. Please place any variables under the `variables` key.',
             category=DeprecationWarning,
         )
         unstructured_config['variables'][key] = unstructured_config.pop(key)

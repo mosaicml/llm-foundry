@@ -3,7 +3,6 @@
 import copy
 import json
 import os
-import warnings
 
 import omegaconf
 import pytest

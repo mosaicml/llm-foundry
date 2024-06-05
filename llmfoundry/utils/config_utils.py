@@ -67,6 +67,7 @@ class EvalConfig:
     # Logging parameters
     python_log_level: Optional[str] = 'debug'
     loggers: Optional[Dict[str, Any]] = None
+    console_log_interval: Union[int, str] = '1ba'
     log_config: bool = True
 
     # Model/run parameters

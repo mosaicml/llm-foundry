@@ -453,7 +453,8 @@ def build_tokenizer(
     os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
-    signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_completed_tokenizer_setup'
+    slurm_job_id = int(os.getenv('SLURM_JOB_ID', -1))
+    signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_slurm_job_id{slurm_job_id}_completed_tokenizer_setup'
 
     if dist.is_available() and dist.is_initialized(
     ) and dist.get_world_size() > 1:

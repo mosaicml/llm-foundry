@@ -29,6 +29,8 @@ from llmfoundry.eval.datasets.utils import (
     tokenizer_needs_prefix_space,
     trim_context,
 )
+from llmfoundry.utils.registry_utils import construct_from_registry
+from llmfoundry import registry
 
 log = logging.getLogger(__name__)
 
@@ -134,6 +136,8 @@ class InContextLearningDataset(Dataset):
         static_keys: Optional[List] = None,
         list_keys: Optional[List] = None,
         tensor_keys: Optional[List] = None,
+        *args: Any,
+        **kwargs: Any,
     ):
         self.tokenizer = tokenizer
         self.prefix_space = tokenizer_needs_prefix_space(self.tokenizer)
@@ -1323,86 +1327,43 @@ def build_icl_dataloader(
             this might be different)
         3. set the `split_batch` function if necessary
     """
-    if icl_task_type == 'multiple_choice':
-        dataset = InContextLearningMultipleChoiceTaskDataset(
-            dataset_uri=dataset_uri,
-            tokenizer=tokenizer,
-            max_seq_len=max_seq_len,
-            pad_tok_id=pad_tok_id,
-            num_fewshot=num_fewshot,
-            prompt_string=prompt_string,
-            example_delimiter=example_delimiter,
-            continuation_delimiter=continuation_delimiter,
-            destination_path=destination_path,
-            prelimiter=prelimiter,
-            fewshot_random_seed=fewshot_random_seed,
-            hf_loading_vars=hf_loading_vars,
-            hf_parsing_map=hf_parsing_map,
-            generation_kwargs=generation_kwargs,
-        )
-        batch_size = max(dataset.num_choices, batch_size)
-        effective_batchsize = batch_size // dataset.num_choices
-    elif icl_task_type == 'schema':
-        dataset = InContextLearningSchemaTaskDataset(
-            dataset_uri=dataset_uri,
-            tokenizer=tokenizer,
-            max_seq_len=max_seq_len,
-            pad_tok_id=pad_tok_id,
-            num_fewshot=num_fewshot,
-            prompt_string=prompt_string,
-            example_delimiter=example_delimiter,
-            continuation_delimiter=continuation_delimiter,
-            destination_path=destination_path,
-            prelimiter=prelimiter,
-            fewshot_random_seed=fewshot_random_seed,
-            hf_loading_vars=hf_loading_vars,
-            hf_parsing_map=hf_parsing_map,
-            generation_kwargs=generation_kwargs,
-        )
-        batch_size = max(dataset.num_choices, batch_size)
-        effective_batchsize = batch_size // dataset.num_choices
-    elif icl_task_type == 'language_modeling':
-        dataset = InContextLearningLMTaskDataset(
-            dataset_uri=dataset_uri,
-            tokenizer=tokenizer,
-            max_seq_len=max_seq_len,
-            pad_tok_id=pad_tok_id,
-            num_fewshot=num_fewshot,
-            prompt_string=prompt_string,
-            example_delimiter=example_delimiter,
-            continuation_delimiter=continuation_delimiter,
-            destination_path=destination_path,
-            prelimiter=prelimiter,
-            fewshot_random_seed=fewshot_random_seed,
-            hf_loading_vars=hf_loading_vars,
-            hf_parsing_map=hf_parsing_map,
-            generation_kwargs=generation_kwargs,
-        )
-        effective_batchsize = batch_size
-    elif icl_task_type == 'generation_task_with_answers':
-        dataset = InContextLearningGenerationTaskWithAnswersDataset(
-            dataset_uri=dataset_uri,
-            tokenizer=tokenizer,
-            max_seq_len=max_seq_len,
-            pad_tok_id=pad_tok_id,
-            num_fewshot=num_fewshot,
-            prompt_string=prompt_string,
-            example_delimiter=example_delimiter,
-            continuation_delimiter=continuation_delimiter,
-            destination_path=destination_path,
-            prelimiter=prelimiter,
-            fewshot_random_seed=fewshot_random_seed,
-            hf_loading_vars=hf_loading_vars,
-            hf_parsing_map=hf_parsing_map,
-            cot_delimiter=cot_delimiter,
-            early_stopping_criteria=early_stopping_criteria,
-            do_normalization=do_normalization,
-            generation_kwargs=generation_kwargs,
-        )
-        effective_batchsize = batch_size
-    else:
-        raise Exception(f'Unrecognized ICL task type: {icl_task_type}')
+    name = icl_task_type
+    kwargs: Dict[str, Any] = {
+        'dataset_uri': dataset_uri,
+        'tokenizer': tokenizer,
+        'max_seq_len':max_seq_len,
+        'pad_tok_id':pad_tok_id,
+        'num_fewshot': num_fewshot,
+        'prompt_string': prompt_string,
+        'example_delimiter': example_delimiter,
+        'continuation_delimiter': continuation_delimiter,
+        'destination_path': destination_path,
+        'prelimiter': prelimiter,
+        'fewshot_random_seed': fewshot_random_seed,
+        'hf_loading_vars': hf_loading_vars,
+        'hf_parsing_map': hf_parsing_map,
+        #'cot_delimiter': cot_delimiter,
+        #'early_stopping_criteria': early_stopping_criteria,
+        #'do_normalization': do_normalization,
+        #'generati#on_kwargs': generation_kwargs,
+    }
+    print("icl tasks type: ", name)
+    dataset = construct_from_registry(
+        name=name,
+        registry=registry.icl_dataloaders,
+        partial_function=False,
+        pre_validation_function=None,
+        post_validation_function=None,
+        kwargs=kwargs,
+    )
+    # !Highly unsafe!
 
+    print('XXXXBatch size', batch_size)
+    if hasattr(dataset, 'num_choices'):
+        batch_size = max(dataset.num_choices, batch_size)
+        effective_batchsize = batch_size // dataset.num_choices
+    else:
+        effective_batchsize = batch_size
     sampler = dist.get_sampler(dataset, drop_last=False, shuffle=False)
 
     split_batch = None

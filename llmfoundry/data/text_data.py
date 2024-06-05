@@ -145,7 +145,9 @@ class StreamingTextDataset(StreamingDataset):
             )
         self.token_encoding_type = token_encoding_type
 
-        if local is not None and (remote is None or (local == remote)):
+        if local is not None and (
+            remote is None or (local == remote)
+        ) and split is not None:
             if os.path.isdir(local):
                 contents = set(os.listdir(local))
                 if split not in contents:

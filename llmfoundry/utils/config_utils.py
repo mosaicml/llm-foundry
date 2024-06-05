@@ -85,12 +85,6 @@ class EvalConfig:
     # Variables to ignore
     variables: Optional[Dict[str, Any]] = None
 
-    # Fields created by `update_batch_size`
-    n_gpus: int = MISSING
-    device_train_batch_size: int = MISSING
-    device_train_microbatch_size: int = MISSING
-    device_train_grad_accum: str = MISSING
-
 
 EVAL_CONFIG_KEYS = {field.name for field in fields(EvalConfig)}
 
@@ -186,10 +180,9 @@ class TrainConfig:
     # Variables to ignore
     variables: Optional[Dict[str, Any]] = None
 
-    # Fields created by `update_batch_size`
+    # Fields created by `update_batch_size_info`
     n_gpus: int = MISSING
     device_train_batch_size: int = MISSING
-    device_train_microbatch_size: int = MISSING
     device_train_grad_accum: str = MISSING
 
 

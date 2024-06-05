@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 import logging
 import os
+import random
+import hashlib
 from typing import Any, Dict, Optional, Tuple, Union
 
 import torch
@@ -532,10 +534,11 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
 
         # Since we don't know exactly what the extension will be, since it is one of a list
         # use a signal file to wait for instead of the desired file
-        slurm_job_id = int(os.getenv('SLURM_JOB_ID', -1))
+        random_number = random.randint(0, 999999)
+        sha_signature = hashlib.sha256(str(random_number).encode()).hexdigest()
         signal_file_path = os.path.join(
             finetune_dir,
-            f'.node_{dist.get_node_rank()}_slurm_job_id{slurm_job_id}_local_rank0_completed',
+            f'.sha_{sha_signature}_completed',
         )
         if dist.get_local_rank() == 0:
             try:

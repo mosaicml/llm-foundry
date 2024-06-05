@@ -34,6 +34,8 @@ those keys are strings (i.e. text).
 import importlib
 import logging
 import os
+import random
+import hashlib
 import warnings
 from collections.abc import Mapping
 from functools import partial
@@ -814,8 +816,9 @@ class DatasetConstructor:
         Returns:
             Dataset: The tokenized dataset.
         """
-        slurm_job_id = int(os.getenv('SLURM_JOB_ID', -1))
-        signal_file_path = f'.node_{dist.get_node_rank()}_slurm_job_id{slurm_job_id}_local_rank0_data_prep_completed'
+        random_number = random.randint(0, 999999)
+        sha_signature = hashlib.sha256(str(random_number).encode()).hexdigest()
+        signal_file_path = f'.sha_{sha_signature}_data_prep_completed'
 
         # Non local rank 0 ranks will wait here for local rank 0 to finish the data processing.
         # Once local rank 0 is done, the datasets are all cached on disk, and all other ranks

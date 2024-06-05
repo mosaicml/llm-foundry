@@ -5,6 +5,8 @@
 
 import logging
 import os
+import random
+import hashlib
 import warnings
 from typing import (
     TYPE_CHECKING,
@@ -339,8 +341,9 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                 f'init_device="{init_device}" must be either "cpu" or "meta".',
             )
 
-        slurm_job_id = int(os.getenv('SLURM_JOB_ID', -1))
-        signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_slurm_job_id{slurm_job_id}_completed'
+        random_number = random.randint(0, 999999)
+        sha_signature = hashlib.sha256(str(random_number).encode()).hexdigest() 
+        signal_file_path = f'.sha_{sha_signature}_completed'
         if dist.get_local_rank() == 0:
             with open(signal_file_path, 'wb') as f:
                 f.write(b'local_rank0_completed_download')

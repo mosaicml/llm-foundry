@@ -291,9 +291,7 @@ def make_dataclass_and_log_config(
     for key in extraneous_keys:
         raise ValueError(
             f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary. Please place any variables under the `variables` key.',
-            category=DeprecationWarning,
         )
-        unstructured_config['variables'][key] = unstructured_config.pop(key)
 
     dataclass_dict_config: DictConfig = om.structured(
         dataclass_constructor(**unstructured_config),

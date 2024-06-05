@@ -89,7 +89,7 @@ class TestTrainingYAMLInputs:
                 main(cfg)
             cfg[param] = orig_param
 
-    def test_optional_misspelled_params_raise_warning(
+    def test_optional_misspelled_params_raise_error(
         self,
         cfg: DictConfig,
     ) -> None:
@@ -113,15 +113,11 @@ class TestTrainingYAMLInputs:
             orig_value = cfg.pop(param, None)
             updated_param = param + '-misspelling'
             cfg[updated_param] = orig_value
-            with warnings.catch_warnings(record=True) as warning_list:
+            with pytest.raises(ValueError):
                 try:
                     main(cfg)
                 except:
                     pass
-                assert any(
-                    f'Unused parameter {updated_param} found in cfg.' in
-                    str(warning.message) for warning in warning_list
-                )
             # restore configs.
             cfg = copy.deepcopy(old_cfg)
 

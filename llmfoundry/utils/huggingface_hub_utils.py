@@ -280,6 +280,9 @@ def edit_files_for_hf_compatibility(
         for f in files_processed_and_queued
     }
     for entrypoint in entrypoint_files:
+        file_path = os.path.join(folder, entrypoint)
+        if not os.path.exists(file_path):
+            continue
         existing_relative_imports = get_all_relative_imports(
             os.path.join(folder, entrypoint),
         )

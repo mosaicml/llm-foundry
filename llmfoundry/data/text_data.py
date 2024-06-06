@@ -4,7 +4,6 @@
 """Build a StreamingTextDataset dataset and dataloader for training."""
 
 import inspect
-import os
 from itertools import islice
 from typing import (
     Any,
@@ -25,6 +24,10 @@ from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry import registry
+from llmfoundry.data import (
+    SUPPORTED_MDS_ENCODING_TYPES,
+    stream_remote_local_validate,
+)
 from llmfoundry.utils.registry_utils import construct_from_registry
 
 __all__ = [
@@ -41,6 +44,9 @@ class StreamingTextDataset(StreamingDataset):
         tokenizer (Tokenizer): HuggingFace tokenizer to
             tokenize samples.
         max_seq_len (int): The max sequence length of each sample.
+        token_encoding_type (str): The encoding type of the tokenized samples. This is only used
+            for legacy datasets that have been written directly as 'bytes' instead of numpy
+            arrays. Types are auto-inferred for numpy arrays. Defaults to 'int64'.
         streams (Sequence[Stream], optional): One or more Streams to stream/cache samples from,
             which may be upsampled or downsampled. StreamingDataset uses either ``streams`` or
             ``remote``/``local``. Defaults to ``None``.
@@ -106,6 +112,7 @@ class StreamingTextDataset(StreamingDataset):
         self,
         tokenizer: PreTrainedTokenizerBase,
         max_seq_len: int,
+        token_encoding_type: str = 'int64',
         streams: Optional[Sequence[Stream]] = None,
         remote: Optional[str] = None,
         local: Optional[str] = None,
@@ -137,13 +144,21 @@ class StreamingTextDataset(StreamingDataset):
                 f'StreamingTextDataset() got an unexpected keyword argument: {kwargs}',
             )
 
-        if local is not None and (remote is None or (local == remote)):
-            if os.path.isdir(local):
-                contents = set(os.listdir(local))
-                if split not in contents:
-                    raise ValueError(
-                        f'local directory {local} does not contain split {split}',
-                    )
+        if token_encoding_type not in SUPPORTED_MDS_ENCODING_TYPES:
+            raise ValueError(
+                f'The token_encoding_type must be one of {SUPPORTED_MDS_ENCODING_TYPES}, but got {token_encoding_type}',
+            )
+        self.token_encoding_type = token_encoding_type
+
+        if streams is None:
+            stream_remote_local_validate(remote, local, split)
+        else:
+            for stream in streams:
+                stream_remote_local_validate(
+                    stream.remote,
+                    stream.local,
+                    split,
+                )
 
         # TODO: discover where yamls are being converted incorrect, but temporary workaround
         if isinstance(shuffle_block_size, float):
@@ -197,10 +212,18 @@ class StreamingTextDataset(StreamingDataset):
         self,
         sample: Dict[str, Any],
     ) -> torch.Tensor:
-        return torch.from_numpy(
-            np.frombuffer(sample['tokens'],
-                          dtype=np.int64)[:self.max_seq_len].copy(),
-        )
+        # Modeling code still expects int64 tensors.
+        if isinstance(sample['tokens'], np.ndarray):
+            return torch.from_numpy(
+                sample['tokens'][:self.max_seq_len].copy(),
+            ).to(torch.int64)
+        else:
+            return torch.from_numpy(
+                np.frombuffer(
+                    sample['tokens'],
+                    dtype=getattr(np, self.token_encoding_type),
+                )[:self.max_seq_len].copy(),
+            ).to(torch.int64)
 
     # How to process a sample
     def __getitem__(self,

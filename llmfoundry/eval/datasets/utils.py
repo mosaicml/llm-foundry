@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import logging
 import random
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Optional, Set
 
 import torch
 import transformers
@@ -272,7 +272,7 @@ class MultiTokenEOSCriteria(transformers.StoppingCriteria):
 
     def __call__(
         self,
-        input_ids: Union[torch.LongTensor, torch.IntTensor],
+        input_ids: torch.LongTensor,
         scores: Optional[torch.FloatTensor] = None,
         **kwargs: Dict[str, Any],
     ) -> bool:

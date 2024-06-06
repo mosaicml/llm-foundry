@@ -270,8 +270,7 @@ def test_correct_padding(
     batch = next(iter(eval_loader))
 
     assert batch['input_ids'].shape == torch.Size([batch_size, 2048])
-    assert batch['input_ids'].type(
-    ) == 'torch.LongTensor' or batch['input_ids'].type() == 'torch.IntTensor'
+    assert batch['input_ids'].type() == 'torch.LongTensor'
 
     # we follow the convention (from huggingface) that non-attended tokens are 0 in the attn mask and -100 in the labels
     attention_mask = batch.get(

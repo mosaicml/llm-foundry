@@ -277,7 +277,7 @@ def gen_flash_attn_padding_info(
 
 def apply_sequence_id(
     attn_bias: torch.Tensor,
-    sequence_id: Union[torch.LongTensor, torch.IntTensor],
+    sequence_id: torch.LongTensor,
     max_seq_len: int,
 ) -> torch.Tensor:
     seq_len = sequence_id.shape[-1]
@@ -470,7 +470,7 @@ class MPTModel(MPTPreTrainedModel):
         device: torch.device,
         dtype: torch.dtype,
         attention_mask: Optional[torch.ByteTensor] = None,
-        sequence_id: Optional[Union[torch.LongTensor, torch.IntTensor]] = None,
+        sequence_id: Optional[torch.LongTensor] = None,
     ) -> Tuple[Optional[torch.Tensor], Optional[torch.ByteTensor]]:
         if not self._attn_bias_initialized:
             if self.attn_bias_shape:
@@ -533,10 +533,10 @@ class MPTModel(MPTPreTrainedModel):
 
     def forward(
         self,
-        input_ids: Optional[Union[torch.LongTensor, torch.IntTensor]] = None,
+        input_ids: Optional[torch.LongTensor] = None,
         past_key_values: Optional[List[Tuple[torch.FloatTensor]]] = None,
         attention_mask: Optional[torch.ByteTensor] = None,
-        sequence_id: Optional[Union[torch.LongTensor, torch.IntTensor]] = None,
+        sequence_id: Optional[torch.LongTensor] = None,
         return_dict: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
@@ -877,11 +877,11 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
     def forward(
         self,
-        input_ids: Optional[Union[torch.LongTensor, torch.IntTensor]] = None,
+        input_ids: Optional[torch.LongTensor] = None,
         past_key_values: Optional[List[Tuple[torch.FloatTensor]]] = None,
         attention_mask: Optional[torch.ByteTensor] = None,
-        sequence_id: Optional[Union[torch.LongTensor, torch.IntTensor]] = None,
-        labels: Optional[Union[torch.LongTensor, torch.IntTensor]] = None,
+        sequence_id: Optional[torch.LongTensor] = None,
+        labels: Optional[torch.LongTensor] = None,
         return_dict: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
@@ -1056,7 +1056,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
     @staticmethod
     def _reorder_cache(
         past_key_values: List[Tuple[torch.Tensor, torch.Tensor]],
-        beam_idx: Union[torch.LongTensor, torch.IntTensor],
+        beam_idx: torch.LongTensor,
     ) -> List[Tuple[torch.Tensor, ...]]:
         """Used by HuggingFace generate when using beam search with kv-caching.
 

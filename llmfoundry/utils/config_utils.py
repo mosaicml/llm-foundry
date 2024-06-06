@@ -76,9 +76,6 @@ class EvalConfig:
     run_name: Optional[str] = None
     metadata: Optional[Dict[str, str]] = None
 
-    # Dataloader
-    global_train_batch_size: Optional[int] = None
-
     # Distributed parameters
     dist_timeout: Union[float, int] = 600.0
     fsdp_config: Optional[Dict[str, Any]] = None

@@ -14,6 +14,7 @@ from torch.utils.data import IterableDataset
 from transformers import PreTrainedTokenizerBase
 
 __all__ = [
+    'AbstractConcatTokensDataset',
     'ConcatTokensDataset',
     'NoConcatDataset',
     'stream_remote_local_validate',

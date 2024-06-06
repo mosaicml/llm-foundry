@@ -15,7 +15,7 @@ from accelerate import init_empty_weights
 from composer.core.precision import Precision, get_precision_context
 from composer.models.huggingface import maybe_get_underlying_model
 from composer.optim import DecoupledAdamW
-from composer.trainer.dist_strategy import prepare_fsdp_module
+from composer.distributed.dist_strategy import prepare_fsdp_module
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om

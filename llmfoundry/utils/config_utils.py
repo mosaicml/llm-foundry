@@ -236,7 +236,7 @@ def to_container(
         return cfg  # type: ignore (dicts and lists are already in the correct format)
 
 
-def move_variables_to_section(cfg: Dict[str, Any]) -> Dict[str, Any]:
+def move_variables_to_section(cfg: DictConfig) -> Dict[str, Any]:
     """Moves variables from the root of the config to the variables section.
 
     This function is used to move variables from the root of the config to the

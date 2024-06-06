@@ -700,6 +700,12 @@ def _verify_uc_path(path: str) -> bool:
         w = WorkspaceClient()
         w.files.get_metadata(path)
         return True
+    except (NotFound, PermissionDenied):
+        try:
+            w.files.get_directory_metadata(self.path)
+        except Exception:
+            # Neither file nor directory exists, we throw an exception.
+            return False
     except ImportError:
         log.warning(
             'Cannot verify the path of `UCVolumeDatasetSource` because of missing' + \
@@ -707,8 +713,6 @@ def _verify_uc_path(path: str) -> bool:
             '`pip install -U databricks-sdk`. This does not block creating ' + \
             '`UCVolumeDatasetSource`, but your `UCVolumeDatasetSource` might be invalid.',
         )
-        return False
-    except (NotFound, PermissionDenied):
         return False
     except Exception as e:
         log.warning(

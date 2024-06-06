@@ -87,7 +87,7 @@ class Conversation:
 
             def __call__(
                 self,
-                input_ids: torch.LongTensor,
+                input_ids: Union[torch.LongTensor, torch.IntTensor],
                 scores: torch.FloatTensor,
                 **kwargs: Any,
             ) -> bool:

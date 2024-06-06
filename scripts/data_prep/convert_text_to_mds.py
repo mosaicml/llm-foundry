@@ -43,7 +43,7 @@ DONE_FILENAME = '.text_to_mds_conversion_done'
 class ConcatTokensFromFilesDataset(AbstractConcatTokensDataset):
     """An IterableDataset that returns token samples for MDSWriter from files.
 
-    Returns dicts of {'tokens': ndarray:uint32}
+    Returns dicts of {'tokens': ndarray:int32}
 
     Each file is considered a sequence.
     """
@@ -89,8 +89,7 @@ class ConcatTokensFromFilesDataset(AbstractConcatTokensDataset):
                         buffer = buffer[self.
                                         max_length:] if self.should_wrap else []
                         yield {
-                            'tokens':
-                                np.asarray(concat_sample, dtype=np.uint32),
+                            'tokens': np.asarray(concat_sample, dtype=np.int32),
                         }
 
                     first_chunk = False
@@ -102,7 +101,7 @@ class ConcatTokensFromFilesDataset(AbstractConcatTokensDataset):
         while len(buffer) >= self.max_length:
             concat_sample = buffer[:self.max_length]
             buffer = buffer[self.max_length:] if self.should_wrap else []
-            yield {'tokens': np.asarray(concat_sample, dtype=np.uint32)}
+            yield {'tokens': np.asarray(concat_sample, dtype=np.int32)}
 
 
 def parse_args() -> Namespace:
@@ -360,7 +359,7 @@ def download_and_convert(
             no_wrap=no_wrap,
         )
 
-        columns = {'tokens': 'ndarray:uint32'}
+        columns = {'tokens': 'ndarray:int32'}
 
         log.info('Converting to MDS format...')
         with MDSWriter(

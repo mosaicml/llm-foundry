@@ -114,8 +114,8 @@ def build_mock_ft_streaming_dataset(
                 columns = {'input_ids': 'bytes', 'labels': 'bytes'}
             else:
                 columns = {
-                    'input_ids': 'ndarray:uint32',
-                    'labels': 'ndarray:uint32',
+                    'input_ids': 'ndarray:int32',
+                    'labels': 'ndarray:int32',
                 }
         else:
             columns = {'prompt': 'str', 'response': 'str'}
@@ -142,7 +142,7 @@ def build_mock_ft_streaming_dataset(
                         else:
                             sample_to_write[key] = np.asarray(
                                 sample[key],
-                                dtype=np.uint32,
+                                dtype=np.int32,
                             )
                     output_writer.write(sample_to_write)
                 else:
@@ -270,7 +270,8 @@ def test_correct_padding(
     batch = next(iter(eval_loader))
 
     assert batch['input_ids'].shape == torch.Size([batch_size, 2048])
-    assert batch['input_ids'].type() == 'torch.LongTensor'
+    assert batch['input_ids'].type(
+    ) == 'torch.LongTensor' or batch['input_ids'].type() == 'torch.IntTensor'
 
     # we follow the convention (from huggingface) that non-attended tokens are 0 in the attn mask and -100 in the labels
     attention_mask = batch.get(

@@ -383,7 +383,7 @@ def main(args: Namespace) -> None:
         tokenizer = build_tokenizer(args.tokenizer, args.tokenizer_kwargs)
         # we will enforce length, so suppress warnings about sequences too long for the model
         tokenizer.model_max_length = int(1e30)
-        columns = {'tokens': 'ndarray:uint32'}
+        columns = {'tokens': 'ndarray:int32'}
     else:
         mode = ConcatMode.NO_CONCAT
         tokenizer = None

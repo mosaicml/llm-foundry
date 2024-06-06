@@ -118,7 +118,7 @@ class AbstractConcatTokensDataset(ABC, IterableDataset):
 class ConcatTokensDataset(AbstractConcatTokensDataset):
     """An IterableDataset that returns token samples for MDSWriter.
 
-    Returns dicts of {'tokens': ndarray:uint32}
+    Returns dicts of {'tokens': ndarray:int32}
 
     To use data created by this class and written to MDS format:
 
@@ -133,7 +133,7 @@ class ConcatTokensDataset(AbstractConcatTokensDataset):
         # note, you need to copy the numpy array because the original is non-writeable
         # and torch does not support non-writeable tensors, so you get a scary warning and
         # if you do try to write to the tensor you get undefined behavior
-        tokens = torch.from_numpy(np.frombuffer(ds[0]['tokens'], dtype=np.uint32).copy())
+        tokens = torch.from_numpy(np.frombuffer(ds[0]['tokens'], dtype=np.int32).copy())
         print(tokenizer.decode(tokens))
     ```
     """
@@ -165,7 +165,7 @@ class ConcatTokensDataset(AbstractConcatTokensDataset):
                 buffer = buffer[self.max_length:] if self.should_wrap else []
                 yield {
                     # convert to ndarray to store in MDS format
-                    'tokens': np.asarray(concat_sample, dtype=np.uint32),
+                    'tokens': np.asarray(concat_sample, dtype=np.int32),
                 }
 
 

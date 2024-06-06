@@ -698,6 +698,8 @@ def _verify_uc_path(path: str) -> bool:
         from databricks.sdk import WorkspaceClient
 
         w = WorkspaceClient()
+        w.files.get_metadata(path)
+        return True
     except ImportError:
         log.warning(
             'Cannot verify the path of `UCVolumeDatasetSource` because of missing' + \
@@ -706,15 +708,11 @@ def _verify_uc_path(path: str) -> bool:
             '`UCVolumeDatasetSource`, but your `UCVolumeDatasetSource` might be invalid.',
         )
         return False
+    except (NotFound, PermissionDenied):
+        return False
     except Exception as e:
         log.warning(
             f'Cannot verify the path of `UCVolumeDatasetSource` due to an error. '
             f'Error details: {str(e)}. This does not block creating `UCVolumeDatasetSource`, '
             f'but your `UCVolumeDatasetSource` might be invalid.',
         )
-
-    try:
-        w.files.get_metadata(path)
-        return True
-    except (NotFound, PermissionDenied):
-        return False

@@ -182,3 +182,19 @@ icl_tasks:
   dataset_uri: eval/local_data/reading_comprehension/agi_eval_sat_en.jsonl
   num_fewshot: [5]
   icl_task_type: multiple_choice
+-
+  label: human_eval
+  dataset_uri: eval/local_data/programming/human_eval.jsonl
+  num_fewshot: [0]
+  pass_at_k: 1
+  generations_per_sample: 20
+  batch_size: 1
+  icl_task_type: code_evaluation
+- 
+  label: human_eval_25
+  dataset_uri: eval/local_data/programming/human_eval-0.25.jsonl
+  num_fewshot: [0]
+  pass_at_k: 1
+  generations_per_sample: 20
+  batch_size: 1
+  icl_task_type: code_evaluation

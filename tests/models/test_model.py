@@ -16,7 +16,12 @@ from composer.core.precision import Precision, get_precision_context
 from composer.distributed.dist_strategy import prepare_fsdp_module
 from composer.models.huggingface import maybe_get_underlying_model
 from composer.optim import DecoupledAdamW
-from composer.utils import dist, get_device, reproducibility
+from composer.utils import (
+    FSDPConfig,
+    dist,
+    get_device,
+    reproducibility,
+)
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from transformers import (
@@ -2538,7 +2543,14 @@ def test_hf_init(
         betas=(0.9, 0.99),
     )
 
-    prepare_fsdp_module(model, optimizer, fsdp_config, precision, device, False)
+    prepare_fsdp_module(
+        model,
+        optimizer,
+        FSDPConfig(**fsdp_config),
+        precision,
+        device,
+        False,
+    )
 
     model = HuggingFaceModelWithFSDP(model, tokenizer)
 

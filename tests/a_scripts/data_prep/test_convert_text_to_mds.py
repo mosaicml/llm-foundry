@@ -9,7 +9,6 @@ from glob import glob
 from typing import Callable, Iterable, List
 from unittest.mock import Mock, patch
 
-import numpy as np
 import pytest
 from streaming import StreamingDataset
 from transformers import AutoTokenizer
@@ -194,7 +193,7 @@ def test_single_and_multi_process(
     n_tokens = 0
     for i in range(dataset.num_samples):
         sample = dataset[i]
-        tokens = np.frombuffer(sample['tokens'], dtype=int)
+        tokens = sample['tokens']
         if i == 0:  # For the first sample, check that the decoded sample matches the text_content
             decoded = tokenizer.decode(tokens)
             assert decoded == text_content[:len(decoded)]

@@ -5,16 +5,31 @@
 import os
 import warnings
 from abc import ABC, abstractmethod
-from typing import Dict, Iterable, Union
+from typing import Dict, Iterable, Optional, Union
 
 import datasets as hf_datasets
 import numpy as np
+from numpy.typing import NDArray
 from torch.utils.data import IterableDataset
 from transformers import PreTrainedTokenizerBase
 
 __all__ = [
+    'AbstractConcatTokensDataset',
     'ConcatTokensDataset',
     'NoConcatDataset',
+    'stream_remote_local_validate',
+    'SUPPORTED_MDS_ENCODING_TYPES',
+]
+
+SUPPORTED_MDS_ENCODING_TYPES = [
+    'int8',
+    'int16',
+    'int32',
+    'int64',
+    'uint8',
+    'uint16',
+    'uint32',
+    'uint64',
 ]
 
 
@@ -97,14 +112,14 @@ class AbstractConcatTokensDataset(ABC, IterableDataset):
             )
 
     @abstractmethod
-    def __iter__(self) -> Iterable[Dict[str, bytes]]:
+    def __iter__(self) -> Iterable[Union[Dict[str, bytes], Dict[str, NDArray]]]:
         pass
 
 
 class ConcatTokensDataset(AbstractConcatTokensDataset):
     """An IterableDataset that returns token samples for MDSWriter.
 
-    Returns dicts of {'tokens': bytes}
+    Returns dicts of {'tokens': ndarray:int32}
 
     To use data created by this class and written to MDS format:
 
@@ -119,7 +134,7 @@ class ConcatTokensDataset(AbstractConcatTokensDataset):
         # note, you need to copy the numpy array because the original is non-writeable
         # and torch does not support non-writeable tensors, so you get a scary warning and
         # if you do try to write to the tensor you get undefined behavior
-        tokens = torch.from_numpy(np.frombuffer(ds[0]['tokens'], dtype=np.int64).copy())
+        tokens = torch.from_numpy(np.frombuffer(ds[0]['tokens'], dtype=np.int32).copy())
         print(tokenizer.decode(tokens))
     ```
     """
@@ -136,7 +151,7 @@ class ConcatTokensDataset(AbstractConcatTokensDataset):
         self.hf_dataset = hf_dataset
         super().__init__(tokenizer, max_length, bos_text, eos_text, no_wrap)
 
-    def __iter__(self) -> Iterable[Dict[str, bytes]]:
+    def __iter__(self) -> Iterable[Dict[str, NDArray]]:
         buffer = []
         for sample in self.hf_dataset:
             encoded = self.tokenizer(
@@ -150,6 +165,27 @@ class ConcatTokensDataset(AbstractConcatTokensDataset):
                 concat_sample = buffer[:self.max_length]
                 buffer = buffer[self.max_length:] if self.should_wrap else []
                 yield {
-                    # convert to bytes to store in MDS binary format
-                    'tokens': np.asarray(concat_sample).tobytes(),
+                    # convert to ndarray to store in MDS format
+                    'tokens': np.asarray(concat_sample, dtype=np.int32),
                 }
+
+
+def stream_remote_local_validate(
+    remote: Optional[str],
+    local: Optional[str],
+    split: Optional[str],
+):
+    """Check that, if needed, the local/split directory exists.
+
+    Args:
+        remote (Optional[str]): Remote path to the dataset.
+        local (Optional[str]): Local path to the dataset.
+        split (Optional[str]): Subdirectory specifying which dataset split to use, if any.
+    """
+    if remote is None or (local == remote):
+        if local is not None and os.path.isdir(local):
+            contents = set(os.listdir(local))
+            if split is not None and split not in contents:
+                raise ValueError(
+                    f'Local directory {local} does not contain split {split}',
+                )

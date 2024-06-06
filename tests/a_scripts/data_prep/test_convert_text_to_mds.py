@@ -193,7 +193,6 @@ def test_single_and_multi_process(
     n_tokens = 0
     for i in range(dataset.num_samples):
         sample = dataset[i]
-        # TODO: delete the below
         tokens = sample['tokens']
         if i == 0:  # For the first sample, check that the decoded sample matches the text_content
             decoded = tokenizer.decode(tokens)

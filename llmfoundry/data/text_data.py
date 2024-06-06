@@ -44,7 +44,9 @@ class StreamingTextDataset(StreamingDataset):
         tokenizer (Tokenizer): HuggingFace tokenizer to
             tokenize samples.
         max_seq_len (int): The max sequence length of each sample.
-        token_encoding_type (str): The encoding type of the tokenized samples. Defaults to 'int64'.
+        token_encoding_type (str): The encoding type of the tokenized samples. This is only used
+            for legacy datasets that have been written directly as 'bytes' instead of numpy
+            arrays. Types are auto-inferred for numpy arrays. Defaults to 'int64'.
         streams (Sequence[Stream], optional): One or more Streams to stream/cache samples from,
             which may be upsampled or downsampled. StreamingDataset uses either ``streams`` or
             ``remote``/``local``. Defaults to ``None``.

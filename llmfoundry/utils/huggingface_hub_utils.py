@@ -233,9 +233,7 @@ def edit_files_for_hf_compatibility(
         remove_imports_prefix (Sequence[str], optional): Sequence of prefixes to remove. Takes precedence over flattening.
             Defaults to ('composer', 'omegaconf', 'llmfoundry.metrics', 'llmfoundry.utils.builders').
     """
-    print("Entering")
     listed_dir = os.listdir(folder)
-    print(listed_dir)
 
     # Try to acquire the config file to determine which python file is the entrypoint file
     config_file_exists = 'config.json' in listed_dir
@@ -252,8 +250,6 @@ def edit_files_for_hf_compatibility(
             split_path = value.split('.')
             if len(split_path) > 1:
                 entrypoint_files.add(split_path[0] + '.py')
-    
-    print(entrypoint_files)
 
     files_to_process = [
         os.path.join(folder, filename)
@@ -284,6 +280,9 @@ def edit_files_for_hf_compatibility(
         for f in files_processed_and_queued
     }
     for entrypoint in entrypoint_files:
+        file_path = os.path.join(folder, entrypoint)
+        if not os.path.exists(file_path):
+            continue
         existing_relative_imports = get_all_relative_imports(
             os.path.join(folder, entrypoint),
         )

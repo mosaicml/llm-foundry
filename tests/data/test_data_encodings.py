@@ -71,7 +71,7 @@ def test_encoding_types_text(
         )
     else:
         # There should be no need to pass in the token encoding type if writing out ndarrays,
-        # or if using the default token encoding type, which we check to be int64.
+        # or if using the default token encoding type.
         dataset = StreamingTextDataset(
             tokenizer=None,
             max_seq_len=max_seq_len,
@@ -80,11 +80,8 @@ def test_encoding_types_text(
         )
 
     for _, sample in enumerate(dataset):
-        # StreamingTextDataset returns a torch Tensor, not numpy array
-        if token_encoding_type != 'default':
-            assert sample.dtype == getattr(torch, token_encoding_type)
-        else:
-            assert sample.dtype == torch.int64
+        # StreamingTextDataset should return an int64 torch Tensor
+        assert sample.dtype == torch.int64
         assert sample.shape == (max_seq_len,)
 
 
@@ -164,7 +161,7 @@ def test_encoding_types_finetuning(
         )
     else:
         # There should be no need to pass in the token encoding type if writing out ndarrays,
-        # or if using the default token encoding type, which we check to be int64.
+        # or if using the default token encoding type.
         dataset = StreamingFinetuningDataset(
             tokenizer=None,
             local=dataset_local_path,

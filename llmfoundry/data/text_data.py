@@ -212,8 +212,9 @@ class StreamingTextDataset(StreamingDataset):
     ) -> torch.Tensor:
         # Modeling code still expects int64 tensors.
         if isinstance(sample['tokens'], np.ndarray):
-            return torch.from_numpy(sample['tokens'][:self.max_seq_len].copy()
-                                   ).to(torch.int64)
+            return torch.from_numpy(
+                sample['tokens'][:self.max_seq_len].copy(),
+            ).to(torch.int64)
         else:
             return torch.from_numpy(
                 np.frombuffer(

@@ -59,6 +59,10 @@ from composer.utils import dist
 from streaming import Stream, StreamingDataset
 from transformers import PreTrainedTokenizerBase
 
+from llmfoundry.data import (
+    SUPPORTED_MDS_ENCODING_TYPES,
+    stream_remote_local_validate,
+)
 from llmfoundry.data.finetuning.collator import (
     _HF_IGNORE_INDEX,
     stitch_turns_decoder_only,
@@ -69,6 +73,7 @@ from llmfoundry.utils.exceptions import (
     ALLOWED_MESSAGES_KEYS,
     ALLOWED_PROMPT_KEYS,
     ALLOWED_RESPONSE_KEYS,
+    ChatTemplateError,
     ConsecutiveRepeatedChatRolesError,
     IncorrectMessageKeyQuantityError,
     InvalidContentTypeError,
@@ -245,15 +250,22 @@ def _slice_chat_formatted_example(
         messages_through_current_turn: List[Dict[str, str]],
         conversation_through_previous_turn: str,
     ) -> Tuple[str, str]:
-        full_conversation = tokenizer.apply_chat_template(
-            messages_through_current_turn,
-            tokenize=False,
-        )
-        prompt_with_history = tokenizer.apply_chat_template(
-            messages_through_current_turn[:-1],
-            tokenize=False,
-            add_generation_prompt=True,
-        )
+        try:
+            full_conversation = tokenizer.apply_chat_template(
+                messages_through_current_turn,
+                tokenize=False,
+            )
+            prompt_with_history = tokenizer.apply_chat_template(
+                messages_through_current_turn[:-1],
+                tokenize=False,
+                add_generation_prompt=True,
+            )
+        except Exception as e:
+            raise ChatTemplateError(
+                tokenizer.chat_template,
+                sample=messages_through_current_turn,
+                inner_message=str(e),
+            )
         if conversation_through_previous_turn != full_conversation[:len(
             conversation_through_previous_turn,
         )]:
@@ -486,26 +498,15 @@ def is_valid_ift_example(
     return True
 
 
-def _stream_remote_local_validate(
-    remote: Optional[str],
-    local: Optional[str],
-    split: Optional[str],
-):
-    if remote is None or (local == remote):
-        if local is not None and os.path.isdir(local):
-            contents = set(os.listdir(local))
-            if split is not None and split not in contents:
-                raise ValueError(
-                    f'Local directory {local} does not contain split {split}',
-                )
-
-
 class StreamingFinetuningDataset(StreamingDataset):
     """Finetuning dataset with flexible tokenization using StreamingDataset.
 
     Args:
         tokenizer (Tokenizer): The name of the HuggingFace tokenizer to use to
             tokenize samples.
+        token_encoding_type (str): The encoding type of the tokenized samples. This is only used
+            for legacy datasets that have been written directly as 'bytes' instead of numpy
+            arrays. Types are auto-inferred for numpy arrays. Defaults to 'int64'.
         streams (Sequence[Stream], optional): One or more Streams to stream/cache samples from,
             which may be upsampled or downsampled. StreamingDataset uses either ``streams`` or
             ``remote``/``local``. Defaults to ``None``.
@@ -566,6 +567,7 @@ class StreamingFinetuningDataset(StreamingDataset):
     def __init__(
         self,
         tokenizer: PreTrainedTokenizerBase,
+        token_encoding_type: str = 'int64',
         streams: Optional[Sequence[Stream]] = None,
         local: Optional[str] = None,
         remote: Optional[str] = None,
@@ -598,11 +600,17 @@ class StreamingFinetuningDataset(StreamingDataset):
                 f'StreamingFinetuningDataset() got an unexpected keyword argument: {kwargs}',
             )
 
+        if token_encoding_type not in SUPPORTED_MDS_ENCODING_TYPES:
+            raise ValueError(
+                f'The token_encoding_type must be one of {SUPPORTED_MDS_ENCODING_TYPES}, but got {token_encoding_type}',
+            )
+        self.token_encoding_type = token_encoding_type
+
         if streams is None:
-            _stream_remote_local_validate(remote, local, split)
+            stream_remote_local_validate(remote, local, split)
         else:
             for stream in streams:
-                _stream_remote_local_validate(
+                stream_remote_local_validate(
                     stream.remote,
                     stream.local,
                     split,
@@ -648,11 +656,11 @@ class StreamingFinetuningDataset(StreamingDataset):
             if isinstance(sample['input_ids'], bytes):
                 sample['input_ids'] = np.frombuffer(
                     sample['input_ids'],
-                    dtype=np.int64,
+                    dtype=getattr(np, self.token_encoding_type),
                 )[:self.max_seq_len].tolist().copy()
                 sample['labels'] = np.frombuffer(
                     sample['labels'],
-                    dtype=np.int64,
+                    dtype=getattr(np, self.token_encoding_type),
                 )[:self.max_seq_len].tolist().copy()
             elif isinstance(sample['input_ids'], np.ndarray):
                 sample['input_ids'] = sample['input_ids'][:self.max_seq_len

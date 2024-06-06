@@ -7,23 +7,27 @@ import os
 import tempfile
 from argparse import ArgumentParser, Namespace
 from concurrent.futures import ProcessPoolExecutor
+from functools import partial
 from glob import glob
-from typing import Iterable, List, Tuple, cast
+from typing import Dict, Iterable, List, Tuple, cast
 
+import numpy as np
 import psutil
 from composer.utils import (
     ObjectStore,
     maybe_create_object_store_from_uri,
     parse_uri,
 )
+from numpy.typing import NDArray
 from streaming import MDSWriter
 from tqdm import tqdm
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from llmfoundry.data import ConcatTokensDataset
+from llmfoundry.data.data import AbstractConcatTokensDataset
 from llmfoundry.utils import maybe_create_mosaicml_logger
 from llmfoundry.utils.data_prep_utils import (
     DownloadingIterable,
+    download_file,
     merge_shard_groups,
 )
 from llmfoundry.utils.exceptions import (
@@ -34,6 +38,70 @@ from llmfoundry.utils.exceptions import (
 log = logging.getLogger(__name__)
 
 DONE_FILENAME = '.text_to_mds_conversion_done'
+
+
+class ConcatTokensFromFilesDataset(AbstractConcatTokensDataset):
+    """An IterableDataset that returns token samples for MDSWriter from files.
+
+    Returns dicts of {'tokens': ndarray:int32}
+
+    Each file is considered a sequence.
+    """
+
+    def __init__(
+        self,
+        files: Iterable[str],
+        tokenizer: PreTrainedTokenizerBase,
+        max_length: int,
+        bos_text: str,
+        eos_text: str,
+        no_wrap: bool,
+    ):
+        self.files = files
+        super().__init__(tokenizer, max_length, bos_text, eos_text, no_wrap)
+
+    def __iter__(self) -> Iterable[Dict[str, NDArray]]:
+
+        buffer = []
+        for file in self.files:
+            with open(file, 'r') as f:
+                buffer += self.bos_tokens
+                first_chunk = True
+                # Read the file in 1MB chunks to avoid memory issues
+                for chunk in iter(partial(f.read, 1000000), ''):
+                    # Tokenize the chunk
+                    encoded = self.tokenizer(
+                        chunk,
+                        truncation=False,
+                        padding=False,
+                    )
+                    iids = encoded['input_ids']
+
+                    # If this is not the first chunk, remove the BOS token
+                    if not first_chunk:
+                        if iids[0] == self.tokenizer.bos_token_id:
+                            iids = iids[1:]
+
+                    # Add the tokens to the buffer
+                    buffer += iids
+                    while len(buffer) >= self.max_length:
+                        concat_sample = buffer[:self.max_length]
+                        buffer = buffer[self.
+                                        max_length:] if self.should_wrap else []
+                        yield {
+                            'tokens': np.asarray(concat_sample, dtype=np.int32),
+                        }
+
+                    first_chunk = False
+
+                # Add the EOS token to the buffer to separate files.
+                buffer += self.eos_tokens
+
+        # Yield any remaining samples of size max_length.
+        while len(buffer) >= self.max_length:
+            concat_sample = buffer[:self.max_length]
+            buffer = buffer[self.max_length:] if self.should_wrap else []
+            yield {'tokens': np.asarray(concat_sample, dtype=np.int32)}
 
 
 def parse_args() -> Namespace:
@@ -128,7 +196,13 @@ def parse_args() -> Namespace:
         default=False,
         help='If true, allows custom code to be executed to load the tokenizer',
     )
-
+    parser.add_argument(
+        '--logging-level',
+        type=str,
+        required=False,
+        default='INFO',
+        help='Logging level for the script. Default is INFO.',
+    )
     parsed = parser.parse_args()
 
     # Set eos token.
@@ -276,8 +350,8 @@ def download_and_convert(
 
         # Use the ConcatTokensDataset from LLM-foundry to concatenate sequences of tokens up
         # to the maximum sequence length
-        dataset = ConcatTokensDataset(
-            hf_dataset=downloading_iter,
+        dataset = ConcatTokensFromFilesDataset(
+            files=downloading_iter,
             max_length=concat_tokens,
             tokenizer=tokenizer,
             eos_text=eos_text,
@@ -285,7 +359,7 @@ def download_and_convert(
             no_wrap=no_wrap,
         )
 
-        columns = {'tokens': 'bytes'}
+        columns = {'tokens': 'ndarray:int32'}
 
         log.info('Converting to MDS format...')
         with MDSWriter(
@@ -329,9 +403,13 @@ def is_already_processed(
         try:
             with tempfile.TemporaryDirectory() as tmp_dir:
                 done_file = os.path.join(tmp_dir, DONE_FILENAME)
-                output_object_store.download_object(
-                    os.path.join(output_folder_prefix, DONE_FILENAME),
-                    done_file,
+                download_file(
+                    object_store=output_object_store,
+                    object_name=os.path.join(
+                        output_folder_prefix,
+                        DONE_FILENAME,
+                    ),
+                    output_filename=done_file,
                 )
                 with open(done_file) as df:
                     done_file_contents = df.read().splitlines()
@@ -508,8 +586,26 @@ def _args_str(original_args: Namespace) -> str:
     return str(args)
 
 
+def _configure_logging(logging_level: str):
+    """Configure logging.
+
+    Args:
+        logging_level (str): Logging level.
+    """
+    logging.basicConfig(
+        format=
+        f'%(asctime)s: [%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s',
+    )
+    logging_level = logging_level.upper()
+    logging.getLogger('llmfoundry').setLevel(logging_level)
+    logging.getLogger(__name__).setLevel(logging_level)
+    log.info(f'Logging level set to {logging_level}')
+
+
 if __name__ == '__main__':
     args = parse_args()
+    _configure_logging(args.logging_level)
+
     mosaicml_logger = maybe_create_mosaicml_logger()
 
     try:

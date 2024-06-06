@@ -706,13 +706,12 @@ def _verify_uc_path(path: str) -> bool:
             '`UCVolumeDatasetSource`, but your `UCVolumeDatasetSource` might be invalid.',
         )
         return False
-    except Exception:
+    except Exception as e:
         log.warning(
-            'Cannot verify the path of `UCVolumeDatasetSource` due to a connection failure ' + \
-            'with Databricks workspace. Please run `mlflow.login()` to log in to Databricks. ' + \
-            'This does not block creating `UCVolumeDatasetSource`, but your ' + \
-            '`UCVolumeDatasetSource` might be invalid.')
-        return False
+            f'Cannot verify the path of `UCVolumeDatasetSource` due to an error. '
+            f'Error details: {str(e)}. This does not block creating `UCVolumeDatasetSource`, '
+            f'but your `UCVolumeDatasetSource` might be invalid.',
+        )
 
     try:
         w.files.get_metadata(path)

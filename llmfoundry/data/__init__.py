@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from llmfoundry.data.data import (
+    SUPPORTED_MDS_ENCODING_TYPES,
     ConcatTokensDataset,
     NoConcatDataset,
     stream_remote_local_validate,
@@ -60,4 +61,5 @@ __all__ = [
     'profile_packing',
     'ConcatenatedSequenceCollatorWrapper',
     'stream_remote_local_validate',
+    'SUPPORTED_MDS_ENCODING_TYPES',
 ]

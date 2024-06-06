@@ -59,7 +59,10 @@ from composer.utils import dist
 from streaming import Stream, StreamingDataset
 from transformers import PreTrainedTokenizerBase
 
-from llmfoundry.data import stream_remote_local_validate
+from llmfoundry.data import (
+    SUPPORTED_MDS_ENCODING_TYPES,
+    stream_remote_local_validate,
+)
 from llmfoundry.data.finetuning.collator import (
     _HF_IGNORE_INDEX,
     stitch_turns_decoder_only,
@@ -501,8 +504,7 @@ class StreamingFinetuningDataset(StreamingDataset):
     Args:
         tokenizer (Tokenizer): The name of the HuggingFace tokenizer to use to
             tokenize samples.
-        token_encoding_type (str): The encoding type of the tokenized samples. Can be one of
-            ['int8', 'int16', 'int32', 'int64', 'uint8', 'uint16', 'uint32', 'uint64'].
+        token_encoding_type (str): The encoding type of the tokenized samples. Defaults to 'int64'.
         streams (Sequence[Stream], optional): One or more Streams to stream/cache samples from,
             which may be upsampled or downsampled. StreamingDataset uses either ``streams`` or
             ``remote``/``local``. Defaults to ``None``.
@@ -596,18 +598,9 @@ class StreamingFinetuningDataset(StreamingDataset):
                 f'StreamingFinetuningDataset() got an unexpected keyword argument: {kwargs}',
             )
 
-        if token_encoding_type not in [
-            'int8',
-            'int16',
-            'int32',
-            'int64',
-            'uint8',
-            'uint16',
-            'uint32',
-            'uint64',
-        ]:
+        if token_encoding_type not in SUPPORTED_MDS_ENCODING_TYPES:
             raise ValueError(
-                f'The token_encoding_type must be one of [\'int8\', \'int16\', \'int32\', \'int64\' \'uint8\', \'uint16\', \'uint32\', \'uint64\'], but got {token_encoding_type}',
+                f'The token_encoding_type must be one of {SUPPORTED_MDS_ENCODING_TYPES}, but got {token_encoding_type}',
             )
         self.token_encoding_type = token_encoding_type
 

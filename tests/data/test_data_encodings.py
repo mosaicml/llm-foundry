@@ -7,13 +7,13 @@ import pytest
 import torch
 from streaming import MDSWriter
 
-from llmfoundry.data import StreamingTextDataset
+from llmfoundry.data import SUPPORTED_MDS_ENCODING_TYPES, StreamingTextDataset
 from llmfoundry.data.finetuning.tasks import StreamingFinetuningDataset
 
 
 @pytest.mark.parametrize(
     'token_encoding_type',
-    ['int8', 'int16', 'int32', 'int64', 'uint8', 'uint16', 'uint32', 'uint64'],
+    SUPPORTED_MDS_ENCODING_TYPES + ['default'],
 )
 @pytest.mark.parametrize('use_bytes', [True, False])
 @pytest.mark.parametrize('samples', [10])
@@ -26,7 +26,10 @@ def test_encoding_types_text(
     max_seq_len: int,
 ):
     dataset_local_path = str(tmp_path)
-    encoding_dtype = getattr(np, token_encoding_type)
+    if token_encoding_type != 'default':
+        encoding_dtype = getattr(np, token_encoding_type)
+    else:
+        encoding_dtype = None
 
     if use_bytes:
         columns = {
@@ -34,22 +37,31 @@ def test_encoding_types_text(
         }
     else:
         columns = {
-            'tokens': 'ndarray:' + token_encoding_type,
+            'tokens':
+                'ndarray:' + token_encoding_type
+                if token_encoding_type != 'default' else 'ndarray',
         }
 
     with MDSWriter(out=dataset_local_path, columns=columns) as writer:
         for _ in range(samples):
-            tokens = np.random.randint(
-                0,
-                np.iinfo(encoding_dtype).max,
-                max_seq_len,
-                dtype=encoding_dtype,
-            )
+            if token_encoding_type != 'default':
+                tokens = np.random.randint(
+                    0,
+                    np.iinfo(encoding_dtype).max,
+                    max_seq_len,
+                    dtype=encoding_dtype,
+                )
+            else:
+                tokens = np.random.randint(
+                    0,
+                    200,
+                    max_seq_len,
+                )
             if use_bytes:
                 tokens = tokens.tobytes()
             writer.write({'tokens': tokens})
 
-    if use_bytes:
+    if use_bytes and token_encoding_type != 'default':
         dataset = StreamingTextDataset(
             tokenizer=None,
             token_encoding_type=token_encoding_type,
@@ -58,7 +70,8 @@ def test_encoding_types_text(
             batch_size=1,
         )
     else:
-        # There should be no need to pass in the token encoding type if writing out ndarrays.
+        # There should be no need to pass in the token encoding type if writing out ndarrays,
+        # or if using the default token encoding type, which we check to be int64.
         dataset = StreamingTextDataset(
             tokenizer=None,
             max_seq_len=max_seq_len,
@@ -68,13 +81,16 @@ def test_encoding_types_text(
 
     for _, sample in enumerate(dataset):
         # StreamingTextDataset returns a torch Tensor, not numpy array
-        assert sample.dtype == getattr(torch, token_encoding_type)
+        if token_encoding_type != 'default':
+            assert sample.dtype == getattr(torch, token_encoding_type)
+        else:
+            assert sample.dtype == torch.int64
         assert sample.shape == (max_seq_len,)
 
 
 @pytest.mark.parametrize(
     'token_encoding_type',
-    ['int8', 'int16', 'int32', 'int64', 'uint8', 'uint16', 'uint32', 'uint64'],
+    SUPPORTED_MDS_ENCODING_TYPES + ['default'],
 )
 @pytest.mark.parametrize('use_bytes', [True, False])
 @pytest.mark.parametrize('samples', [10])
@@ -87,7 +103,10 @@ def test_encoding_types_finetuning(
     max_seq_len: int,
 ):
     dataset_local_path = str(tmp_path)
-    encoding_dtype = getattr(np, token_encoding_type)
+    if token_encoding_type != 'default':
+        encoding_dtype = getattr(np, token_encoding_type)
+    else:
+        encoding_dtype = None
 
     if use_bytes:
         columns = {
@@ -96,30 +115,46 @@ def test_encoding_types_finetuning(
         }
     else:
         columns = {
-            'input_ids': 'ndarray:' + token_encoding_type,
-            'labels': 'ndarray:' + token_encoding_type,
+            'input_ids':
+                'ndarray:' + token_encoding_type
+                if token_encoding_type != 'default' else 'ndarray',
+            'labels':
+                'ndarray:' + token_encoding_type
+                if token_encoding_type != 'default' else 'ndarray',
         }
 
     with MDSWriter(out=dataset_local_path, columns=columns) as writer:
         for _ in range(samples):
-            input_ids = np.random.randint(
-                0,
-                np.iinfo(encoding_dtype).max,
-                max_seq_len,
-                dtype=encoding_dtype,
-            )
-            labels = np.random.randint(
-                0,
-                np.iinfo(encoding_dtype).max,
-                max_seq_len,
-                dtype=encoding_dtype,
-            )
+            if token_encoding_type != 'default':
+                input_ids = np.random.randint(
+                    0,
+                    np.iinfo(encoding_dtype).max,
+                    max_seq_len,
+                    dtype=encoding_dtype,
+                )
+                labels = np.random.randint(
+                    0,
+                    np.iinfo(encoding_dtype).max,
+                    max_seq_len,
+                    dtype=encoding_dtype,
+                )
+            else:
+                input_ids = np.random.randint(
+                    0,
+                    200,
+                    max_seq_len,
+                )
+                labels = np.random.randint(
+                    0,
+                    200,
+                    max_seq_len,
+                )
             if use_bytes:
                 input_ids = input_ids.tobytes()
                 labels = labels.tobytes()
             writer.write({'input_ids': input_ids, 'labels': labels})
 
-    if use_bytes:
+    if use_bytes and token_encoding_type != 'default':
         dataset = StreamingFinetuningDataset(
             tokenizer=None,
             token_encoding_type=token_encoding_type,
@@ -128,7 +163,8 @@ def test_encoding_types_finetuning(
             batch_size=1,
         )
     else:
-        # There should be no need to pass in the token encoding type if writing out ndarrays.
+        # There should be no need to pass in the token encoding type if writing out ndarrays,
+        # or if using the default token encoding type, which we check to be int64.
         dataset = StreamingFinetuningDataset(
             tokenizer=None,
             local=dataset_local_path,

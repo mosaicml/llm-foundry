@@ -18,6 +18,7 @@ from composer.utils import (
     maybe_create_object_store_from_uri,
     parse_uri,
 )
+from numpy.typing import NDArray
 from streaming import MDSWriter
 from tqdm import tqdm
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
@@ -42,7 +43,7 @@ DONE_FILENAME = '.text_to_mds_conversion_done'
 class ConcatTokensFromFilesDataset(AbstractConcatTokensDataset):
     """An IterableDataset that returns token samples for MDSWriter from files.
 
-    Returns dicts of {'tokens': bytes}
+    Returns dicts of {'tokens': ndarray:uint32}
 
     Each file is considered a sequence.
     """
@@ -59,7 +60,7 @@ class ConcatTokensFromFilesDataset(AbstractConcatTokensDataset):
         self.files = files
         super().__init__(tokenizer, max_length, bos_text, eos_text, no_wrap)
 
-    def __iter__(self) -> Iterable[Dict[str, bytes]]:
+    def __iter__(self) -> Iterable[Dict[str, NDArray]]:
 
         buffer = []
         for file in self.files:
@@ -87,7 +88,10 @@ class ConcatTokensFromFilesDataset(AbstractConcatTokensDataset):
                         concat_sample = buffer[:self.max_length]
                         buffer = buffer[self.
                                         max_length:] if self.should_wrap else []
-                        yield {'tokens': np.asarray(concat_sample).tobytes()}
+                        yield {
+                            'tokens':
+                                np.asarray(concat_sample, dtype=np.uint32),
+                        }
 
                     first_chunk = False
 
@@ -98,7 +102,7 @@ class ConcatTokensFromFilesDataset(AbstractConcatTokensDataset):
         while len(buffer) >= self.max_length:
             concat_sample = buffer[:self.max_length]
             buffer = buffer[self.max_length:] if self.should_wrap else []
-            yield {'tokens': np.asarray(concat_sample).tobytes()}
+            yield {'tokens': np.asarray(concat_sample, dtype=np.uint32)}
 
 
 def parse_args() -> Namespace:
@@ -356,7 +360,7 @@ def download_and_convert(
             no_wrap=no_wrap,
         )
 
-        columns = {'tokens': 'ndarray'}
+        columns = {'tokens': 'ndarray:uint32'}
 
         log.info('Converting to MDS format...')
         with MDSWriter(

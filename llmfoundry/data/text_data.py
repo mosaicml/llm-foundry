@@ -24,7 +24,10 @@ from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry import registry
-from llmfoundry.data import stream_remote_local_validate
+from llmfoundry.data import (
+    SUPPORTED_MDS_ENCODING_TYPES,
+    stream_remote_local_validate,
+)
 from llmfoundry.utils.registry_utils import construct_from_registry
 
 __all__ = [
@@ -41,8 +44,7 @@ class StreamingTextDataset(StreamingDataset):
         tokenizer (Tokenizer): HuggingFace tokenizer to
             tokenize samples.
         max_seq_len (int): The max sequence length of each sample.
-        token_encoding_type (str): The encoding type of the tokenized samples. Can be one of
-            ['int8', 'int16', 'int32', 'int64', 'uint8', 'uint16', 'uint32', 'uint64'].
+        token_encoding_type (str): The encoding type of the tokenized samples. Defaults to 'int64'.
         streams (Sequence[Stream], optional): One or more Streams to stream/cache samples from,
             which may be upsampled or downsampled. StreamingDataset uses either ``streams`` or
             ``remote``/``local``. Defaults to ``None``.
@@ -140,18 +142,9 @@ class StreamingTextDataset(StreamingDataset):
                 f'StreamingTextDataset() got an unexpected keyword argument: {kwargs}',
             )
 
-        if token_encoding_type not in [
-            'int8',
-            'int16',
-            'int32',
-            'int64',
-            'uint8',
-            'uint16',
-            'uint32',
-            'uint64',
-        ]:
+        if token_encoding_type not in SUPPORTED_MDS_ENCODING_TYPES:
             raise ValueError(
-                f'The token_encoding_type must be one of [\'int8\', \'int16\', \'int32\', \'int64\' \'uint8\', \'uint16\', \'uint32\', \'uint64\'], but got {token_encoding_type}',
+                f'The token_encoding_type must be one of {SUPPORTED_MDS_ENCODING_TYPES}, but got {token_encoding_type}',
             )
         self.token_encoding_type = token_encoding_type
 

@@ -12,6 +12,8 @@ from typing import Dict, Iterable, Optional, Union
 
 import datasets as hf_datasets
 import psutil
+import torch
+from numpy.typing import NDArray
 from streaming import MDSWriter
 from torch.utils.data import DataLoader, Dataset, IterableDataset
 from tqdm import tqdm
@@ -338,7 +340,7 @@ def build_dataloader(
 def generate_samples(
     loader: DataLoader,
     truncate_num_samples: Optional[int] = None,
-) -> Iterable[Dict[str, bytes]]:
+) -> Iterable[Union[Dict[str, bytes], Dict[str, NDArray]]]:
     """Generator over samples of a dataloader.
 
     Args:
@@ -356,7 +358,11 @@ def generate_samples(
             if truncate_num_samples is not None and n_samples == truncate_num_samples:
                 return
             n_samples += 1
-            yield {k: v[idx] for k, v in batch.items()}
+            yield {
+                k:
+                v[idx].numpy() if isinstance(v[idx], torch.Tensor) else v[idx]
+                for k, v in batch.items()
+            }
 
 
 def main(args: Namespace) -> None:
@@ -377,7 +383,7 @@ def main(args: Namespace) -> None:
         tokenizer = build_tokenizer(args.tokenizer, args.tokenizer_kwargs)
         # we will enforce length, so suppress warnings about sequences too long for the model
         tokenizer.model_max_length = int(1e30)
-        columns = {'tokens': 'ndarray'}
+        columns = {'tokens': 'ndarray:uint32'}
     else:
         mode = ConcatMode.NO_CONCAT
         tokenizer = None

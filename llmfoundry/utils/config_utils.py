@@ -236,7 +236,7 @@ def to_container(
         return cfg  # type: ignore (dicts and lists are already in the correct format)
 
 
-def move_variables_to_section(cfg: DictConfig) -> Dict[str, Any]:
+def move_variables_to_section(cfg: DictConfig) -> DictConfig:
     """Moves variables from the root of the config to the variables section.
 
     This function is used to move variables from the root of the config to the
@@ -246,6 +246,8 @@ def move_variables_to_section(cfg: DictConfig) -> Dict[str, Any]:
     if 'variables' not in cfg:
         cfg['variables'] = {}
     for key in list(cfg.keys()):
+        if not isinstance(key, str):
+            continue
         if 'variables.' in key:
             _, suffix = key.split('.', 1)
             cfg['variables'][suffix] = cfg.pop(key)

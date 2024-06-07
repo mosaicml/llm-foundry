@@ -74,7 +74,7 @@ install_requires = [
     'beautifulsoup4>=4.12.2,<5',  # required for model download utils
     'tenacity>=8.2.3,<9',
     'catalogue>=2,<3',
-    'typer[all]<1',
+    'typer<1',
 ]
 
 extra_deps = {}

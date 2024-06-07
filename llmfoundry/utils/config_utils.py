@@ -694,18 +694,11 @@ def _verify_uc_path(path: str) -> bool:
         (bool): If path exists or not
     """
     from databricks.sdk.errors.platform import NotFound, PermissionDenied
+    w = None
     try:
         from databricks.sdk import WorkspaceClient
 
         w = WorkspaceClient()
-        w.files.get_metadata(path)
-        return True
-    except (NotFound, PermissionDenied):
-        try:
-            w.files.get_directory_metadata(self.path)
-        except Exception:
-            # Neither file nor directory exists, we throw an exception.
-            return False
     except ImportError:
         log.warning(
             'Cannot verify the path of `UCVolumeDatasetSource` because of missing' + \
@@ -716,7 +709,26 @@ def _verify_uc_path(path: str) -> bool:
         return False
     except Exception as e:
         log.warning(
-            f'Cannot verify the path of `UCVolumeDatasetSource` due to an error. '
-            f'Error details: {str(e)}. This does not block creating `UCVolumeDatasetSource`, '
+            f'Error occured when attempting to connect with Databricks WorkspaceClient. ' + \
+            f'Error details: {str(e)}. This does not block creating `UCVolumeDatasetSource`, ' + \
             f'but your `UCVolumeDatasetSource` might be invalid.',
         )
+
+    if w:
+        try:
+            w.files.get_metadata(path)
+        except (NotFound, PermissionDenied):
+            try:
+                # Check if `self.path` points to a valid UC directory.
+                w.files.get_directory_metadata(path)
+                return True
+            except (NotFound, PermissionDenied):
+                # Neither file nor directory exists, we throw an exception.
+                return False
+        except Exception as e:
+            log.warning(
+                f'Error occured when verifying path of `UCVolumeDatasetSource`. ' + \
+                f'Error details: {str(e)}. This does not block creating `UCVolumeDatasetSource`, ' + \
+                f'but your `UCVolumeDatasetSource` might be invalid.',
+            )
+    return False

@@ -3,6 +3,7 @@
 import copy
 import json
 import os
+import warnings
 
 import omegaconf
 import pytest
@@ -62,9 +63,7 @@ class TestTrainingYAMLInputs:
     def test_misspelled_mandatory_params_fail(self, cfg: DictConfig) -> None:
         """Check that mandatory misspelled inputs fail to train."""
         cfg.trai_loader = cfg.pop('train_loader')
-        with pytest.raises(
-            (omegaconf.errors.MissingMandatoryValue, TypeError, ValueError),
-        ):
+        with pytest.raises((omegaconf.errors.MissingMandatoryValue, TypeError)):
             main(cfg)
 
     def test_missing_mandatory_parameters_fail(self, cfg: DictConfig) -> None:
@@ -90,7 +89,7 @@ class TestTrainingYAMLInputs:
                 main(cfg)
             cfg[param] = orig_param
 
-    def test_optional_misspelled_params_raise_error(
+    def test_optional_misspelled_params_raise_warning(
         self,
         cfg: DictConfig,
     ) -> None:
@@ -114,8 +113,15 @@ class TestTrainingYAMLInputs:
             orig_value = cfg.pop(param, None)
             updated_param = param + '-misspelling'
             cfg[updated_param] = orig_value
-            with pytest.raises(ValueError):
-                main(cfg)
+            with warnings.catch_warnings(record=True) as warning_list:
+                try:
+                    main(cfg)
+                except:
+                    pass
+                assert any(
+                    f'Unused parameter {updated_param} found in cfg.' in
+                    str(warning.message) for warning in warning_list
+                )
             # restore configs.
             cfg = copy.deepcopy(old_cfg)
 

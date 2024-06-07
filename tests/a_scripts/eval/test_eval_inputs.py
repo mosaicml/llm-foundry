@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import copy
 import os
+import warnings
 
 import omegaconf
 import pytest
@@ -41,13 +42,12 @@ class TestHuggingFaceEvalYAMLInputs:
                 omegaconf.errors.InterpolationKeyError,
                 omegaconf.errors.MissingMandatoryValue,
                 TypeError,
-                ValueError,
             )):
                 cfg[p + '-mispelled'] = cfg.pop(p)
                 main(cfg)
                 cfg[p] = cfg.pop(p + '-mispelled')
 
-    def test_optional_mispelled_params_raise_error(
+    def test_optional_mispelled_params_raise_warning(
         self,
         cfg: DictConfig,
     ) -> None:
@@ -67,8 +67,15 @@ class TestHuggingFaceEvalYAMLInputs:
             orig_value = cfg.pop(param, None)
             updated_param = param + '-mispelling'
             cfg[updated_param] = orig_value
-            with pytest.raises(ValueError):
-                main(cfg)
+            with warnings.catch_warnings(record=True) as warning_list:
+                try:
+                    main(cfg)
+                except:
+                    pass
+                assert any(
+                    f'Unused parameter {updated_param} found in cfg.' in
+                    str(warning.message) for warning in warning_list
+                )
             # restore configs.
             cfg = copy.deepcopy(old_cfg)
 

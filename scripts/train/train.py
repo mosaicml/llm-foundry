@@ -553,5 +553,6 @@ if __name__ == '__main__':
         yaml_cfg = om.load(f)
     cli_cfg = om.from_cli(args_list)
     cfg = om.merge(yaml_cfg, cli_cfg)
+    om.resolve(cfg)
     assert isinstance(cfg, DictConfig)
     main(cfg)

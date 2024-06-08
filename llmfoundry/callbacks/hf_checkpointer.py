@@ -486,10 +486,12 @@ class HuggingFaceCheckpointer(Callback):
             )
 
             log.debug('Saving Hugging Face checkpoint to disk')
-            new_model_instance.save_pretrained(temp_save_dir)
-            if original_tokenizer is not None:
-                assert isinstance(original_tokenizer, PreTrainedTokenizerBase)
-                original_tokenizer.save_pretrained(temp_save_dir)
+            import transformer_engine.pytorch as te
+            with te.onnx_export(True):
+                new_model_instance.save_pretrained(temp_save_dir)
+                if original_tokenizer is not None:
+                    assert isinstance(original_tokenizer, PreTrainedTokenizerBase)
+                    original_tokenizer.save_pretrained(temp_save_dir)
 
             # Only need to edit files for MPT because it has custom code
             if original_model.config.model_type == 'mpt':

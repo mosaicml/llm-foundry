@@ -1,0 +1,8 @@
+icl_tasks:
+-
+  label: kmmlu
+  dataset_uri: eval/local_data/korean/kmmlu.jsonl
+  num_fewshot: [5]
+  icl_task_type: multiple_choice
+  continuation_delimiter: "\n답변: "
+  has_categories: true

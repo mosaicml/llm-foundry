@@ -67,6 +67,7 @@ class EvalConfig:
     # Logging parameters
     python_log_level: Optional[str] = 'debug'
     loggers: Optional[Dict[str, Any]] = None
+    console_log_interval: Union[int, str] = '1ba'
     log_config: bool = True
 
     # Model/run parameters
@@ -99,7 +100,7 @@ class TrainConfig:
     optimizer: Dict[str, Any] = MISSING
     scheduler: Dict[str, Any] = MISSING
     train_loader: Dict[str, Any] = MISSING
-    device_train_batch_size: int = MISSING
+    device_train_batch_size: Union[int, float] = MISSING
     device_eval_batch_size: int = MISSING
     max_duration: Union[int, str] = MISSING
     eval_interval: Union[int, str] = MISSING
@@ -180,6 +181,10 @@ class TrainConfig:
     # Variables to ignore
     variables: Optional[Dict[str, Any]] = None
 
+    # Fields created by `update_batch_size_info`
+    n_gpus: int = MISSING
+    device_train_grad_accum: str = MISSING
+
 
 TRAIN_CONFIG_KEYS = {field.name for field in fields(TrainConfig)}
 
@@ -242,7 +247,6 @@ def make_dataclass_and_log_config(
     icl_tasks_required: bool = False,
 ) -> Tuple[Dict[str, Any], T]:
     """Converts a DictConfig to a dataclass and creates a logged config."""
-    # Resolve all interpolation variables as early as possible
     unstructured_config = om.to_container(cfg, resolve=True)
     assert isinstance(unstructured_config, dict)
     assert all(isinstance(k, str) for k in unstructured_config.keys())
@@ -289,11 +293,9 @@ def make_dataclass_and_log_config(
         unstructured_config['variables'] = {}
 
     for key in extraneous_keys:
-        warnings.warn(
-            f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary. Interpreting {key} as a variable for logging purposes. Top-level variables are deprecated and will not be supported in future releases. Please place any variables under the `variables` key.',
-            category=DeprecationWarning,
+        raise ValueError(
+            f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary. Please place any variables under the `variables` key.',
         )
-        unstructured_config['variables'][key] = unstructured_config.pop(key)
 
     dataclass_dict_config: DictConfig = om.structured(
         dataclass_constructor(**unstructured_config),

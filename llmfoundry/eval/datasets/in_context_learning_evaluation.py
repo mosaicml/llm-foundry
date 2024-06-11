@@ -193,10 +193,8 @@ class InContextLearningDataset(Dataset):
     def get_num_samples_in_batch(self, batch: Dict) -> int:
         return batch['input_ids'].shape[0]
 
-    def get_effective_batch_size(self) -> int:
-        return NotImplementedError(
-            "Calculation for effective batch size not implemented"
-        )
+    def get_effective_batch_size(self, batch_size: int) -> int:
+        return batch_size
 
     def update_generation_kwargs(self, generation_kwargs: Dict) -> None:
         r"""Updates self.base_batch with the passed in generation_kwargs.
@@ -528,8 +526,11 @@ class InContextLearningDataset(Dataset):
         batch['attention_mask'] = ~(batch['input_ids'] == self.pad_tok_id)
         return batch
 
-    def split_batch(self, batch: Any,
-        microbatch_size: Union[int, float]) -> Sequence[Any]:
+    def split_batch(
+        self, 
+        batch: Any,
+        microbatch_size: Union[int, float]
+    ) -> Sequence[Any]:
         return _default_split_batch(batch, microbatch_size)
 
 
@@ -570,17 +571,12 @@ class InContextLearningGenerationTaskWithAnswersDataset(
         context_key: str = 'context',
         answer_key: str = 'answer',
         strip_dataset: bool = True,
-        # padding_side: str = 'right',
-        # tokenize_labels: bool = True,
         padding_size: Optional[int] = None,
         base_batch: Optional[Dict] = None,
         batch_mapping: Optional[Dict] = None,
         hf_loading_vars: Optional[Dict] = None,
         hf_parsing_map: Optional[Dict] = None,
         generation_kwargs: Optional[Dict] = None,
-        # static_keys: Optional[List] = None,
-        # list_keys: Optional[List] = None,
-        # tensor_keys: Optional[List] = None,
         cot_delimiter: str = '',
         early_stopping_criteria: Optional[List[str]] = None,
         do_normalization: bool = True,
@@ -604,7 +600,6 @@ class InContextLearningGenerationTaskWithAnswersDataset(
         tensor_keys = ['input_ids', 'attention_mask']
         list_keys = ['labels']
         super().__init__(
-            # Super class
             dataset_uri=dataset_uri,
             tokenizer=tokenizer,
             max_seq_len=max_seq_len,
@@ -625,7 +620,7 @@ class InContextLearningGenerationTaskWithAnswersDataset(
             hf_loading_vars=hf_loading_vars,
             hf_parsing_map=hf_parsing_map,
             generation_kwargs=generation_kwargs,
-            # Custom
+            # specific to ICL dataset
             padding_side='left',
             tokenize_labels=False,
             static_keys=static_keys,
@@ -656,9 +651,6 @@ class InContextLearningGenerationTaskWithAnswersDataset(
         }
         if 'generation_kwargs' in kwargs:
             self.update_generation_kwargs(kwargs['generation_kwargs'])
-
-    def get_effective_batch_size(self, batch_size: int) -> int:
-        return batch_size
 
     def read_dataset(
         self,
@@ -855,24 +847,18 @@ class InContextLearningLMTaskDataset(InContextLearningDataset):
         destination_path: str,
         prelimiter: str = '',
         context_key: str = 'context',
-        # answer_key: str = 'answer',
         strip_dataset: bool = True,
-        # padding_side: str = 'right',
         tokenize_labels: bool = True,
         padding_size: Optional[int] = None,
-        # base_batch: Optional[Dict] = None,
-        # batch_mapping: Optional[Dict] = None,
         hf_loading_vars: Optional[Dict] = None,
         hf_parsing_map: Optional[Dict] = None,
         generation_kwargs: Optional[Dict] = None,
         static_keys: Optional[List] = None,
         list_keys: Optional[List] = None,
-        # tensor_keys: Optional[List] = None,
         *args: Any,
         **kwargs: Any,
     ):
         super().__init__(
-            # Super class
             dataset_uri=dataset_uri,
             tokenizer=tokenizer,
             max_seq_len=max_seq_len,
@@ -888,12 +874,11 @@ class InContextLearningLMTaskDataset(InContextLearningDataset):
             strip_dataset=strip_dataset,
             tokenize_labels=tokenize_labels,
             padding_size=padding_size,
-            # base_batch=base_batch,
-            # batch_mapping=batch_mapping,
             hf_loading_vars=hf_loading_vars,
             hf_parsing_map=hf_parsing_map,
             generation_kwargs=generation_kwargs,
             list_keys=list_keys,
+            # specific to ICL dataset
             answer_key='continuation',
             static_keys=['mode'],
             tensor_keys=[
@@ -917,8 +902,6 @@ class InContextLearningLMTaskDataset(InContextLearningDataset):
             **kwargs,
         )
 
-    def get_effective_batch_size(self, batch_size: int) -> int:
-        return batch_size
 
 class InContextLearningMultipleChoiceTaskDataset(InContextLearningDataset):
     """A dataset that construct batches for in-context learning multiple choice.
@@ -997,7 +980,6 @@ class InContextLearningMultipleChoiceTaskDataset(InContextLearningDataset):
         self.list_of_tuples_keys = list_of_tuples_keys or ['choice_groupings']
         self.list_of_primitives = list_of_primitives or ['gold_indices']
         super().__init__(
-            # Super
             dataset_uri=dataset_uri,
             tokenizer=tokenizer,
             max_seq_len=max_seq_len,
@@ -1018,7 +1000,7 @@ class InContextLearningMultipleChoiceTaskDataset(InContextLearningDataset):
             hf_parsing_map=hf_parsing_map,
             generation_kwargs=generation_kwargs,
             list_keys=list_keys,
-            # Custom
+            # specific to ICL dataset
             context_key=context_key,
             base_batch=base_batch,
             static_keys=static_keys,
@@ -1268,7 +1250,6 @@ class InContextLearningSchemaTaskDataset(
         continuation_delimiter: str,
         destination_path: str,
         prelimiter: str = '',
-        context_key: str = 'context',
         answer_key: str = 'answer',
         strip_dataset: bool = True,
         padding_side: str = 'right',
@@ -1308,7 +1289,7 @@ class InContextLearningSchemaTaskDataset(
             hf_parsing_map=hf_parsing_map,
             generation_kwargs=generation_kwargs,
             list_keys=list_keys,
-            # Custom class
+            # specific to ICL dataset
             choices_key=choices_key,
             context_key=choices_key,
             static_keys=static_keys,
@@ -1523,7 +1504,6 @@ def build_icl_dataloader(
     do_normalization: bool = True,
 ) -> DataSpec:
     """Factory method that builds the specific dataset for the specified.
-
     icl_task_type. See documentation for `get_icl_task_dataloader` for argument
     documentation.
 

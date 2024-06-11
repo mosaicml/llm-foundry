@@ -206,15 +206,15 @@ metrics = create_registry(
     description=_metrics_description,
 )
 
-_icl_dataloaders_description = (
+_icl_datasets_description = (
     'The ICL dataloaders registry is used to register an torch.utils.data.Dataset class which can be used for ICL tasks.'
 )
-icl_dataloaders = create_registry(
+icl_datasets = create_registry(
     'llmfoundry',
-    'icl_dataloaders',
+    'icl_datasets',
     generic_type=Type[Dataset],
     entry_points=True,
-    description=_icl_dataloaders_description,
+    description=_icl_datasets_description,
 )
 
 __all__ = [
@@ -239,5 +239,5 @@ __all__ = [
     'attention_classes',
     'attention_implementations',
     'fcs',
-    'icl_dataloaders',
+    'icl_datasets',
 ]

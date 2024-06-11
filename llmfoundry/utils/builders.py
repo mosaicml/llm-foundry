@@ -614,8 +614,6 @@ def build_icl_evaluators(
                 question_prelimiter=icl_cfg.get('question_prelimiter', ''),
                 destination_path=destination_path,
                 fewshot_random_seed=icl_cfg['fewshot_random_seed'],
-                pass_at_k=icl_cfg['pass_at_k'],
-                generations_per_sample=icl_cfg['generations_per_sample'],
                 has_categories=icl_cfg.get('has_categories', False),
                 cot_delimiter=icl_cfg.get('cot_delimiter', ''),
                 generation_kwargs=icl_cfg.get('generation_kwargs', {}),

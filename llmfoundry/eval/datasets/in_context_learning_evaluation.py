@@ -193,6 +193,11 @@ class InContextLearningDataset(Dataset):
     def get_num_samples_in_batch(self, batch: Dict) -> int:
         return batch['input_ids'].shape[0]
 
+    def get_effective_batch_size(self) -> int:
+        return NotImplementedError(
+            "Calculation for effective batch size not implemented"
+        )
+
     def update_generation_kwargs(self, generation_kwargs: Dict) -> None:
         r"""Updates self.base_batch with the passed in generation_kwargs.
 
@@ -524,47 +529,8 @@ class InContextLearningDataset(Dataset):
         return batch
 
     def split_batch(self, batch: Any,
-                    microbatch_size: Union[int, float]) -> Sequence[Any]:
-        """Handling for certain specialty columns that must be split into.
-
-        batches in different formats.
-
-        Args:
-            batch (Dict): Batch of data
-            microbatch_size (int | float): Size of microbatches
-
-        Returns:
-            List: List of chunked batches
-        """
-        # Don't split kwargs that don't change
-        # Normally split torch tensors
-        # List split lists of strings
-        if isinstance(microbatch_size, float):
-            raise ValueError(
-                'split_batch does not support floating point microbatch_size.',
-            )
-        chunked = {}
-        for k, v in batch.items():
-            if k in self.static_keys:
-                # Defer broadcasting until we know num_chunks
-                pass
-            elif k in self.list_keys:
-                chunked[k] = _split_list(v, microbatch_size)
-            elif k in self.tensor_keys:
-                chunked[k] = _default_split_batch(v, microbatch_size)
-            else:
-                raise ValueError(f'Unexpected key {k} in batch splitting')
-        num_chunks = len(chunked['input_ids'])
-        for k, v in batch.items():
-            if k in self.static_keys:
-                chunked[k] = [v] * num_chunks
-
-        batched_list = [{k: v[idx]
-                         for k, v in chunked.items()}
-                        for idx in range(num_chunks)]
-        return batched_list
-
-
+        microbatch_size: Union[int, float]) -> Sequence[Any]:
+        return _default_split_batch(batch, microbatch_size)
 class InContextLearningGenerationTaskWithAnswersDataset(
     InContextLearningDataset,
 ):
@@ -588,13 +554,38 @@ class InContextLearningGenerationTaskWithAnswersDataset(
 
     def __init__(
         self,
+        dataset_uri: str,
+        tokenizer: transformers.PreTrainedTokenizerBase,
+        max_seq_len: int,
+        pad_tok_id: int,
+        num_fewshot: int,
+        fewshot_random_seed: int,
+        prompt_string: str,
+        example_delimiter: str,
+        continuation_delimiter: str,
+        destination_path: str,
+        prelimiter: str = '',
+        context_key: str = 'context',
+        answer_key: str = 'answer',
+        strip_dataset: bool = True,
+        # padding_side: str = 'right',
+        # tokenize_labels: bool = True,
+        padding_size: Optional[int] = None,
+        base_batch: Optional[Dict] = None,
+        batch_mapping: Optional[Dict] = None,
+        hf_loading_vars: Optional[Dict] = None,
+        hf_parsing_map: Optional[Dict] = None,
+        generation_kwargs: Optional[Dict] = None,
+        # static_keys: Optional[List] = None,
+        # list_keys: Optional[List] = None,
+        # tensor_keys: Optional[List] = None,
         cot_delimiter: str = '',
         early_stopping_criteria: Optional[List[str]] = None,
         do_normalization: bool = True,
         *args: Any,
         **kwargs: Any,
     ):
-        if kwargs['tokenizer'].eos_token_id is None:
+        if tokenizer.eos_token_id is None:
             raise ValueError(
                 '`InContextLearningGenerationTaskWithAnswersDataset` tokenizer must have non-null `eos_token_id`',
             )
@@ -611,6 +602,28 @@ class InContextLearningGenerationTaskWithAnswersDataset(
         tensor_keys = ['input_ids', 'attention_mask']
         list_keys = ['labels']
         super().__init__(
+            # Super class
+            dataset_uri=dataset_uri,
+            tokenizer=tokenizer,
+            max_seq_len=max_seq_len,
+            pad_tok_id=pad_tok_id,
+            num_fewshot=num_fewshot,
+            fewshot_random_seed=fewshot_random_seed,
+            prompt_string=prompt_string,
+            example_delimiter=example_delimiter,
+            continuation_delimiter=continuation_delimiter,
+            destination_path=destination_path,
+            prelimiter=prelimiter,
+            context_key=context_key,
+            answer_key=answer_key,
+            strip_dataset=strip_dataset,
+            padding_size=padding_size,
+            base_batch=base_batch,
+            batch_mapping=batch_mapping,
+            hf_loading_vars=hf_loading_vars,
+            hf_parsing_map=hf_parsing_map,
+            generation_kwargs=generation_kwargs,
+            # Custom
             padding_side='left',
             tokenize_labels=False,
             static_keys=static_keys,
@@ -641,6 +654,9 @@ class InContextLearningGenerationTaskWithAnswersDataset(
         }
         if 'generation_kwargs' in kwargs:
             self.update_generation_kwargs(kwargs['generation_kwargs'])
+
+    def get_effective_batch_size(self, batch_size: int) -> int:
+        return batch_size
 
     def read_dataset(
         self,
@@ -783,8 +799,59 @@ class InContextLearningLMTaskDataset(InContextLearningDataset):
     See InContextLearningDataset for more details.
     """
 
-    def __init__(self, *args: Any, **kwargs: Any):
+    def __init__(
+        self,
+        dataset_uri: str,
+        tokenizer: transformers.PreTrainedTokenizerBase,
+        max_seq_len: int,
+        pad_tok_id: int,
+        num_fewshot: int,
+        fewshot_random_seed: int,
+        prompt_string: str,
+        example_delimiter: str,
+        continuation_delimiter: str,
+        destination_path: str,
+        prelimiter: str = '',
+        context_key: str = 'context',
+        # answer_key: str = 'answer',
+        strip_dataset: bool = True,
+        # padding_side: str = 'right',
+        tokenize_labels: bool = True,
+        padding_size: Optional[int] = None,
+        # base_batch: Optional[Dict] = None,
+        # batch_mapping: Optional[Dict] = None,
+        hf_loading_vars: Optional[Dict] = None,
+        hf_parsing_map: Optional[Dict] = None,
+        generation_kwargs: Optional[Dict] = None,
+        static_keys: Optional[List] = None,
+        list_keys: Optional[List] = None,
+        # tensor_keys: Optional[List] = None,
+        *args: Any,
+        **kwargs: Any,
+    ):
         super().__init__(
+            # Super class
+            dataset_uri=dataset_uri,
+            tokenizer=tokenizer,
+            max_seq_len=max_seq_len,
+            pad_tok_id=pad_tok_id,
+            num_fewshot=num_fewshot,
+            fewshot_random_seed=fewshot_random_seed,
+            prompt_string=prompt_string,
+            example_delimiter=example_delimiter,
+            continuation_delimiter=continuation_delimiter,
+            destination_path=destination_path,
+            prelimiter=prelimiter,
+            context_key=context_key,
+            strip_dataset=strip_dataset,
+            tokenize_labels=tokenize_labels,
+            padding_size=padding_size,
+            # base_batch=base_batch,
+            # batch_mapping=batch_mapping,
+            hf_loading_vars=hf_loading_vars,
+            hf_parsing_map=hf_parsing_map,
+            generation_kwargs=generation_kwargs,
+            list_keys=list_keys,
             answer_key='continuation',
             static_keys=['mode'],
             tensor_keys=[
@@ -808,6 +875,8 @@ class InContextLearningLMTaskDataset(InContextLearningDataset):
             **kwargs,
         )
 
+    def get_effective_batch_size(self, batch_size: int) -> int:
+        return batch_size
 
 class InContextLearningMultipleChoiceTaskDataset(InContextLearningDataset):
     """A dataset that construct batches for in-context learning multiple choice.
@@ -837,6 +906,26 @@ class InContextLearningMultipleChoiceTaskDataset(InContextLearningDataset):
 
     def __init__(
         self,
+        dataset_uri: str,
+        tokenizer: transformers.PreTrainedTokenizerBase,
+        max_seq_len: int,
+        pad_tok_id: int,
+        num_fewshot: int,
+        fewshot_random_seed: int,
+        prompt_string: str,
+        example_delimiter: str,
+        continuation_delimiter: str,
+        destination_path: str,
+        prelimiter: str = '',
+        answer_key: str = 'answer',
+        strip_dataset: bool = True,
+        tokenize_labels: bool = True,
+        padding_size: Optional[int] = None,
+        batch_mapping: Optional[Dict] = None,
+        hf_loading_vars: Optional[Dict] = None,
+        hf_parsing_map: Optional[Dict] = None,
+        generation_kwargs: Optional[Dict] = None,
+        list_keys: Optional[List] = None,
         choices_key: str = 'choices',
         static_keys: Optional[List] = None,
         list_of_tensors_keys: Optional[List] = None,
@@ -866,6 +955,28 @@ class InContextLearningMultipleChoiceTaskDataset(InContextLearningDataset):
         self.list_of_tuples_keys = list_of_tuples_keys or ['choice_groupings']
         self.list_of_primitives = list_of_primitives or ['gold_indices']
         super().__init__(
+            # Super
+            dataset_uri=dataset_uri,
+            tokenizer=tokenizer,
+            max_seq_len=max_seq_len,
+            pad_tok_id=pad_tok_id,
+            num_fewshot=num_fewshot,
+            fewshot_random_seed=fewshot_random_seed,
+            prompt_string=prompt_string,
+            example_delimiter=example_delimiter,
+            continuation_delimiter=continuation_delimiter,
+            destination_path=destination_path,
+            prelimiter=prelimiter,
+            answer_key=answer_key,
+            strip_dataset=strip_dataset,
+            tokenize_labels=tokenize_labels,
+            padding_size=padding_size,
+            batch_mapping=batch_mapping,
+            hf_loading_vars=hf_loading_vars,
+            hf_parsing_map=hf_parsing_map,
+            generation_kwargs=generation_kwargs,
+            list_keys=list_keys,
+            # Custom
             context_key=context_key,
             base_batch=base_batch,
             static_keys=static_keys,
@@ -880,6 +991,11 @@ class InContextLearningMultipleChoiceTaskDataset(InContextLearningDataset):
             'labels': 'context',
         }
         self.batch_map_per_example = {'gold_indices': 'gold'}
+
+    def get_effective_batch_size(self, batch_size: int) -> int:
+        batch_size = max(self.num_choices, batch_size)
+        effective_batchsize = batch_size // self.num_choices
+        return effective_batchsize
 
     def get_answer_from_example(
         self,
@@ -1099,6 +1215,28 @@ class InContextLearningSchemaTaskDataset(
 
     def __init__(
         self,
+        dataset_uri: str,
+        tokenizer: transformers.PreTrainedTokenizerBase,
+        max_seq_len: int,
+        pad_tok_id: int,
+        num_fewshot: int,
+        fewshot_random_seed: int,
+        prompt_string: str,
+        example_delimiter: str,
+        continuation_delimiter: str,
+        destination_path: str,
+        prelimiter: str = '',
+        context_key: str = 'context',
+        answer_key: str = 'answer',
+        strip_dataset: bool = True,
+        padding_side: str = 'right',
+        tokenize_labels: bool = True,
+        padding_size: Optional[int] = None,
+        batch_mapping: Optional[Dict] = None,
+        hf_loading_vars: Optional[Dict] = None,
+        hf_parsing_map: Optional[Dict] = None,
+        generation_kwargs: Optional[Dict] = None,
+        list_keys: Optional[List] = None,
         choices_key: str = 'context_options',
         *args: Any,
         **kwargs: Any,
@@ -1107,6 +1245,28 @@ class InContextLearningSchemaTaskDataset(
         tensor_keys = ['input_ids', 'labels', 'attention_mask']
         list_of_tensors_keys = ['continuation_indices']
         super().__init__(
+            dataset_uri=dataset_uri,
+            tokenizer=tokenizer,
+            max_seq_len=max_seq_len,
+            pad_tok_id=pad_tok_id,
+            num_fewshot=num_fewshot,
+            fewshot_random_seed=fewshot_random_seed,
+            prompt_string=prompt_string,
+            example_delimiter=example_delimiter,
+            continuation_delimiter=continuation_delimiter,
+            destination_path=destination_path,
+            prelimiter=prelimiter,
+            answer_key=answer_key,
+            strip_dataset=strip_dataset,
+            padding_side=padding_side,
+            tokenize_labels=tokenize_labels,
+            padding_size=padding_size,
+            batch_mapping=batch_mapping,
+            hf_loading_vars=hf_loading_vars,
+            hf_parsing_map=hf_parsing_map,
+            generation_kwargs=generation_kwargs,
+            list_keys=list_keys,
+            # Custom class
             choices_key=choices_key,
             context_key=choices_key,
             static_keys=static_keys,
@@ -1123,6 +1283,11 @@ class InContextLearningSchemaTaskDataset(
             'gold_indices': [],
             'choice_groupings': [],
         }
+
+    def get_effective_batch_size(self, batch_size: int) -> int:
+        batch_size = max(self.num_choices, batch_size)
+        effective_batchsize = batch_size // self.num_choices
+        return effective_batchsize
 
     def construct_context(
         self,
@@ -1292,6 +1457,47 @@ class InContextLearningSchemaTaskDataset(
         tokenized_example['gold'] = example['gold']
         return tokenized_example
 
+    def split_batch(self, batch: Any,
+                    microbatch_size: Union[int, float]) -> Sequence[Any]:
+        """Handling for certain specialty columns that must be split into.
+
+        batches in different formats.
+
+        Args:
+            batch (Dict): Batch of data
+            microbatch_size (int | float): Size of microbatches
+
+        Returns:
+            List: List of chunked batches
+        """
+        # Don't split kwargs that don't change
+        # Normally split torch tensors
+        # List split lists of strings
+        if isinstance(microbatch_size, float):
+            raise ValueError(
+                'split_batch does not support floating point microbatch_size.',
+            )
+        chunked = {}
+        for k, v in batch.items():
+            if k in self.static_keys:
+                # Defer broadcasting until we know num_chunks
+                pass
+            elif k in self.list_keys:
+                chunked[k] = _split_list(v, microbatch_size)
+            elif k in self.tensor_keys:
+                chunked[k] = _default_split_batch(v, microbatch_size)
+            else:
+                raise ValueError(f'Unexpected key {k} in batch splitting')
+        num_chunks = len(chunked['input_ids'])
+        for k, v in batch.items():
+            if k in self.static_keys:
+                chunked[k] = [v] * num_chunks
+
+        batched_list = [{k: v[idx]
+                         for k, v in chunked.items()}
+                        for idx in range(num_chunks)]
+        return batched_list
+
 
 def build_icl_dataloader(
     icl_task_type: str,
@@ -1310,8 +1516,6 @@ def build_icl_dataloader(
     prelimiter: str,  # e.g. 'Question: '
     cot_delimiter: str,  # e.g. ' ### '
     fewshot_random_seed: int,
-    pass_at_k: int,
-    generations_per_sample: int,
     generation_kwargs: Dict,
     early_stopping_criteria: Optional[List[str]] = None,
     do_normalization: bool = True,
@@ -1342,50 +1546,31 @@ def build_icl_dataloader(
         'fewshot_random_seed': fewshot_random_seed,
         'hf_loading_vars': hf_loading_vars,
         'hf_parsing_map': hf_parsing_map,
-        #'cot_delimiter': cot_delimiter,
-        #'early_stopping_criteria': early_stopping_criteria,
-        #'do_normalization': do_normalization,
-        #'generati#on_kwargs': generation_kwargs,
+        'cot_delimiter': cot_delimiter,
+        'early_stopping_criteria': early_stopping_criteria,
+        'do_normalization': do_normalization,
+        'generation_kwargs': generation_kwargs,
     }
-    print("icl tasks type: ", name)
     dataset = construct_from_registry(
         name=name,
-        registry=registry.icl_dataloaders,
+        registry=registry.icl_datasets,
         partial_function=False,
         pre_validation_function=None,
         post_validation_function=None,
         kwargs=kwargs,
     )
-    # !Highly unsafe!
-
-    print('XXXXBatch size', batch_size)
-    if hasattr(dataset, 'num_choices'):
-        batch_size = max(dataset.num_choices, batch_size)
-        effective_batchsize = batch_size // dataset.num_choices
-    else:
-        effective_batchsize = batch_size
     sampler = dist.get_sampler(dataset, drop_last=False, shuffle=False)
-
-    split_batch = None
-    if isinstance(
-        dataset,
-        (
-            InContextLearningMultipleChoiceTaskDataset,
-            InContextLearningGenerationTaskWithAnswersDataset,
-        ),
-    ):
-        split_batch = dataset.split_batch
 
     return DataSpec(
         DataLoader(
             dataset,
-            batch_size=effective_batchsize,
+            batch_size=dataset.get_effective_batch_size(batch_size),
             sampler=sampler,
             collate_fn=dataset.collate_fn,
         ),
         device_transforms=None,
         get_num_samples_in_batch=dataset.get_num_samples_in_batch,
-        split_batch=split_batch,
+        split_batch=dataset.split_batch,
     )
 
 
@@ -1484,8 +1669,6 @@ def get_icl_task_dataloader(
     destination_path: str = '',
     question_prelimiter: str = '',  # e.g. 'Question: '
     fewshot_random_seed: int = 1234,
-    pass_at_k: int = 1,
-    generations_per_sample: int = 1,
     cot_delimiter: str = '',
     has_categories: bool = False,
     hf_loading_vars: Optional[Dict] = None,
@@ -1558,8 +1741,6 @@ def get_icl_task_dataloader(
         destination_path: (str, default = ''): This is the local file where remote datasets will be saved.
         question_prelimiter: (str, default = ''): Text to be prepended before each context, including few shot examples (e.g. "Question: ").
         fewshot_random_seed (int, default = 1234): Random seed to use for fewshot sampling
-        pass_at_k (int): k for how many chances the model gets to write passing code.
-        generations_per_sample (int): How many outputs to generate per prompt. Passed in generation_kwargs under "num_return_sequences" and overwritten by generation_kwargs dict.
         cot_delimiter (str): Delimiter to place between chain of thoughts and continuations.
         has_categories: (bool): If ``True``, we will search the dataset file for a category key, and partition the dataset into a separate dataloader for each category occurring in the data.
         hf_loading_vars (Dict, default = None): A dictionary containing keyword arguments to be passed into `load_dataset` if dataset is being pulled from HF.
@@ -1610,8 +1791,6 @@ def get_icl_task_dataloader(
                 prelimiter=question_prelimiter,
                 cot_delimiter=cot_delimiter,
                 fewshot_random_seed=fewshot_random_seed,
-                pass_at_k=pass_at_k,
-                generations_per_sample=generations_per_sample,
                 hf_loading_vars=hf_loading_vars,
                 hf_parsing_map=hf_parsing_map,
                 generation_kwargs=generation_kwargs,
@@ -1637,8 +1816,6 @@ def get_icl_task_dataloader(
             prelimiter=question_prelimiter,
             cot_delimiter=cot_delimiter,
             fewshot_random_seed=fewshot_random_seed,
-            pass_at_k=pass_at_k,
-            generations_per_sample=generations_per_sample,
             generation_kwargs=generation_kwargs,
             early_stopping_criteria=early_stopping_criteria,
             do_normalization=do_normalization,

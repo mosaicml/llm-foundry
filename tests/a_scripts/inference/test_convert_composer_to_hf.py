@@ -486,6 +486,24 @@ def _get_model_and_tokenizer(
             'tie_word_embeddings': tie_word_embeddings,
         }
         tokenizer_name = 'EleutherAI/gpt-neox-20b'
+    elif model == 'mpt-te':
+        model_cfg = {
+            'name': 'mpt_causal_lm',
+            'init_device': 'cpu',
+            'fc_type': 'te', 
+            'd_model': 64,
+            'n_heads': 2,
+            'n_layers': 2,
+            'expansion_ratio': 4,
+            'max_seq_len': max_seq_len,
+            'vocab_size': 50368,
+            'attn_config': {
+                'attn_impl': 'torch',
+            },
+            'loss_fn': 'torch_crossentropy',
+            'tie_word_embeddings': tie_word_embeddings,
+        }
+        tokenizer_name = 'EleutherAI/gpt-neox-20b'
     elif model == 'mptmoe':
         # Test export on moe_world_size 1
         model_cfg = {
@@ -883,7 +901,7 @@ def test_huggingface_conversion_callback(
     trainer = Trainer(
         model=original_model,
         device='gpu',
-        precision='amp_bf16',
+        precision='amp_fp8',
         fsdp_config=fsdp_config if fsdp_state_dict_type is not None else None,
         train_dataloader=train_dataloader,
         save_folder=os.path.join(tmp_path, 'checkpoints'),

@@ -486,8 +486,12 @@ class HuggingFaceCheckpointer(Callback):
             )
 
             log.debug('Saving Hugging Face checkpoint to disk')
-            import transformer_engine.pytorch as te
-            with te.onnx_export(True):
+            try:
+                import transformer_engine.pytorch as te
+                ckpt_context_manager = te.onnx_export(True)
+            except ModuleNotFoundError:
+                ckpt_context_manager = contextlib.nullcontext()
+            with ckpt_context_manager:
                 new_model_instance.save_pretrained(temp_save_dir)
                 if original_tokenizer is not None:
                     assert isinstance(original_tokenizer, PreTrainedTokenizerBase)

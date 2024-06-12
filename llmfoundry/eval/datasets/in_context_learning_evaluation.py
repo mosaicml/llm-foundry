@@ -1493,6 +1493,8 @@ def build_icl_dataloader(
         3. set the `split_batch` function if necessary
     """
     # Add named parameters to kwargs
+    if kwargs is None:
+        kwargs = {}
     kwargs.update({
         'dataset_uri': dataset_uri,
         'tokenizer': tokenizer,

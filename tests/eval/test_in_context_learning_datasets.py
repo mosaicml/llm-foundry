@@ -2272,7 +2272,7 @@ def test_qa_task_evaluation(
             'pad_tok_id': tokenizer.eos_token_id,
             'num_fewshot': num_fewshot,
             'prompt_string': '',
-            'example_delimite': '\n',
+            'example_delimiter': '\n',
             'continuation_delimiter': ': ',
         }
     )

@@ -7,11 +7,10 @@ from composer.loggers import LoggerDestination
 from composer.models import ComposerModel
 from composer.optim import ComposerScheduler
 from torch.optim import Optimizer
-from torch.utils.data import DataLoader as TorchDataloader
+from torch.utils.data import DataLoader as TorchDataloader, Dataset
 from torchmetrics import Metric
 from transformers import PreTrainedTokenizerBase
 
-from llmfoundry.eval import InContextLearningDataset
 from llmfoundry.interfaces import CallbackWithConfig
 from llmfoundry.layers_registry import (
     attention_classes,
@@ -213,7 +212,8 @@ _icl_datasets_description = (
 icl_datasets = create_registry(
     'llmfoundry',
     'icl_datasets',
-    generic_type=Type[InContextLearningDataset],
+    # TODO: Change type to InContextLearningDataset
+    generic_type=Type[Dataset],
     entry_points=True,
     description=_icl_datasets_description,
 )

@@ -654,8 +654,8 @@ class InContextLearningGenerationTaskWithAnswersDataset(
             'input_ids': self.context_key,
             'labels': 'aliases',
         }
-        if 'generation_kwargs' in kwargs:
-            self.update_generation_kwargs(kwargs['generation_kwargs'])
+        if generation_kwargs:
+            self.update_generation_kwargs(generation_kwargs)
 
     def read_dataset(
         self,
@@ -1248,7 +1248,6 @@ class InContextLearningSchemaTaskDataset(
         prelimiter: str = '',
         answer_key: str = 'answer',
         strip_dataset: bool = True,
-        padding_side: str = 'right',
         tokenize_labels: bool = True,
         padding_size: Optional[int] = None,
         batch_mapping: Optional[Dict] = None,
@@ -1275,7 +1274,6 @@ class InContextLearningSchemaTaskDataset(
             prelimiter=prelimiter,
             answer_key=answer_key,
             strip_dataset=strip_dataset,
-            padding_side=padding_side,
             tokenize_labels=tokenize_labels,
             padding_size=padding_size,
             batch_mapping=batch_mapping,
@@ -1484,6 +1482,7 @@ def build_icl_dataloader(
     kwargs: Optional[Dict[str, Any]] = None, 
 ) -> DataSpec:
     """Factory method that builds the specific dataset for the specified.
+
     icl_task_type. See documentation for `get_icl_task_dataloader` for argument
     documentation.
 
@@ -1610,9 +1609,9 @@ def get_icl_task_dataloader(
     tokenizer: Union[transformers.PreTrainedTokenizer,
                      transformers.PreTrainedTokenizerFast],
     batch_size: int,
-    hf_loading_vars: Dict,
-    hf_parsing_map: Dict,
     has_categories: bool = False,
+    hf_loading_vars: Optional[Dict] = None,
+    hf_parsing_map: Optional[Dict] = None,
     destination_path: str = '',
     kwargs: Optional[Dict[str, Any]] = None,
 ) -> Union[DataSpec, Dict[str, DataSpec]]:
@@ -1671,30 +1670,20 @@ def get_icl_task_dataloader(
             The default keys expected are "context" and "answer".
         tokenizer (transformers.PreTrainedTokenizerBase): The tokenizer used to map between strings and token ids.
         batch_size (int): Size of a batch used for eval
-        max_seq_len (int): The maximum sequence length supported by the model.
-        pad_tok_id (int): The special token used for padding batches.
-        num_fewshot (int): The number of complete fewshot examples to prepend before each test example. These are not identical across examples.
-        prompt_string (str, default = ''): Prompt string to put once before all fewshot examples/test examples (e.g. 'Translate english to french.').
-        example_delimiter (str, default = '\\n'): Separator inserted before (context, answer) pairs (e.g. '\\n') for fewshot sampling and prompting.
-        continuation_delimiter: (str, default = ' '): Separator inserted between context and answer in each example (e.g. '\\nA: ').
-        destination_path: (str, default = ''): This is the local file where remote datasets will be saved.
-        question_prelimiter: (str, default = ''): Text to be prepended before each context, including few shot examples (e.g. "Question: ").
-        fewshot_random_seed (int, default = 1234): Random seed to use for fewshot sampling
-        cot_delimiter (str): Delimiter to place between chain of thoughts and continuations.
         has_categories: (bool): If ``True``, we will search the dataset file for a category key, and partition the dataset into a separate dataloader for each category occurring in the data.
         hf_loading_vars (Dict, default = None): A dictionary containing keyword arguments to be passed into `load_dataset` if dataset is being pulled from HF.
         hf_parsing_map (Dict, default = None): A dictionary containing a mapping from HF columns to ICL dataset keys. The dictionary should be formatted {icl_key:[hf_key1, hf_key1]}.
             Column contents will be concatenated with ' ' separating them. If not included, will load the columns already present in the HF dataset.
-        generation_kwargs (Dict, default = None): A dictionary containing keyword arguments to be passed along to the model's generate function. Overwrites any previously specified generation
-                                                  keyword args in this function (see https://huggingface.co/docs/transformers/main_classes/text_generation#transformers.GenerationConfig
-                                                  for more details)
-        early_stopping (List, default = None): A list of strings that, when found in a model's output, will be treated as a stopping criteria at metric computation time.
-            Used in generation tasks with CoT
-        do_normalization (bool, default = True): Whether or not to normalize the outputs and labels in InContextLearningGenerationTaskWithAnswersDataset. Only used in generation tasks.
+        kwargs (Dict[str, Any], default=None): Dictionary containing a mapping
+        from ICL dataset constructor's parameter names and their desired values.
 
     Returns:
         DataLoader: A dataloader used for performing in-context learning evaluation on the dataset provided.
     """
+    if hf_loading_vars is None:
+        hf_loading_vars = {}
+    if hf_parsing_map is None:
+        hf_parsing_map = {}
     if has_categories:
         result_dls = {}
         output_files = partition_dataset_by_category(

@@ -294,10 +294,10 @@ def build_loggers(logger_configs: Dict[str, Any],) -> List[LoggerDestination]:
             loggers.append(mosaicml_logger)
 
     # If project/experiment is set, add the respective logger by default
-    if os.environ['WANDB_PROJECT'] != '':
+    if os.environ.get('WANDB_PROJECT'):
         loggers.append(build_logger('wandb', {}))
 
-    if os.environ['MLFLOW_EXPERIMENT_NAME'] != '':
+    if os.environ.get('MLFLOW_EXPERIMENT_NAME'):
         loggers.append(build_logger('mlflow', {}))
 
     return loggers

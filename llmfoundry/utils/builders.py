@@ -599,7 +599,7 @@ def build_icl_evaluators(
                 early_stopping_criteria,
                 list,
             )
-            
+
             dataloaders = get_icl_task_dataloader(
                 icl_task_type=icl_cfg['icl_task_type'],
                 dataset_uri=icl_cfg['dataset_uri'],

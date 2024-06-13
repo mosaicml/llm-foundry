@@ -7,7 +7,8 @@ from composer.loggers import LoggerDestination
 from composer.models import ComposerModel
 from composer.optim import ComposerScheduler
 from torch.optim import Optimizer
-from torch.utils.data import DataLoader as TorchDataloader, Dataset
+from torch.utils.data import DataLoader as TorchDataloader
+from torch.utils.data import Dataset
 from torchmetrics import Metric
 from transformers import PreTrainedTokenizerBase
 

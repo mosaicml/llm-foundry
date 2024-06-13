@@ -1093,13 +1093,19 @@ def test_mc_task_dataloader_subcategories(
         has_categories=True,
         destination_path=str(tmp_path / 'icl.jsonl'),
         kwargs={
-            'num_fewshot':2,
-            'max_seq_len':seqlen,
-            'pad_tok_id':tokenizer.eos_token_id,
-            'prompt_string': 'The following are multiple choice questions (with answers).\n',
-            'example_delimiter':'\n',
-            'continuation_delimiter':'Answer: ',
-        }
+            'num_fewshot':
+                2,
+            'max_seq_len':
+                seqlen,
+            'pad_tok_id':
+                tokenizer.eos_token_id,
+            'prompt_string':
+                'The following are multiple choice questions (with answers).\n',
+            'example_delimiter':
+                '\n',
+            'continuation_delimiter':
+                'Answer: ',
+        },
     )
     assert isinstance(dls, dict)
 
@@ -1151,8 +1157,7 @@ def test_lm_task_dataloader_extra_space(
             'prompt_string': '',
             'example_delimiter': '\n',
             'continuation_delimiter': ' ',
-        }
-        
+        },
     )
     assert isinstance(dl, DataSpec)
     assert isinstance(dl.dataloader, DataLoader)  # pyright
@@ -1204,7 +1209,7 @@ def test_lm_task_dataloader(
             'prompt_string': '',
             'example_delimiter': '\n',
             'continuation_delimiter': '',
-        }
+        },
     )
     assert isinstance(dl, DataSpec)
     assert isinstance(dl.dataloader, DataLoader)  # pyright
@@ -1256,7 +1261,7 @@ def test_schema_task_dataloader(
             'example_delimiter': '\n',
             'prelimiter': prelimiter,
             'continuation_delimiter': '',
-        }
+        },
     )
     assert isinstance(dl, DataSpec)
     assert isinstance(dl.dataloader, DataLoader)
@@ -1316,7 +1321,7 @@ def test_schema_task_dataloader_sentpiece_tokenizer(
             'prompt_string': '',
             'example_delimiter': '\n',
             'continuation_delimiter': ' ',
-        }
+        },
     )
     assert isinstance(dl, DataSpec)
     assert isinstance(dl.dataloader, DataLoader)
@@ -1369,14 +1374,14 @@ def test_lm_task_dataloader_opt_tokenizer(
         tokenizer=tokenizer,
         batch_size=batch_size,
         destination_path=str(tmp_path / 'icl.jsonl'),
-        kwargs = {
+        kwargs={
             'max_seq_len': seqlen,
             'pad_tok_id': tokenizer.eos_token_id,
             'num_fewshot': num_fewshot,
             'prompt_string': '',
             'example_delimiter': '\n',
             'continuation_delimiter': '',
-        }
+        },
     )
     assert isinstance(dl, DataSpec)
     assert isinstance(dl.dataloader, DataLoader)  # pyright
@@ -1430,7 +1435,7 @@ def test_mc_task_dataloader_opt_tokenizer(
             'prompt_string': '',
             'example_delimiter': '\n',
             'continuation_delimiter': ': ',
-        }
+        },
     )
     assert isinstance(dl, DataSpec)
     assert isinstance(dl.dataloader, DataLoader)  # pyright
@@ -1495,7 +1500,7 @@ def test_mc_split_batch(
             'prompt_string': '',
             'example_delimiter': '\n',
             'continuation_delimiter': ': ',
-        }
+        },
     )
     assert isinstance(dl, DataSpec)
     assert isinstance(dl.dataloader, DataLoader)  # pyright
@@ -1574,7 +1579,7 @@ def test_qa_split_batch(
             'prompt_string': '',
             'example_delimiter': '\n',
             'continuation_delimiter': ': ',
-        }
+        },
     )
 
     assert isinstance(dl, DataSpec)  # pyright
@@ -1639,7 +1644,7 @@ def test_qa_task_dataloader_w_null_eos(
                 'example_delimiter': '\n',
                 'prelimiter': 'Q: ',
                 'continuation_delimiter': '\nA:',
-            }      
+            },
         )
 
 
@@ -1676,7 +1681,7 @@ def test_qa_task_dataloader(
             'example_delimiter': '\n',
             'prelimiter': 'Q: ',
             'continuation_delimiter': '\nA:',
-        }     
+        },
     )
     assert isinstance(dl, DataSpec)
 
@@ -1746,7 +1751,7 @@ def test_qa_task_with_cot_dataloader(
             'prelimiter': 'Q: ',
             'continuation_delimiter': "\nA: Let's think step by step. ",
             'cot_delimiter': ' #### ',
-        }
+        },
     )
     assert isinstance(dl, DataSpec)
     assert isinstance(dl.dataloader, DataLoader)  # pyright
@@ -1812,7 +1817,7 @@ def test_mc_task_dataloader(
             'prelimiter': prelimiter,
             'example_delimiter': example_delimiter,
             'continuation_delimiter': '\nA: ',
-        }
+        },
     )
     assert isinstance(dl, DataSpec)
     assert isinstance(dl.dataloader, DataLoader)  # pyright
@@ -1885,7 +1890,7 @@ def test_lm_task_evaluation(
             'prompt_string': '',
             'example_delimiter': '\n',
             'continuation_delimiter': '',
-        }
+        },
     )
 
     evaluator = Evaluator(
@@ -1939,7 +1944,7 @@ def test_schema_task_evaluation(
             'prompt_string': '',
             'example_delimiter': '\n',
             'continuation_delimiter': ': ',
-        }
+        },
     )
 
     evaluator = Evaluator(
@@ -2007,7 +2012,7 @@ def test_mc_task_evaluation_subcategories(
             'prompt_string': '',
             'example_delimiter': '\n',
             'continuation_delimiter': ': ',
-        }
+        },
     )
 
     assert isinstance(dls, dict)
@@ -2079,7 +2084,7 @@ def test_mc_task_evaluation(
             'prompt_string': '',
             'example_delimiter': '\n',
             'continuation_delimiter': ': ',
-        }
+        },
     )
 
     evaluator = Evaluator(
@@ -2149,7 +2154,7 @@ def test_qa_task_evaluation_opt_tokenizer(
             'prompt_string': '',
             'example_delimiter': '\n',
             'continuation_delimiter': ': ',
-        }
+        },
     )
 
     evaluator = Evaluator(
@@ -2213,7 +2218,7 @@ def test_qa_task_evaluation_with_cot_opt_tokenizer(
             'example_delimiter': '\n',
             'continuation_delimiter': "A: Let's think step by step. ",
             'cot_delimiter': ' #### ',
-        }
+        },
     )
 
     evaluator = Evaluator(
@@ -2274,7 +2279,7 @@ def test_qa_task_evaluation(
             'prompt_string': '',
             'example_delimiter': '\n',
             'continuation_delimiter': ': ',
-        }
+        },
     )
 
     evaluator = Evaluator(
@@ -2337,7 +2342,7 @@ def test_qa_task_with_cot_evaluation(
             'example_delimiter': '\n',
             'continuation_delimiter': "A: Let's think step by step",
             'cot_delimiter': ' #### ',
-        }
+        },
     )
 
     evaluator = Evaluator(
@@ -2389,7 +2394,7 @@ def test_lm_spacing_dataloader(
             'prompt_string': '',
             'example_delimiter': '\n',
             'continuation_delimiter': ' UNIQUE ',
-        }
+        },
     )
     assert isinstance(dl, DataSpec)
     assert isinstance(dl.dataloader, DataLoader)  # pyright
@@ -2463,7 +2468,7 @@ def test_hf_dataloading_lm_dataloader(
             'prompt_string': '',
             'example_delimiter': '\n',
             'continuation_delimiter': ' ',
-        }
+        },
     )
     assert isinstance(dl, DataSpec)
     assert isinstance(dl.dataloader, DataLoader)  # pyright
@@ -2547,7 +2552,7 @@ def test_hf_dataloading_custom_parsing(
             'example_delimiter': '\n',
             'prelimiter': 'Orbs: ',
             'continuation_delimiter': '\nSpell:',
-        }
+        },
     )
     assert isinstance(dl, DataSpec)
     assert isinstance(dl.dataloader, DataLoader)  # pyright

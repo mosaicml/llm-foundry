@@ -19,6 +19,7 @@ from datasets import Dataset as HFDataset
 from datasets import IterableDataset, load_dataset
 from torch.utils.data import DataLoader, Dataset
 
+from llmfoundry import registry
 from llmfoundry.eval.datasets.utils import (
     convert_tokens_to_tensors,
     get_continuation_span,
@@ -30,7 +31,6 @@ from llmfoundry.eval.datasets.utils import (
     trim_context,
 )
 from llmfoundry.utils.registry_utils import construct_from_registry
-from llmfoundry import registry
 
 log = logging.getLogger(__name__)
 
@@ -536,9 +536,9 @@ class InContextLearningDataset(Dataset):
         return batch
 
     def split_batch(
-        self, 
+        self,
         batch: Any,
-        microbatch_size: Union[int, float]
+        microbatch_size: Union[int, float],
     ) -> Sequence[Any]:
         return _default_split_batch(batch, microbatch_size)
 
@@ -1470,6 +1470,7 @@ class InContextLearningSchemaTaskDataset(
         tokenized_example['gold'] = example['gold']
         return tokenized_example
 
+
 def build_icl_dataloader(
     icl_task_type: str,
     dataset_uri: str,
@@ -1479,7 +1480,7 @@ def build_icl_dataloader(
     hf_loading_vars: Dict,
     hf_parsing_map: Dict,
     destination_path: str = '',
-    kwargs: Optional[Dict[str, Any]] = None, 
+    kwargs: Optional[Dict[str, Any]] = None,
 ) -> DataSpec:
     """Factory method that builds the specific dataset for the specified.
 
@@ -1705,7 +1706,7 @@ def get_icl_task_dataloader(
                 destination_path=partition_uri + '_tmp',
                 hf_loading_vars=hf_loading_vars,
                 hf_parsing_map=hf_parsing_map,
-                kwargs=kwargs
+                kwargs=kwargs,
             )
         return result_dls
     else:
@@ -1717,5 +1718,5 @@ def get_icl_task_dataloader(
             hf_loading_vars=hf_loading_vars,
             hf_parsing_map=hf_parsing_map,
             destination_path=destination_path,
-            kwargs=kwargs
+            kwargs=kwargs,
         )

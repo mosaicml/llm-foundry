@@ -495,13 +495,14 @@ class HuggingFaceCheckpointer(Callback):
             # This context manager casts the TE extra state in io.BytesIO format to tensor format
             # Needed for proper hf ckpt saving.
             context_manager = te.onnx_export(
-                True
+                True,
             ) if is_te_imported else contextlib.nullcontext()
             with context_manager:
                 new_model_instance.save_pretrained(temp_save_dir)
                 if original_tokenizer is not None:
                     assert isinstance(
-                        original_tokenizer, PreTrainedTokenizerBase
+                        original_tokenizer,
+                        PreTrainedTokenizerBase,
                     )
                     original_tokenizer.save_pretrained(temp_save_dir)
 

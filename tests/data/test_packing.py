@@ -210,6 +210,7 @@ def test_auto_packing_with_streaming_dataloader(tmp_path: Path):
     assert isinstance(loader, DataLoader)
     assert isinstance(loader.dataset, StreamingFinetuningDataset)
     assert loader.dataset.packing_ratio is not None
+    assert isinstance(loader.batch_size, int)
     assert loader.dataset.packing_ratio == int(loader.batch_size / 6)
 
     state_dict = loader.dataset.state_dict(num_samples=2, from_beginning=False)

@@ -206,6 +206,12 @@ def test_auto_packing_with_streaming_dataloader(tmp_path: Path):
         if batch_ix >= 3:
             break
 
+    assert loader.dataset.packing_ratio is not None
+    assert loader.dataset.packing_ratio == int(loader.batch_size / 6)
+
+    state_dict = loader.dataset.state_dict(num_samples=2, from_beginning=False)
+    assert state_dict['sample_in_epoch'] == 2 * loader.dataset.packing_ratio
+
 
 @pytest.mark.parametrize('packing_ratio', ['auto', 2.0])
 @patch(

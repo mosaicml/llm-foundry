@@ -189,6 +189,9 @@ def _first_fit_bin_packing(
     # Will contain tuples (bin_size_size, packed_example)
     bins: List[Tuple[int, Dict[str, torch.Tensor]]] = existing_bins
 
+    # DO NOT MERGE
+    bins = []
+
     starting_total_bin_sizes = sum([bin_size for bin_size, _ in bins])
 
     sizes_and_examples = list(zip(sizes, examples))

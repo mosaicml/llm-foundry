@@ -682,6 +682,10 @@ class StreamingFinetuningDataset(StreamingDataset):
         if self.packing_ratio is not None:
             num_samples = self.packing_ratio * num_samples
 
+        print('+'*30)
+        print(num_samples)
+        print('+'*30)
+
         return super().state_dict(
             num_samples=num_samples,
             from_beginning=from_beginning,

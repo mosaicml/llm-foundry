@@ -115,7 +115,7 @@ class TrainConfig:
 
     # Cuda allocation configuration
     max_split_size_mb: Optional[int] = None
-    expandable_segments: bool = False
+    expandable_segments: bool = True
     cuda_load_lazy: bool = False
 
     # Distributed training parameters

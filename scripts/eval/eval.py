@@ -20,7 +20,6 @@ from rich.traceback import install
 from llmfoundry.utils import (
     find_mosaicml_logger,
     log_eval_analytics,
-    maybe_create_mosaicml_logger,
 )
 
 install()
@@ -29,7 +28,7 @@ from llmfoundry.utils.builders import (
     build_callback,
     build_composer_model,
     build_evaluators,
-    build_logger,
+    build_loggers,
     build_tokenizer,
 )
 from llmfoundry.utils.config_utils import (
@@ -227,19 +226,10 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     trainers = []
 
     # Build loggers
-    loggers: List[LoggerDestination] = [
-        build_logger(name, logger_cfg)
-        for name, logger_cfg in (eval_config.loggers or {}).items()
-    ]
-
-    mosaicml_logger = find_mosaicml_logger(loggers)
-    if mosaicml_logger is None:
-        mosaicml_logger = maybe_create_mosaicml_logger()
-        # mosaicml_logger will be None if run isn't on MosaicML platform
-        if mosaicml_logger is not None:
-            loggers.append(mosaicml_logger)
+    loggers = build_loggers(eval_config.loggers or {})
 
     # mosaicml_logger will be None if the run isn't from the MosaicML platform
+    mosaicml_logger = find_mosaicml_logger(loggers)
     if mosaicml_logger is not None:
         log_eval_analytics(
             mosaicml_logger,

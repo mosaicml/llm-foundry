@@ -36,6 +36,10 @@ from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.eval.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
+from llmfoundry.utils import (
+    find_mosaicml_logger,
+    maybe_create_mosaicml_logger,
+)
 from llmfoundry.utils.config_utils import to_dict_container, to_list_container
 from llmfoundry.utils.registry_utils import construct_from_registry
 
@@ -274,6 +278,29 @@ def build_logger(
         post_validation_function=None,
         kwargs=kwargs,
     )
+
+
+def build_loggers(logger_configs: Dict[str, Any],) -> List[LoggerDestination]:
+    """Builds a list of loggers from the registry."""
+    loggers = [
+        build_logger(name, kwargs) for name, kwargs in logger_configs.items()
+    ]
+
+    mosaicml_logger = find_mosaicml_logger(loggers)
+    if mosaicml_logger is None:
+        mosaicml_logger = maybe_create_mosaicml_logger()
+        # mosaicml_logger will be None if run isn't on MosaicML platform
+        if mosaicml_logger is not None:
+            loggers.append(mosaicml_logger)
+
+    # If project/experiment is set, add the respective logger by default
+    if os.environ['WANDB_PROJECT'] != '':
+        loggers.append(build_logger('wandb', {}))
+
+    if os.environ['MLFLOW_EXPERIMENT_NAME'] != '':
+        loggers.append(build_logger('mlflow', {}))
+
+    return loggers
 
 
 def build_algorithm(

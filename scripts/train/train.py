@@ -29,7 +29,6 @@ from llmfoundry.layers_registry import ffns_with_megablocks
 from llmfoundry.utils import (
     find_mosaicml_logger,
     log_train_analytics,
-    maybe_create_mosaicml_logger,
 )
 from llmfoundry.utils.builders import (
     add_metrics_to_eval_loaders,
@@ -37,7 +36,7 @@ from llmfoundry.utils.builders import (
     build_callback,
     build_composer_model,
     build_evaluators,
-    build_logger,
+    build_loggers,
     build_optimizer,
     build_scheduler,
     build_tokenizer,
@@ -315,18 +314,9 @@ def main(cfg: DictConfig) -> Trainer:
     scheduler_name: str = train_cfg.scheduler.pop('name')
     scheduler = build_scheduler(scheduler_name, train_cfg.scheduler)
 
-    # Loggers
-    loggers = [
-        build_logger(str(name), logger_cfg)
-        for name, logger_cfg in train_cfg.loggers.items()
-    ] if train_cfg.loggers else []
-
+    # Build loggers
+    loggers = build_loggers(train_cfg.loggers or {})
     mosaicml_logger = find_mosaicml_logger(loggers)
-    if mosaicml_logger is None:
-        mosaicml_logger = maybe_create_mosaicml_logger()
-        if mosaicml_logger is not None:
-            # mosaicml_logger will be None if run isn't on MosaicML platform
-            loggers.append(mosaicml_logger)
 
     if train_cfg.metadata is not None:
         # Flatten the metadata for logging

@@ -680,11 +680,7 @@ class StreamingFinetuningDataset(StreamingDataset):
     def state_dict(self, num_samples: int,
                    from_beginning: bool) -> Dict[str, Any]:
         if self.packing_ratio is not None:
-            num_samples = self.packing_ratio * num_samples
-
-        print('+'*30)
-        print(num_samples)
-        print('+'*30)
+            num_samples = int(self.packing_ratio * num_samples)
 
         return super().state_dict(
             num_samples=num_samples,

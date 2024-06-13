@@ -592,6 +592,7 @@ class StreamingFinetuningDataset(StreamingDataset):
         max_seq_len: int = 2048,
         allow_unsafe_types: bool = False,
         replication: Optional[int] = None,
+        packing_ratio: Optional[float] = None,
         **kwargs: Any,
     ):
 
@@ -644,6 +645,7 @@ class StreamingFinetuningDataset(StreamingDataset):
 
         self.tokenizer = tokenizer
         self.max_seq_len = max_seq_len
+        self.packing_ratio = packing_ratio
 
     # How to process a sample
     def __getitem__(self, idx: int) -> Dict[str, Any]:
@@ -674,6 +676,15 @@ class StreamingFinetuningDataset(StreamingDataset):
             # Convert to latest format by wrapping sample as a "turn"
             return {'turns': [sample]}
         return tokenize_formatted_example(sample, tokenizer=self.tokenizer)
+
+    def state_dict(self, num_samples: int,
+                   from_beginning: bool) -> Dict[str, Any]:
+        if self.packing_ratio is not None:
+            num_samples = self.packing_ratio * num_samples
+
+        return super().state_dict(
+            num_samples=num_samples, from_beginning=from_beginning
+        )
 
 
 class DatasetConstructor:

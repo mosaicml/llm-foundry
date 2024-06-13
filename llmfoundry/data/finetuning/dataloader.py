@@ -233,6 +233,7 @@ def build_finetuning_dataloader(
             max_seq_len=dataset_cfg['max_seq_len'],
             allow_unsafe_types=dataset_cfg.get('allow_unsafe_types', False),
             replication=replication_factor,
+            packing_ratio=dataloader_batch_size / dataset_batch_size,
         )
 
     else:

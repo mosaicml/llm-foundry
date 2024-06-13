@@ -683,7 +683,8 @@ class StreamingFinetuningDataset(StreamingDataset):
             num_samples = self.packing_ratio * num_samples
 
         return super().state_dict(
-            num_samples=num_samples, from_beginning=from_beginning
+            num_samples=num_samples,
+            from_beginning=from_beginning,
         )
 
 

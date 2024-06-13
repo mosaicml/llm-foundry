@@ -16,6 +16,7 @@ from torch.utils.data import DataLoader
 from llmfoundry.data.finetuning.dataloader import build_finetuning_dataloader
 from llmfoundry.data.packing import BinPackCollator, auto_packing_ratio
 from llmfoundry.utils.builders import build_tokenizer
+from llmfoundry.data.finetuning.tasks import StreamingFinetuningDataset
 
 
 def _data_to_batch(data: List[List[int]], max_seq_len: int,
@@ -205,7 +206,9 @@ def test_auto_packing_with_streaming_dataloader(tmp_path: Path):
         batch_ix += 1
         if batch_ix >= 3:
             break
-
+    
+    assert isinstance(loader, DataLoader)
+    assert isinstance(loader.dataset, StreamingFinetuningDataset)
     assert loader.dataset.packing_ratio is not None
     assert loader.dataset.packing_ratio == int(loader.batch_size / 6)
 

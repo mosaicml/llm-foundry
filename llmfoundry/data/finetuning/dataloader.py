@@ -222,7 +222,7 @@ def build_finetuning_dataloader(
             cache_limit=dataset_cfg.get('cache_limit', None),
             partition_algo=dataset_cfg.get('partition_algo', 'relaxed'),
             num_canonical_nodes=dataset_cfg.get('num_canonical_nodes', None),
-            batch_size=dataset_batch_size,
+            batch_size=dataloader_batch_size,
             shuffle=dataset_cfg.get('shuffle', False),
             shuffle_algo=dataset_cfg.get('shuffle_algo', 'py1e'),
             shuffle_seed=dataset_cfg.get('shuffle_seed', 9176),
@@ -233,6 +233,7 @@ def build_finetuning_dataloader(
             max_seq_len=dataset_cfg['max_seq_len'],
             allow_unsafe_types=dataset_cfg.get('allow_unsafe_types', False),
             replication=replication_factor,
+            packing_ratio=dataloader_batch_size / dataset_batch_size,
         )
 
     else:
@@ -390,6 +391,7 @@ def _validate_config(
         'allow_pad_trimming',
         'seq_parallel_replication',
         'auto_packing_replication',
+        'max_leftover_bins_to_keep',
     }
     if not set(kwargs.keys()).issubset(allowed_additional_kwargs):
         raise ValueError(

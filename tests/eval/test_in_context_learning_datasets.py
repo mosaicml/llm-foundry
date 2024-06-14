@@ -37,6 +37,7 @@ from llmfoundry.eval.metrics import (
     InContextLearningLMAccuracy,
     InContextLearningMultipleChoiceAccuracy,
 )
+from llmfoundry.utils.builders import build_icl_evaluators
 
 
 def test_strip_data():
@@ -2588,3 +2589,42 @@ def test_hf_dataloading_custom_parsing(
     )
     assert decoded_batch[0].endswith('Orbs: quas wex exort\nSpell:')
     assert decoded_batch[1].endswith('Orbs: quas quas quas\nSpell:')
+
+
+@pytest.mark.parametrize(
+    'prelimiter_key_name',
+    ['prelimiter', 'question_prelimiter'],
+)
+def test_bc_question_prelimiter(
+    mpt_tokenizer: transformers.PreTrainedTokenizerBase,
+    prelimiter_key_name: str,
+):
+    local_data = os.path.join(os.path.dirname(__file__), 'local_data')
+
+    dataset_uri = f'{local_data}/piqa_small.jsonl'
+
+    icl_tasks = [
+        {
+            'dataset_uri': dataset_uri,
+            'label': 'piqa',
+            'icl_task_type': 'multiple_choice',
+            'max_seq_len': 64,
+            'pad_tok_id': mpt_tokenizer.eos_token_id,
+            'num_fewshot': [0],
+            'prompt_string': '',
+            'example_delimiter': '\n',
+            'continuation_delimiter': ': ',
+            prelimiter_key_name: 'This is a question: ',
+        },
+    ]
+
+    evaluators, _ = build_icl_evaluators(
+        icl_tasks=icl_tasks,
+        tokenizer=mpt_tokenizer,
+        default_batch_size=2,
+        default_max_seq_len=128,
+    )
+
+    assert len(evaluators) == 1
+    evaluator = evaluators[0]
+    assert evaluator.dataloader.dataloader.dataset.prelimiter == 'This is a question: '  # type: ignore

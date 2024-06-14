@@ -14,6 +14,7 @@ from streaming import MDSWriter
 from torch.utils.data import DataLoader
 
 from llmfoundry.data.finetuning.dataloader import build_finetuning_dataloader
+from llmfoundry.data.finetuning.tasks import StreamingFinetuningDataset
 from llmfoundry.data.packing import BinPackCollator, auto_packing_ratio
 from llmfoundry.utils.builders import build_tokenizer
 
@@ -205,6 +206,15 @@ def test_auto_packing_with_streaming_dataloader(tmp_path: Path):
         batch_ix += 1
         if batch_ix >= 3:
             break
+
+    assert isinstance(loader, DataLoader)
+    assert isinstance(loader.dataset, StreamingFinetuningDataset)
+    assert loader.dataset.packing_ratio is not None
+    assert isinstance(loader.batch_size, int)
+    assert loader.dataset.packing_ratio == int(loader.batch_size / 6)
+
+    state_dict = loader.dataset.state_dict(num_samples=2, from_beginning=False)
+    assert state_dict['sample_in_epoch'] == 2 * loader.dataset.packing_ratio
 
 
 @pytest.mark.parametrize('packing_ratio', ['auto', 2.0])

@@ -595,6 +595,20 @@ def build_icl_evaluators(
             icl_constructor_kwargs['pad_tok_id'] = pad_tok_id
             icl_constructor_kwargs['num_fewshot'] = num_fewshot
 
+            # Support backwards compatibility for the naming of "prelimiter" as "question_prelimiter"
+            if 'question_prelimiter' in icl_constructor_kwargs:
+                if 'prelimiter' in icl_constructor_kwargs:
+                    raise ValueError(
+                        'Both "question_prelimiter" and "prelimiter" are specified in the ICL task config. '
+                        +
+                        'Please only specify one of them, as they map to the same argument.'
+                    )
+                else:
+                    icl_constructor_kwargs['prelimiter'
+                                          ] = icl_constructor_kwargs.pop(
+                                              'question_prelimiter'
+                                          )
+
             assert early_stopping_criteria is None or isinstance(
                 early_stopping_criteria,
                 list,

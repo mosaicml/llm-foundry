@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import contextlib
+import copy
 import functools
 import logging
 import os
@@ -545,22 +546,10 @@ def build_icl_evaluators(
                     f'No metric_names defined, unable to build default metrics for icl_task_type={icl_cfg["icl_task_type"]}.',
                 )
 
-        if 'prompt_string' not in icl_cfg:
-            icl_cfg['prompt_string'] = ''
-        if 'example_delimiter' not in icl_cfg:
-            icl_cfg['example_delimiter'] = '\n'
-        if 'continuation_delimiter' not in icl_cfg:
-            icl_cfg['continuation_delimiter'] = ' '
         if 'max_seq_len' not in icl_cfg:
             icl_cfg['max_seq_len'] = default_max_seq_len
         if 'batch_size' not in icl_cfg:
             icl_cfg['batch_size'] = default_batch_size
-        if 'pass_at_k' not in icl_cfg:
-            icl_cfg['pass_at_k'] = 1
-        if 'fewshot_random_seed' not in icl_cfg:
-            icl_cfg['fewshot_random_seed'] = 1234
-        if 'generations_per_sample' not in icl_cfg:
-            icl_cfg['generations_per_sample'] = 1
 
         if 'num_beams' in icl_cfg:
             raise ValueError(
@@ -579,6 +568,7 @@ def build_icl_evaluators(
                 pad_tok_id = tokenizer.eos_token_id
             else:
                 pad_tok_id = tokenizer.pad_token_id
+
             label = f'{icl_cfg["label"]}/{num_fewshot}-shot'
             metric_names = list(icl_cfg['metric_names'])
             # TODO: fix Composer bug when copying local paths and destination exists
@@ -589,38 +579,37 @@ def build_icl_evaluators(
 
             hf_parsing_map = icl_cfg.get('hf_parsing_map', {})
             hf_loading_vars = icl_cfg.get('hf_loading_vars', {})
-
             early_stopping_criteria = icl_cfg.get(
                 'early_stopping_criteria',
-                None,
+                [],
             )
+            # TODO: fix manual removal of non-constructor fields
+            icl_constructor_kwargs = copy.deepcopy(icl_cfg)
+            icl_constructor_kwargs.pop('label', None)
+            icl_constructor_kwargs.pop('metric_names', None)
+            icl_constructor_kwargs.pop('icl_task_type', None)
+            icl_constructor_kwargs.pop('batch_size', None)
+            icl_constructor_kwargs.pop('has_categories', None)
+
+            # Add custom constructor arguments
+            icl_constructor_kwargs['pad_tok_id'] = pad_tok_id
+            icl_constructor_kwargs['num_fewshot'] = num_fewshot
+
             assert early_stopping_criteria is None or isinstance(
                 early_stopping_criteria,
                 list,
             )
+
             dataloaders = get_icl_task_dataloader(
-                icl_cfg['icl_task_type'],
-                icl_cfg['dataset_uri'],
-                tokenizer,
+                icl_task_type=icl_cfg['icl_task_type'],
+                dataset_uri=icl_cfg['dataset_uri'],
+                tokenizer=tokenizer,
                 batch_size=icl_cfg['batch_size'],
-                max_seq_len=icl_cfg['max_seq_len'],
-                pad_tok_id=pad_tok_id,
-                num_fewshot=num_fewshot,
-                prompt_string=icl_cfg['prompt_string'],
-                example_delimiter=icl_cfg['example_delimiter'],
                 hf_loading_vars=hf_loading_vars,
                 hf_parsing_map=hf_parsing_map,
-                continuation_delimiter=icl_cfg['continuation_delimiter'],
-                question_prelimiter=icl_cfg.get('question_prelimiter', ''),
-                destination_path=destination_path,
-                fewshot_random_seed=icl_cfg['fewshot_random_seed'],
-                pass_at_k=icl_cfg['pass_at_k'],
-                generations_per_sample=icl_cfg['generations_per_sample'],
                 has_categories=icl_cfg.get('has_categories', False),
-                cot_delimiter=icl_cfg.get('cot_delimiter', ''),
-                generation_kwargs=icl_cfg.get('generation_kwargs', {}),
-                early_stopping_criteria=early_stopping_criteria,
-                do_normalization=icl_cfg.get('do_normalization', True),
+                destination_path=destination_path,
+                kwargs=icl_constructor_kwargs,
             )
             if 'has_categories' in icl_cfg and icl_cfg[
                 'has_categories'] and isinstance(dataloaders, dict):

@@ -8,6 +8,7 @@ from composer.models import ComposerModel
 from composer.optim import ComposerScheduler
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader as TorchDataloader
+from torch.utils.data import Dataset
 from torchmetrics import Metric
 from transformers import PreTrainedTokenizerBase
 
@@ -206,6 +207,21 @@ metrics = create_registry(
     description=_metrics_description,
 )
 
+_icl_datasets_description = (
+    'The ICL datasets registry is used to register an torch.utils.data.Dataset class which can be used for ICL tasks.'
+)
+icl_datasets = create_registry(
+    'llmfoundry',
+    'icl_datasets',
+    # TODO: Change type from Dataset to
+    # llmfoundry.eval.InContextLearningDataset.
+    # Using ICL dataset here introduces a circular import dependency between
+    # the registry and eval packages right now, thus needs some refactoring.
+    generic_type=Type[Dataset],
+    entry_points=True,
+    description=_icl_datasets_description,
+)
+
 __all__ = [
     'loggers',
     'callbacks',
@@ -228,4 +244,5 @@ __all__ = [
     'attention_classes',
     'attention_implementations',
     'fcs',
+    'icl_datasets',
 ]

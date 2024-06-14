@@ -42,6 +42,7 @@ def test_expected_registries_exist():
         'attention_classes',
         'attention_implementations',
         'fcs',
+        'icl_datasets',
     }
 
     assert existing_registries == expected_registry_names

@@ -222,7 +222,7 @@ def build_finetuning_dataloader(
             cache_limit=dataset_cfg.get('cache_limit', None),
             partition_algo=dataset_cfg.get('partition_algo', 'relaxed'),
             num_canonical_nodes=dataset_cfg.get('num_canonical_nodes', None),
-            batch_size=dataset_batch_size,
+            batch_size=dataloader_batch_size,
             shuffle=dataset_cfg.get('shuffle', False),
             shuffle_algo=dataset_cfg.get('shuffle_algo', 'py1e'),
             shuffle_seed=dataset_cfg.get('shuffle_seed', 9176),

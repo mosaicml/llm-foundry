@@ -6,11 +6,11 @@ import os
 from argparse import ArgumentParser, Namespace
 from enum import Enum
 from glob import glob
-from typing import Dict, Iterable, Optional
+from typing import Optional
 
 import datasets as hf_datasets
 from streaming import MDSWriter
-from torch.utils.data import DataLoader, IterableDataset
+from torch.utils.data import IterableDataset
 from tqdm import tqdm
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
@@ -140,30 +140,6 @@ def build_hf_dataset(
     return dataset
 
 
-def generate_samples(
-    loader: DataLoader,
-    truncate_num_samples: Optional[int] = None,
-) -> Iterable[Dict[str, bytes]]:
-    """Generator over samples of a dataloader.
-
-    Args:
-       loader (DataLoader): A dataloader emitting batches like {key: [sample0_bytes, sample1_bytes, sample2_bytes, ...]}
-       truncate_num_samples (Optional[int]): An optional # of samples to stop at.
-
-    Yields:
-        Sample dicts.
-    """
-    n_samples = 0
-    for batch in loader:
-        keys = list(batch.keys())
-        current_bs = len(batch[keys[0]])
-        for idx in range(current_bs):
-            if truncate_num_samples is not None and n_samples == truncate_num_samples:
-                return
-            n_samples += 1
-            yield {k: v[idx] for k, v in batch.items()}
-
-
 def main(args: Namespace) -> None:
     """Main: create C4/pile streaming dataset.
 
@@ -175,7 +151,7 @@ def main(args: Namespace) -> None:
         tokenizer = AutoTokenizer.from_pretrained(args.tokenizer)
         # we will enforce length, so suppress warnings about sequences too long for the model
         tokenizer.model_max_length = int(1e30)
-        columns = {'tokens': 'bytes'}
+        columns = {'tokens': 'ndarray:int32'}
     else:
         mode = ConcatMode.NO_CONCAT
         tokenizer = None

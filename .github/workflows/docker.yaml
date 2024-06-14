@@ -23,6 +23,12 @@ jobs:
         - name: "2.3.0_cu121_flash2_aws"
           base_image: mosaicml/pytorch:2.3.0_cu121-python3.11-ubuntu20.04-aws
           dep_groups: "[gpu-flash2]"
+        - name: "2.3.1_cu121"
+          base_image: mosaicml/pytorch:2.3.1_cu121-python3.11-ubuntu20.04
+          dep_groups: "[gpu]"
+        - name: "2.3.1_cu121_aws"
+          base_image: mosaicml/pytorch:2.3.1_cu121-python3.11-ubuntu20.04-aws
+          dep_groups: "[gpu]"
     steps:
     - name: Maximize Build Space on Worker
       uses: easimon/maximize-build-space@v4

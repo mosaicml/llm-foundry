@@ -601,12 +601,12 @@ def build_icl_evaluators(
                     raise ValueError(
                         'Both "question_prelimiter" and "prelimiter" are specified in the ICL task config. '
                         +
-                        'Please only specify one of them, as they map to the same argument.'
+                        'Please only specify one of them, as they map to the same argument.',
                     )
                 else:
                     icl_constructor_kwargs['prelimiter'
                                           ] = icl_constructor_kwargs.pop(
-                                              'question_prelimiter'
+                                              'question_prelimiter',
                                           )
 
             assert early_stopping_criteria is None or isinstance(

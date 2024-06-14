@@ -1474,8 +1474,7 @@ class InContextLearningSchemaTaskDataset(
 def build_icl_dataloader(
     icl_task_type: str,
     dataset_uri: str,
-    tokenizer: Union[transformers.PreTrainedTokenizer,
-                     transformers.PreTrainedTokenizerFast],
+    tokenizer: transformers.PreTrainedTokenizerBase,
     batch_size: int,
     hf_loading_vars: Dict,
     hf_parsing_map: Dict,

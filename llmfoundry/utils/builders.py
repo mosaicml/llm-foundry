@@ -604,7 +604,7 @@ def build_icl_evaluators(
                 icl_task_type=icl_cfg['icl_task_type'],
                 dataset_uri=icl_cfg['dataset_uri'],
                 tokenizer=tokenizer,
-                batch_size=icl_cfg.get('batch_size', default_batch_size),
+                batch_size=icl_cfg['batch_size'],
                 hf_loading_vars=hf_loading_vars,
                 hf_parsing_map=hf_parsing_map,
                 has_categories=icl_cfg.get('has_categories', False),

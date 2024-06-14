@@ -1090,15 +1090,22 @@ def test_mc_task_dataloader_subcategories(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
-        max_seq_len=seqlen,
-        pad_tok_id=tokenizer.eos_token_id,
-        num_fewshot=2,
-        prompt_string=
-        'The following are multiple choice questions (with answers).\n',
-        example_delimiter='\n',
-        continuation_delimiter='Answer: ',
-        destination_path=str(tmp_path / 'icl.jsonl'),
         has_categories=True,
+        destination_path=str(tmp_path / 'icl.jsonl'),
+        kwargs={
+            'num_fewshot':
+                2,
+            'max_seq_len':
+                seqlen,
+            'pad_tok_id':
+                tokenizer.eos_token_id,
+            'prompt_string':
+                'The following are multiple choice questions (with answers).\n',
+            'example_delimiter':
+                '\n',
+            'continuation_delimiter':
+                'Answer: ',
+        },
     )
     assert isinstance(dls, dict)
 
@@ -1142,13 +1149,15 @@ def test_lm_task_dataloader_extra_space(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
-        max_seq_len=seqlen,
-        pad_tok_id=tokenizer.eos_token_id,
-        num_fewshot=10,
-        prompt_string='',
-        example_delimiter='\n',
-        continuation_delimiter=' ',
         destination_path=str(tmp_path / 'icl.jsonl'),
+        kwargs={
+            'max_seq_len': seqlen,
+            'pad_tok_id': tokenizer.eos_token_id,
+            'num_fewshot': 10,
+            'prompt_string': '',
+            'example_delimiter': '\n',
+            'continuation_delimiter': ' ',
+        },
     )
     assert isinstance(dl, DataSpec)
     assert isinstance(dl.dataloader, DataLoader)  # pyright
@@ -1192,13 +1201,15 @@ def test_lm_task_dataloader(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
-        max_seq_len=seqlen,
-        pad_tok_id=tokenizer.eos_token_id,
-        num_fewshot=0,
-        prompt_string='',
-        example_delimiter='\n',
-        continuation_delimiter='',
         destination_path=str(tmp_path / 'icl.jsonl'),
+        kwargs={
+            'max_seq_len': seqlen,
+            'pad_tok_id': tokenizer.eos_token_id,
+            'num_fewshot': 0,
+            'prompt_string': '',
+            'example_delimiter': '\n',
+            'continuation_delimiter': '',
+        },
     )
     assert isinstance(dl, DataSpec)
     assert isinstance(dl.dataloader, DataLoader)  # pyright
@@ -1241,14 +1252,16 @@ def test_schema_task_dataloader(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
-        max_seq_len=seqlen,
-        pad_tok_id=tokenizer.eos_token_id,
-        num_fewshot=1,
-        prompt_string='',
-        example_delimiter='\n',
-        question_prelimiter=prelimiter,
-        continuation_delimiter='',
         destination_path=str(tmp_path / 'icl.jsonl'),
+        kwargs={
+            'max_seq_len': seqlen,
+            'pad_tok_id': tokenizer.eos_token_id,
+            'num_fewshot': 1,
+            'prompt_string': '',
+            'example_delimiter': '\n',
+            'prelimiter': prelimiter,
+            'continuation_delimiter': '',
+        },
     )
     assert isinstance(dl, DataSpec)
     assert isinstance(dl.dataloader, DataLoader)
@@ -1300,13 +1313,15 @@ def test_schema_task_dataloader_sentpiece_tokenizer(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
-        max_seq_len=seqlen,
-        pad_tok_id=tokenizer.eos_token_id,
-        num_fewshot=1,
-        prompt_string='',
-        example_delimiter='\n',
-        continuation_delimiter=' ',
         destination_path=str(tmp_path / 'icl.jsonl'),
+        kwargs={
+            'max_seq_len': seqlen,
+            'pad_tok_id': tokenizer.eos_token_id,
+            'num_fewshot': 1,
+            'prompt_string': '',
+            'example_delimiter': '\n',
+            'continuation_delimiter': ' ',
+        },
     )
     assert isinstance(dl, DataSpec)
     assert isinstance(dl.dataloader, DataLoader)
@@ -1358,13 +1373,15 @@ def test_lm_task_dataloader_opt_tokenizer(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
-        max_seq_len=seqlen,
-        pad_tok_id=tokenizer.eos_token_id,
-        num_fewshot=num_fewshot,
-        prompt_string='',
-        example_delimiter='\n',
-        continuation_delimiter='',
         destination_path=str(tmp_path / 'icl.jsonl'),
+        kwargs={
+            'max_seq_len': seqlen,
+            'pad_tok_id': tokenizer.eos_token_id,
+            'num_fewshot': num_fewshot,
+            'prompt_string': '',
+            'example_delimiter': '\n',
+            'continuation_delimiter': '',
+        },
     )
     assert isinstance(dl, DataSpec)
     assert isinstance(dl.dataloader, DataLoader)  # pyright
@@ -1410,13 +1427,15 @@ def test_mc_task_dataloader_opt_tokenizer(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
-        max_seq_len=seqlen,
-        pad_tok_id=tokenizer.eos_token_id,
-        num_fewshot=num_fewshot,
-        prompt_string='',
-        example_delimiter='\n',
-        continuation_delimiter=': ',
         destination_path=str(tmp_path / 'icl.jsonl'),
+        kwargs={
+            'max_seq_len': seqlen,
+            'pad_tok_id': tokenizer.eos_token_id,
+            'num_fewshot': num_fewshot,
+            'prompt_string': '',
+            'example_delimiter': '\n',
+            'continuation_delimiter': ': ',
+        },
     )
     assert isinstance(dl, DataSpec)
     assert isinstance(dl.dataloader, DataLoader)  # pyright
@@ -1473,13 +1492,15 @@ def test_mc_split_batch(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
-        max_seq_len=seqlen,
-        pad_tok_id=tokenizer.eos_token_id,
-        num_fewshot=num_fewshot,
-        prompt_string='',
-        example_delimiter='\n',
-        continuation_delimiter=': ',
         destination_path=str(tmp_path / 'icl.jsonl'),
+        kwargs={
+            'max_seq_len': seqlen,
+            'pad_tok_id': tokenizer.eos_token_id,
+            'num_fewshot': num_fewshot,
+            'prompt_string': '',
+            'example_delimiter': '\n',
+            'continuation_delimiter': ': ',
+        },
     )
     assert isinstance(dl, DataSpec)
     assert isinstance(dl.dataloader, DataLoader)  # pyright
@@ -1550,13 +1571,15 @@ def test_qa_split_batch(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=8,
-        max_seq_len=1024,
-        pad_tok_id=tokenizer.eos_token_id,
-        num_fewshot=0,
-        prompt_string='',
-        example_delimiter='\n',
-        continuation_delimiter=': ',
         destination_path=str(Path(gathered_paths[0]) / 'icl.jsonl'),
+        kwargs={
+            'max_seq_len': 1024,
+            'pad_tok_id': tokenizer.eos_token_id,
+            'num_fewshot': 0,
+            'prompt_string': '',
+            'example_delimiter': '\n',
+            'continuation_delimiter': ': ',
+        },
     )
 
     assert isinstance(dl, DataSpec)  # pyright
@@ -1612,14 +1635,16 @@ def test_qa_task_dataloader_w_null_eos(
             dataset_uri,
             tokenizer,
             batch_size,
-            max_seq_len=seqlen,
-            pad_tok_id=tokenizer.eos_token_id,
-            num_fewshot=num_fewshot,
-            prompt_string=prompt_string,
-            example_delimiter='\n',
-            question_prelimiter='Q: ',
-            continuation_delimiter='\nA:',
             destination_path=str(tmp_path / f'icl_{num_fewshot}.jsonl'),
+            kwargs={
+                'max_seq_len': seqlen,
+                'pad_tok_id': tokenizer.eos_token_id,
+                'num_fewshot': num_fewshot,
+                'prompt_string': prompt_string,
+                'example_delimiter': '\n',
+                'prelimiter': 'Q: ',
+                'continuation_delimiter': '\nA:',
+            },
         )
 
 
@@ -1647,14 +1672,16 @@ def test_qa_task_dataloader(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
-        max_seq_len=seqlen,
-        pad_tok_id=tokenizer.eos_token_id,
-        num_fewshot=num_fewshot,
-        prompt_string=prompt_string,
-        example_delimiter='\n',
-        question_prelimiter='Q: ',
-        continuation_delimiter='\nA:',
         destination_path=str(tmp_path / f'icl_{num_fewshot}.jsonl'),
+        kwargs={
+            'max_seq_len': seqlen,
+            'pad_tok_id': tokenizer.eos_token_id,
+            'num_fewshot': num_fewshot,
+            'prompt_string': prompt_string,
+            'example_delimiter': '\n',
+            'prelimiter': 'Q: ',
+            'continuation_delimiter': '\nA:',
+        },
     )
     assert isinstance(dl, DataSpec)
 
@@ -1714,15 +1741,17 @@ def test_qa_task_with_cot_dataloader(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
-        max_seq_len=seqlen,
-        pad_tok_id=tokenizer.eos_token_id,
-        num_fewshot=num_fewshot,
-        prompt_string='',
-        example_delimiter='\n',
-        question_prelimiter='Q: ',
-        continuation_delimiter="\nA: Let's think step by step. ",
-        cot_delimiter=' #### ',
         destination_path=str(tmp_path / f'icl_{num_fewshot}.jsonl'),
+        kwargs={
+            'max_seq_len': seqlen,
+            'pad_tok_id': tokenizer.eos_token_id,
+            'num_fewshot': num_fewshot,
+            'prompt_string': '',
+            'example_delimiter': '\n',
+            'prelimiter': 'Q: ',
+            'continuation_delimiter': "\nA: Let's think step by step. ",
+            'cot_delimiter': ' #### ',
+        },
     )
     assert isinstance(dl, DataSpec)
     assert isinstance(dl.dataloader, DataLoader)  # pyright
@@ -1779,14 +1808,16 @@ def test_mc_task_dataloader(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
-        max_seq_len=seqlen,
-        pad_tok_id=tokenizer.eos_token_id,
-        num_fewshot=1,
-        prompt_string='',
-        question_prelimiter=prelimiter,
-        example_delimiter=example_delimiter,
-        continuation_delimiter='\nA: ',
         destination_path=str(tmp_path / 'icl.jsonl'),
+        kwargs={
+            'max_seq_len': seqlen,
+            'pad_tok_id': tokenizer.eos_token_id,
+            'num_fewshot': 1,
+            'prompt_string': '',
+            'prelimiter': prelimiter,
+            'example_delimiter': example_delimiter,
+            'continuation_delimiter': '\nA: ',
+        },
     )
     assert isinstance(dl, DataSpec)
     assert isinstance(dl.dataloader, DataLoader)  # pyright
@@ -1851,13 +1882,15 @@ def test_lm_task_evaluation(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
-        max_seq_len=1024,
-        pad_tok_id=tokenizer.eos_token_id,
-        num_fewshot=num_fewshot,
-        prompt_string='',
-        example_delimiter='\n',
-        continuation_delimiter='',
         destination_path=str(tmp_path / 'icl.jsonl'),
+        kwargs={
+            'max_seq_len': 1024,
+            'pad_tok_id': tokenizer.eos_token_id,
+            'num_fewshot': num_fewshot,
+            'prompt_string': '',
+            'example_delimiter': '\n',
+            'continuation_delimiter': '',
+        },
     )
 
     evaluator = Evaluator(
@@ -1903,13 +1936,15 @@ def test_schema_task_evaluation(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
-        max_seq_len=1024,
-        pad_tok_id=tokenizer.eos_token_id,
-        num_fewshot=num_fewshot,
-        prompt_string='',
-        example_delimiter='\n',
-        continuation_delimiter=': ',
         destination_path=str(tmp_path / 'icl.jsonl'),
+        kwargs={
+            'max_seq_len': 1024,
+            'pad_tok_id': tokenizer.eos_token_id,
+            'num_fewshot': num_fewshot,
+            'prompt_string': '',
+            'example_delimiter': '\n',
+            'continuation_delimiter': ': ',
+        },
     )
 
     evaluator = Evaluator(
@@ -1968,14 +2003,16 @@ def test_mc_task_evaluation_subcategories(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
-        max_seq_len=max_seq_len,
-        pad_tok_id=tokenizer.eos_token_id,
-        num_fewshot=num_fewshot,
-        prompt_string='',
-        example_delimiter='\n',
-        continuation_delimiter=': ',
         destination_path=str(Path(gathered_paths[0]) / 'icl.jsonl'),
         has_categories=True,
+        kwargs={
+            'max_seq_len': max_seq_len,
+            'pad_tok_id': tokenizer.eos_token_id,
+            'num_fewshot': num_fewshot,
+            'prompt_string': '',
+            'example_delimiter': '\n',
+            'continuation_delimiter': ': ',
+        },
     )
 
     assert isinstance(dls, dict)
@@ -2039,13 +2076,15 @@ def test_mc_task_evaluation(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
-        max_seq_len=64,
-        pad_tok_id=tokenizer.eos_token_id,
-        num_fewshot=num_fewshot,
-        prompt_string='',
-        example_delimiter='\n',
-        continuation_delimiter=': ',
         destination_path=str(Path(gathered_paths[0]) / 'icl.jsonl'),
+        kwargs={
+            'max_seq_len': 64,
+            'pad_tok_id': tokenizer.eos_token_id,
+            'num_fewshot': num_fewshot,
+            'prompt_string': '',
+            'example_delimiter': '\n',
+            'continuation_delimiter': ': ',
+        },
     )
 
     evaluator = Evaluator(
@@ -2107,13 +2146,15 @@ def test_qa_task_evaluation_opt_tokenizer(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
-        max_seq_len=1024,
-        pad_tok_id=tokenizer.eos_token_id,
-        num_fewshot=num_fewshot,
-        prompt_string='',
-        example_delimiter='\n',
-        continuation_delimiter=': ',
         destination_path=str(Path(gathered_paths[0]) / 'icl.jsonl'),
+        kwargs={
+            'max_seq_len': 1024,
+            'pad_tok_id': tokenizer.eos_token_id,
+            'num_fewshot': num_fewshot,
+            'prompt_string': '',
+            'example_delimiter': '\n',
+            'continuation_delimiter': ': ',
+        },
     )
 
     evaluator = Evaluator(
@@ -2168,14 +2209,16 @@ def test_qa_task_evaluation_with_cot_opt_tokenizer(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
-        max_seq_len=1024,
-        pad_tok_id=tokenizer.eos_token_id,
-        num_fewshot=num_fewshot,
-        prompt_string='',
-        example_delimiter='\n',
-        continuation_delimiter="A: Let's think step by step. ",
-        cot_delimiter=' #### ',
         destination_path=str(Path(gathered_paths[0]) / 'icl.jsonl'),
+        kwargs={
+            'max_seq_len': 1024,
+            'pad_tok_id': tokenizer.eos_token_id,
+            'num_fewshot': num_fewshot,
+            'prompt_string': '',
+            'example_delimiter': '\n',
+            'continuation_delimiter': "A: Let's think step by step. ",
+            'cot_delimiter': ' #### ',
+        },
     )
 
     evaluator = Evaluator(
@@ -2228,13 +2271,15 @@ def test_qa_task_evaluation(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
-        max_seq_len=1024,
-        pad_tok_id=tokenizer.eos_token_id,
-        num_fewshot=num_fewshot,
-        prompt_string='',
-        example_delimiter='\n',
-        continuation_delimiter=': ',
         destination_path=str(Path(gathered_paths[0]) / 'icl.jsonl'),
+        kwargs={
+            'max_seq_len': 1024,
+            'pad_tok_id': tokenizer.eos_token_id,
+            'num_fewshot': num_fewshot,
+            'prompt_string': '',
+            'example_delimiter': '\n',
+            'continuation_delimiter': ': ',
+        },
     )
 
     evaluator = Evaluator(
@@ -2288,14 +2333,16 @@ def test_qa_task_with_cot_evaluation(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
-        max_seq_len=1024,
-        pad_tok_id=tokenizer.eos_token_id,
-        num_fewshot=num_fewshot,
-        prompt_string='',
-        example_delimiter='\n',
-        continuation_delimiter="A: Let's think step by step",
-        cot_delimiter=' #### ',
         destination_path=str(Path(gathered_paths[0]) / 'icl.jsonl'),
+        kwargs={
+            'max_seq_len': 1024,
+            'pad_tok_id': tokenizer.eos_token_id,
+            'num_fewshot': num_fewshot,
+            'prompt_string': '',
+            'example_delimiter': '\n',
+            'continuation_delimiter': "A: Let's think step by step",
+            'cot_delimiter': ' #### ',
+        },
     )
 
     evaluator = Evaluator(
@@ -2339,13 +2386,15 @@ def test_lm_spacing_dataloader(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
-        max_seq_len=seqlen,
-        pad_tok_id=tokenizer.eos_token_id,
-        num_fewshot=1,
-        prompt_string='',
-        example_delimiter='\n',
-        continuation_delimiter=' UNIQUE ',
         destination_path=str(tmp_path / 'icl.jsonl'),
+        kwargs={
+            'max_seq_len': seqlen,
+            'pad_tok_id': tokenizer.eos_token_id,
+            'num_fewshot': 1,
+            'prompt_string': '',
+            'example_delimiter': '\n',
+            'continuation_delimiter': ' UNIQUE ',
+        },
     )
     assert isinstance(dl, DataSpec)
     assert isinstance(dl.dataloader, DataLoader)  # pyright
@@ -2409,15 +2458,17 @@ def test_hf_dataloading_lm_dataloader(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
-        max_seq_len=seqlen,
-        pad_tok_id=tokenizer.eos_token_id,
-        num_fewshot=0,
-        prompt_string='',
-        example_delimiter='\n',
-        continuation_delimiter=' ',
         destination_path=str(tmp_path / 'test_dataset_lm_juggernaut.jsonl'),
         hf_loading_vars=hf_loading_vars,
         hf_parsing_map=hf_parsing_map,
+        kwargs={
+            'max_seq_len': seqlen,
+            'pad_tok_id': tokenizer.eos_token_id,
+            'num_fewshot': 0,
+            'prompt_string': '',
+            'example_delimiter': '\n',
+            'continuation_delimiter': ' ',
+        },
     )
     assert isinstance(dl, DataSpec)
     assert isinstance(dl.dataloader, DataLoader)  # pyright
@@ -2490,16 +2541,18 @@ def test_hf_dataloading_custom_parsing(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         batch_size=batch_size,
-        max_seq_len=seqlen,
-        pad_tok_id=tokenizer.eos_token_id,
-        num_fewshot=num_fewshot,
-        prompt_string=prompt_string,
-        example_delimiter='\n',
-        question_prelimiter='Orbs: ',
-        continuation_delimiter='\nSpell:',
         destination_path=str(tmp_path / 'test_dataset_lm_juggernaut.jsonl'),
         hf_loading_vars=hf_loading_vars,
         hf_parsing_map=hf_parsing_map,
+        kwargs={
+            'max_seq_len': seqlen,
+            'pad_tok_id': tokenizer.eos_token_id,
+            'num_fewshot': num_fewshot,
+            'prompt_string': prompt_string,
+            'example_delimiter': '\n',
+            'prelimiter': 'Orbs: ',
+            'continuation_delimiter': '\nSpell:',
+        },
     )
     assert isinstance(dl, DataSpec)
     assert isinstance(dl.dataloader, DataLoader)  # pyright

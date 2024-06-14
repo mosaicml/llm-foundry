@@ -48,7 +48,7 @@ class EvalOutputLogging(Callback):
                                       )
 
         # If batch mode is not generate, outputs will be logits
-        if state.batch['mode'] == 'generate':
+        if state.batch.get('mode') == 'generate':
             # Outputs are already detokenized
             logging_dict['outputs'] = state.outputs
 
@@ -60,7 +60,7 @@ class EvalOutputLogging(Callback):
         for input_list in input_ids.tolist():
             dataset = state.dataloader.dataset  # pyright: ignore[reportGeneralTypeIssues]
             depadded_input = [
-                tok for tok in input_list if tok != dataset.pad_tok_id
+                tok for tok in input_list if tok != dataset.tokenizer.pad_toked_id
             ]
             logged_input.append(dataset.tokenizer.decode(depadded_input))
         logging_dict['input'] = logged_input
@@ -68,7 +68,7 @@ class EvalOutputLogging(Callback):
         # Log token indices if toggled
         if self.log_tokens:
             logging_dict['input_tokens'] = input_ids.tolist()
-            if not state.batch['mode'] == 'generate':
+            if not state.batch.get('mode') == 'generate':
                 if isinstance(state.outputs, torch.Tensor):  # pyright
                     logging_dict['label_tokens'] = state.outputs.tolist()
 

@@ -60,7 +60,7 @@ class EvalOutputLogging(Callback):
         for input_list in input_ids.tolist():
             dataset = state.dataloader.dataset  # pyright: ignore[reportGeneralTypeIssues]
             depadded_input = [
-                tok for tok in input_list if tok != dataset.tokenizer.pad_toked_id
+                tok for tok in input_list if tok != dataset.tokenizer.pad_token_id
             ]
             logged_input.append(dataset.tokenizer.decode(depadded_input))
         logging_dict['input'] = logged_input

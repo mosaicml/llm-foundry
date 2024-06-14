@@ -2627,4 +2627,4 @@ def test_bc_question_prelimiter(
 
     assert len(evaluators) == 1
     evaluator = evaluators[0]
-    assert evaluator.dataloader.dataloader.dataset.prelimiter == 'This is a question: '
+    assert evaluator.dataloader.dataloader.dataset.prelimiter == 'This is a question: '  # type: ignore

@@ -67,7 +67,6 @@ install_requires = [
     'sentencepiece==0.1.97',
     'einops==0.7.0',
     'omegaconf>=2.2.3,<3',
-    'transformer_engine'
     'slack-sdk<4',
     'mosaicml-cli>=0.6.10,<1',
     'onnx==1.14.0',

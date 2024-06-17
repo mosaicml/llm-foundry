@@ -593,8 +593,28 @@ def _process_data_source(
     # Check for HF path
     elif 'hf_name' in dataset and dataset['hf_name']:
         hf_path = dataset['hf_name']
-        backend, _, _ = parse_uri(hf_path)
-        if backend:
+        backend, _, uc_path = parse_uri(hf_path)
+        unsupported_file = True
+        if backend == 'dbfs':
+            assert cfg_split
+            from llmfoundry.data.finetuning.tasks import SUPPORTED_EXTENSIONS
+            possible_files = [
+                f'{cfg_split}{ext}' for ext in SUPPORTED_EXTENSIONS
+            ]
+            for file in possible_files:
+                path = os.path.join(uc_path, file)
+                # Ensure path starts with '/'
+                if not path.startswith('/'):
+                    path = '/' + path
+                if _verify_uc_path(path):
+                    data_paths.append(('uc_volume', path, true_split))
+                    unsupported_file = False
+                    break
+            if unsupported_file:
+                log.warning(
+                    f'{hf_path} does not contain a supported file extension.',
+                )
+        elif backend:
             hf_path = os.path.join(hf_path, cfg_split) if cfg_split else hf_path
             data_paths.append((backend, hf_path, true_split))
         elif os.path.exists(hf_path):
@@ -665,3 +685,52 @@ def log_dataset_uri(cfg: Dict[str, Any]) -> None:
         mlflow.log_input(
             mlflow.data.meta_dataset.MetaDataset(source, name=split),
         )
+
+
+def _verify_uc_path(path: str) -> bool:
+    """Verify a UC path exists.
+
+    Args:
+        path (str): UnityCatalog path
+    Returns:
+        (bool): If path exists or not
+    """
+    from databricks.sdk.errors.platform import NotFound, PermissionDenied
+    w = None
+    try:
+        from databricks.sdk import WorkspaceClient
+
+        w = WorkspaceClient()
+    except ImportError:
+        log.warning(
+            'Cannot verify the path of `UCVolumeDatasetSource` because of missing' + \
+            '`databricks-sdk`. Please install `databricks-sdk` via ' + \
+            '`pip install -U databricks-sdk`. This does not block creating ' + \
+            '`UCVolumeDatasetSource`, but your `UCVolumeDatasetSource` might be invalid.',
+        )
+        return False
+    except Exception as e:
+        log.warning(
+            f'Error occured when attempting to connect with Databricks WorkspaceClient. ' + \
+            f'Error details: {str(e)}. This does not block creating `UCVolumeDatasetSource`, ' + \
+            f'but your `UCVolumeDatasetSource` might be invalid.',
+        )
+
+    if w:
+        try:
+            w.files.get_metadata(path)
+        except (NotFound, PermissionDenied):
+            try:
+                # Check if `self.path` points to a valid UC directory.
+                w.files.get_directory_metadata(path)
+                return True
+            except (NotFound, PermissionDenied):
+                # Neither file nor directory exists, we throw an exception.
+                return False
+        except Exception as e:
+            log.warning(
+                f'Error occured when verifying path of `UCVolumeDatasetSource`. ' + \
+                f'Error details: {str(e)}. This does not block creating `UCVolumeDatasetSource`, ' + \
+                f'but your `UCVolumeDatasetSource` might be invalid.',
+            )
+    return False

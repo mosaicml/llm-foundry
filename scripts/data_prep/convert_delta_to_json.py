@@ -463,6 +463,7 @@ def validate_and_get_cluster_info(
         if res is None:
             raise ClusterDoesNotExistError(cluster_id)
 
+        assert res.spark_version is not None
         stripped_runtime = re.sub(
             r'[a-zA-Z]',
             '',

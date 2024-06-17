@@ -816,13 +816,13 @@ def test_huggingface_conversion_callback(
             import transformer_engine.pytorch as te
         except ImportError:
             pytest.skip(
-                'Precision amp_fp8 requires transformer-engine to be installed'
+                'Precision amp_fp8 requires transformer-engine to be installed',
             )
 
         # Check we are using mpt models only for FP8.
         if (model == 'neo' or model == 'llama2'):
             pytest.skip(
-                'Precision amp_fp8 works only for mpt models, not hf models'
+                'Precision amp_fp8 works only for mpt models, not hf models',
             )
 
         # Check that we are using H100 or later for FP8.
@@ -927,7 +927,7 @@ def test_huggingface_conversion_callback(
     from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 
     context_manager = te.onnx_export(
-        True
+        True,
     ) if trainer_precision == 'amp_fp8' else contextlib.nullcontext()
     with context_manager:
         with FSDP.summon_full_params(

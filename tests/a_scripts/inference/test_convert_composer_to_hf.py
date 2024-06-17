@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import contextlib
 import json
 import math
 import os
@@ -809,8 +810,21 @@ def test_huggingface_conversion_callback(
 ):
     if model == 'mptmoe' and fsdp_state_dict_type is None:
         pytest.skip('mptmoe requires FSDP')
-    if (model == 'neo' or model == 'llama2') and trainer_precision == 'amp_fp8':
-        pytest.skip('Precision amp_fp8 requires mpt models, not hf models')
+    if trainer_precision == 'amp_fp8':
+        # Check if transformer-engine is installed for FP8.
+        try:
+            import transformer_engine.pytorch as te
+        except ImportError:
+            pytest.skip('Precision amp_fp8 requires transformer-engine to be installed')
+        
+        # Check we are using mpt models only for FP8.
+        if (model == 'neo' or model == 'llama2'):
+            pytest.skip('Precision amp_fp8 works only for mpt models, not hf models')
+
+        # Check that we are using H100 or later for FP8.
+        if not (torch.cuda.get_device_capability() >= (8, 9)):
+            pytest.skip("Amp FP8 requires a GPU with compute capability >= 8.9")
+
     delete_transformers_cache()
 
     dist.initialize_dist(get_device('gpu'))
@@ -906,10 +920,10 @@ def test_huggingface_conversion_callback(
     _assert_mlflow_logger_calls(mlflow_logger_mock, peft_config)
 
     # summon full params to check equivalence
-    import transformer_engine.pytorch as te
     from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 
-    with te.onnx_export(True):  # Ensure proper ckpting of TE modules.
+    context_manager = te.onnx_export(True) if trainer_precision == 'amp_fp8' else contextlib.nullcontext()
+    with context_manager:
         with FSDP.summon_full_params(
             trainer.state.model,
             writeback=False,

@@ -815,15 +815,19 @@ def test_huggingface_conversion_callback(
         try:
             import transformer_engine.pytorch as te
         except ImportError:
-            pytest.skip('Precision amp_fp8 requires transformer-engine to be installed')
-        
+            pytest.skip(
+                'Precision amp_fp8 requires transformer-engine to be installed'
+            )
+
         # Check we are using mpt models only for FP8.
         if (model == 'neo' or model == 'llama2'):
-            pytest.skip('Precision amp_fp8 works only for mpt models, not hf models')
+            pytest.skip(
+                'Precision amp_fp8 works only for mpt models, not hf models'
+            )
 
         # Check that we are using H100 or later for FP8.
         if not (torch.cuda.get_device_capability() >= (8, 9)):
-            pytest.skip("Amp FP8 requires a GPU with compute capability >= 8.9")
+            pytest.skip('Amp FP8 requires a GPU with compute capability >= 8.9')
 
     delete_transformers_cache()
 
@@ -922,7 +926,9 @@ def test_huggingface_conversion_callback(
     # summon full params to check equivalence
     from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 
-    context_manager = te.onnx_export(True) if trainer_precision == 'amp_fp8' else contextlib.nullcontext()
+    context_manager = te.onnx_export(
+        True
+    ) if trainer_precision == 'amp_fp8' else contextlib.nullcontext()
     with context_manager:
         with FSDP.summon_full_params(
             trainer.state.model,

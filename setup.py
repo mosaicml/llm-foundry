@@ -6,9 +6,11 @@
 import copy
 import os
 import re
+import subprocess
 
 import setuptools
 from setuptools import setup
+from setuptools.command.install import install
 
 _PACKAGE_NAME = 'llm-foundry'
 _PACKAGE_DIR = 'llmfoundry'
@@ -54,8 +56,8 @@ classifiers = [
 ]
 
 install_requires = [
-    'mosaicml[libcloud,wandb,oci,gcs,mlflow]>=0.23.2,<0.24',
-    'mlflow>=2.13.2,<2.14',
+    'mosaicml[libcloud,wandb,oci,gcs]>=0.23.2,<0.24',
+    'mlflow>=2.12.1,<2.13',
     'accelerate>=0.25,<0.26',  # for HF inference `device_map`
     'transformers>=4.40,<4.41',
     'mosaicml-streaming>=0.7.6,<0.8',
@@ -65,6 +67,7 @@ install_requires = [
     'sentencepiece==0.1.97',
     'einops==0.7.0',
     'omegaconf>=2.2.3,<3',
+    'transformer_engine'
     'slack-sdk<4',
     'mosaicml-cli>=0.6.10,<1',
     'onnx==1.14.0',
@@ -136,6 +139,19 @@ extra_deps['all-flash2'] = {
     if key not in {'gpu', 'all', 'all-cpu'}
 }
 
+class CustomInstallCommand(install):
+    def run(self):
+        # Custom command to install TE with environment variables and installation
+        env = os.environ.copy()
+        env['NVTE_FRAMEWORK'] = 'pytorch'
+        env['CMAKE_BUILD_PARALLEL_LEVEL'] = '4'
+        env['MAX_JOBS'] = '4'
+        subprocess.check_call([
+            'pip', 'install', 'git+https://github.com/NVIDIA/TransformerEngine.git@b5a7c9f'
+        ], env=env)
+        # Proceed with the standard installation
+        install.run(self)
+
 setup(
     name=_PACKAGE_NAME,
     version=repo_version,
@@ -157,5 +173,8 @@ setup(
     python_requires='>=3.9',
     entry_points={
         'console_scripts': ['llmfoundry = llmfoundry.cli.cli:app'],
+    },
+    cmdclass={
+        'install': CustomInstallCommand,
     },
 )

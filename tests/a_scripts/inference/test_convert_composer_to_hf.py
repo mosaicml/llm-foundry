@@ -926,9 +926,9 @@ def test_huggingface_conversion_callback(
     # summon full params to check equivalence
     from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 
-    context_manager = te.onnx_export(
+    context_manager = te.onnx_export(  # type: ignore
         True,
-    ) if trainer_precision == 'amp_fp8' else contextlib.nullcontext()  # type: ignore
+    ) if trainer_precision == 'amp_fp8' else contextlib.nullcontext()
     with context_manager:
         with FSDP.summon_full_params(
             trainer.state.model,

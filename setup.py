@@ -142,11 +142,12 @@ class CustomInstallCommand(install):
     def run(self):
         # Custom command to install TE with environment variables and installation
         env = os.environ.copy()
+        # pip_executable = sys.executable.replace('python', 'pip')
         env['NVTE_FRAMEWORK'] = 'pytorch'
         env['CMAKE_BUILD_PARALLEL_LEVEL'] = '4'
         env['MAX_JOBS'] = '4'
         subprocess.check_call([
-            'pip', 'install', 'git+https://github.com/NVIDIA/TransformerEngine.git@b5a7c9f'
+            'python', '-m', 'pip', 'install', 'git+https://github.com/NVIDIA/TransformerEngine.git@b5a7c9f'
         ], env=env)
         # Proceed with the standard installation
         install.run(self)

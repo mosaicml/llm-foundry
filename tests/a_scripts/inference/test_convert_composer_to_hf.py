@@ -928,7 +928,7 @@ def test_huggingface_conversion_callback(
 
     context_manager = te.onnx_export(
         True,
-    ) if trainer_precision == 'amp_fp8' else contextlib.nullcontext()
+    ) if trainer_precision == 'amp_fp8' else contextlib.nullcontext()  # type: ignore
     with context_manager:
         with FSDP.summon_full_params(
             trainer.state.model,

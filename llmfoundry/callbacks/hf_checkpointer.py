@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import numpy as np
 import torch
 import torch.nn as nn
-from composer.core import Callback, Event, State, Time, TimeUnit
+from composer.core import Callback, Event, Precision, State, Time, TimeUnit
 from composer.core.state import fsdp_state_dict_type_context
 from composer.loggers import Logger, MLFlowLogger
 from composer.models import HuggingFaceModel
@@ -36,6 +36,12 @@ from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.models.utils import init_empty_weights
 from llmfoundry.utils.huggingface_hub_utils import \
     edit_files_for_hf_compatibility
+
+try:
+    import transformer_engine.pytorch as te
+    is_te_imported = True
+except ModuleNotFoundError:
+    is_te_imported = False
 
 log = logging.getLogger(__name__)
 
@@ -486,9 +492,19 @@ class HuggingFaceCheckpointer(Callback):
             )
 
             log.debug('Saving Hugging Face checkpoint to disk')
-            new_model_instance.save_pretrained(temp_save_dir)
+            # This context manager casts the TE extra state in io.BytesIO format to tensor format
+            # Needed for proper hf ckpt saving.
+            context_manager = te.onnx_export(
+                True,
+            ) if is_te_imported and state.precision == Precision.AMP_FP8 else contextlib.nullcontext(
+            )
+            with context_manager:
+                new_model_instance.save_pretrained(temp_save_dir)
             if original_tokenizer is not None:
-                assert isinstance(original_tokenizer, PreTrainedTokenizerBase)
+                assert isinstance(
+                    original_tokenizer,
+                    PreTrainedTokenizerBase,
+                )
                 original_tokenizer.save_pretrained(temp_save_dir)
 
             # Only need to edit files for MPT because it has custom code

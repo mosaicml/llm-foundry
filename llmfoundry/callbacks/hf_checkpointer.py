@@ -500,12 +500,12 @@ class HuggingFaceCheckpointer(Callback):
             )
             with context_manager:
                 new_model_instance.save_pretrained(temp_save_dir)
-                if original_tokenizer is not None:
-                    assert isinstance(
-                        original_tokenizer,
-                        PreTrainedTokenizerBase,
-                    )
-                    original_tokenizer.save_pretrained(temp_save_dir)
+            if original_tokenizer is not None:
+                assert isinstance(
+                    original_tokenizer,
+                    PreTrainedTokenizerBase,
+                )
+                original_tokenizer.save_pretrained(temp_save_dir)
 
             # Only need to edit files for MPT because it has custom code
             if original_model.config.model_type == 'mpt':

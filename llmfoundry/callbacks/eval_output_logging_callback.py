@@ -47,7 +47,6 @@ class EvalOutputLogging(Callback):
                                           state.metric_outputs,
                                       )
 
-
         if state.batch.get('mode') == 'generate':
             # Outputs are already detokenized
             logging_dict['outputs'] = state.outputs
@@ -60,7 +59,11 @@ class EvalOutputLogging(Callback):
         assert state.dataloader is not None
         dataset = state.dataloader.dataset  # pyright: ignore[reportGeneralTypeIssues]
         tokenizer = dataset.tokenizer  # pyright: ignore[reportGeneralTypeIssues]
-        pad_token_id = getattr(dataset, 'pad_tok_id', dataset.tokenizer.pad_token_id)
+        pad_token_id = getattr(
+            dataset,
+            'pad_tok_id',
+            dataset.tokenizer.pad_token_id,
+        )
 
         # Depad and decode input_ids
         for input_list in input_ids.tolist():
@@ -91,9 +94,9 @@ class EvalOutputLogging(Callback):
                 logging_dict[key] = [tokenizer.decode(t) for t in value]
             elif isinstance(value[0], list):
                 if isinstance(value[0][0], torch.Tensor):
-                    logging_dict[key] = [
-                        [tokenizer.decode(choice) for choice in t] for t in value
-                    ]
+                    logging_dict[key] = [[
+                        tokenizer.decode(choice) for choice in t
+                    ] for t in value]
 
         # Convert logging_dict from kv pairs of column name and column values to a list of rows
         # Example:

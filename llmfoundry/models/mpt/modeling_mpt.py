@@ -80,6 +80,7 @@ from llmfoundry.models.utils.mpt_param_count import (
 # isort: off
 from llmfoundry.models.layers.fc import fcs  #  type: ignore
 from llmfoundry.models.utils.param_init_fns import generic_param_init_fn_  # type: ignore
+from llmfoundry.models.layers.norm import LPLayerNorm  # type: ignore
 # isort: on
 
 log = logging.getLogger(__name__)

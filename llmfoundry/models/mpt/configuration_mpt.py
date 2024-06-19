@@ -14,12 +14,11 @@ from llmfoundry.models.layers.attention import (
     check_alibi_support,
     is_flash_v2_installed,
 )
-
 from llmfoundry.models.utils.config_defaults import (
     attn_config_defaults,
+    fc_type_defaults,
     ffn_config_defaults,
     init_config_defaults,
-    fc_type_defaults,
 )
 
 

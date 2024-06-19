@@ -58,6 +58,9 @@ from llmfoundry.utils.warnings import (
     experimental_class,
     experimental_function,
 )
+from llmfoundry.registry import config_transforms
+
+config_transforms.register('update_batch_size_info', func=update_batch_size_info)
 
 __all__ = [
     'build_algorithm',

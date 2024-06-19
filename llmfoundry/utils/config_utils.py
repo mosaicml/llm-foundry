@@ -30,6 +30,7 @@ from transformers import PretrainedConfig
 
 from llmfoundry.layers_registry import ffns_with_megablocks
 from llmfoundry.models.utils import init_empty_weights
+from llmfoundry.registry import config_transforms
 
 log = logging.getLogger(__name__)
 
@@ -237,13 +238,35 @@ def to_container(
 
 T = TypeVar('T')
 
+def apply_transforms_to_config(
+    cfg: Dict[str, Any],
+    transforms: Optional[Union[List[Callable[[Dict[str, Any]], Dict[str,
+                                                              Any]]], List[str]]]
+) -> Dict[str, Any]:
+    if transforms is None or (isinstance(transforms, list) and len(transforms) == 0):
+        return cfg
+    
+    transform_functions = []
+    if isinstance(transforms, list) and isinstance(transforms[0], Callable):
+        transform_functions = transforms
+    elif isinstance(transforms, list) and isinstance(transforms[0], str):
+        transform_functions = [config_transforms.get(transform) for transform in transforms]
+    elif isinstance(transforms, str) and transforms == 'all':
+        transform_functions = [config_transforms.get(transform) for transform in config_transforms.get_all()]
+    else:
+        raise ValueError(f'Invalid transforms: {transforms}. Must be a list of strings or callables, or ``all``.')
+    
+    for transform in transform_functions:
+        cfg = transform(cfg)
+
+    return cfg
 
 def make_dataclass_and_log_config(
     cfg: DictConfig,
     dataclass_constructor: Callable[..., T],
     dataclass_fields: Set[str],
-    transforms: Optional[List[Callable[[Dict[str, Any]], Dict[str,
-                                                              Any]]]] = None,
+    transforms: Optional[Union[List[Callable[[Dict[str, Any]], Dict[str,
+                                                              Any]]], List[str], str]] = None,
     icl_tasks_required: bool = False,
 ) -> Tuple[Dict[str, Any], T]:
     """Converts a DictConfig to a dataclass and creates a logged config."""
@@ -281,8 +304,7 @@ def make_dataclass_and_log_config(
     logged_cfg: Dict[str, Any] = copy.deepcopy(unstructured_config)
 
     # Apply transforms to the unstructured config before constructing dataclass
-    for transform in transforms or []:
-        unstructured_config = transform(unstructured_config)
+    unstructured_config = apply_transforms_to_config(unstructured_config, transforms)
 
     logged_cfg.update(unstructured_config, merge=True)
 
@@ -401,7 +423,6 @@ def calculate_batch_size_info(
     return device_batch_size, device_microbatch_size, device_grad_accum
 
 
-# Coming soon: this conversion math will be done inside Composer Trainer
 def update_batch_size_info(cfg: Dict[str, Any]) -> Dict[str, Any]:
     data_replication_degree = 1
     device_train_batch_size, device_train_microbatch_size, device_train_grad_accum = calculate_batch_size_info(

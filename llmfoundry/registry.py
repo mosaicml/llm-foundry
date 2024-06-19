@@ -222,6 +222,18 @@ icl_datasets = create_registry(
     description=_icl_datasets_description,
 )
 
+_config_transforms_description = (
+    'The config_transforms registry is used to register functions that transform the training config before it is passed to the Trainer.' +
+    'Note: By default ALL registered transforms will be applied to the train config and NONE to the eval config. Each transform should return the modified config.'
+)
+config_transforms = create_registry(
+    'llmfoundry',
+    'config_transforms',
+    generic_type=Callable[[Dict[str, Any]], Dict[str, Any]],
+    entry_points=True,
+    description=_config_transforms_description,
+)
+
 __all__ = [
     'loggers',
     'callbacks',
@@ -245,4 +257,5 @@ __all__ = [
     'attention_implementations',
     'fcs',
     'icl_datasets',
+    'config_transforms',
 ]

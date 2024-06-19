@@ -49,7 +49,7 @@ class EvalConfig:
     # Eval Config required parameters:
     models: List[Dict[str, Any]] = MISSING
     max_seq_len: int = MISSING
-    device_eval_batch_size: int = MISSING
+    device_eval_batch_size: Union[int, float] = MISSING
 
     # Eval Config optional parameters:
     code_paths: Optional[List[str]] = None
@@ -102,7 +102,7 @@ class TrainConfig:
     scheduler: Dict[str, Any] = MISSING
     train_loader: Dict[str, Any] = MISSING
     device_train_batch_size: Union[int, float] = MISSING
-    device_eval_batch_size: int = MISSING
+    device_eval_batch_size: Union[int, float] = MISSING
     max_duration: Union[int, str] = MISSING
     eval_interval: Union[int, str] = MISSING
     max_seq_len: int = MISSING
@@ -161,7 +161,7 @@ class TrainConfig:
     save_ignore_keys: Optional[List[str]] = None
 
     # Dataloader
-    device_train_microbatch_size: Union[str, int] = 'auto'
+    device_train_microbatch_size: Union[str, int, float] = 'auto'
     global_train_batch_size: Optional[int] = None
 
     # Eval dataloader

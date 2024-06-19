@@ -37,12 +37,6 @@ def generate_exclusive_test_params(param_names: List[str]):
 
 
 def test_config_transforms():
-    def dummy_transform(config: Dict[str, Any]) -> Dict[str, Any]:
-        config['variables']['fake_key'] = 'fake_value'
-        return config
-
-    config_transforms.register('dummy_transform', func=dummy_transform)
-
     config = DictConfig({
         'global_train_batch_size': 1,
         'device_train_microbatch_size': 1,
@@ -57,6 +51,13 @@ def test_config_transforms():
         'optimizer': {},
         'variables': {},
     },)
+
+    def dummy_transform(config: Dict[str, Any]) -> Dict[str, Any]:
+        config['variables']['fake_key'] = 'fake_value'
+        return config
+
+    config_transforms.register('dummy_transform', func=dummy_transform)
+
     _, parsed_config = make_dataclass_and_log_config(
         config,
         TrainConfig,

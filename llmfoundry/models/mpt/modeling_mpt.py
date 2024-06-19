@@ -425,6 +425,10 @@ class MPTModel(MPTPreTrainedModel):
         log.debug(self)
         log.debug(f'Using {self.config.init_config["name"]} initialization.')
 
+    @property
+    def block_class(self) -> Type[MPTBlock]:
+        return MPTBlock
+
     def construct_blocks(self, config: MPTConfig) -> nn.ModuleList:
         """Construct the nn.ModuleList with the Transformer blocks.
 
@@ -437,7 +441,7 @@ class MPTModel(MPTPreTrainedModel):
         block_args = self.extract_block_args(config.to_dict())
 
         return nn.ModuleList([
-            MPTBlock(
+            self.block_class(
                 device=config.init_device,
                 **block_args,
             ) for _ in range(config.n_layers)

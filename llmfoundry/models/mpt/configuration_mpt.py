@@ -195,6 +195,10 @@ class MPTConfig(PretrainedConfig):
                     v,
                 )
         return config
+    
+    def validate_attention_config(self) -> None:
+        if (self.attn_config.get('seq_parallel_world_size', 1) or 1) > 1:
+            raise NotImplementedError('Sequence Parallelism is not supported.')
 
     def _validate_config(self) -> None:
         # set config defaults
@@ -336,5 +340,5 @@ class MPTConfig(PretrainedConfig):
                 raise ImportError(
                     'In order to set `use_pad_tok_in_ffn=False`, please install flash-attn==1.0.9 or flash-attn==2.3.6',
                 )
-        if (self.attn_config.get('seq_parallel_world_size', 1) or 1) > 1:
-            raise NotImplementedError('Sequence Parallelism is not supported.')
+
+        self.validate_attention_config()

@@ -278,8 +278,7 @@ def edit_files_for_hf_compatibility(
     }
     # Filter out __init__ files
     all_relative_imports = {
-        relative_import
-        for relative_import in all_relative_imports
+        relative_import for relative_import in all_relative_imports
         if relative_import != '__init__'
     }
     for entrypoint in entrypoint_files:

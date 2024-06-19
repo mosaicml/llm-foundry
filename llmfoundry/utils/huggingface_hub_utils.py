@@ -288,8 +288,9 @@ def edit_files_for_hf_compatibility(
         existing_relative_imports = get_all_relative_imports(
             os.path.join(folder, entrypoint),
         )
-        # Add in self so we don't create a circular import
-        existing_relative_imports.add(os.path.splitext(entrypoint)[0])
+        # Add in all entrypoints so we don't create a circular import
+        for sub_entrypoint in entrypoint_files:
+            existing_relative_imports.add(os.path.splitext(sub_entrypoint)[0])
         missing_relative_imports = all_relative_imports - existing_relative_imports
         add_relative_imports(
             os.path.join(folder, entrypoint),

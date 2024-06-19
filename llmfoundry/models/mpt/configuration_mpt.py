@@ -15,21 +15,12 @@ from llmfoundry.models.layers.attention import (
     is_flash_v2_installed,
 )
 
-# NOTE: All utils are imported directly even if unused so that
-# HuggingFace can detect all the needed files to copy into its modules folder.
-# Otherwise, certain modules are missing.
-# isort: off
-from llmfoundry.models.layers.norm import LPLayerNorm  # type: ignore (see note)
-from llmfoundry.models.layers.layer_builders import build_norm, build_fc, build_ffn  # type: ignore (see note)
-from llmfoundry.models.layers.dmoe import dMoE  # type: ignore (see note)
-from llmfoundry.layers_registry import norms  # type: ignore (see note)
-from llmfoundry.utils.registry_utils import construct_from_registry  # type: ignore (see note)
 from llmfoundry.models.utils.config_defaults import (
     attn_config_defaults,
     ffn_config_defaults,
     init_config_defaults,
     fc_type_defaults,
-)  # type: ignore (see note)
+)
 
 
 class MPTConfig(PretrainedConfig):

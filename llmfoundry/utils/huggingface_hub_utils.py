@@ -243,10 +243,7 @@ def edit_files_for_hf_compatibility(
     # If the config file exists, the entrypoint files would be specified in the auto map
     entrypoint_files = set()
     if config_file_exists:
-        for key, value in config.get('auto_map', {}).items():
-            # Only keep the modeling entrypoints, e.g. AutoModelForCausalLM
-            if 'model' not in key.lower():
-                continue
+        for value in config.get('auto_map', {}).values():
             split_path = value.split('.')
             if len(split_path) > 1:
                 entrypoint_files.add(split_path[0] + '.py')
@@ -278,6 +275,12 @@ def edit_files_for_hf_compatibility(
     all_relative_imports = {
         os.path.splitext(os.path.basename(f))[0]
         for f in files_processed_and_queued
+    }
+    # Filter out __init__ files
+    all_relative_imports = {
+        relative_import
+        for relative_import in all_relative_imports
+        if relative_import != '__init__'
     }
     for entrypoint in entrypoint_files:
         file_path = os.path.join(folder, entrypoint)

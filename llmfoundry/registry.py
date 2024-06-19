@@ -223,7 +223,8 @@ icl_datasets = create_registry(
 )
 
 _config_transforms_description = (
-    'The config_transforms registry is used to register functions that transform the training config before it is passed to the Trainer.' +
+    'The config_transforms registry is used to register functions that transform the training config before it is passed to the Trainer.'
+    +
     'Note: By default ALL registered transforms will be applied to the train config and NONE to the eval config. Each transform should return the modified config.'
 )
 config_transforms = create_registry(

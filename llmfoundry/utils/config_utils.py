@@ -238,35 +238,50 @@ def to_container(
 
 T = TypeVar('T')
 
+
 def apply_transforms_to_config(
     cfg: Dict[str, Any],
-    transforms: Optional[Union[List[Callable[[Dict[str, Any]], Dict[str,
-                                                              Any]]], List[str]]]
+    transforms: Optional[Union[List[Callable[[Dict[str, Any]], Dict[str, Any]]],
+                               List[str], str]],
 ) -> Dict[str, Any]:
-    if transforms is None or (isinstance(transforms, list) and len(transforms) == 0):
+    if transforms is None or (
+        isinstance(transforms, list) and len(transforms) == 0
+    ):
         return cfg
-    
+
     transform_functions = []
-    if isinstance(transforms, list) and isinstance(transforms[0], Callable):
-        transform_functions = transforms
-    elif isinstance(transforms, list) and isinstance(transforms[0], str):
-        transform_functions = [config_transforms.get(transform) for transform in transforms]
+    if isinstance(transforms, list):
+        for transform in transforms:
+            if isinstance(transform, str):
+                transform_functions.append(config_transforms.get(transform))
+            elif callable(transform):
+                transform_functions.append(transform)
+            else:
+                raise ValueError(
+                    f'Invalid transform: {transform}. Must be a string or callable.',
+                )
     elif isinstance(transforms, str) and transforms == 'all':
-        transform_functions = [config_transforms.get(transform) for transform in config_transforms.get_all()]
+        transform_functions = [
+            config_transforms.get(transform)
+            for transform in config_transforms.get_all()
+        ]
     else:
-        raise ValueError(f'Invalid transforms: {transforms}. Must be a list of strings or callables, or ``all``.')
-    
+        raise ValueError(
+            f'Invalid transforms: {transforms}. Must be a list of strings or callables, or ``all``.',
+        )
+
     for transform in transform_functions:
         cfg = transform(cfg)
 
     return cfg
 
+
 def make_dataclass_and_log_config(
     cfg: DictConfig,
     dataclass_constructor: Callable[..., T],
     dataclass_fields: Set[str],
-    transforms: Optional[Union[List[Callable[[Dict[str, Any]], Dict[str,
-                                                              Any]]], List[str], str]] = None,
+    transforms: Optional[Union[List[Callable[[Dict[str, Any]], Dict[str, Any]]],
+                               List[str], str]] = None,
     icl_tasks_required: bool = False,
 ) -> Tuple[Dict[str, Any], T]:
     """Converts a DictConfig to a dataclass and creates a logged config."""
@@ -304,7 +319,10 @@ def make_dataclass_and_log_config(
     logged_cfg: Dict[str, Any] = copy.deepcopy(unstructured_config)
 
     # Apply transforms to the unstructured config before constructing dataclass
-    unstructured_config = apply_transforms_to_config(unstructured_config, transforms)
+    unstructured_config = apply_transforms_to_config(
+        unstructured_config,
+        transforms,
+    )
 
     logged_cfg.update(unstructured_config, merge=True)
 
@@ -389,20 +407,21 @@ def calculate_batch_size_info(
     data_replication_degree: int = 1,
 ) -> Tuple[Union[int, float], Union[int, float, Literal['auto']], Union[
     int, Literal['auto']]]:
-    if dist.get_world_size() % data_replication_degree != 0:
+
+    world_size = dist.get_world_size()
+    assert isinstance(world_size, int)
+    if world_size % data_replication_degree != 0:
         raise ValueError(
-            f'World size {dist.get_world_size()} is not divisible by data replication degree {data_replication_degree}.',
+            f'World size {world_size} is not divisible by data replication degree {data_replication_degree}.',
         )
-    if global_batch_size % (
-        dist.get_world_size() // data_replication_degree
-    ) != 0:
+    if global_batch_size % (world_size // data_replication_degree) != 0:
         raise ValueError(
-            f'Global batchsize {global_batch_size} is not divisible by {(dist.get_world_size() // data_replication_degree)=} '
+            f'Global batchsize {global_batch_size} is not divisible by {(world_size // data_replication_degree)=} '
             +
             'as a result, the batch size would be truncated, please adjust `global_batch_size` '
-            + f'to be divisible by world size, {dist.get_world_size()}.',
+            + f'to be divisible by world size, {world_size}.',
         )
-    device_batch_size = global_batch_size / dist.get_world_size()
+    device_batch_size = global_batch_size / world_size
     if device_batch_size == round(device_batch_size):
         device_batch_size = round(device_batch_size)
     if device_microbatch_size == 'auto':

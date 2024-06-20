@@ -451,6 +451,7 @@ def calculate_batch_size_info(
 
     return device_batch_size, device_microbatch_size, device_grad_accum
 
+
 def update_config_with_batch_size_info(
     cfg: Dict[str, Any],
     device_train_batch_size: Union[int, float],
@@ -477,6 +478,7 @@ def update_config_with_batch_size_info(
         else:
             cfg['device_eval_batch_size'] = cfg['device_train_microbatch_size']
     return cfg
+
 
 def update_batch_size_info(cfg: Dict[str, Any]) -> Dict[str, Any]:
     data_replication_degree = 1

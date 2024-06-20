@@ -590,9 +590,8 @@ def main(cfg: DictConfig) -> Trainer:
                     max_new_tokens=cfg_max_new_tokens,
                 )
         end_time = time.time()
-        gen_len = outputs.size(1) - model_max_seq_len
+        gen_len = cfg_max_new_tokens*outputs.size(0)
         print ("Generation len size is: ", gen_len, outputs.shape, model_max_seq_len)
-        print ("Generated len size is supposed to be: ", cfg_max_new_tokens*outputs.size(0))
 
         curr_gen_len = torch.tensor([gen_len]).to('cuda')
         curr_global_prompt_tokens = torch.tensor([num_prompt_tokens]).to('cuda')

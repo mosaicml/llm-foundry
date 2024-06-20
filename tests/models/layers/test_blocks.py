@@ -1,11 +1,15 @@
+# Copyright 2024 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 from typing import Optional
+from unittest.mock import MagicMock
 
 import pytest
 import torch
-from unittest.mock import MagicMock
 
 from llmfoundry.models.layers import blocks
 from llmfoundry.models.layers.blocks import MPTBlock
+
 
 def test_default_attention_mask_slicing():
     attention_mask = torch.tensor([1, 1, 0, 1]).byte()
@@ -21,8 +25,9 @@ def test_default_attention_mask_slicing():
         attention_mask=attention_mask,
         seq_len=4,
     )
-    
+
     assert torch.equal(output_mask, attention_mask)
+
 
 def test_attention_mask_slicing_called(monkeypatch: pytest.MonkeyPatch):
     m = torch.randn(2, 4, 4)
@@ -36,7 +41,9 @@ def test_attention_mask_slicing_called(monkeypatch: pytest.MonkeyPatch):
     pad_mock = MagicMock(return_value=m)
     monkeypatch.setattr(blocks, 'unpad_input', unpad_mock)
     monkeypatch.setattr(blocks, 'pad_input', pad_mock)
+
     class MPTBlockTest(MPTBlock):
+
         def slice_attention_mask(
             self,
             attention_mask: Optional[torch.ByteTensor],
@@ -45,7 +52,7 @@ def test_attention_mask_slicing_called(monkeypatch: pytest.MonkeyPatch):
             del seq_len
             del attention_mask
             return dummy_return_mask  # type: ignore
-        
+
     block = MPTBlockTest(
         d_model=4,
         n_heads=1,

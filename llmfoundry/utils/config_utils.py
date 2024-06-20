@@ -244,6 +244,17 @@ def apply_transforms_to_config(
     transforms: Optional[Union[List[Callable[[Dict[str, Any]], Dict[str, Any]]],
                                List[str], str]],
 ) -> Dict[str, Any]:
+    """Applies a list of transforms to a config.
+
+    Args:
+        cfg (Dict[str, Any]): The config to transform.
+        transforms (Optional[Union[List[Callable[[Dict[str, Any]], Dict[str, Any]]], List[str], str]]): A list of
+            transform functions or strings representing transform functions to apply to the config. If a single string
+            with the value ``all`` is provided, all registered transforms will be applied.
+
+    Returns:
+        Dict[str, Any]: The transformed config.
+    """
     if transforms is None or (
         isinstance(transforms, list) and len(transforms) == 0
     ):

@@ -581,15 +581,15 @@ def main(cfg: DictConfig) -> Trainer:
                                                writeback=False,
                                                recurse=False)
         with autocast(dtype=torch.bfloat16):
-            #with generate_context:
-            outputs = model.model.generate(
-                input_ids=inputs['input_ids'].to('cuda'),
-                attention_mask=attention_mask.to('cuda'),
-                synced_gpus=True,
-                use_cache=True,
-                # eos_token_id=model.tokenizer.eos_token_id,
-                max_new_tokens=cfg_max_new_tokens,
-            )
+            with generate_context:
+                outputs = model.model.generate(
+                    input_ids=inputs['input_ids'].to('cuda'),
+                    attention_mask=attention_mask.to('cuda'),
+                    synced_gpus=True,
+                    use_cache=True,
+                    # eos_token_id=model.tokenizer.eos_token_id,
+                    max_new_tokens=cfg_max_new_tokens,
+                )
         end_time = time.time()
         gen_len = cfg_max_new_tokens*device_batch_size
         print ("Generation len size is: ", gen_len, outputs.shape, model_max_seq_len)

@@ -561,7 +561,7 @@ def main(cfg: DictConfig) -> Trainer:
     print ("Model is: ", model.model)
 
     for i, inputs in enumerate(train_loader.dataloader):
-        print("inputs keys shapes:", inputs['input_ids'].shape, inputs['attention_mask'].shape)
+        print("inputs keys shapes:", inputs['input_ids'].shape, inputs['labels'].shape)
         num_prompt_tokens = inputs['attention_mask'].sum()
         start_time = time.time()
         

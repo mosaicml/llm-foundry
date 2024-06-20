@@ -451,14 +451,20 @@ def calculate_batch_size_info(
 
     return device_batch_size, device_microbatch_size, device_grad_accum
 
+def update_config_with_batch_size_info(
+    cfg: Dict[str, Any],
+    device_train_batch_size: Union[int, float],
+    device_train_microbatch_size: Union[int, float, Literal['auto']],
+    device_train_grad_accum: Union[int, Literal['auto']],
+) -> Dict[str, Any]:
+    """Update the config with batch size information.
 
-def update_batch_size_info(cfg: Dict[str, Any]) -> Dict[str, Any]:
-    data_replication_degree = 1
-    device_train_batch_size, device_train_microbatch_size, device_train_grad_accum = calculate_batch_size_info(
-        cfg['global_train_batch_size'],
-        cfg['device_train_microbatch_size'],
-        data_replication_degree=data_replication_degree,
-    )
+    Args:
+        cfg (Dict[str, Any]): The config to update.
+
+    Returns:
+        Dict[str, Any]: The updated config.
+    """
     cfg['n_gpus'] = dist.get_world_size()
     cfg['device_train_batch_size'] = device_train_batch_size
     cfg['device_train_microbatch_size'] = device_train_microbatch_size
@@ -470,6 +476,21 @@ def update_batch_size_info(cfg: Dict[str, Any]) -> Dict[str, Any]:
                ] = 1  # TODO debug auto eval microbatching
         else:
             cfg['device_eval_batch_size'] = cfg['device_train_microbatch_size']
+    return cfg
+
+def update_batch_size_info(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    data_replication_degree = 1
+    device_train_batch_size, device_train_microbatch_size, device_train_grad_accum = calculate_batch_size_info(
+        cfg['global_train_batch_size'],
+        cfg['device_train_microbatch_size'],
+        data_replication_degree=data_replication_degree,
+    )
+    cfg = update_config_with_batch_size_info(
+        cfg,
+        device_train_batch_size,
+        device_train_microbatch_size,
+        device_train_grad_accum,
+    )
     return cfg
 
 

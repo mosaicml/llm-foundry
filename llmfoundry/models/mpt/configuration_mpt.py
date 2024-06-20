@@ -187,7 +187,9 @@ class MPTConfig(PretrainedConfig):
         return config
 
     def validate_attention_config(self) -> None:
-        if (self.attn_config.get('seq_parallel_world_size', 1) or 1) > 1:
+        if 'seq_parallel_world_size' in self.attn_config and self.attn_config['seq_parallel_world_size'] is None:
+            del self.attn_config['seq_parallel_world_size']
+        if self.attn_config.get('seq_parallel_world_size', 1) > 1:
             raise NotImplementedError('Sequence Parallelism is not supported.')
 
     def _validate_config(self) -> None:

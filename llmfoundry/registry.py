@@ -233,7 +233,8 @@ _config_transforms_description = (
 
     Returns:
         cfg (Dict[str, Any]): The modified training config.
-    """)
+    """
+)
 config_transforms = create_registry(
     'llmfoundry',
     'config_transforms',

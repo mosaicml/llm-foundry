@@ -557,15 +557,18 @@ def main(cfg: DictConfig) -> Trainer:
     if model.tokenizer.pad_token_id is None:
         model.tokenizer.pad_token_id = model.tokenizer.eos_token_id
 
+    model_max_seq_len = model_config['max_seq_len']
+
     print ("Model tokenizer is: ", model.tokenizer)
     print ("Model is: ", model.model)
+    print ("Model max seq len is: ", model_max_seq_len)
 
     for i, inputs in enumerate(train_loader.dataloader):
         print("inputs keys shapes:", inputs['input_ids'].shape, inputs['labels'].shape)
-        if cfg_max_new_tokens > model_config.max_seq_len:
-            raise ValueError(f"max_new_tokens of {cfg_max_new_tokens} is greater than max_seq_len of {model_config.max_seq_len}")
-        inputs['input_ids'] = inputs['input_ids'][:, :model_config.max_seq_len-cfg_max_new_tokens]
-        inputs['labels'] = inputs['labels'][:, :model_config.max_seq_len-cfg_max_new_tokens]
+        if cfg_max_new_tokens > model_max_seq_len:
+            raise ValueError(f"max_new_tokens of {cfg_max_new_tokens} is greater than max_seq_len of {model_max_seq_len}")
+        inputs['input_ids'] = inputs['input_ids'][:, :model_max_seq_len-cfg_max_new_tokens]
+        inputs['labels'] = inputs['labels'][:, :model_max_seq_len-cfg_max_new_tokens]
         print("post-cut inputs keys shapes:", inputs['input_ids'].shape, inputs['labels'].shape)
         
         num_prompt_tokens = inputs['input_ids'].numel()
@@ -585,8 +588,9 @@ def main(cfg: DictConfig) -> Trainer:
                     max_new_tokens=cfg_max_new_tokens,
                 )
         end_time = time.time()
-        gen_len = outputs.size(1) - model_config.max_seq_len
-        print ("Generation len size is: ", gen_len, outputs.shape, model_config.max_seq_len)
+        gen_len = outputs.size(1) - model_max_seq_len
+        print ("Generation len size is: ", gen_len, outputs.shape, model_max_seq_len)
+        print ("Generated len size is supposed to be: ", cfg_max_new_tokens*outputs.size(0))
 
         curr_gen_len = torch.tensor([gen_len]).to('cuda')
         curr_global_prompt_tokens = torch.tensor([num_prompt_tokens]).to('cuda')

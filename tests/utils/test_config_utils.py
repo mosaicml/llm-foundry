@@ -1,4 +1,8 @@
+# Copyright 2024 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 from llmfoundry.utils.config_utils import update_config_with_batch_size_info
+
 
 def test_update_config_with_batch_size_info():
     config = {}

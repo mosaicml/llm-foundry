@@ -600,6 +600,9 @@ def main(cfg: DictConfig) -> Trainer:
         dist.all_reduce(curr_global_prompt_tokens)
         dist.all_reduce(curr_gen_len)
 
+        mem_stats = torch.cuda.memory_stats()
+        print ("\nMemory stats: ", mem_stats, "\n")
+
         print ("Global prompt tokens is: ", curr_global_prompt_tokens)
         print ("Generation len is: ", curr_gen_len)
         print ("Elapsed time: ", end_time - start_time)

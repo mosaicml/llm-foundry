@@ -572,7 +572,7 @@ def main(cfg: DictConfig) -> Trainer:
         print("post-cut inputs keys shapes:", inputs['input_ids'].shape, inputs['labels'].shape)
 
         attention_mask = torch.ones_like(inputs['input_ids'])
-        device_batch_size = outputs.size(0)
+        device_batch_size = inputs['input_ids'].size(0)
         
         num_prompt_tokens = inputs['input_ids'].numel()
         start_time = time.time()

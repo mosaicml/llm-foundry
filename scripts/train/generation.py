@@ -559,17 +559,15 @@ def main(cfg: DictConfig) -> Trainer:
 
     model_max_seq_len = model_config['max_seq_len']
 
-    print ("Model tokenizer is: ", model.tokenizer)
-    print ("Model is: ", model.model)
-    print ("Model max seq len is: ", model_max_seq_len)
+    print("Model tokenizer is: ", model.tokenizer)
+    print("Model is: ", model.model)
+    print("Model max seq len is: ", model_max_seq_len, "\n")
 
     for i, inputs in enumerate(train_loader.dataloader):
-        print("inputs keys shapes:", inputs['input_ids'].shape, inputs['labels'].shape)
         if cfg_max_new_tokens > model_max_seq_len:
             raise ValueError(f"max_new_tokens of {cfg_max_new_tokens} is greater than max_seq_len of {model_max_seq_len}")
         inputs['input_ids'] = inputs['input_ids'][:, :model_max_seq_len-cfg_max_new_tokens]
         inputs['labels'] = inputs['labels'][:, :model_max_seq_len-cfg_max_new_tokens]
-        print("post-cut inputs keys shapes:", inputs['input_ids'].shape, inputs['labels'].shape)
 
         attention_mask = torch.ones_like(inputs['input_ids'])
         device_batch_size = inputs['input_ids'].size(0)
@@ -590,9 +588,10 @@ def main(cfg: DictConfig) -> Trainer:
                 # eos_token_id=model.tokenizer.eos_token_id,
                 max_new_tokens=cfg_max_new_tokens,
             )
+        
         end_time = time.time()
         gen_len = cfg_max_new_tokens*device_batch_size
-        print ("Generation len size is: ", gen_len, outputs.shape, model_max_seq_len)
+        # print("Generation len size is: ", gen_len, outputs.shape, model_max_seq_len)
 
         curr_gen_len = torch.tensor([gen_len]).to('cuda')
         curr_global_prompt_tokens = torch.tensor([num_prompt_tokens]).to('cuda')
@@ -602,11 +601,11 @@ def main(cfg: DictConfig) -> Trainer:
 
         from composer.callbacks.memory_monitor import _get_memory_report
         mem_report = _get_memory_report()
-        print ("\nMemory stats: ", mem_report, "\n")
-
-        print ("Global prompt tokens is: ", curr_global_prompt_tokens)
-        print ("Generation len is: ", curr_gen_len)
-        print ("Elapsed time: ", end_time - start_time)
+        print("\nPeak reserved mem (GB): ", mem_report['peak_reserved_mem'])
+        print("Mem alloc retries: ", mem_report['alloc_retries'])
+        print("Global prompt tokens is: ", curr_global_prompt_tokens)
+        print("Generation len is: ", curr_gen_len)
+        print("Elapsed time: ", end_time - start_time, "\n")
 
         if i > cfg_warmup:
             total_generated_tokens += curr_gen_len

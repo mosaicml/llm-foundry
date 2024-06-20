@@ -570,6 +570,8 @@ def main(cfg: DictConfig) -> Trainer:
         inputs['input_ids'] = inputs['input_ids'][:, :model_max_seq_len-cfg_max_new_tokens]
         inputs['labels'] = inputs['labels'][:, :model_max_seq_len-cfg_max_new_tokens]
         print("post-cut inputs keys shapes:", inputs['input_ids'].shape, inputs['labels'].shape)
+
+        attention_mask = torch.ones_like(inputs['input_ids'])
         
         num_prompt_tokens = inputs['input_ids'].numel()
         start_time = time.time()
@@ -581,7 +583,7 @@ def main(cfg: DictConfig) -> Trainer:
             with generate_context:
                 outputs = model.model.generate(
                     input_ids=inputs['input_ids'].to('cuda'),
-                    attention_mask=inputs['attention_mask'].to('cuda'),
+                    attention_mask=attention_mask.to('cuda'),
                     synced_gpus=True,
                     use_cache=True,
                     # eos_token_id=model.tokenizer.eos_token_id,

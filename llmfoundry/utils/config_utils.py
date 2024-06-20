@@ -420,7 +420,6 @@ def calculate_batch_size_info(
     int, Literal['auto']]]:
 
     world_size = dist.get_world_size()
-    assert isinstance(world_size, int)
     if world_size % data_replication_degree != 0:
         raise ValueError(
             f'World size {world_size} is not divisible by data replication degree {data_replication_degree}.',

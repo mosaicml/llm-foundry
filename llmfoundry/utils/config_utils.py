@@ -30,6 +30,7 @@ from transformers import PretrainedConfig
 
 from llmfoundry.layers_registry import ffns_with_megablocks
 from llmfoundry.models.utils import init_empty_weights
+from llmfoundry.registry import config_transforms
 
 log = logging.getLogger(__name__)
 
@@ -48,7 +49,7 @@ class EvalConfig:
     # Eval Config required parameters:
     models: List[Dict[str, Any]] = MISSING
     max_seq_len: int = MISSING
-    device_eval_batch_size: int = MISSING
+    device_eval_batch_size: Union[int, float] = MISSING
 
     # Eval Config optional parameters:
     code_paths: Optional[List[str]] = None
@@ -101,7 +102,7 @@ class TrainConfig:
     scheduler: Dict[str, Any] = MISSING
     train_loader: Dict[str, Any] = MISSING
     device_train_batch_size: Union[int, float] = MISSING
-    device_eval_batch_size: int = MISSING
+    device_eval_batch_size: Union[int, float] = MISSING
     max_duration: Union[int, str] = MISSING
     eval_interval: Union[int, str] = MISSING
     max_seq_len: int = MISSING
@@ -160,7 +161,7 @@ class TrainConfig:
     save_ignore_keys: Optional[List[str]] = None
 
     # Dataloader
-    device_train_microbatch_size: Union[str, int] = 'auto'
+    device_train_microbatch_size: Union[str, int, float] = 'auto'
     global_train_batch_size: Optional[int] = None
 
     # Eval dataloader
@@ -238,12 +239,60 @@ def to_container(
 T = TypeVar('T')
 
 
+def apply_transforms_to_config(
+    cfg: Dict[str, Any],
+    transforms: Optional[Union[List[Callable[[Dict[str, Any]], Dict[str, Any]]],
+                               List[str], str]],
+) -> Dict[str, Any]:
+    """Applies a list of transforms to a config.
+
+    Args:
+        cfg (Dict[str, Any]): The config to transform.
+        transforms (Optional[Union[List[Callable[[Dict[str, Any]], Dict[str, Any]]], List[str], str]]): A list of
+            transform functions or strings representing transform functions to apply to the config. If a single string
+            with the value ``all`` is provided, all registered transforms will be applied.
+
+    Returns:
+        Dict[str, Any]: The transformed config.
+    """
+    if transforms is None or (
+        isinstance(transforms, list) and len(transforms) == 0
+    ):
+        return cfg
+
+    transform_functions = []
+    if isinstance(transforms, list):
+        for transform in transforms:
+            if isinstance(transform, str):
+                transform_functions.append(config_transforms.get(transform))
+            elif callable(transform):
+                transform_functions.append(transform)
+            else:
+                raise ValueError(
+                    f'Invalid transform: {transform}. Must be a string or callable.',
+                )
+    elif isinstance(transforms, str) and transforms == 'all':
+        transform_functions = [
+            config_transforms.get(transform)
+            for transform in config_transforms.get_all()
+        ]
+    else:
+        raise ValueError(
+            f'Invalid transforms: {transforms}. Must be a list of strings or callables, or ``all``.',
+        )
+
+    for transform in transform_functions:
+        cfg = transform(cfg)
+
+    return cfg
+
+
 def make_dataclass_and_log_config(
     cfg: DictConfig,
     dataclass_constructor: Callable[..., T],
     dataclass_fields: Set[str],
-    transforms: Optional[List[Callable[[Dict[str, Any]], Dict[str,
-                                                              Any]]]] = None,
+    transforms: Optional[Union[List[Callable[[Dict[str, Any]], Dict[str, Any]]],
+                               List[str], str]] = None,
     icl_tasks_required: bool = False,
 ) -> Tuple[Dict[str, Any], T]:
     """Converts a DictConfig to a dataclass and creates a logged config."""
@@ -281,8 +330,10 @@ def make_dataclass_and_log_config(
     logged_cfg: Dict[str, Any] = copy.deepcopy(unstructured_config)
 
     # Apply transforms to the unstructured config before constructing dataclass
-    for transform in transforms or []:
-        unstructured_config = transform(unstructured_config)
+    unstructured_config = apply_transforms_to_config(
+        unstructured_config,
+        transforms,
+    )
 
     logged_cfg.update(unstructured_config, merge=True)
 
@@ -367,20 +418,20 @@ def calculate_batch_size_info(
     data_replication_degree: int = 1,
 ) -> Tuple[Union[int, float], Union[int, float, Literal['auto']], Union[
     int, Literal['auto']]]:
-    if dist.get_world_size() % data_replication_degree != 0:
+
+    world_size = dist.get_world_size()
+    if world_size % data_replication_degree != 0:
         raise ValueError(
-            f'World size {dist.get_world_size()} is not divisible by data replication degree {data_replication_degree}.',
+            f'World size {world_size} is not divisible by data replication degree {data_replication_degree}.',
         )
-    if global_batch_size % (
-        dist.get_world_size() // data_replication_degree
-    ) != 0:
+    if global_batch_size % (world_size // data_replication_degree) != 0:
         raise ValueError(
-            f'Global batchsize {global_batch_size} is not divisible by {(dist.get_world_size() // data_replication_degree)=} '
+            f'Global batchsize {global_batch_size} is not divisible by {(world_size // data_replication_degree)=} '
             +
             'as a result, the batch size would be truncated, please adjust `global_batch_size` '
-            + f'to be divisible by world size, {dist.get_world_size()}.',
+            + f'to be divisible by world size, {world_size}.',
         )
-    device_batch_size = global_batch_size / dist.get_world_size()
+    device_batch_size = global_batch_size / world_size
     if device_batch_size == round(device_batch_size):
         device_batch_size = round(device_batch_size)
     if device_microbatch_size == 'auto':
@@ -401,7 +452,6 @@ def calculate_batch_size_info(
     return device_batch_size, device_microbatch_size, device_grad_accum
 
 
-# Coming soon: this conversion math will be done inside Composer Trainer
 def update_batch_size_info(cfg: Dict[str, Any]) -> Dict[str, Any]:
     data_replication_degree = 1
     device_train_batch_size, device_train_microbatch_size, device_train_grad_accum = calculate_batch_size_info(

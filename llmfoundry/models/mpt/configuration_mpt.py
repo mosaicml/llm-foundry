@@ -14,22 +14,12 @@ from llmfoundry.models.layers.attention import (
     check_alibi_support,
     is_flash_v2_installed,
 )
-
-# NOTE: All utils are imported directly even if unused so that
-# HuggingFace can detect all the needed files to copy into its modules folder.
-# Otherwise, certain modules are missing.
-# isort: off
-from llmfoundry.models.layers.norm import LPLayerNorm  # type: ignore (see note)
-from llmfoundry.models.layers.layer_builders import build_norm, build_fc, build_ffn  # type: ignore (see note)
-from llmfoundry.models.layers.dmoe import dMoE  # type: ignore (see note)
-from llmfoundry.layers_registry import norms  # type: ignore (see note)
-from llmfoundry.utils.registry_utils import construct_from_registry  # type: ignore (see note)
 from llmfoundry.models.utils.config_defaults import (
     attn_config_defaults,
+    fc_type_defaults,
     ffn_config_defaults,
     init_config_defaults,
-    fc_type_defaults,
-)  # type: ignore (see note)
+)
 
 
 class MPTConfig(PretrainedConfig):
@@ -196,6 +186,13 @@ class MPTConfig(PretrainedConfig):
                 )
         return config
 
+    def validate_attention_config(self) -> None:
+        if 'seq_parallel_world_size' in self.attn_config and self.attn_config[
+            'seq_parallel_world_size'] is None:
+            del self.attn_config['seq_parallel_world_size']
+        if self.attn_config.get('seq_parallel_world_size', 1) > 1:
+            raise NotImplementedError('Sequence Parallelism is not supported.')
+
     def _validate_config(self) -> None:
         # set config defaults
         self.attn_config = self._set_config_defaults(
@@ -336,5 +333,5 @@ class MPTConfig(PretrainedConfig):
                 raise ImportError(
                     'In order to set `use_pad_tok_in_ffn=False`, please install flash-attn==1.0.9 or flash-attn==2.3.6',
                 )
-        if (self.attn_config.get('seq_parallel_world_size', 1) or 1) > 1:
-            raise NotImplementedError('Sequence Parallelism is not supported.')
+
+        self.validate_attention_config()

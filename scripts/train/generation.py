@@ -567,7 +567,8 @@ def main(cfg: DictConfig) -> Trainer:
         inputs['input_ids'] = inputs['input_ids'][:, :model_config.max_seq_len-cfg_max_new_tokens]
         inputs['labels'] = inputs['labels'][:, :model_config.max_seq_len-cfg_max_new_tokens]
         print("post-cut inputs keys shapes:", inputs['input_ids'].shape, inputs['labels'].shape)
-        num_prompt_tokens = inputs['attention_mask'].sum()
+        
+        num_prompt_tokens = inputs['input_ids'].numel()
         start_time = time.time()
         
         generate_context = FSDP.summon_full_params(model.model,

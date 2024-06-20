@@ -567,11 +567,12 @@ def main(cfg: DictConfig) -> Trainer:
         print("inputs keys shapes:", inputs['input_ids'].shape, inputs['labels'].shape)
         if cfg_max_new_tokens > model_max_seq_len:
             raise ValueError(f"max_new_tokens of {cfg_max_new_tokens} is greater than max_seq_len of {model_max_seq_len}")
-        #inputs['input_ids'] = inputs['input_ids'][:, :model_max_seq_len-cfg_max_new_tokens]
-        #inputs['labels'] = inputs['labels'][:, :model_max_seq_len-cfg_max_new_tokens]
-        #print("post-cut inputs keys shapes:", inputs['input_ids'].shape, inputs['labels'].shape)
+        inputs['input_ids'] = inputs['input_ids'][:, :model_max_seq_len-cfg_max_new_tokens]
+        inputs['labels'] = inputs['labels'][:, :model_max_seq_len-cfg_max_new_tokens]
+        print("post-cut inputs keys shapes:", inputs['input_ids'].shape, inputs['labels'].shape)
 
         attention_mask = torch.ones_like(inputs['input_ids'])
+        device_batch_size = outputs.size(0)
         
         num_prompt_tokens = inputs['input_ids'].numel()
         start_time = time.time()
@@ -580,17 +581,17 @@ def main(cfg: DictConfig) -> Trainer:
                                                writeback=False,
                                                recurse=False)
         with autocast(dtype=torch.bfloat16):
-            with generate_context:
-                outputs = model.model.generate(
-                    input_ids=inputs['input_ids'].to('cuda'),
-                    attention_mask=attention_mask.to('cuda'),
-                    synced_gpus=True,
-                    use_cache=True,
-                    # eos_token_id=model.tokenizer.eos_token_id,
-                    max_new_tokens=cfg_max_new_tokens,
-                )
+            #with generate_context:
+            outputs = model.model.generate(
+                input_ids=inputs['input_ids'].to('cuda'),
+                attention_mask=attention_mask.to('cuda'),
+                synced_gpus=True,
+                use_cache=True,
+                # eos_token_id=model.tokenizer.eos_token_id,
+                max_new_tokens=cfg_max_new_tokens,
+            )
         end_time = time.time()
-        gen_len = cfg_max_new_tokens*outputs.size(0)
+        gen_len = cfg_max_new_tokens*device_batch_size
         print ("Generation len size is: ", gen_len, outputs.shape, model_max_seq_len)
 
         curr_gen_len = torch.tensor([gen_len]).to('cuda')
@@ -598,7 +599,6 @@ def main(cfg: DictConfig) -> Trainer:
         
         dist.all_reduce(curr_global_prompt_tokens)
         dist.all_reduce(curr_gen_len)
-
 
         print ("Global prompt tokens is: ", curr_global_prompt_tokens)
         print ("Generation len is: ", curr_gen_len)
@@ -613,6 +613,7 @@ def main(cfg: DictConfig) -> Trainer:
             break
 
     print ("=" * 25)
+    print ("Device batch size: ", device_batch_size)
     print ("Processed prompt tokens: ", total_prompt_tokens)
     print ("Generated tokens: ", total_generated_tokens)
     print ("Elapsed time: ", total_time)

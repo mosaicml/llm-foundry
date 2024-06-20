@@ -202,6 +202,18 @@ def main(cfg: DictConfig) -> Trainer:
     for code_path in code_paths:
         import_file(code_path)
 
+    cfg_warmup = cfg.warmup
+    cfg_num_generations = cfg.num_generations
+    cfg_max_new_tokens = cfg.max_new_tokens
+
+    del cfg.warmup
+    del cfg.num_generations
+    del cfg.max_new_tokens
+
+    print("Warmup is: ", cfg_warmup)
+    print("Num generations is: ", cfg_num_generations)
+    print("Max new tokens is: ", cfg_max_new_tokens)
+
     logged_cfg, train_cfg = make_dataclass_and_log_config(
         cfg,
         TrainConfig,
@@ -563,7 +575,7 @@ def main(cfg: DictConfig) -> Trainer:
                     synced_gpus=True,
                     use_cache=True,
                     # eos_token_id=model.tokenizer.eos_token_id,
-                    max_new_tokens=cfg.max_new_tokens,
+                    max_new_tokens=cfg_max_new_tokens,
                 )
         end_time = time.time()
         gen_len = outputs.size(1) - model_config.max_seq_len
@@ -580,12 +592,12 @@ def main(cfg: DictConfig) -> Trainer:
         print ("Generation len is: ", curr_gen_len)
         print ("Elapsed time: ", end_time - start_time)
 
-        if i > cfg.warmup:
+        if i > cfg_warmup:
             total_generated_tokens += curr_gen_len
             total_prompt_tokens += curr_global_prompt_tokens
             total_time += end_time - start_time
         
-        if i > cfg.num_generations + cfg.warmup:
+        if i > cfg_num_generations + cfg_warmup:
             break
 
     print ("=" * 25)

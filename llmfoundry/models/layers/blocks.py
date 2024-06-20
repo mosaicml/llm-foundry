@@ -212,12 +212,31 @@ class MPTBlock(nn.Module):
         indices = None
         if not self.use_pad_tok_in_ffn and attention_mask is not None:
             assert unpad_input is not None
+            attention_mask = self.slice_attention_mask(attention_mask, seq_len)
             m, indices, _, _ = unpad_input(m, attention_mask)
         n = self.ffn(m)
         if not self.use_pad_tok_in_ffn and attention_mask is not None:
             assert pad_input is not None
             n = pad_input(n, indices, batch_size, seq_len)
         return n
+
+    def slice_attention_mask(
+        self,
+        attention_mask: torch.ByteTensor,
+        seq_len: int,
+    ) -> torch.ByteTensor:
+        """Slice attention mask to the correct size.
+
+        Can be overridden by subclasses to apply different slicing logic.
+
+        Args:
+            attention_mask (torch.ByteTensor): The attention mask.
+            seq_len (int): The sequence length.
+
+        Returns:
+            torch.ByteTensor: The sliced attention mask.
+        """
+        return attention_mask
 
 
 class FusedNormAttentionNorm(nn.Module):

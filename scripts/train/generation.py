@@ -562,6 +562,11 @@ def main(cfg: DictConfig) -> Trainer:
 
     for i, inputs in enumerate(train_loader.dataloader):
         print("inputs keys shapes:", inputs['input_ids'].shape, inputs['labels'].shape)
+        if cfg_max_new_tokens > model_config.max_seq_len:
+            raise ValueError(f"max_new_tokens of {cfg_max_new_tokens} is greater than max_seq_len of {model_config.max_seq_len}")
+        inputs['input_ids'] = inputs['input_ids'][:, :model_config.max_seq_len-cfg_max_new_tokens]
+        inputs['labels'] = inputs['labels'][:, :model_config.max_seq_len-cfg_max_new_tokens]
+        print("post-cut inputs keys shapes:", inputs['input_ids'].shape, inputs['labels'].shape)
         num_prompt_tokens = inputs['attention_mask'].sum()
         start_time = time.time()
         

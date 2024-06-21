@@ -590,7 +590,13 @@ def main(cfg: DictConfig) -> Trainer:
                     # eos_token_id=model.tokenizer.eos_token_id,
                     max_new_tokens=cfg_max_new_tokens,
                 )
-        prof.export_chrome_trace(f"trace-iter-{i}.json")
+        
+        if i == 0:
+            trace_file_name = f"/torch_traces/trace-iter-{i}.json"
+            trace_file_dirname = os.path.dirname(trace_file_name)
+            if trace_file_dirname:
+                os.makedirs(trace_file_dirname, exist_ok=True)
+            prof.export_chrome_trace(trace_file_name)
         
         end_time = time.time()
         gen_len = cfg_max_new_tokens*device_batch_size

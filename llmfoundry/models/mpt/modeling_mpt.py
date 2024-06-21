@@ -470,7 +470,8 @@ class MPTModel(MPTPreTrainedModel):
                 )
                 if 'reuse_kv_layer_idx' in override_config:
                     assert override_config['reuse_kv_layer_idx'] < 0
-                    reuse_kv_layer_idx = i + override_config['reuse_kv_layer_idx']
+                    reuse_kv_layer_idx = i + override_config[
+                        'reuse_kv_layer_idx']
                     assert reuse_kv_layer_idx >= 0
                     override_config['reuse_kv_layer_idx'] = reuse_kv_layer_idx
                     self.kv_cache_layers.add(reuse_kv_layer_idx)
@@ -794,11 +795,15 @@ class MPTModel(MPTPreTrainedModel):
             )
 
         layer_kv_cache_dict = {}
+        prev_layer_key_value = None
         for b_idx, block in enumerate(self.blocks):
             if block.reuse_kv_layer_idx is not None:
                 if block.reuse_kv_layer_idx not in layer_kv_cache_dict:
-                    raise KeyError(f'kv cache for layer {block.reuse_kv_layer_idx} not found in {layer_kv_cache_dict=}.')
-                prev_layer_key_value = layer_kv_cache_dict[block.reuse_kv_layer_idx]
+                    raise KeyError(
+                        f'kv cache for layer {block.reuse_kv_layer_idx} not found in {layer_kv_cache_dict=}.',
+                    )
+                prev_layer_key_value = layer_kv_cache_dict[
+                    block.reuse_kv_layer_idx]
             if output_hidden_states:
                 assert all_hidden_states is not None  # pyright
                 all_hidden_states = all_hidden_states + (x,)

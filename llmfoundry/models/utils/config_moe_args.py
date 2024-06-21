@@ -179,7 +179,7 @@ def config_megablocks_moe_args(
                 lbl_process_group = None
         elif not isinstance(lbl_process_group, distributed.ProcessGroup):
             raise ValueError(
-                f'Unknown {lbl_process_group=}. Options are: none | expert_group | global_group | <GROUP_SIZE>.',
+                f'Unknown {lbl_process_group=}. Options are: none | a process group | ``expert_group`` | ``global_group`` | <GROUP_SIZE>.',
             )
         ffn_config['lbl_process_group'] = lbl_process_group
 

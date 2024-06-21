@@ -130,11 +130,11 @@ class MPTConfig(PretrainedConfig):
                             - 1
                         overrides:
                             sliding_window_layer:
-                            attn_config:
-                                sliding_window_size: 128
+                                attn_config:
+                                    sliding_window_size: 128
                             reuse_kv_layer:
-                            attn_config:
-                                reuse_kv_layer_idx: -2
+                                attn_config:
+                                    reuse_kv_layer_idx: -2
         """
         self.d_model = d_model
         self.n_heads = n_heads

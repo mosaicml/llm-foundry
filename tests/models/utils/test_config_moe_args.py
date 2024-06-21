@@ -46,7 +46,7 @@ def test_config_megablocks_moe_args_pg():
 
 
 @pytest.mark.gpu
-def test_config_megablocks_moe_args_pg():
+def test_config_megablocks_moe_args_error():
     ffn_config_base: dict[str, Any] = {
         'moe_world_size': 1,
         'lbl_process_group': 'not_real',

@@ -33,6 +33,9 @@ attn_config_defaults: Dict = {
         'type': 'no_scaling',
         'factor': 1.0,
     },
+    'attention_modules': {
+        'order': [['default', 1]],
+    },
 }
 
 init_config_defaults: Dict = {

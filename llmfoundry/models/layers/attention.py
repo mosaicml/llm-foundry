@@ -416,6 +416,7 @@ class GroupedQueryAttention(nn.Module):
         device: Optional[str] = None,
         bias: bool = True,
         sliding_window_size: int = -1,
+        reuse_prev_layer_kv: bool = False,
     ):
         super().__init__()
 
@@ -428,6 +429,7 @@ class GroupedQueryAttention(nn.Module):
         self.n_heads = n_heads
         self.kv_n_heads = kv_n_heads
         self.sliding_window_size = sliding_window_size
+        self.reuse_prev_layer_kv = reuse_prev_layer_kv
 
         self.head_dim = d_model // n_heads
 
@@ -507,9 +509,11 @@ class GroupedQueryAttention(nn.Module):
         needs_weights: bool = False,
         alibi_slopes: Optional[torch.Tensor] = None,
         flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
+        prev_layer_key_value: Optional[Tuple[torch.Tensor,
+                                             torch.Tensor]] = None,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
         torch.Tensor, torch.Tensor]]]:
-        query, key, value = self.get_qkv(x)
+        query, key, value = self.get_qkv(x, prev_layer_key_value)
 
         if rotary_emb_w_meta_info is not None:
             query, key, value = self._apply_rotary_embeddings(
@@ -546,6 +550,7 @@ class GroupedQueryAttention(nn.Module):
     def get_qkv(
         self,
         x: torch.Tensor,
+        prev_layer_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]],
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Computes and returns the query, key, and value tensors.
 
@@ -581,6 +586,14 @@ class GroupedQueryAttention(nn.Module):
             dtype = query.dtype
             query = self.q_ln(query).to(dtype).view(q_shape)
             key = self.k_ln(key).to(dtype).view(k_shape)
+
+        if self.reuse_prev_layer_kv:
+            # TODO: We still compute key and values in the code above, even if we end up reusing previous layer's kv cache. We should avoid this wasteful computation.
+            if prev_layer_key_value is None:
+                raise ValueError(
+                    'prev_layer_key_value is None, cannot reuse_prev_layer_kv.',
+                )
+            key, value = prev_layer_key_value  # TODO: We should not even compute key, value for this layer if we are just reusing prev layer's. Also, W_qkv should just be W_q for this case.
 
         return query, key, value
 

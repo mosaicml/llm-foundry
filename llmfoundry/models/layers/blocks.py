@@ -48,6 +48,10 @@ class MPTBlock(nn.Module):
         use_pad_tok_in_ffn: bool = True,
         **kwargs: Any,
     ):
+        self.reuse_kv_layer_idx = None if attn_config is None else attn_config.get(
+            'reuse_kv_layer_idx',
+            None,
+        )
         if attn_config is None:
             attn_config = attn_config_defaults
 
@@ -145,6 +149,8 @@ class MPTBlock(nn.Module):
             'rope_impl',
             'rope_dail_config',
             'rope_hf_config',
+            'attention_modules',
+            'reuse_kv_layer_idx',
         }
 
     def forward(
@@ -158,6 +164,8 @@ class MPTBlock(nn.Module):
         output_attentions: bool = False,
         alibi_slopes: Optional[torch.Tensor] = None,
         flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
+        prev_layer_key_value: Optional[Tuple[torch.Tensor,
+                                             torch.Tensor]] = None,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[
         torch.Tensor, torch.Tensor]]]:
         if self.fuse_norm_attn_norm:
@@ -171,6 +179,7 @@ class MPTBlock(nn.Module):
                 output_attentions=output_attentions,
                 alibi_slopes=alibi_slopes,
                 flash_attn_padding_info=flash_attn_padding_info,
+                prev_layer_key_value=prev_layer_key_value,
             )
         else:
             a = self.norm_1(x)
@@ -308,6 +317,8 @@ class FusedNormAttentionNorm(nn.Module):
         output_attentions: bool = False,
         alibi_slopes: Optional[torch.Tensor] = None,
         flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
+        prev_layer_key_value: Optional[Tuple[torch.Tensor,
+                                             torch.Tensor]] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor],
                Optional[Tuple[torch.Tensor, torch.Tensor]]]:
         a = self.norm_1(x)
@@ -321,6 +332,7 @@ class FusedNormAttentionNorm(nn.Module):
             needs_weights=output_attentions,
             alibi_slopes=alibi_slopes,
             flash_attn_padding_info=flash_attn_padding_info,
+            prev_layer_key_value=prev_layer_key_value,
         )
         x = x + self.resid_attn_dropout(b)
         m = x

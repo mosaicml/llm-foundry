@@ -8,6 +8,7 @@ Inspired by https://github.com/karpathy/minGPT/blob/master/mingpt/model.py
 
 from __future__ import annotations
 
+import copy
 import math
 import warnings
 from functools import cached_property
@@ -440,13 +441,82 @@ class MPTModel(MPTPreTrainedModel):
             nn.ModuleList: The list of Transformer blocks.
         """
         block_args = self.extract_block_args(config.to_dict())
+        module_list = []
+        self.kv_cache_layers = set()
 
-        return nn.ModuleList([
-            self.block_class(
-                device=config.init_device,
-                **block_args,
-            ) for _ in range(config.n_layers)
-        ])
+        attn_modules_order_expanded = []
+        for (name,
+             repetitions) in config.attn_config['attention_modules']['order']:
+            if name == 'order':
+                raise ValueError('The name of module cannot be "order".')
+            if not isinstance(repetitions, int) or repetitions < 1:
+                raise ValueError('repetitions should be a positive integer.')
+            attn_modules_order_expanded.extend([name] * repetitions)
+        if config.n_layers % len(attn_modules_order_expanded) != 0:
+            raise ValueError(
+                'Number of layers should be divisible by attention modules order.',
+            )
+        attn_modules_order_expanded = attn_modules_order_expanded * (
+            config.n_layers // len(attn_modules_order_expanded)
+        )
+
+        for i in range(config.n_layers):
+            module_name = attn_modules_order_expanded[i]
+
+            override_config = {}
+            if module_name != 'default':
+                override_config = copy.deepcopy(
+                    config.attn_config['attention_modules'][module_name],
+                )
+                if 'reuse_kv_layer_idx' in override_config:
+                    assert override_config['reuse_kv_layer_idx'] < 0
+                    reuse_kv_layer_idx = i + override_config['reuse_kv_layer_idx']
+                    assert reuse_kv_layer_idx >= 0
+                    override_config['reuse_kv_layer_idx'] = reuse_kv_layer_idx
+                    self.kv_cache_layers.add(reuse_kv_layer_idx)
+
+            orig_config, new_keys = self.update_block_args(
+                block_args,
+                override_config,
+            )
+            module_list.append(
+                MPTBlock(
+                    device=config.init_device,
+                    **block_args,
+                ),
+            )
+            self.reset_block_args(
+                block_args,
+                orig_config,
+                new_keys,
+            )
+        return nn.ModuleList(module_list)
+
+    def update_block_args(
+        self,
+        block_args: Dict[str, Any],
+        override_config: Dict[str, Any],
+    ) -> Tuple[Dict[str, Any], List[str]]:
+        orig_config = {}
+        new_keys = []
+        for k, v in override_config.items():
+            if k in block_args['attn_config']:
+                orig_config[k] = block_args['attn_config'][k]
+            else:
+                new_keys.append(k)
+            block_args['attn_config'][k] = v
+        return orig_config, new_keys
+
+    def reset_block_args(
+        self,
+        block_args: Dict[str, Any],
+        orig_config: Dict[str, Any],
+        new_keys: List[str],
+    ) -> None:
+        for k in new_keys:
+            del block_args['attn_config'][k]
+        for k, v in orig_config.items():
+            block_args['attn_config'][k] = v
 
     def extract_block_args(self, block_args: Dict[str, Any]) -> Dict[str, Any]:
         """Sets the block args."""
@@ -706,7 +776,7 @@ class MPTModel(MPTPreTrainedModel):
 
         # initialize the past key values cache if it should be used
         presents = () if use_cache else None
-        if use_cache and past_key_values is None:
+        if past_key_values is None:
             past_key_values = [() for _ in range(self.config.n_layers)
                               ]  # type: ignore
 
@@ -723,7 +793,12 @@ class MPTModel(MPTPreTrainedModel):
                 attention_mask,
             )
 
+        layer_kv_cache_dict = {}
         for b_idx, block in enumerate(self.blocks):
+            if block.reuse_kv_layer_idx is not None:
+                if block.reuse_kv_layer_idx not in layer_kv_cache_dict:
+                    raise KeyError(f'kv cache for layer {block.reuse_kv_layer_idx} not found in {layer_kv_cache_dict=}.')
+                prev_layer_key_value = layer_kv_cache_dict[block.reuse_kv_layer_idx]
             if output_hidden_states:
                 assert all_hidden_states is not None  # pyright
                 all_hidden_states = all_hidden_states + (x,)
@@ -740,9 +815,21 @@ class MPTModel(MPTPreTrainedModel):
                 output_attentions=bool(output_attentions),
                 alibi_slopes=alibi_slopes,
                 flash_attn_padding_info=flash_attn_padding_info,
+                prev_layer_key_value=prev_layer_key_value,
             )
             if presents is not None:
                 presents += (present,)
+            if b_idx in self.kv_cache_layers:
+                if self.attn_impl != 'torch':
+                    layer_kv_cache_dict[b_idx] = [
+                        present[0][:, past_position:],
+                        present[1][:, past_position:],
+                    ]
+                else:
+                    layer_kv_cache_dict[b_idx] = [
+                        present[0][:, :, :, past_position:],
+                        present[1][:, :, :, past_position:],
+                    ]
 
             if output_attentions:
                 assert all_self_attns is not None  # pyright

@@ -118,6 +118,23 @@ class MPTConfig(PretrainedConfig):
                 also be a dictionary that specifies the fc layer name and any kwargs for the fc layer.
             tie_word_embeddings (bool): Whether to tie the input embedding and output layers.
             use_pad_tok_in_ffn (bool): Whether to forward the pad token in the feedforward networks.
+            block_overrides: The allows for overriding default block configs for certain layers. This should contain two sub configs: order and overrides. order specifies the order of different kinds of layers (default refers to a layer that does not apply any overrides). For each kind of layer, specify the overrides in the overrides config.
+                Eg:
+                    block_overrides:
+                        order:
+                            - - default
+                            - 1
+                            - - reuse_kv_layer
+                            - 1
+                            - - sliding_window_layer
+                            - 1
+                        overrides:
+                            sliding_window_layer:
+                            attn_config:
+                                sliding_window_size: 128
+                            reuse_kv_layer:
+                            attn_config:
+                                reuse_kv_layer_idx: -2
         """
         self.d_model = d_model
         self.n_heads = n_heads
@@ -145,7 +162,9 @@ class MPTConfig(PretrainedConfig):
         self.init_config = init_config if init_config is not None else copy.deepcopy(
             init_config_defaults,
         )
-        self.block_overrides = block_overrides if block_overrides is not None else {'order': [['default', 1], ], }
+        self.block_overrides = block_overrides if block_overrides is not None else {
+            'order': [['default', 1],],
+        }
 
         if isinstance(fc_type, str):
             fc_type = {'name': fc_type}

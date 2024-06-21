@@ -445,8 +445,7 @@ class MPTModel(MPTPreTrainedModel):
         self.kv_cache_layers = set()
 
         attn_modules_order_expanded = []
-        for (name,
-             repetitions) in config['block_overrides']['order']:
+        for (name, repetitions) in config['block_overrides']['order']:
             if not isinstance(repetitions, int) or repetitions < 1:
                 raise ValueError('repetitions should be a positive integer.')
             attn_modules_order_expanded.extend([name] * repetitions)
@@ -469,12 +468,17 @@ class MPTModel(MPTPreTrainedModel):
                 override_attn_config = override_config.get('attn_config', None)
                 if override_attn_config is not None and 'reuse_kv_layer_idx' in override_attn_config:
                     if override_attn_config['reuse_kv_layer_idx'] >= 0:
-                        raise ValueError(f'The relative index of kv layer to reuse, {override_attn_config["reuse_kv_layer_idx"]=}, should be negative.')
+                        raise ValueError(
+                            f'The relative index of kv layer to reuse, {override_attn_config["reuse_kv_layer_idx"]=}, should be negative.',
+                        )
                     reuse_kv_layer_idx = i + override_attn_config[
                         'reuse_kv_layer_idx']
                     if reuse_kv_layer_idx < 0:
-                        raise ValueError(f'The absolute index of kv layer to reuse, {reuse_kv_layer_idx} should be non-negative.')
-                    override_attn_config['reuse_kv_layer_idx'] = reuse_kv_layer_idx
+                        raise ValueError(
+                            f'The absolute index of kv layer to reuse, {reuse_kv_layer_idx} should be non-negative.',
+                        )
+                    override_attn_config['reuse_kv_layer_idx'
+                                        ] = reuse_kv_layer_idx
                     self.kv_cache_layers.add(reuse_kv_layer_idx)
 
             new_block_args = self.override_block_args(
@@ -498,12 +502,14 @@ class MPTModel(MPTPreTrainedModel):
         common_keys = override_config.keys() & block_args.keys()
         for k in common_keys:
             if type(override_config[k]) != type(block_args[k]):
-                raise ValueError(f'Override config should have same value types as the original config. Found override_config[{k}]={override_config[k]} vs block_args[{k}]={block_args[k]}.')
+                raise ValueError(
+                    f'Override config should have same value types as the original config. Found override_config[{k}]={override_config[k]} vs block_args[{k}]={block_args[k]}.',
+                )
             if isinstance(override_config[k], dict):
                 new_block_args = self.override_block_args(
-                block_args[k],
-                override_config[k],
-            )
+                    block_args[k],
+                    override_config[k],
+                )
             else:
                 new_block_args = override_config[k]
         return new_block_args
@@ -786,7 +792,10 @@ class MPTModel(MPTPreTrainedModel):
         layer_kv_cache_dict = {}
         prev_layer_key_value = None
         for b_idx, block in enumerate(self.blocks):
-            attn_block = block.attn if hasattr(block, 'attn') else block.norm_attn_norm.attn
+            attn_block = block.attn if hasattr(
+                block,
+                'attn',
+            ) else block.norm_attn_norm.attn
             if attn_block.reuse_kv_layer_idx is not None:
                 if block.reuse_kv_layer_idx not in layer_kv_cache_dict:
                     raise KeyError(

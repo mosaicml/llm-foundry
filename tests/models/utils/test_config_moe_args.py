@@ -1,15 +1,24 @@
+# Copyright 2024 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 from typing import Any
 
 import pytest
-
 from torch import distributed
 
-from llmfoundry.models.utils.config_moe_args import config_megablocks_moe_args, get_megablocks_device_mesh
+from llmfoundry.models.utils.config_moe_args import (
+    config_megablocks_moe_args,
+    get_megablocks_device_mesh,
+)
+
 
 @pytest.mark.gpu
+@pytest.mark.world_size(2)
 def test_config_megablocks_moe_args_pg():
     ffn_config_base: dict[str, Any] = {
         'moe_world_size': 1,
+        'ffn_type': 'mb_moe',
+        'fc_type': 'torch',
     }
 
     ffn_config_str = ffn_config_base.copy()

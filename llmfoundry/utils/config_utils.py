@@ -184,7 +184,7 @@ class TrainConfig:
 
     # Fields created by `update_batch_size_info`
     n_gpus: int = MISSING
-    device_train_grad_accum: str = MISSING
+    device_train_grad_accum: Union[str, int] = MISSING
 
 
 TRAIN_CONFIG_KEYS = {field.name for field in fields(TrainConfig)}

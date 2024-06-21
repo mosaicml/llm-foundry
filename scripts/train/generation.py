@@ -578,16 +578,19 @@ def main(cfg: DictConfig) -> Trainer:
         # generate_context = FSDP.summon_full_params(model.model,
         #                                        writeback=False,
         #                                        recurse=False)
-        with autocast(dtype=torch.bfloat16):
-            #with generate_context:
-            outputs = model.model.generate(
-                input_ids=inputs['input_ids'].to('cuda'),
-                attention_mask=attention_mask.to('cuda'),
-                synced_gpus=True,
-                use_cache=True,
-                # eos_token_id=model.tokenizer.eos_token_id,
-                max_new_tokens=cfg_max_new_tokens,
-            )
+        from torch.profiler import profile, record_function, ProfilerActivity
+        with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]) as prof:
+            with autocast(dtype=torch.bfloat16):
+                #with generate_context:
+                outputs = model.model.generate(
+                    input_ids=inputs['input_ids'].to('cuda'),
+                    attention_mask=attention_mask.to('cuda'),
+                    synced_gpus=True,
+                    use_cache=True,
+                    # eos_token_id=model.tokenizer.eos_token_id,
+                    max_new_tokens=cfg_max_new_tokens,
+                )
+        prof.export_chrome_trace(f"trace-iter-{i}.json")
         
         end_time = time.time()
         gen_len = cfg_max_new_tokens*device_batch_size

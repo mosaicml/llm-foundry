@@ -551,7 +551,8 @@ def main(cfg: DictConfig) -> Trainer:
     total_prompt_tokens = 0
     total_time = 0
 
-    model.eval()
+    # TODO: put this back
+    #model.eval()
 
     model.tokenizer.padding_side = 'left'
     if model.tokenizer.pad_token_id is None:

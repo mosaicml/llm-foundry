@@ -446,9 +446,7 @@ class MPTModel(MPTPreTrainedModel):
 
         attn_modules_order_expanded = []
         for (name,
-             repetitions) in config.attn_config['attention_modules']['order']:
-            if name == 'order':
-                raise ValueError('The name of module cannot be "order".')
+             repetitions) in config['block_overrides']['order']:
             if not isinstance(repetitions, int) or repetitions < 1:
                 raise ValueError('repetitions should be a positive integer.')
             attn_modules_order_expanded.extend([name] * repetitions)
@@ -466,58 +464,49 @@ class MPTModel(MPTPreTrainedModel):
             override_config = {}
             if module_name != 'default':
                 override_config = copy.deepcopy(
-                    config.attn_config['attention_modules'][module_name],
+                    config['block_overrides']['overrides'][module_name],
                 )
-                if 'reuse_kv_layer_idx' in override_config:
-                    assert override_config['reuse_kv_layer_idx'] < 0
-                    reuse_kv_layer_idx = i + override_config[
+                override_attn_config = override_config.get('attn_config', None)
+                if override_attn_config is not None and 'reuse_kv_layer_idx' in override_attn_config:
+                    if override_attn_config['reuse_kv_layer_idx'] >= 0:
+                        raise ValueError(f'The relative index of kv layer to reuse, {override_attn_config["reuse_kv_layer_idx"]=}, should be negative.')
+                    reuse_kv_layer_idx = i + override_attn_config[
                         'reuse_kv_layer_idx']
-                    assert reuse_kv_layer_idx >= 0
-                    override_config['reuse_kv_layer_idx'] = reuse_kv_layer_idx
+                    if reuse_kv_layer_idx < 0:
+                        raise ValueError(f'The absolute index of kv layer to reuse, {reuse_kv_layer_idx} should be non-negative.')
+                    override_attn_config['reuse_kv_layer_idx'] = reuse_kv_layer_idx
                     self.kv_cache_layers.add(reuse_kv_layer_idx)
 
-            orig_config, new_keys = self.update_block_args(
+            new_block_args = self.override_block_args(
                 block_args,
                 override_config,
             )
             module_list.append(
                 MPTBlock(
                     device=config.init_device,
-                    **block_args,
+                    **new_block_args,
                 ),
-            )
-            self.reset_block_args(
-                block_args,
-                orig_config,
-                new_keys,
             )
         return nn.ModuleList(module_list)
 
-    def update_block_args(
+    def override_block_args(
         self,
         block_args: Dict[str, Any],
         override_config: Dict[str, Any],
-    ) -> Tuple[Dict[str, Any], List[str]]:
-        orig_config = {}
-        new_keys = []
-        for k, v in override_config.items():
-            if k in block_args['attn_config']:
-                orig_config[k] = block_args['attn_config'][k]
+    ) -> Dict[str, Any]:
+        new_block_args = override_config | block_args
+        common_keys = override_config.keys() & block_args.keys()
+        for k in common_keys:
+            if type(override_config[k]) != type(block_args[k]):
+                raise ValueError(f'Override config should have same value types as the original config. Found override_config[{k}]={override_config[k]} vs block_args[{k}]={block_args[k]}.')
+            if isinstance(override_config[k], dict):
+                new_block_args = self.override_block_args(
+                block_args[k],
+                override_config[k],
+            )
             else:
-                new_keys.append(k)
-            block_args['attn_config'][k] = v
-        return orig_config, new_keys
-
-    def reset_block_args(
-        self,
-        block_args: Dict[str, Any],
-        orig_config: Dict[str, Any],
-        new_keys: List[str],
-    ) -> None:
-        for k in new_keys:
-            del block_args['attn_config'][k]
-        for k, v in orig_config.items():
-            block_args['attn_config'][k] = v
+                new_block_args = override_config[k]
+        return new_block_args
 
     def extract_block_args(self, block_args: Dict[str, Any]) -> Dict[str, Any]:
         """Sets the block args."""
@@ -797,7 +786,8 @@ class MPTModel(MPTPreTrainedModel):
         layer_kv_cache_dict = {}
         prev_layer_key_value = None
         for b_idx, block in enumerate(self.blocks):
-            if block.reuse_kv_layer_idx is not None:
+            attn_block = block.attn if hasattr(block, 'attn') else block.norm_attn_norm.attn
+            if attn_block.reuse_kv_layer_idx is not None:
                 if block.reuse_kv_layer_idx not in layer_kv_cache_dict:
                     raise KeyError(
                         f'kv cache for layer {block.reuse_kv_layer_idx} not found in {layer_kv_cache_dict=}.',

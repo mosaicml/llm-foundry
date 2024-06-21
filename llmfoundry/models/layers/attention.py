@@ -416,7 +416,7 @@ class GroupedQueryAttention(nn.Module):
         device: Optional[str] = None,
         bias: bool = True,
         sliding_window_size: int = -1,
-        reuse_prev_layer_kv: bool = False,
+        reuse_kv_layer_idx: Optional[int] = None,
     ):
         super().__init__()
 
@@ -429,7 +429,7 @@ class GroupedQueryAttention(nn.Module):
         self.n_heads = n_heads
         self.kv_n_heads = kv_n_heads
         self.sliding_window_size = sliding_window_size
-        self.reuse_prev_layer_kv = reuse_prev_layer_kv
+        self.reuse_kv_layer_idx = reuse_kv_layer_idx
 
         self.head_dim = d_model // n_heads
 
@@ -587,7 +587,7 @@ class GroupedQueryAttention(nn.Module):
             query = self.q_ln(query).to(dtype).view(q_shape)
             key = self.k_ln(key).to(dtype).view(k_shape)
 
-        if self.reuse_prev_layer_kv:
+        if self.reuse_kv_layer_idx != None:
             # TODO: We still compute key and values in the code above, even if we end up reusing previous layer's kv cache. We should avoid this wasteful computation.
             if prev_layer_key_value is None:
                 raise ValueError(

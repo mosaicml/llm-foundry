@@ -48,10 +48,6 @@ class MPTBlock(nn.Module):
         use_pad_tok_in_ffn: bool = True,
         **kwargs: Any,
     ):
-        self.reuse_kv_layer_idx = None if attn_config is None else attn_config.get(
-            'reuse_kv_layer_idx',
-            None,
-        )
         if attn_config is None:
             attn_config = attn_config_defaults
 
@@ -149,8 +145,6 @@ class MPTBlock(nn.Module):
             'rope_impl',
             'rope_dail_config',
             'rope_hf_config',
-            'attention_modules',
-            'reuse_kv_layer_idx',
         }
 
     def forward(

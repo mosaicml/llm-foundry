@@ -48,6 +48,7 @@ class MPTConfig(PretrainedConfig):
         fc_type: Union[str, Dict] = 'torch',
         tie_word_embeddings: bool = True,
         use_pad_tok_in_ffn: bool = True,
+        block_overrides: Optional[Dict[str, Any]] = None,
         **kwargs: Any,
     ):
         """The MPT configuration class.
@@ -144,6 +145,7 @@ class MPTConfig(PretrainedConfig):
         self.init_config = init_config if init_config is not None else copy.deepcopy(
             init_config_defaults,
         )
+        self.block_overrides = block_overrides if block_overrides is not None else {'order': [['default', 1], ], }
 
         if isinstance(fc_type, str):
             fc_type = {'name': fc_type}

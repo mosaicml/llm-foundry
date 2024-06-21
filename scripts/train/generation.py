@@ -578,7 +578,7 @@ def main(cfg: DictConfig) -> Trainer:
         # generate_context = FSDP.summon_full_params(model.model,
         #                                        writeback=False,
         #                                        recurse=False)
-        if i == 0:
+        if i == 0 and dist.get_global_rank() == 0:
             from torch.profiler import profile, record_function, ProfilerActivity
             with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]) as prof:
                 with autocast(dtype=torch.bfloat16):

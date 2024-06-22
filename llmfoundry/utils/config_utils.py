@@ -272,19 +272,10 @@ def apply_transforms_to_config(
                     f'Invalid transform: {transform}. Must be a string or callable.',
                 )
     elif isinstance(transforms, str) and transforms == 'all':
-        print("+"*30)
-        print(config_transforms.get_all())
-        print(config_transforms.get_entry_points())
-        print("+"*30)
         transform_functions = [
             config_transforms.get(transform)
             for transform in config_transforms.get_all()
         ]
-        import inspect
-        print("+"*30)
-        for t in transform_functions:
-            print(inspect.getsource(t))
-        print("+"*30)
     else:
         raise ValueError(
             f'Invalid transforms: {transforms}. Must be a list of strings or callables, or ``all``.',

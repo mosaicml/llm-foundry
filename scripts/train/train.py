@@ -197,7 +197,7 @@ def main(cfg: DictConfig) -> Trainer:
         cfg,
         TrainConfig,
         TRAIN_CONFIG_KEYS,
-        transforms=[update_batch_size_info],
+        transforms='all',
     )
 
     # Set logging level

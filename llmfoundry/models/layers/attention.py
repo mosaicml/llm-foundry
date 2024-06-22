@@ -631,7 +631,7 @@ class GroupedQueryAttention(nn.Module):
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         if self.reuse_kv_layer_idx is not None:
             orig_key, orig_value = key, value
-            key, value = torch.zeros_like(key), torch.zeros_like(value)
+            key, value = torch.empty_like(key), torch.empty_like(value)
 
         rotary_emb = rotary_emb_w_meta_info['rotary_emb']
         seq_len = rotary_emb_w_meta_info['seq_len']
@@ -696,7 +696,7 @@ class GroupedQueryAttention(nn.Module):
         query = query.view(bsz, seqlen, -1)
         key = key.view(bsz, seqlen, -1)
         if self.reuse_kv_layer_idx is not None:
-            return query, orig_key, orig_value
+            return query, orig_key, orig_value  # type: ignore
         return query, key, value
 
     def get_implementation_specific_args(

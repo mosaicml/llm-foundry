@@ -441,6 +441,7 @@ class MPTModel(MPTPreTrainedModel):
             nn.ModuleList: The list of Transformer blocks.
         """
         block_args = self.extract_block_args(config.to_dict())
+        self.kv_cache_layers = None
 
         if config.block_overrides is not None:
             return self._construct_blocks_with_overrides(config, block_args)
@@ -457,6 +458,10 @@ class MPTModel(MPTPreTrainedModel):
         config: MPTConfig,
         block_args: Dict[str, Any],
     ) -> nn.ModuleList:
+        if config.block_overrides is None:
+            raise ValueError(
+                'config.block_overrides should not be None when calling _construct_blocks_with_overrides.',
+            )
         modules_order_expanded = {}
         for type in 'start', 'repeating_pattern', 'end':
             modules_order_expanded[type] = []
@@ -512,7 +517,7 @@ class MPTModel(MPTPreTrainedModel):
                                         ] = reuse_kv_layer_idx
                     self.kv_cache_layers.add(reuse_kv_layer_idx)
 
-            new_block_args = self.override_block_args(
+            new_block_args = self._override_block_args(
                 block_args,
                 override_config,
             )
@@ -525,7 +530,7 @@ class MPTModel(MPTPreTrainedModel):
 
         return nn.ModuleList(module_list)
 
-    def override_block_args(
+    def _override_block_args(
         self,
         block_args: Dict[str, Any],
         override_config: Dict[str, Any],
@@ -538,7 +543,7 @@ class MPTModel(MPTPreTrainedModel):
                     f'Override config should have same value types as the original config. Found override_config[{k}]={override_config[k]} vs block_args[{k}]={block_args[k]}.',
                 )
             if isinstance(override_config[k], dict):
-                new_block_args[k] = self.override_block_args(
+                new_block_args[k] = self._override_block_args(
                     block_args[k],
                     override_config[k],
                 )
@@ -856,7 +861,7 @@ class MPTModel(MPTPreTrainedModel):
             )
             if presents is not None:
                 presents += (present,)
-            if b_idx in self.kv_cache_layers:
+            if self.kv_cache_layers is not None and b_idx in self.kv_cache_layers:
                 if self.attn_impl != 'torch':
                     layer_kv_cache_dict[b_idx] = [
                         present[0][:, past_position:],

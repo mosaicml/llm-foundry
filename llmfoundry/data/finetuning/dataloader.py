@@ -170,7 +170,6 @@ def build_finetuning_dataloader(
         'timeout': timeout,
     }
 
-    print("+"*30)
     replication_factor, dataset_batch_size = construct_from_registry(
         name='dataset_replication_validator',
         registry=registry.dataset_replication_validators,

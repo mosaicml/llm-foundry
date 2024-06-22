@@ -50,7 +50,6 @@ from llmfoundry.utils.config_utils import (
     make_dataclass_and_log_config,
     pop_config,
     process_init_device,
-    update_batch_size_info,
 )
 from llmfoundry.utils.exceptions import (
     BaseContextualError,

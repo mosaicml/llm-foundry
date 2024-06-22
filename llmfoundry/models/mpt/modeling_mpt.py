@@ -467,8 +467,9 @@ class MPTModel(MPTPreTrainedModel):
             )
         model_modules_order_expanded = modules_order_expanded[
             'start'] + modules_order_expanded['repeating_pattern'] * (
-                config.n_layers - (start_len + end_len)
-            ) // repeating_pattern_len + modules_order_expanded['end']
+                (config.n_layers -
+                 (start_len + end_len)) // repeating_pattern_len
+            ) + modules_order_expanded['end']
 
         self.kv_cache_layers = set()
         module_list = []

@@ -442,6 +442,21 @@ class MPTModel(MPTPreTrainedModel):
         """
         block_args = self.extract_block_args(config.to_dict())
 
+        if config.block_overrides is not None:
+            return self._construct_blocks_with_overrides(config, block_args)
+
+        return nn.ModuleList([
+            self.block_class(
+                device=config.init_device,
+                **block_args,
+            ) for _ in range(config.n_layers)
+        ])
+
+    def _construct_blocks_with_overrides(
+        self,
+        config: MPTConfig,
+        block_args: Dict[str, Any],
+    ) -> nn.ModuleList:
         modules_order_expanded = {}
         for type in 'start', 'repeating_pattern', 'end':
             modules_order_expanded[type] = []
@@ -507,6 +522,7 @@ class MPTModel(MPTPreTrainedModel):
                     **new_block_args,
                 ),
             )
+
         return nn.ModuleList(module_list)
 
     def override_block_args(

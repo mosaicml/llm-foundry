@@ -595,7 +595,7 @@ class GroupedQueryAttention(nn.Module):
                 raise ValueError(
                     'prev_layer_key_value is None, cannot reuse_prev_layer_kv.',
                 )
-            key, value = prev_layer_key_value  # TODO: We should not even compute key, value for this layer if we are just reusing prev layer's. Also, W_qkv should just be W_q for this case.
+            key, value = prev_layer_key_value
 
         return query, key, value
 

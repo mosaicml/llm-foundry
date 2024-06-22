@@ -176,12 +176,12 @@ class MPTConfig(PretrainedConfig):
         self.init_config = init_config if init_config is not None else copy.deepcopy(
             init_config_defaults,
         )
-        self.block_overrides = block_overrides if block_overrides is not None else {
-            'repeating_pattern': [{
-                'name': 'default',
-                'repeat': 1,
-            }],
-        }  # TODO: Raise warning if using block overrides that this is experimental, and the yaml design may change in the future.
+
+        if block_overrides is not None:
+            warnings.warn(
+                'Warning, this is an experimental feature. The YAML design may change in the future.',
+            )
+        self.block_overrides = block_overrides
 
         if isinstance(fc_type, str):
             fc_type = {'name': fc_type}

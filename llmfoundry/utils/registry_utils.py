@@ -137,7 +137,13 @@ def construct_from_registry(
     if kwargs is None:
         kwargs = {}
 
+    print(name)
     registered_constructor = registry.get(name)
+    import inspect
+    print(inspect.getsource(registered_constructor))
+    print(registry.get_all())
+    print(registry.get_entrypoints())
+    print("+"*30)
 
     if pre_validation_function is not None:
         if isinstance(pre_validation_function, type):

@@ -445,8 +445,8 @@ class MPTModel(MPTPreTrainedModel):
         modules_order_expanded = {}
         for type in 'start', 'repeating_pattern', 'end':
             modules_order_expanded[type] = []
-            if type in config['block_overrides']:
-                for block in config['block_overrides'][type]:
+            if type in config.block_overrides:
+                for block in config.block_overrides[type]:
                     if not isinstance(block['repeat'],
                                       int) or block['repeat'] < 1:
                         raise ValueError(
@@ -478,7 +478,7 @@ class MPTModel(MPTPreTrainedModel):
             override_config = {}
             if module_name != 'default':
                 override_config = copy.deepcopy(
-                    config['block_overrides']['overrides'][module_name],
+                    config.block_overrides['overrides'][module_name],
                 )
                 override_attn_config = override_config.get('attn_config', None)
                 if override_attn_config is not None and 'reuse_kv_layer_idx' in override_attn_config:

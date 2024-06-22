@@ -528,14 +528,12 @@ class GroupedQueryAttention(nn.Module):
         query, key, value = self.get_qkv(x, prev_layer_key_value)
 
         if rotary_emb_w_meta_info is not None:
-            query, key_rotated, value_rotated = self._apply_rotary_embeddings(
+            query, key, value = self._apply_rotary_embeddings(
                 rotary_emb_w_meta_info,
                 query,
                 key,
                 value,
             )
-            if self.reuse_kv_layer_idx is None:  # TODO: We should not rotate if using prev layer kv, that wastes computation
-                key, value = key_rotated, value_rotated
 
         extra_attn_kwargs = self.get_implementation_specific_args(
             attention_mask,
@@ -631,6 +629,10 @@ class GroupedQueryAttention(nn.Module):
         key: torch.Tensor,
         value: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        if self.reuse_kv_layer_idx is not None:
+            orig_key, orig_value = key, value
+            key, value = torch.zeros_like(key), torch.zeros_like(value)
+
         rotary_emb = rotary_emb_w_meta_info['rotary_emb']
         seq_len = rotary_emb_w_meta_info['seq_len']
         offset_info = rotary_emb_w_meta_info['offset_info']
@@ -642,6 +644,7 @@ class GroupedQueryAttention(nn.Module):
             value = value.view(bsz, seqlen, -1, self.head_dim)
 
             kv = torch.stack([key, value], dim=2)
+            # Note: Rotates in place (https://github.com/Dao-AILab/flash-attention/blob/320fb59487658f033f56711efd3d61b7c7a6f8f3/flash_attn/layers/rotary.py#L429)
             query, kv = rotary_emb(
                 query,
                 kv,
@@ -692,6 +695,8 @@ class GroupedQueryAttention(nn.Module):
 
         query = query.view(bsz, seqlen, -1)
         key = key.view(bsz, seqlen, -1)
+        if self.reuse_kv_layer_idx is not None:
+            return query, orig_key, orig_value
         return query, key, value
 
     def get_implementation_specific_args(

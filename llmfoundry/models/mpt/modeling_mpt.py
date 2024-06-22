@@ -1356,7 +1356,11 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         # that the dataset has been constructed without padding. Additionally, we
         # assume the backward pass is approximately 2x the forward pass
 
-        # TODO: Raise warning and set to 0 if using mixed attention modules.
+        if self.model.config.block_overrides is not None:
+            warnings.warn(
+                'Warning, flop computation is not supported when using block overrides. Returning 0 flops per batch.',
+            )
+            return 0
 
         bs, msl = batch['input_ids'].shape[0:2]
         params = self.n_active_params

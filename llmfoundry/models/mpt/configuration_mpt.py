@@ -179,7 +179,7 @@ class MPTConfig(PretrainedConfig):
 
         if block_overrides is not None:
             warnings.warn(
-                'Warning, this is an experimental feature. The YAML design may change in the future.',
+                'Warning, block_overrides is an experimental feature. The YAML design may change in the future.',
             )
         self.block_overrides = block_overrides
 

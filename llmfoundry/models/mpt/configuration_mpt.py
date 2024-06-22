@@ -119,22 +119,36 @@ class MPTConfig(PretrainedConfig):
             tie_word_embeddings (bool): Whether to tie the input embedding and output layers.
             use_pad_tok_in_ffn (bool): Whether to forward the pad token in the feedforward networks.
             block_overrides: The allows for overriding default block configs for certain layers. This should contain two sub configs: order and overrides. order specifies the order of different kinds of layers (default refers to a layer that does not apply any overrides). For each kind of layer, specify the overrides in the overrides config.
-                Eg:
+                To specify this model (https://research.character.ai/optimizing-inference/) , the following config will be needed:
                     block_overrides:
-                        order:
-                            - - default
-                            - 1
-                            - - reuse_kv_layer
-                            - 1
-                            - - sliding_window_layer
-                            - 1
+                        prefix:
+                            - name: default
+                              repeat: 1
+                        pattern:
+                            - name: sliding_window_layer
+                              repeat: 1
+                            - name: sliding_window_layer_reuse
+                              repeat: 1
+                            - name: sliding_window_layer
+                              repeat: 1
+                            - name: sliding_window_layer_reuse
+                              repeat: 2
+                            - name: reuse_kv_layer
+                              repeat: 1
+                        suffix:
+                            - name: default
+                              repeat: 0
                         overrides:
                             sliding_window_layer:
                                 attn_config:
-                                    sliding_window_size: 128
+                                    sliding_window_size: 1024
+                            sliding_window_layer_reuse:
+                                attn_config:
+                                    sliding_window_size: 1024
+                                    reuse_kv_layer_idx: -1
                             reuse_kv_layer:
                                 attn_config:
-                                    reuse_kv_layer_idx: -2
+                                    reuse_kv_layer_idx: -6
         """
         self.d_model = d_model
         self.n_heads = n_heads
@@ -163,8 +177,11 @@ class MPTConfig(PretrainedConfig):
             init_config_defaults,
         )
         self.block_overrides = block_overrides if block_overrides is not None else {
-            'order': [['default', 1],],
-        }
+            'repeating_pattern': [{
+                'name': 'default',
+                'repeat': 1,
+            }],
+        }  # TODO: Raise warning if using block overrides that this is experimental, and the yaml design may change in the future.
 
         if isinstance(fc_type, str):
             fc_type = {'name': fc_type}

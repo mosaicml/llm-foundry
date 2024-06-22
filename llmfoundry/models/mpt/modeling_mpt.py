@@ -444,18 +444,33 @@ class MPTModel(MPTPreTrainedModel):
         module_list = []
         self.kv_cache_layers = set()
 
-        attn_modules_order_expanded = []
-        for (name, repetitions) in config['block_overrides']['order']:
-            if not isinstance(repetitions, int) or repetitions < 1:
-                raise ValueError('repetitions should be a positive integer.')
-            attn_modules_order_expanded.extend([name] * repetitions)
-        if config.n_layers % len(attn_modules_order_expanded) != 0:
+        modules_order_expanded = {}
+        for type in 'start', 'repeating_pattern', 'end':
+            modules_order_expanded[type] = []
+            for block in config['block_overrides'][type]:
+                if not isinstance(block['repetitions'],
+                                  int) or block['repetitions'] < 1:
+                    raise ValueError(
+                        'repetitions should be a positive integer.',
+                    )
+                modules_order_expanded[type].extend([block['name']] *
+                                                    block['repetitions'])
+
+        start_len = len(modules_order_expanded['start'])
+        repeating_pattern_len = len(modules_order_expanded['repeating_pattern'])
+        end_len = len(modules_order_expanded['end'])
+
+        if (
+            config.n_layers - (start_len + end_len)
+        ) % repeating_pattern_len != 0:
             raise ValueError(
-                'Number of layers should be divisible by attention modules order.',
+                'Number of layers should be divisible by the specified custom modules order.',
             )
-        attn_modules_order_expanded = attn_modules_order_expanded * (
-            config.n_layers // len(attn_modules_order_expanded)
-        )
+        attn_modules_order_expanded = modules_order_expanded[
+            'start'] + modules_order_expanded['repeating_pattern'] * (
+                (config.n_layers -
+                 (start_len + end_len)) // repeating_pattern_len
+            ) + modules_order_expanded['end']
 
         for i in range(config.n_layers):
             module_name = attn_modules_order_expanded[i]
@@ -1322,6 +1337,8 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         # Note: this computation does not take into account padding, and assumes
         # that the dataset has been constructed without padding. Additionally, we
         # assume the backward pass is approximately 2x the forward pass
+
+        # TODO: Raise warning and set to 0 if using mixed attention modules.
 
         bs, msl = batch['input_ids'].shape[0:2]
         params = self.n_active_params

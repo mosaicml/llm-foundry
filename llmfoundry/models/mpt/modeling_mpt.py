@@ -448,9 +448,9 @@ class MPTModel(MPTPreTrainedModel):
             if type in config.block_overrides:
                 for block in config.block_overrides[type]:
                     if not isinstance(block['repeat'],
-                                      int) or block['repeat'] < 1:
+                                      int) or block['repeat'] < 0:
                         raise ValueError(
-                            'repeat should be a positive integer.',
+                            'repeat should be a non-negative integer.',
                         )
                     modules_order_expanded[type].extend([block['name']] *
                                                         block['repeat'])
@@ -812,12 +812,12 @@ class MPTModel(MPTPreTrainedModel):
                 'attn',
             ) else block.norm_attn_norm.attn
             if attn_block.reuse_kv_layer_idx is not None:
-                if block.reuse_kv_layer_idx not in layer_kv_cache_dict:
+                if attn_block.reuse_kv_layer_idx not in layer_kv_cache_dict:
                     raise KeyError(
                         f'kv cache for layer {block.reuse_kv_layer_idx} not found in {layer_kv_cache_dict=}.',
                     )
                 prev_layer_key_value = layer_kv_cache_dict[
-                    block.reuse_kv_layer_idx]
+                    attn_block.reuse_kv_layer_idx]
             else:
                 prev_layer_key_value = None
             if output_hidden_states:

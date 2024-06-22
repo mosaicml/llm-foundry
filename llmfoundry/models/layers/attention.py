@@ -516,12 +516,14 @@ class GroupedQueryAttention(nn.Module):
         query, key, value = self.get_qkv(x, prev_layer_key_value)
 
         if rotary_emb_w_meta_info is not None:
-            query, key, value = self._apply_rotary_embeddings(
+            query, key_rotated, value_rotated = self._apply_rotary_embeddings(
                 rotary_emb_w_meta_info,
                 query,
                 key,
                 value,
             )
+            if self.reuse_kv_layer_idx is None:  # TODO: We should not rotate if using prev layer kv, that wastes computation
+                key, value = key_rotated, value_rotated
 
         extra_attn_kwargs = self.get_implementation_specific_args(
             attention_mask,
@@ -587,7 +589,7 @@ class GroupedQueryAttention(nn.Module):
             query = self.q_ln(query).to(dtype).view(q_shape)
             key = self.k_ln(key).to(dtype).view(k_shape)
 
-        if self.reuse_kv_layer_idx != None:
+        if self.reuse_kv_layer_idx is not None:
             # TODO: We still compute key and values in the code above, even if we end up reusing previous layer's kv cache. We should avoid this wasteful computation.
             if prev_layer_key_value is None:
                 raise ValueError(

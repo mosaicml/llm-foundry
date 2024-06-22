@@ -121,10 +121,10 @@ class MPTConfig(PretrainedConfig):
             block_overrides: The allows for overriding default block configs for certain layers. This should contain two sub configs: order and overrides. order specifies the order of different kinds of layers (default refers to a layer that does not apply any overrides). For each kind of layer, specify the overrides in the overrides config.
                 To specify this model (https://research.character.ai/optimizing-inference/) , the following config will be needed:
                     block_overrides:
-                        prefix:
+                        start:
                             - name: default
                               repeat: 1
-                        pattern:
+                        repeating_pattern:
                             - name: sliding_window_layer
                               repeat: 1
                             - name: sliding_window_layer_reuse
@@ -135,7 +135,7 @@ class MPTConfig(PretrainedConfig):
                               repeat: 2
                             - name: reuse_kv_layer
                               repeat: 1
-                        suffix:
+                        end:
                             - name: default
                               repeat: 0
                         overrides:

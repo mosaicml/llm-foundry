@@ -522,7 +522,9 @@ class MPTModel(MPTPreTrainedModel):
                     override_attn_config['reuse_kv_layer_idx'
                                         ] = reuse_kv_layer_idx
                     self.kv_cache_layers.add(reuse_kv_layer_idx)
-
+            log.info(
+                f'Layer: {i}. Name: {module_name}. Overrides: {self._get_overrides_for_logging(override_config)}',
+            )
             new_block_args = self._override_block_args(
                 block_args,
                 override_config,
@@ -536,6 +538,18 @@ class MPTModel(MPTPreTrainedModel):
             )
 
         return nn.ModuleList(module_list)
+
+    def _get_overrides_for_logging(
+        self,
+        override_config: Dict[str, Any],
+    ) -> List[dict[str, str]]:
+        overrides_list = []
+        for k, v in override_config:
+            if isinstance(v, dict):
+                overrides_list.extend(self._get_overrides_for_logging(v))
+            else:
+                overrides_list.append({k: v})
+        return overrides_list
 
     def _override_block_args(
         self,

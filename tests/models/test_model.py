@@ -72,12 +72,17 @@ def _load_tokenizer_cfg(cfg: Union[Dict[str, Any], DictConfig]) -> Dict:
 def _get_objs(
     request: pytest.FixtureRequest,
     conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml',
+    model_config_overrides: Optional[Dict] = None,
+    attn_impl: str = 'torch',
 ):
     warnings.filterwarnings(
         action='ignore',
         message='Torchmetrics v0.9 introduced a new argument class property',
     )
     test_cfg = get_config(conf_path=conf_path)
+    if model_config_overrides is not None:
+        for k, v in model_config_overrides.items():
+            test_cfg.model[k] = v
 
     # Read FSDP Config as a dict
     fsdp_config = test_cfg.get('fsdp_config', None)
@@ -97,7 +102,7 @@ def _get_objs(
     device = 'cuda' if is_gpu else 'cpu'
     test_cfg.precision = 'amp_bf16' if is_gpu else 'fp32'
     test_cfg.model.attn_config = {
-        'attn_impl': 'torch',
+        'attn_impl': attn_impl,
     }
     test_cfg.model.init_device = device
     test_cfg.device = device
@@ -2724,3 +2729,62 @@ def test_construct_blocks(start: list, repeating_pattern: list, end: list):
     assert block_list[4].attn.reuse_kv_layer_idx is None
     assert block_list[5].attn.sliding_window_size == 512
     assert block_list[5].attn.reuse_kv_layer_idx is None
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize(
+    'conf_path',
+    [
+        'scripts/train/yamls/pretrain/testing.yaml',
+    ],
+)
+def test_reuse_prev_layer_kv_cache(
+    request: pytest.FixtureRequest,
+    conf_path: str,
+    batch_size: int = 2,
+):
+    model_config_overrides = {
+        'block_overrides': {
+            'start': [
+                {
+                    'name': 'default',
+                    'repeat': 1,
+                },
+                {
+                    'name': 'kv_reuse_layer',
+                    'repeat': 1,
+                },
+            ],
+            'overrides': {
+                'kv_reuse_layer': {
+                    'attn_config': {
+                        'reuse_kv_layer_idx': -1,
+                    },
+                },
+            },
+        },
+        'use_cache': True,
+    }
+    test_cfg, model, _ = _get_objs(
+        request=request,
+        conf_path=conf_path,
+        model_config_overrides=model_config_overrides,
+        attn_impl='flash',
+    )
+
+    batch = gen_random_batch(batch_size, test_cfg)
+
+    assert batch['input_ids'].shape == torch.Size([
+        batch_size,
+        test_cfg.max_seq_len,
+    ])
+    model.train()
+    with get_precision_context(test_cfg.precision):
+        outputs = model(batch)
+        len(outputs.past_key_values) == 2
+        assert torch.all(
+            outputs.past_key_values[0][0] == outputs.past_key_values[1][0],
+        )
+        assert torch.all(
+            outputs.past_key_values[0][1] == outputs.past_key_values[1][1],
+        )

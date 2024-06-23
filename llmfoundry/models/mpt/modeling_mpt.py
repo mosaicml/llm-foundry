@@ -500,9 +500,13 @@ class MPTModel(MPTPreTrainedModel):
 
         module_list = []
         layer_description_list = []
+        if len(model_modules_order_expanded) != config.n_layers:
+            raise ValueError(
+                f'The specified block overrides do not match the number of layers: {len(model_modules_order_expanded)} vs {config.n_layers}.',
+            )
+
         for i in range(config.n_layers):
             module_name = model_modules_order_expanded[i]
-
             override_config = {}
             if module_name != 'default':
                 override_config = copy.deepcopy(

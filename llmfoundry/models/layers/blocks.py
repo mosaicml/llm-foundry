@@ -187,6 +187,7 @@ class MPTBlock(nn.Module):
                 needs_weights=output_attentions,
                 alibi_slopes=alibi_slopes,
                 flash_attn_padding_info=flash_attn_padding_info,
+                prev_layer_key_value=prev_layer_key_value,
             )
             x = x + self.resid_attn_dropout(b)
             m = x

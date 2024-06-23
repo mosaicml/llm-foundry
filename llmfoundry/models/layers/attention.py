@@ -750,6 +750,7 @@ class MultiheadAttention(GroupedQueryAttention):
         device: Optional[str] = None,
         bias: bool = True,
         sliding_window_size: int = -1,
+        reuse_kv_layer_idx: Optional[int] = None,
     ):
         super().__init__(
             d_model=d_model,
@@ -766,6 +767,7 @@ class MultiheadAttention(GroupedQueryAttention):
             device=device,
             bias=bias,
             sliding_window_size=sliding_window_size,
+            reuse_kv_layer_idx=reuse_kv_layer_idx,
         )
 
 
@@ -791,6 +793,7 @@ class MultiQueryAttention(GroupedQueryAttention):
         device: Optional[str] = None,
         bias: bool = True,
         sliding_window_size: int = -1,
+        reuse_kv_layer_idx: Optional[int] = None,
     ):
         super().__init__(
             d_model=d_model,
@@ -807,6 +810,7 @@ class MultiQueryAttention(GroupedQueryAttention):
             device=device,
             bias=bias,
             sliding_window_size=sliding_window_size,
+            reuse_kv_layer_idx=reuse_kv_layer_idx,
         )
 
 

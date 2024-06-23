@@ -498,7 +498,6 @@ class MPTModel(MPTPreTrainedModel):
             'start'] + modules_order_expanded['repeating_pattern'
                                              ] + modules_order_expanded['end']
 
-        self.kv_cache_layers = set()
         module_list = []
         layer_description_list = []
         for i in range(config.n_layers):
@@ -523,6 +522,8 @@ class MPTModel(MPTPreTrainedModel):
                         )
                     override_attn_config['reuse_kv_layer_idx'
                                         ] = reuse_kv_layer_idx
+                    if self.kv_cache_layers is None:
+                        self.kv_cache_layers = set()
                     self.kv_cache_layers.add(reuse_kv_layer_idx)
             layer_description_list.append([
                 i,
@@ -843,7 +844,9 @@ class MPTModel(MPTPreTrainedModel):
 
         # initialize the past key values cache if it should be used
         presents = () if use_cache else None
-        if past_key_values is None:
+        if (
+            use_cache or self.kv_cache_layers is not None
+        ) and past_key_values is None:
             past_key_values = [() for _ in range(self.config.n_layers)
                               ]  # type: ignore
 

@@ -2781,7 +2781,7 @@ def test_reuse_prev_layer_kv_cache(
     model.train()
     with get_precision_context(test_cfg.precision):
         outputs = model(batch)
-        len(outputs.past_key_values) == 2
+        assert len(outputs.past_key_values) == 2
         assert torch.all(
             outputs.past_key_values[0][0] == outputs.past_key_values[1][0],
         )

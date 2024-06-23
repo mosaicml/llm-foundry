@@ -29,6 +29,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from composer.models import HuggingFaceModel
 from composer.utils import dist
+from tabulate import tabulate
 
 from llmfoundry.layers_registry import ffns_with_megablocks
 from llmfoundry.models.layers.attention import is_flash_v2_installed
@@ -499,6 +500,7 @@ class MPTModel(MPTPreTrainedModel):
 
         self.kv_cache_layers = set()
         module_list = []
+        layer_description_list = []
         for i in range(config.n_layers):
             module_name = model_modules_order_expanded[i]
 
@@ -522,9 +524,11 @@ class MPTModel(MPTPreTrainedModel):
                     override_attn_config['reuse_kv_layer_idx'
                                         ] = reuse_kv_layer_idx
                     self.kv_cache_layers.add(reuse_kv_layer_idx)
-            log.info(
-                f'Layer: {i}. Name: {module_name}. Overrides: {self._get_overrides_for_logging(override_config)}',
-            )
+            layer_description_list.append([
+                i,
+                module_name,
+                self._get_overrides_for_logging(override_config),
+            ],)
             new_block_args = self._override_block_args(
                 block_args,
                 override_config,
@@ -536,7 +540,12 @@ class MPTModel(MPTPreTrainedModel):
                     **new_block_args,
                 ),
             )
-
+        log.info(
+            'The following is a summary of overrides per layer.\n' + tabulate(
+                layer_description_list,
+                headers=['idx', 'name', 'overrides'],
+            ),
+        )
         return nn.ModuleList(module_list)
 
     def _get_overrides_for_logging(
@@ -544,7 +553,7 @@ class MPTModel(MPTPreTrainedModel):
         override_config: Dict[str, Any],
     ) -> List[dict[str, str]]:
         overrides_list = []
-        for k, v in override_config:
+        for k, v in override_config.items():
             if isinstance(v, dict):
                 overrides_list.extend(self._get_overrides_for_logging(v))
             else:

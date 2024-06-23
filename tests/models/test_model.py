@@ -44,7 +44,7 @@ from llmfoundry.models.layers.attention import (
     is_flash_v2_installed,
 )
 from llmfoundry.models.layers.blocks import MPTBlock
-from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
+from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM, MPTModel
 from llmfoundry.utils import build_tokenizer
 from llmfoundry.utils.builders import build_composer_model
 from llmfoundry.utils.config_utils import to_dict_container
@@ -2617,3 +2617,110 @@ def test_head_dim_8_flash_mqa_attn(batch_size: int = 2):
         output = model(batch)
 
     assert not torch.isnan(output.logits).any()
+
+
+@pytest.mark.parametrize(
+    'start',
+    [[], [{
+        'name': 'default',
+        'repeat': 1,
+    }, {
+        'name': 'layer_s',
+        'repeat': 2,
+    }]],
+)
+@pytest.mark.parametrize(
+    'repeating_pattern',
+    [[{
+        'name': 'layer_rp',
+        'repeat': 1,
+    }]],
+)
+@pytest.mark.parametrize(
+    'end',
+    [[], [{
+        'name': 'layer_e',
+        'repeat': 2,
+    }, {
+        'name': 'default',
+        'repeat': 1,
+    }]],
+)
+def test_construct_blocks(start: list, repeating_pattern: list, end: list):
+    n_layers = 9
+    config = MPTConfig(
+        d_model=32,
+        n_heads=16,
+        n_layers=n_layers,
+        expansion_ratio=2,
+        max_seq_len=64,
+        attn_config={
+            'attn_impl': 'flash',
+            'attn_type': 'grouped_query_attention',
+            'kv_n_heads': 4,
+        },
+    )
+    overrides = {
+        'layer_s': {
+            'attn_config': {
+                'sliding_window_size': 1024,
+                'reuse_kv_layer_idx': -1,
+            },
+        },
+        'layer_rp': {
+            'attn_config': {
+                'sliding_window_size': 512,
+            },
+        },
+        'layer_e': {
+            'attn_config': {
+                'sliding_window_size': 256,
+                'reuse_kv_layer_idx': -2,
+            },
+        },
+    }
+    config.block_overrides = {}
+
+    if len(start) > 0:
+        config.block_overrides['start'] = start
+    if len(repeating_pattern) > 0:
+        config.block_overrides['repeating_pattern'] = repeating_pattern
+    if len(end) > 0:
+        config.block_overrides['end'] = end
+    if len(start) > 0 or len(repeating_pattern) > 0 or len(end) > 0:
+        config.block_overrides['overrides'] = overrides
+    else:
+        pytest.skip(f'Skipping test because no overrides.')
+
+    block_list = MPTModel(config).construct_blocks(config)
+
+    assert len(block_list) == n_layers
+
+    if len(start) > 0:
+        assert block_list[0].attn.sliding_window_size == -1
+        assert block_list[0].attn.reuse_kv_layer_idx is None
+        assert block_list[1].attn.sliding_window_size == 1024
+        assert block_list[1].attn.reuse_kv_layer_idx == 0
+        assert block_list[2].attn.sliding_window_size == 1024
+        assert block_list[2].attn.reuse_kv_layer_idx == 1
+    else:
+        assert block_list[0].attn.sliding_window_size == 512
+        assert block_list[0].attn.reuse_kv_layer_idx is None
+
+    if len(end) > 0:
+        assert block_list[6].attn.sliding_window_size == 256
+        assert block_list[6].attn.reuse_kv_layer_idx == 4
+        assert block_list[7].attn.sliding_window_size == 256
+        assert block_list[7].attn.reuse_kv_layer_idx == 5
+        assert block_list[8].attn.sliding_window_size == -1
+        assert block_list[8].attn.reuse_kv_layer_idx is None
+    else:
+        assert block_list[8].attn.sliding_window_size == 512
+        assert block_list[8].attn.reuse_kv_layer_idx is None
+
+    assert block_list[3].attn.sliding_window_size == 512
+    assert block_list[3].attn.reuse_kv_layer_idx is None
+    assert block_list[4].attn.sliding_window_size == 512
+    assert block_list[4].attn.reuse_kv_layer_idx is None
+    assert block_list[5].attn.sliding_window_size == 512
+    assert block_list[5].attn.reuse_kv_layer_idx is None

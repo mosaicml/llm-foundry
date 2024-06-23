@@ -444,7 +444,7 @@ class MPTModel(MPTPreTrainedModel):
         self.kv_cache_layers = None
 
         if config.block_overrides is not None:
-            return self.construct_blocks_with_overrides(config, block_args)
+            return self._construct_blocks_with_overrides(config, block_args)
 
         return nn.ModuleList([
             self.block_class(
@@ -453,14 +453,14 @@ class MPTModel(MPTPreTrainedModel):
             ) for _ in range(config.n_layers)
         ])
 
-    def construct_blocks_with_overrides(
+    def _construct_blocks_with_overrides(
         self,
         config: MPTConfig,
         block_args: Dict[str, Any],
     ) -> nn.ModuleList:
         if config.block_overrides is None:
             raise ValueError(
-                'config.block_overrides should not be None when calling construct_blocks_with_overrides.',
+                'config.block_overrides should not be None when calling _construct_blocks_with_overrides.',
             )
         modules_order_expanded = {}
         for type in 'start', 'repeating_pattern', 'end':
@@ -479,17 +479,23 @@ class MPTModel(MPTPreTrainedModel):
         repeating_pattern_len = len(modules_order_expanded['repeating_pattern'])
         end_len = len(modules_order_expanded['end'])
 
-        if (
-            config.n_layers - (start_len + end_len)
-        ) % repeating_pattern_len != 0:
-            raise ValueError(
-                'Number of layers should be divisible by the specified custom modules order.',
-            )
-        model_modules_order_expanded = modules_order_expanded[
-            'start'] + modules_order_expanded['repeating_pattern'] * (
+        if repeating_pattern_len > 0:
+            if (
+                config.n_layers - (start_len + end_len)
+            ) % repeating_pattern_len != 0:
+                raise ValueError(
+                    'Number of layers should be divisible by the specified custom modules order.',
+                )
+            modules_order_expanded[
+                'repeating_pattern'
+            ] = modules_order_expanded['repeating_pattern'] * (
                 (config.n_layers -
                  (start_len + end_len)) // repeating_pattern_len
-            ) + modules_order_expanded['end']
+            )
+
+        model_modules_order_expanded = modules_order_expanded[
+            'start'] + modules_order_expanded['repeating_pattern'
+                                             ] + modules_order_expanded['end']
 
         self.kv_cache_layers = set()
         module_list = []
@@ -520,6 +526,7 @@ class MPTModel(MPTPreTrainedModel):
             new_block_args = self._override_block_args(
                 block_args,
                 override_config,
+                config.allowed_block_overrides,
             )
             module_list.append(
                 MPTBlock(
@@ -534,6 +541,7 @@ class MPTModel(MPTPreTrainedModel):
         self,
         block_args: Dict[str, Any],
         override_config: Dict[str, Any],
+        allowed_block_overrides: set,
     ) -> Dict[str, Any]:
         new_block_args = override_config | block_args
         common_keys = override_config.keys() & block_args.keys()
@@ -546,8 +554,11 @@ class MPTModel(MPTPreTrainedModel):
                 new_block_args[k] = self._override_block_args(
                     block_args[k],
                     override_config[k],
+                    allowed_block_overrides,
                 )
             else:
+                if k not in allowed_block_overrides:
+                    raise KeyError(f'Overriding {k} is not supported.')
                 new_block_args[k] = override_config[k]
         return new_block_args
 

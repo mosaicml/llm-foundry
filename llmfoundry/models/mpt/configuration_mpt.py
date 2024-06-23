@@ -184,7 +184,7 @@ class MPTConfig(PretrainedConfig):
             )
         if block_overrides is not None:
             warnings.warn(
-                'Warning, block_overrides is an experimental feature. The YAML design may change in the future.',
+                'block_overrides is an experimental feature. The YAML design may change in the future.',
             )
             if 'start' not in block_overrides and 'repeating_pattern' not in block_overrides and 'end' not in block_overrides:
                 raise ValueError(
@@ -396,3 +396,10 @@ class MPTConfig(PretrainedConfig):
                 )
 
         self.validate_attention_config()
+
+    @property
+    def allowed_block_overrides(self):
+        return {
+            'sliding_window_size',
+            'reuse_kv_layer_idx',
+        }

@@ -444,7 +444,7 @@ class MPTModel(MPTPreTrainedModel):
         self.kv_cache_layers = None
 
         if config.block_overrides is not None:
-            return self._construct_blocks_with_overrides(config, block_args)
+            return self.construct_blocks_with_overrides(config, block_args)
 
         return nn.ModuleList([
             self.block_class(
@@ -453,14 +453,14 @@ class MPTModel(MPTPreTrainedModel):
             ) for _ in range(config.n_layers)
         ])
 
-    def _construct_blocks_with_overrides(
+    def construct_blocks_with_overrides(
         self,
         config: MPTConfig,
         block_args: Dict[str, Any],
     ) -> nn.ModuleList:
         if config.block_overrides is None:
             raise ValueError(
-                'config.block_overrides should not be None when calling _construct_blocks_with_overrides.',
+                'config.block_overrides should not be None when calling construct_blocks_with_overrides.',
             )
         modules_order_expanded = {}
         for type in 'start', 'repeating_pattern', 'end':

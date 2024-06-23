@@ -177,10 +177,33 @@ class MPTConfig(PretrainedConfig):
             init_config_defaults,
         )
 
+        if 'reuse_kv_layer_idx' in self.attn_config and self.attn_config[
+            'attn_impl'] == 'torch':
+            raise NotImplementedError(
+                'reusing kv cache from a previous layer is not implemented for torch attention.',
+            )
         if block_overrides is not None:
             warnings.warn(
                 'Warning, block_overrides is an experimental feature. The YAML design may change in the future.',
             )
+            if 'start' not in block_overrides and 'repeating_pattern' not in block_overrides and 'end' not in block_overrides:
+                raise ValueError(
+                    'either start, repeating_pattern, or end should be defined in block_overrides',
+                )
+            if 'overrides' not in block_overrides:
+                raise ValueError(
+                    'overrides should be defined in block_overrides',
+                )
+            for name, override in block_overrides['overrides'].items():
+                if name == 'default':
+                    raise ValueError(
+                        'block overrides cannot be named "default".',
+                    )
+                if 'attn_config' in override and 'reuse_kv_layer_idx' in override[
+                    'attn_config'] and self.attn_config['attn_impl'] == 'torch':
+                    raise NotImplementedError(
+                        'reusing kv cache from a previous layer is not implemented for torch attention.',
+                    )
         self.block_overrides = block_overrides
 
         if isinstance(fc_type, str):

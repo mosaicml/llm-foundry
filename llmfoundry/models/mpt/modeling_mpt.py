@@ -862,16 +862,10 @@ class MPTModel(MPTPreTrainedModel):
             if presents is not None:
                 presents += (present,)
             if self.kv_cache_layers is not None and b_idx in self.kv_cache_layers:
-                if self.attn_impl != 'torch':
-                    layer_kv_cache_dict[b_idx] = [
-                        present[0][:, past_position:],
-                        present[1][:, past_position:],
-                    ]
-                else:
-                    layer_kv_cache_dict[b_idx] = [
-                        present[0][:, :, :, past_position:],
-                        present[1][:, :, :, past_position:],
-                    ]
+                layer_kv_cache_dict[b_idx] = [
+                    present[0][:, past_position:],
+                    present[1][:, past_position:],
+                ]
 
             if output_attentions:
                 assert all_self_attns is not None  # pyright

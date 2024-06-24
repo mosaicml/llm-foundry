@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+from llmfoundry.registry import config_transforms
 from llmfoundry.utils.builders import (
     build_algorithm,
     build_callback,
@@ -57,6 +58,11 @@ from llmfoundry.utils.warnings import (
     VersionedDeprecationWarning,
     experimental_class,
     experimental_function,
+)
+
+config_transforms.register(
+    'update_batch_size_info',
+    func=update_batch_size_info,
 )
 
 __all__ = [

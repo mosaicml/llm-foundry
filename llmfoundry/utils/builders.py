@@ -63,7 +63,7 @@ def build_evaluators(
     eval_gauntlet_config: Optional[Union[str, Dict[str, Any]]],
     *,
     tokenizer: PreTrainedTokenizerBase,
-    device_eval_batch_size: int,
+    device_eval_batch_size: Union[int, float],
     icl_seq_len: int,
     icl_subset_num_batches: Optional[int],
 ) -> Tuple[List[Evaluator], List[str], Optional[EvalGauntlet]]:
@@ -79,6 +79,10 @@ def build_evaluators(
     logger_keys = []
     eval_gauntlet_callback = None
     if icl_tasks_config is not None:
+        if not isinstance(device_eval_batch_size, int):
+            raise ValueError(
+                'device_eval_batch_size should be an int for icl tasks.',
+            )
         icl_evaluators, logger_keys, eval_gauntlet_callback = build_icl_data_and_gauntlet(
             icl_tasks_config,
             eval_gauntlet_config,
@@ -95,7 +99,7 @@ def build_evaluators(
 def build_eval_loaders(
     eval_loader_config: Union[Dict[str, Any], List[Dict[str, Any]]],
     tokenizer: PreTrainedTokenizerBase,
-    device_eval_batch_size: int,
+    device_eval_batch_size: Union[int, float],
 ) -> List[Evaluator]:
     evaluators: List[Evaluator] = []
     if isinstance(eval_loader_config, list):
@@ -122,7 +126,8 @@ def build_eval_loaders(
             # Load the eval data to fail fast. metrics will get added
             # later in add_metrics_to_eval_loaders, after the model is loaded
             metric_names=[],
-            device_eval_microbatch_size=device_eval_batch_size,
+            # TODO: Fix type in Composer
+            device_eval_microbatch_size=device_eval_batch_size,  # type: ignore
         )
         evaluators.append(eval_loader)
     return evaluators

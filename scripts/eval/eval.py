@@ -53,7 +53,7 @@ def evaluate_model(
     seed: int,
     icl_tasks: Union[str, List[Dict[str, Any]]],
     max_seq_len: int,
-    device_eval_batch_size: int,
+    device_eval_batch_size: Union[int, float],
     eval_gauntlet_config: Optional[Union[str, Dict[str, Any]]],
     eval_loader_config: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]],
     fsdp_config: Optional[Dict[str, Any]],

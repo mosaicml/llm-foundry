@@ -50,7 +50,6 @@ from llmfoundry.utils.config_utils import (
     make_dataclass_and_log_config,
     pop_config,
     process_init_device,
-    update_batch_size_info,
 )
 from llmfoundry.utils.exceptions import (
     BaseContextualError,
@@ -152,15 +151,6 @@ def validate_config(train_config: TrainConfig):
                 f'MoEs with expert parallelism (moe_world_size {moe_world_size} > 1) require `use_orig_params=True`.',
             )
 
-    attn_config = train_config.model.get('attn_config', None)
-    if attn_config is not None:
-        seq_parallel_world_size = attn_config.get(
-            'seq_parallel_world_size',
-            None,
-        )
-        if seq_parallel_world_size is not None:
-            raise ValueError('Training does not support sequence parallelism.')
-
 
 def _log_num_params(model: ComposerModel, logged_cfg: Dict[str, Any]):
     # Log number of parameters
@@ -206,7 +196,7 @@ def main(cfg: DictConfig) -> Trainer:
         cfg,
         TrainConfig,
         TRAIN_CONFIG_KEYS,
-        transforms=[update_batch_size_info],
+        transforms='all',
     )
 
     # Set logging level

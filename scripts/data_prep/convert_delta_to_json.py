@@ -34,7 +34,10 @@ from pyspark.sql.connect.dataframe import DataFrame
 from pyspark.sql.dataframe import DataFrame as SparkDataFrame
 from pyspark.sql.types import Row
 
-from llmfoundry.utils import maybe_create_mosaicml_logger
+from llmfoundry.utils import (
+    maybe_create_mosaicml_logger,
+    no_override_excepthook,
+)
 from llmfoundry.utils.exceptions import (
     ClusterDoesNotExistError,
     FailedToConnectToDatabricksError,
@@ -676,6 +679,6 @@ if __name__ == '__main__':
         log.info(f'Elapsed time {time.time() - tik}')
 
     except Exception as e:
-        if mosaicml_logger is not None:
+        if mosaicml_logger is not None and no_override_excepthook():
             mosaicml_logger.log_exception(e)
         raise e

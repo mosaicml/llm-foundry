@@ -38,7 +38,10 @@ def maybe_create_mosaicml_logger() -> Optional[MosaicMLLogger]:
 
 
 def no_override_excepthook() -> bool:
-    """Returns True if the excepthook flag is off. This means we are not automatically catching exceptions for MosaicMl runs."""
+    """Returns True if the excepthook flag is off.
+
+    This means we are not automatically catching exceptions for MosaicMl runs.
+    """
     return os.environ.get(
         'OVERRIDE_EXCEPTHOOK',
         'false',

@@ -24,7 +24,10 @@ from tqdm import tqdm
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from llmfoundry.data.data import AbstractConcatTokensDataset
-from llmfoundry.utils import maybe_create_mosaicml_logger
+from llmfoundry.utils import (
+    maybe_create_mosaicml_logger,
+    no_override_excepthook,
+)
 from llmfoundry.utils.data_prep_utils import (
     DownloadingIterable,
     download_file,
@@ -624,9 +627,6 @@ if __name__ == '__main__':
             args_str=_args_str(args),
         )
     except Exception as e:
-        if mosaicml_logger is not None and os.environ.get(
-            'OVERRIDE_EXCEPTHOOK',
-            'false',
-        ).lower() != 'true':
+        if mosaicml_logger is not None and no_override_excepthook():
             mosaicml_logger.log_exception(e)
         raise e

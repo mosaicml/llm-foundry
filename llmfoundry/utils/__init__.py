@@ -31,8 +31,9 @@ from llmfoundry.utils.data_prep_utils import (
     DownloadingIterable,
     merge_shard_groups,
 )
-from llmfoundry.utils.huggingface_hub_utils import \
-    edit_files_for_hf_compatibility
+from llmfoundry.utils.huggingface_hub_utils import (
+    edit_files_for_hf_compatibility,
+)
 from llmfoundry.utils.logging_utils import SpecificWarningFilter
 from llmfoundry.utils.model_download_utils import (
     download_from_hf_hub,
@@ -44,6 +45,7 @@ from llmfoundry.utils.mosaicml_logger_utils import (
     log_eval_analytics,
     log_train_analytics,
     maybe_create_mosaicml_logger,
+    no_override_excepthook,
 )
 from llmfoundry.utils.prompt_files import load_prompts, load_prompts_from_file
 from llmfoundry.utils.registry_utils import (
@@ -93,6 +95,7 @@ __all__ = [
     'download_from_hf_hub',
     'download_from_oras',
     'maybe_create_mosaicml_logger',
+    'no_override_excepthook',
     'find_mosaicml_logger',
     'log_eval_analytics',
     'log_train_analytics',

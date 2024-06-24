@@ -37,6 +37,13 @@ def maybe_create_mosaicml_logger() -> Optional[MosaicMLLogger]:
         return MosaicMLLogger()
 
 
+def no_override_excepthook() -> bool:
+    return os.environ.get(
+        'OVERRIDE_EXCEPTHOOK',
+        'false',
+    ).lower() != 'true'
+
+
 def find_mosaicml_logger(
     loggers: List[LoggerDestination],
 ) -> Optional[MosaicMLLogger]:

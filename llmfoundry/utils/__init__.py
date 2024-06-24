@@ -31,9 +31,8 @@ from llmfoundry.utils.data_prep_utils import (
     DownloadingIterable,
     merge_shard_groups,
 )
-from llmfoundry.utils.huggingface_hub_utils import (
-    edit_files_for_hf_compatibility,
-)
+from llmfoundry.utils.huggingface_hub_utils import \
+    edit_files_for_hf_compatibility
 from llmfoundry.utils.logging_utils import SpecificWarningFilter
 from llmfoundry.utils.model_download_utils import (
     download_from_hf_hub,

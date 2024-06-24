@@ -28,9 +28,8 @@ from databricks.sql.client import Cursor as Cursor
 from packaging import version
 from pyspark.sql import SparkSession
 from pyspark.sql.connect.client.core import SparkConnectClient
-from pyspark.sql.connect.client.reattach import (
-    ExecutePlanResponseReattachableIterator,
-)
+from pyspark.sql.connect.client.reattach import \
+    ExecutePlanResponseReattachableIterator
 from pyspark.sql.connect.dataframe import DataFrame
 from pyspark.sql.dataframe import DataFrame as SparkDataFrame
 from pyspark.sql.types import Row

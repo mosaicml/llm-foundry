@@ -599,6 +599,27 @@ def main(cfg: DictConfig) -> Trainer:
             if trace_file_dirname:
                 os.makedirs(trace_file_dirname, exist_ok=True)
             prof.export_chrome_trace(trace_file_name)
+        elif i == 1 and dist.get_global_rank() == 0:
+            from torch.profiler import profile, record_function, ProfilerActivity
+            with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]) as prof:
+                with autocast(dtype=torch.bfloat16):
+                    _ = model.forward(inputs)
+                    #with generate_context:
+                    # outputs = model.model.generate(
+                    #     input_ids=inputs['input_ids'].to('cuda'),
+                    #     attention_mask=attention_mask.to('cuda'),
+                    #     synced_gpus=True,
+                    #     use_cache=True,
+                    #     # eos_token_id=model.tokenizer.eos_token_id,
+                    #     max_new_tokens=cfg_max_new_tokens,
+                    # )
+            
+            trace_file_name = f"/torch_traces/trace-iter-{i}-rank-{dist.get_global_rank()}.json"
+            trace_file_dirname = os.path.dirname(trace_file_name)
+            print("trace file dirname:", trace_file_dirname)
+            if trace_file_dirname:
+                os.makedirs(trace_file_dirname, exist_ok=True)
+            prof.export_chrome_trace(trace_file_name)
         else:
             with autocast(dtype=torch.bfloat16):
                 _ = model.forward(inputs)

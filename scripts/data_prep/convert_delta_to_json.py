@@ -377,8 +377,9 @@ def fetch(
                 cursor,
                 sparkSession,
             )
-            nrows = [row.asDict() for row in ans
-                    ][0].popitem()[1]  # pyright: ignore
+            nrows = [
+                row.asDict() for row in ans  # pyright: ignore
+            ][0].popitem()[1]
             log.info(f'total_rows = {nrows}')
             break
         except Exception as e:
@@ -388,7 +389,7 @@ def fetch(
                 ) from e
             else:
                 log.warning(
-                    f'Error in get total rows from {tablename}, trying again...'
+                    f'Error in get total rows from {tablename}, trying again...',
                 )
 
     for row_retry in range(MAX_RETRY):
@@ -400,8 +401,8 @@ def fetch(
                 sparkSession,
             )
             columns = [
-                row.asDict().popitem()[1] for row in ans
-            ]  # pyright: ignore
+                row.asDict().popitem()[1] for row in ans  # pyright: ignore
+            ]
             order_by = columns[0]
             columns_str = ','.join(columns)
             log.info(f'order by column {order_by}')
@@ -413,7 +414,7 @@ def fetch(
                 ) from e
             else:
                 log.warning(
-                    f'Error in get columns from {tablename}, trying again...'
+                    f'Error in get columns from {tablename}, trying again...',
                 )
 
     if method == 'dbconnect' and sparkSession is not None:
@@ -424,7 +425,7 @@ def fetch(
         signed, _, _ = df.collect_cf('arrow')  # pyright: ignore
         log.info(f'len(signed) = {len(signed)}')
 
-        args = get_args(signed, json_output_folder, columns)
+        args = get_args(signed, json_output_folder, columns)  # pyright: ignore
 
         # Stopping the SparkSession to avoid spilling connection state into the subprocesses.
         sparkSession.stop()
@@ -433,18 +434,18 @@ def fetch(
             list(executor.map(download_starargs, args))
 
     elif method == 'dbsql' and cursor is not None:
-        for start in range(0, nrows, batch_size):
+        for start in range(0, nrows, batch_size):  # pyright: ignore
             log.warning(f'batch {start}')
-            end = min(start + batch_size, nrows)
+            end = min(start + batch_size, nrows)  # pyright: ignore
             fetch_data(
                 method,
                 cursor,
                 sparkSession,
                 start,
                 end,
-                order_by,
+                order_by, # pyright: ignore
                 tablename,
-                columns_str,
+                columns_str, # pyright: ignore
                 json_output_folder,
             )
 

@@ -624,6 +624,9 @@ if __name__ == '__main__':
             args_str=_args_str(args),
         )
     except Exception as e:
-        if mosaicml_logger is not None:
+        if mosaicml_logger is not None and os.environ.get(
+            'OVERRIDE_EXCEPTHOOK',
+            'false',
+        ).lower() != 'true':
             mosaicml_logger.log_exception(e)
         raise e

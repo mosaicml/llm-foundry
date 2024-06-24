@@ -17,7 +17,10 @@ log = logging.getLogger(__name__)
 
 def _timeout(timeout: int, mosaicml_logger: Optional[MosaicMLLogger] = None):
     log.error(f'Timeout after {timeout} seconds of inactivity after fit_end.',)
-    if mosaicml_logger is not None:
+    if mosaicml_logger is not None and os.environ.get(
+        'OVERRIDE_EXCEPTHOOK',
+        'false',
+    ).lower() != 'true':
         mosaicml_logger.log_exception(RunTimeoutError(timeout=timeout))
     os.kill(os.getpid(), signal.SIGINT)
 

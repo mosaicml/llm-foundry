@@ -394,10 +394,12 @@ def main(cfg: DictConfig) -> Trainer:
             train_cfg.device_train_batch_size,
         )
     except BaseContextualError as e:
-        if mosaicml_logger is not None:
-            e.location = TrainDataLoaderLocation
-            if os.environ.get('OVERRIDE_EXCEPTHOOK', 'false').lower() != 'true':
-                mosaicml_logger.log_exception(e)
+        e.location = TrainDataLoaderLocation
+        if mosaicml_logger is not None and os.environ.get(
+            'OVERRIDE_EXCEPTHOOK',
+            'false',
+        ).lower() != 'true':
+            mosaicml_logger.log_exception(e)
         raise e
 
     if mosaicml_logger is not None:
@@ -428,11 +430,12 @@ def main(cfg: DictConfig) -> Trainer:
             if eval_gauntlet_callback is not None:
                 callbacks.append(eval_gauntlet_callback)
         except BaseContextualError as e:
-            if mosaicml_logger is not None:
-                e.location = EvalDataLoaderLocation
-                if os.environ.get('OVERRIDE_EXCEPTHOOK',
-                                  'false').lower() != 'true':
-                    mosaicml_logger.log_exception(e)
+            e.location = EvalDataLoaderLocation
+            if mosaicml_logger is not None and os.environ.get(
+                'OVERRIDE_EXCEPTHOOK',
+                'false',
+            ).lower() != 'true':
+                mosaicml_logger.log_exception(e)
             raise e
 
     if mosaicml_logger is not None:
@@ -480,8 +483,11 @@ def main(cfg: DictConfig) -> Trainer:
                 non_icl_metrics,
             )
     except BaseContextualError as e:
-        if mosaicml_logger is not None:
-            e.location = EvalDataLoaderLocation
+        e.location = EvalDataLoaderLocation
+        if mosaicml_logger is not None and os.environ.get(
+            'OVERRIDE_EXCEPTHOOK',
+            'false',
+        ).lower() != 'true':
             mosaicml_logger.log_exception(e)
         raise e
 

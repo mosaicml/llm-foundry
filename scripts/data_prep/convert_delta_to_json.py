@@ -27,8 +27,9 @@ from databricks.sql.client import Cursor as Cursor
 from packaging import version
 from pyspark.sql import SparkSession
 from pyspark.sql.connect.client.core import SparkConnectClient
-from pyspark.sql.connect.client.reattach import \
-    ExecutePlanResponseReattachableIterator
+from pyspark.sql.connect.client.reattach import (
+    ExecutePlanResponseReattachableIterator,
+)
 from pyspark.sql.connect.dataframe import DataFrame
 from pyspark.sql.dataframe import DataFrame as SparkDataFrame
 from pyspark.sql.types import Row
@@ -644,6 +645,9 @@ if __name__ == '__main__':
         log.info(f'Elapsed time {time.time() - tik}')
 
     except Exception as e:
-        if mosaicml_logger is not None:
+        if mosaicml_logger is not None and os.environ.get(
+            'OVERRIDE_EXCEPTHOOK',
+            'false',
+        ).lower() != 'true':
             mosaicml_logger.log_exception(e)
         raise e

@@ -2635,13 +2635,6 @@ def test_head_dim_8_flash_mqa_attn(batch_size: int = 2):
     }]],
 )
 @pytest.mark.parametrize(
-    'repeating_pattern',
-    [[{
-        'name': 'layer_rp',
-        'repeat': 1,
-    }]],
-)
-@pytest.mark.parametrize(
     'end',
     [[], [{
         'name': 'layer_e',
@@ -2651,8 +2644,13 @@ def test_head_dim_8_flash_mqa_attn(batch_size: int = 2):
         'repeat': 1,
     }]],
 )
-def test_construct_blocks(start: list, repeating_pattern: list, end: list):
+def test_construct_blocks(start: list, end: list):
     n_layers = 9
+    repeating_pattern = [{
+        'name': 'layer_rp',
+        'repeat': 1,
+    }]
+
     config = MPTConfig(
         d_model=32,
         n_heads=16,
@@ -2688,14 +2686,10 @@ def test_construct_blocks(start: list, repeating_pattern: list, end: list):
 
     if len(start) > 0:
         config.block_overrides['start'] = start
-    if len(repeating_pattern) > 0:
-        config.block_overrides['repeating_pattern'] = repeating_pattern
+    config.block_overrides['repeating_pattern'] = repeating_pattern
     if len(end) > 0:
         config.block_overrides['end'] = end
-    if len(start) > 0 or len(repeating_pattern) > 0 or len(end) > 0:
-        config.block_overrides['overrides'] = overrides
-    else:
-        pytest.skip(f'Skipping test because no overrides.')
+    config.block_overrides['overrides'] = overrides
 
     block_list = MPTModel(config).construct_blocks(config)
 
@@ -2732,17 +2726,11 @@ def test_construct_blocks(start: list, repeating_pattern: list, end: list):
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize(
-    'conf_path',
-    [
-        'scripts/train/yamls/pretrain/testing.yaml',
-    ],
-)
 def test_reuse_prev_layer_kv_cache(
     request: pytest.FixtureRequest,
-    conf_path: str,
     batch_size: int = 2,
 ):
+    conf_path = 'scripts/train/yamls/pretrain/testing.yaml'
     model_config_overrides = {
         'block_overrides': {
             'start': [

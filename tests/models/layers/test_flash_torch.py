@@ -564,30 +564,18 @@ def test_reuse_prev_layer_kv_cache(
     """Checks reusing previous layer's kv cache."""
     alibi = pos_emb_config['alibi']
     rope = pos_emb_config['rope']
-    if alibi and not (
-        check_alibi_support('flash') and check_alibi_support('flash')
-    ):
-        pytest.skip('flash attention below v2.4.2 does not support alibi.')
-    if rope and (pos_emb_config['rope_impl']
-                 == 'dail') and (not is_flash_v2_installed()):
-        pytest.skip('dail implementation of rope requires flash attention 2.')
 
-    if (not is_flash_v2_installed(v2_version='v2.1.2')):
-        pytest.skip(
-            'Using sequence id with flash attention requires flash attention v2.1.2 or higher.',
-        )
-
-    cfg = om.create({
+    cfg = {
         'attn_impl': 'flash',
         'd_model': 64,
         'n_heads': 4,
         'attn_pdrop': 0,
         'clip_qkv': True,
-    })
+    }
 
-    n, s, f = 2, 4, cfg.d_model
-    assert cfg.d_model % cfg.n_heads == 0
-    cfg.kv_n_heads = 2
+    n, s, f = 2, 4, cfg['d_model']
+    assert cfg['d_model'] % cfg['n_heads'] == 0
+    cfg['kv_n_heads'] = 2
 
     sequence_id = torch.LongTensor([
         [0] * 2 + [1] * (s - 2),
@@ -595,21 +583,21 @@ def test_reuse_prev_layer_kv_cache(
     ]).to(device=device)
 
     # Computes its own kv cache
-    cfg.reuse_kv_layer_idx = None
+    cfg['reuse_kv_layer_idx'] = None
     attn0 = build_attention_layer(
         name='grouped_query_attention',
         attn_kwargs=om.to_container(cfg),  # type: ignore
     ).to(device)
 
     # Reuses layer 0's kv cache
-    cfg.reuse_kv_layer_idx = 0
+    cfg['reuse_kv_layer_idx'] = 0
     attn1 = build_attention_layer(
         name='grouped_query_attention',
         attn_kwargs=om.to_container(cfg),  # type: ignore
     ).to(device)
     attn0_sd = attn0.state_dict()
-    attn0_sd['Wq.weight'] = attn0_sd['Wqkv.weight'][:cfg.d_model]
-    attn0_sd['Wq.bias'] = attn0_sd['Wqkv.bias'][:cfg.d_model]
+    attn0_sd['Wq.weight'] = attn0_sd['Wqkv.weight'][:cfg['d_model']]
+    attn0_sd['Wq.bias'] = attn0_sd['Wqkv.bias'][:cfg['d_model']]
     del attn0_sd['Wqkv.weight']
     del attn0_sd['Wqkv.bias']
     attn1.load_state_dict(attn0_sd)
@@ -621,7 +609,7 @@ def test_reuse_prev_layer_kv_cache(
         attn_bias = None
         bs = attention.attn_bias_shape(
             attn_impl,
-            cfg.n_heads,
+            cfg['n_heads'],
             s,
             alibi,
             use_sequence_id=True,
@@ -632,7 +620,7 @@ def test_reuse_prev_layer_kv_cache(
             attn_bias = attention.build_attn_bias(
                 attn_impl,
                 attn_bias,
-                cfg.n_heads,
+                cfg['n_heads'],
                 s,
                 causal=causal,
                 alibi=alibi,
@@ -668,7 +656,7 @@ def test_reuse_prev_layer_kv_cache(
         alibi_slopes_0 = None
         if alibi:
             alibi_slopes_0 = gen_slopes(
-                n_heads=cfg.n_heads,
+                n_heads=cfg['n_heads'],
                 alibi_bias_max=8,
                 device=torch.device(device),
                 return_1d=True,
@@ -676,7 +664,7 @@ def test_reuse_prev_layer_kv_cache(
         rotary_emb_w_meta_info = None
         if rope:
             rotary_embedding = gen_rotary_embedding(
-                rope_head_dim=cfg.d_model // cfg.n_heads,
+                rope_head_dim=cfg['d_model'] // cfg['n_heads'],
                 rope_impl=pos_emb_config['rope_impl'],
                 rope_theta=pos_emb_config['rope_theta'],
                 rope_dail_config=pos_emb_config.get('rope_dail_config', {}),
@@ -714,7 +702,7 @@ def test_reuse_prev_layer_kv_cache(
         alibi_slopes_1 = None
         if alibi:
             alibi_slopes_1 = gen_slopes(
-                n_heads=cfg.n_heads,
+                n_heads=cfg['n_heads'],
                 alibi_bias_max=8,
                 device=torch.device(device),
                 return_1d=True,
@@ -750,8 +738,8 @@ def test_reuse_prev_layer_kv_cache(
             tp = torch_name_param_map[n.replace('Wqkv', 'Wq')]
             assert p.grad is not None
             assert tp.grad is not None
-            assert allclose_helper(p[:cfg.d_model], tp)
-            assert allclose_helper(p.grad[:cfg.d_model], tp.grad)
+            assert allclose_helper(p[:cfg['d_model']], tp)
+            assert allclose_helper(p.grad[:cfg['d_model']], tp.grad)
         else:
             tp = torch_name_param_map[n]
             assert p.grad is not None

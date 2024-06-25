@@ -727,8 +727,9 @@ class MPTModel(MPTPreTrainedModel):
                     'sequence_id is a required argument when MPT is configured with attn_uses_sequence_id=True '
                     + 'and the model is in train mode.',
                 )
-            elif (self.attn_uses_sequence_id is
-                  False) and (sequence_id is not None):
+            elif (
+                self.attn_uses_sequence_id is False and sequence_id is not None
+            ):
                 warnings.warn(
                     'MPT received non-None input for `sequence_id` but is configured with attn_uses_sequence_id=False. '
                     +
@@ -1261,7 +1262,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
 
         additional_train_metrics = additional_train_metrics or []
 
-        model = self.model_class(self.config_class(**kwargs),)
+        model = self.model_class(self.config_class(**kwargs))
 
         use_train_metrics = use_train_metrics
         train_metric_names = DEFAULT_CAUSAL_LM_TRAIN_METRICS + additional_train_metrics

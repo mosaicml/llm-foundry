@@ -1,6 +1,6 @@
 <!-- SETUPTOOLS_LONG_DESCRIPTION_HIDE_BEGIN -->
 <p align="center">
-  <a href="https://github.com/mosaicml/llm-foundry">
+  <a href="https://github.com/mosaicml/llm-foundry/byod">
     <picture>
       <img alt="LLM Foundry" src="./assets/llm-foundry.png" width="95%">
     </picture>

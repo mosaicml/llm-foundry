@@ -11,13 +11,14 @@ from composer import Callback, Logger, State
 from composer.loggers import MosaicMLLogger
 
 from llmfoundry.utils.exceptions import RunTimeoutError
+from llmfoundry.utils.mosaicml_logger_utils import no_override_excepthook
 
 log = logging.getLogger(__name__)
 
 
 def _timeout(timeout: int, mosaicml_logger: Optional[MosaicMLLogger] = None):
     log.error(f'Timeout after {timeout} seconds of inactivity after fit_end.',)
-    if mosaicml_logger is not None:
+    if mosaicml_logger is not None and no_override_excepthook():
         mosaicml_logger.log_exception(RunTimeoutError(timeout=timeout))
     os.kill(os.getpid(), signal.SIGINT)
 

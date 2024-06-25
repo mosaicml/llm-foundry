@@ -46,7 +46,7 @@ def create_om_cfg(FT_API_args: Namespace):
         'persistent_workers': False,
         'timeout': 0
     }
-    if task_type == 'INSTRUCTION_FINETUNE' or 'CHAT_COMPLETION':
+    if task_type == 'INSTRUCTION_FINETUNE' or task_type == 'CHAT_COMPLETION':
         cfg = om.create({
             'dataset': {
                 'hf_name': train_data_path,

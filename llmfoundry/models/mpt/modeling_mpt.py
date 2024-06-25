@@ -539,7 +539,7 @@ class MPTModel(MPTPreTrainedModel):
                 module_name,
                 self._get_overrides_for_logging(override_config),
             ],)
-            new_block_args = self._override_block_args(
+            new_block_args = MPTModel._override_block_args(
                 block_args,
                 override_config,
                 config.allowed_block_overrides,
@@ -570,8 +570,8 @@ class MPTModel(MPTPreTrainedModel):
                 overrides_list.append({k: v})
         return overrides_list
 
+    @staticmethod
     def _override_block_args(
-        self,
         block_args: Dict[str, Any],
         override_config: Dict[str, Any],
         allowed_block_overrides: set,
@@ -584,7 +584,7 @@ class MPTModel(MPTPreTrainedModel):
                     f'Override config should have same value types as the original config. Found override_config[{k}]={override_config[k]} vs block_args[{k}]={block_args[k]}.',
                 )
             if isinstance(override_config[k], dict):
-                new_block_args[k] = self._override_block_args(
+                new_block_args[k] = MPTModel._override_block_args(
                     block_args[k],
                     override_config[k],
                     allowed_block_overrides,

@@ -2776,3 +2776,18 @@ def test_reuse_prev_layer_kv_cache(
         assert torch.all(
             outputs.past_key_values[0][1] == outputs.past_key_values[1][1],
         )
+
+
+def test_override_block_args():
+    block_args = {'a': 1, 'b': {'c': 3}, 'd': 4}
+    override_config = {'a': 2, 'b': {'c': 5}, 'e': 6}
+    allowed_block_overrides = {'a', 'c', 'e'}
+    new_config = MPTModel._override_block_args(
+        block_args,
+        override_config,
+        allowed_block_overrides,
+    )
+    assert new_config['a'] == 2
+    assert new_config['d'] == 4
+    assert new_config['e'] == 6
+    assert new_config['b']['c'] == 5

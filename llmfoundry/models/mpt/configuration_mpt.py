@@ -211,7 +211,7 @@ class MPTConfig(PretrainedConfig):
 
         self._validate_config()
 
-    def _validate_block_overrides(self, block_overrides):
+    def _validate_block_overrides(self, block_overrides: Dict[str, Any]):
         warnings.warn(ExperimentalWarning('block_overrides'))
         if 'start' not in block_overrides and 'repeating_pattern' not in block_overrides and 'end' not in block_overrides:
             raise ValueError(

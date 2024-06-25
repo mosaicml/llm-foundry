@@ -505,6 +505,7 @@ class MPTModel(MPTPreTrainedModel):
                 f'The specified block overrides do not match the number of layers: {len(model_modules_order_expanded)} vs {config.n_layers}.',
             )
 
+        reuse_kv_layer_idx_dict = {}
         for i in range(config.n_layers):
             module_name = model_modules_order_expanded[i]
             override_config = {}
@@ -524,6 +525,10 @@ class MPTModel(MPTPreTrainedModel):
                         raise ValueError(
                             f'The absolute index of kv layer to reuse, {reuse_kv_layer_idx} should be non-negative.',
                         )
+                    if reuse_kv_layer_idx in reuse_kv_layer_idx_dict:
+                        reuse_kv_layer_idx = reuse_kv_layer_idx_dict[
+                            reuse_kv_layer_idx]
+                    reuse_kv_layer_idx_dict[i] = reuse_kv_layer_idx
                     override_attn_config['reuse_kv_layer_idx'
                                         ] = reuse_kv_layer_idx
                     if self.kv_cache_layers is None:

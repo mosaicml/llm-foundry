@@ -20,6 +20,7 @@ from llmfoundry.models.utils.config_defaults import (
     ffn_config_defaults,
     init_config_defaults,
 )
+from llmfoundry.utils.warnings import ExperimentalWarning
 
 
 class MPTConfig(PretrainedConfig):
@@ -118,7 +119,7 @@ class MPTConfig(PretrainedConfig):
                 also be a dictionary that specifies the fc layer name and any kwargs for the fc layer.
             tie_word_embeddings (bool): Whether to tie the input embedding and output layers.
             use_pad_tok_in_ffn (bool): Whether to forward the pad token in the feedforward networks.
-            block_overrides: The allows for overriding default block configs for certain layers. This should contain two sub configs: order and overrides. order specifies the order of different kinds of layers (default refers to a layer that does not apply any overrides). For each kind of layer, specify the overrides in the overrides config.
+            block_overrides: This allows for overriding default block configs for certain layers. This must contain `overrides` and at least one of `start`, `repeating_pattern`, and `end`. `start`, `repeating_pattern`, and `end` specify the order of different kinds of layers (default refers to a layer that does not apply any overrides). For each kind of layer, specify the `overrides` in the overrides config.
                 To specify this model (https://research.character.ai/optimizing-inference/) , the following config will be needed:
                     block_overrides:
                         start:
@@ -183,27 +184,7 @@ class MPTConfig(PretrainedConfig):
                 'reusing kv cache from a previous layer is not implemented for torch attention.',
             )
         if block_overrides is not None:
-            warnings.warn(
-                'block_overrides is an experimental feature. The YAML design may change in the future.',
-            )
-            if 'start' not in block_overrides and 'repeating_pattern' not in block_overrides and 'end' not in block_overrides:
-                raise ValueError(
-                    'either start, repeating_pattern, or end should be defined in block_overrides',
-                )
-            if 'overrides' not in block_overrides:
-                raise ValueError(
-                    'overrides should be defined in block_overrides',
-                )
-            for name, override in block_overrides['overrides'].items():
-                if name == 'default':
-                    raise ValueError(
-                        'block overrides cannot be named "default".',
-                    )
-                if 'attn_config' in override and 'reuse_kv_layer_idx' in override[
-                    'attn_config'] and self.attn_config['attn_impl'] == 'torch':
-                    raise NotImplementedError(
-                        'reusing kv cache from a previous layer is not implemented for torch attention.',
-                    )
+            self._validate_block_overrides(block_overrides)
         self.block_overrides = block_overrides
 
         if isinstance(fc_type, str):
@@ -229,6 +210,23 @@ class MPTConfig(PretrainedConfig):
         )
 
         self._validate_config()
+
+    def _validate_block_overrides(self, block_overrides):
+        warnings.warn(ExperimentalWarning('block_overrides'))
+        if 'start' not in block_overrides and 'repeating_pattern' not in block_overrides and 'end' not in block_overrides:
+            raise ValueError(
+                'either start, repeating_pattern, or end should be defined in block_overrides',
+            )
+        if 'overrides' not in block_overrides:
+            raise ValueError('overrides should be defined in block_overrides',)
+        for name, override in block_overrides['overrides'].items():
+            if name == 'default':
+                raise ValueError('block overrides cannot be named "default".',)
+            if 'attn_config' in override and 'reuse_kv_layer_idx' in override[
+                'attn_config'] and self.attn_config['attn_impl'] == 'torch':
+                raise NotImplementedError(
+                    'reusing kv cache from a previous layer is not implemented for torch attention.',
+                )
 
     def _set_config_defaults(
         self,

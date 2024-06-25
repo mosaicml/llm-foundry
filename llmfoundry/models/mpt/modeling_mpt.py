@@ -464,7 +464,7 @@ class MPTModel(MPTPreTrainedModel):
                 'config.block_overrides should not be None when calling _construct_blocks_with_overrides.',
             )
         modules_order_expanded = {}
-        for type in 'start', 'repeating_pattern', 'end':
+        for type in ['start', 'repeating_pattern', 'end']:
             modules_order_expanded[type] = []
             if type in config.block_overrides:
                 for block in config.block_overrides[type]:
@@ -487,12 +487,12 @@ class MPTModel(MPTPreTrainedModel):
                 raise ValueError(
                     'Number of layers should be divisible by the specified custom modules order.',
                 )
+            num_repetitions = (
+                config.n_layers - (start_len + end_len)
+            ) // repeating_pattern_len
             modules_order_expanded[
                 'repeating_pattern'
-            ] = modules_order_expanded['repeating_pattern'] * (
-                (config.n_layers -
-                 (start_len + end_len)) // repeating_pattern_len
-            )
+            ] = modules_order_expanded['repeating_pattern'] * num_repetitions
 
         model_modules_order_expanded = modules_order_expanded[
             'start'] + modules_order_expanded['repeating_pattern'

@@ -2701,7 +2701,7 @@ def test_construct_blocks(start: list, end: list):
         assert block_list[1].attn.sliding_window_size == 1024
         assert block_list[1].attn.reuse_kv_layer_idx == 0
         assert block_list[2].attn.sliding_window_size == 1024
-        assert block_list[2].attn.reuse_kv_layer_idx == 1
+        assert block_list[2].attn.reuse_kv_layer_idx == 0
     else:
         assert block_list[0].attn.sliding_window_size == 512
         assert block_list[0].attn.reuse_kv_layer_idx is None

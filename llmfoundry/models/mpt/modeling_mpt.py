@@ -463,6 +463,99 @@ class MPTModel(MPTPreTrainedModel):
             raise ValueError(
                 'config.block_overrides should not be None when calling _construct_blocks_with_overrides.',
             )
+        model_modules_order_expanded = self._get_modules_order_expanded(config)
+        module_list = []
+        layer_description_list = []
+
+        reuse_kv_layer_idx_dict = {}
+        for i in range(config.n_layers):
+            module_name = model_modules_order_expanded[i]
+            override_config = {}
+            if module_name != 'default':
+                if 'attn_config' in config.block_overrides['overrides'][
+                    module_name
+                ] and 'reuse_kv_layer_idx' in config.block_overrides[
+                    'overrides'][module_name]['attn_config']:
+                    override_config = self._validate_reuse_kv_layer_config(
+                        config,
+                        model_modules_order_expanded,
+                        reuse_kv_layer_idx_dict,
+                        i,
+                        module_name,
+                    )
+            layer_description_list.append([
+                i,
+                module_name,
+                self._get_overrides_for_logging(override_config),
+            ],)
+            new_block_args = MPTModel._override_block_args(
+                block_args,
+                override_config,
+                config.allowed_block_overrides,
+            )
+            module_list.append(
+                MPTBlock(
+                    device=config.init_device,
+                    **new_block_args,
+                ),
+            )
+        log.info(
+            'The following is a summary of overrides per layer.\n' + tabulate(
+                layer_description_list,
+                headers=['idx', 'name', 'overrides'],
+            ),
+        )
+        return nn.ModuleList(module_list)
+
+    def _validate_reuse_kv_layer_config(
+        self,
+        config,
+        model_modules_order_expanded,
+        reuse_kv_layer_idx_dict,
+        i,
+        module_name,
+    ):
+        override_config = copy.deepcopy(
+            config.block_overrides['overrides'][module_name],
+        )
+        override_attn_config = override_config.get('attn_config', None)
+        if override_attn_config['reuse_kv_layer_idx'] >= 0:
+            raise ValueError(
+                f'The relative index of kv layer to reuse, {override_attn_config["reuse_kv_layer_idx"]=}, should be negative.',
+            )
+        reuse_kv_layer_idx = i + override_attn_config['reuse_kv_layer_idx']
+        if reuse_kv_layer_idx < 0:
+            raise ValueError(
+                f'The absolute index of kv layer to reuse, {reuse_kv_layer_idx} should be non-negative.',
+            )
+        if reuse_kv_layer_idx in reuse_kv_layer_idx_dict:
+            reuse_kv_layer_idx = reuse_kv_layer_idx_dict[reuse_kv_layer_idx]
+        reuse_kv_layer_idx_dict[i] = reuse_kv_layer_idx
+
+        parent_layer_name = model_modules_order_expanded[reuse_kv_layer_idx]
+        parent_config = {} if parent_layer_name == 'default' else copy.deepcopy(
+            config.block_overrides['overrides'][parent_layer_name],
+        )
+        if 'attn_config' not in parent_config:
+            parent_config['attn_config'] = {}
+        parent_config['attn_config']['reuse_kv_layer_idx'] = override_config[
+            'attn_config']['reuse_kv_layer_idx']
+        if override_config != parent_config:
+            raise ValueError(
+                'For reusing the kv cache of a previous layer, the previous layer should match the block config as the current layer.',
+            )
+
+        override_attn_config['reuse_kv_layer_idx'] = reuse_kv_layer_idx
+        if self.kv_cache_layers is None:
+            self.kv_cache_layers = set()
+        self.kv_cache_layers.add(reuse_kv_layer_idx)
+        return override_config
+
+    def _get_modules_order_expanded(self, config: MPTConfig):
+        if config.block_overrides is None:
+            raise ValueError(
+                'config.block_overrides should not be None when calling _get_modules_order_expanded.',
+            )
         modules_order_expanded = {}
         for location in ['start', 'repeating_pattern', 'end']:
             modules_order_expanded[location] = []
@@ -496,81 +589,12 @@ class MPTModel(MPTPreTrainedModel):
             'start'] + modules_order_expanded['repeating_pattern'
                                              ] + modules_order_expanded['end']
 
-        module_list = []
-        layer_description_list = []
         if len(model_modules_order_expanded) != config.n_layers:
             raise ValueError(
                 f'The specified block overrides do not match the number of layers: {len(model_modules_order_expanded)} vs {config.n_layers}.',
             )
 
-        reuse_kv_layer_idx_dict = {}
-        for i in range(config.n_layers):
-            module_name = model_modules_order_expanded[i]
-            override_config = {}
-            if module_name != 'default':
-                override_config = copy.deepcopy(
-                    config.block_overrides['overrides'][module_name],
-                )
-                override_attn_config = override_config.get('attn_config', None)
-                if override_attn_config is not None and 'reuse_kv_layer_idx' in override_attn_config:
-                    if override_attn_config['reuse_kv_layer_idx'] >= 0:
-                        raise ValueError(
-                            f'The relative index of kv layer to reuse, {override_attn_config["reuse_kv_layer_idx"]=}, should be negative.',
-                        )
-                    reuse_kv_layer_idx = i + override_attn_config[
-                        'reuse_kv_layer_idx']
-                    if reuse_kv_layer_idx < 0:
-                        raise ValueError(
-                            f'The absolute index of kv layer to reuse, {reuse_kv_layer_idx} should be non-negative.',
-                        )
-                    if reuse_kv_layer_idx in reuse_kv_layer_idx_dict:
-                        reuse_kv_layer_idx = reuse_kv_layer_idx_dict[
-                            reuse_kv_layer_idx]
-                    reuse_kv_layer_idx_dict[i] = reuse_kv_layer_idx
-
-                    parent_layer_name = model_modules_order_expanded[
-                        reuse_kv_layer_idx]
-                    parent_config = {} if parent_layer_name == 'default' else copy.deepcopy(
-                        config.block_overrides['overrides'][parent_layer_name],
-                    )
-                    if 'attn_config' not in parent_config:
-                        parent_config['attn_config'] = {}
-                    parent_config['attn_config'][
-                        'reuse_kv_layer_idx'] = override_config['attn_config'][
-                            'reuse_kv_layer_idx']
-                    if override_config != parent_config:
-                        raise ValueError(
-                            'For reusing the kv cache of a previous layer, the previous layer should match the block config as the current layer.',
-                        )
-
-                    override_attn_config['reuse_kv_layer_idx'
-                                        ] = reuse_kv_layer_idx
-                    if self.kv_cache_layers is None:
-                        self.kv_cache_layers = set()
-                    self.kv_cache_layers.add(reuse_kv_layer_idx)
-            layer_description_list.append([
-                i,
-                module_name,
-                self._get_overrides_for_logging(override_config),
-            ],)
-            new_block_args = MPTModel._override_block_args(
-                block_args,
-                override_config,
-                config.allowed_block_overrides,
-            )
-            module_list.append(
-                MPTBlock(
-                    device=config.init_device,
-                    **new_block_args,
-                ),
-            )
-        log.info(
-            'The following is a summary of overrides per layer.\n' + tabulate(
-                layer_description_list,
-                headers=['idx', 'name', 'overrides'],
-            ),
-        )
-        return nn.ModuleList(module_list)
+        return model_modules_order_expanded
 
     def _get_overrides_for_logging(
         self,

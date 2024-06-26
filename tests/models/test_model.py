@@ -2790,3 +2790,69 @@ def test_override_block_args():
     assert new_config['d'] == 4
     assert new_config['e'] == 6
     assert new_config['b']['c'] == 5
+
+
+@pytest.mark.parametrize('start', [True, False])
+@pytest.mark.parametrize('repeating_pattern', [True, False])
+@pytest.mark.parametrize('end', [True, False])
+def test_get_modules_order_expanded(
+    start: bool,
+    repeating_pattern: bool,
+    end: bool,
+):
+    n_layers = 0
+    block_overrides = {}
+    expected_list = []
+
+    if start:
+        block_overrides['start'] = [
+            {
+                'name': 'default',
+                'repeat': 1,
+            },
+            {
+                'name': 'layer_a',
+                'repeat': 2,
+            },
+        ]
+        n_layers += 3
+        expected_list.extend(['default', 'layer_a', 'layer_a'])
+
+    if start:
+        block_overrides['start'] = [
+            {
+                'name': 'layer_b',
+                'repeat': 3,
+            },
+        ]
+        n_layers += 6
+        expected_list.extend(['layer_b'] * 6)
+
+    if end:
+        block_overrides['start'] = [
+            {
+                'name': 'layer_c',
+                'repeat': 1,
+            },
+            {
+                'name': 'default',
+                'repeat': 2,
+            },
+        ]
+        n_layers += 3
+        expected_list.extend(['layer_c', 'default', 'default'])
+
+    config = MPTConfig(
+        d_model=32,
+        n_heads=16,
+        n_layers=n_layers,
+        block_overrides=block_overrides,
+        expansion_ratio=2,
+        max_seq_len=64,
+        attn_config={
+            'attn_impl': 'flash',
+            'attn_type': 'grouped_query_attention',
+            'kv_n_heads': 4,
+        },
+    )
+    assert expected_list == MPTModel._get_modules_order_expanded(config)

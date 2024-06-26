@@ -468,7 +468,9 @@ class MPTModel(MPTPreTrainedModel):
             raise ValueError(
                 'config.block_overrides should not be None when calling _get_override_block_args_list.',
             )
-        model_modules_order_expanded = self._get_modules_order_expanded(config)
+        model_modules_order_expanded = MPTModel._get_modules_order_expanded(
+            config,
+        )
         new_block_args_list = []
         layer_description_list = []
 
@@ -552,7 +554,8 @@ class MPTModel(MPTPreTrainedModel):
         self.kv_cache_layers.add(reuse_kv_layer_idx)
         return override_config
 
-    def _get_modules_order_expanded(self, config: MPTConfig):
+    @staticmethod
+    def _get_modules_order_expanded(config: MPTConfig) -> List[str]:
         if config.block_overrides is None:
             raise ValueError(
                 'config.block_overrides should not be None when calling _get_modules_order_expanded.',

@@ -599,6 +599,7 @@ class MPTModel(MPTPreTrainedModel):
         self,
         override_config: Dict[str, Any],
     ) -> List[dict[str, str]]:
+        # Flattens the override config for logging.
         overrides_list = []
         for k, v in override_config.items():
             if isinstance(v, dict):

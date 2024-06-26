@@ -478,7 +478,7 @@ class MPTModel(MPTPreTrainedModel):
                 if 'reuse_kv_layer_idx' in config.block_overrides['overrides'][
                     module_name].get('attn_config', {}):
                     self._validate_reuse_kv_layer_config(
-                        config,
+                        config.block_overrides,
                         model_modules_order_expanded,
                         b_idx,
                         override_config,
@@ -509,12 +509,12 @@ class MPTModel(MPTPreTrainedModel):
 
     def _validate_reuse_kv_layer_config(
         self,
-        config: MPTConfig,
+        block_overrides: Dict[str, Any],
         model_modules_order_expanded: List[str],
         b_idx: int,
         override_config: Dict[str, Any],
     ):
-        if config.block_overrides is None:
+        if block_overrides is None:
             raise ValueError(
                 'config.block_overrides should not be None when calling _construct_blocks_with_overrides.',
             )
@@ -535,7 +535,7 @@ class MPTModel(MPTPreTrainedModel):
 
         parent_layer_name = model_modules_order_expanded[reuse_kv_layer_idx]
         parent_config = {} if parent_layer_name == 'default' else copy.deepcopy(
-            config.block_overrides['overrides'][parent_layer_name],
+            block_overrides['overrides'][parent_layer_name],
         )
         if 'attn_config' not in parent_config:
             parent_config['attn_config'] = {}

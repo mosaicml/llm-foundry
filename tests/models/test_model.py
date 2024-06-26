@@ -2818,7 +2818,7 @@ def test_get_modules_order_expanded(
         n_layers += 3
         expected_list.extend(['default', 'layer_a', 'layer_a'])
 
-    if start:
+    if repeating_pattern:
         block_overrides['start'] = [
             {
                 'name': 'layer_b',

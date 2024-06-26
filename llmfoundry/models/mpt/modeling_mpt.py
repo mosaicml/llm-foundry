@@ -472,7 +472,7 @@ class MPTModel(MPTPreTrainedModel):
         new_block_args_list = []
         layer_description_list = []
 
-        self.reuse_kv_layer_idx_dict = {}
+        reuse_kv_layer_idx_dict = {}
         for b_idx in range(config.n_layers):
             module_name = model_modules_order_expanded[b_idx]
             override_config = {}
@@ -485,10 +485,12 @@ class MPTModel(MPTPreTrainedModel):
                     {},
                 ):
                     self._validate_reuse_kv_layer_config(
-                        config.block_overrides,
+                        block_overrides=config.block_overrides,
+                        model_modules_order_expanded=
                         model_modules_order_expanded,
-                        b_idx,
-                        override_config,
+                        b_idx=b_idx,
+                        override_config=override_config,
+                        reuse_kv_layer_idx_dict=reuse_kv_layer_idx_dict,
                     )
             layer_description_list.append([
                 b_idx,
@@ -515,6 +517,7 @@ class MPTModel(MPTPreTrainedModel):
         model_modules_order_expanded: List[str],
         b_idx: int,
         override_config: Dict[str, Any],
+        reuse_kv_layer_idx_dict: Dict[int, int],
     ):
         override_attn_config = override_config['attn_config']
         if override_attn_config['reuse_kv_layer_idx'] >= 0:
@@ -526,10 +529,9 @@ class MPTModel(MPTPreTrainedModel):
             raise ValueError(
                 f'The absolute index of kv layer to reuse, {reuse_kv_layer_idx} should be non-negative.',
             )
-        if reuse_kv_layer_idx in self.reuse_kv_layer_idx_dict:
-            reuse_kv_layer_idx = self.reuse_kv_layer_idx_dict[reuse_kv_layer_idx
-                                                             ]
-        self.reuse_kv_layer_idx_dict[b_idx] = reuse_kv_layer_idx
+        if reuse_kv_layer_idx in reuse_kv_layer_idx_dict:
+            reuse_kv_layer_idx = reuse_kv_layer_idx_dict[reuse_kv_layer_idx]
+        reuse_kv_layer_idx_dict[b_idx] = reuse_kv_layer_idx
 
         parent_layer_name = model_modules_order_expanded[reuse_kv_layer_idx]
         parent_config = {} if parent_layer_name == 'default' else copy.deepcopy(

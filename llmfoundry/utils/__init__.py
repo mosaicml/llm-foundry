@@ -3,9 +3,11 @@
 
 from llmfoundry.registry import config_transforms
 from llmfoundry.utils.builders import (
+    add_metrics_to_eval_loaders,
     build_algorithm,
     build_callback,
     build_composer_model,
+    build_eval_loaders,
     build_evaluators,
     build_icl_data_and_gauntlet,
     build_icl_evaluators,
@@ -67,8 +69,10 @@ config_transforms.register(
 )
 
 __all__ = [
+    'add_metrics_to_eval_loaders',
     'build_algorithm',
     'build_callback',
+    'build_eval_loaders',
     'build_evaluators',
     'build_icl_data_and_gauntlet',
     'build_icl_evaluators',

@@ -5,6 +5,7 @@ import copy
 import os
 import pathlib
 import warnings
+from functools import partial
 from typing import Any, Dict, List, Optional, Union, cast
 from unittest import mock
 
@@ -2766,6 +2767,16 @@ def test_reuse_prev_layer_kv_cache(
         test_cfg.max_seq_len,
     ])
     model.train()
+
+    prev_layer_key_value_dict = {}
+
+    def mock_forward(b_forward, b_idx, *args, **kwargs):
+        prev_layer_key_value_dict[b_idx] = kwargs['prev_layer_key_value']
+        return b_forward(*args, **kwargs)
+
+    for b_idx, block in enumerate(model.model.transformer.blocks):
+        block.forward = partial(mock_forward, block.forward, b_idx)
+
     with get_precision_context(test_cfg.precision):
         outputs = model(batch)
         assert len(outputs.past_key_values) == 2
@@ -2774,6 +2785,13 @@ def test_reuse_prev_layer_kv_cache(
         )
         assert torch.all(
             outputs.past_key_values[0][1] == outputs.past_key_values[1][1],
+        )
+        assert prev_layer_key_value_dict[0] is None
+        assert torch.all(
+            prev_layer_key_value_dict[1][0] == outputs.past_key_values[0][0],
+        )
+        assert torch.all(
+            prev_layer_key_value_dict[1][1] == outputs.past_key_values[0][1],
         )
 
 

@@ -464,17 +464,17 @@ class MPTModel(MPTPreTrainedModel):
                 'config.block_overrides should not be None when calling _construct_blocks_with_overrides.',
             )
         modules_order_expanded = {}
-        for type in ['start', 'repeating_pattern', 'end']:
-            modules_order_expanded[type] = []
-            if type in config.block_overrides:
-                for block in config.block_overrides[type]:
+        for location in ['start', 'repeating_pattern', 'end']:
+            modules_order_expanded[location] = []
+            if location in config.block_overrides:
+                for block in config.block_overrides[location]:
                     if not isinstance(block['repeat'],
                                       int) or block['repeat'] < 0:
                         raise ValueError(
                             'repeat should be a non-negative integer.',
                         )
-                    modules_order_expanded[type].extend([block['name']] *
-                                                        block['repeat'])
+                    modules_order_expanded[location].extend([block['name']] *
+                                                            block['repeat'])
 
         start_len = len(modules_order_expanded['start'])
         repeating_pattern_len = len(modules_order_expanded['repeating_pattern'])
@@ -530,22 +530,16 @@ class MPTModel(MPTPreTrainedModel):
                             reuse_kv_layer_idx]
                     reuse_kv_layer_idx_dict[i] = reuse_kv_layer_idx
 
-                    def _get_keys(nested_config: Dict[str, Any]) -> set:
-                        keys_set = set()
-                        for k in nested_config.keys():
-                            keys_set.add(k)
-                            if isinstance(nested_config[k], dict):
-                                keys_set.update(_get_keys(nested_config[k]))
-                        return keys_set
-
                     parent_layer_name = model_modules_order_expanded[
                         reuse_kv_layer_idx]
                     parent_config = {} if parent_layer_name == 'default' else config.block_overrides[
                         'overrides'][parent_layer_name]
-                    parent_keys = _get_keys(parent_config)
-                    child_keys = _get_keys(override_config)
-                    parent_keys = parent_keys.add('reuse_kv_layer_idx')
-                    if child_keys != parent_keys:
+                    if 'attn_config' not in parent_config:
+                        parent_config['attn_config'] = {}
+                    parent_config['attn_config'][
+                        'reuse_kv_layer_idx'] = override_config['attn_config'][
+                            'reuse_kv_layer_idx']
+                    if override_config != parent_config:
                         raise ValueError(
                             'For reusing the kv cache of a previous layer, the previous layer should match the block config as the current layer.',
                         )

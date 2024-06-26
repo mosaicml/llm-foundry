@@ -2666,7 +2666,6 @@ def test_construct_blocks(start: list, end: list):
     overrides = {
         'layer_s': {
             'attn_config': {
-                'sliding_window_size': 1024,
                 'reuse_kv_layer_idx': -1,
             },
         },
@@ -2677,7 +2676,7 @@ def test_construct_blocks(start: list, end: list):
         },
         'layer_e': {
             'attn_config': {
-                'sliding_window_size': 256,
+                'sliding_window_size': 512,
                 'reuse_kv_layer_idx': -2,
             },
         },
@@ -2698,18 +2697,18 @@ def test_construct_blocks(start: list, end: list):
     if len(start) > 0:
         assert block_list[0].attn.sliding_window_size == -1
         assert block_list[0].attn.reuse_kv_layer_idx is None
-        assert block_list[1].attn.sliding_window_size == 1024
+        assert block_list[1].attn.sliding_window_size == -1
         assert block_list[1].attn.reuse_kv_layer_idx == 0
-        assert block_list[2].attn.sliding_window_size == 1024
+        assert block_list[2].attn.sliding_window_size == -1
         assert block_list[2].attn.reuse_kv_layer_idx == 0
     else:
         assert block_list[0].attn.sliding_window_size == 512
         assert block_list[0].attn.reuse_kv_layer_idx is None
 
     if len(end) > 0:
-        assert block_list[6].attn.sliding_window_size == 256
+        assert block_list[6].attn.sliding_window_size == 512
         assert block_list[6].attn.reuse_kv_layer_idx == 4
-        assert block_list[7].attn.sliding_window_size == 256
+        assert block_list[7].attn.sliding_window_size == 512
         assert block_list[7].attn.reuse_kv_layer_idx == 5
         assert block_list[8].attn.sliding_window_size == -1
         assert block_list[8].attn.reuse_kv_layer_idx is None

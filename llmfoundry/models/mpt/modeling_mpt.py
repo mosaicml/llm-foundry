@@ -529,6 +529,27 @@ class MPTModel(MPTPreTrainedModel):
                         reuse_kv_layer_idx = reuse_kv_layer_idx_dict[
                             reuse_kv_layer_idx]
                     reuse_kv_layer_idx_dict[i] = reuse_kv_layer_idx
+
+                    def _get_keys(nested_config: Dict[str, Any]) -> set:
+                        keys_set = set()
+                        for k in nested_config.keys():
+                            keys_set.add(k)
+                            if isinstance(nested_config[k], dict):
+                                keys_set.update(_get_keys(nested_config[k]))
+                        return keys_set
+
+                    parent_layer_name = model_modules_order_expanded[
+                        reuse_kv_layer_idx]
+                    parent_config = {} if parent_layer_name == 'default' else config.block_overrides[
+                        'overrides'][parent_layer_name]
+                    parent_keys = _get_keys(parent_config)
+                    child_keys = _get_keys(override_config)
+                    parent_keys = parent_keys.add('reuse_kv_layer_idx')
+                    if child_keys != parent_keys:
+                        raise ValueError(
+                            'For reusing the kv cache of a previous layer, the previous layer should match the block config as the current layer.',
+                        )
+
                     override_attn_config['reuse_kv_layer_idx'
                                         ] = reuse_kv_layer_idx
                     if self.kv_cache_layers is None:

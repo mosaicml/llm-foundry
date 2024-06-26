@@ -475,8 +475,10 @@ class MPTModel(MPTPreTrainedModel):
                 override_config = copy.deepcopy(
                     config.block_overrides['overrides'][module_name],
                 )
-                if 'reuse_kv_layer_idx' in config.block_overrides['overrides'][
-                    module_name].get('attn_config', {}):
+                if 'reuse_kv_layer_idx' in override_config.get(
+                    'attn_config',
+                    {},
+                ):
                     self._validate_reuse_kv_layer_config(
                         config.block_overrides,
                         model_modules_order_expanded,

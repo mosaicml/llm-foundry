@@ -475,11 +475,9 @@ class MPTModel(MPTPreTrainedModel):
                 override_config = copy.deepcopy(
                     config.block_overrides['overrides'][module_name],
                 )
-                if 'attn_config' in config.block_overrides['overrides'][
-                    module_name
-                ] and 'reuse_kv_layer_idx' in config.block_overrides[
-                    'overrides'][module_name]['attn_config']:
-                    override_config = self._validate_reuse_kv_layer_config(
+                if 'reuse_kv_layer_idx' in config.block_overrides['overrides'][
+                    module_name].get('attn_config', {}):
+                    self._validate_reuse_kv_layer_config(
                         config,
                         model_modules_order_expanded,
                         b_idx,
@@ -516,7 +514,11 @@ class MPTModel(MPTPreTrainedModel):
         b_idx: int,
         override_config: Dict[str, Any],
     ):
-        override_attn_config = override_config.get('attn_config', None)
+        if config.block_overrides is None:
+            raise ValueError(
+                'config.block_overrides should not be None when calling _construct_blocks_with_overrides.',
+            )
+        override_attn_config = override_config['attn_config']
         if override_attn_config['reuse_kv_layer_idx'] >= 0:
             raise ValueError(
                 f'The relative index of kv layer to reuse, {override_attn_config["reuse_kv_layer_idx"]=}, should be negative.',

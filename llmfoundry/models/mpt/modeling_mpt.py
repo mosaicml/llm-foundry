@@ -486,13 +486,18 @@ class MPTModel(MPTPreTrainedModel):
                     'attn_config',
                     {},
                 ):
-                    self._validate_reuse_kv_layer_config(
+                    MPTModel._validate_reuse_kv_layer_config(
                         block_overrides=config.block_overrides,
                         model_modules_order_expanded=
                         model_modules_order_expanded,
                         b_idx=b_idx,
                         override_config=override_config,
                         reuse_kv_layer_idx_dict=reuse_kv_layer_idx_dict,
+                    )
+                    if self.kv_cache_layers is None:
+                        self.kv_cache_layers = set()
+                    self.kv_cache_layers.add(
+                        override_config['attn_config']['reuse_kv_layer_idx'],
                     )
             layer_description_list.append([
                 b_idx,
@@ -513,8 +518,8 @@ class MPTModel(MPTPreTrainedModel):
         )
         return new_block_args_list
 
+    @staticmethod
     def _validate_reuse_kv_layer_config(
-        self,
         block_overrides: Dict[str, Any],
         model_modules_order_expanded: List[str],
         b_idx: int,
@@ -549,10 +554,6 @@ class MPTModel(MPTPreTrainedModel):
             )
 
         override_attn_config['reuse_kv_layer_idx'] = reuse_kv_layer_idx
-        if self.kv_cache_layers is None:
-            self.kv_cache_layers = set()
-        self.kv_cache_layers.add(reuse_kv_layer_idx)
-        return override_config
 
     @staticmethod
     def _get_modules_order_expanded(config: MPTConfig) -> List[str]:

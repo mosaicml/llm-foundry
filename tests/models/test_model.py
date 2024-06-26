@@ -2861,3 +2861,78 @@ def test_get_modules_order_expanded(
         },
     )
     assert expected_list == MPTModel._get_modules_order_expanded(config)
+
+
+@pytest.mark.parametrize('reuse_kv_layer_idx', [-2, -1, 0])
+def test_validate_reuse_kv_layer_config(reuse_kv_layer_idx: int):
+    layer_a_override = {
+        'key_1': 'value_a',
+        'attn_config': {
+            'key_2': 'value_b',
+        },
+    }
+    layer_b_override = {
+        'key_1': 'value_c',
+        'attn_config': {
+            'key_2': 'value_d',
+        },
+    }
+    layer_c_override = {
+        'key_1': 'value_c' if reuse_kv_layer_idx == -1 else 'value_a',
+        'attn_config': {
+            'key_2': 'value_d' if reuse_kv_layer_idx == -1 else 'value_b',
+            'reuse_kv_layer_idx': reuse_kv_layer_idx,
+        },
+    }
+    block_overrides = {
+        'overrides': {
+            'layer_a': layer_a_override,
+            'layer_b': layer_b_override,
+            'layer_c': layer_c_override,
+        },
+    }
+    model_modules_order_expanded = ['layer_a', 'layer_b', 'layer_c']
+    if reuse_kv_layer_idx == -1:
+        model_modules_order_expanded = [
+            'layer_a',
+            'layer_b',
+            'layer_c',
+            'layer_c',
+            'layer_c',
+            'layer_a',
+            'layer_c',
+        ]
+    reuse_kv_layer_idx_dict = {}
+
+    def _validate_helper(b_idx: int):
+        MPTModel._validate_reuse_kv_layer_config(
+            block_overrides=block_overrides,
+            model_modules_order_expanded=model_modules_order_expanded,
+            b_idx=b_idx,
+            override_config=copy.deepcopy(
+                block_overrides['overrides'][model_modules_order_expanded[b_idx]
+                                            ],
+            ),
+            reuse_kv_layer_idx_dict=reuse_kv_layer_idx_dict,
+        )
+
+    if reuse_kv_layer_idx == -1:
+        _validate_helper(b_idx=2)
+        _validate_helper(b_idx=3)
+        _validate_helper(b_idx=4)
+        with pytest.raises(
+            expected_exception=ValueError,
+            match=
+            'For reusing the kv cache of a previous layer, the previous layer should match the block config as the current layer\.',  # type: ignore
+        ):
+            _validate_helper(b_idx=6)
+
+    elif reuse_kv_layer_idx == -2:
+        _validate_helper(b_idx=2)
+    else:
+        with pytest.raises(
+            expected_exception=ValueError,
+            match=
+            'The relative index of kv layer to reuse, override_attn_config\[\"reuse_kv_layer_idx\"\]=0, should be negative\.',  # type: ignore
+        ):
+            _validate_helper(b_idx=2)

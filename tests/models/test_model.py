@@ -2805,7 +2805,7 @@ def test_get_modules_order_expanded(
     expected_list = []
 
     if start:
-        block_overrides['start'] = [
+        block_overrides['start'] = [ # type: ignore
             {
                 'name': 'default',
                 'repeat': 1,
@@ -2819,7 +2819,9 @@ def test_get_modules_order_expanded(
         expected_list.extend(['default', 'layer_a', 'layer_a'])
 
     if repeating_pattern:
-        block_overrides['repeating_pattern'] = [
+        block_overrides[
+            'repeating_pattern'
+        ] = [  # type: ignore
             {
                 'name': 'layer_b',
                 'repeat': 3,
@@ -2829,7 +2831,7 @@ def test_get_modules_order_expanded(
         expected_list.extend(['layer_b'] * 6)
 
     if end:
-        block_overrides['end'] = [
+        block_overrides['end'] = [ # type: ignore
             {
                 'name': 'layer_c',
                 'repeat': 1,

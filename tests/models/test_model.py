@@ -2841,7 +2841,7 @@ def test_get_modules_order_expanded(
         ]
         n_layers += 3
         expected_list.extend(['layer_c', 'default', 'default'])
-    
+
     if n_layers == 0:
         pytest.skip('Skipping because no overrides.')
 

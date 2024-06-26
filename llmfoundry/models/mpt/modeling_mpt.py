@@ -467,11 +467,14 @@ class MPTModel(MPTPreTrainedModel):
         module_list = []
         layer_description_list = []
 
-        reuse_kv_layer_idx_dict = {}
-        for i in range(config.n_layers):
-            module_name = model_modules_order_expanded[i]
+        self.reuse_kv_layer_idx_dict = {}
+        for b_idx in range(config.n_layers):
+            module_name = model_modules_order_expanded[b_idx]
             override_config = {}
             if module_name != 'default':
+                override_config = copy.deepcopy(
+                    config.block_overrides['overrides'][module_name],
+                )
                 if 'attn_config' in config.block_overrides['overrides'][
                     module_name
                 ] and 'reuse_kv_layer_idx' in config.block_overrides[
@@ -479,12 +482,11 @@ class MPTModel(MPTPreTrainedModel):
                     override_config = self._validate_reuse_kv_layer_config(
                         config,
                         model_modules_order_expanded,
-                        reuse_kv_layer_idx_dict,
-                        i,
-                        module_name,
+                        b_idx,
+                        override_config,
                     )
             layer_description_list.append([
-                i,
+                b_idx,
                 module_name,
                 self._get_overrides_for_logging(override_config),
             ],)
@@ -509,28 +511,25 @@ class MPTModel(MPTPreTrainedModel):
 
     def _validate_reuse_kv_layer_config(
         self,
-        config,
-        model_modules_order_expanded,
-        reuse_kv_layer_idx_dict,
-        i,
-        module_name,
+        config: MPTConfig,
+        model_modules_order_expanded: List[str],
+        b_idx: int,
+        override_config: Dict[str, Any],
     ):
-        override_config = copy.deepcopy(
-            config.block_overrides['overrides'][module_name],
-        )
         override_attn_config = override_config.get('attn_config', None)
         if override_attn_config['reuse_kv_layer_idx'] >= 0:
             raise ValueError(
                 f'The relative index of kv layer to reuse, {override_attn_config["reuse_kv_layer_idx"]=}, should be negative.',
             )
-        reuse_kv_layer_idx = i + override_attn_config['reuse_kv_layer_idx']
+        reuse_kv_layer_idx = b_idx + override_attn_config['reuse_kv_layer_idx']
         if reuse_kv_layer_idx < 0:
             raise ValueError(
                 f'The absolute index of kv layer to reuse, {reuse_kv_layer_idx} should be non-negative.',
             )
-        if reuse_kv_layer_idx in reuse_kv_layer_idx_dict:
-            reuse_kv_layer_idx = reuse_kv_layer_idx_dict[reuse_kv_layer_idx]
-        reuse_kv_layer_idx_dict[i] = reuse_kv_layer_idx
+        if reuse_kv_layer_idx in self.reuse_kv_layer_idx_dict:
+            reuse_kv_layer_idx = self.reuse_kv_layer_idx_dict[reuse_kv_layer_idx
+                                                             ]
+        self.reuse_kv_layer_idx_dict[b_idx] = reuse_kv_layer_idx
 
         parent_layer_name = model_modules_order_expanded[reuse_kv_layer_idx]
         parent_config = {} if parent_layer_name == 'default' else copy.deepcopy(

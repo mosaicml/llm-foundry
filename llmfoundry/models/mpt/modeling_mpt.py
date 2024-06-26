@@ -466,15 +466,13 @@ class MPTModel(MPTPreTrainedModel):
         modules_order_expanded = {}
         for location in ['start', 'repeating_pattern', 'end']:
             modules_order_expanded[location] = []
-            if location in config.block_overrides:
-                for block in config.block_overrides[location]:
-                    if not isinstance(block['repeat'],
-                                      int) or block['repeat'] < 0:
-                        raise ValueError(
-                            'repeat should be a non-negative integer.',
-                        )
-                    modules_order_expanded[location].extend([block['name']] *
-                                                            block['repeat'])
+            for block in config.block_overrides.get(location, []):
+                if not isinstance(block['repeat'], int) or block['repeat'] < 0:
+                    raise ValueError(
+                        'repeat should be a non-negative integer.',
+                    )
+                modules_order_expanded[location].extend([block['name']] *
+                                                        block['repeat'])
 
         start_len = len(modules_order_expanded['start'])
         repeating_pattern_len = len(modules_order_expanded['repeating_pattern'])

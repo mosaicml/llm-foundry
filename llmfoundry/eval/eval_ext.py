@@ -28,14 +28,20 @@ from omegaconf import OmegaConf as om
 from llmfoundry.utils.builders import (
     build_tokenizer,
 )
+from transformers import (
+    PreTrainedTokenizerBase,
+)
+import os
+from .eval import main
 
 class CustomComposerHFCausalLM(HuggingFaceModel):
     model = None
-    tokenizer = None
 
     def __init__(
         self,
+        tokenizer: PreTrainedTokenizerBase,
         use_train_metrics: bool = True,
+        **kwargs
     ):
 
         train_metrics, eval_metrics = CustomComposerHFCausalLM.build_metrics(
@@ -46,7 +52,7 @@ class CustomComposerHFCausalLM(HuggingFaceModel):
         super().__init__(
             model=self.model,
             shift_labels=True,
-            tokenizer=self.tokenizer,
+            tokenizer=tokenizer,
             metrics=train_metrics,
             eval_metrics=eval_metrics,
         )
@@ -88,7 +94,7 @@ class CustomComposerHFCausalLM(HuggingFaceModel):
 models.register('custom_hf_causal_lm', func=CustomComposerHFCausalLM)
 
 
-def evaluate(model, yaml_path, tokenizer_name=None):
+def evaluate(model, yaml_path, scripts_dir, tokenizer_name=None):
     with open(yaml_path) as f:
         cfg = om.load(f)
     if 'fsdp_config' in cfg:
@@ -106,6 +112,9 @@ def evaluate(model, yaml_path, tokenizer_name=None):
         print('\n'*4, 'Using tokenizer name from the name_or_path of the model', '\n'*4)
 
     cfg_override = om.create(f"""
+models:
+-            
+  model_name: {model.config.name_or_path}                 
   model:
     name: custom_hf_causal_lm
   tokenizer:
@@ -113,10 +122,10 @@ def evaluate(model, yaml_path, tokenizer_name=None):
     kwargs:
       model_max_length: {cfg.max_seq_len}
     """)
+    print('\n'*4, f'Overriding yaml config with the following:\n{om.to_yaml(cfg_override)}', '\n'*4)
     cfg = om.merge(cfg, cfg_override)
 
-    tokenizer = build_tokenizer(cfg.tokenizer.name, cfg.tokenizer.kwargs)
     CustomComposerHFCausalLM.model = model
-    CustomComposerHFCausalLM.tokenizer = tokenizer
 
+    os.chdir(scripts_dir)
     main(cfg)

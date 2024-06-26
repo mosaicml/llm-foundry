@@ -532,8 +532,9 @@ class MPTModel(MPTPreTrainedModel):
 
                     parent_layer_name = model_modules_order_expanded[
                         reuse_kv_layer_idx]
-                    parent_config = {} if parent_layer_name == 'default' else config.block_overrides[
-                        'overrides'][parent_layer_name]
+                    parent_config = {} if parent_layer_name == 'default' else copy.deepcopy(
+                        config.block_overrides['overrides'][parent_layer_name],
+                    )
                     if 'attn_config' not in parent_config:
                         parent_config['attn_config'] = {}
                     parent_config['attn_config'][

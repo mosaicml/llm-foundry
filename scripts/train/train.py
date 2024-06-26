@@ -50,13 +50,13 @@ from llmfoundry.utils.config_utils import (
     make_dataclass_and_log_config,
     pop_config,
     process_init_device,
-    update_batch_size_info,
 )
 from llmfoundry.utils.exceptions import (
     BaseContextualError,
     EvalDataLoaderLocation,
     TrainDataLoaderLocation,
 )
+from llmfoundry.utils.mosaicml_logger_utils import no_override_excepthook
 from llmfoundry.utils.registry_utils import import_file
 
 log = logging.getLogger(__name__)
@@ -197,7 +197,7 @@ def main(cfg: DictConfig) -> Trainer:
         cfg,
         TrainConfig,
         TRAIN_CONFIG_KEYS,
-        transforms=[update_batch_size_info],
+        transforms='all',
     )
 
     # Set logging level
@@ -385,8 +385,8 @@ def main(cfg: DictConfig) -> Trainer:
             train_cfg.device_train_batch_size,
         )
     except BaseContextualError as e:
-        if mosaicml_logger is not None:
-            e.location = TrainDataLoaderLocation
+        e.location = TrainDataLoaderLocation
+        if mosaicml_logger is not None and no_override_excepthook():
             mosaicml_logger.log_exception(e)
         raise e
 
@@ -418,8 +418,8 @@ def main(cfg: DictConfig) -> Trainer:
             if eval_gauntlet_callback is not None:
                 callbacks.append(eval_gauntlet_callback)
         except BaseContextualError as e:
-            if mosaicml_logger is not None:
-                e.location = EvalDataLoaderLocation
+            e.location = EvalDataLoaderLocation
+            if mosaicml_logger is not None and no_override_excepthook():
                 mosaicml_logger.log_exception(e)
             raise e
 
@@ -468,8 +468,8 @@ def main(cfg: DictConfig) -> Trainer:
                 non_icl_metrics,
             )
     except BaseContextualError as e:
-        if mosaicml_logger is not None:
-            e.location = EvalDataLoaderLocation
+        e.location = EvalDataLoaderLocation
+        if mosaicml_logger is not None and no_override_excepthook():
             mosaicml_logger.log_exception(e)
         raise e
 

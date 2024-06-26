@@ -445,26 +445,31 @@ class MPTModel(MPTPreTrainedModel):
         self.kv_cache_layers = None
 
         if config.block_overrides is not None:
-            return self._construct_blocks_with_overrides(config, block_args)
+            block_args_list = self._construct_blocks_with_overrides(
+                config,
+                block_args,
+            )
+        else:
+            block_args_list = [block_args for _ in range(config.n_layers)]
 
         return nn.ModuleList([
             self.block_class(
                 device=config.init_device,
-                **block_args,
-            ) for _ in range(config.n_layers)
+                **block_args_i,
+            ) for block_args_i in block_args_list
         ])
 
     def _construct_blocks_with_overrides(
         self,
         config: MPTConfig,
         block_args: Dict[str, Any],
-    ) -> nn.ModuleList:
+    ) -> List[Dict[str, Any]]:
         if config.block_overrides is None:
             raise ValueError(
                 'config.block_overrides should not be None when calling _construct_blocks_with_overrides.',
             )
         model_modules_order_expanded = self._get_modules_order_expanded(config)
-        module_list = []
+        new_block_args_list = []
         layer_description_list = []
 
         self.reuse_kv_layer_idx_dict = {}
@@ -495,19 +500,14 @@ class MPTModel(MPTPreTrainedModel):
                 override_config,
                 config.allowed_block_overrides,
             )
-            module_list.append(
-                MPTBlock(
-                    device=config.init_device,
-                    **new_block_args,
-                ),
-            )
+            new_block_args_list.append(new_block_args)
         log.info(
             'The following is a summary of overrides per layer.\n' + tabulate(
                 layer_description_list,
                 headers=['idx', 'name', 'overrides'],
             ),
         )
-        return nn.ModuleList(module_list)
+        return new_block_args_list
 
     def _validate_reuse_kv_layer_config(
         self,
@@ -516,10 +516,6 @@ class MPTModel(MPTPreTrainedModel):
         b_idx: int,
         override_config: Dict[str, Any],
     ):
-        if block_overrides is None:
-            raise ValueError(
-                'config.block_overrides should not be None when calling _construct_blocks_with_overrides.',
-            )
         override_attn_config = override_config['attn_config']
         if override_attn_config['reuse_kv_layer_idx'] >= 0:
             raise ValueError(

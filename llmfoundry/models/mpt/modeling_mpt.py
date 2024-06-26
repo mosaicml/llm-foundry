@@ -445,7 +445,7 @@ class MPTModel(MPTPreTrainedModel):
         self.kv_cache_layers = None
 
         if config.block_overrides is not None:
-            block_args_list = self._construct_blocks_with_overrides(
+            block_args_list = self._get_override_block_args_list(
                 config,
                 block_args,
             )
@@ -459,14 +459,14 @@ class MPTModel(MPTPreTrainedModel):
             ) for block_args_i in block_args_list
         ])
 
-    def _construct_blocks_with_overrides(
+    def _get_override_block_args_list(
         self,
         config: MPTConfig,
         block_args: Dict[str, Any],
     ) -> List[Dict[str, Any]]:
         if config.block_overrides is None:
             raise ValueError(
-                'config.block_overrides should not be None when calling _construct_blocks_with_overrides.',
+                'config.block_overrides should not be None when calling _get_override_block_args_list.',
             )
         model_modules_order_expanded = self._get_modules_order_expanded(config)
         new_block_args_list = []

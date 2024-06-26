@@ -2801,7 +2801,7 @@ def test_get_modules_order_expanded(
     end: bool,
 ):
     n_layers = 0
-    block_overrides = {}
+    block_overrides = {'overrides': {'a': 'b'}}
     expected_list = []
 
     if start:
@@ -2819,7 +2819,7 @@ def test_get_modules_order_expanded(
         expected_list.extend(['default', 'layer_a', 'layer_a'])
 
     if repeating_pattern:
-        block_overrides['start'] = [
+        block_overrides['repeating_pattern'] = [
             {
                 'name': 'layer_b',
                 'repeat': 3,
@@ -2829,7 +2829,7 @@ def test_get_modules_order_expanded(
         expected_list.extend(['layer_b'] * 6)
 
     if end:
-        block_overrides['start'] = [
+        block_overrides['end'] = [
             {
                 'name': 'layer_c',
                 'repeat': 1,
@@ -2841,6 +2841,9 @@ def test_get_modules_order_expanded(
         ]
         n_layers += 3
         expected_list.extend(['layer_c', 'default', 'default'])
+    
+    if n_layers == 0:
+        pytest.skip('Skipping because no overrides.')
 
     config = MPTConfig(
         d_model=32,

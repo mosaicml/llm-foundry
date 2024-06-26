@@ -493,6 +493,23 @@ def main(cfg: DictConfig) -> Trainer:
             e.location = EvalDataLoaderLocation
             mosaicml_logger.log_exception(e)
         raise e
+    
+    from torch.distributed.tensor.parallel import ColwiseParallel, RowwiseParallel
+    
+    def retrieve_layer_plan(n_layers: int):
+        print("MODEL NAMED PARAMS ARE:")
+        for name, param in model.named_parameters():
+            print(name, param.shape)
+        print("Exiting...")
+        exit(0)
+    
+    retrieve_layer_plan(model_config['n_layers'])
+
+    # ADDED TP CONFIG:
+    tp_config = {
+        'tensor_parallel_degree': 2,
+        'layer_plan': {}
+    }
 
     compile_config = train_cfg.compile_config
     # Build the Trainer
@@ -516,7 +533,7 @@ def main(cfg: DictConfig) -> Trainer:
         precision=train_cfg.precision,
         algorithms=algorithms,
         device_train_microbatch_size=train_cfg.device_train_microbatch_size,
-        parallelism_config={'fsdp': fsdp_config},
+        parallelism_config={'fsdp': fsdp_config, 'tp': tp_config},
         save_folder=train_cfg.save_folder,
         save_filename=save_filename,
         save_latest_filename=save_latest_filename,

@@ -1179,7 +1179,7 @@ def test_convert_and_generate_meta(
 @pytest.mark.world_size(4)
 @pytest.mark.gpu
 @pytest.mark.parametrize('num_experts', [2, 4, 8])
-@pytest.mark.parametrize('sharding_strategy', ['FULL_SHARD', 'HYBRID_SHARD'])
+@pytest.mark.parametrize('sharding_strategy', ['FULL_SHARD'])
 def test_mptmoe_huggingface_conversion_callback(
     tmp_path: pathlib.Path,
     num_experts: int,

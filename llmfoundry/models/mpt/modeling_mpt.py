@@ -469,8 +469,13 @@ class MPTModel(MPTPreTrainedModel):
                 'config.block_overrides should not be None when calling _get_override_block_args_list.',
             )
         model_modules_order_expanded = MPTModel._get_modules_order_expanded(
-            config,
+            config.block_overrides['order'],
         )
+        if len(model_modules_order_expanded) != config.n_layers:
+            raise ValueError(
+                f'The specified block overrides do not match the number of layers: {len(model_modules_order_expanded)} vs {config.n_layers}.',
+            )
+
         new_block_args_list = []
         layer_description_list = []
 
@@ -556,48 +561,22 @@ class MPTModel(MPTPreTrainedModel):
         override_attn_config['reuse_kv_layer_idx'] = reuse_kv_layer_idx
 
     @staticmethod
-    def _get_modules_order_expanded(config: MPTConfig) -> List[str]:
-        if config.block_overrides is None:
-            raise ValueError(
-                'config.block_overrides should not be None when calling _get_modules_order_expanded.',
-            )
-        modules_order_expanded = {}
-        for location in ['start', 'repeating_pattern', 'end']:
-            modules_order_expanded[location] = []
-            for block in config.block_overrides.get(location, []):
-                if not isinstance(block['repeat'], int) or block['repeat'] < 0:
-                    raise ValueError(
-                        'repeat should be a non-negative integer.',
-                    )
-                modules_order_expanded[location].extend([block['name']] *
-                                                        block['repeat'])
-
-        start_len = len(modules_order_expanded['start'])
-        repeating_pattern_len = len(modules_order_expanded['repeating_pattern'])
-        end_len = len(modules_order_expanded['end'])
-
-        if repeating_pattern_len > 0:
-            if (
-                config.n_layers - (start_len + end_len)
-            ) % repeating_pattern_len != 0:
+    def _get_modules_order_expanded(order: List[Dict[str, Any]]) -> List[str]:
+        model_modules_order_expanded = []
+        for item in order:
+            repeat = item['repeat'] if 'repeat' in item else 1
+            if ('name' in item) == ('order' in item):
                 raise ValueError(
-                    'Number of layers should be divisible by the specified custom modules order.',
+                    'Exactly one of `order` or `name` must be specified for each block override.',
                 )
-            num_repetitions = (
-                config.n_layers - (start_len + end_len)
-            ) // repeating_pattern_len
-            modules_order_expanded[
-                'repeating_pattern'
-            ] = modules_order_expanded['repeating_pattern'] * num_repetitions
 
-        model_modules_order_expanded = modules_order_expanded[
-            'start'] + modules_order_expanded['repeating_pattern'
-                                             ] + modules_order_expanded['end']
-
-        if len(model_modules_order_expanded) != config.n_layers:
-            raise ValueError(
-                f'The specified block overrides do not match the number of layers: {len(model_modules_order_expanded)} vs {config.n_layers}.',
-            )
+            if 'name' in item:
+                model_modules_order_expanded.extend([item['name']] * repeat)
+            else:
+                model_modules_order_expanded.extend(
+                    MPTModel._get_modules_order_expanded(item['order']) *
+                    repeat,
+                )
 
         return model_modules_order_expanded
 

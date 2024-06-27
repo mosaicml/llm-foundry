@@ -119,26 +119,19 @@ class MPTConfig(PretrainedConfig):
                 also be a dictionary that specifies the fc layer name and any kwargs for the fc layer.
             tie_word_embeddings (bool): Whether to tie the input embedding and output layers.
             use_pad_tok_in_ffn (bool): Whether to forward the pad token in the feedforward networks.
-            block_overrides: This allows for overriding default block configs for certain layers. This must contain `overrides` and at least one of `start`, `repeating_pattern`, and `end`. `start`, `repeating_pattern`, and `end` specify the order of different kinds of layers (default refers to a layer that does not apply any overrides). For each kind of layer, specify the `overrides` in the overrides config.
+            block_overrides: This allows for overriding default block configs for certain layers. This must contain `overrides` and `order`. `order` is a nested list which describes the order of the layers. For each kind of layer, specify the `overrides` in the overrides config (default refers to a layer that does not apply any overrides).
                 To specify this model (https://research.character.ai/optimizing-inference/) , the following config will be needed:
                     block_overrides:
-                        start:
-                            - name: default
-                              repeat: 1
-                        repeating_pattern:
-                            - name: sliding_window_layer
-                              repeat: 1
-                            - name: sliding_window_layer_reuse
-                              repeat: 1
-                            - name: sliding_window_layer
-                              repeat: 1
-                            - name: sliding_window_layer_reuse
-                              repeat: 2
-                            - name: reuse_kv_layer
-                              repeat: 1
-                        end:
-                            - name: default
-                              repeat: 0
+                        order:
+                        - name: default
+                        - repeat: 2
+                          order:
+                          - name: sliding_window_layer
+                          - name: sliding_window_layer_reuse
+                          - name: sliding_window_layer
+                          - repeat: 2
+                            name: sliding_window_layer_reuse
+                          - name: reuse_kv_layer
                         overrides:
                             sliding_window_layer:
                                 attn_config:

@@ -2625,32 +2625,8 @@ def test_head_dim_8_flash_mqa_attn(batch_size: int = 2):
     assert not torch.isnan(output.logits).any()
 
 
-@pytest.mark.parametrize(
-    'start',
-    [[], [{
-        'name': 'default',
-        'repeat': 1,
-    }, {
-        'name': 'layer_s',
-        'repeat': 2,
-    }]],
-)
-@pytest.mark.parametrize(
-    'end',
-    [[], [{
-        'name': 'layer_e',
-        'repeat': 2,
-    }, {
-        'name': 'default',
-        'repeat': 1,
-    }]],
-)
-def test_construct_blocks(start: list, end: list):
-    n_layers = 9
-    repeating_pattern = [{
-        'name': 'layer_rp',
-        'repeat': 1,
-    }]
+def test_construct_blocks():
+    n_layers = 13
 
     config = MPTConfig(
         d_model=32,
@@ -2664,65 +2640,78 @@ def test_construct_blocks(start: list, end: list):
             'kv_n_heads': 4,
         },
     )
-    overrides = {
-        'layer_s': {
+
+    # override architecture taken from https://research.character.ai/optimizing-inference/
+    config.block_overrides = {}
+    config.block_overrides['overrides'] = {
+        'reuse_kv_layer': {
             'attn_config': {
+                'reuse_kv_layer_idx': -6,
+            },
+        },
+        'sliding_window_layer': {
+            'attn_config': {
+                'sliding_window_size': 1024,
+            },
+        },
+        'sliding_window_layer_reuse': {
+            'attn_config': {
+                'sliding_window_size': 1024,
                 'reuse_kv_layer_idx': -1,
             },
         },
-        'layer_rp': {
-            'attn_config': {
-                'sliding_window_size': 512,
-            },
-        },
-        'layer_e': {
-            'attn_config': {
-                'sliding_window_size': 512,
-                'reuse_kv_layer_idx': -2,
-            },
-        },
     }
-    config.block_overrides = {}
-
-    if len(start) > 0:
-        config.block_overrides['start'] = start
-    config.block_overrides['repeating_pattern'] = repeating_pattern
-    if len(end) > 0:
-        config.block_overrides['end'] = end
-    config.block_overrides['overrides'] = overrides
+    config.block_overrides['order'] = [
+        {
+            'name': 'default',
+        },
+        {
+            'order': [
+                {
+                    'name': 'sliding_window_layer',
+                },
+                {
+                    'name': 'sliding_window_layer_reuse',
+                },
+                {
+                    'name': 'sliding_window_layer',
+                },
+                {
+                    'name': 'sliding_window_layer_reuse',
+                    'repeat': 2,
+                },
+                {
+                    'name': 'reuse_kv_layer',
+                },
+            ],
+            'repeat': 2,
+        },
+    ]
 
     block_list = MPTModel(config).construct_blocks(config)
 
     assert len(block_list) == n_layers
+    assert block_list[0].attn.sliding_window_size == -1
+    assert block_list[0].attn.reuse_kv_layer_idx is None
 
-    if len(start) > 0:
-        assert block_list[0].attn.sliding_window_size == -1
-        assert block_list[0].attn.reuse_kv_layer_idx is None
-        assert block_list[1].attn.sliding_window_size == -1
-        assert block_list[1].attn.reuse_kv_layer_idx == 0
-        assert block_list[2].attn.sliding_window_size == -1
-        assert block_list[2].attn.reuse_kv_layer_idx == 0
-    else:
-        assert block_list[0].attn.sliding_window_size == 512
-        assert block_list[0].attn.reuse_kv_layer_idx is None
+    for layer_offset in [1, 7]:
+        assert block_list[layer_offset].attn.sliding_window_size == 1024
+        assert block_list[layer_offset].attn.reuse_kv_layer_idx is None
+        assert block_list[layer_offset + 1].attn.sliding_window_size == 1024
+        assert block_list[layer_offset +
+                          1].attn.reuse_kv_layer_idx == layer_offset
 
-    if len(end) > 0:
-        assert block_list[6].attn.sliding_window_size == 512
-        assert block_list[6].attn.reuse_kv_layer_idx == 4
-        assert block_list[7].attn.sliding_window_size == 512
-        assert block_list[7].attn.reuse_kv_layer_idx == 5
-        assert block_list[8].attn.sliding_window_size == -1
-        assert block_list[8].attn.reuse_kv_layer_idx is None
-    else:
-        assert block_list[8].attn.sliding_window_size == 512
-        assert block_list[8].attn.reuse_kv_layer_idx is None
+        assert block_list[layer_offset + 2].attn.sliding_window_size == 1024
+        assert block_list[layer_offset + 2].attn.reuse_kv_layer_idx is None
+        assert block_list[layer_offset + 3].attn.sliding_window_size == 1024
+        assert block_list[layer_offset +
+                          3].attn.reuse_kv_layer_idx == layer_offset + 2
+        assert block_list[layer_offset + 4].attn.sliding_window_size == 1024
+        assert block_list[layer_offset +
+                          4].attn.reuse_kv_layer_idx == layer_offset + 2
 
-    assert block_list[3].attn.sliding_window_size == 512
-    assert block_list[3].attn.reuse_kv_layer_idx is None
-    assert block_list[4].attn.sliding_window_size == 512
-    assert block_list[4].attn.reuse_kv_layer_idx is None
-    assert block_list[5].attn.sliding_window_size == 512
-    assert block_list[5].attn.reuse_kv_layer_idx is None
+        assert block_list[layer_offset + 5].attn.sliding_window_size == -1
+        assert block_list[layer_offset + 5].attn.reuse_kv_layer_idx == 0
 
 
 @pytest.mark.gpu
@@ -2810,75 +2799,41 @@ def test_override_block_args():
     assert new_config['b']['c'] == 5
 
 
-@pytest.mark.parametrize('start', [True, False])
-@pytest.mark.parametrize('repeating_pattern', [True, False])
-@pytest.mark.parametrize('end', [True, False])
-def test_get_modules_order_expanded(
-    start: bool,
-    repeating_pattern: bool,
-    end: bool,
-):
-    n_layers = 0
-    block_overrides = {'overrides': {'a': 'b'}}
-    expected_list = []
-
-    if start:
-        block_overrides['start'] = [ # type: ignore
-            {
-                'name': 'default',
-                'repeat': 1,
-            },
-            {
-                'name': 'layer_a',
-                'repeat': 2,
-            },
-        ]
-        n_layers += 3
-        expected_list.extend(['default', 'layer_a', 'layer_a'])
-
-    if repeating_pattern:
-        block_overrides[
-            'repeating_pattern'
-        ] = [  # type: ignore
-            {
-                'name': 'layer_b',
-                'repeat': 3,
-            },
-        ]
-        n_layers += 6
-        expected_list.extend(['layer_b'] * 6)
-
-    if end:
-        block_overrides['end'] = [ # type: ignore
-            {
-                'name': 'layer_c',
-                'repeat': 1,
-            },
-            {
-                'name': 'default',
-                'repeat': 2,
-            },
-        ]
-        n_layers += 3
-        expected_list.extend(['layer_c', 'default', 'default'])
-
-    if n_layers == 0:
-        pytest.skip('Skipping because no overrides.')
-
-    config = MPTConfig(
-        d_model=32,
-        n_heads=16,
-        n_layers=n_layers,
-        block_overrides=block_overrides,
-        expansion_ratio=2,
-        max_seq_len=64,
-        attn_config={
-            'attn_impl': 'flash',
-            'attn_type': 'grouped_query_attention',
-            'kv_n_heads': 4,
+def test_get_modules_order_expanded():
+    order = [
+        {
+            'name': 'default',
         },
-    )
-    assert expected_list == MPTModel._get_modules_order_expanded(config)
+        {
+            'name': 'layer_a',
+            'repeat': 2,
+        },
+        {
+            'order': [{
+                'name': 'layer_b',
+            },],
+            'repeat': 3,
+        },
+        {
+            'name': 'layer_c',
+            'repeat': 2,
+        },
+        {
+            'name': 'default',
+        },
+    ]
+    expected_list = [
+        'default',
+        'layer_a',
+        'layer_a',
+        'layer_b',
+        'layer_b',
+        'layer_b',
+        'layer_c',
+        'layer_c',
+        'default',
+    ]
+    assert expected_list == MPTModel._get_modules_order_expanded(order)
 
 
 @pytest.mark.parametrize('reuse_kv_layer_idx', [-2, -1, 0])

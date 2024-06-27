@@ -498,9 +498,15 @@ def main(cfg: DictConfig) -> Trainer:
     
     def retrieve_layer_plan(n_layers: int):
         print("MODEL NAMED PARAMS ARE:")
+        layer_plan = {}
         for name, param in model.named_parameters():
-            print(name, param.shape)
-        print("Exiting...")
+            if 'Wqkv' in name or 'up_proj' in name or 'gate_proj' in name:
+                print("using ColwiseParallel for", name, param.shape)
+                layer_plan[name] = ColwiseParallel()
+            if 'out_proj' in name or 'down_proj' in name:
+                print("using RowwiseParallel for", name, param.shape)
+                layer_plan[name] = RowwiseParallel()
+        print("\n FINAL LAYER PLAN IS: \n", layer_plan)
         exit(0)
     
     retrieve_layer_plan(model_config['n_layers'])

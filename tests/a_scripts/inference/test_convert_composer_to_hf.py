@@ -1281,7 +1281,6 @@ def test_mptmoe_huggingface_conversion_callback(
         make_tiny_ft_dataset(path=tiny_dataset_path, size=dataset_size)
 
     dataloader_cfg = {
-        'name': 'finetuning',
         'dataset': {
             'hf_name': tiny_dataset_folder_path,
             'split': 'train',

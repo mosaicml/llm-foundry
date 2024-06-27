@@ -511,7 +511,7 @@ def main(cfg: DictConfig) -> Trainer:
     
     # ADDED TP CONFIG:
     tp_config = {
-        'tensor_parallel_degree': 2,
+        'tensor_parallel_degree': 8,
         'layer_plan': retrieve_layer_plan(model_config['n_layers'])
     }
 

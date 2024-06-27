@@ -322,6 +322,12 @@ def main(cfg: DictConfig) -> Trainer:
     if train_cfg.metadata is not None:
         # Flatten the metadata for logging
         logged_cfg.pop('metadata', None)
+        common_keys = set(logged_cfg.keys()) & set(train_cfg.metadata.keys())
+        if common_keys:
+            raise ValueError(
+                f'Keys {common_keys} are already present in the config. Please rename them in metadata.',
+            )
+
         logged_cfg.update(train_cfg.metadata, merge=True)
         if mosaicml_logger is not None:
             mosaicml_logger.log_metrics(train_cfg.metadata)

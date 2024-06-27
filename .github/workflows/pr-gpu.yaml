@@ -25,12 +25,6 @@ jobs:
           pytest_command: "coverage run -m pytest"
           pip_deps: "[all]"
           gpu_num: 1
-        - name: "gpu-2.3.1-1"
-          container: mosaicml/llm-foundry:2.3.1_cu121-latest
-          markers: "gpu"
-          pytest_command: "coverage run -m pytest"
-          pip_deps: "[all]"
-          gpu_num: 1
     name: ${{ matrix.name }}
     if: github.repository_owner == 'mosaicml'
     with:
@@ -56,12 +50,6 @@ jobs:
           pytest_command: "coverage run -m pytest"
           pip_deps: "[all]"
           gpu_num: 2
-        - name: "gpu-2.3.1-2"
-          container: mosaicml/llm-foundry:2.3.1_cu121-latest
-          markers: "gpu"
-          pytest_command: "coverage run -m pytest"
-          pip_deps: "[all]"
-          gpu_num: 2
     name: ${{ matrix.name }}
     if: github.repository_owner == 'mosaicml'
     with:
@@ -83,12 +71,6 @@ jobs:
         include:
         - name: "gpu-2.3.0-4"
           container: mosaicml/pytorch:2.3.0_cu121-python3.11-ubuntu20.04
-          markers: "gpu"
-          pytest_command: "coverage run -m pytest"
-          pip_deps: "[all]"
-          gpu_num: 4
-        - name: "gpu-2.3.1-4"
-          container: mosaicml/llm-foundry:2.3.1_cu121-latest
           markers: "gpu"
           pytest_command: "coverage run -m pytest"
           pip_deps: "[all]"

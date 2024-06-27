@@ -511,7 +511,7 @@ def main(cfg: DictConfig) -> Trainer:
     
     # ADDED TP CONFIG:
     tp_config = {
-        'tensor_parallel_degree': 2,
+        'tensor_parallel_degree': 4,
         'layer_plan': retrieve_layer_plan(model_config['n_layers'])
     }
 
@@ -537,7 +537,8 @@ def main(cfg: DictConfig) -> Trainer:
         precision=train_cfg.precision,
         algorithms=algorithms,
         device_train_microbatch_size=train_cfg.device_train_microbatch_size,
-        parallelism_config={'fsdp': fsdp_config, 'tp': tp_config},
+        #parallelism_config={'fsdp': fsdp_config, 'tp': tp_config},
+        parallelism_config={'fsdp': fsdp_config},
         save_folder=train_cfg.save_folder,
         save_filename=save_filename,
         save_latest_filename=save_latest_filename,

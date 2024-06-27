@@ -510,10 +510,10 @@ def main(cfg: DictConfig) -> Trainer:
         return layer_plan
     
     # ADDED TP CONFIG:
-    # tp_config = {
-    #     'tensor_parallel_degree': 1,
-    #     'layer_plan': retrieve_layer_plan(model_config['n_layers'])
-    # }
+    tp_config = {
+        'tensor_parallel_degree': 1,
+        'layer_plan': retrieve_layer_plan(model_config['n_layers'])
+    }
 
     compile_config = train_cfg.compile_config
     # Build the Trainer

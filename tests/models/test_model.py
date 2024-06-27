@@ -2770,7 +2770,7 @@ def test_reuse_prev_layer_kv_cache(
 
     prev_layer_key_value_dict = {}
 
-    def mock_forward(b_forward, b_idx, *args, **kwargs):
+    def mock_forward(b_forward, b_idx, *args, **kwargs):  # type: ignore
         prev_layer_key_value_dict[b_idx] = kwargs['prev_layer_key_value']
         return b_forward(*args, **kwargs)
 

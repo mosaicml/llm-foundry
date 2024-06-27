@@ -468,9 +468,11 @@ class MPTModel(MPTPreTrainedModel):
             raise ValueError(
                 'config.block_overrides should not be None when calling _get_override_block_args_list.',
             )
+        repeat = config.block_overrides[
+            'repeat'] if 'repeat' in config.block_overrides else 1
         model_modules_order_expanded = MPTModel._get_modules_order_expanded(
             config.block_overrides['order'],
-        )
+        ) * repeat
         if len(model_modules_order_expanded) != config.n_layers:
             raise ValueError(
                 f'The specified block overrides do not match the number of layers: {len(model_modules_order_expanded)} vs {config.n_layers}.',

@@ -1349,7 +1349,6 @@ def test_mptmoe_huggingface_conversion_callback(
         save_weights_only=True,
     )
     trainer.fit()
-    #self.state.outputs = self.state.model(self.state.batch)
     batch = trainer.state.batch
     model_output_logits = trainer.state.model(batch).logits
 
@@ -1427,7 +1426,6 @@ def test_mptmoe_huggingface_conversion_callback(
             loaded_model_logits = loaded_model(
                 input_ids=batch.get('input_ids', None),
                 attention_mask=batch.get('attention_mask', None),
-                prefix_mask=batch.get('bidirectional_mask', None),
                 sequence_id=batch.get('sequence_id', None),
                 inputs_embeds=batch.get('inputs_embeds', None),
             ).logits

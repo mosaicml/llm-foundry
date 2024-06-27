@@ -497,7 +497,7 @@ def main(cfg: DictConfig) -> Trainer:
     from torch.distributed.tensor.parallel import ColwiseParallel, RowwiseParallel
     
     def retrieve_layer_plan(n_layers: int):
-        print("MODEL NAMED PARAMS ARE:")
+        #print("MODEL NAMED PARAMS ARE:")
         layer_plan = {}
         for name, param in model.named_parameters():
             if 'Wqkv' in name or 'up_proj' in name or 'gate_proj' in name:
@@ -506,15 +506,13 @@ def main(cfg: DictConfig) -> Trainer:
             if 'out_proj' in name or 'down_proj' in name:
                 print("using RowwiseParallel for", name, param.shape)
                 layer_plan[name] = RowwiseParallel()
-        print("\n FINAL LAYER PLAN IS: \n", layer_plan)
-        exit(0)
+        # print("\n FINAL LAYER PLAN IS: \n", layer_plan)
+        return layer_plan
     
-    retrieve_layer_plan(model_config['n_layers'])
-
     # ADDED TP CONFIG:
     tp_config = {
         'tensor_parallel_degree': 2,
-        'layer_plan': {}
+        'layer_plan': retrieve_layer_plan(model_config['n_layers'])
     }
 
     compile_config = train_cfg.compile_config

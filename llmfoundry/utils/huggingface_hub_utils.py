@@ -279,7 +279,7 @@ def edit_files_for_hf_compatibility(
     # Filter out __init__ files
     all_relative_imports = {
         relative_import for relative_import in all_relative_imports
-        if relative_import != '__init__'
+        if relative_import not in {'__init__', 'modeling_mpt'}
     }
     for entrypoint in entrypoint_files:
         file_path = os.path.join(folder, entrypoint)

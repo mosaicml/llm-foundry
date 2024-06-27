@@ -206,12 +206,12 @@ class MPTConfig(PretrainedConfig):
 
     def _validate_block_overrides(self, block_overrides: Dict[str, Any]):
         warnings.warn(ExperimentalWarning('block_overrides'))
-        if 'start' not in block_overrides and 'repeating_pattern' not in block_overrides and 'end' not in block_overrides:
-            raise ValueError(
-                'either start, repeating_pattern, or end should be defined in block_overrides',
-            )
+        if 'order' not in block_overrides:
+            raise ValueError('`order` should be defined in block_overrides',)
         if 'overrides' not in block_overrides:
-            raise ValueError('overrides should be defined in block_overrides',)
+            raise ValueError(
+                '`overrides` should be defined in block_overrides',
+            )
         for name, override in block_overrides['overrides'].items():
             if name == 'default':
                 raise ValueError('block overrides cannot be named "default".',)

@@ -586,14 +586,14 @@ def test_reuse_prev_layer_kv_cache(
     cfg['reuse_kv_layer_idx'] = None
     attn0 = build_attention_layer(
         name='grouped_query_attention',
-        attn_kwargs=om.to_container(cfg),  # type: ignore
+        attn_kwargs=cfg,  # type: ignore
     ).to(device)
 
     # Reuses layer 0's kv cache
     cfg['reuse_kv_layer_idx'] = 0
     attn1 = build_attention_layer(
         name='grouped_query_attention',
-        attn_kwargs=om.to_container(cfg),  # type: ignore
+        attn_kwargs=cfg,  # type: ignore
     ).to(device)
     attn0_sd = attn0.state_dict()
     attn0_sd['Wq.weight'] = attn0_sd['Wqkv.weight'][:cfg['d_model']]

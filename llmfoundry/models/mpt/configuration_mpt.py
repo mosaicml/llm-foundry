@@ -139,10 +139,10 @@ class MPTConfig(PretrainedConfig):
                             sliding_window_layer_reuse:
                                 attn_config:
                                     sliding_window_size: 1024
-                                    reuse_kv_layer_idx: -1
+                                    reuse_kv_layer_idx: -1 # Relative index of the layer whose kv cache to reuse
                             reuse_kv_layer:
                                 attn_config:
-                                    reuse_kv_layer_idx: -6
+                                    reuse_kv_layer_idx: -6 # Relative index of the layer whose kv cache to reuse
         """
         self.d_model = d_model
         self.n_heads = n_heads

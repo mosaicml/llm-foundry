@@ -2722,14 +2722,12 @@ def test_reuse_prev_layer_kv_cache(
     conf_path = 'scripts/train/yamls/pretrain/testing.yaml'
     model_config_overrides = {
         'block_overrides': {
-            'start': [
+            'order': [
                 {
                     'name': 'default',
-                    'repeat': 1,
                 },
                 {
                     'name': 'kv_reuse_layer',
-                    'repeat': 1,
                 },
             ],
             'overrides': {

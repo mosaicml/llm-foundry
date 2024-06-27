@@ -19,11 +19,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-        - name: "gpu-2.3.0-1"
-          container: mosaicml/pytorch:2.3.0_cu121-python3.11-ubuntu20.04
-          markers: "gpu"
-          pytest_command: "coverage run -m pytest"
-          pip_deps: "[all]"
         - name: "gpu-2.3.1-1"
           container: mosaicml/llm-foundry:2.3.1_cu121-latest
           markers: "gpu"
@@ -49,11 +44,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-        - name: "gpu-2.3.0-2"
-          container: mosaicml/pytorch:2.3.0_cu121-python3.11-ubuntu20.04
-          markers: "gpu"
-          pytest_command: "coverage run -m pytest"
-          pip_deps: "[all]"
         - name: "gpu-2.3.1-2"
           container: mosaicml/llm-foundry:2.3.1_cu121-latest
           markers: "gpu"
@@ -79,11 +69,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-        - name: "gpu-2.3.0-4"
-          container: mosaicml/pytorch:2.3.0_cu121-python3.11-ubuntu20.04
-          markers: "gpu"
-          pytest_command: "coverage run -m pytest"
-          pip_deps: "[all]"
         - name: "gpu-2.3.1-4"
           container: mosaicml/llm-foundry:2.3.1_cu121-latest
           markers: "gpu"

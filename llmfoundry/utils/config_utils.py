@@ -171,6 +171,7 @@ class TrainConfig:
 
     # Metadata
     metadata: Optional[Dict[str, Any]] = None
+    flatten_metadata: bool = True
     run_name: Optional[str] = None
 
     # Resumption

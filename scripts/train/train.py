@@ -482,6 +482,51 @@ def main(cfg: DictConfig) -> Trainer:
             mosaicml_logger.log_exception(e)
         raise e
 
+    from torch.distributed.tensor.parallel import ColwiseParallel, RowwiseParallel
+    from torch.distributed._tensor import Replicate, Shard
+    
+    def retrieve_layer_plan(n_layers: int):
+        layer_plan = {}
+        for name, _ in model.named_modules():
+            #if 'Wqkv' in name or 'up_proj' in name or 'gate_proj' in name:
+            #    print(f"using ColwiseParallel for module {name}")
+            #    layer_plan[name] = ColwiseParallel()
+            #if 'out_proj' in name or 'down_proj' in name:
+            #    print(f"using RowwiseParallel for module {name}")
+            #    layer_plan[name] = RowwiseParallel()
+            #if 'Wqkv' in name or 'up_proj' in name or 'gate_proj' in name or 'down_proj' in name:
+            if 'Wqkv' in name or 'out_proj' in name:
+                print(f"using ColwiseParallel, [Replicate, Replicate] for module {name}")
+                layer_plan[name] = ColwiseParallel(
+                    input_layouts = Replicate(),
+                    output_layouts = Replicate(),
+                )
+            if 'up_proj' in name or 'gate_proj' in name:
+                print(f"using ColwiseParallel, [Replicate, Shard(1)] for module {name}")
+                layer_plan[name] = ColwiseParallel(
+                    input_layouts = Replicate(),
+                    output_layouts = Shard(1),
+                )
+            if 'down_proj' in name:
+                print(f"using RowwiseParallel, [Shard(1), Replicate] for module {name}")
+                layer_plan[name] = RowwiseParallel(
+                    input_layouts = Shard(1),
+                    output_layouts = Replicate(),
+                )
+        return layer_plan
+    
+    # ADDED TP CONFIG:
+    tp_config = {
+        'tensor_parallel_degree': 4,
+        'layer_plan': retrieve_layer_plan(model_config['n_layers'])
+    }
+
+    #fsdp_config['data_parallel_shard_degree'] = -1
+    #del fsdp_config['device_mesh']
+
+    print("\nFSDP CONFIG IS:\n", fsdp_config)
+    print("\nTP_CONFIG IS:\n", tp_config)
+
     compile_config = train_cfg.compile_config
     # Build the Trainer
     log.info('Building trainer...')
@@ -504,7 +549,8 @@ def main(cfg: DictConfig) -> Trainer:
         precision=train_cfg.precision,
         algorithms=algorithms,
         device_train_microbatch_size=train_cfg.device_train_microbatch_size,
-        parallelism_config={'fsdp': fsdp_config},
+        parallelism_config={'fsdp': fsdp_config, 'tp': tp_config},
+        #parallelism_config={'fsdp': fsdp_config},
         save_folder=train_cfg.save_folder,
         save_filename=save_filename,
         save_latest_filename=save_latest_filename,

@@ -106,8 +106,10 @@ class TrainConfig:
     max_duration: Union[int, str] = MISSING
     eval_interval: Union[int, str] = MISSING
     max_seq_len: int = MISSING
-    seed: int = MISSING
 
+    # Seed
+    seed: int = 17
+    
     # Precision
     precision: str = 'amp_bf16'
 

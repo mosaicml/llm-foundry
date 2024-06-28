@@ -109,7 +109,7 @@ class TrainConfig:
 
     # Seed
     seed: int = 17
-    
+
     # Precision
     precision: str = 'amp_bf16'
 

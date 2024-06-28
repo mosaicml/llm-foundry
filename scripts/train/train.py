@@ -323,11 +323,14 @@ def main(cfg: DictConfig) -> Trainer:
         # Optionally flatten the metadata for logging
         if train_cfg.flatten_metadata:
             logged_cfg.pop('metadata', None)
-            common_keys = set(logged_cfg.keys()
-                             ) & set(train_cfg.metadata.keys())
+            common_keys = set(
+                logged_cfg.keys(),
+            ) & set(train_cfg.metadata.keys())
             if common_keys:
                 raise ValueError(
-                    f'Keys {common_keys} are already present in the config. Please rename them in metadata.',
+                    f'Keys {common_keys} are already present in the config. Please rename them in metadata '
+                    +
+                    'or set flatten_metadata=False to avoid flattening the metadata in the logged config.',
                 )
 
             logged_cfg.update(train_cfg.metadata, merge=True)

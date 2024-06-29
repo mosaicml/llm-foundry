@@ -496,7 +496,7 @@ class MPTModel(MPTPreTrainedModel):
                     'attn_config',
                     {},
                 ):
-                    reuse_kv_layer_idx = MPTModel._resolve_reuse_kv_layer_config(
+                    reuse_kv_layer_idx = MPTModel._resolve_reuse_kv_layer_idx(
                         overrides_definition=config.
                         block_overrides['overrides'],
                         model_modules_order_expanded=
@@ -529,7 +529,7 @@ class MPTModel(MPTPreTrainedModel):
         return new_block_args_list
 
     @staticmethod
-    def _resolve_reuse_kv_layer_config(
+    def _resolve_reuse_kv_layer_idx(
         overrides_definition: Dict[str, Any],
         model_modules_order_expanded: List[str],
         b_idx: int,

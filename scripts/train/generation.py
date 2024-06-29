@@ -601,37 +601,47 @@ def main(cfg: DictConfig) -> Trainer:
         generate_context = FSDP.summon_full_params(model.model,
                                                writeback=False,
                                                recurse=False)
-        if i == 0 and dist.get_global_rank() == 0:
-            from torch.profiler import profile, record_function, ProfilerActivity
-            with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]) as prof:
-                with autocast(dtype=torch.bfloat16):
-                    with generate_context:
-                        outputs = model.model.generate(
-                            input_ids=inputs['input_ids'].to('cuda'),
-                            attention_mask=attention_mask.to('cuda'),
-                            synced_gpus=True,
-                            use_cache=True,
-                            # eos_token_id=model.tokenizer.eos_token_id,
-                            max_new_tokens=cfg_max_new_tokens,
-                        )
+        # if i == 0 and dist.get_global_rank() == 0:
+        #     from torch.profiler import profile, record_function, ProfilerActivity
+        #     with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]) as prof:
+        #         with autocast(dtype=torch.bfloat16):
+        #             with generate_context:
+        #                 outputs = model.model.generate(
+        #                     input_ids=inputs['input_ids'].to('cuda'),
+        #                     attention_mask=attention_mask.to('cuda'),
+        #                     synced_gpus=True,
+        #                     use_cache=True,
+        #                     # eos_token_id=model.tokenizer.eos_token_id,
+        #                     max_new_tokens=cfg_max_new_tokens,
+        #                 )
             
-            trace_file_name = f"/torch_traces/SGO_TP4_generation_trace-iter-{i}-rank-{dist.get_global_rank()}.json"
-            trace_file_dirname = os.path.dirname(trace_file_name)
-            print("trace file dirname:", trace_file_dirname)
-            if trace_file_dirname:
-                os.makedirs(trace_file_dirname, exist_ok=True)
-            prof.export_chrome_trace(trace_file_name)
-        else:
-            with autocast(dtype=torch.bfloat16):
-                with generate_context:
-                    outputs = model.model.generate(
-                        input_ids=inputs['input_ids'].to('cuda'),
-                        attention_mask=attention_mask.to('cuda'),
-                        synced_gpus=True,
-                        use_cache=True,
-                        # eos_token_id=model.tokenizer.eos_token_id,
-                        max_new_tokens=cfg_max_new_tokens,
-                    )
+        #     trace_file_name = f"/torch_traces/SGO_TP4_generation_trace-iter-{i}-rank-{dist.get_global_rank()}.json"
+        #     trace_file_dirname = os.path.dirname(trace_file_name)
+        #     print("trace file dirname:", trace_file_dirname)
+        #     if trace_file_dirname:
+        #         os.makedirs(trace_file_dirname, exist_ok=True)
+        #     prof.export_chrome_trace(trace_file_name)
+        # else:
+        #     with autocast(dtype=torch.bfloat16):
+        #         with generate_context:
+        #             outputs = model.model.generate(
+        #                 input_ids=inputs['input_ids'].to('cuda'),
+        #                 attention_mask=attention_mask.to('cuda'),
+        #                 synced_gpus=True,
+        #                 use_cache=True,
+        #                 # eos_token_id=model.tokenizer.eos_token_id,
+        #                 max_new_tokens=cfg_max_new_tokens,
+        #             )
+        with autocast(dtype=torch.bfloat16):
+            with generate_context:
+                outputs = model.model.generate(
+                    input_ids=inputs['input_ids'].to('cuda'),
+                    attention_mask=attention_mask.to('cuda'),
+                    synced_gpus=True,
+                    use_cache=True,
+                    # eos_token_id=model.tokenizer.eos_token_id,
+                    max_new_tokens=cfg_max_new_tokens,
+                )
         
         end_time = time.time()
         gen_len = cfg_max_new_tokens*device_batch_size
@@ -645,25 +655,27 @@ def main(cfg: DictConfig) -> Trainer:
 
         from composer.callbacks.memory_monitor import _get_memory_report
         mem_report = _get_memory_report()
-        print("\nPeak reserved mem (GB): ", mem_report['peak_reserved_mem'])
-        print("Mem alloc retries: ", mem_report['alloc_retries'])
-        print("Global prompt tokens is: ", curr_global_prompt_tokens)
-        print("Generation len is: ", curr_gen_len)
-        print("Elapsed time: ", end_time - start_time, "\n")
 
-        if i > cfg_warmup:
+        if i >= cfg_warmup:
+            print("\nPeak reserved mem (GB): ", mem_report['peak_reserved_mem'])
+            print("Mem alloc retries: ", mem_report['alloc_retries'])
+            print("Global prompt tokens is: ", curr_global_prompt_tokens)
+            print("Generation len is: ", curr_gen_len)
+            print("Elapsed time: ", end_time - start_time, "\n")
+            
             total_generated_tokens += curr_gen_len
             total_prompt_tokens += curr_global_prompt_tokens
             total_time += end_time - start_time
         
-        if i > cfg_num_generations + cfg_warmup:
+        if i >= cfg_num_generations + cfg_warmup:
             break
 
     print ("=" * 25)
-    print ("Device batch size: ", device_batch_size)
-    print ("Processed prompt tokens: ", total_prompt_tokens)
-    print ("Generated tokens: ", total_generated_tokens)
-    print ("Elapsed time: ", total_time)
+    print("OVERALL STATS")
+    print("Device batch size: ", device_batch_size)
+    print("Processed prompt tokens: ", total_prompt_tokens)
+    print("Generated tokens: ", total_generated_tokens)
+    print("Elapsed time: ", total_time)
 
 
 if __name__ == '__main__':

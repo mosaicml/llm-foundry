@@ -442,7 +442,7 @@ class MPTModel(MPTPreTrainedModel):
             nn.ModuleList: The list of Transformer blocks.
         """
         block_args = self.extract_block_args(config.to_dict())
-        self.kv_cache_layers = None
+        self.kv_cache_layers = set()
 
         if config.block_overrides is not None:
             block_args_list = self._get_override_block_args_list(
@@ -501,8 +501,6 @@ class MPTModel(MPTPreTrainedModel):
                         override_config=override_config,
                         reuse_kv_layer_idx_dict=reuse_kv_layer_idx_dict,
                     )
-                    if self.kv_cache_layers is None:
-                        self.kv_cache_layers = set()
                     self.kv_cache_layers.add(
                         override_config['attn_config']['reuse_kv_layer_idx'],
                     )
@@ -873,7 +871,7 @@ class MPTModel(MPTPreTrainedModel):
         # initialize the past key values cache if it should be used
         presents = () if use_cache else None
         if (
-            use_cache or self.kv_cache_layers is not None
+            use_cache or len(self.kv_cache_layers) > 0
         ) and past_key_values is None:
             past_key_values = [() for _ in range(self.config.n_layers)
                               ]  # type: ignore
@@ -923,7 +921,7 @@ class MPTModel(MPTPreTrainedModel):
             )
             if presents is not None:
                 presents += (present,)
-            if self.kv_cache_layers is not None and b_idx in self.kv_cache_layers:
+            if b_idx in self.kv_cache_layers:
                 layer_kv_cache_dict[b_idx] = [
                     present[0][:, past_position:],
                     present[1][:, past_position:],

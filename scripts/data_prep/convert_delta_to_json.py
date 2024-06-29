@@ -2,6 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
+import sys
+log = logging.getLogger(__name__)
+
+try:
+    from databricks.connect import DatabricksSession
+except ImportError:
+    log.warning("Error: databricks-connect is not installed.")
+    log.warning("Please install it using 'pip install databricks-connect'.")
+    sys.exit(1)
+
 import os
 import re
 import time
@@ -21,7 +31,6 @@ import pyspark.sql.connect.proto.cloud_pb2 as cloud_pb2
 import requests
 from composer.utils import retry
 from databricks import sql
-from databricks.connect import DatabricksSession
 from databricks.sdk import WorkspaceClient
 from databricks.sql.client import Connection as Connection
 from databricks.sql.client import Cursor as Cursor
@@ -46,8 +55,6 @@ from llmfoundry.utils.exceptions import (
 
 MINIMUM_DB_CONNECT_DBR_VERSION = '14.1'
 MINIMUM_SQ_CONNECT_DBR_VERSION = '12.2'
-
-log = logging.getLogger(__name__)
 
 Result = namedtuple(
     'Result',

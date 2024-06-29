@@ -495,24 +495,42 @@ def main(cfg: DictConfig) -> Trainer:
         raise e
     
     from torch.distributed.tensor.parallel import ColwiseParallel, RowwiseParallel
+    from torch.distributed._tensor import Replicate, Shard
     
-    def retrieve_layer_plan(n_layers: int):
-        #print("MODEL NAMED PARAMS ARE:")
+    def retrieve_layer_plan():
         layer_plan = {}
-        for name, param in model.named_parameters():
-            if 'Wqkv' in name or 'up_proj' in name or 'gate_proj' in name:
-                print("using ColwiseParallel for", name, param.shape)
-                layer_plan[name] = ColwiseParallel()
-            if 'out_proj' in name or 'down_proj' in name:
-                print("using RowwiseParallel for", name, param.shape)
-                layer_plan[name] = RowwiseParallel()
-        # print("\n FINAL LAYER PLAN IS: \n", layer_plan)
+        for name, _ in model.named_modules():
+            #if 'Wqkv' in name or 'up_proj' in name or 'gate_proj' in name:
+            #    print(f"using ColwiseParallel for module {name}")
+            #    layer_plan[name] = ColwiseParallel()
+            #if 'out_proj' in name or 'down_proj' in name:
+            #    print(f"using RowwiseParallel for module {name}")
+            #    layer_plan[name] = RowwiseParallel()
+            #if 'Wqkv' in name or 'up_proj' in name or 'gate_proj' in name or 'down_proj' in name:
+            if 'Wqkv' in name or 'out_proj' in name:
+                print(f"using ColwiseParallel, [Replicate, Replicate] for module {name}")
+                layer_plan[name] = ColwiseParallel(
+                    input_layouts = Replicate(),
+                    output_layouts = Replicate(),
+                )
+            if 'up_proj' in name or 'gate_proj' in name:
+                print(f"using ColwiseParallel, [Replicate, Shard(1)] for module {name}")
+                layer_plan[name] = ColwiseParallel(
+                    input_layouts = Replicate(),
+                    output_layouts = Shard(1),
+                )
+            if 'down_proj' in name:
+                print(f"using RowwiseParallel, [Shard(1), Replicate] for module {name}")
+                layer_plan[name] = RowwiseParallel(
+                    input_layouts = Shard(1),
+                    output_layouts = Replicate(),
+                )
         return layer_plan
     
     # ADDED TP CONFIG:
     tp_config = {
         'tensor_parallel_degree': 4,
-        'layer_plan': retrieve_layer_plan(model_config['n_layers'])
+        'layer_plan': retrieve_layer_plan()
     }
 
     compile_config = train_cfg.compile_config

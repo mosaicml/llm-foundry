@@ -61,6 +61,43 @@ from llmfoundry.utils.registry_utils import import_file
 
 log = logging.getLogger(__name__)
 
+##### PATCH IN PYTORCH FUNCTION TO REGISTER FWD METHOD #####
+# We register model.generate as a forward method so FSDP behaves as expected.
+# See: https://github.com/pytorch/pytorch/pull/125394/files
+# import functools
+# from torch.distributed._composable.fsdp.fully_shard import FSDP
+# import torch.nn as nn
+# def register_fsdp_forward_method(module: nn.Module, method_name: str) -> None:
+#     """
+#     Registers a method on ``module`` to be a forward method for FSDP.
+
+#     FSDP only knows to run its pre-forward and post-forward hooks on the
+#     default :meth:`nn.Module.forward` method. This function patches a user
+#     specified method to run the pre/post-forward hooks before/after the method,
+#     respectively. If ``module`` is not an :class:`FSDP`, then this is a
+#     no-op.
+
+#     Args:
+#         module (nn.Module): Module to register the forward method on.
+#         method_name (str): Name of the forward method.
+#     """
+#     if not isinstance(module, FSDP):
+#         # Make no-op to allow including both when using/not using FSDP
+#         return
+#     if not hasattr(module, method_name):
+#         raise ValueError(f"{type(module)} does not have a method {method_name}")
+#     orig_method = getattr(module, method_name)
+
+#     @functools.wraps(orig_method)
+#     def wrapped_method(self, *args, **kwargs):
+#         fsdp_state = self._get_fsdp_state()
+#         args, kwargs = fsdp_state._pre_forward(self, args, kwargs)
+#         out = orig_method(*args, **kwargs)
+#         return fsdp_state._post_forward(self, args, out)
+
+#     # Use `__get__` to make `wrapped_method` an instance method
+#     setattr(module, method_name, wrapped_method.__get__(module, type(module)))
+
 
 def validate_config(train_config: TrainConfig):
     """Validates compatible model and dataloader selection."""
@@ -495,24 +532,44 @@ def main(cfg: DictConfig) -> Trainer:
         raise e
     
     from torch.distributed.tensor.parallel import ColwiseParallel, RowwiseParallel
+    from torch.distributed._tensor import Replicate, Shard
     
-    def retrieve_layer_plan(n_layers: int):
-        #print("MODEL NAMED PARAMS ARE:")
+    def retrieve_layer_plan():
         layer_plan = {}
-        for name, param in model.named_parameters():
-            if 'Wqkv' in name or 'up_proj' in name or 'gate_proj' in name:
-                print("using ColwiseParallel for", name, param.shape)
-                layer_plan[name] = ColwiseParallel()
-            if 'out_proj' in name or 'down_proj' in name:
-                print("using RowwiseParallel for", name, param.shape)
-                layer_plan[name] = RowwiseParallel()
-        # print("\n FINAL LAYER PLAN IS: \n", layer_plan)
+        for name, _ in model.named_modules():
+            #if 'Wqkv' in name or 'up_proj' in name or 'gate_proj' in name:
+            #    print(f"using ColwiseParallel for module {name}")
+            #    layer_plan[name] = ColwiseParallel()
+            #if 'out_proj' in name or 'down_proj' in name:
+            #    print(f"using RowwiseParallel for module {name}")
+            #    layer_plan[name] = RowwiseParallel()
+            #if 'Wqkv' in name or 'up_proj' in name or 'gate_proj' in name or 'down_proj' in name:
+            if 'Wqkv' in name or 'out_proj' in name:
+                print(f"using ColwiseParallel, [Replicate, Replicate] for module {name}")
+                layer_plan[name] = ColwiseParallel(
+                    input_layouts = Replicate(),
+                    output_layouts = Replicate(),
+                )
+            if 'up_proj' in name or 'gate_proj' in name:
+                print(f"using ColwiseParallel, [Replicate, Replicate] for module {name}")
+                layer_plan[name] = ColwiseParallel(
+                    input_layouts = Replicate(),
+                    output_layouts = Replicate(),
+                    #output_layouts = Shard(1),
+                )
+            if 'down_proj' in name:
+                print(f"using RowwiseParallel, [Replicate, Replicate] for module {name}")
+                layer_plan[name] = RowwiseParallel(
+                    #input_layouts = Shard(1),
+                    input_layouts = Replicate(),
+                    output_layouts = Replicate(),
+                )
         return layer_plan
     
     # ADDED TP CONFIG:
     tp_config = {
-        'tensor_parallel_degree': 1,
-        'layer_plan': retrieve_layer_plan(model_config['n_layers'])
+        'tensor_parallel_degree': 4,
+        'layer_plan': retrieve_layer_plan()
     }
 
     compile_config = train_cfg.compile_config
@@ -537,8 +594,8 @@ def main(cfg: DictConfig) -> Trainer:
         precision=train_cfg.precision,
         algorithms=algorithms,
         device_train_microbatch_size=train_cfg.device_train_microbatch_size,
-        #parallelism_config={'fsdp': fsdp_config, 'tp': tp_config},
-        parallelism_config={'fsdp': fsdp_config},
+        parallelism_config={'fsdp': fsdp_config, 'tp': tp_config},
+        #parallelism_config={'fsdp': fsdp_config},
         save_folder=train_cfg.save_folder,
         save_filename=save_filename,
         save_latest_filename=save_latest_filename,
@@ -585,6 +642,11 @@ def main(cfg: DictConfig) -> Trainer:
     print("Model is: ", model.model)
     print("Model max seq len is: ", model_max_seq_len, "\n")
 
+    #print("Patching register_fsdp_forward_method:")
+    #setattr(torch.distributed._composable.fsdp.fully_shard, "register_fsdp_forward_method", register_fsdp_forward_method)
+    #print("Registering model.generate as a forward function for FSDP.")
+    #torch.distributed._composable.fsdp.fully_shard.register_fsdp_forward_method(model.model, "generate")
+
     for i, inputs in enumerate(train_loader.dataloader):
         if cfg_max_new_tokens > model_max_seq_len:
             raise ValueError(f"max_new_tokens of {cfg_max_new_tokens} is greater than max_seq_len of {model_max_seq_len}")
@@ -599,7 +661,7 @@ def main(cfg: DictConfig) -> Trainer:
         
         # generate_context = FSDP.summon_full_params(model.model,
         #                                        writeback=False,
-        #                                        recurse=False)
+        #                                        recurse=True)
         if i == 0 and dist.get_global_rank() == 0:
             from torch.profiler import profile, record_function, ProfilerActivity
             with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]) as prof:
@@ -614,7 +676,7 @@ def main(cfg: DictConfig) -> Trainer:
                         max_new_tokens=cfg_max_new_tokens,
                     )
             
-            trace_file_name = f"/torch_traces/trace-iter-{i}-rank-{dist.get_global_rank()}.json"
+            trace_file_name = f"/torch_traces/SGO_TP4_generation_trace-iter-{i}-rank-{dist.get_global_rank()}.json"
             trace_file_dirname = os.path.dirname(trace_file_name)
             print("trace file dirname:", trace_file_dirname)
             if trace_file_dirname:
@@ -631,6 +693,8 @@ def main(cfg: DictConfig) -> Trainer:
                     # eos_token_id=model.tokenizer.eos_token_id,
                     max_new_tokens=cfg_max_new_tokens,
                 )
+
+        print("OUTPUTS ARE:", tokenizer.batch_decode(outputs))
         
         end_time = time.time()
         gen_len = cfg_max_new_tokens*device_batch_size

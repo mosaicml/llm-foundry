@@ -485,7 +485,7 @@ def main(cfg: DictConfig) -> Trainer:
     from torch.distributed.tensor.parallel import ColwiseParallel, RowwiseParallel
     from torch.distributed._tensor import Replicate, Shard
     
-    def retrieve_layer_plan(n_layers: int):
+    def retrieve_layer_plan():
         layer_plan = {}
         for name, _ in model.named_modules():
             #if 'Wqkv' in name or 'up_proj' in name or 'gate_proj' in name:
@@ -518,11 +518,8 @@ def main(cfg: DictConfig) -> Trainer:
     # ADDED TP CONFIG:
     tp_config = {
         'tensor_parallel_degree': 4,
-        'layer_plan': retrieve_layer_plan(model_config['n_layers'])
+        'layer_plan': retrieve_layer_plan()
     }
-
-    #fsdp_config['data_parallel_shard_degree'] = -1
-    #del fsdp_config['device_mesh']
 
     print("\nFSDP CONFIG IS:\n", fsdp_config)
     print("\nTP_CONFIG IS:\n", tp_config)

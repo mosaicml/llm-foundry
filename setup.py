@@ -94,7 +94,7 @@ extra_deps['dev'] = [
 extra_deps['databricks'] = [
     'mosaicml[databricks]>=0.23.4,<0.24',
     'databricks-sql-connector>=3,<4',
-    'databricks-connect==14.1.0',
+    'databricks-connect>=14.3.0',
     'lz4>=4,<5',
 ]
 
@@ -123,6 +123,10 @@ extra_deps['megablocks'] = [
     'grouped-gemm==0.1.4',
 ]
 
+extra_deps['all-cpu-forge'] = {
+    dep for key, deps in extra_deps.items() for dep in deps
+    if 'gpu' not in key and 'megablocks' not in key and 'databricks' not in key
+}
 extra_deps['all-cpu'] = {
     dep for key, deps in extra_deps.items() for dep in deps
     if 'gpu' not in key and 'megablocks' not in key

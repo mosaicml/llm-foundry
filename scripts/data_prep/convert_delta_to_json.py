@@ -16,8 +16,6 @@ import google.protobuf.any_pb2 as any_pb2
 import lz4.frame
 import pandas as pd
 import pyarrow as pa
-import pyspark.sql.connect.proto as pb2
-import pyspark.sql.connect.proto.cloud_pb2 as cloud_pb2
 import requests
 from composer.utils import retry
 from databricks import sql
@@ -28,8 +26,6 @@ from databricks.sql.client import Cursor as Cursor
 from packaging import version
 from pyspark.sql import SparkSession
 from pyspark.sql.connect.client.core import SparkConnectClient
-from pyspark.sql.connect.client.reattach import \
-    ExecutePlanResponseReattachableIterator
 from pyspark.sql.connect.dataframe import DataFrame
 from pyspark.sql.dataframe import DataFrame as SparkDataFrame
 from pyspark.sql.types import Row
@@ -44,136 +40,10 @@ from llmfoundry.utils.exceptions import (
     FailedToCreateSQLConnectionError,
 )
 
-MINIMUM_DB_CONNECT_DBR_VERSION = '14.1'
+MINIMUM_DB_CONNECT_DBR_VERSION = '14.3'
 MINIMUM_SQ_CONNECT_DBR_VERSION = '12.2'
 
 log = logging.getLogger(__name__)
-
-Result = namedtuple(
-    'Result',
-    [
-        'url',
-        'row_count',
-        'compressed_size',
-        'uncompressed_size',
-    ],
-)  # pyright: ignore
-
-# ``collect_as_cf`` is an addon new feature monkey patch on top of the DB Connect package.
-# It allows the client to fetch the results in different formats from the server.
-# To be able to use the code make sure this module is not overriden by DB Connect classes.
-
-
-def to_cf(self: SparkConnectClient,
-          plan: pb2.Plan,
-          type: str = 'json') -> Tuple[List[Result], int, bool]:
-    """Executes the query plans and return as presigned URLS for cloud fetch.
-
-    It can handle the current output formats that are supported by the server.
-    In contrast to the regular API methods of the client, this method does not
-    return the schema and drops all other responses.
-
-    Args:
-       plan (pb2.Plan): The plan object to be executed by spark.
-       type (str): The output format of the result, supported formats are 'json', 'csv', and 'arrow'.
-
-    Returns:
-       Tuple[List[Result], int, bool]: A tuple containing:
-           - A list of Result namedtuples, each containing a URL, row count, compressed size,
-             and uncompressed size of the part of the result.
-           - Total row count of all parts of the result.
-           - A boolean indicating whether the result has been truncated.
-    """
-    req = self._execute_plan_request_with_metadata()
-    req.plan.CopyFrom(plan)
-
-    # Add the request options
-    if type == 'json':
-        format = cloud_pb2.ResultOptions.CloudOptions.FORMAT_JSON
-    elif type == 'csv':
-        format = cloud_pb2.ResultOptions.CloudOptions.FORMAT_CSV
-    elif type == 'arrow':
-        format = cloud_pb2.ResultOptions.CloudOptions.FORMAT_ARROW
-    else:
-        raise ValueError(
-            f'Only formats json, csv, and arrow are supported. Got invalid type {type}',
-        )
-
-    ro = cloud_pb2.ResultOptions(
-        type=cloud_pb2.ResultOptions.TYPE_CLOUD,
-        cloudOptions=cloud_pb2.ResultOptions.CloudOptions(
-            format=format,
-            useCompression=False,
-        ),
-    )
-    cloud_option = any_pb2.Any()
-    cloud_option.Pack(ro)
-    req.request_options.append(
-        pb2.ExecutePlanRequest.RequestOption(extension=cloud_option),
-    )
-
-    # Create the iterator
-    iterator = ExecutePlanResponseReattachableIterator(
-        req,
-        self._stub,
-        self._retry_policy,
-        self._builder.metadata(),
-    )
-    # Iterate over the response
-    result = []
-    row_count = 0
-    is_overflow = False
-
-    for response in iterator:
-        if response.HasField('extension') and response.extension.Is(
-            cloud_pb2.CloudResultBatch.DESCRIPTOR,
-        ):
-            batch = cloud_pb2.CloudResultBatch()
-            if not response.extension.Is(cloud_pb2.CloudResultBatch.DESCRIPTOR):
-                raise ValueError(
-                    'Response extension is not of type CloudResultBatch.',
-                )
-            response.extension.Unpack(batch)
-            result += [
-                Result(
-                    b.url,
-                    b.row_count,
-                    b.compressed_size,
-                    b.uncompressed_size,
-                ) for b in batch.results
-            ]
-            row_count += sum(result.row_count for result in batch.results)
-            is_overflow |= batch.truncated
-    return result, row_count, is_overflow
-
-
-SparkConnectClient.to_cf = to_cf  # pyright: ignore
-
-
-def collect_as_cf(self: DataFrame,
-                  type: str = 'json') -> Tuple[List[Result], int, bool]:
-    """Collects DataFrame execution plan as presigned URLs.
-
-    This method is a wrapper around the `to_cf` method of SparkConnectClient. It takes the
-    execution plan of the current DataFrame, converts it to a protocol buffer format, and then
-    uses the `to_cf` method to execute the plan and fetch results as presigned URLs.
-
-    Args:
-        type (str): The output format of the result, supported formats are 'json', 'csv', and 'arrow'.
-
-    Returns:
-        Tuple[List[Result], int, bool]: A tuple containing:
-            - A list of Result namedtuples, each containing a URL, row count, compressed size,
-              and uncompressed size of the part of the result.
-            - Total row count of all parts of the result.
-            - A boolean indicating whether the result is truncated or overflowed.
-    """
-    query = self._plan.to_proto(self._session.client)  # pyright: ignore
-    return self._session.client.to_cf(query, type)  # pyright: ignore
-
-
-DataFrame.collect_cf = collect_as_cf  # pyright: ignore
-
 
 def iterative_combine_jsons(json_directory: str, output_file: str) -> None:
     """Combine jsonl files in json_directory into one big jsonl file.
@@ -439,7 +309,9 @@ def fetch(
         df = sparkSession.table(tablename)
 
         # Running the query and collecting the data as arrow or json.
-        signed, _, _ = df.collect_cf('arrow')  # pyright: ignore
+        query = df._plan.to_proto(df._session.client)  # pyright: ignore
+        schema, cloudfetch_results = df._session.client.experimental_to_cloudfetch(query, "arrow", compression=False)  # pyright: ignore
+        signed = [result.url for result in cloudfetch_results]
         log.info(f'len(signed) = {len(signed)}')
 
         args = get_args(signed, json_output_folder, columns)
@@ -648,7 +520,7 @@ if __name__ == '__main__':
         required=False,
         type=str,
         help=
-        'cluster id has runtime newer than 14.1.0 and access mode of either assigned or shared can use databricks-connect.',
+        f'cluster id has runtime newer than {MINIMUM_DB_CONNECT_DBR_VERSION} and access mode of either assigned or shared can use databricks-connect.',
     )
     parser.add_argument(
         '--use_serverless',

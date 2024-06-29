@@ -391,6 +391,8 @@ class MPTConfig(PretrainedConfig):
     @property
     def allowed_block_overrides(self):
         return {
-            'sliding_window_size',
-            'reuse_kv_layer_idx',
+            'attn_config': {
+                'sliding_window_size': None,
+                'reuse_kv_layer_idx': None,
+            }
         }

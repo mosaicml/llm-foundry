@@ -468,8 +468,7 @@ class MPTModel(MPTPreTrainedModel):
             raise ValueError(
                 'config.block_overrides should not be None when calling _get_override_block_args_list.',
             )
-        repeat = config.block_overrides[
-            'repeat'] if 'repeat' in config.block_overrides else 1
+        repeat = config.block_overrides.get('repeat', 1)
         model_modules_order_expanded = MPTModel._get_modules_order_expanded(
             config.block_overrides['order'],
         ) * repeat
@@ -494,7 +493,7 @@ class MPTModel(MPTPreTrainedModel):
                     {},
                 ):
                     MPTModel._validate_reuse_kv_layer_config(
-                        block_overrides=config.block_overrides,
+                        overrides_definition=config.block_overrides['overrides'],
                         model_modules_order_expanded=
                         model_modules_order_expanded,
                         b_idx=b_idx,
@@ -509,7 +508,7 @@ class MPTModel(MPTPreTrainedModel):
             layer_description_list.append([
                 b_idx,
                 module_name,
-                self._get_overrides_for_logging(override_config),
+                override_config,
             ],)
             new_block_args = MPTModel._override_block_args(
                 block_args,
@@ -527,7 +526,7 @@ class MPTModel(MPTPreTrainedModel):
 
     @staticmethod
     def _validate_reuse_kv_layer_config(
-        block_overrides: Dict[str, Any],
+        overrides_definition: Dict[str, Any],
         model_modules_order_expanded: List[str],
         b_idx: int,
         override_config: Dict[str, Any],
@@ -549,7 +548,7 @@ class MPTModel(MPTPreTrainedModel):
 
         parent_layer_name = model_modules_order_expanded[reuse_kv_layer_idx]
         parent_config = {} if parent_layer_name == 'default' else copy.deepcopy(
-            block_overrides['overrides'][parent_layer_name],
+            overrides_definition[parent_layer_name],
         )
         if 'attn_config' not in parent_config:
             parent_config['attn_config'] = {}
@@ -585,25 +584,17 @@ class MPTModel(MPTPreTrainedModel):
 
         return model_modules_order_expanded
 
-    def _get_overrides_for_logging(
-        self,
-        override_config: Dict[str, Any],
-    ) -> List[dict[str, str]]:
-        # Flattens the override config for logging.
-        overrides_list = []
-        for k, v in override_config.items():
-            if isinstance(v, dict):
-                overrides_list.extend(self._get_overrides_for_logging(v))
-            else:
-                overrides_list.append({k: v})
-        return overrides_list
 
     @staticmethod
     def _override_block_args(
         block_args: Dict[str, Any],
         override_config: Dict[str, Any],
-        allowed_block_overrides: set,
+        allowed_block_overrides: Dict[str, Any],
     ) -> Dict[str, Any]:
+        unpermitted_keys = override_config.keys() - allowed_block_overrides.keys()
+        if len(unpermitted_keys):
+            raise KeyError(f'Overriding {unpermitted_keys} is not supported.')
+
         new_block_args = override_config | block_args
         common_keys = override_config.keys() & block_args.keys()
         for k in common_keys:
@@ -615,11 +606,9 @@ class MPTModel(MPTPreTrainedModel):
                 new_block_args[k] = MPTModel._override_block_args(
                     block_args[k],
                     override_config[k],
-                    allowed_block_overrides,
+                    allowed_block_overrides[k],
                 )
             else:
-                if k not in allowed_block_overrides:
-                    raise KeyError(f'Overriding {k} is not supported.')
                 new_block_args[k] = override_config[k]
         return new_block_args
 
@@ -903,10 +892,7 @@ class MPTModel(MPTPreTrainedModel):
 
         layer_kv_cache_dict = {}
         for b_idx, block in enumerate(self.blocks):
-            attn_block = block.attn if hasattr(
-                block,
-                'attn',
-            ) else block.norm_attn_norm.attn
+            attn_block = block.norm_attn_norm.attn if self.config.fuse_norm_attn_norm else block.attn
             if attn_block.reuse_kv_layer_idx is not None:
                 if attn_block.reuse_kv_layer_idx not in layer_kv_cache_dict:
                     raise KeyError(

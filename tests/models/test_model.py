@@ -2785,7 +2785,7 @@ def test_reuse_prev_layer_kv_cache(
 def test_override_block_args():
     block_args = {'a': 1, 'b': {'c': 3}, 'd': 4}
     override_config = {'a': 2, 'b': {'c': 5}, 'e': 6}
-    allowed_block_overrides = {'a', 'c', 'e'}
+    allowed_block_overrides = {'a': None, 'b': {'c': None}, 'e': None}
     new_config = MPTModel._override_block_args(
         block_args,
         override_config,
@@ -2877,7 +2877,7 @@ def test_validate_reuse_kv_layer_config(reuse_kv_layer_idx: int):
 
     def _validate_helper(b_idx: int):
         MPTModel._validate_reuse_kv_layer_config(
-            block_overrides=block_overrides,
+            overrides_definition=block_overrides['overrides'],
             model_modules_order_expanded=model_modules_order_expanded,
             b_idx=b_idx,
             override_config=copy.deepcopy(

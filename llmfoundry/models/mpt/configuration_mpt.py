@@ -394,5 +394,5 @@ class MPTConfig(PretrainedConfig):
             'attn_config': {
                 'sliding_window_size': None,
                 'reuse_kv_layer_idx': None,
-            }
+            },
         }

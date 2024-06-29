@@ -493,7 +493,8 @@ class MPTModel(MPTPreTrainedModel):
                     {},
                 ):
                     MPTModel._validate_reuse_kv_layer_config(
-                        overrides_definition=config.block_overrides['overrides'],
+                        overrides_definition=config.
+                        block_overrides['overrides'],
                         model_modules_order_expanded=
                         model_modules_order_expanded,
                         b_idx=b_idx,
@@ -584,14 +585,14 @@ class MPTModel(MPTPreTrainedModel):
 
         return model_modules_order_expanded
 
-
     @staticmethod
     def _override_block_args(
         block_args: Dict[str, Any],
         override_config: Dict[str, Any],
         allowed_block_overrides: Dict[str, Any],
     ) -> Dict[str, Any]:
-        unpermitted_keys = override_config.keys() - allowed_block_overrides.keys()
+        unpermitted_keys = override_config.keys(
+        ) - allowed_block_overrides.keys()
         if len(unpermitted_keys):
             raise KeyError(f'Overriding {unpermitted_keys} is not supported.')
 

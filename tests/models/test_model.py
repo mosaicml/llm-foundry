@@ -2875,8 +2875,8 @@ def test_resolve_reuse_kv_layer_idx(reuse_kv_layer_idx: int):
         ]
     reuse_kv_layer_idx_dict = {}
 
-    def _validate_helper(b_idx: int):
-        MPTModel._resolve_reuse_kv_layer_idx(
+    def _validate_helper(b_idx: int) -> int:
+        return MPTModel._resolve_reuse_kv_layer_idx(
             overrides_definition=block_overrides['overrides'],
             model_modules_order_expanded=model_modules_order_expanded,
             b_idx=b_idx,
@@ -2888,9 +2888,9 @@ def test_resolve_reuse_kv_layer_idx(reuse_kv_layer_idx: int):
         )
 
     if reuse_kv_layer_idx == -1:
-        _validate_helper(b_idx=2)
-        _validate_helper(b_idx=3)
-        _validate_helper(b_idx=4)
+        assert _validate_helper(b_idx=2) == 1
+        assert _validate_helper(b_idx=3) == 1
+        assert _validate_helper(b_idx=4) == 1
         with pytest.raises(
             expected_exception=ValueError,
             match=
@@ -2899,7 +2899,7 @@ def test_resolve_reuse_kv_layer_idx(reuse_kv_layer_idx: int):
             _validate_helper(b_idx=6)
 
     elif reuse_kv_layer_idx == -2:
-        _validate_helper(b_idx=2)
+        assert _validate_helper(b_idx=2) == 0
     else:
         with pytest.raises(
             expected_exception=ValueError,

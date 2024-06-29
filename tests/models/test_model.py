@@ -2835,7 +2835,7 @@ def test_get_modules_order_expanded():
 
 
 @pytest.mark.parametrize('reuse_kv_layer_idx', [-2, -1, 0])
-def test_validate_reuse_kv_layer_config(reuse_kv_layer_idx: int):
+def test_resolve_reuse_kv_layer_config(reuse_kv_layer_idx: int):
     layer_a_override = {
         'key_1': 'value_a',
         'attn_config': {
@@ -2876,7 +2876,7 @@ def test_validate_reuse_kv_layer_config(reuse_kv_layer_idx: int):
     reuse_kv_layer_idx_dict = {}
 
     def _validate_helper(b_idx: int):
-        MPTModel._validate_reuse_kv_layer_config(
+        MPTModel._resolve_reuse_kv_layer_config(
             overrides_definition=block_overrides['overrides'],
             model_modules_order_expanded=model_modules_order_expanded,
             b_idx=b_idx,

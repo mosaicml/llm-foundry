@@ -496,7 +496,7 @@ class MPTModel(MPTPreTrainedModel):
                     'attn_config',
                     {},
                 ):
-                    MPTModel._validate_reuse_kv_layer_config(
+                    reuse_kv_layer_idx = MPTModel._resolve_reuse_kv_layer_config(
                         overrides_definition=config.
                         block_overrides['overrides'],
                         model_modules_order_expanded=
@@ -505,20 +505,21 @@ class MPTModel(MPTPreTrainedModel):
                         override_config=override_config,
                         reuse_kv_layer_idx_dict=reuse_kv_layer_idx_dict,
                     )
-                    self.kv_cache_layers.add(
-                        override_config['attn_config']['reuse_kv_layer_idx'],
-                    )
+                    override_config['attn_config']['reuse_kv_layer_idx'
+                                                  ] = reuse_kv_layer_idx
+                    self.kv_cache_layers.add(reuse_kv_layer_idx)
             layer_description_list.append([
                 b_idx,
                 module_name,
                 override_config,
             ],)
-            new_block_args = MPTModel._override_block_args(
-                block_args,
-                override_config,
-                config.allowed_block_overrides,
+            new_block_args_list.append(
+                MPTModel._override_block_args(
+                    block_args,
+                    override_config,
+                    config.allowed_block_overrides,
+                ),
             )
-            new_block_args_list.append(new_block_args)
         log.info(
             'The following is a summary of overrides per layer.\n' + tabulate(
                 layer_description_list,
@@ -528,13 +529,13 @@ class MPTModel(MPTPreTrainedModel):
         return new_block_args_list
 
     @staticmethod
-    def _validate_reuse_kv_layer_config(
+    def _resolve_reuse_kv_layer_config(
         overrides_definition: Dict[str, Any],
         model_modules_order_expanded: List[str],
         b_idx: int,
         override_config: Dict[str, Any],
         reuse_kv_layer_idx_dict: Dict[int, int],
-    ):
+    ) -> int:
         override_attn_config = override_config['attn_config']
         if override_attn_config['reuse_kv_layer_idx'] >= 0:
             raise ValueError(
@@ -557,6 +558,7 @@ class MPTModel(MPTPreTrainedModel):
             parent_config['attn_config'] = {}
         parent_config['attn_config']['reuse_kv_layer_idx'] = override_config[
             'attn_config']['reuse_kv_layer_idx']
+
         if override_config != parent_config and not (
             'allow_mismatch' in override_config and
             override_config['allow_mismatch']
@@ -565,7 +567,7 @@ class MPTModel(MPTPreTrainedModel):
                 'For reusing the kv cache of a previous layer, the previous layer should match the block config as the current layer.',
             )
 
-        override_attn_config['reuse_kv_layer_idx'] = reuse_kv_layer_idx
+        return reuse_kv_layer_idx
 
     @staticmethod
     def _get_modules_order_expanded(order: List[Dict[str, Any]]) -> List[str]:

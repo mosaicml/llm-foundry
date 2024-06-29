@@ -123,13 +123,19 @@ extra_deps['megablocks'] = [
     'grouped-gemm==0.1.4',
 ]
 
-extra_deps['all-cpu'] = {
+extra_deps['serverless'] = {
     dep for key, deps in extra_deps.items() for dep in deps
     if 'gpu' not in key and 'megablocks' not in key and 'databricks-connect' not in dep
 }
+
+extra_deps['all-cpu'] = {
+    dep for key, deps in extra_deps.items() for dep in deps
+    if 'gpu' not in key and 'megablocks' not in key 
+}
+
 extra_deps['all'] = {
     dep for key, deps in extra_deps.items() for dep in deps
-    if key not in {'gpu-flash2', 'all-cpu'}
+    if key not in {'gpu-flash2', 'all-cpu', 'serverless'}
 }
 extra_deps['all-flash2'] = {
     dep for key, deps in extra_deps.items() for dep in deps

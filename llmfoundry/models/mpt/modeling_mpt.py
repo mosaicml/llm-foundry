@@ -443,6 +443,10 @@ class MPTModel(MPTPreTrainedModel):
         """
         block_args = self.extract_block_args(config.to_dict())
         self.kv_cache_layers = set()
+        self.blocks_fuse_norm_attn_norm = block_args.get(
+            'fuse_norm_attn_norm',
+            False,
+        )
 
         if config.block_overrides is not None:
             block_args_list = self._get_override_block_args_list(
@@ -891,10 +895,7 @@ class MPTModel(MPTPreTrainedModel):
 
         layer_kv_cache_dict = {}
         for b_idx, block in enumerate(self.blocks):
-            attn_block = block.norm_attn_norm.attn if self.config.to_dict().get(
-                'fuse_norm_attn_norm',
-                False,
-            ) else block.attn
+            attn_block = block.norm_attn_norm.attn if self.blocks_fuse_norm_attn_norm else block.attn
             if attn_block.reuse_kv_layer_idx is not None:
                 if attn_block.reuse_kv_layer_idx not in layer_kv_cache_dict:
                     raise KeyError(

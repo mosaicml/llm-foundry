@@ -3,6 +3,7 @@
 
 import logging
 import os
+import random
 import sys
 import time
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -42,6 +43,32 @@ from llmfoundry.utils.config_utils import (
 from llmfoundry.utils.registry_utils import import_file
 
 log = logging.getLogger(__name__)
+
+import triton
+def my_put(self, data, filename, binary=True) -> str:
+    if not self.cache_dir:
+        return
+    binary = isinstance(data, bytes)
+    if not binary:
+        data = str(data)
+    assert self.lock_path is not None
+    filepath = self._make_path(filename)
+    # Random ID to avoid any collisions
+    rnd_id = random.randint(0, 1000000)
+    # we use the PID incase a bunch of these around so we can see what PID made it
+    pid = os.getpid()
+    # use tempfile to be robust against program interruptions
+    #temp_path = f"{filepath}.tmp.pid_{pid}_{rnd_id}"
+    temp_path = f"{filepath}.tmp.pid_{pid}_1"
+    mode = "wb" if binary else "w"
+    with open(temp_path, mode) as f:
+        f.write(data)
+    # Replace is guaranteed to be atomic on POSIX systems if it succeeds
+    # so filepath cannot see a partial write
+    os.replace(temp_path, filepath)
+    return filepath
+
+triton.runtime.cache.FileCacheManager.put = my_put
 
 
 def evaluate_model(
@@ -133,12 +160,6 @@ def evaluate_model(
             [t['name'] for t in eval_gauntlet_callback.categories],
         )
 
-    if name == 'mpt_causal_lm' and load_path is None:
-        raise ValueError(
-            'MPT causal LMs require a load_path to the checkpoint for model evaluation.'
-            +
-            ' Please check your yaml and the model_cfg to ensure that load_path is set.',
-        )
 
     assert composer_model is not None
 
@@ -442,4 +463,6 @@ if __name__ == '__main__':
     cli_cfg = om.from_cli(args_list)
     cfg = om.merge(yaml_cfg, cli_cfg)
     assert isinstance(cfg, DictConfig)
+    log.info("info bigning debug overwrite method")
+    log.debug("bigning debug overwrite method")
     main(cfg)

@@ -36,30 +36,6 @@ __all__ = [
     'ConcatenatedSequenceCollatorWrapper',
 ]
 
-import logging
-log = logging.getLogger(__name__)
-
-import torch.multiprocessing as mp
-
-# Save a reference to the original _try_put_index method
-original_try_put_index = torch.utils.data.dataloader._MultiProcessingDataLoaderIter._try_put_index
-
-def new_try_put_index(self, *args, **kwargs):
-    """New _try_put_index method that prints worker process IDs."""
-    # Print the PIDs of all worker processes
-    if not hasattr(self, '_printed_worker_pids'):
-        self._printed_worker_pids = True
-        for worker in self._workers:
-            log.warning(f"Worker started with PID: {worker.pid}")
-
-    # Call the original method
-    return original_try_put_index(self, *args, **kwargs)
-
-# Assign the new _try_put_index method to the _MultiProcessingDataLoaderIter class
-torch.utils.data.dataloader._MultiProcessingDataLoaderIter._try_put_index = new_try_put_index
-mp.set_start_method('spawn', force=True)
-
-
 
 class StreamingTextDataset(StreamingDataset):
     """Generic text dataset using MosaicML's StreamingDataset.
@@ -347,8 +323,6 @@ def build_text_dataloader(
             'device_batch_size': device_batch_size,
         },
     )
-
-    log.warning(f"I am in foundry 2:building streams")
 
     streams = build_streams(
         streams=dataset_cfg.pop('streams')

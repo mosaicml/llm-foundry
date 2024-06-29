@@ -891,7 +891,10 @@ class MPTModel(MPTPreTrainedModel):
 
         layer_kv_cache_dict = {}
         for b_idx, block in enumerate(self.blocks):
-            attn_block = block.norm_attn_norm.attn if self.config.fuse_norm_attn_norm else block.attn
+            attn_block = block.norm_attn_norm.attn if self.config.get(
+                'fuse_norm_attn_norm',
+                False,
+            ) else block.attn
             if attn_block.reuse_kv_layer_idx is not None:
                 if attn_block.reuse_kv_layer_idx not in layer_kv_cache_dict:
                     raise KeyError(

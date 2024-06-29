@@ -27,7 +27,8 @@ from llmfoundry.utils.model_download_utils import (
     download_from_oras,
 )
 
-HF_TOKEN_ENV_VAR = 'HUGGING_FACE_HUB_TOKEN'
+DEPRECATED_HF_TOKEN_ENV_VAR = 'HUGGING_FACE_HUB_TOKEN'
+HF_TOKEN_ENV_VAR = 'HF_TOKEN'
 
 logging.basicConfig(
     format=f'%(asctime)s: %(levelname)s: %(name)s: %(message)s',
@@ -42,7 +43,7 @@ def add_hf_parser_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         '--token',
         type=str,
-        default=os.getenv(HF_TOKEN_ENV_VAR),
+        default=os.getenv(HF_TOKEN_ENV_VAR, os.getenv(DEPRECATED_HF_TOKEN_ENV_VAR)),
     )
 
 

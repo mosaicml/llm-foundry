@@ -264,7 +264,7 @@ Note: the `composer` command used above to train the model refers to the [Compos
 If you have a write-enabled [HuggingFace auth token](https://huggingface.co/docs/hub/security-tokens), you can optionally upload your model to the Hub! Just export your token like this:
 
 ```bash
-export HUGGING_FACE_HUB_TOKEN=your-auth-token
+export HF_TOKEN=your-auth-token
 ```
 
 and uncomment the line containing `--hf_repo_for_upload ...` in the above call to `inference/convert_composer_to_hf.py`.

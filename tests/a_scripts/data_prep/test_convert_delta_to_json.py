@@ -200,7 +200,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         args.DATABRICKS_TOKEN = 'token'
         args.use_serverless = False
 
-        mock_cluster_response = Namespace(spark_version='14.1.0-scala2.12')
+        mock_cluster_response = Namespace(spark_version='14.3.0-scala2.12')
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
         mock_remote = MagicMock()

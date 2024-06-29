@@ -891,7 +891,7 @@ class MPTModel(MPTPreTrainedModel):
 
         layer_kv_cache_dict = {}
         for b_idx, block in enumerate(self.blocks):
-            attn_block = block.norm_attn_norm.attn if self.config.get(
+            attn_block = block.norm_attn_norm.attn if self.config.to_dict().get(
                 'fuse_norm_attn_norm',
                 False,
             ) else block.attn

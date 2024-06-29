@@ -7,7 +7,6 @@ import re
 import time
 import urllib.parse
 from argparse import ArgumentParser, Namespace
-from collections import namedtuple
 from concurrent.futures import ProcessPoolExecutor
 from typing import Iterable, List, Optional, Tuple, Union
 from uuid import uuid4
@@ -44,6 +43,7 @@ MINIMUM_DB_CONNECT_DBR_VERSION = '14.3'
 MINIMUM_SQ_CONNECT_DBR_VERSION = '12.2'
 
 log = logging.getLogger(__name__)
+
 
 def iterative_combine_jsons(json_directory: str, output_file: str) -> None:
     """Combine jsonl files in json_directory into one big jsonl file.
@@ -310,7 +310,9 @@ def fetch(
 
         # Running the query and collecting the data as arrow or json.
         query = df._plan.to_proto(df._session.client)  # pyright: ignore
-        schema, cloudfetch_results = df._session.client.experimental_to_cloudfetch(query, "arrow", compression=False)  # pyright: ignore
+        schema, cloudfetch_results = df._session.client.experimental_to_cloudfetch(
+            query, 'arrow', compression=False
+        )  # pyright: ignore
         signed = [result.url for result in cloudfetch_results]
         log.info(f'len(signed) = {len(signed)}')
 

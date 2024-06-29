@@ -125,7 +125,8 @@ extra_deps['megablocks'] = [
 
 extra_deps['serverless'] = {
     dep for key, deps in extra_deps.items() for dep in deps
-    if 'gpu' not in key and 'megablocks' not in key and 'databricks-connect' not in dep
+    if 'gpu' not in key and 'megablocks' not in key and
+    'databricks-connect' not in dep
 }
 extra_deps['all-cpu'] = {
     dep for key, deps in extra_deps.items() for dep in deps

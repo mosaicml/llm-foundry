@@ -502,33 +502,26 @@ def main(cfg: DictConfig) -> Trainer:
     def retrieve_layer_plan():
         layer_plan = {}
         for name, _ in model.named_modules():
-            #if 'Wqkv' in name or 'up_proj' in name or 'gate_proj' in name:
-            #    print(f"using ColwiseParallel for module {name}")
-            #    layer_plan[name] = ColwiseParallel()
-            #if 'out_proj' in name or 'down_proj' in name:
-            #    print(f"using RowwiseParallel for module {name}")
-            #    layer_plan[name] = RowwiseParallel()
-            #if 'Wqkv' in name or 'up_proj' in name or 'gate_proj' in name or 'down_proj' in name:
-            if 'Wqkv' in name or 'out_proj' in name:
-                print(f"using ColwiseParallel, [Replicate, Replicate] for module {name}")
-                layer_plan[name] = ColwiseParallel(
-                    input_layouts = Replicate(),
-                    output_layouts = Replicate(),
-                )
-            if 'up_proj' in name or 'gate_proj' in name:
+            # if 'Wqkv' in name or 'out_proj' in name:
+            #     print(f"using ColwiseParallel, [Replicate, Replicate] for module {name}")
+            #     layer_plan[name] = ColwiseParallel(
+            #         input_layouts = Replicate(),
+            #         output_layouts = Replicate(),
+            #     )
+            if 'up_proj' in name or 'gate_proj' in name or 'Wqkv' in name or 'out_proj' in name or 'down_proj' in name:
                 print(f"using ColwiseParallel, [Replicate, Replicate] for module {name}")
                 layer_plan[name] = ColwiseParallel(
                     input_layouts = Replicate(),
                     output_layouts = Replicate(),
                     #output_layouts = Shard(1),
                 )
-            if 'down_proj' in name:
-                print(f"using RowwiseParallel, [Replicate, Replicate] for module {name}")
-                layer_plan[name] = RowwiseParallel(
-                    #input_layouts = Shard(1),
-                    input_layouts = Replicate(),
-                    output_layouts = Replicate(),
-                )
+            # if 'down_proj' in name:
+            #     print(f"using RowwiseParallel, [Replicate, Replicate] for module {name}")
+            #     layer_plan[name] = RowwiseParallel(
+            #         #input_layouts = Shard(1),
+            #         input_layouts = Replicate(),
+            #         output_layouts = Replicate(),
+            #     )
         return layer_plan
     
     # ADDED TP CONFIG:

@@ -61,43 +61,6 @@ from llmfoundry.utils.registry_utils import import_file
 
 log = logging.getLogger(__name__)
 
-##### PATCH IN PYTORCH FUNCTION TO REGISTER FWD METHOD #####
-# We register model.generate as a forward method so FSDP behaves as expected.
-# See: https://github.com/pytorch/pytorch/pull/125394/files
-# import functools
-# from torch.distributed._composable.fsdp.fully_shard import FSDP
-# import torch.nn as nn
-# def register_fsdp_forward_method(module: nn.Module, method_name: str) -> None:
-#     """
-#     Registers a method on ``module`` to be a forward method for FSDP.
-
-#     FSDP only knows to run its pre-forward and post-forward hooks on the
-#     default :meth:`nn.Module.forward` method. This function patches a user
-#     specified method to run the pre/post-forward hooks before/after the method,
-#     respectively. If ``module`` is not an :class:`FSDP`, then this is a
-#     no-op.
-
-#     Args:
-#         module (nn.Module): Module to register the forward method on.
-#         method_name (str): Name of the forward method.
-#     """
-#     if not isinstance(module, FSDP):
-#         # Make no-op to allow including both when using/not using FSDP
-#         return
-#     if not hasattr(module, method_name):
-#         raise ValueError(f"{type(module)} does not have a method {method_name}")
-#     orig_method = getattr(module, method_name)
-
-#     @functools.wraps(orig_method)
-#     def wrapped_method(self, *args, **kwargs):
-#         fsdp_state = self._get_fsdp_state()
-#         args, kwargs = fsdp_state._pre_forward(self, args, kwargs)
-#         out = orig_method(*args, **kwargs)
-#         return fsdp_state._post_forward(self, args, out)
-
-#     # Use `__get__` to make `wrapped_method` an instance method
-#     setattr(module, method_name, wrapped_method.__get__(module, type(module)))
-
 
 def validate_config(train_config: TrainConfig):
     """Validates compatible model and dataloader selection."""
@@ -242,6 +205,7 @@ def main(cfg: DictConfig) -> Trainer:
     cfg_warmup = cfg.warmup
     cfg_num_generations = cfg.num_generations
     cfg_max_new_tokens = cfg.max_new_tokens
+    cfg_tp_degree = cfg.variables.tp_degree
 
     del cfg.warmup
     del cfg.num_generations
@@ -250,6 +214,7 @@ def main(cfg: DictConfig) -> Trainer:
     print("Warmup is: ", cfg_warmup)
     print("Num generations is: ", cfg_num_generations)
     print("Max new tokens is: ", cfg_max_new_tokens)
+    print("TP degree is:", cfg_tp_degree)
 
     logged_cfg, train_cfg = make_dataclass_and_log_config(
         cfg,
@@ -568,7 +533,7 @@ def main(cfg: DictConfig) -> Trainer:
     
     # ADDED TP CONFIG:
     tp_config = {
-        'tensor_parallel_degree': 4,
+        'tensor_parallel_degree': cfg_tp_degree,
         'layer_plan': retrieve_layer_plan()
     }
 
@@ -642,11 +607,6 @@ def main(cfg: DictConfig) -> Trainer:
     print("Model is: ", model.model)
     print("Model max seq len is: ", model_max_seq_len, "\n")
 
-    #print("Patching register_fsdp_forward_method:")
-    #setattr(torch.distributed._composable.fsdp.fully_shard, "register_fsdp_forward_method", register_fsdp_forward_method)
-    #print("Registering model.generate as a forward function for FSDP.")
-    #torch.distributed._composable.fsdp.fully_shard.register_fsdp_forward_method(model.model, "generate")
-
     for i, inputs in enumerate(train_loader.dataloader):
         if cfg_max_new_tokens > model_max_seq_len:
             raise ValueError(f"max_new_tokens of {cfg_max_new_tokens} is greater than max_seq_len of {model_max_seq_len}")
@@ -659,22 +619,22 @@ def main(cfg: DictConfig) -> Trainer:
         num_prompt_tokens = inputs['input_ids'].numel()
         start_time = time.time()
         
-        # generate_context = FSDP.summon_full_params(model.model,
-        #                                        writeback=False,
-        #                                        recurse=True)
+        generate_context = FSDP.summon_full_params(model.model,
+                                               writeback=False,
+                                               recurse=False)
         if i == 0 and dist.get_global_rank() == 0:
             from torch.profiler import profile, record_function, ProfilerActivity
             with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]) as prof:
                 with autocast(dtype=torch.bfloat16):
-                    #with generate_context:
-                    outputs = model.model.generate(
-                        input_ids=inputs['input_ids'].to('cuda'),
-                        attention_mask=attention_mask.to('cuda'),
-                        synced_gpus=True,
-                        use_cache=True,
-                        # eos_token_id=model.tokenizer.eos_token_id,
-                        max_new_tokens=cfg_max_new_tokens,
-                    )
+                    with generate_context:
+                        outputs = model.model.generate(
+                            input_ids=inputs['input_ids'].to('cuda'),
+                            attention_mask=attention_mask.to('cuda'),
+                            synced_gpus=True,
+                            use_cache=True,
+                            # eos_token_id=model.tokenizer.eos_token_id,
+                            max_new_tokens=cfg_max_new_tokens,
+                        )
             
             trace_file_name = f"/torch_traces/SGO_TP4_generation_trace-iter-{i}-rank-{dist.get_global_rank()}.json"
             trace_file_dirname = os.path.dirname(trace_file_name)
@@ -684,17 +644,15 @@ def main(cfg: DictConfig) -> Trainer:
             prof.export_chrome_trace(trace_file_name)
         else:
             with autocast(dtype=torch.bfloat16):
-                #with generate_context:
-                outputs = model.model.generate(
-                    input_ids=inputs['input_ids'].to('cuda'),
-                    attention_mask=attention_mask.to('cuda'),
-                    synced_gpus=True,
-                    use_cache=True,
-                    # eos_token_id=model.tokenizer.eos_token_id,
-                    max_new_tokens=cfg_max_new_tokens,
-                )
-
-        print("OUTPUTS ARE:", tokenizer.batch_decode(outputs))
+                with generate_context:
+                    outputs = model.model.generate(
+                        input_ids=inputs['input_ids'].to('cuda'),
+                        attention_mask=attention_mask.to('cuda'),
+                        synced_gpus=True,
+                        use_cache=True,
+                        # eos_token_id=model.tokenizer.eos_token_id,
+                        max_new_tokens=cfg_max_new_tokens,
+                    )
         
         end_time = time.time()
         gen_len = cfg_max_new_tokens*device_batch_size

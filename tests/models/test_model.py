@@ -2758,7 +2758,8 @@ def test_reuse_prev_layer_kv_cache(
     prev_layer_key_value_dict = {}
 
     def mock_forward(b_forward, b_idx, *args, **kwargs):  # type: ignore
-        prev_layer_key_value_dict[b_idx] = kwargs['prev_layer_key_value']
+        if 'prev_layer_key_value' in kwargs:
+            prev_layer_key_value_dict[b_idx] = kwargs['prev_layer_key_value']
         return b_forward(*args, **kwargs)
 
     for b_idx, block in enumerate(model.model.transformer.blocks):
@@ -2773,7 +2774,7 @@ def test_reuse_prev_layer_kv_cache(
         assert torch.all(
             outputs.past_key_values[0][1] == outputs.past_key_values[1][1],
         )
-        assert prev_layer_key_value_dict[0] is None
+        assert 0 not in prev_layer_key_value_dict
         assert torch.all(
             prev_layer_key_value_dict[1][0] == outputs.past_key_values[0][0],
         )

@@ -1,14 +1,19 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import contextlib
 import json
 import re
+from typing import Any
+from unittest import mock
 
+import pytest
 import torch
 import transformers
 from composer.core.state import State
 from composer.core.time import Timestamp
 from composer.loggers import InMemoryLogger, Logger
+from composer.models import HuggingFaceModel
 from torch.utils.data import DataLoader
 from torchmetrics import Metric
 
@@ -49,6 +54,12 @@ class MockState(State):
     def update_curr_eval(self, dataloader: DataLoader, dataloader_label: str):
         self._dataloader = dataloader
         self._dataloader_label = dataloader_label
+
+
+class MockHFModel(HuggingFaceModel):
+
+    def __init__(self, *args: Any, **kargs: Any):
+        pass
 
 
 class RegexMatcher:
@@ -170,8 +181,45 @@ def mock_mc_computation(
     metric.compute()
 
 
+@pytest.mark.parametrize('is_hf_model', [True, False])
+@pytest.mark.parametrize('has_tokenizer', [True, False])
+@pytest.mark.parametrize('log_output_text', [True, False, None])
+def test_init(
+    is_hf_model: bool,
+    has_tokenizer: bool,
+    log_output_text: bool,
+):
+    state = MockState()
+    in_memory_logger = InMemoryLogger()
+    logger = Logger(state, in_memory_logger)
+
+    expected_error = log_output_text is True and not (
+        is_hf_model and has_tokenizer
+    )
+    exptected_log_output_text = (
+        log_output_text is not False and is_hf_model and has_tokenizer
+    )
+
+    eval_output_logging = EvalOutputLogging(
+        loggers_to_use=['InMemoryLogger'],
+        log_output_text=log_output_text,
+    )
+
+    state = mock.Mock(model=MockHFModel() if is_hf_model else mock.Mock())
+    state.dataloader.dataset = mock.Mock(
+        spec=['tokenizer'] if has_tokenizer else [],
+    )
+    with pytest.raises(
+        ValueError,
+    ) if expected_error else contextlib.nullcontext():
+        eval_output_logging.init(state, logger)
+        assert eval_output_logging.log_output_text == exptected_log_output_text
+
+
+@pytest.mark.parametrize('log_output_text', [True, False])
 def test_eval_output_logging_lm(
     tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    log_output_text: bool,
 ):
     # this test simulates an unrolled version of the eval loop occurring twice
     state = MockState()
@@ -182,7 +230,11 @@ def test_eval_output_logging_lm(
     state.add_metric('lm_acc', lm_metric)
 
     # Construct the callback
-    eval_output_logging = EvalOutputLogging(loggers_to_use=['InMemoryLogger'])
+    eval_output_logging = EvalOutputLogging(
+        loggers_to_use=['InMemoryLogger'],
+        log_output_text=log_output_text,
+    )
+    eval_output_logging.init(mock.Mock(model=MockHFModel()), logger)
 
     for _ in range(2):
         state.update_curr_eval(
@@ -212,7 +264,7 @@ def test_eval_output_logging_lm(
         'output',
         'result',
         'metric_name',
-        'outputs',
+        *(['outputs'] if log_output_text else []),
         'input',
         'run_name',
     ]
@@ -225,7 +277,8 @@ def test_eval_output_logging_lm(
             ' furry',
             1,
             'InContextLearningLMAccuracy',
-            RegexMatcher(r' dog is furry(\[PAD\])+I'),
+            *((RegexMatcher(r' dog is furry(\[PAD\])+I'),)
+              if log_output_text else []),
             'The dog is furry',
             'mock_name',
         ],
@@ -235,7 +288,8 @@ def test_eval_output_logging_lm(
             '[PAD]',
             0,
             'InContextLearningLMAccuracy',
-            RegexMatcher(r' love to eat(\[PAD\])+I'),
+            *((RegexMatcher(r' love to eat(\[PAD\])+I'),)
+              if log_output_text else []),
             'I love to eat pie',
             'mock_name',
         ],
@@ -245,7 +299,8 @@ def test_eval_output_logging_lm(
             ' long lines',
             1,
             'InContextLearningLMAccuracy',
-            RegexMatcher(r' hate long lines(\[PAD\])+The'),
+            *((RegexMatcher(r' hate long lines(\[PAD\])+The'),)
+              if log_output_text else []),
             'I hate long lines',
             'mock_name',
         ],
@@ -255,7 +310,8 @@ def test_eval_output_logging_lm(
             ' snowy',
             1,
             'InContextLearningLMAccuracy',
-            RegexMatcher(r' weather is snowy(\[PAD\])+The'),
+            *((RegexMatcher(r' weather is snowy(\[PAD\])+The'),)
+              if log_output_text else []),
             'The weather is snowy',
             'mock_name',
         ],
@@ -265,7 +321,8 @@ def test_eval_output_logging_lm(
             ' furry',
             1,
             'InContextLearningLMAccuracy',
-            RegexMatcher(r' dog is furry(\[PAD\])+I'),
+            *((RegexMatcher(r' dog is furry(\[PAD\])+I'),)
+              if log_output_text else []),
             'The dog is furry',
             'mock_name',
         ],
@@ -275,7 +332,8 @@ def test_eval_output_logging_lm(
             '[PAD]',
             0,
             'InContextLearningLMAccuracy',
-            RegexMatcher(r' love to eat(\[PAD\])+I'),
+            *((RegexMatcher(r' love to eat(\[PAD\])+I'),)
+              if log_output_text else []),
             'I love to eat pie',
             'mock_name',
         ],
@@ -285,7 +343,8 @@ def test_eval_output_logging_lm(
             ' long lines',
             1,
             'InContextLearningLMAccuracy',
-            RegexMatcher(r' hate long lines(\[PAD\])+The'),
+            *((RegexMatcher(r' hate long lines(\[PAD\])+The'),)
+              if log_output_text else []),
             'I hate long lines',
             'mock_name',
         ],
@@ -295,7 +354,8 @@ def test_eval_output_logging_lm(
             ' snowy',
             1,
             'InContextLearningLMAccuracy',
-            RegexMatcher(r' weather is snowy(\[PAD\])+The'),
+            *((RegexMatcher(r' weather is snowy(\[PAD\])+The'),)
+              if log_output_text else []),
             'The weather is snowy',
             'mock_name',
         ],
@@ -314,7 +374,11 @@ def test_eval_output_logging_mc(
     state.add_metric('mc_acc', mc_metric)
 
     # Construct the callback
-    eval_output_logging = EvalOutputLogging(loggers_to_use=['InMemoryLogger'])
+    eval_output_logging = EvalOutputLogging(
+        loggers_to_use=['InMemoryLogger'],
+        log_output_text=True,
+    )
+    eval_output_logging.init(mock.Mock(model=MockHFModel()), logger)
     for _ in range(2):
         state.update_curr_eval(
             MockDataLoader(tiny_gpt2_tokenizer),

@@ -206,15 +206,18 @@ def main(cfg: DictConfig) -> Trainer:
     cfg_num_generations = cfg.num_generations
     cfg_max_new_tokens = cfg.max_new_tokens
     cfg_tp_degree = cfg.variables.tp_degree
+    cfg_model_bf16 = cfg.variables.model_bf16
 
     del cfg.warmup
     del cfg.num_generations
     del cfg.max_new_tokens
+    del cfg.variables.model_bf16
 
     print("Warmup is: ", cfg_warmup)
     print("Num generations is: ", cfg_num_generations)
     print("Max new tokens is: ", cfg_max_new_tokens)
     print("TP degree is:", cfg_tp_degree)
+    print("Model BF16 is:", cfg_model_bf16)
 
     logged_cfg, train_cfg = make_dataclass_and_log_config(
         cfg,
@@ -575,6 +578,10 @@ def main(cfg: DictConfig) -> Trainer:
     total_time = 0
 
     model.eval()
+
+    if cfg_model_bf16:
+        print("Casting model to BF16 for generation.")
+        model = model.to(torch.bfloat16)
 
     model.tokenizer.padding_side = 'left'
     if model.tokenizer.pad_token_id is None:

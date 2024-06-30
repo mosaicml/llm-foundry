@@ -653,6 +653,8 @@ def main(cfg: DictConfig) -> Trainer:
                     # eos_token_id=model.tokenizer.eos_token_id,
                     max_new_tokens=cfg_max_new_tokens,
                 )
+
+        outputs_shape = outputs.shape
         
         end_time = time.time()
         gen_len = cfg_max_new_tokens*device_batch_size
@@ -673,6 +675,7 @@ def main(cfg: DictConfig) -> Trainer:
 
             print("\nPeak reserved mem (GB): ", mem_report['peak_reserved_mem'])
             print("Mem alloc retries: ", mem_report['alloc_retries'])
+            print("Output shape is:", outputs_shape)
             print("Global prompt tokens is: ", curr_global_prompt_tokens / cfg_tp_degree)
             print("Generation len is: ", curr_gen_len / cfg_tp_degree)
             print("Elapsed time: ", end_time - start_time, "\n")

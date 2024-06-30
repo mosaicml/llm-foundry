@@ -657,14 +657,17 @@ def main(cfg: DictConfig) -> Trainer:
         mem_report = _get_memory_report()
 
         if i >= cfg_warmup:
+            # Have to divide by the TP degree to get the actual number of tokens generated since
+            # data is replicated across TP blocks.
+
             print("\nPeak reserved mem (GB): ", mem_report['peak_reserved_mem'])
             print("Mem alloc retries: ", mem_report['alloc_retries'])
-            print("Global prompt tokens is: ", curr_global_prompt_tokens)
-            print("Generation len is: ", curr_gen_len)
+            print("Global prompt tokens is: ", curr_global_prompt_tokens / cfg_tp_degree)
+            print("Generation len is: ", curr_gen_len / cfg_tp_degree)
             print("Elapsed time: ", end_time - start_time, "\n")
             
-            total_generated_tokens += curr_gen_len
-            total_prompt_tokens += curr_global_prompt_tokens
+            total_generated_tokens += curr_gen_len / cfg_tp_degree
+            total_prompt_tokens += curr_global_prompt_tokens / cfg_tp_degree
             total_time += end_time - start_time
         
         if i >= cfg_num_generations + cfg_warmup:

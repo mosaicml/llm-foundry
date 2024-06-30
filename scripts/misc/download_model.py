@@ -43,7 +43,9 @@ def add_hf_parser_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         '--token',
         type=str,
-        default=os.getenv(HF_TOKEN_ENV_VAR, os.getenv(DEPRECATED_HF_TOKEN_ENV_VAR)),
+        default=os.getenv(
+            HF_TOKEN_ENV_VAR, os.getenv(DEPRECATED_HF_TOKEN_ENV_VAR)
+        ),
     )
 
 

@@ -913,6 +913,9 @@ class MPTModel(MPTPreTrainedModel):
             past_key_value = (
                 past_key_values[b_idx] if past_key_values is not None else None
             )
+            extra_kwargs = {}
+            if prev_layer_key_value is not None:
+                extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
             x, attn_weights, present = block(
                 x,
                 past_key_value=past_key_value,
@@ -923,7 +926,7 @@ class MPTModel(MPTPreTrainedModel):
                 output_attentions=bool(output_attentions),
                 alibi_slopes=alibi_slopes,
                 flash_attn_padding_info=flash_attn_padding_info,
-                prev_layer_key_value=prev_layer_key_value,
+                **extra_kwargs,
             )
             if presents is not None:
                 presents += (present,)

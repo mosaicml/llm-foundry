@@ -525,7 +525,10 @@ class GroupedQueryAttention(nn.Module):
                                              torch.Tensor]] = None,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
         torch.Tensor, torch.Tensor]]]:
-        query, key, value = self.get_qkv(x, prev_layer_key_value)
+        extra_kwargs = {}
+        if prev_layer_key_value is not None:
+            extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
+        query, key, value = self.get_qkv(x, **extra_kwargs)
 
         if rotary_emb_w_meta_info is not None:
             query, key, value = self._apply_rotary_embeddings(
@@ -562,7 +565,8 @@ class GroupedQueryAttention(nn.Module):
     def get_qkv(
         self,
         x: torch.Tensor,
-        prev_layer_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]],
+        prev_layer_key_value: Optional[Tuple[torch.Tensor,
+                                             torch.Tensor]] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Computes and returns the query, key, and value tensors.
 

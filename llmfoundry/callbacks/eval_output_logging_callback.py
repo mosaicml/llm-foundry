@@ -5,11 +5,12 @@
 
 import warnings
 from copy import deepcopy
-from typing import Any, Dict, List, Sequence, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 import torch
 from composer.core import Callback, State
 from composer.loggers import ConsoleLogger, Logger
+from composer.models import HuggingFaceModel
 from composer.utils.dist import all_gather_object
 
 
@@ -24,33 +25,61 @@ class EvalOutputLogging(Callback):
     into `batch_keys_to_log`. It will do so after every eval batch.
     """
 
-    def __init__(self, log_tokens: bool = False, *args: Any, **kwargs: Any):
+    def __init__(
+        self,
+        log_tokens: bool = False,
+        log_output_text: Optional[bool] = None,
+        *args: Any,
+        **kwargs: Any,
+    ):
         super().__init__(self, *args, **kwargs)
         self.log_tokens = log_tokens
         self.columns = None
         self.name = None
         self.rows = []
+        self.log_output_text = log_output_text
+
+    def init(self, state: State, logger: Logger) -> None:
+        if self.log_output_text is False:
+            return
+
+        has_output_text = (
+            isinstance(state.model, HuggingFaceModel)
+            and state.dataloader is not None
+            and hasattr(
+                state.dataloader.dataset,  # pyright: ignore[reportGeneralTypeIssues]
+                'tokenizer',
+            )
+        )
+        if self.log_output_text is True and has_output_text is False:
+            raise ValueError(
+                '`log_output_text=True` is only supported for HuggingFace models and datasets with tokenizers.',
+            )
+        elif self.log_output_text is None:
+            self.log_output_text = has_output_text
 
     def eval_batch_end(self, state: State, logger: Logger) -> None:
         if not isinstance(state.batch, Dict):
             warnings.warn(
-                f'''EvalOutputLogging only supports batches that are dictionary. \
+                f"""EvalOutputLogging only supports batches that are dictionary. \
                 Found batch for type {type(state.batch)}. \
-                Not logging eval outputs.''',
+                Not logging eval outputs.""",
             )
             return
 
         assert state.outputs is not None
         assert state.metric_outputs is not None
-        logging_dict: Dict[str, Union[List[Any], torch.Tensor,
-                                      Sequence[torch.Tensor]]] = deepcopy(
-                                          state.metric_outputs,
-                                      )
+        logging_dict: Dict[str,
+                           Union[List[Any], torch.Tensor,
+                                 Sequence[torch.Tensor]],
+                          ] = deepcopy(
+                              state.metric_outputs,
+                          )
 
         if state.batch.get('mode') == 'generate':
             # Outputs are already detokenized
             logging_dict['outputs'] = state.outputs
-        elif isinstance(state.outputs, torch.Tensor):
+        elif self.log_output_text and isinstance(state.outputs, torch.Tensor):
             # If batch mode is not generate, outputs will be logits
             logging_dict['outputs'] = state.outputs.argmax(dim=-1)
 

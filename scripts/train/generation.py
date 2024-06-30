@@ -206,18 +206,21 @@ def main(cfg: DictConfig) -> Trainer:
     cfg_num_generations = cfg.num_generations
     cfg_max_new_tokens = cfg.max_new_tokens
     cfg_tp_degree = cfg.variables.tp_degree
-    cfg_model_bf16 = cfg.variables.model_bf16
+    cfg_model_bf16 = cfg.model_bf16
+    cfg_use_cache = cfg.use_cache
 
     del cfg.warmup
     del cfg.num_generations
     del cfg.max_new_tokens
-    del cfg.variables.model_bf16
+    del cfg.model_bf16
+    del cfg.use_cache
 
     print("Warmup is: ", cfg_warmup)
     print("Num generations is: ", cfg_num_generations)
     print("Max new tokens is: ", cfg_max_new_tokens)
     print("TP degree is:", cfg_tp_degree)
     print("Model BF16 is:", cfg_model_bf16)
+    print("Use cache is:", cfg_use_cache)
 
     logged_cfg, train_cfg = make_dataclass_and_log_config(
         cfg,
@@ -645,7 +648,8 @@ def main(cfg: DictConfig) -> Trainer:
                 input_ids=inputs['input_ids'].to('cuda'),
                 attention_mask=attention_mask.to('cuda'),
                 synced_gpus=True,
-                use_cache=True,
+                #use_cache=True,
+                use_cache=cfg_use_cache,
                 # eos_token_id=model.tokenizer.eos_token_id,
                 max_new_tokens=cfg_max_new_tokens,
             )

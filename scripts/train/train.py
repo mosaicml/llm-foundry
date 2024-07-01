@@ -326,7 +326,7 @@ def main(cfg: DictConfig) -> Trainer:
             common_keys = set(
                 logged_cfg.keys(),
             ) & set(train_cfg.metadata.keys())
-            if common_keys:
+            if len(common_keys) > 0:
                 raise ValueError(
                     f'Keys {common_keys} are already present in the config. Please rename them in metadata '
                     +

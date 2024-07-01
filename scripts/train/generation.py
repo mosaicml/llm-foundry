@@ -611,44 +611,13 @@ def main(cfg: DictConfig) -> Trainer:
         generate_context = FSDP.summon_full_params(model.model,
                                                writeback=False,
                                                recurse=False)
-        # if i == 0 and dist.get_global_rank() == 0:
-        #     from torch.profiler import profile, record_function, ProfilerActivity
-        #     with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]) as prof:
-        #         with autocast(dtype=torch.bfloat16):
-        #             with generate_context:
-        #                 outputs = model.model.generate(
-        #                     input_ids=inputs['input_ids'].to('cuda'),
-        #                     attention_mask=attention_mask.to('cuda'),
-        #                     synced_gpus=True,
-        #                     use_cache=True,
-        #                     # eos_token_id=model.tokenizer.eos_token_id,
-        #                     max_new_tokens=cfg_max_new_tokens,
-        #                 )
-            
-        #     trace_file_name = f"/torch_traces/SGO_TP4_generation_trace-iter-{i}-rank-{dist.get_global_rank()}.json"
-        #     trace_file_dirname = os.path.dirname(trace_file_name)
-        #     print("trace file dirname:", trace_file_dirname)
-        #     if trace_file_dirname:
-        #         os.makedirs(trace_file_dirname, exist_ok=True)
-        #     prof.export_chrome_trace(trace_file_name)
-        # else:
-        #     with autocast(dtype=torch.bfloat16):
-        #         with generate_context:
-        #             outputs = model.model.generate(
-        #                 input_ids=inputs['input_ids'].to('cuda'),
-        #                 attention_mask=attention_mask.to('cuda'),
-        #                 synced_gpus=True,
-        #                 use_cache=True,
-        #                 # eos_token_id=model.tokenizer.eos_token_id,
-        #                 max_new_tokens=cfg_max_new_tokens,
-        #             )
+        
         with autocast(dtype=torch.bfloat16):
             with generate_context:
                 outputs = model.model.generate(
                     input_ids=inputs['input_ids'].to('cuda'),
                     attention_mask=attention_mask.to('cuda'),
                     synced_gpus=True,
-                    #use_cache=True,
                     use_cache=cfg_use_cache,
                     # eos_token_id=model.tokenizer.eos_token_id,
                     max_new_tokens=cfg_max_new_tokens,
@@ -658,7 +627,6 @@ def main(cfg: DictConfig) -> Trainer:
         
         end_time = time.time()
         gen_len = cfg_max_new_tokens*device_batch_size
-        # print("Generation len size is: ", gen_len, outputs.shape, model_max_seq_len)
 
         curr_gen_len = torch.tensor([gen_len]).to('cuda')
         curr_global_prompt_tokens = torch.tensor([num_prompt_tokens]).to('cuda')

@@ -533,7 +533,7 @@ def _get_model_and_tokenizer(
         tokenizer_name = 'EleutherAI/gpt-neo-125M'
     elif model == 'llama2':
         assert tie_word_embeddings is None
-        if 'HUGGING_FACE_HUB_TOKEN' not in os.environ:
+        if 'HF_TOKEN' not in os.environ:
             pytest.skip(
                 'The CI cluster does not have access to the Llama models, so skip this test.',
             )
@@ -985,7 +985,7 @@ def test_convert_and_generate(
         om_cfg['model']['config_overrides']['hidden_size'] = 36
     elif model == 'llama2':
         assert tie_word_embeddings is None
-        if 'HUGGING_FACE_HUB_TOKEN' not in os.environ:
+        if 'HF_TOKEN' not in os.environ:
             pytest.skip(
                 'The CI cluster does not have access to the Llama models, so skip this test.',
             )

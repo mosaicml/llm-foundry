@@ -29,6 +29,7 @@ from llmfoundry.data.finetuning.collator import (
 )
 from llmfoundry.data.finetuning.tasks import (
     DOWNLOADED_FT_DATASETS_DIRPATH,
+    HUGGINGFACE_FOLDER_EXTENSIONS,
     SUPPORTED_EXTENSIONS,
     dataset_constructor,
     is_valid_ift_example,
@@ -471,14 +472,15 @@ def test_finetuning_dataloader_safe_load(
         )
 
     # If no raised errors, we should expect downloaded files with only safe file types.
-    if expectation == does_not_raise():
+    if isinstance(expectation, does_not_raise):
         download_dir = os.path.join(DOWNLOADED_FT_DATASETS_DIRPATH, hf_name)
         downloaded_files = [
             file for _, _, files in os.walk(download_dir) for file in files
         ]
         assert len(downloaded_files) > 0
         assert all(
-            Path(file).suffix in SUPPORTED_EXTENSIONS
+            Path(file).suffix in SUPPORTED_EXTENSIONS +
+            HUGGINGFACE_FOLDER_EXTENSIONS or file == '.gitignore'
             for file in downloaded_files
         )
 

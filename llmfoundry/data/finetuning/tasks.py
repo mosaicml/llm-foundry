@@ -114,6 +114,7 @@ DOWNLOADED_FT_DATASETS_DIRPATH = os.path.abspath(
     ),
 )
 SUPPORTED_EXTENSIONS = ['.csv', '.json', '.jsonl', '.parquet']
+HUGGINGFACE_FOLDER_EXTENSIONS = ['.lock', '.metadata']
 
 PromptResponseDict = Mapping[str, str]
 ChatFormattedDict = Mapping[str, List[Dict[str, str]]]
@@ -886,7 +887,8 @@ class DatasetConstructor:
                     f for _, _, files in os.walk(dataset_name) for f in files
                 ]
                 if not all(
-                    Path(f).suffix in SUPPORTED_EXTENSIONS
+                    Path(f).suffix in SUPPORTED_EXTENSIONS +
+                    HUGGINGFACE_FOLDER_EXTENSIONS or f == '.gitignore'
                     for f in dataset_files
                 ):
                     raise InvalidFileExtensionError(

@@ -158,8 +158,13 @@ class MPTBlock(nn.Module):
         output_attentions: bool = False,
         alibi_slopes: Optional[torch.Tensor] = None,
         flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
+        prev_layer_key_value: Optional[Tuple[torch.Tensor,
+                                             torch.Tensor]] = None,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[
         torch.Tensor, torch.Tensor]]]:
+        extra_kwargs = {}
+        if prev_layer_key_value is not None:
+            extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
         if self.fuse_norm_attn_norm:
             x, m, attn_weights, past_key_value = self.norm_attn_norm(
                 x,
@@ -171,6 +176,7 @@ class MPTBlock(nn.Module):
                 output_attentions=output_attentions,
                 alibi_slopes=alibi_slopes,
                 flash_attn_padding_info=flash_attn_padding_info,
+                **extra_kwargs,
             )
         else:
             a = self.norm_1(x)
@@ -184,6 +190,7 @@ class MPTBlock(nn.Module):
                 needs_weights=output_attentions,
                 alibi_slopes=alibi_slopes,
                 flash_attn_padding_info=flash_attn_padding_info,
+                **extra_kwargs,
             )
             x = x + self.resid_attn_dropout(b)
             m = x
@@ -308,9 +315,14 @@ class FusedNormAttentionNorm(nn.Module):
         output_attentions: bool = False,
         alibi_slopes: Optional[torch.Tensor] = None,
         flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
+        prev_layer_key_value: Optional[Tuple[torch.Tensor,
+                                             torch.Tensor]] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor],
                Optional[Tuple[torch.Tensor, torch.Tensor]]]:
         a = self.norm_1(x)
+        extra_kwargs = {}
+        if prev_layer_key_value is not None:
+            extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
         b, attn_weights, past_key_value = self.attn(
             a,
             past_key_value=past_key_value,
@@ -321,6 +333,7 @@ class FusedNormAttentionNorm(nn.Module):
             needs_weights=output_attentions,
             alibi_slopes=alibi_slopes,
             flash_attn_padding_info=flash_attn_padding_info,
+            **extra_kwargs,
         )
         x = x + self.resid_attn_dropout(b)
         m = x

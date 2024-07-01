@@ -70,7 +70,7 @@ install_requires = [
     'onnx==1.14.0',
     'onnxruntime==1.15.1',
     'boto3>=1.21.45,<2',
-    'huggingface-hub>=0.19.0,<0.23',
+    'huggingface-hub>=0.19.0,<0.24',
     'beautifulsoup4>=4.12.2,<5',  # required for model download utils
     'tenacity>=8.2.3,<9',
     'catalogue>=2,<3',
@@ -123,6 +123,11 @@ extra_deps['megablocks'] = [
     'grouped-gemm==0.1.4',
 ]
 
+extra_deps['databricks-serverless'] = {
+    dep for key, deps in extra_deps.items() for dep in deps
+    if 'gpu' not in key and 'megablocks' not in key and
+    'databricks-connect' not in dep
+}
 extra_deps['all-cpu'] = {
     dep for key, deps in extra_deps.items() for dep in deps
     if 'gpu' not in key and 'megablocks' not in key

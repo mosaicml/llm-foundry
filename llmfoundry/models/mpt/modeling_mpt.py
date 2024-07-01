@@ -8,6 +8,7 @@ Inspired by https://github.com/karpathy/minGPT/blob/master/mingpt/model.py
 
 from __future__ import annotations
 
+import copy
 import math
 import warnings
 from functools import cached_property
@@ -28,6 +29,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from composer.models import HuggingFaceModel
 from composer.utils import dist
+from tabulate import tabulate
 
 from llmfoundry.layers_registry import ffns_with_megablocks
 from llmfoundry.models.layers.attention import is_flash_v2_installed
@@ -440,13 +442,180 @@ class MPTModel(MPTPreTrainedModel):
             nn.ModuleList: The list of Transformer blocks.
         """
         block_args = self.extract_block_args(config.to_dict())
+        self.kv_cache_layers = set()
+        self.blocks_fuse_norm_attn_norm = block_args.get(
+            'fuse_norm_attn_norm',
+            False,
+        )
+
+        if config.block_overrides is not None:
+            block_args_list = self._get_override_block_args_list(
+                config,
+                block_args,
+            )
+        else:
+            block_args_list = [block_args for _ in range(config.n_layers)]
 
         return nn.ModuleList([
             self.block_class(
                 device=config.init_device,
-                **block_args,
-            ) for _ in range(config.n_layers)
+                **block_args_i,
+            ) for block_args_i in block_args_list
         ])
+
+    def _get_override_block_args_list(
+        self,
+        config: MPTConfig,
+        block_args: Dict[str, Any],
+    ) -> List[Dict[str, Any]]:
+        if config.block_overrides is None:
+            raise ValueError(
+                'config.block_overrides should not be None when calling _get_override_block_args_list.',
+            )
+        repeat = config.block_overrides.get('repeat', 1)
+        model_modules_order_expanded = MPTModel._get_modules_order_expanded(
+            config.block_overrides['order'],
+        ) * repeat
+        if len(model_modules_order_expanded) != config.n_layers:
+            raise ValueError(
+                f'The specified block overrides do not match the number of layers: {len(model_modules_order_expanded)} vs {config.n_layers}.',
+            )
+
+        new_block_args_list = []
+        layer_description_list = []
+
+        reuse_kv_layer_idx_dict = {}
+        for b_idx in range(config.n_layers):
+            module_name = model_modules_order_expanded[b_idx]
+            override_config = {}
+            if module_name != 'default':
+                override_config = copy.deepcopy(
+                    config.block_overrides['overrides'][module_name],
+                )
+                if 'reuse_kv_layer_idx' in override_config.get(
+                    'attn_config',
+                    {},
+                ):
+                    reuse_kv_layer_idx = MPTModel._resolve_reuse_kv_layer_idx(
+                        overrides_definition=config.
+                        block_overrides['overrides'],
+                        model_modules_order_expanded=
+                        model_modules_order_expanded,
+                        b_idx=b_idx,
+                        override_config=override_config,
+                        reuse_kv_layer_idx_dict=reuse_kv_layer_idx_dict,
+                    )
+                    override_config['attn_config']['reuse_kv_layer_idx'
+                                                  ] = reuse_kv_layer_idx
+                    self.kv_cache_layers.add(reuse_kv_layer_idx)
+            layer_description_list.append([
+                b_idx,
+                module_name,
+                override_config,
+            ],)
+            new_block_args_list.append(
+                MPTModel._override_block_args(
+                    block_args,
+                    override_config,
+                    config.allowed_block_overrides,
+                ),
+            )
+        log.info(
+            'The following is a summary of overrides per layer.\n' + tabulate(
+                layer_description_list,
+                headers=['idx', 'name', 'overrides'],
+            ),
+        )
+        return new_block_args_list
+
+    @staticmethod
+    def _resolve_reuse_kv_layer_idx(
+        overrides_definition: Dict[str, Any],
+        model_modules_order_expanded: List[str],
+        b_idx: int,
+        override_config: Dict[str, Any],
+        reuse_kv_layer_idx_dict: Dict[int, int],
+    ) -> int:
+        override_attn_config = override_config['attn_config']
+        if override_attn_config['reuse_kv_layer_idx'] >= 0:
+            raise ValueError(
+                f'The relative index of kv layer to reuse, {override_attn_config["reuse_kv_layer_idx"]=}, should be negative.',
+            )
+        reuse_kv_layer_idx = b_idx + override_attn_config['reuse_kv_layer_idx']
+        if reuse_kv_layer_idx < 0:
+            raise ValueError(
+                f'The absolute index of kv layer to reuse, {reuse_kv_layer_idx} should be non-negative.',
+            )
+        if reuse_kv_layer_idx in reuse_kv_layer_idx_dict:
+            reuse_kv_layer_idx = reuse_kv_layer_idx_dict[reuse_kv_layer_idx]
+        reuse_kv_layer_idx_dict[b_idx] = reuse_kv_layer_idx
+
+        parent_layer_name = model_modules_order_expanded[reuse_kv_layer_idx]
+        parent_config = {} if parent_layer_name == 'default' else copy.deepcopy(
+            overrides_definition[parent_layer_name],
+        )
+        if 'attn_config' not in parent_config:
+            parent_config['attn_config'] = {}
+        parent_config['attn_config']['reuse_kv_layer_idx'] = override_config[
+            'attn_config']['reuse_kv_layer_idx']
+
+        if override_config != parent_config and not (
+            'allow_mismatch' in override_config and
+            override_config['allow_mismatch']
+        ):
+            raise ValueError(
+                'For reusing the kv cache of a previous layer, the previous layer should match the block config as the current layer.',
+            )
+
+        return reuse_kv_layer_idx
+
+    @staticmethod
+    def _get_modules_order_expanded(order: List[Dict[str, Any]]) -> List[str]:
+        model_modules_order_expanded = []
+        for item in order:
+            repeat = item['repeat'] if 'repeat' in item else 1
+            if ('name' in item) == ('order' in item):
+                raise ValueError(
+                    'Exactly one of `order` or `name` must be specified for each block override.',
+                )
+
+            if 'name' in item:
+                model_modules_order_expanded.extend([item['name']] * repeat)
+            else:
+                model_modules_order_expanded.extend(
+                    MPTModel._get_modules_order_expanded(item['order']) *
+                    repeat,
+                )
+
+        return model_modules_order_expanded
+
+    @staticmethod
+    def _override_block_args(
+        block_args: Dict[str, Any],
+        override_config: Dict[str, Any],
+        allowed_block_overrides: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        unpermitted_keys = override_config.keys(
+        ) - allowed_block_overrides.keys()
+        if len(unpermitted_keys):
+            raise KeyError(f'Overriding {unpermitted_keys} is not supported.')
+
+        new_block_args = override_config | block_args
+        common_keys = override_config.keys() & block_args.keys()
+        for k in common_keys:
+            if type(override_config[k]) != type(block_args[k]):
+                raise ValueError(
+                    f'Override config should have same value types as the original config. Found override_config[{k}]={override_config[k]} vs block_args[{k}]={block_args[k]}.',
+                )
+            if isinstance(override_config[k], dict):
+                new_block_args[k] = MPTModel._override_block_args(
+                    block_args[k],
+                    override_config[k],
+                    allowed_block_overrides[k],
+                )
+            else:
+                new_block_args[k] = override_config[k]
+        return new_block_args
 
     def extract_block_args(self, block_args: Dict[str, Any]) -> Dict[str, Any]:
         """Sets the block args."""
@@ -707,7 +876,9 @@ class MPTModel(MPTPreTrainedModel):
 
         # initialize the past key values cache if it should be used
         presents = () if use_cache else None
-        if use_cache and past_key_values is None:
+        if (
+            use_cache or len(self.kv_cache_layers) > 0
+        ) and past_key_values is None:
             past_key_values = [() for _ in range(self.config.n_layers)
                               ]  # type: ignore
 
@@ -724,13 +895,27 @@ class MPTModel(MPTPreTrainedModel):
                 attention_mask,
             )
 
+        layer_kv_cache_dict = {}
         for b_idx, block in enumerate(self.blocks):
+            attn_block = block.norm_attn_norm.attn if self.blocks_fuse_norm_attn_norm else block.attn
+            if attn_block.reuse_kv_layer_idx is not None:
+                if attn_block.reuse_kv_layer_idx not in layer_kv_cache_dict:
+                    raise KeyError(
+                        f'kv cache for layer {block.reuse_kv_layer_idx} not found in {layer_kv_cache_dict=}.',
+                    )
+                prev_layer_key_value = layer_kv_cache_dict[
+                    attn_block.reuse_kv_layer_idx]
+            else:
+                prev_layer_key_value = None
             if output_hidden_states:
                 assert all_hidden_states is not None  # pyright
                 all_hidden_states = all_hidden_states + (x,)
             past_key_value = (
                 past_key_values[b_idx] if past_key_values is not None else None
             )
+            extra_kwargs = {}
+            if prev_layer_key_value is not None:
+                extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
             x, attn_weights, present = block(
                 x,
                 past_key_value=past_key_value,
@@ -741,9 +926,15 @@ class MPTModel(MPTPreTrainedModel):
                 output_attentions=bool(output_attentions),
                 alibi_slopes=alibi_slopes,
                 flash_attn_padding_info=flash_attn_padding_info,
+                **extra_kwargs,
             )
             if presents is not None:
                 presents += (present,)
+            if b_idx in self.kv_cache_layers:
+                layer_kv_cache_dict[b_idx] = [
+                    present[0][:, past_position:],
+                    present[1][:, past_position:],
+                ]
 
             if output_attentions:
                 assert all_self_attns is not None  # pyright
@@ -1232,6 +1423,12 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         # Note: this computation does not take into account padding, and assumes
         # that the dataset has been constructed without padding. Additionally, we
         # assume the backward pass is approximately 2x the forward pass
+
+        if self.model.config.block_overrides is not None:
+            warnings.warn(
+                'Warning, flop computation is not supported when using block overrides. Returning 0 flops per batch.',
+            )
+            return 0
 
         bs, msl = batch['input_ids'].shape[0:2]
         params = self.n_active_params

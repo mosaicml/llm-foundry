@@ -75,7 +75,7 @@ def download_from_hf_hub(
             available. Defaults to True.
         tokenizer_only (bool): If true, only download tokenizer files.
         token (str, optional): The HuggingFace API token. If not provided, the token will be read from the
-            `HUGGING_FACE_HUB_TOKEN` environment variable.
+            `HF_TOKEN` environment variable.
 
     Raises:
         RepositoryNotFoundError: If the model repo doesn't exist or the token is unauthorized.

@@ -198,7 +198,7 @@ class MPTBlock(nn.Module):
                 m = self.norm_2(x)
 
         n = self.apply_ffn(attention_mask, m)
-        x = x + self.resid_ffn_dropout(n)
+        x = x + self.resid_ffn_dropout(n).to(x.device)
         return x, attn_weights, past_key_value
 
     def apply_ffn(

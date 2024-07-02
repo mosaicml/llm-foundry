@@ -266,11 +266,11 @@ def flash_attn_fn(
 
     batch_size, seqlen = query.shape[:2]
 
-    indices_q = flash_attn_padding_info['indices_q']
-    indices_k = flash_attn_padding_info['indices_k']
-    indices_v = flash_attn_padding_info['indices_v']
-    cu_seqlens_q = flash_attn_padding_info['cu_seqlens_q']
-    cu_seqlens_k = flash_attn_padding_info['cu_seqlens_k']
+    indices_q = flash_attn_padding_info['indices_q'].to(query.device)
+    indices_k = flash_attn_padding_info['indices_k'].to(key.device)
+    indices_v = flash_attn_padding_info['indices_v'].to(value.device)
+    cu_seqlens_q = flash_attn_padding_info['cu_seqlens_q'].to(query.device)
+    cu_seqlens_k = flash_attn_padding_info['cu_seqlens_k'].to(key.device)
     max_seqlen_q = flash_attn_padding_info['max_seqlen_q']
     max_seqlen_k = flash_attn_padding_info['max_seqlen_k']
 
@@ -667,6 +667,8 @@ class GroupedQueryAttention(nn.Module):
             else:
                 (cos, sin) = rotary_emb(x=value, seq_len=seq_len)
             if is_transformers_version_gte('4.38'):
+                cos = cos.to(query.device)
+                sin = sin.to(query.device)
                 query, key = apply_rotary_pos_emb(
                     q=query,
                     k=key,

@@ -109,7 +109,7 @@ def gen_rotary_embedding(
         )
     elif rope_impl == 'hf':
         if rope_hf_config['type'] == 'no_scaling':
-            return HFRotaryEmbedding(
+            return HFRotaryEmbeddingMP(
                 rope_head_dim,
                 max_position_embeddings=max_seq_len,
                 base=rope_theta,
@@ -304,6 +304,18 @@ def apply_sequence_id(
     attn_bias = attn_bias.masked_fill(cannot_attend, min_val)
 
     return attn_bias
+
+
+class HFRotaryEmbeddingMP(HFRotaryEmbedding):
+
+    @torch.no_grad()
+    def forward(
+        self,
+        x: torch.Tensor,
+        position_ids: torch.Tensor,
+    ) -> tuple[torch.tensor, torch.tensor]:
+        self.inv_freq = self.inv_freq.to(position_ids.device)
+        return super().forward(x, position_ids)
 
 
 class MPTPreTrainedModel(PreTrainedModel):

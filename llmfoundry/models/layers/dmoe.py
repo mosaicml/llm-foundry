@@ -279,12 +279,10 @@ class DroplessMLP(torch.nn.Module):
             topk_list = topk_idx.tolist()
 
             expert_tokens = x[None, token_list].reshape(-1, hidden_size)
-            expert_weights_slice = expert_weights[token_list, topk_list, None]
-            mlp_output = self.mlp(
-                expert_tokens,
-                expert_idx,
-            ).to(device=expert_weights_slice.device,)
-            expert_out = mlp_output * expert_weights_slice
+            mlp_output = self.mlp(expert_tokens,
+                                  expert_idx).to(expert_weights.device)
+            expert_out = mlp_output * expert_weights[token_list, topk_list,
+                                                     None]
 
             out.index_add_(0, token_idx, expert_out)
 

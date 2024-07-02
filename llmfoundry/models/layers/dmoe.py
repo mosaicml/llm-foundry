@@ -280,6 +280,8 @@ class DroplessMLP(torch.nn.Module):
 
             expert_tokens = x[None, token_list].reshape(-1, hidden_size)
             mlp_output = self.mlp(expert_tokens, expert_idx)
+            # In the following lines we move tensors to the same devices as the output of mlp. These operations should be no-ops during training.
+            # This is done to fix pipeline parallel generation using hf.generate. Please see this comment for details: https://github.com/mosaicml/llm-foundry/pull/1332#issue-2386827204
             expert_weights = expert_weights.to(mlp_output.device)
             expert_out = mlp_output * expert_weights[token_list, topk_list,
                                                      None]

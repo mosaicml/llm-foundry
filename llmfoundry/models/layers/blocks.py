@@ -198,6 +198,8 @@ class MPTBlock(nn.Module):
                 m = self.norm_2(x)
 
         n = self.apply_ffn(attention_mask, m)
+        # In the following line we move the `x` tensor to the same devices as the output of ffn layer. This operation should be a no-op during training.
+        # This is done to fix pipeline parallel generation using hf.generate. Please see this comment for details: https://github.com/mosaicml/llm-foundry/pull/1332#issue-2386827204
         x = x.to(device=n.device) + self.resid_ffn_dropout(n)
         return x, attn_weights, past_key_value
 

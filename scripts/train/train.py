@@ -529,9 +529,13 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Optionally just save an HF checkpoint
     if train_cfg.just_hf_checkpoint:
-        hf_checkpointer_callbacks = [c for c in callbacks if isinstance(c, HuggingFaceCheckpointer)]
+        hf_checkpointer_callbacks = [
+            c for c in callbacks if isinstance(c, HuggingFaceCheckpointer)
+        ]
         if len(hf_checkpointer_callback) == 0:
-            raise ValueError('No HuggingFaceCheckpointer callback found, but just_hf_checkpoint was set to True.')
+            raise ValueError(
+                'No HuggingFaceCheckpointer callback found, but just_hf_checkpoint was set to True.'
+            )
 
         hf_checkpointer_callback = hf_checkpointer_callbacks[0]
         hf_checkpointer_callback._save_checkpoint(trainer.state, trainer.logger)

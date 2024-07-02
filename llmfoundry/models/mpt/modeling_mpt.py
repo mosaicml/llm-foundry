@@ -314,6 +314,8 @@ class HFRotaryEmbeddingMP(HFRotaryEmbedding):
         x: torch.Tensor,
         position_ids: torch.Tensor,
     ) -> tuple[torch.tensor, torch.tensor]:
+        # In this subclass, we move `inv_freq` to same device as position_ids. This operation should be a no-op during training.
+        # This is done to fix pipeline parallel generation using hf.generate. Please see this comment for details: https://github.com/mosaicml/llm-foundry/pull/1334#issue-2387337525
         self.inv_freq = self.inv_freq.to(position_ids.device)
         return super().forward(x, position_ids)
 

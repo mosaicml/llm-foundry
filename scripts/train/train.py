@@ -539,6 +539,7 @@ def main(cfg: DictConfig) -> Trainer:
 
         hf_checkpointer_callback = hf_checkpointer_callbacks[0]
         hf_checkpointer_callback._save_checkpoint(trainer.state, trainer.logger)
+        return trainer
 
     if train_cfg.log_config:
         log.info('Logging config')

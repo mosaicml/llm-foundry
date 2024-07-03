@@ -58,6 +58,7 @@ from llmfoundry.utils.exceptions import (
 from llmfoundry.utils.mosaicml_logger_utils import no_override_excepthook
 from llmfoundry.utils.registry_utils import import_file
 
+app = typer.Typer(pretty_exceptions_show_locals=False)
 log = logging.getLogger(__name__)
 
 

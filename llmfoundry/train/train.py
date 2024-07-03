@@ -3,15 +3,13 @@
 import gc
 import logging
 import os
-import subprocess
-import sys
 import time
-import typer
 import warnings
 from typing import Any, Dict, List, Optional, Union
 
 import torch
 import torch.distributed
+import typer
 from composer import ComposerModel, Trainer
 from composer.core.callback import Callback
 from composer.profiler import (
@@ -546,12 +544,18 @@ def main(cfg: DictConfig) -> Trainer:
     log.info('Done.')
     return trainer
 
+
 @app.command()
-def train(yaml_path: str = typer.Argument(..., help="Path to the YAML configuration file"),
-          args_list: List[str] = typer.Argument(None, help="Additional command line arguments")):
-    """
-    Run the training with the given configuration and optional overrides from command line.
-    """
+def train(
+    yaml_path: str = typer.Argument(
+        ..., help='Path to the YAML configuration file'
+    ),
+    args_list: List[str] = typer.typer.Option(
+        None, help='Additional command line arguments', hidden=True
+    ),
+):
+    """Run the training with the given configuration and optional overrides from
+    command line."""
     # Disable resolving environment variables through omegaconf.
     om.clear_resolver('oc.env')
 
@@ -560,9 +564,11 @@ def train(yaml_path: str = typer.Argument(..., help="Path to the YAML configurat
         yaml_cfg = om.load(f)
     cli_cfg = om.from_cli(args_list)
     cfg = om.merge(yaml_cfg, cli_cfg)
-    assert isinstance(cfg, om.DictConfig), "Configuration must be a DictConfig instance."
+    assert isinstance(
+        cfg, om.DictConfig
+    ), 'Configuration must be a DictConfig instance.'
     main(cfg)
 
+
 if __name__ == '__main__':
-    yaml_path, args_list = sys.argv[1], sys.argv[2:]
-    train(yaml_path, args_list)
+    app()

@@ -306,6 +306,12 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                         use_auth_token=use_auth_token,
                         config=config,
                     )
+        elif dist.get_local_rank() == 0:
+            with init_empty_weights(include_buffers=False):
+                AutoModelForCausalLM.from_config(
+                    config,
+                    trust_remote_code=trust_remote_code,
+                )
 
         dist.barrier()
 

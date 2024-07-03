@@ -291,27 +291,27 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         if dist.get_local_rank() != 0 and init_device == 'mixed':
             pretrained = False
 
-        # If the HuggingFace model is coming from a local folder, Hugging Face copies the modules into the
+        # Hugging Face copies the modules into the
         # transformers modules cache. On particular systems, this operation seems to cause contention between
         # the different processes. To avoid this contention, we first create the model (on meta device) on local rank
         # zero. This will set up the transformers model cache and avoid the future contention.
-        if dist.get_local_rank(
-        ) == 0 and os.path.isdir(pretrained_model_name_or_path):
-            with init_empty_weights(include_buffers=False):
-                with warnings.catch_warnings():
-                    warnings.simplefilter('ignore', UserWarning)
-                    AutoModelForCausalLM.from_pretrained(
-                        pretrained_model_name_or_path,
+        if dist.get_local_rank() == 0:
+            if os.path.isdir(pretrained_model_name_or_path):
+                with init_empty_weights(include_buffers=False):
+                    with warnings.catch_warnings():
+                        warnings.simplefilter('ignore', UserWarning)
+                        AutoModelForCausalLM.from_pretrained(
+                            pretrained_model_name_or_path,
+                            trust_remote_code=trust_remote_code,
+                            use_auth_token=use_auth_token,
+                            config=config,
+                        )
+            else:
+                with init_empty_weights(include_buffers=False):
+                    AutoModelForCausalLM.from_config(
+                        config,
                         trust_remote_code=trust_remote_code,
-                        use_auth_token=use_auth_token,
-                        config=config,
                     )
-        elif dist.get_local_rank() == 0:
-            with init_empty_weights(include_buffers=False):
-                AutoModelForCausalLM.from_config(
-                    config,
-                    trust_remote_code=trust_remote_code,
-                )
 
         dist.barrier()
 

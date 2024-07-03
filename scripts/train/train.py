@@ -22,7 +22,7 @@ from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
-from llmfoundry.callbacks import AsyncEval
+from llmfoundry.callbacks import AsyncEval, HuggingFaceCheckpointer
 from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.eval.metrics.nlp import InContextLearningMetric
 from llmfoundry.layers_registry import ffns_with_megablocks
@@ -526,6 +526,24 @@ def main(cfg: DictConfig) -> Trainer:
         profiler=profiler,
         compile_config=compile_config,
     )
+
+    # Optionally just save an HF checkpoint
+    if train_cfg.only_hf_checkpoint:
+        hf_checkpointer_callbacks = [
+            c for c in callbacks if isinstance(c, HuggingFaceCheckpointer)
+        ]
+        if len(hf_checkpointer_callbacks) == 0:
+            raise ValueError(
+                'No HuggingFaceCheckpointer callback found, but only_hf_checkpoint was set to True. Please add a HuggingFaceCheckpointer.',
+            )
+        if len(hf_checkpointer_callbacks) > 1:
+            raise ValueError(
+                'Multiple HuggingFaceCheckpointer callbacks found, but only_hf_checkpoint was set to True. Please remove all but one HuggingFaceCheckpointer.',
+            )
+
+        hf_checkpointer_callback = hf_checkpointer_callbacks[0]
+        hf_checkpointer_callback._save_checkpoint(trainer.state, trainer.logger)
+        return trainer
 
     if train_cfg.log_config:
         log.info('Logging config')

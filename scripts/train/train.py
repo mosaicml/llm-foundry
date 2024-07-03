@@ -537,8 +537,8 @@ def main(cfg: DictConfig) -> Trainer:
                 'No HuggingFaceCheckpointer callback found, but only_hf_checkpoint was set to True. Please add a HuggingFaceCheckpointer.',
             )
         if len(hf_checkpointer_callbacks) > 1:
-            warnings.warn(
-                'Multiple HuggingFaceCheckpointer callbacks found. Only the first one will be used.',
+            raise ValueError(
+                'Multiple HuggingFaceCheckpointer callbacks found, but only_hf_checkpoint was set to True. Please remove all but one HuggingFaceCheckpointer.',
             )
 
         hf_checkpointer_callback = hf_checkpointer_callbacks[0]

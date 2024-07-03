@@ -254,7 +254,7 @@ def build_callback(
             raise ValueError(
                 f'`train_config` is a reserved keyword for callbacks with config. Please remove it from the kwargs.',
             )
-        kwargs['train_config'] = train_config
+        kwargs['train_config'] = copy.deepcopy(train_config)
         registry_to_use = registry.callbacks_with_config
 
     return construct_from_registry(

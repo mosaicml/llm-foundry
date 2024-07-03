@@ -534,7 +534,7 @@ def main(cfg: DictConfig) -> Trainer:
         ]
         if len(hf_checkpointer_callbacks) == 0:
             raise ValueError(
-                'No HuggingFaceCheckpointer callback found, but just_hf_checkpoint was set to True.',
+                'No HuggingFaceCheckpointer callback found, but just_hf_checkpoint was set to True. Please add a HuggingFaceCheckpointer.',
             )
 
         hf_checkpointer_callback = hf_checkpointer_callbacks[0]

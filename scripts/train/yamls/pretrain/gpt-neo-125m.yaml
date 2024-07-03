@@ -1,0 +1,124 @@
+# Pretrain a gpt-neo-125m style model
+# this is NOT a finetuning run
+
+variables:
+  data_local: ./my-copy-c4
+  data_remote:  # If blank, files must be present in data_local
+  tokenizer_name: gpt2
+  global_seed: 17
+
+  max_seq_len: 2048
+
+  # Run Name
+  run_name:  # If left blank, will be read from env var $RUN_NAME
+
+max_seq_len: ${variables.max_seq_len}
+run_name: ${variables.run_name}
+
+# Model
+model:
+  name: hf_causal_lm
+  pretrained_model_name_or_path: EleutherAI/gpt-neo-125M
+  config_overrides:
+    # WARNING: if setting `pretrained: true`, `max_position_embeddings` must match the
+    # `max_position_embeddings` used during pre-training
+    max_position_embeddings: ${variables.max_seq_len}
+  pretrained: false  # false: only use the architecture; true: initialize with pretrained weights
+
+# Tokenizer
+tokenizer:
+  name: ${variables.tokenizer_name}
+  kwargs:
+    model_max_length: ${variables.max_seq_len}
+
+# Dataloaders
+train_loader:
+  name: text
+  dataset:
+    local: ${variables.data_local}
+    remote: ${variables.data_remote}
+    split: train
+    shuffle: true
+    max_seq_len: ${variables.max_seq_len}
+    shuffle_seed: ${variables.global_seed}
+  drop_last: true
+  num_workers: 8
+
+eval_loader:
+  name: text
+  dataset:
+    local: ${variables.data_local}
+    remote: ${variables.data_remote}
+    split: val
+    shuffle: false
+    max_seq_len: ${variables.max_seq_len}
+    shuffle_seed: ${variables.global_seed}
+  drop_last: false
+  num_workers: 8
+
+# Optimization
+scheduler:
+  name: cosine_with_warmup
+  t_warmup: 100ba
+  alpha_f: 0.1
+
+optimizer:
+  name: decoupled_adamw
+  lr: 6.0e-4
+  betas:
+  - 0.9
+  - 0.95
+  eps: 1.0e-08
+  weight_decay: 0.0
+
+algorithms:
+  gradient_clipping:
+    clipping_type: norm
+    clipping_threshold: 1.0
+
+max_duration: 4800ba  # ~ 2.5B tokens
+eval_interval: 500ba
+eval_first: false
+eval_subset_num_batches: -1
+global_train_batch_size: 256
+
+# System
+seed: ${variables.global_seed}
+device_eval_batch_size: 4
+device_train_microbatch_size: 4
+# device_train_microbatch_size: auto
+precision: amp_bf16
+
+# FSDP
+fsdp_config:
+  sharding_strategy: FULL_SHARD
+  mixed_precision: PURE
+  activation_checkpointing: false
+  activation_checkpointing_reentrant: false
+  activation_cpu_offload: false
+  limit_all_gathers: true
+
+# Logging
+progress_bar: false
+log_to_console: true
+console_log_interval: 1ba
+
+callbacks:
+  speed_monitor:
+    window_size: 10
+  lr_monitor: {}
+  memory_monitor: {}
+  runtime_estimator: {}
+
+# loggers:
+#   wandb: {}
+
+# Checkpoint to local filesystem or remote object store
+# save_interval: 500ba
+# save_num_checkpoints_to_keep: 1  # Important, this cleans up checkpoints saved to DISK
+# save_folder: ./{run_name}/checkpoints
+# save_folder: s3://my-bucket/my-folder/{run_name}/checkpoints
+
+# Load from local filesystem or remote object store
+# load_path: ./gpt-125m/checkpoints/latest-rank{rank}.pt
+# load_path: s3://my-bucket/my-folder/gpt-125m/checkpoints/latest-rank{rank}.pt

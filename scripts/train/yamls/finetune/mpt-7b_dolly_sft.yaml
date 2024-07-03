@@ -1,0 +1,133 @@
+variables:
+  global_seed: 17
+
+  max_seq_len: 2048
+
+  # Run Name
+  run_name:  # If left blank, will be read from env var $RUN_NAME
+
+max_seq_len: ${variables.max_seq_len}
+run_name: ${variables.run_name}
+
+model:
+  name: hf_causal_lm
+  pretrained: true
+  pretrained_model_name_or_path: mosaicml/mpt-7b
+  config_overrides:
+    max_seq_len: ${variables.max_seq_len}
+    attn_config:
+      attn_impl: flash
+      # Set this to `true` if using `train_loader.dataset.packing_ratio` below
+      attn_uses_sequence_id: false
+
+# Tokenizer
+tokenizer:
+  name: mosaicml/mpt-7b
+  kwargs:
+    model_max_length: ${variables.max_seq_len}
+
+
+# Dataloaders
+train_loader:
+  name: finetuning
+  dataset:
+    hf_name: mosaicml/dolly_hhrlhf
+    split: train
+    max_seq_len: ${variables.max_seq_len}
+    allow_pad_trimming: false
+    decoder_only_format: true
+    # # Use packing_ratio: 'auto' to automatically profile and select the highest observed packing ratio with
+    # # zero waste. In practice, this may result in > 0 waste because profiling is done on only a portion
+    # # of the dataset.
+    # # Or use `python llmfoundry/scripts/misc/profile_packing.py --yaml-path /path/to/this/yaml/ ...`
+    # # to profile this run's optimal packing_ratio as it depends on GPU count,
+    # # batch size, sequence length
+    # packing_ratio:
+    shuffle: true
+  drop_last: true
+  num_workers: 8
+  pin_memory: false
+  prefetch_factor: 2
+  persistent_workers: true
+  timeout: 0
+
+eval_loader:
+  name: finetuning
+  dataset:
+    hf_name: mosaicml/dolly_hhrlhf
+    split: test
+    max_seq_len: ${variables.max_seq_len}
+    allow_pad_trimming: false
+    decoder_only_format: true
+    # packing_ratio:
+    shuffle: false
+  drop_last: true
+  num_workers: 8
+  pin_memory: false
+  prefetch_factor: 2
+  persistent_workers: true
+  timeout: 0
+
+# Optimization
+scheduler:
+  name: linear_decay_with_warmup  # linear no warmup is HF default which dolly used
+  t_warmup: 50ba  # add some warmup though, seems to help with MPT
+  alpha_f: 0
+
+optimizer:
+  # Based on Dolly
+  name: decoupled_adamw
+  lr: 5.0e-6
+  betas:
+  - 0.9
+  - 0.999
+  eps: 1.0e-8
+  weight_decay: 0
+
+algorithms:
+  gradient_clipping:
+    clipping_type: norm
+    clipping_threshold: 1.0
+
+max_duration: 2ep  # 2-3 epochs seems like the sweet spot
+eval_interval: 1ep
+# eval_subset_num_batches: -1
+eval_first: true
+global_train_batch_size: 48  # somewhere in the 6-8 * numgpus range seems good
+
+# System
+seed: ${variables.global_seed}
+device_eval_batch_size: 8
+device_train_microbatch_size: 8
+# device_train_microbatch_size: auto
+precision: amp_bf16
+
+# FSDP
+fsdp_config:
+  sharding_strategy: FULL_SHARD
+  mixed_precision: PURE
+  activation_checkpointing: true
+  activation_checkpointing_reentrant: false
+  activation_cpu_offload: false
+  limit_all_gathers: true
+
+# Logging
+progress_bar: false
+log_to_console: true
+console_log_interval: 1ba
+
+callbacks:
+  speed_monitor:
+    window_size: 10
+  lr_monitor: {}
+  memory_monitor: {}
+  runtime_estimator: {}
+
+# loggers:
+#   wandb: {}
+
+# Checkpoint to local filesystem or remote object store
+# save_interval: 5000ba
+# save_num_checkpoints_to_keep: 1  # Important, this cleans up checkpoints saved to DISK
+# save_folder: ./{run_name}/checkpoints
+# save_folder: s3://my-bucket/my-folder/{run_name}/checkpoints

@@ -83,7 +83,8 @@ _callbacks_with_config_description = (
     """
 )
 callbacks_with_config = create_registry(
-    'llm_foundry.callbacks_with_config',
+    'llmfoundry',
+    'callbacks_with_config',
     generic_type=Type[CallbackWithConfig],
     entry_points=True,
     description=_callbacks_with_config_description,

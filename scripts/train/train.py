@@ -473,9 +473,7 @@ def main(cfg: DictConfig) -> Trainer:
                 non_icl_metrics,
             )
     except BaseContextualError as e:
-        if mosaicml_logger is not None:
-            e.location = EvalDataLoaderLocation
-            mosaicml_logger.log_exception(e)
+        e.location = EvalDataLoaderLocation
         raise e
 
     compile_config = train_cfg.compile_config

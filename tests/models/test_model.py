@@ -35,6 +35,8 @@ from transformers import (
 )
 from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.models.bloom.modeling_bloom import build_alibi_tensor
+from transformers.models.llama.modeling_llama import \
+    LlamaRotaryEmbedding as HFRotaryEmbedding
 
 from llmfoundry import ComposerHFCausalLM
 from llmfoundry.layers_registry import norms
@@ -46,6 +48,7 @@ from llmfoundry.models.layers.attention import (
 )
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM, MPTModel
+from llmfoundry.models.mpt.modeling_mpt import HFRotaryEmbeddingFoundry
 from llmfoundry.utils import build_tokenizer
 from llmfoundry.utils.builders import build_composer_model
 from llmfoundry.utils.config_utils import to_dict_container
@@ -2908,3 +2911,34 @@ def test_resolve_reuse_kv_layer_idx(reuse_kv_layer_idx: int):
             'The relative index of kv layer to reuse, override_attn_config\[\"reuse_kv_layer_idx\"\]=0, should be negative\.',  # type: ignore
         ):
             _validate_helper(b_idx=2)
+
+
+def test_hf_rotary_child_class_builds():
+    rope_head_dim = 32
+    num_heads = 4
+    max_seq_len = 128
+    rope_theta = 10000
+    bsz = 4
+    value = torch.rand([bsz, num_heads, max_seq_len, rope_head_dim])
+    position_ids = torch.Tensor([
+        list(range(max_seq_len)),
+    ] * bsz)
+
+    rot_emb_mp = HFRotaryEmbeddingFoundry(
+        rope_head_dim,
+        max_seq_len,
+        rope_theta,
+        device='cpu',
+    )
+    cos_mp, sin_mp = rot_emb_mp(value, position_ids)
+
+    rot_emb = HFRotaryEmbedding(
+        rope_head_dim,
+        max_seq_len,
+        rope_theta,
+        device='cpu',
+    )
+    cos, sin = rot_emb(value, position_ids)
+
+    assert torch.all(cos == cos_mp)
+    assert torch.all(sin == sin_mp)

@@ -3,7 +3,6 @@
 import gc
 import logging
 import os
-import sys
 import time
 import warnings
 from typing import Any, Dict, List, Optional, Union
@@ -566,10 +565,13 @@ def main(cfg: DictConfig) -> Trainer:
 @app.command()
 def train(
     yaml_path: str = typer.Argument(
-        ..., help='Path to the YAML configuration file'
+        ...,
+        help='Path to the YAML configuration file',
     ),
     args_list: List[str] = typer.typer.Option(
-        None, help='Additional command line arguments', hidden=True
+        None,
+        help='Additional command line arguments',
+        hidden=True,
     ),
 ):
     """Run the training with the given configuration and optional overrides from
@@ -583,7 +585,8 @@ def train(
     cli_cfg = om.from_cli(args_list)
     cfg = om.merge(yaml_cfg, cli_cfg)
     assert isinstance(
-        cfg, om.DictConfig
+        cfg,
+        om.DictConfig,
     ), 'Configuration must be a DictConfig instance.'
     main(cfg)
 

@@ -570,7 +570,7 @@ def train(
         ...,
         help='Path to the YAML configuration file',
     ),
-    args_list: List[str] = typer.typer.Option(
+    args_list: List[str] = typer.Option(
         None,
         help='Additional command line arguments',
         hidden=True,

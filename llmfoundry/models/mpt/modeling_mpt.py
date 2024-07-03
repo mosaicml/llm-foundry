@@ -109,7 +109,7 @@ def gen_rotary_embedding(
         )
     elif rope_impl == 'hf':
         if rope_hf_config['type'] == 'no_scaling':
-            return HFRotaryEmbeddingMP(
+            return HFRotaryEmbeddingFoundry(
                 rope_head_dim,
                 max_position_embeddings=max_seq_len,
                 base=rope_theta,
@@ -317,7 +317,7 @@ class HFRotaryEmbeddingFoundry(HFRotaryEmbedding):
         # In this subclass, we move `inv_freq` to same device as position_ids. This operation should be a no-op during training.
         # This is done to fix pipeline parallel generation using hf.generate. Please see this comment for details: https://github.com/mosaicml/llm-foundry/pull/1334#issue-2387337525
         self.inv_freq = self.inv_freq.to(position_ids.device)
-        return super().forward(x, position_ids)
+        return super().forward(x=x, position_ids=position_ids)
 
 
 class MPTPreTrainedModel(PreTrainedModel):

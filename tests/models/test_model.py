@@ -48,7 +48,7 @@ from llmfoundry.models.layers.attention import (
 )
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM, MPTModel
-from llmfoundry.models.mpt.modeling_mpt import HFRotaryEmbeddingMP
+from llmfoundry.models.mpt.modeling_mpt import HFRotaryEmbeddingFoundry
 from llmfoundry.utils import build_tokenizer
 from llmfoundry.utils.builders import build_composer_model
 from llmfoundry.utils.config_utils import to_dict_container
@@ -2924,7 +2924,7 @@ def test_hf_rotary_child_class_builds():
         list(range(max_seq_len)),
     ] * bsz)
 
-    rot_emb_mp = HFRotaryEmbeddingMP(
+    rot_emb_mp = HFRotaryEmbeddingFoundry(
         rope_head_dim,
         max_seq_len,
         rope_theta,

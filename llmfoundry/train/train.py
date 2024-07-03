@@ -565,19 +565,10 @@ def main(cfg: DictConfig) -> Trainer:
 
 
 @app.command()
-def train(
-    yaml_path: str = typer.Argument(
-        ...,
-        help='Path to the YAML configuration file',
-    ),
-    args_list: List[str] = typer.Option(
-        None,
-        help='Additional command line arguments',
-        hidden=True,
-    ),
-):
+def train():
     """Run the training with the given configuration and optional overrides from
     command line."""
+    yaml_path, args_list = sys.argv[1], sys.argv[2:]
     # Disable resolving environment variables through omegaconf.
     om.clear_resolver('oc.env')
 

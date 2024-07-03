@@ -1,0 +1,100 @@
+{"query": "The man turned on the faucet, therefore", "gold": 1, "choices": ["the toilet filled with water.", "water flowed from the spout."]}
+{"query": "The girl found a bug in her cereal, therefore", "gold": 1, "choices": ["she poured milk in the bowl.", "she lost her appetite."]}
+{"query": "The woman retired, therefore", "gold": 0, "choices": ["she received her pension.", "she paid off her mortgage."]}
+{"query": "I wanted to conserve energy, therefore", "gold": 1, "choices": ["i swept the floor in the unoccupied room.", "i shut off the light in the unoccupied room."]}
+{"query": "The hamburger meat browned, because", "gold": 1, "choices": ["the cook froze it.", "the cook grilled it."]}
+{"query": "I doubted the salesman's pitch, therefore", "gold": 0, "choices": ["i turned his offer down.", "he persuaded me to buy the product."]}
+{"query": "I decided to stay home for the night, because", "gold": 0, "choices": ["the forecast called for storms.", "my friends urged me to go out."]}
+{"query": "My eyes became red and puffy, because", "gold": 0, "choices": ["i was sobbing.", "i was laughing."]}
+{"query": "The flame on the candle went out, because", "gold": 0, "choices": ["i blew on the wick.", "i put a match to the wick."]}
+{"query": "The man drank heavily at the party, therefore", "gold": 0, "choices": ["he had a headache the next day.", "he had a runny nose the next day."]}
+{"query": "The bowling ball knocked over the bowling pins, because", "gold": 0, "choices": ["the man rolled the bowling ball down the alley.", "the man dropped the bowling ball on his foot."]}
+{"query": "The community learned of the man's death, because", "gold": 1, "choices": ["his family buried him in the cemetery.", "his obituary appeared in the newspaper."]}
+{"query": "My computer crashed, therefore", "gold": 1, "choices": ["i installed new speakers.", "i lost all my data."]}
+{"query": "The woman resigned from her job, because", "gold": 1, "choices": ["she aspired to hold an executive position in the firm.", "she believed her superiors were acting unethically."]}
+{"query": "The player caught the ball, because", "gold": 0, "choices": ["her teammate threw it to her.", "her opponent tried to intercept it."]}
+{"query": "The judge pounded the gavel, because", "gold": 0, "choices": ["the courtroom broke into uproar.", "the jury announced its verdict."]}
+{"query": "The woman banished the children from her property, because", "gold": 1, "choices": ["the children hit a ball into her yard.", "the children trampled through her garden."]}
+{"query": "The kidnappers released the hostage, because", "gold": 0, "choices": ["they accepted ransom money.", "they escaped from jail."]}
+{"query": "The cook's eyes watered, because", "gold": 1, "choices": ["he ran out of onions.", "he cut an onion."]}
+{"query": "The woman ran her finger under cold water, because", "gold": 0, "choices": ["she burned her finger on the toaster.", "she put a diamond ring on her finger."]}
+{"query": "The student misspelled the word, therefore", "gold": 0, "choices": ["the teacher corrected her.", "the teacher dismissed her."]}
+{"query": "I regained composure from my fit of anger, because", "gold": 1, "choices": ["my heart pounded.", "i took deep breaths."]}
+{"query": "I put my hands under the running faucet, therefore", "gold": 0, "choices": ["the soap rinsed off my hands.", "the water splashed in my face."]}
+{"query": "The man dressed in his best suit, because", "gold": 0, "choices": ["he scheduled a meeting with an important client.", "his wife bought him a new tie."]}
+{"query": "The man confessed his love for the woman, therefore", "gold": 0, "choices": ["the woman rejected him.", "the woman envied him."]}
+{"query": "The driver got a flat tire, because", "gold": 1, "choices": ["he went over the speed limit.", "he ran over a nail."]}
+{"query": "My view of the movie screen was blocked, because", "gold": 1, "choices": ["the couple behind me was whispering.", "a tall person was sitting in front of me."]}
+{"query": "The driver turned on the car's headlights, because", "gold": 1, "choices": ["he heard thunder.", "the sun went down."]}
+{"query": "The girl refused to eat her vegetables, therefore", "gold": 1, "choices": ["her father told her to drink her milk.", "her father took away her dessert."]}
+{"query": "The woman covered her mouth with her hand, because", "gold": 1, "choices": ["she exhaled.", "she sneezed."]}
+{"query": "The secretary put the caller on hold, therefore", "gold": 1, "choices": ["the caller's phone lost reception.", "the caller waited on the line."]}
+{"query": "The woman walked with crutches, because", "gold": 1, "choices": ["she shaved her legs.", "she broke her leg."]}
+{"query": "I coughed, because", "gold": 0, "choices": ["i inhaled smoke.", "i lowered my voice."]}
+{"query": "The clock chimed, because", "gold": 0, "choices": ["it was the top of the hour.", "the hour seemed to drag on."]}
+{"query": "The chef hit the egg on the side of the bowl, therefore", "gold": 0, "choices": ["the egg cracked.", "the egg rotted."]}
+{"query": "The police searched the offender's car, because", "gold": 1, "choices": ["they were trying to elicit a confession.", "they were looking for illegal drugs."]}
+{"query": "The couple travelled south for the winter, because", "gold": 0, "choices": ["they were retired.", "they were separated."]}
+{"query": "The man felt obligated to attend the event, because", "gold": 1, "choices": ["he turned down his friend's invitation to go.", "he promised his friend that he would go."]}
+{"query": "The bride got cold feet before the wedding, therefore", "gold": 1, "choices": ["the wedding guests brought gifts.", "she called the wedding off."]}
+{"query": "The man grew old, therefore", "gold": 0, "choices": ["his hair turned gray.", "he sold his belongings."]}
+{"query": "The friends decided to share the hamburger, therefore", "gold": 0, "choices": ["they cut the hamburger in half.", "they ordered fries with the hamburger."]}
+{"query": "I twisted the cap off the soda bottle, therefore", "gold": 0, "choices": ["the soda fizzed.", "the soda leaked out."]}
+{"query": "The pair of students came under scrutiny by the teacher, because", "gold": 1, "choices": ["the students both received excellent grades.", "their responses on the assignment were identical."]}
+{"query": "The student was in a rush to get to school on time, therefore", "gold": 0, "choices": ["he left his assignment at home.", "he brought his lunch to school."]}
+{"query": "The journalist wrote a biography about the humanitarian's life, because", "gold": 1, "choices": ["the humanitarian was difficult for the journalist to interview.", "the journalist was intrigued by the humanitarian's work."]}
+{"query": "The man defied the authorities of the church, therefore", "gold": 1, "choices": ["he donated money to the church.", "he was excommunicated from the church."]}
+{"query": "The woman's hair fell in her face, therefore", "gold": 0, "choices": ["she pulled her hair back with a clip.", "she lathered shampoo into her hair."]}
+{"query": "The ring on my finger got stuck, because", "gold": 0, "choices": ["my finger swelled.", "i chipped my fingernail."]}
+{"query": "I pulled the rubber band, therefore", "gold": 1, "choices": ["it flung across the room.", "it stretched."]}
+{"query": "I pressed my hand into the wet cement, therefore", "gold": 0, "choices": ["my handprint dried in the cement.", "cracks emerged in the cement."]}
+{"query": "My skin broke out into a rash, because", "gold": 0, "choices": ["i brushed against poison ivy in my yard.", "i eradicated the poison ivy from my yard."]}
+{"query": "My subscription to the magazine expired, therefore", "gold": 1, "choices": ["i discarded the new issue.", "i stopped receiving new issues."]}
+{"query": "The detective revealed an anomaly in the case, therefore", "gold": 1, "choices": ["he finalized his theory.", "he scrapped his theory."]}
+{"query": "The boy threw a temper tantrum, because", "gold": 0, "choices": ["his brother took his toys from him.", "he shared his toys with his brother."]}
+{"query": "The child learned how to read, because", "gold": 0, "choices": ["he began attending school.", "he skipped a grade in school."]}
+{"query": "The boy skipped dinner, because", "gold": 1, "choices": ["his mother cooked his favorite meal.", "he ate a big lunch."]}
+{"query": "The woman lavished her friend with flattery, because", "gold": 0, "choices": ["she wanted to ask her friend for a favor.", "she was irritated with her friend's whining."]}
+{"query": "The key was missing from my pants pocket, because", "gold": 0, "choices": ["the pocket had a hole.", "the pants were new."]}
+{"query": "The man fainted, because", "gold": 1, "choices": ["he took a nap.", "he ran a marathon."]}
+{"query": "The man lost the competition, because", "gold": 0, "choices": ["the competition was sabotaged.", "he intimidated his competitors."]}
+{"query": "The mother called an ambulance, because", "gold": 1, "choices": ["her son lost his cat.", "her son fell out of his bed."]}
+{"query": "The driver slammed on his brakes, because", "gold": 0, "choices": ["a deer appeared on the road.", "the car radio shut off."]}
+{"query": "The lock opened, because", "gold": 0, "choices": ["i turned the key in the lock.", "i made a duplicate of the key."]}
+{"query": "I put rubber gloves on, because", "gold": 1, "choices": ["i was preparing to wash my hands.", "i was preparing to clean the bathroom."]}
+{"query": "The animal species became endangered, because", "gold": 0, "choices": ["their habitat was destroyed.", "their predators went extinct."]}
+{"query": "The man perceived that the woman looked different, because", "gold": 0, "choices": ["the woman got her hair cut.", "the woman wore a bracelet."]}
+{"query": "The student forgot to do her assignment, therefore", "gold": 0, "choices": ["she made up an excuse to tell the teacher.", "the teacher promoted her to the next grade."]}
+{"query": "The dog barked, because", "gold": 1, "choices": ["the cat lounged on the couch.", "a knock sounded at the door."]}
+{"query": "Plans were announced to replace a local park with a shopping mall, therefore", "gold": 0, "choices": ["environmentalists started a petition.", "environmentalists produced a documentary."]}
+{"query": "The couple was happy to see each other, therefore", "gold": 0, "choices": ["they kissed.", "they rested."]}
+{"query": "The woman asked the man to leave, because", "gold": 0, "choices": ["he insulted her.", "he thanked her."]}
+{"query": "The tree branch landed in the river, therefore", "gold": 0, "choices": ["the branch moved downstream.", "the river's current became stronger."]}
+{"query": "The teacher assigned homework to the students, therefore", "gold": 1, "choices": ["the students passed notes.", "the students groaned."]}
+{"query": "The seasons changed from summer to autumn, therefore", "gold": 1, "choices": ["people evacuated their homes.", "leaves fell from the trees."]}
+{"query": "The politician was convicted of fraud, therefore", "gold": 1, "choices": ["he campaigned for re-election.", "he was removed from office."]}
+{"query": "I pushed the wagon, therefore", "gold": 1, "choices": ["the objects in the wagon fell out.", "the wagon wheels spun forward."]}
+{"query": "The lobbyist persuaded the legislature to support the bill, therefore", "gold": 1, "choices": ["the president vetoed the bill.", "the legislature passed the bill."]}
+{"query": "My closet was messy, therefore", "gold": 0, "choices": ["i organized it.", "i decorated it."]}
+{"query": "I stayed up late, therefore", "gold": 1, "choices": ["i had vivid dreams that night.", "i was tired in the morning."]}
+{"query": "The man's pocket jingled as he walked, because", "gold": 0, "choices": ["his pocket was filled with coins.", "he sewed the hole in his pocket."]}
+{"query": "Everyone in the class turned to stare at the student, because", "gold": 0, "choices": ["the student's phone rang.", "the student took notes."]}
+{"query": "The horse bucked, because", "gold": 0, "choices": ["a fly bit the horse.", "the rider stroked the horse."]}
+{"query": "The jewelry thieves were caught, therefore", "gold": 0, "choices": ["the stolen jewelry was returned to its owners.", "the cost of the stolen jewelry was calculated."]}
+{"query": "Political violence broke out in the nation, therefore", "gold": 1, "choices": ["many citizens relocated to the capitol.", "many citizens took refuge in other territories."]}
+{"query": "The woman was arrested, because", "gold": 1, "choices": ["she checked into rehab.", "she committed assault."]}
+{"query": "The woman read the newspaper, therefore", "gold": 0, "choices": ["she discovered the outcome of the election.", "she casted a vote in the election."]}
+{"query": "The sick child coughed on his friend, therefore", "gold": 0, "choices": ["his friend got sick.", "his friend sneezed."]}
+{"query": "The couple got engaged, therefore", "gold": 0, "choices": ["they planned a wedding.", "they took some time apart."]}
+{"query": "The woman contacted the real estate agent, because", "gold": 0, "choices": ["the woman planned to buy a condo.", "the woman needed to clean her house."]}
+{"query": "The man won the lottery, therefore", "gold": 0, "choices": ["he became rich.", "he owed money."]}
+{"query": "I lit the candle, therefore", "gold": 0, "choices": ["wax dripped off the candle.", "the wax on the candle hardened."]}
+{"query": "I spent the day at the pool, therefore", "gold": 1, "choices": ["i sprained my ankle.", "my face got sunburned."]}
+{"query": "The man received a parking ticket, because", "gold": 1, "choices": ["he parallel parked on the street.", "the parking meter expired."]}
+{"query": "The woman became famous, therefore", "gold": 0, "choices": ["photographers followed her.", "her family avoided her."]}
+{"query": "The girl wanted to wear earrings, therefore", "gold": 0, "choices": ["she got her ears pierced.", "she got a tattoo."]}
+{"query": "My ears were ringing, because", "gold": 1, "choices": ["i went to a museum.", "i went to a concert."]}
+{"query": "I tidied up my house, because", "gold": 1, "choices": ["i was swamped with work.", "i was expecting company."]}
+{"query": "The airline mishandled my luggage, therefore", "gold": 0, "choices": ["they offered me compensation.", "they cancelled my flight."]}
+{"query": "The computer was expensive to fix, therefore", "gold": 1, "choices": ["i got it repaired.", "i bought a new one."]}
+{"query": "The woman was in a bad mood, therefore", "gold": 1, "choices": ["she engaged in small talk with her friend.", "she told her friend to leave her alone."]}

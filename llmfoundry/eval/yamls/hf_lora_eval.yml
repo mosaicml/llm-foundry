@@ -1,0 +1,34 @@
+variables:
+  model_name_or_path: facebook/opt-350m
+  # If you are using a seperated lora weight, put it here:
+  # lora weights must be compatible with the specified model
+  lora_id_or_path: ybelkada/opt-350m-lora  # Example lora weights for opt-350m
+  max_seq_len: 2048
+
+seed: 1
+precision: amp_fp16
+max_seq_len: ${variables.max_seq_len}
+
+models:
+-
+  model_name: ${variables.model_name_or_path}
+  model:
+    name: hf_causal_lm
+    pretrained_model_name_or_path: ${variables.model_name_or_path}
+    init_device: mixed
+    pretrained: true
+    pretrained_lora_id_or_path: ${variables.lora_id_or_path}
+  tokenizer:
+    name: ${variables.model_name_or_path}
+    kwargs:
+      model_max_length: ${variables.max_seq_len}
+
+device_eval_batch_size: 4
+
+# FSDP config for model sharding
+fsdp_config:
+  sharding_strategy: FULL_SHARD
+  mixed_precision: FULL
+
+icl_tasks: "eval/yamls/tasks_v0.2.yaml"
+eval_gauntlet: "eval/yamls/eval_gauntlet_v0.2.yaml"

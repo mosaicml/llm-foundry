@@ -1,0 +1,40 @@
+max_seq_len: 128
+seed: 1
+precision: fp32
+models:
+- model_name: tiny_mpt
+  model:
+    name: mpt_causal_lm
+    init_device: meta
+    d_model: 128
+    n_heads: 2
+    n_layers: 2
+    expansion_ratio: 4
+    max_seq_len: ${max_seq_len}
+    vocab_size: 50368
+    attn_config:
+      attn_impl: torch
+    loss_fn: torch_crossentropy
+  # Tokenizer
+  tokenizer:
+    name: EleutherAI/gpt-neox-20b
+    kwargs:
+      model_max_length: ${max_seq_len}
+
+device_eval_batch_size: 4
+icl_subset_num_batches: 1
+icl_tasks:
+- label: lambada_openai
+  dataset_uri: eval/local_data/language_understanding/lambada_openai.jsonl
+  num_fewshot: [0]
+  icl_task_type: language_modeling
+eval_gauntlet:
+  weighting: EQUAL
+  subtract_random_baseline: true
+  rescale_accuracy: true
+  categories:
+  - name: language_understanding_lite
+    benchmarks:
+    - name: lambada_openai
+      num_fewshot: 0
+      random_baseline: 0.0

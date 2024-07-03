@@ -1,0 +1,50 @@
+variables:
+  # If you are using one model, put it here:
+  model_name_or_path: EleutherAI/gpt-neo-125m
+  # otherwise, write a block for each model you want to test in the `models` section
+
+  precision: fp32
+  max_seq_len: 1024
+
+precision: ${variables.precision}
+max_seq_len: ${variables.max_seq_len}
+
+models:
+-
+  model_name: ${variables.model_name_or_path}
+  model:
+    name: hf_causal_lm
+    pretrained_model_name_or_path: ${variables.model_name_or_path}
+    init_device: mixed
+    pretrained: true
+  tokenizer:
+    name: ${variables.model_name_or_path}
+    kwargs:
+      model_max_length: ${variables.max_seq_len}
+# # if you are evaluating more than one model, list them all as YAML blocks without variable interpolation
+# -
+#   model_name: mosaicml/mpt-7b
+#   model:
+#     name: hf_causal_lm
+#     pretrained_model_name_or_path: mosaicml/mpt-7b
+#     init_device: cpu
+#     pretrained: true
+#     config_overrides:
+#       max_seq_len: ${variables.max_seq_len}
+#   tokenizer:
+#     name: mosaicml/mpt-7b
+#     kwargs:
+#       model_max_length: ${variables.max_seq_len}
+
+
+device_eval_batch_size: 4
+
+# FSDP config for model sharding
+fsdp_config:
+  sharding_strategy: FULL_SHARD
+  mixed_precision: FULL
+  forward_prefetch: True
+  limit_all_gathers: True
+
+icl_tasks: "eval/yamls/tasks_v0.3.yaml"
+eval_gauntlet: "eval/yamls/eval_gauntlet_v0.3.yaml"

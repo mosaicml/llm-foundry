@@ -306,7 +306,7 @@ def apply_sequence_id(
     return attn_bias
 
 
-class HFRotaryEmbeddingMP(HFRotaryEmbedding):
+class HFRotaryEmbeddingFoundry(HFRotaryEmbedding):
 
     @torch.no_grad()
     def forward(

@@ -15,7 +15,7 @@ try:
 except ImportError as e:
     if 'undefined symbol' in str(e):
         raise ImportError(
-            'The flash_attn package is not installed correctly. Usually this means that your runtime version.'
+            'The flash_attn package is not installed correctly. Usually this means that your runtime version'
             +
             ' of PyTorch is different from the version that flash_attn was installed with, which can occur when your'
             +

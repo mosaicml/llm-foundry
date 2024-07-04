@@ -9,16 +9,6 @@ warnings.filterwarnings('ignore', category=UserWarning, module='bitsandbytes')
 
 import logging
 
-from llmfoundry.utils.logging_utils import SpecificWarningFilter
-
-# Filter out Hugging Face warning for not using a pinned revision of the model
-logger = logging.getLogger('transformers.dynamic_module_utils')
-new_files_warning_filter = SpecificWarningFilter(
-    'A new version of the following files was downloaded from',
-)
-
-logger.addFilter(new_files_warning_filter)
-
 try:
     from flash_attn import flash_attn_func
     del flash_attn_func
@@ -33,6 +23,16 @@ except ImportError as e:
         ) from e
     else:
         raise e
+
+from llmfoundry.utils.logging_utils import SpecificWarningFilter
+
+# Filter out Hugging Face warning for not using a pinned revision of the model
+logger = logging.getLogger('transformers.dynamic_module_utils')
+new_files_warning_filter = SpecificWarningFilter(
+    'A new version of the following files was downloaded from',
+)
+
+logger.addFilter(new_files_warning_filter)
 
 from llmfoundry import (
     algorithms,

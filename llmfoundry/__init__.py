@@ -21,8 +21,7 @@ except ImportError as e:
             " with the latest version of LLM Foundry. Check that the PyTorch version in your Docker image matches the PyTorch version" +
             " in LLM Foundry setup.py and update accordingly. The latest Docker image can be found in the README."
         ) from e
-    else:
-        raise e
+    
 
 from llmfoundry.utils.logging_utils import SpecificWarningFilter
 

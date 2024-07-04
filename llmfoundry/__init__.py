@@ -20,8 +20,8 @@ new_files_warning_filter = SpecificWarningFilter(
 logger.addFilter(new_files_warning_filter)
 
 try:
-    import flash_attn
-    del flash_attn
+    from flash_attn import flash_attn_func
+    del flash_attn_func
 except ImportError as e:
     if "undefined symbol" in str(e):
         raise ImportError(

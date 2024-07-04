@@ -19,7 +19,7 @@ except ImportError as e:
             +
             ' of PyTorch is different from the version that flash_attn was installed with, which can occur when your'
             +
-            ' workflow has resulted in PyTorch being reinstalled. This probably happened because you are using an old docker image'
+            ' workflow has resulted in PyTorch being reinstalled. This probably happened because you are using an old Docker image'
             +
             ' with the latest version of LLM Foundry. Check that the PyTorch version in your Docker image matches the PyTorch version'
             +

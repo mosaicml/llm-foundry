@@ -557,6 +557,7 @@ class GroupedQueryAttention(nn.Module):
             key (torch.Tensor): The key tensor.
             value (torch.Tensor): The value tensor.
         """
+
         qkv = self.Wqkv(x)
 
         if self.clip_qkv:

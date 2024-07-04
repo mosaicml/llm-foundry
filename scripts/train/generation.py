@@ -502,19 +502,104 @@ def main(cfg: DictConfig) -> Trainer:
             mosaicml_logger.log_exception(e)
         raise e
     
-    from torch.distributed.tensor.parallel import ColwiseParallel, RowwiseParallel
-    from torch.distributed._tensor import Replicate, Shard
+    from torch.distributed.tensor.parallel import ColwiseParallel, RowwiseParallel, PrepareModuleInput
+    from torch.distributed._tensor import Replicate, Shard, Placement, DTensor
+
+    class GatherColwiseParallel(ColwiseParallel):
+        """ColwiseParallel layer that allgathers inputs and optionally reshards outputs.""" 
+        def __init__(
+            self,
+            *,
+            #input_layouts: Optional[Placement] = None,
+            output_layouts: Optional[Placement] = None,
+            use_local_output: bool = True
+        ):
+            super().__init__()
+            # Inputs over the TP dimension are sharded by device batches.
+            self.input_layouts = (Shard(0), )
+            # All-gather inputs so that each GPU now has the same input activations.
+            self.desired_input_layouts = (Replicate(), )
+            self.output_layouts = (output_layouts or Shard(-1), )
+            self.use_local_output = use_local_output
     
     def retrieve_layer_plan():
         layer_plan = {}
         for name, _ in model.named_modules():
-            if 'up_proj' in name or 'gate_proj' in name or 'Wqkv' in name or 'out_proj' in name or 'down_proj' in name:
-                print(f"using ColwiseParallel, [Replicate, Replicate] for module {name}")
+            if 'Wqkv' in name or 'out_proj' in name:
+                print(f"using GatherColwiseParallel (out=Shard(0)) for module {name}")
+                layer_plan[name] = GatherColwiseParallel(
+                    output_layouts = Shard(0),
+                )
+            if 'up_proj' in name or 'gate_proj' in name:
+                print(f"using ColwiseParallel, (in=Replicate, out=Shard(-1)) for module {name}")
                 layer_plan[name] = ColwiseParallel(
                     input_layouts = Replicate(),
-                    output_layouts = Replicate(),
+                    output_layouts = Shard(-1),
+                )
+            if 'down_proj' in name:
+                print(f"using RowwiseParallel, (in=Shard(-1), out=Replicate) for module {name}")
+                layer_plan[name] = RowwiseParallel(
+                    input_layouts = Shard(-1),
+                    output_layouts = Shard(0), # Undo the input ffn allgather to get samples back to the right place.
+                )
+            if name.split('.')[-1] == 'ffn':
+                print(f"using PrepareModuleInput, (in=Shard(0), desired_in=Replicate) for module {name}")
+                layer_plan[name] = PrepareModuleInput(
+                    input_layouts = Shard(0),
+                    desired_input_layouts = Replicate(),
+                    use_local_output = True,
                 )
         return layer_plan
+
+    # def retrieve_layer_plan():
+    #     layer_plan = {}
+    #     for name, _ in model.named_modules():
+    #         split_name = name.split('.')
+    #         # First block -- allgathers device batches from TP group devices. Residual stream activations
+    #         # will be full, allgathered device batches from all TP group devices.
+    #         if len(split_name) >= 2 and split_name[-2] == 'blocks' and split_name[-1] == '0':
+    #             print(f"using PrepareModuleInput, (in=Shard(0), desired_in=Replicate) for module {name}")
+    #             layer_plan[name] = PrepareModuleInput(
+    #                 input_layouts = Shard(0),
+    #                 desired_input_layouts = Replicate(),
+    #                 use_local_output = True,
+    #             )
+    #         # Wqkv -- inputs are all samples from TP group, but to keep KV cache unique to each device,
+    #         # we need to reshard device batches back to TP group devices.
+    #         elif 'Wqkv' in name:
+    #             print(f"using ColwiseParallel, (in=Replicate, out=Shard(0)) for module {name}")
+    #             layer_plan[name] = ColwiseParallel(
+    #                 input_layouts = Replicate(),
+    #                 output_layouts = Shard(0),
+    #             )
+    #         # Attn out_proj -- inputs should again be allgathered from TP group devices and remain allgathered.
+    #         elif 'out_proj' in name:
+    #             print(f"using GatherColwiseParallel, (out=Replicate) for module {name}")
+    #             layer_plan[name] = GatherColwiseParallel(
+    #                 output_layouts = Replicate(),
+    #             )
+    #         # FFN up_proj -- inputs are already allgathered but should get sharded along the embedding dimension.
+    #         if 'up_proj' in name or 'gate_proj' in name:
+    #             print(f"using ColwiseParallel, [Replicate, Shard(-1)] for module {name}")
+    #             layer_plan[name] = ColwiseParallel(
+    #                 input_layouts = Replicate(),
+    #                 output_layouts = Shard(-1),
+    #             )
+    #         # FFN down_proj -- inputs are sharded along the embedding dimension but should get allreduced.
+    #         if 'down_proj' in name:
+    #             print(f"using RowwiseParallel, [Shard(-1), Replicate] for module {name}")
+    #             layer_plan[name] = RowwiseParallel(
+    #                 input_layouts = Shard(-1),
+    #                 output_layouts = Replicate(),
+    #             )
+    #         # LM head reshards device batches back to TP group devices.
+    #         elif 'lm_head' in name:
+    #             print(f"using ColwiseParallel, [Replicate, Shard(0)] for module {name}")
+    #             layer_plan[name] = ColwiseParallel(
+    #                 input_layouts = Replicate(),
+    #                 output_layouts = Shard(0),
+    #             )
+    #     return layer_plan
     
     # ADDED TP CONFIG:
     tp_config = {
@@ -612,16 +697,49 @@ def main(cfg: DictConfig) -> Trainer:
                                                writeback=False,
                                                recurse=False)
         
-        with autocast(dtype=torch.bfloat16):
-            with generate_context:
-                outputs = model.model.generate(
-                    input_ids=inputs['input_ids'].to('cuda'),
-                    attention_mask=attention_mask.to('cuda'),
-                    synced_gpus=True,
-                    use_cache=cfg_use_cache,
-                    # eos_token_id=model.tokenizer.eos_token_id,
-                    max_new_tokens=cfg_max_new_tokens,
-                )
+        
+        # with autocast(dtype=torch.bfloat16):
+        #     with generate_context:
+        #         outputs = model.model.generate(
+        #             input_ids=inputs['input_ids'].to('cuda'),
+        #             attention_mask=attention_mask.to('cuda'),
+        #             synced_gpus=True,
+        #             use_cache=cfg_use_cache,
+        #             # eos_token_id=model.tokenizer.eos_token_id,
+        #             max_new_tokens=cfg_max_new_tokens,
+        #         )
+
+        if i == 0 and dist.get_global_rank() == 0:
+            from torch.profiler import profile, record_function, ProfilerActivity
+            with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]) as prof:
+                with autocast(dtype=torch.bfloat16):
+                    with generate_context:
+                        outputs = model.model.generate(
+                            input_ids=inputs['input_ids'].to('cuda'),
+                            attention_mask=attention_mask.to('cuda'),
+                            synced_gpus=True,
+                            use_cache=cfg_use_cache,
+                            # eos_token_id=model.tokenizer.eos_token_id,
+                            max_new_tokens=cfg_max_new_tokens,
+                        )
+            
+            trace_file_name = f"/torch_traces/trace-iter-{i}-rank-{dist.get_global_rank()}.json"
+            trace_file_dirname = os.path.dirname(trace_file_name)
+            print("trace file dirname:", trace_file_dirname)
+            if trace_file_dirname:
+                os.makedirs(trace_file_dirname, exist_ok=True)
+            prof.export_chrome_trace(trace_file_name)
+        else:
+            with autocast(dtype=torch.bfloat16):
+                with generate_context:
+                    outputs = model.model.generate(
+                        input_ids=inputs['input_ids'].to('cuda'),
+                        attention_mask=attention_mask.to('cuda'),
+                        synced_gpus=True,
+                        use_cache=cfg_use_cache,
+                        # eos_token_id=model.tokenizer.eos_token_id,
+                        max_new_tokens=cfg_max_new_tokens,
+                    )
 
         outputs_shape = outputs.shape
         

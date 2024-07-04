@@ -19,6 +19,21 @@ new_files_warning_filter = SpecificWarningFilter(
 
 logger.addFilter(new_files_warning_filter)
 
+try:
+    import flash_attn
+    del flash_attn
+except ImportError as e:
+    if "undefined symbol" in str(e):
+        raise ImportError(
+            "The flash_attn package is not installed correctly. Usually this means that your runtime version." +
+            " of PyTorch is different from the version that flash_attn was installed with, which can occur when your" +
+            " workflow has resulted in PyTorch being reinstalled. This probably happened because you are using an old docker image" +
+            " with the latest version of LLM Foundry. Check that the PyTorch version in your Docker image matches the PyTorch version" +
+            " in LLM Foundry setup.py and update accordingly. The latest Docker image can be found in the README."
+        ) from e
+    else:
+        raise e
+
 from llmfoundry import (
     algorithms,
     callbacks,

@@ -223,7 +223,7 @@ def main(cfg: DictConfig) -> Trainer:
     print("TP degree is:", cfg_tp_degree)
     print("Model BF16 is:", cfg_model_bf16)
     print("Use cache is:", cfg_use_cache)
-    print("Less comms is:", cfg.less_comms)
+    print("Less comms is:", cfg_less_comms)
 
     logged_cfg, train_cfg = make_dataclass_and_log_config(
         cfg,
@@ -525,7 +525,7 @@ def main(cfg: DictConfig) -> Trainer:
             self.output_layouts = (output_layouts or Shard(-1), )
             self.use_local_output = use_local_output
 
-    if cfg.less_comms:
+    if cfg_less_comms:
         def retrieve_layer_plan():
             layer_plan = {}
             for name, _ in model.named_modules():

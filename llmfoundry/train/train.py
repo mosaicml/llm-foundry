@@ -575,6 +575,7 @@ def run_trainer(
     with open(yaml_path, 'r') as f:
         yaml_cfg = om.load(f)
     cli_cfg = om.from_cli(args_list)
+    print('cfg: ', yaml_cfg)
     cfg = om.merge(yaml_cfg, cli_cfg)
     assert isinstance(
         cfg,

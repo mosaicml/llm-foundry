@@ -11,10 +11,12 @@ app = typer.Typer(pretty_exceptions_show_locals=False)
 app.add_typer(registry_cli.app, name='registry')
 
 @app.command(name="train")
-def train(yaml_path: str = typer.Argument(..., help="Path to the YAML configuration file")):
+def train(
+    yaml_path: str = typer.Argument(..., help="Path to the YAML configuration file"),
+    additional_args: list = typer.Argument(None, help="Additional command line arguments")
+):
     """Run the training with the given configuration and optional overrides from command line."""
-    args_list = sys.argv[2:]  # assuming additional arguments may follow the yaml_path
-    run_trainer(yaml_path, args_list)
+    run_trainer(yaml_path, additional_args)
 
 if __name__ == '__main__':
     app()

@@ -580,6 +580,7 @@ def run_trainer(
         cfg,
         DictConfig,
     ), 'Configuration must be a DictConfig instance.'
+    main(cfg)
 
 
 if __name__ == '__main__':

@@ -347,6 +347,9 @@ def make_dataclass_and_log_config(
     if 'variables' not in unstructured_config:
         unstructured_config['variables'] = {}
 
+    if extraneous_keys:
+        print("Extraneous keys", extraneous_keys)
+
     for key in extraneous_keys:
         raise ValueError(
             f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary. Please place any variables under the `variables` key.',

@@ -568,6 +568,8 @@ def run_trainer(
     yaml_path: str, 
     args_list: str
 ):
+    print('-----------')
+    print(yaml_path, args_list)
     # Disable resolving environment variables through omegaconf.
     om.clear_resolver('oc.env')
 
@@ -580,6 +582,7 @@ def run_trainer(
         cfg,
         DictConfig,
     ), 'Configuration must be a DictConfig instance.'
+    print(cfg)
     main(cfg)
 
 

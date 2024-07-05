@@ -584,7 +584,7 @@ def run_trainer(
     print('type 3: ', type(yaml_cfg))
     assert isinstance(
         cfg,
-        om.DictConfig,
+        DictConfig,
     ), 'Configuration must be a DictConfig instance.'
 
 

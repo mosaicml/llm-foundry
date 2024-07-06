@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import typer
-from typing import List,
+from typing import List
 import sys
 
 from llmfoundry.cli import registry_cli

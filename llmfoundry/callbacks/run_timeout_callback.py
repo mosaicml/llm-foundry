@@ -18,7 +18,7 @@ def _timeout(timeout: int):
     log.error(f'Timeout after {timeout} seconds of inactivity after fit_end.',)
     try:
         raise RunTimeoutError(timeout=timeout)
-    except RunTimeoutError:
+    finally:
         os.kill(os.getpid(), signal.SIGINT)
 
 

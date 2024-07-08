@@ -564,7 +564,7 @@ def main(cfg: DictConfig) -> Trainer:
     return trainer
 
 
-def run_trainer(
+def train(
     yaml_path: str,
     args_list: str,
 ):

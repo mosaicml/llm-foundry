@@ -25,6 +25,7 @@ def train(
 ):
     """Run the training with optional overrides from CLI."""
     om.clear_resolver('oc.env')
+    print(f'yaml_path: {yaml_path}', 'args_list: ', args_list)
 
     # Load yaml and CLI arguments.
     with open(yaml_path) as f:
@@ -32,6 +33,7 @@ def train(
     cli_cfg = om.from_cli(args_list)
     cfg = om.merge(yaml_cfg, cli_cfg)
     assert isinstance(cfg, DictConfig)
+    print(cfg)
     trainer(cfg)
 
 

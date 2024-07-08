@@ -31,9 +31,9 @@ def train(
         yaml_cfg = om.load(f)
     if args_list:
         cli_cfg = om.from_cli(args_list)
-        cfg = om.merge(yaml_cfg, cli_cfg)
-    assert isinstance(cfg, DictConfig)
-    trainer(cfg)
+        yaml_cfg = om.merge(yaml_cfg, cli_cfg)
+    assert isinstance(yaml_cfg, DictConfig)
+    trainer(yaml_cfg)
 
 
 if __name__ == '__main__':

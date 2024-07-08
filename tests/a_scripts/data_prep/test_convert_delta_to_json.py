@@ -362,6 +362,6 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         assert not mock_databricks_session.builder.remote.called
 
     def test_format_tablename(self):
-        self.assertEqual(format_tablename('test_catalog.hyphenated-schema.test_table'), 'test_catalog.`hyphenated-schema`.test_table')
-        self.assertEqual(format_tablename('catalog.schema.table'), 'catalog.schema.table')
-        self.assertEqual(format_tablename('hyphenated-catalog.schema.test_table'), '`hyphenated-catalog`.schema.test_table')
+        self.assertEqual(format_tablename('test_catalog.hyphenated-schema.test_table'), '`test_catalog`.`hyphenated-schema`.`test_table`')
+        self.assertEqual(format_tablename('catalog.schema.table'), '`catalog`.`schema`.`table`')
+        self.assertEqual(format_tablename('hyphenated-catalog.schema.test_table'), '`hyphenated-catalog`.`schema`.`test_table`')

@@ -287,8 +287,8 @@ def download_starargs(args: Tuple) -> None:
 
 def format_tablename(tablename: str) -> str:
     """
-    If the catalog, schema or tablename is hyphenated/contains special characters, escape them with backticks
-    when running SQL queries to prevent invalid identifier errors.
+    Escape catalog, schema and table names with backticks when running
+    SQL queries/setting spark sessions to prevent invalid identifier errors.
     Args:
         tablename (str): catalog.scheme.tablename on UC
     """
@@ -296,9 +296,6 @@ def format_tablename(tablename: str) -> str:
 
     formatted_identifiers = []
     for i in range(1, 4):
-        # identifier = match.group(i)
-        # if re.match(r"\w+$", identifier) is None:
-            # identifier = f"`{identifier}`"
         identifier = f"`{match.group(i)}`"
         formatted_identifiers.append(identifier)
 

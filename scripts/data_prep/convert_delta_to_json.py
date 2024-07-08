@@ -294,6 +294,9 @@ def format_tablename(tablename: str) -> str:
     """
     match = re.match(TABLENAME_PATTERN, tablename)
 
+    if match is None:
+        return tablename
+
     formatted_identifiers = []
     for i in range(1, 4):
         identifier = f"`{match.group(i)}`"

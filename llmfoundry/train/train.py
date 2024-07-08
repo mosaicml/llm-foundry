@@ -4,12 +4,12 @@ import gc
 import logging
 import os
 import time
-import typer
 import warnings
 from typing import Any, Dict, List, Optional, Union
 
 import torch
 import torch.distributed
+import typer
 from composer import ComposerModel, Trainer
 from composer.core.callback import Callback
 from composer.profiler import (
@@ -565,8 +565,8 @@ def main(cfg: DictConfig) -> Trainer:
 
 
 def run_trainer(
-    yaml_path: str, 
-    args_list: str
+    yaml_path: str,
+    args_list: str,
 ):
     # Disable resolving environment variables through omegaconf.
     om.clear_resolver('oc.env')

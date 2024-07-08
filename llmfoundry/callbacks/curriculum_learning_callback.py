@@ -130,12 +130,12 @@ class CurriculumLearning(CallbackWithConfig):
         # If checkpoint was saved before iteration was incremented, we need to increment it now
         if ((
             self._schedule[self._schedule_index]['duration'].unit
-            == TimeUnit.TOKEN and state.timestamp.token_in_iteration
-            >= self._schedule[self._schedule_index]['duration'].value
+            == TimeUnit.TOKEN and state.timestamp.token_in_iteration >=
+            self._schedule[self._schedule_index]['duration'].value
         ) or (
             self._schedule[self._schedule_index]['duration'].unit
-            == TimeUnit.EPOCH and state.timestamp.epoch_in_iteration
-            >= self._schedule[self._schedule_index]['duration'].value
+            == TimeUnit.EPOCH and state.timestamp.epoch_in_iteration >=
+            self._schedule[self._schedule_index]['duration'].value
         )):
             log.warning((
                 'The CurriculumLearning callback has detected that the previous run did not correctly '

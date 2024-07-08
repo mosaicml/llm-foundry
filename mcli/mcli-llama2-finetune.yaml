@@ -9,7 +9,7 @@ integrations:
 command: |
   cd llm-foundry/scripts
   composer train/train.py /mnt/config/parameters.yaml
-image: mosaicml/llm-foundry:2.3.0_cu121_flash2-latest
+image: mosaicml/llm-foundry:2.3.1_cu121-latest
 name: llama2-finetune
 
 compute:
@@ -36,7 +36,7 @@ parameters:
     init_device: mixed
     pretrained_model_name_or_path: meta-llama/Llama-2-7b-hf
     pretrained: true
-    # Note: you must have set the HUGGING_FACE_HUB_TOKEN environment variable and have access to the llama2 models
+    # Note: you must have set the HF_TOKEN environment variable and have access to the llama2 models
     use_auth_token: true
     use_flash_attention_2: true
 

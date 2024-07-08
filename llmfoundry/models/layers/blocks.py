@@ -158,8 +158,13 @@ class MPTBlock(nn.Module):
         output_attentions: bool = False,
         alibi_slopes: Optional[torch.Tensor] = None,
         flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
+        prev_layer_key_value: Optional[Tuple[torch.Tensor,
+                                             torch.Tensor]] = None,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[
         torch.Tensor, torch.Tensor]]]:
+        extra_kwargs = {}
+        if prev_layer_key_value is not None:
+            extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
         if self.fuse_norm_attn_norm:
             x, m, attn_weights, past_key_value = self.norm_attn_norm(
                 x,
@@ -171,6 +176,7 @@ class MPTBlock(nn.Module):
                 output_attentions=output_attentions,
                 alibi_slopes=alibi_slopes,
                 flash_attn_padding_info=flash_attn_padding_info,
+                **extra_kwargs,
             )
         else:
             a = self.norm_1(x)
@@ -184,6 +190,7 @@ class MPTBlock(nn.Module):
                 needs_weights=output_attentions,
                 alibi_slopes=alibi_slopes,
                 flash_attn_padding_info=flash_attn_padding_info,
+                **extra_kwargs,
             )
             x = x + self.resid_attn_dropout(b)
             m = x
@@ -191,7 +198,9 @@ class MPTBlock(nn.Module):
                 m = self.norm_2(x)
 
         n = self.apply_ffn(attention_mask, m)
-        x = x + self.resid_ffn_dropout(n)
+        # In the following line we move the `x` tensor to the same devices as the output of ffn layer. This operation should be a no-op during training.
+        # This is done to fix pipeline parallel generation using hf.generate. Please see this comment for details: https://github.com/mosaicml/llm-foundry/pull/1332#issue-2386827204
+        x = x.to(device=n.device) + self.resid_ffn_dropout(n)
         return x, attn_weights, past_key_value
 
     def apply_ffn(
@@ -212,12 +221,31 @@ class MPTBlock(nn.Module):
         indices = None
         if not self.use_pad_tok_in_ffn and attention_mask is not None:
             assert unpad_input is not None
+            attention_mask = self.slice_attention_mask(attention_mask, seq_len)
             m, indices, _, _ = unpad_input(m, attention_mask)
         n = self.ffn(m)
         if not self.use_pad_tok_in_ffn and attention_mask is not None:
             assert pad_input is not None
             n = pad_input(n, indices, batch_size, seq_len)
         return n
+
+    def slice_attention_mask(
+        self,
+        attention_mask: torch.ByteTensor,
+        seq_len: int,
+    ) -> torch.ByteTensor:
+        """Slice attention mask to the correct size.
+
+        Can be overridden by subclasses to apply different slicing logic.
+
+        Args:
+            attention_mask (torch.ByteTensor): The attention mask.
+            seq_len (int): The sequence length.
+
+        Returns:
+            torch.ByteTensor: The sliced attention mask.
+        """
+        return attention_mask
 
 
 class FusedNormAttentionNorm(nn.Module):
@@ -289,9 +317,14 @@ class FusedNormAttentionNorm(nn.Module):
         output_attentions: bool = False,
         alibi_slopes: Optional[torch.Tensor] = None,
         flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
+        prev_layer_key_value: Optional[Tuple[torch.Tensor,
+                                             torch.Tensor]] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor],
                Optional[Tuple[torch.Tensor, torch.Tensor]]]:
         a = self.norm_1(x)
+        extra_kwargs = {}
+        if prev_layer_key_value is not None:
+            extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
         b, attn_weights, past_key_value = self.attn(
             a,
             past_key_value=past_key_value,
@@ -302,6 +335,7 @@ class FusedNormAttentionNorm(nn.Module):
             needs_weights=output_attentions,
             alibi_slopes=alibi_slopes,
             flash_attn_padding_info=flash_attn_padding_info,
+            **extra_kwargs,
         )
         x = x + self.resid_attn_dropout(b)
         m = x

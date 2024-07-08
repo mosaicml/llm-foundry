@@ -533,7 +533,7 @@ def _get_model_and_tokenizer(
         tokenizer_name = 'EleutherAI/gpt-neo-125M'
     elif model == 'llama2':
         assert tie_word_embeddings is None
-        if 'HUGGING_FACE_HUB_TOKEN' not in os.environ:
+        if 'HF_TOKEN' not in os.environ:
             pytest.skip(
                 'The CI cluster does not have access to the Llama models, so skip this test.',
             )
@@ -985,7 +985,7 @@ def test_convert_and_generate(
         om_cfg['model']['config_overrides']['hidden_size'] = 36
     elif model == 'llama2':
         assert tie_word_embeddings is None
-        if 'HUGGING_FACE_HUB_TOKEN' not in os.environ:
+        if 'HF_TOKEN' not in os.environ:
             pytest.skip(
                 'The CI cluster does not have access to the Llama models, so skip this test.',
             )
@@ -1179,7 +1179,7 @@ def test_convert_and_generate_meta(
 @pytest.mark.world_size(4)
 @pytest.mark.gpu
 @pytest.mark.parametrize('num_experts', [2, 4, 8])
-@pytest.mark.parametrize('sharding_strategy', ['FULL_SHARD', 'HYBRID_SHARD'])
+@pytest.mark.parametrize('sharding_strategy', ['FULL_SHARD'])
 def test_mptmoe_huggingface_conversion_callback(
     tmp_path: pathlib.Path,
     num_experts: int,
@@ -1281,7 +1281,6 @@ def test_mptmoe_huggingface_conversion_callback(
         make_tiny_ft_dataset(path=tiny_dataset_path, size=dataset_size)
 
     dataloader_cfg = {
-        'name': 'finetuning',
         'dataset': {
             'hf_name': tiny_dataset_folder_path,
             'split': 'train',
@@ -1350,7 +1349,6 @@ def test_mptmoe_huggingface_conversion_callback(
         save_weights_only=True,
     )
     trainer.fit()
-    #self.state.outputs = self.state.model(self.state.batch)
     batch = trainer.state.batch
     model_output_logits = trainer.state.model(batch).logits
 
@@ -1428,7 +1426,6 @@ def test_mptmoe_huggingface_conversion_callback(
             loaded_model_logits = loaded_model(
                 input_ids=batch.get('input_ids', None),
                 attention_mask=batch.get('attention_mask', None),
-                prefix_mask=batch.get('bidirectional_mask', None),
                 sequence_id=batch.get('sequence_id', None),
                 inputs_embeds=batch.get('inputs_embeds', None),
             ).logits

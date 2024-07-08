@@ -14,22 +14,13 @@ from llmfoundry.models.layers.attention import (
     check_alibi_support,
     is_flash_v2_installed,
 )
-
-# NOTE: All utils are imported directly even if unused so that
-# HuggingFace can detect all the needed files to copy into its modules folder.
-# Otherwise, certain modules are missing.
-# isort: off
-from llmfoundry.models.layers.norm import LPLayerNorm  # type: ignore (see note)
-from llmfoundry.models.layers.layer_builders import build_norm, build_fc, build_ffn  # type: ignore (see note)
-from llmfoundry.models.layers.dmoe import dMoE  # type: ignore (see note)
-from llmfoundry.layers_registry import norms  # type: ignore (see note)
-from llmfoundry.utils.registry_utils import construct_from_registry  # type: ignore (see note)
 from llmfoundry.models.utils.config_defaults import (
     attn_config_defaults,
+    fc_type_defaults,
     ffn_config_defaults,
     init_config_defaults,
-    fc_type_defaults,
-)  # type: ignore (see note)
+)
+from llmfoundry.utils.warnings import ExperimentalWarning
 
 
 class MPTConfig(PretrainedConfig):
@@ -58,6 +49,7 @@ class MPTConfig(PretrainedConfig):
         fc_type: Union[str, Dict] = 'torch',
         tie_word_embeddings: bool = True,
         use_pad_tok_in_ffn: bool = True,
+        block_overrides: Optional[Dict[str, Any]] = None,
         **kwargs: Any,
     ):
         """The MPT configuration class.
@@ -127,6 +119,30 @@ class MPTConfig(PretrainedConfig):
                 also be a dictionary that specifies the fc layer name and any kwargs for the fc layer.
             tie_word_embeddings (bool): Whether to tie the input embedding and output layers.
             use_pad_tok_in_ffn (bool): Whether to forward the pad token in the feedforward networks.
+            block_overrides: This allows for overriding default block configs for certain layers. This must contain `overrides` and `order`. `order` is a nested list which describes the order of the layers. For each kind of layer, specify the `overrides` in the overrides config (default refers to a layer that does not apply any overrides).
+                To specify this model (https://research.character.ai/optimizing-inference/) , the following config will be needed:
+                    block_overrides:
+                        order:
+                        - name: default
+                        - repeat: 2
+                          order:
+                          - name: sliding_window_layer
+                          - name: sliding_window_layer_reuse
+                          - name: sliding_window_layer
+                          - repeat: 2
+                            name: sliding_window_layer_reuse
+                          - name: reuse_kv_layer
+                        overrides:
+                            sliding_window_layer:
+                                attn_config:
+                                    sliding_window_size: 1024
+                            sliding_window_layer_reuse:
+                                attn_config:
+                                    sliding_window_size: 1024
+                                    reuse_kv_layer_idx: -1 # Relative index of the layer whose kv cache to reuse
+                            reuse_kv_layer:
+                                attn_config:
+                                    reuse_kv_layer_idx: -6 # Relative index of the layer whose kv cache to reuse
         """
         self.d_model = d_model
         self.n_heads = n_heads
@@ -155,6 +171,15 @@ class MPTConfig(PretrainedConfig):
             init_config_defaults,
         )
 
+        if 'reuse_kv_layer_idx' in self.attn_config and self.attn_config[
+            'attn_impl'] == 'torch':
+            raise NotImplementedError(
+                'reusing kv cache from a previous layer is not implemented for torch attention.',
+            )
+        if block_overrides is not None:
+            self._validate_block_overrides(block_overrides)
+        self.block_overrides = block_overrides
+
         if isinstance(fc_type, str):
             fc_type = {'name': fc_type}
         self.fc_type = fc_type
@@ -179,6 +204,23 @@ class MPTConfig(PretrainedConfig):
 
         self._validate_config()
 
+    def _validate_block_overrides(self, block_overrides: Dict[str, Any]):
+        warnings.warn(ExperimentalWarning('block_overrides'))
+        if 'order' not in block_overrides:
+            raise ValueError('`order` should be defined in block_overrides',)
+        if 'overrides' not in block_overrides:
+            raise ValueError(
+                '`overrides` should be defined in block_overrides',
+            )
+        for name, override in block_overrides['overrides'].items():
+            if name == 'default':
+                raise ValueError('block overrides cannot be named "default".',)
+            if 'attn_config' in override and 'reuse_kv_layer_idx' in override[
+                'attn_config'] and self.attn_config['attn_impl'] == 'torch':
+                raise NotImplementedError(
+                    'reusing kv cache from a previous layer is not implemented for torch attention.',
+                )
+
     def _set_config_defaults(
         self,
         config: Dict[str, Any],
@@ -195,6 +237,13 @@ class MPTConfig(PretrainedConfig):
                     v,
                 )
         return config
+
+    def validate_attention_config(self) -> None:
+        if 'seq_parallel_world_size' in self.attn_config and self.attn_config[
+            'seq_parallel_world_size'] is None:
+            del self.attn_config['seq_parallel_world_size']
+        if self.attn_config.get('seq_parallel_world_size', 1) > 1:
+            raise NotImplementedError('Sequence Parallelism is not supported.')
 
     def _validate_config(self) -> None:
         # set config defaults
@@ -336,5 +385,14 @@ class MPTConfig(PretrainedConfig):
                 raise ImportError(
                     'In order to set `use_pad_tok_in_ffn=False`, please install flash-attn==1.0.9 or flash-attn==2.3.6',
                 )
-        if (self.attn_config.get('seq_parallel_world_size', 1) or 1) > 1:
-            raise NotImplementedError('Sequence Parallelism is not supported.')
+
+        self.validate_attention_config()
+
+    @property
+    def allowed_block_overrides(self):
+        return {
+            'attn_config': {
+                'sliding_window_size': None,
+                'reuse_kv_layer_idx': None,
+            },
+        }

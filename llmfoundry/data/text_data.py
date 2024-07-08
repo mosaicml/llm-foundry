@@ -300,7 +300,7 @@ def build_streams(streams: Optional[Dict[str, Any]] = None,):
 
 def build_text_dataloader(
     tokenizer: PreTrainedTokenizerBase,
-    device_batch_size: int,
+    device_batch_size: Union[int, float],
     dataset: Dict[str, Any],
     drop_last: bool,
     num_workers: int,

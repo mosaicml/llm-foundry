@@ -7,12 +7,15 @@ This callback is currently experimental. The API may change without warning in
 the future.
 """
 
+import copy
 import logging
-from typing import Any, Dict
+from typing import Any
 
-from composer.core import State
+from composer import DataSpec
+from composer.core import State, Time, TimeUnit, ensure_time
 from composer.loggers import Logger
 from streaming import StreamingDataset
+from streaming.base.util import clean_stale_shared_memory
 from torch.utils.data import DataLoader
 
 from llmfoundry.interfaces import CallbackWithConfig
@@ -26,27 +29,75 @@ log = logging.getLogger(__name__)
 __all__ = ['CurriculumLearning']
 
 
-@experimental_class('CurriculumLearning callback')
 class CurriculumLearning(CallbackWithConfig):
     """Starts an epoch with a different dataset when resuming from a checkpoint.
 
+    Example schedule:
+    [
+        {
+            'duration': <number>tok,
+            'train_loader': <dataloader parameters>, # matches top level train_loader
+        },
+        {
+            'duration': <number>tok,
+            'train_loader': <dataloader parameters>,
+        },
+        {
+            'duration': <number>tok,
+            'train_loader': <dataloader parameters>,
+        ],
+    ]
+
     Args:
-        train_config (Dict): The configuration of the dataset currently
+        train_config (dict): The configuration of the dataset currently
             being used. Note that this is the full train config and must
-            contain the 'train_loader' key.
-        dataset_index (int): The index of the dataset currently being used.
+            contain the 'train_loader', 'device_train_batch_size', and
+            'tokenizer' keys.
+        schedule (list[dict[str, Any]]): The list of datamixes to use and their
+            durations. Duration units must match max_duration and be in terms of
+            a TimeUnit that is supported by Iteration. The duration values must
+            be positive. There must be at least one datamix in the schedule. The
+            first datamix in the schedule must match the train_loader in the
+            train_config. On resumption, previously trained on datamixes and
+            durations cannot be changed. The duration of the current datamix
+            must be greater than the saved timestamp. The dataset must be a
+            StreamingDataset.
     """
 
-    def __init__(self, train_config: Dict, dataset_index: int):
-        self.dataset_index = dataset_index
-        self.saved_dataset_index = 0
-        self.all_dataset_configs = []
-        self.current_dataset_state = {}
-        # The current dataset config is resolved and passed in train.py
-        self.current_dataset_config = train_config['train_loader']
+    def __init__(
+        self,
+        train_config: dict[str, Any],
+        schedule: list[dict[str, Any]],
+    ):
+        # Ensure all duration units are in epochs or tokens and values are positive
+        self._schedule = schedule
+        if len(self._schedule) == 0:
+            raise ValueError('The schedule must have at least one datamix.')
+        for index, datamix in enumerate(self._schedule):
+            self._validate_datamix(datamix)
+
+            if (
+                index == 0 and
+                train_config['train_loader'] != datamix['train_loader']
+            ):
+                raise ValueError((
+                    'The first datamix in the schedule must match the '
+                    'train_loader in the train_config.'
+                ))
+
+        self._schedule_index = 0
+        self.device_train_batch_size = train_config['device_train_batch_size']
+        self.tokenizer = None
+
+    def init(self, state: State, logger: Logger):
+        del logger  # unused
+
+        if not hasattr(state.model, 'tokenizer'):
+            raise ValueError('state.model must have a tokenizer attribute.')
+        self.tokenizer = state.model.tokenizer
 
     def before_load(self, state: State, logger: Logger):
-        del logger
+        del logger  # unused
 
         # Ensure all duration units are the same as max_duration
         datamix_units = [datamix['duration'].unit for datamix in self._schedule]
@@ -203,54 +254,23 @@ class CurriculumLearning(CallbackWithConfig):
                 f'because it requires loading and saving dataset state. ',
                 f'Instead, got a dataset of type {type(dataset)}',
             )
-        assert isinstance(dataset, StreamingDataset)
-        # Save the current dataset state so we can restore it if needed.
-        self.current_dataset_state = dataset.state_dict(  # type: ignore
-            num_samples=0, from_beginning=False)
 
-    def after_load(self, state: State, logger: Logger):
-        del logger
+    def _validate_datamix(self, datamix: dict[str, Any]):
+        if 'duration' not in datamix:
+            raise ValueError('Each datamix must have a duration.')
+        datamix['duration'] = ensure_time(
+            datamix['duration'],
+            TimeUnit.EPOCH,
+        )
+        if datamix['duration'].value <= 0:
+            raise ValueError('The duration must be positive.')
+        if (
+            datamix['duration'].unit != TimeUnit.EPOCH and
+            datamix['duration'].unit != TimeUnit.TOKEN
+        ):
+            raise ValueError(
+                'Schedules can only be defined in terms of epochs or tokens.',
+            )
 
-        # As saved_dataset_index is loaded from state_dict, this only runs when
-        # a user explicitly increments the dataset_index and not on any other
-        # resumption, including autoresume.
-        train_loader = state._train_dataloader
-        assert isinstance(
-            train_loader,
-            DataLoader,
-        ), 'CurriculumLearning callback requires a DataLoader.'
-        dataset = train_loader.dataset
-        assert isinstance(
-            dataset,
-            StreamingDataset,
-        ), 'CurriculumLearning callback requires a StreamingDataset.'
-        if self.saved_dataset_index < self.dataset_index:
-            # Ignore the dataset state that was read in from the checkpoint, and
-            # replace with the new dataset state. This preserves resumption info.
-            if self.current_dataset_state['epoch'] < 0:
-                # Make sure the epoch in the loaded state dict is not negative.
-                # Since `__iter__` has not yet been called on the dataset, the
-                # epoch index in the dataset will still be -1. We need to ensure
-                # that we set the epoch correctly to 0 in this case.
-                self.current_dataset_state['epoch'] = 0
-            dataset.load_state_dict(  # type: ignore
-                self.current_dataset_state)
-            # Start a new epoch since we are using a new dataset.
-            # This will also reset the sample_in_epoch written to checkpoint,
-            # making sure that subsequent resumptions proceed correctly.
-            state.timestamp = state.timestamp.to_next_epoch()
-            # Append the new dataset config to the list of all dataset configs.
-            self.all_dataset_configs.append(self.current_dataset_config)
-        elif self.dataset_index == 0 and len(self.all_dataset_configs) == 0:
-            # Make sure to track our current dataset config if we are just starting training.
-            self.all_dataset_configs.append(self.current_dataset_config)
-
-    def state_dict(self):
-        return {
-            'dataset_index': self.dataset_index,
-            'all_dataset_configs': self.all_dataset_configs,
-        }
-
-    def load_state_dict(self, state: Dict[str, Any]):
-        self.saved_dataset_index = state.get('dataset_index', 0)
-        self.all_dataset_configs = state.get('all_dataset_configs', [])
+        if 'train_loader' not in datamix:
+            raise ValueError('Each datamix must have a train_loader.')

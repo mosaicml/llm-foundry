@@ -5,6 +5,7 @@ import copy
 import os
 import pathlib
 import warnings
+from functools import partial
 from typing import Any, Dict, List, Optional, Union, cast
 from unittest import mock
 
@@ -34,6 +35,8 @@ from transformers import (
 )
 from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.models.bloom.modeling_bloom import build_alibi_tensor
+from transformers.models.llama.modeling_llama import \
+    LlamaRotaryEmbedding as HFRotaryEmbedding
 
 from llmfoundry import ComposerHFCausalLM
 from llmfoundry.layers_registry import norms
@@ -44,7 +47,8 @@ from llmfoundry.models.layers.attention import (
     is_flash_v2_installed,
 )
 from llmfoundry.models.layers.blocks import MPTBlock
-from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
+from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM, MPTModel
+from llmfoundry.models.mpt.modeling_mpt import HFRotaryEmbeddingFoundry
 from llmfoundry.utils import build_tokenizer
 from llmfoundry.utils.builders import build_composer_model
 from llmfoundry.utils.config_utils import to_dict_container
@@ -72,12 +76,17 @@ def _load_tokenizer_cfg(cfg: Union[Dict[str, Any], DictConfig]) -> Dict:
 def _get_objs(
     request: pytest.FixtureRequest,
     conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml',
+    model_config_overrides: Optional[Dict] = None,
+    attn_impl: str = 'torch',
 ):
     warnings.filterwarnings(
         action='ignore',
         message='Torchmetrics v0.9 introduced a new argument class property',
     )
     test_cfg = get_config(conf_path=conf_path)
+    if model_config_overrides is not None:
+        for k, v in model_config_overrides.items():
+            test_cfg.model[k] = v
 
     # Read FSDP Config as a dict
     fsdp_config = test_cfg.get('fsdp_config', None)
@@ -97,7 +106,7 @@ def _get_objs(
     device = 'cuda' if is_gpu else 'cpu'
     test_cfg.precision = 'amp_bf16' if is_gpu else 'fp32'
     test_cfg.model.attn_config = {
-        'attn_impl': 'torch',
+        'attn_impl': attn_impl,
     }
     test_cfg.model.init_device = device
     test_cfg.device = device
@@ -2617,3 +2626,319 @@ def test_head_dim_8_flash_mqa_attn(batch_size: int = 2):
         output = model(batch)
 
     assert not torch.isnan(output.logits).any()
+
+
+def test_construct_blocks():
+    n_layers = 13
+
+    config = MPTConfig(
+        d_model=32,
+        n_heads=16,
+        n_layers=n_layers,
+        expansion_ratio=2,
+        max_seq_len=64,
+        attn_config={
+            'attn_impl': 'flash',
+            'attn_type': 'grouped_query_attention',
+            'kv_n_heads': 4,
+        },
+    )
+
+    # override architecture taken from https://research.character.ai/optimizing-inference/
+    config.block_overrides = {}
+    config.block_overrides['overrides'] = {
+        'reuse_kv_layer': {
+            'attn_config': {
+                'reuse_kv_layer_idx': -6,
+            },
+        },
+        'sliding_window_layer': {
+            'attn_config': {
+                'sliding_window_size': 1024,
+            },
+        },
+        'sliding_window_layer_reuse': {
+            'attn_config': {
+                'sliding_window_size': 1024,
+                'reuse_kv_layer_idx': -1,
+            },
+        },
+    }
+    config.block_overrides['order'] = [
+        {
+            'name': 'default',
+        },
+        {
+            'order': [
+                {
+                    'name': 'sliding_window_layer',
+                },
+                {
+                    'name': 'sliding_window_layer_reuse',
+                },
+                {
+                    'name': 'sliding_window_layer',
+                },
+                {
+                    'name': 'sliding_window_layer_reuse',
+                    'repeat': 2,
+                },
+                {
+                    'name': 'reuse_kv_layer',
+                },
+            ],
+            'repeat': 2,
+        },
+    ]
+
+    block_list = MPTModel(config).construct_blocks(config)
+
+    assert len(block_list) == n_layers
+    assert block_list[0].attn.sliding_window_size == -1
+    assert block_list[0].attn.reuse_kv_layer_idx is None
+
+    for layer_offset in [1, 7]:
+        assert block_list[layer_offset].attn.sliding_window_size == 1024
+        assert block_list[layer_offset].attn.reuse_kv_layer_idx is None
+        assert block_list[layer_offset + 1].attn.sliding_window_size == 1024
+        assert block_list[layer_offset +
+                          1].attn.reuse_kv_layer_idx == layer_offset
+
+        assert block_list[layer_offset + 2].attn.sliding_window_size == 1024
+        assert block_list[layer_offset + 2].attn.reuse_kv_layer_idx is None
+        assert block_list[layer_offset + 3].attn.sliding_window_size == 1024
+        assert block_list[layer_offset +
+                          3].attn.reuse_kv_layer_idx == layer_offset + 2
+        assert block_list[layer_offset + 4].attn.sliding_window_size == 1024
+        assert block_list[layer_offset +
+                          4].attn.reuse_kv_layer_idx == layer_offset + 2
+
+        assert block_list[layer_offset + 5].attn.sliding_window_size == -1
+        assert block_list[layer_offset + 5].attn.reuse_kv_layer_idx == 0
+
+
+@pytest.mark.gpu
+def test_reuse_prev_layer_kv_cache(
+    request: pytest.FixtureRequest,
+    batch_size: int = 2,
+):
+    conf_path = 'scripts/train/yamls/pretrain/testing.yaml'
+    model_config_overrides = {
+        'block_overrides': {
+            'order': [
+                {
+                    'name': 'default',
+                },
+                {
+                    'name': 'kv_reuse_layer',
+                },
+            ],
+            'overrides': {
+                'kv_reuse_layer': {
+                    'attn_config': {
+                        'reuse_kv_layer_idx': -1,
+                    },
+                },
+            },
+        },
+        'use_cache': True,
+    }
+    test_cfg, model, _ = _get_objs(
+        request=request,
+        conf_path=conf_path,
+        model_config_overrides=model_config_overrides,
+        attn_impl='flash',
+    )
+
+    batch = gen_random_batch(batch_size, test_cfg)
+
+    assert batch['input_ids'].shape == torch.Size([
+        batch_size,
+        test_cfg.max_seq_len,
+    ])
+    model.train()
+
+    prev_layer_key_value_dict = {}
+
+    def mock_forward(b_forward, b_idx, *args, **kwargs):  # type: ignore
+        if 'prev_layer_key_value' in kwargs:
+            prev_layer_key_value_dict[b_idx] = kwargs['prev_layer_key_value']
+        return b_forward(*args, **kwargs)
+
+    for b_idx, block in enumerate(model.model.transformer.blocks):
+        block.forward = partial(mock_forward, block.forward, b_idx)
+
+    with get_precision_context(test_cfg.precision):
+        outputs = model(batch)
+        assert len(outputs.past_key_values) == 2
+        assert torch.all(
+            outputs.past_key_values[0][0] == outputs.past_key_values[1][0],
+        )
+        assert torch.all(
+            outputs.past_key_values[0][1] == outputs.past_key_values[1][1],
+        )
+        assert 0 not in prev_layer_key_value_dict
+        assert torch.all(
+            prev_layer_key_value_dict[1][0] == outputs.past_key_values[0][0],
+        )
+        assert torch.all(
+            prev_layer_key_value_dict[1][1] == outputs.past_key_values[0][1],
+        )
+
+
+def test_override_block_args():
+    block_args = {'a': 1, 'b': {'c': 3}, 'd': 4}
+    override_config = {'a': 2, 'b': {'c': 5}, 'e': 6}
+    allowed_block_overrides = {'a': None, 'b': {'c': None}, 'e': None}
+    new_config = MPTModel._override_block_args(
+        block_args,
+        override_config,
+        allowed_block_overrides,
+    )
+    assert new_config['a'] == 2
+    assert new_config['d'] == 4
+    assert new_config['e'] == 6
+    assert new_config['b']['c'] == 5
+
+
+def test_get_modules_order_expanded():
+    order = [
+        {
+            'name': 'default',
+        },
+        {
+            'name': 'layer_a',
+            'repeat': 2,
+        },
+        {
+            'order': [{
+                'name': 'layer_b',
+            },],
+            'repeat': 3,
+        },
+        {
+            'name': 'layer_c',
+            'repeat': 2,
+        },
+        {
+            'name': 'default',
+        },
+    ]
+    expected_list = [
+        'default',
+        'layer_a',
+        'layer_a',
+        'layer_b',
+        'layer_b',
+        'layer_b',
+        'layer_c',
+        'layer_c',
+        'default',
+    ]
+    assert expected_list == MPTModel._get_modules_order_expanded(order)
+
+
+@pytest.mark.parametrize('reuse_kv_layer_idx', [-2, -1, 0])
+def test_resolve_reuse_kv_layer_idx(reuse_kv_layer_idx: int):
+    layer_a_override = {
+        'key_1': 'value_a',
+        'attn_config': {
+            'key_2': 'value_b',
+        },
+    }
+    layer_b_override = {
+        'key_1': 'value_c',
+        'attn_config': {
+            'key_2': 'value_d',
+        },
+    }
+    layer_c_override = {
+        'key_1': 'value_c' if reuse_kv_layer_idx == -1 else 'value_a',
+        'attn_config': {
+            'key_2': 'value_d' if reuse_kv_layer_idx == -1 else 'value_b',
+            'reuse_kv_layer_idx': reuse_kv_layer_idx,
+        },
+    }
+    block_overrides = {
+        'overrides': {
+            'layer_a': layer_a_override,
+            'layer_b': layer_b_override,
+            'layer_c': layer_c_override,
+        },
+    }
+    model_modules_order_expanded = ['layer_a', 'layer_b', 'layer_c']
+    if reuse_kv_layer_idx == -1:
+        model_modules_order_expanded = [
+            'layer_a',
+            'layer_b',
+            'layer_c',
+            'layer_c',
+            'layer_c',
+            'layer_a',
+            'layer_c',
+        ]
+    reuse_kv_layer_idx_dict = {}
+
+    def _validate_helper(b_idx: int) -> int:
+        return MPTModel._resolve_reuse_kv_layer_idx(
+            overrides_definition=block_overrides['overrides'],
+            model_modules_order_expanded=model_modules_order_expanded,
+            b_idx=b_idx,
+            override_config=copy.deepcopy(
+                block_overrides['overrides'][model_modules_order_expanded[b_idx]
+                                            ],
+            ),
+            reuse_kv_layer_idx_dict=reuse_kv_layer_idx_dict,
+        )
+
+    if reuse_kv_layer_idx == -1:
+        assert _validate_helper(b_idx=2) == 1
+        assert _validate_helper(b_idx=3) == 1
+        assert _validate_helper(b_idx=4) == 1
+        with pytest.raises(
+            expected_exception=ValueError,
+            match=
+            'For reusing the kv cache of a previous layer, the previous layer should match the block config as the current layer\.',  # type: ignore
+        ):
+            _validate_helper(b_idx=6)
+
+    elif reuse_kv_layer_idx == -2:
+        assert _validate_helper(b_idx=2) == 0
+    else:
+        with pytest.raises(
+            expected_exception=ValueError,
+            match=
+            'The relative index of kv layer to reuse, override_attn_config\[\"reuse_kv_layer_idx\"\]=0, should be negative\.',  # type: ignore
+        ):
+            _validate_helper(b_idx=2)
+
+
+def test_hf_rotary_child_class_builds():
+    rope_head_dim = 32
+    num_heads = 4
+    max_seq_len = 128
+    rope_theta = 10000
+    bsz = 4
+    value = torch.rand([bsz, num_heads, max_seq_len, rope_head_dim])
+    position_ids = torch.Tensor([
+        list(range(max_seq_len)),
+    ] * bsz)
+
+    rot_emb_mp = HFRotaryEmbeddingFoundry(
+        rope_head_dim,
+        max_seq_len,
+        rope_theta,
+        device='cpu',
+    )
+    cos_mp, sin_mp = rot_emb_mp(value, position_ids)
+
+    rot_emb = HFRotaryEmbedding(
+        rope_head_dim,
+        max_seq_len,
+        rope_theta,
+        device='cpu',
+    )
+    cos, sin = rot_emb(value, position_ids)
+
+    assert torch.all(cos == cos_mp)
+    assert torch.all(sin == sin_mp)

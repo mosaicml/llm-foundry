@@ -46,7 +46,7 @@ _DEFAULT_TARGET_PROMPTS = 'none'
 
 def build_finetuning_dataloader(
     tokenizer: PreTrainedTokenizerBase,
-    device_batch_size: int,
+    device_batch_size: Union[int, float],
     dataset: Dict[str, Any],
     num_workers: int,
     drop_last: bool = False,

@@ -8,18 +8,20 @@ import threading
 from typing import Optional
 
 from composer import Callback, Logger, State
-from composer.loggers import MosaicMLLogger
 
 from llmfoundry.utils.exceptions import RunTimeoutError
 
 log = logging.getLogger(__name__)
 
 
-def _timeout(timeout: int, mosaicml_logger: Optional[MosaicMLLogger] = None):
-    log.error(f'Timeout after {timeout} seconds of inactivity after fit_end.',)
-    if mosaicml_logger is not None:
-        mosaicml_logger.log_exception(RunTimeoutError(timeout=timeout))
-    os.kill(os.getpid(), signal.SIGINT)
+def _timeout(timeout: int):
+    log.error(
+        f'Timeout after {timeout} seconds of inactivity after fit_end.',
+    )
+    try:
+        raise RunTimeoutError(timeout=timeout)
+    except RunTimeoutError:
+        os.kill(os.getpid(), signal.SIGINT)
 
 
 class RunTimeoutCallback(Callback):
@@ -29,13 +31,7 @@ class RunTimeoutCallback(Callback):
         timeout: int = 1800,
     ):
         self.timeout = timeout
-        self.mosaicml_logger: Optional[MosaicMLLogger] = None
         self.timer: Optional[threading.Timer] = None
-
-    def init(self, state: State, logger: Logger):
-        for callback in state.callbacks:
-            if isinstance(callback, MosaicMLLogger):
-                self.mosaicml_logger = callback
 
     def _reset(self):
         if self.timer is not None:
@@ -47,7 +43,7 @@ class RunTimeoutCallback(Callback):
         self.timer = threading.Timer(
             self.timeout,
             _timeout,
-            [self.timeout, self.mosaicml_logger],
+            [self.timeout],
         )
         self.timer.daemon = True
         self.timer.start()

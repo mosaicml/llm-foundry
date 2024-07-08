@@ -243,10 +243,7 @@ def edit_files_for_hf_compatibility(
     # If the config file exists, the entrypoint files would be specified in the auto map
     entrypoint_files = set()
     if config_file_exists:
-        for key, value in config.get('auto_map', {}).items():
-            # Only keep the modeling entrypoints, e.g. AutoModelForCausalLM
-            if 'model' not in key.lower():
-                continue
+        for value in config.get('auto_map', {}).values():
             split_path = value.split('.')
             if len(split_path) > 1:
                 entrypoint_files.add(split_path[0] + '.py')
@@ -279,6 +276,11 @@ def edit_files_for_hf_compatibility(
         os.path.splitext(os.path.basename(f))[0]
         for f in files_processed_and_queued
     }
+    # Filter out __init__ files
+    all_relative_imports = {
+        relative_import for relative_import in all_relative_imports
+        if relative_import not in {'__init__', 'modeling_mpt'}
+    }
     for entrypoint in entrypoint_files:
         file_path = os.path.join(folder, entrypoint)
         if not os.path.exists(file_path):
@@ -286,8 +288,9 @@ def edit_files_for_hf_compatibility(
         existing_relative_imports = get_all_relative_imports(
             os.path.join(folder, entrypoint),
         )
-        # Add in self so we don't create a circular import
-        existing_relative_imports.add(os.path.splitext(entrypoint)[0])
+        # Add in all entrypoints so we don't create a circular import
+        for sub_entrypoint in entrypoint_files:
+            existing_relative_imports.add(os.path.splitext(sub_entrypoint)[0])
         missing_relative_imports = all_relative_imports - existing_relative_imports
         add_relative_imports(
             os.path.join(folder, entrypoint),

@@ -22,7 +22,7 @@ from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
-from llmfoundry.callbacks import AsyncEval
+from llmfoundry.callbacks import AsyncEval, HuggingFaceCheckpointer
 from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.eval.metrics.nlp import InContextLearningMetric
 from llmfoundry.layers_registry import ffns_with_megablocks
@@ -50,13 +50,13 @@ from llmfoundry.utils.config_utils import (
     make_dataclass_and_log_config,
     pop_config,
     process_init_device,
-    update_batch_size_info,
 )
 from llmfoundry.utils.exceptions import (
     BaseContextualError,
     EvalDataLoaderLocation,
     TrainDataLoaderLocation,
 )
+from llmfoundry.utils.mosaicml_logger_utils import no_override_excepthook
 from llmfoundry.utils.registry_utils import import_file
 
 log = logging.getLogger(__name__)
@@ -152,15 +152,6 @@ def validate_config(train_config: TrainConfig):
                 f'MoEs with expert parallelism (moe_world_size {moe_world_size} > 1) require `use_orig_params=True`.',
             )
 
-    attn_config = train_config.model.get('attn_config', None)
-    if attn_config is not None:
-        seq_parallel_world_size = attn_config.get(
-            'seq_parallel_world_size',
-            None,
-        )
-        if seq_parallel_world_size is not None:
-            raise ValueError('Training does not support sequence parallelism.')
-
 
 def _log_num_params(model: ComposerModel, logged_cfg: Dict[str, Any]):
     # Log number of parameters
@@ -206,7 +197,7 @@ def main(cfg: DictConfig) -> Trainer:
         cfg,
         TrainConfig,
         TRAIN_CONFIG_KEYS,
-        transforms=[update_batch_size_info],
+        transforms='all',
     )
 
     # Set logging level
@@ -329,9 +320,21 @@ def main(cfg: DictConfig) -> Trainer:
             loggers.append(mosaicml_logger)
 
     if train_cfg.metadata is not None:
-        # Flatten the metadata for logging
-        logged_cfg.pop('metadata', None)
-        logged_cfg.update(train_cfg.metadata, merge=True)
+        # Optionally flatten the metadata for logging
+        if train_cfg.flatten_metadata:
+            logged_cfg.pop('metadata', None)
+            common_keys = set(
+                logged_cfg.keys(),
+            ) & set(train_cfg.metadata.keys())
+            if len(common_keys) > 0:
+                raise ValueError(
+                    f'Keys {common_keys} are already present in the config. Please rename them in metadata '
+                    +
+                    'or set flatten_metadata=False to avoid flattening the metadata in the logged config.',
+                )
+
+            logged_cfg.update(train_cfg.metadata, merge=True)
+
         if mosaicml_logger is not None:
             mosaicml_logger.log_metrics(train_cfg.metadata)
             mosaicml_logger._flush_metadata(force_flush=True)
@@ -517,6 +520,24 @@ def main(cfg: DictConfig) -> Trainer:
         profiler=profiler,
         compile_config=compile_config,
     )
+
+    # Optionally just save an HF checkpoint
+    if train_cfg.only_hf_checkpoint:
+        hf_checkpointer_callbacks = [
+            c for c in callbacks if isinstance(c, HuggingFaceCheckpointer)
+        ]
+        if len(hf_checkpointer_callbacks) == 0:
+            raise ValueError(
+                'No HuggingFaceCheckpointer callback found, but only_hf_checkpoint was set to True. Please add a HuggingFaceCheckpointer.',
+            )
+        if len(hf_checkpointer_callbacks) > 1:
+            raise ValueError(
+                'Multiple HuggingFaceCheckpointer callbacks found, but only_hf_checkpoint was set to True. Please remove all but one HuggingFaceCheckpointer.',
+            )
+
+        hf_checkpointer_callback = hf_checkpointer_callbacks[0]
+        hf_checkpointer_callback._save_checkpoint(trainer.state, trainer.logger)
+        return trainer
 
     if train_cfg.log_config:
         log.info('Logging config')

@@ -1,10 +1,13 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+from llmfoundry.registry import config_transforms
 from llmfoundry.utils.builders import (
+    add_metrics_to_eval_loaders,
     build_algorithm,
     build_callback,
     build_composer_model,
+    build_eval_loaders,
     build_evaluators,
     build_icl_data_and_gauntlet,
     build_icl_evaluators,
@@ -43,6 +46,7 @@ from llmfoundry.utils.mosaicml_logger_utils import (
     log_eval_analytics,
     log_train_analytics,
     maybe_create_mosaicml_logger,
+    no_override_excepthook,
 )
 from llmfoundry.utils.prompt_files import load_prompts, load_prompts_from_file
 from llmfoundry.utils.registry_utils import (
@@ -59,9 +63,16 @@ from llmfoundry.utils.warnings import (
     experimental_function,
 )
 
+config_transforms.register(
+    'update_batch_size_info',
+    func=update_batch_size_info,
+)
+
 __all__ = [
+    'add_metrics_to_eval_loaders',
     'build_algorithm',
     'build_callback',
+    'build_eval_loaders',
     'build_evaluators',
     'build_icl_data_and_gauntlet',
     'build_icl_evaluators',
@@ -87,6 +98,7 @@ __all__ = [
     'download_from_hf_hub',
     'download_from_oras',
     'maybe_create_mosaicml_logger',
+    'no_override_excepthook',
     'find_mosaicml_logger',
     'log_eval_analytics',
     'log_train_analytics',

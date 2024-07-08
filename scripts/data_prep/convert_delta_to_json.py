@@ -296,9 +296,10 @@ def format_tablename(tablename: str) -> str:
 
     formatted_identifiers = []
     for i in range(1, 4):
-        identifier = match.group(i)
-        if re.match(r"\w+$", identifier) is None:
-            identifier = f"`{identifier}`"
+        # identifier = match.group(i)
+        # if re.match(r"\w+$", identifier) is None:
+            # identifier = f"`{identifier}`"
+        identifier = f"`{match.group(i)}`"
         formatted_identifiers.append(identifier)
 
     return ".".join(formatted_identifiers)

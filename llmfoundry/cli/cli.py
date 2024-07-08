@@ -6,7 +6,7 @@ from typing import List
 import typer
 
 from llmfoundry.cli import registry_cli
-from llmfoundry.train.train import train
+from llmfoundry.train.train import train as trainer
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
 app.add_typer(registry_cli.app, name='registry')

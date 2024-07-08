@@ -15,7 +15,9 @@ log = logging.getLogger(__name__)
 
 
 def _timeout(timeout: int):
-    log.error(f'Timeout after {timeout} seconds of inactivity after fit_end.',)
+    log.error(
+        f'Timeout after {timeout} seconds of inactivity after fit_end.',
+    )
     try:
         raise RunTimeoutError(timeout=timeout)
     finally:
@@ -30,6 +32,7 @@ class RunTimeoutCallback(Callback):
     ):
         self.timeout = timeout
         self.timer: Optional[threading.Timer] = None
+        self._timeout()
 
     def _reset(self):
         if self.timer is not None:

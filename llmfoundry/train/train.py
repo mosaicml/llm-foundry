@@ -566,23 +566,20 @@ def main(cfg: DictConfig) -> Trainer:
 
 def train(
     yaml_path: str,
-    args_list: str,
+    args_list: list[str],
 ):
     # Disable resolving environment variables through omegaconf.
     om.clear_resolver('oc.env')
 
     # Load yaml and cli arguments.
-    with open(yaml_path, 'r') as f:
+    with open(yaml_path) as f:
         yaml_cfg = om.load(f)
     cli_cfg = om.from_cli(args_list)
     cfg = om.merge(yaml_cfg, cli_cfg)
-    assert isinstance(
-        cfg,
-        DictConfig,
-    ), 'Configuration must be a DictConfig instance.'
+    assert isinstance(cfg, DictConfig)
     main(cfg)
 
 
 if __name__ == '__main__':
     yaml_path, args_list = sys.argv[1], sys.argv[2:]
-    run_trainer(yaml_path, args_list)
+    train(yaml_path, args_list)

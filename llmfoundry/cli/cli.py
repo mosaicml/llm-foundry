@@ -30,11 +30,12 @@ def train(
     # Load yaml and CLI arguments.
     with open(yaml_path) as f:
         yaml_cfg = om.load(f)
-    print(f'yaml_cfg: {yaml_cfg}')
+    print(f'yaml_cfg: {OmegaConf.to_yaml(yaml_cfg)}')
     cli_cfg = om.from_cli(args_list)
+    print(f'cli_cfg: {OmegaConf.to_yaml(cli_cfg)}')
     cfg = om.merge(yaml_cfg, cli_cfg)
     assert isinstance(cfg, DictConfig)
-    print(cfg)
+    print(f'cfg: {OmegaConf.to_yaml(cfg)}')
     trainer(cfg)
 
 

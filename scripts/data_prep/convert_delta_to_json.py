@@ -43,6 +43,8 @@ from llmfoundry.utils.exceptions import (
 MINIMUM_DB_CONNECT_DBR_VERSION = '14.1'
 MINIMUM_SQ_CONNECT_DBR_VERSION = '12.2'
 
+TABLENAME_PATTERN = re.compile(r"(\S+)\.(\S+)\.(\S+)")
+
 log = logging.getLogger(__name__)
 
 Result = namedtuple(
@@ -283,6 +285,23 @@ def download(
 def download_starargs(args: Tuple) -> None:
     return download(*args)
 
+def format_tablename(tablename: str) -> str:
+    """
+    If the catalog, schema or tablename is hyphenated/contains special characters, escape them with backticks
+    when running SQL queries to prevent invalid identifier errors.
+    Args:
+        tablename (str): catalog.scheme.tablename on UC
+    """
+    match = re.match(TABLENAME_PATTERN, tablename)
+
+    formatted_identifiers = []
+    for i in range(1, 4):
+        identifier = match.group(i)
+        if re.match(r"\w+$", identifier) is None:
+            identifier = f"`{identifier}`"
+        formatted_identifiers.append(identifier)
+
+    return ".".join(formatted_identifiers)
 
 def fetch_data(
     method: str,
@@ -355,7 +374,7 @@ def get_total_rows(
     sparkSession: Optional[SparkSession],
 ):
     ans = run_query(
-        f'SELECT COUNT(*) FROM {tablename}',
+        f'SELECT COUNT(*) FROM {format_tablename(tablename)}',
         method,
         cursor,
         sparkSession,
@@ -373,7 +392,7 @@ def get_columns_info(
     sparkSession: Optional[SparkSession],
 ):
     ans = run_query(
-        f'SHOW COLUMNS IN {tablename}',
+        f'SHOW COLUMNS IN {format_tablename(tablename)}',
         method,
         cursor,
         sparkSession,

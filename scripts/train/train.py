@@ -7,11 +7,6 @@ from omegaconf import OmegaConf as om
 
 from llmfoundry.train.train import train
 
-
-def main(cfg: DictConfig):
-    train(cfg)
-
-
 if __name__ == '__main__':
     yaml_path, args_list = sys.argv[1], sys.argv[2:]
 
@@ -24,4 +19,4 @@ if __name__ == '__main__':
     cli_cfg = om.from_cli(args_list)
     cfg = om.merge(yaml_cfg, cli_cfg)
     assert isinstance(cfg, DictConfig)
-    main(cfg)
+    train(cfg)

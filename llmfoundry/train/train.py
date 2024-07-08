@@ -3,6 +3,7 @@
 import gc
 import logging
 import os
+import sys
 import time
 import warnings
 from typing import Any, Dict, List, Optional, Union
@@ -188,7 +189,7 @@ def _initialize_dist_with_barrier(dist_timeout: Union[int, float]):
     log.debug('Barrier test passed with device.')
 
 
-def main(cfg: DictConfig) -> Trainer:
+def train(cfg: DictConfig) -> Trainer:
     code_paths = cfg.get('code_paths', [])
     # Import any user provided code
     for code_path in code_paths:
@@ -564,10 +565,9 @@ def main(cfg: DictConfig) -> Trainer:
     return trainer
 
 
-def train(
-    yaml_path: str,
-    args_list: list[str],
-):
+if __name__ == '__main__':
+    yaml_path, args_list = sys.argv[1], sys.argv[2:]
+
     # Disable resolving environment variables through omegaconf.
     om.clear_resolver('oc.env')
 
@@ -577,9 +577,4 @@ def train(
     cli_cfg = om.from_cli(args_list)
     cfg = om.merge(yaml_cfg, cli_cfg)
     assert isinstance(cfg, DictConfig)
-    main(cfg)
-
-
-if __name__ == '__main__':
-    yaml_path, args_list = sys.argv[1], sys.argv[2:]
-    train(yaml_path, args_list)
+    train(cfg)

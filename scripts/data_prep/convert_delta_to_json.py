@@ -451,7 +451,7 @@ def fetch(
 
     if method == 'dbconnect' and sparkSession is not None:
         log.info(f'{processes=}')
-        df = sparkSession.table(tablename)
+        df = sparkSession.table(format_tablename(tablename))
 
         # Running the query and collecting the data as arrow or json.
         signed, _, _ = df.collect_cf('arrow')  # pyright: ignore

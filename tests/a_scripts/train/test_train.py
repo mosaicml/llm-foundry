@@ -11,12 +11,12 @@ from composer.loggers import InMemoryLogger
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 
+from llmfoundry.train.train import TrainConfig  # noqa: E402
+from llmfoundry.train.train import TRAIN_CONFIG_KEYS, train, validate_config
 from llmfoundry.utils.config_utils import (
     make_dataclass_and_log_config,
     update_batch_size_info,
 )
-from llmfoundry.train.train import TrainConfig  # noqa: E402
-from llmfoundry.train.train import TRAIN_CONFIG_KEYS, train, validate_config
 from tests.data_utils import create_c4_dataset_xxsmall, gpt_tiny_cfg
 from tests.fixtures.autouse import REPO_DIR
 

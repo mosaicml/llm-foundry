@@ -13,6 +13,8 @@ from llmfoundry.models.inference_api_wrapper.openai_causal_lm import (
     OpenAIChatAPIEvalWrapper,
     OpenAIEvalInterface,
 )
+from llmfoundry.models.inference_api_wrapper.vllm_causal_lm import \
+    VLLMCausalLMEvalWrapper
 
 __all__ = [
     'OpenAICausalLMEvalWrapper',
@@ -22,4 +24,5 @@ __all__ = [
     'FMAPICasualLMEvalWrapper',
     'FMAPIChatAPIEvalWrapper',
     'FMAPIEvalInterface',
+    'VLLMCausalLMEvalWrapper',
 ]

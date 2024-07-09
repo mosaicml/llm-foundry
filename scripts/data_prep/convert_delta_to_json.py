@@ -375,7 +375,7 @@ def get_total_rows(
     sparkSession: Optional[SparkSession],
 ):
     ans = run_query(
-        f'SELECT COUNT(*) FROM {format_tablename(tablename)}',
+        f'SELECT COUNT(*) FROM {tablename}',
         method,
         cursor,
         sparkSession,
@@ -393,7 +393,7 @@ def get_columns_info(
     sparkSession: Optional[SparkSession],
 ):
     ans = run_query(
-        f'SHOW COLUMNS IN {format_tablename(tablename)}',
+        f'SHOW COLUMNS IN {tablename}',
         method,
         cursor,
         sparkSession,
@@ -452,7 +452,7 @@ def fetch(
 
     if method == 'dbconnect' and sparkSession is not None:
         log.info(f'{processes=}')
-        df = sparkSession.table(format_tablename(tablename))
+        df = sparkSession.table(tablename)
 
         # Running the query and collecting the data as arrow or json.
         signed, _, _ = df.collect_cf('arrow')  # pyright: ignore
@@ -630,7 +630,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--delta_table_name',
         required=True,
-        type=str,
+        type=format_tablename,
         help='UC table <catalog>.<schema>.<table name>',
     )
     parser.add_argument(

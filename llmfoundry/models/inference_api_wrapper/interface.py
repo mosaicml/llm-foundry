@@ -91,6 +91,8 @@ class InferenceAPIEvalWrapper(ComposerModel):
     def update_metric(self, batch: Any, outputs: Any, metric: Metric) -> None:
         batch = self.rebatch(batch)
         self.labels = batch.pop('labels')
+        if isinstance(self.labels, list):
+            self.labels = torch.Tensor(self.labels)
         self.labels[:, :-1] = self.labels[:, 1:].clone()
         self.labels[:, -1] = -100
         if isinstance(

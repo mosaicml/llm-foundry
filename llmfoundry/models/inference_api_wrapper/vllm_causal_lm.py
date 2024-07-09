@@ -75,6 +75,7 @@ class VLLMCausalLMEvalWrapper(VLLMEvalInterface):
             output_logits_batch = []
             prompts = []
             max_length = 0
+            vocab_size = len(self.tokenizer)
             for tokens, cont_idxs in zip(batch['input_ids'],
                                          batch['continuation_indices']):
                 prompts.append(tokens[0:cont_idxs[-1] + 1].tolist())
@@ -82,19 +83,18 @@ class VLLMCausalLMEvalWrapper(VLLMEvalInterface):
 
             sampling_params = vllm.SamplingParams(temperature=0.0, max_tokens=1, prompt_logprobs=5)
 
-            with torch.no_grad():
+            with torch.no_grad([]):
                 with torch.cuda.amp.autocast(enabled=False):
                     results = self.vllm_engine.generate(prompt_token_ids=prompts, sampling_params=sampling_params, use_tqdm=False)
 
             for tokens, cont_idxs, result in zip(batch['input_ids'],
-                                        batch['continuation_indices'],
-                                        results):
-                result_seqlen = len(result.prompt_logprobs)
-                assert result_seqlen == cont_idxs[-1] + 1
-                logits = torch.full((len(self.tokenizer), max_length), float('-inf'), dtype=torch.float32)
+                                                 batch['continuation_indices'],
+                                                 results):
+                assert len(result.prompt_logprobs) == cont_idxs[-1] + 1
+                logits = torch.full((max_length, vocab_size), float('-inf'), dtype=torch.float32)
                 for i in cont_idxs:
-                    for t in results.prompt_logprobs[i]:
-                        logits[i, t] = result.prompt_logprobs[i][t].logprob
+                    for t in result.prompt_logprobs[i]:
+                        logits[i-1, t] = result.prompt_logprobs[i][t].logprob
 
                 output_logits_batch.append(logits)
 

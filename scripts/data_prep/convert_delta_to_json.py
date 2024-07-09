@@ -285,7 +285,7 @@ def download(
 def download_starargs(args: Tuple) -> None:
     return download(*args)
 
-def format_tablename(tablename: str) -> str:
+def format_tablename(table_name: str) -> str:
     """Escape catalog, schema and table names with backticks
 
     This needs to be done when running SQL queries/setting spark sessions to prevent invalid identifier errors.
@@ -293,10 +293,10 @@ def format_tablename(tablename: str) -> str:
     Args:
         tablename (str): catalog.scheme.tablename on UC
     """
-    match = re.match(TABLENAME_PATTERN, tablename)
+    match = re.match(TABLENAME_PATTERN, table_name)
 
     if match is None:
-        return tablename
+        return table_name
 
     formatted_identifiers = []
     for i in range(1, 4):
@@ -603,6 +603,8 @@ def fetch_DT(args: Namespace) -> None:
         use_serverless=args.use_serverless,
     )
 
+    args.delta_table_name = format_tablename(args.delta_table_name)
+
     fetch(
         method,
         args.delta_table_name,
@@ -631,7 +633,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--delta_table_name',
         required=True,
-        type=format_tablename,
+        type=str,
         help='UC table <catalog>.<schema>.<table name>',
     )
     parser.add_argument(

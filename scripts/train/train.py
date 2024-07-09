@@ -216,20 +216,8 @@ def main(cfg: DictConfig) -> Trainer:
             train_cfg.python_log_level.upper(),
         )  # Train script
 
-    device: Optional[str] = pop_config(
-        cfg,
-        'device',
-        must_exist=False,
-        default_value=None
-    )
+    device = train_cfg.device
 
-    deepspeed_config: Optional[Dict[str, Any]] = pop_config(
-        cfg,
-        'deepspeed_config',
-        must_exist=False,
-        default_value=None,
-        convert=True
-    )
     _initialize_dist_with_barrier(dist_timeout=train_cfg.dist_timeout, device=device)
 
     # Filter deprecation warning from torch internal usage
@@ -272,6 +260,9 @@ def main(cfg: DictConfig) -> Trainer:
 
     # Optional fsdp data, fine-tuning, and eval configs
     fsdp_config: Optional[Dict[str, Any]] = train_cfg.fsdp_config
+
+    #Optional deepspeed config
+    deepspeed_config: Optional[Dict[str, Any]] = train_cfg.deepspeed_config
 
     eval_loader_config = train_cfg.eval_loader if train_cfg.eval_loader is not None else train_cfg.eval_loaders
     icl_tasks_config = train_cfg.icl_tasks or train_cfg.icl_tasks_str

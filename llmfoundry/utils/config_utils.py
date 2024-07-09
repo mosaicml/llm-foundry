@@ -80,6 +80,8 @@ class EvalConfig:
     # Distributed parameters
     dist_timeout: Union[float, int] = 600.0
     fsdp_config: Optional[Dict[str, Any]] = None
+    deepspeed_config: Optional[Dict[str, Any]] = None
+    device: Optional[str] = None
 
     # Callback parameters
     callbacks: Optional[Dict[str, Any]] = None
@@ -124,6 +126,8 @@ class TrainConfig:
     # Distributed training parameters
     dist_timeout: Union[int, float] = 600.0
     fsdp_config: Optional[Dict[str, Any]] = None
+    deepspeed_config: Optional[Dict[str, Any]] = None
+    device: Optional[str] = None
 
     # Evaluation parameters
     eval_loader: Optional[Dict[str, Any]] = None
@@ -505,8 +509,8 @@ def process_init_device(model_cfg: Dict[str, Any], fsdp_config: Optional[Dict]):
     # Also 'meta' is only valid when using FSDP
     init_context = contextlib.nullcontext()
     if 'init_device' in model_cfg:
-        assert model_cfg.init_device in ['meta', 'cpu', 'mixed', 'hpu']
-        if fsdp_config is None and model_cfg.init_device == 'meta':
+        assert model_cfg['init_device'] in ['meta', 'cpu', 'mixed', 'hpu']
+        if fsdp_config is None and model_cfg['init_device'] == 'meta':
             warnings.warn(
                 "Using `cfg.model.init_device='meta'` is only valid when using FSDP! " +\
                 "Reverting to `cfg.model.init_device='cpu'`.")

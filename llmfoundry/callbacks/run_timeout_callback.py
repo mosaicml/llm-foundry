@@ -25,7 +25,6 @@ class RunTimeoutCallback(Callback):
     ):
         self.timeout = timeout
         self.timer: Optional[threading.Timer] = None
-        self._timeout()
 
     def _reset(self):
         if self.timer is not None:

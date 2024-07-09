@@ -9,19 +9,12 @@ from typing import Optional
 
 from composer import Callback, Logger, State
 
-from llmfoundry.utils.exceptions import RunTimeoutError
-
 log = logging.getLogger(__name__)
 
 
 def _timeout(timeout: int):
-    log.error(
-        f'Timeout after {timeout} seconds of inactivity after fit_end.',
-    )
-    try:
-        raise RunTimeoutError(timeout=timeout)
-    finally:
-        os.kill(os.getpid(), signal.SIGINT)
+    log.error(f'Timeout after {timeout} seconds of inactivity after fit_end.',)
+    os.kill(os.getpid(), signal.SIGINT)
 
 
 class RunTimeoutCallback(Callback):

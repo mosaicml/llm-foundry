@@ -24,10 +24,6 @@ from tqdm import tqdm
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from llmfoundry.data.data import AbstractConcatTokensDataset
-from llmfoundry.utils import (
-    maybe_create_mosaicml_logger,
-    no_override_excepthook,
-)
 from llmfoundry.utils.data_prep_utils import (
     DownloadingIterable,
     download_file,
@@ -608,25 +604,17 @@ def _configure_logging(logging_level: str):
 if __name__ == '__main__':
     args = parse_args()
     _configure_logging(args.logging_level)
-
-    mosaicml_logger = maybe_create_mosaicml_logger()
-
-    try:
-        convert_text_to_mds(
-            tokenizer_name=args.tokenizer,
-            output_folder=args.output_folder,
-            input_folder=args.input_folder,
-            concat_tokens=args.concat_tokens,
-            eos_text=args.eos_text,
-            bos_text=args.bos_text,
-            no_wrap=args.no_wrap,
-            compression=args.compression,
-            processes=args.processes,
-            reprocess=args.reprocess,
-            trust_remote_code=args.trust_remote_code,
-            args_str=_args_str(args),
-        )
-    except Exception as e:
-        if mosaicml_logger is not None and no_override_excepthook():
-            mosaicml_logger.log_exception(e)
-        raise e
+    convert_text_to_mds(
+        tokenizer_name=args.tokenizer,
+        output_folder=args.output_folder,
+        input_folder=args.input_folder,
+        concat_tokens=args.concat_tokens,
+        eos_text=args.eos_text,
+        bos_text=args.bos_text,
+        no_wrap=args.no_wrap,
+        compression=args.compression,
+        processes=args.processes,
+        reprocess=args.reprocess,
+        trust_remote_code=args.trust_remote_code,
+        args_str=_args_str(args),
+    )

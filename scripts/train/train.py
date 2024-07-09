@@ -56,7 +56,6 @@ from llmfoundry.utils.exceptions import (
     EvalDataLoaderLocation,
     TrainDataLoaderLocation,
 )
-from llmfoundry.utils.mosaicml_logger_utils import no_override_excepthook
 from llmfoundry.utils.registry_utils import import_file
 
 log = logging.getLogger(__name__)
@@ -398,8 +397,6 @@ def main(cfg: DictConfig) -> Trainer:
         )
     except BaseContextualError as e:
         e.location = TrainDataLoaderLocation
-        if mosaicml_logger is not None and no_override_excepthook():
-            mosaicml_logger.log_exception(e)
         raise e
 
     if mosaicml_logger is not None:
@@ -431,8 +428,6 @@ def main(cfg: DictConfig) -> Trainer:
                 callbacks.append(eval_gauntlet_callback)
         except BaseContextualError as e:
             e.location = EvalDataLoaderLocation
-            if mosaicml_logger is not None and no_override_excepthook():
-                mosaicml_logger.log_exception(e)
             raise e
 
     if mosaicml_logger is not None:
@@ -481,8 +476,6 @@ def main(cfg: DictConfig) -> Trainer:
             )
     except BaseContextualError as e:
         e.location = EvalDataLoaderLocation
-        if mosaicml_logger is not None and no_override_excepthook():
-            mosaicml_logger.log_exception(e)
         raise e
 
     compile_config = train_cfg.compile_config

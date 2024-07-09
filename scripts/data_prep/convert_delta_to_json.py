@@ -286,9 +286,10 @@ def download_starargs(args: Tuple) -> None:
     return download(*args)
 
 def format_tablename(tablename: str) -> str:
-    """
-    Escape catalog, schema and table names with backticks when running
-    SQL queries/setting spark sessions to prevent invalid identifier errors.
+    """Escape catalog, schema and table names with backticks
+
+    This needs to be done when running SQL queries/setting spark sessions to prevent invalid identifier errors.
+
     Args:
         tablename (str): catalog.scheme.tablename on UC
     """

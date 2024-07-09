@@ -291,7 +291,7 @@ def format_tablename(table_name: str) -> str:
     This needs to be done when running SQL queries/setting spark sessions to prevent invalid identifier errors.
 
     Args:
-        tablename (str): catalog.scheme.tablename on UC
+        table_name (str): catalog.scheme.tablename on UC
     """
     match = re.match(TABLENAME_PATTERN, table_name)
 

@@ -5,7 +5,7 @@ import sys
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
-from llmfoundry.train.train import train
+from llmfoundry.train import train
 
 if __name__ == '__main__':
     yaml_path, args_list = sys.argv[1], sys.argv[2:]

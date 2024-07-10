@@ -8,7 +8,7 @@ import pytest
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
-from scripts.eval.eval import main  # noqa: E402
+from llmfoundry.eval import evaluate  # noqa: E402
 
 
 class TestHuggingFaceEvalYAMLInputs:
@@ -44,7 +44,7 @@ class TestHuggingFaceEvalYAMLInputs:
                 ValueError,
             )):
                 cfg[p + '-mispelled'] = cfg.pop(p)
-                main(cfg)
+                evaluate(cfg)
                 cfg[p] = cfg.pop(p + '-mispelled')
 
     def test_optional_mispelled_params_raise_error(
@@ -68,7 +68,7 @@ class TestHuggingFaceEvalYAMLInputs:
             updated_param = param + '-mispelling'
             cfg[updated_param] = orig_value
             with pytest.raises(ValueError):
-                main(cfg)
+                evaluate(cfg)
             # restore configs.
             cfg = copy.deepcopy(old_cfg)
 
@@ -105,4 +105,4 @@ class TestMPTEvalYAMLInputs:
             + ' Please check your yaml and the model_cfg to ensure that load_path is set.'
         cfg.models[0].load_path = None
         with pytest.raises(ValueError, match=error_string):
-            main(cfg)
+            evaluate(cfg)

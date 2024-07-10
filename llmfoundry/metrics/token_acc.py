@@ -30,7 +30,7 @@ class TokenAccuracy(Metric):
         ignore_index: int = -100,
         dist_sync_on_step: bool = False,
     ):
-        super().__init__(dist_sync_on_step=dist_sync_on_step, sync_on_compute=False)
+        super().__init__(dist_sync_on_step=dist_sync_on_step)
         self.ignore_index = ignore_index
         self.add_state(
             'correct_tokens',

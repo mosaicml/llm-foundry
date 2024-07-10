@@ -36,6 +36,7 @@ from llmfoundry.utils.builders import (
     build_callback,
     build_composer_model,
     build_evaluators,
+    build_load_planner,
     build_logger,
     build_optimizer,
     build_scheduler,
@@ -255,6 +256,9 @@ def train(cfg: DictConfig) -> Trainer:
 
     # Optional fsdp data, fine-tuning, and eval configs
     fsdp_config: Optional[Dict[str, Any]] = train_cfg.fsdp_config
+    if fsdp_config is not None and 'load_planner' in fsdp_config:
+        load_planner_name = fsdp_config['load_planner']
+        fsdp_config['load_planner'] = build_load_planner(load_planner_name)
 
     eval_loader_config = train_cfg.eval_loader if train_cfg.eval_loader is not None else train_cfg.eval_loaders
     icl_tasks_config = train_cfg.icl_tasks or train_cfg.icl_tasks_str

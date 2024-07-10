@@ -11,12 +11,12 @@ from composer.loggers import InMemoryLogger
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 
+from llmfoundry.train import TrainConfig  # noqa: E402
+from llmfoundry.train import TRAIN_CONFIG_KEYS, train, validate_config
 from llmfoundry.utils.config_utils import (
     make_dataclass_and_log_config,
     update_batch_size_info,
 )
-from scripts.train.train import TrainConfig  # noqa: E402
-from scripts.train.train import TRAIN_CONFIG_KEYS, main, validate_config
 from tests.data_utils import create_c4_dataset_xxsmall, gpt_tiny_cfg
 from tests.fixtures.autouse import REPO_DIR
 
@@ -82,7 +82,7 @@ def test_train_gauntlet(averages: Optional[dict], tmp_path: pathlib.Path):
     test_cfg.max_duration = '1ba'
     test_cfg.eval_interval = '1ba'
     test_cfg.loggers = DictConfig({'inmemory': DictConfig({})})
-    trainer = main(test_cfg)
+    trainer = train(test_cfg)
 
     assert isinstance(trainer.logger.destinations, tuple)
 
@@ -126,7 +126,7 @@ def test_train_multi_eval(tmp_path: pathlib.Path):
     test_cfg.max_duration = '1ba'
     test_cfg.eval_interval = '1ba'
     test_cfg.loggers = DictConfig({'inmemory': DictConfig({})})
-    trainer = main(test_cfg)
+    trainer = train(test_cfg)
 
     assert isinstance(trainer.logger.destinations, tuple)
 
@@ -201,7 +201,7 @@ def test_eval_metrics_with_no_train_metrics(tmp_path: pathlib.Path):
     test_cfg.eval_interval = '1ba'
     test_cfg.loggers = DictConfig({'inmemory': DictConfig({})})
     test_cfg.model['use_train_metrics'] = False
-    trainer = main(test_cfg)
+    trainer = train(test_cfg)
 
     # Check eval metrics exist
     inmemorylogger = trainer.logger.destinations[

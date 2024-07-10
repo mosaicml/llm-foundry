@@ -18,11 +18,6 @@ from llmfoundry.eval.metrics.nlp import (
     InContextLearningMultipleChoiceAccuracy,
 )
 
-from llmfoundry.eval.eval import (
-    evaluate,
-    eval_from_yaml,
-)
-
 __all__ = [
     'InContextLearningDataset',
     'InContextLearningLMTaskDataset',

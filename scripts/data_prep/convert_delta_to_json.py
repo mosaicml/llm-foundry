@@ -43,6 +43,8 @@ from llmfoundry.utils.exceptions import (
 MINIMUM_DB_CONNECT_DBR_VERSION = '14.1'
 MINIMUM_SQ_CONNECT_DBR_VERSION = '12.2'
 
+TABLENAME_PATTERN = re.compile(r'(\S+)\.(\S+)\.(\S+)')
+
 log = logging.getLogger(__name__)
 
 Result = namedtuple(
@@ -282,6 +284,27 @@ def download(
 
 def download_starargs(args: Tuple) -> None:
     return download(*args)
+
+
+def format_tablename(table_name: str) -> str:
+    """Escape catalog, schema and table names with backticks.
+
+    This needs to be done when running SQL queries/setting spark sessions to prevent invalid identifier errors.
+
+    Args:
+        table_name (str): catalog.scheme.tablename on UC
+    """
+    match = re.match(TABLENAME_PATTERN, table_name)
+
+    if match is None:
+        return table_name
+
+    formatted_identifiers = []
+    for i in range(1, 4):
+        identifier = f'`{match.group(i)}`'
+        formatted_identifiers.append(identifier)
+
+    return '.'.join(formatted_identifiers)
 
 
 def fetch_data(
@@ -581,6 +604,8 @@ def fetch_DT(args: Namespace) -> None:
         http_path=args.http_path,
         use_serverless=args.use_serverless,
     )
+
+    args.delta_table_name = format_tablename(args.delta_table_name)
 
     fetch(
         method,

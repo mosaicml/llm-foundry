@@ -4,8 +4,6 @@
 from typing import List, Optional
 
 import typer
-from omegaconf import DictConfig
-from omegaconf import OmegaConf as om
 
 from llmfoundry.cli import registry_cli
 from llmfoundry.train import train_from_yaml

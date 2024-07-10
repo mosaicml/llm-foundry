@@ -567,4 +567,4 @@ def train_from_yaml(
         cli_cfg = om.from_cli(args_list)
         yaml_cfg = om.merge(yaml_cfg, cli_cfg)
     assert isinstance(yaml_cfg, DictConfig)
-    train(yaml_cfg)
+    return train(yaml_cfg)

@@ -7,3 +7,11 @@ from llmfoundry.train.train import (
     TRAIN_CONFIG_KEYS,
     validate_config
 )
+
+__all__ = [
+    'train',
+    'train_from_yaml',
+    'TrainConfig',
+    'TRAIN_CONFIG_KEYS',
+    'validate_config'
+]

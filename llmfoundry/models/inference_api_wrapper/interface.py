@@ -89,22 +89,27 @@ class InferenceAPIEvalWrapper(ComposerModel):
         return torch.stack(output_logits_batch).to(batch['input_ids'].device)
 
     def update_metric(self, batch: Any, outputs: Any, metric: Metric) -> None:
-        batch = self.rebatch(batch)
-        self.labels = batch.pop('labels')
-        if isinstance(self.labels, list):
-            self.labels = torch.Tensor(self.labels)
-        self.labels[:, :-1] = self.labels[:, 1:].clone()
-        self.labels[:, -1] = -100
-        if isinstance(
-            metric,
-            InContextLearningMetric,
-        ) and batch.get('mode', None) == 'icl_task':
+        metric_result = None
+        if isinstance(metric, InContextLearningMetric) and batch.get(
+                'mode', None) == 'icl_task':
+            batch = self.rebatch(batch)
+            self.labels = batch.pop('labels')
+            self.labels[:, :-1] = self.labels[:, 1:].clone()
+            self.labels[:, -1] = -100
             assert self.labels is not None
-            metric.update(batch, outputs, self.labels)
+            metric_result = metric.update(batch, outputs, self.labels)
+        elif isinstance(metric, InContextLearningMetric) and batch.get(
+                'mode', None) == 'generate':
+            self.labels = batch.pop('labels')
+            assert self.labels is not None
+            metric_result = metric.update(batch=batch,
+                                          outputs=outputs,
+                                          labels=self.labels)
         else:
             raise NotImplementedError(
-                'Inference API wrapper only supports InContextLearningMetrics and mode=icl_task',
+                'Inference API wrapper only supports InContextLearningMetrics and mode=icl_task,mode=generate',
             )
+        return metric_result
 
     def forward(self):
         raise NotImplementedError(

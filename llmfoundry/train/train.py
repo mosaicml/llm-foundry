@@ -556,8 +556,8 @@ def train(cfg: DictConfig) -> Trainer:
 
 
 def train_from_yaml(
-    yaml_path: str, 
-    args_list: Optional[List[str]] = None
+    yaml_path: str,
+    args_list: Optional[List[str]] = None,
 ) -> Trainer:
     """Run the training with optional overrides from CLI."""
     # Load yaml and CLI arguments.

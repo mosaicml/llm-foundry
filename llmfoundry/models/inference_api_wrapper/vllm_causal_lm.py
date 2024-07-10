@@ -95,9 +95,10 @@ class VLLMCausalLMEvalWrapper(VLLMEvalInterface):
                 for i in cont_idxs:
                     for token, prob in result.logprobs.top_logprobs[i].items():
                         tokens = self.tokenizer.tokenize(token)
-                        assert len(tokens) == 1
-                        t = self.tokenizer.convert_tokens_to_ids(tokens)[0]
-                        logits[i-1, t] = prob
+                        assert len(tokens) <= 1
+                        if tokens:
+                            t = self.tokenizer.convert_tokens_to_ids(tokens)[0]
+                            logits[i-1, t] = prob
 
                 output_logits_batch.append(logits)
 

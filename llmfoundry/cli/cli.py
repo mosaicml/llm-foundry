@@ -1,7 +1,7 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import List, Optional
+from typing import Optional
 
 import typer
 
@@ -19,7 +19,7 @@ def train(
         help='Path to the YAML configuration file',
     ),
     args_list: Optional[
-        List[str]
+        list[str]
     ] = typer.Argument(None, help='Additional command line arguments'),
 ):
     """Run the training with optional overrides from CLI."""

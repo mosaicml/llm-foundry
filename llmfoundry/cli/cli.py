@@ -8,7 +8,7 @@ from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
 from llmfoundry.cli import registry_cli
-from llmfoundry.train.train import train as trainer
+from llmfoundry.train.train import train_from_yaml as trainer
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
 app.add_typer(registry_cli.app, name='registry')
@@ -24,16 +24,7 @@ def train(
     Argument(None, help='Additional command line arguments'),  # type: ignore
 ):
     """Run the training with optional overrides from CLI."""
-    om.clear_resolver('oc.env')
-
-    # Load yaml and CLI arguments.
-    with open(yaml_path) as f:
-        yaml_cfg = om.load(f)
-    if args_list:
-        cli_cfg = om.from_cli(args_list)
-        yaml_cfg = om.merge(yaml_cfg, cli_cfg)
-    assert isinstance(yaml_cfg, DictConfig)
-    trainer(yaml_cfg)
+    trainer(yaml_path, args_list)
 
 
 if __name__ == '__main__':

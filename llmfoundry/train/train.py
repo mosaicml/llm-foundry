@@ -563,3 +563,14 @@ def train(cfg: DictConfig) -> Trainer:
 
     log.info('Done.')
     return trainer
+
+def train_from_yaml(yaml_path: str, args_list: Optional[List[str]] = None) -> Trainer:
+    """Run the training with optional overrides from CLI."""
+    # Load yaml and CLI arguments.
+    with open(yaml_path) as f:
+        yaml_cfg = om.load(f)
+    if args_list:
+        cli_cfg = om.from_cli(args_list)
+        yaml_cfg = om.merge(yaml_cfg, cli_cfg)
+    assert isinstance(yaml_cfg, DictConfig)
+    train(yaml_cfg)

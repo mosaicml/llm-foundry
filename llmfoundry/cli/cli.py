@@ -8,7 +8,7 @@ from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
 from llmfoundry.cli import registry_cli
-from llmfoundry.train.train import train_from_yaml
+from llmfoundry.train import train_from_yaml
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
 app.add_typer(registry_cli.app, name='registry')

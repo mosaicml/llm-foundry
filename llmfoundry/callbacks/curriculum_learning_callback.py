@@ -13,7 +13,7 @@ from typing import Any
 
 from composer import DataSpec
 from composer.core import State, Time, TimeUnit, ensure_time
-from composer.loggers import Logger, MosaicMLLogger
+from composer.loggers import Logger
 from streaming import StreamingDataset
 from streaming.base.util import clean_stale_shared_memory
 from torch.utils.data import DataLoader
@@ -23,7 +23,6 @@ from llmfoundry.utils.exceptions import (
     BaseContextualError,
     TrainDataLoaderLocation,
 )
-from llmfoundry.utils.mosaicml_logger_utils import no_override_excepthook
 
 log = logging.getLogger(__name__)
 
@@ -238,13 +237,7 @@ class CurriculumLearning(CallbackWithConfig):
                 self.device_train_batch_size,
             )
         except BaseContextualError as e:
-            for destination in logger.destinations:
-                if (
-                    isinstance(destination, MosaicMLLogger) and
-                    no_override_excepthook()
-                ):
-                    e.location = TrainDataLoaderLocation
-                    destination.log_exception(e)
+            e.location = TrainDataLoaderLocation
             raise e
 
     def _validate_dataloader(self, train_loader: Any):

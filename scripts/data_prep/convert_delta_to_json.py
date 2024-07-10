@@ -285,6 +285,7 @@ def download(
 def download_starargs(args: Tuple) -> None:
     return download(*args)
 
+
 def format_tablename(table_name: str) -> str:
     """Escape catalog, schema and table names with backticks
 
@@ -304,6 +305,7 @@ def format_tablename(table_name: str) -> str:
         formatted_identifiers.append(identifier)
 
     return ".".join(formatted_identifiers)
+
 
 def fetch_data(
     method: str,

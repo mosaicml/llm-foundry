@@ -17,9 +17,10 @@ def train(
     yaml_path: str = typer.Argument(
         ...,
         help='Path to the YAML configuration file',
-    ),  # type: ignore
-    args_list: Optional[List[str]] = typer.
-    Argument(None, help='Additional command line arguments'),  # type: ignore
+    ),
+    args_list: Optional[
+        List[str]
+    ] = typer.Argument(None, help='Additional command line arguments'),
 ):
     """Run the training with optional overrides from CLI."""
     train_from_yaml(yaml_path, args_list)

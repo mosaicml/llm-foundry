@@ -2,9 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 import sys
 
-from omegaconf import DictConfig
-from omegaconf import OmegaConf as om
-
 from llmfoundry.train import train_from_yaml
 
 if __name__ == '__main__':

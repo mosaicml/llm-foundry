@@ -3,7 +3,6 @@
 import gc
 import logging
 import os
-import sys
 import time
 import warnings
 from typing import Any, Dict, List, Optional, Union
@@ -555,7 +554,11 @@ def train(cfg: DictConfig) -> Trainer:
     log.info('Done.')
     return trainer
 
-def train_from_yaml(yaml_path: str, args_list: Optional[List[str]] = None) -> Trainer:
+
+def train_from_yaml(
+    yaml_path: str, 
+    args_list: Optional[List[str]] = None
+) -> Trainer:
     """Run the training with optional overrides from CLI."""
     # Load yaml and CLI arguments.
     with open(yaml_path) as f:

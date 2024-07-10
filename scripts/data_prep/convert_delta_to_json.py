@@ -43,7 +43,7 @@ from llmfoundry.utils.exceptions import (
 MINIMUM_DB_CONNECT_DBR_VERSION = '14.1'
 MINIMUM_SQ_CONNECT_DBR_VERSION = '12.2'
 
-TABLENAME_PATTERN = re.compile(r"(\S+)\.(\S+)\.(\S+)")
+TABLENAME_PATTERN = re.compile(r'(\S+)\.(\S+)\.(\S+)')
 
 log = logging.getLogger(__name__)
 
@@ -287,7 +287,7 @@ def download_starargs(args: Tuple) -> None:
 
 
 def format_tablename(table_name: str) -> str:
-    """Escape catalog, schema and table names with backticks
+    """Escape catalog, schema and table names with backticks.
 
     This needs to be done when running SQL queries/setting spark sessions to prevent invalid identifier errors.
 
@@ -301,10 +301,10 @@ def format_tablename(table_name: str) -> str:
 
     formatted_identifiers = []
     for i in range(1, 4):
-        identifier = f"`{match.group(i)}`"
+        identifier = f'`{match.group(i)}`'
         formatted_identifiers.append(identifier)
 
-    return ".".join(formatted_identifiers)
+    return '.'.join(formatted_identifiers)
 
 
 def fetch_data(

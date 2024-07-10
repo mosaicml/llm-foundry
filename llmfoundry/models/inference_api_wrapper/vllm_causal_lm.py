@@ -83,7 +83,7 @@ class VLLMCausalLMEvalWrapper(VLLMEvalInterface):
 
             sampling_params = vllm.SamplingParams(temperature=0.0, max_tokens=1, prompt_logprobs=5)
 
-            with torch.no_grad([]):
+            with torch.no_grad():
                 with torch.cuda.amp.autocast(enabled=False):
                     results = self.vllm_engine.generate(prompt_token_ids=prompts, sampling_params=sampling_params, use_tqdm=False)
 

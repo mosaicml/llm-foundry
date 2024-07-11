@@ -221,7 +221,7 @@ def edit_files_for_hf_compatibility(
         'composer',
         'omegaconf',
         'llmfoundry.metrics',
-        'llmfoundry.icl',
+        'llmfoundry.eval',
         'llmfoundry.utils.builders',
     ),
 ) -> None:

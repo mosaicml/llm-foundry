@@ -4,7 +4,7 @@
 import torch
 import transformers
 
-from llmfoundry.icl.metrics import (
+from llmfoundry.eval.metrics import (
     InContextLearningGenerationExactMatchAccuracy,
     InContextLearningLMAccuracy,
     InContextLearningMultipleChoiceAccuracy,

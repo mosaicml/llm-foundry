@@ -51,7 +51,7 @@ from llmfoundry import (
     utils,
 )
 from llmfoundry.data import StreamingFinetuningDataset, StreamingTextDataset
-from llmfoundry.icl import InContextLearningDataset, InContextLearningMetric
+from llmfoundry.eval import InContextLearningDataset, InContextLearningMetric
 from llmfoundry.models.hf import ComposerHFCausalLM
 from llmfoundry.models.mpt import (
     ComposerMPTCausalLM,

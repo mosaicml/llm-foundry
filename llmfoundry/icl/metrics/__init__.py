@@ -3,7 +3,7 @@
 
 """A collection of common torchmetrics."""
 
-from llmfoundry.icl.metrics.nlp import (
+from llmfoundry.eval.metrics.nlp import (
     InContextLearningGenerationExactMatchAccuracy,
     InContextLearningLMAccuracy,
     InContextLearningLMExpectedCalibrationError,

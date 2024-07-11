@@ -11,7 +11,7 @@ from composer.core import State
 from composer.loggers import InMemoryLogger, Logger
 from transformers import AutoTokenizer
 
-from llmfoundry.icl.metrics.nlp import InContextLearningLMAccuracy
+from llmfoundry.eval.metrics.nlp import InContextLearningLMAccuracy
 from llmfoundry.utils.builders import build_icl_data_and_gauntlet
 from llmfoundry.utils.config_utils import to_dict_container
 

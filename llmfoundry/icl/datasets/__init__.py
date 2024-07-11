@@ -3,7 +3,7 @@
 
 """Natively supported in-context learning evaluation datasets."""
 
-from llmfoundry.icl.datasets.in_context_learning_evaluation import (
+from llmfoundry.evla.datasets.in_context_learning_evaluation import (
     InContextLearningDataset,
     InContextLearningGenerationTaskWithAnswersDataset,
     InContextLearningLMTaskDataset,
@@ -11,7 +11,7 @@ from llmfoundry.icl.datasets.in_context_learning_evaluation import (
     InContextLearningSchemaTaskDataset,
     get_icl_task_dataloader,
 )
-from llmfoundry.icl.datasets.utils import (
+from llmfoundry.eval.datasets.utils import (
     MultiTokenEOSCriteria,
     convert_tokens_to_tensors,
     get_continuation_span,

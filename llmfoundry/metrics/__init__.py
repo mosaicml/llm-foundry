@@ -7,7 +7,7 @@ from composer.metrics import (
     MaskedAccuracy,
 )
 
-from llmfoundry.icl.metrics import (
+from llmfoundry.eval.metrics import (
     InContextLearningGenerationExactMatchAccuracy,
     InContextLearningLMAccuracy,
     InContextLearningLMExpectedCalibrationError,

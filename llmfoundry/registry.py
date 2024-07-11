@@ -310,7 +310,7 @@ icl_datasets = create_registry(
     'llmfoundry',
     'icl_datasets',
     # TODO: Change type from Dataset to
-    # llmfoundry.icl.InContextLearningDataset.
+    # llmfoundry.eval.InContextLearningDataset.
     # Using ICL dataset here introduces a circular import dependency between
     # the registry and eval packages right now, thus needs some refactoring.
     generic_type=Type[Dataset],

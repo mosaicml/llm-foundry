@@ -1,7 +1,7 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from llmfoundry.icl.datasets.in_context_learning_evaluation import (
+from llmfoundry.eval.datasets.in_context_learning_evaluation import (
     InContextLearningDataset,
     InContextLearningGenerationTaskWithAnswersDataset,
     InContextLearningLMTaskDataset,
@@ -9,7 +9,7 @@ from llmfoundry.icl.datasets.in_context_learning_evaluation import (
     InContextLearningSchemaTaskDataset,
     get_icl_task_dataloader,
 )
-from llmfoundry.icl.metrics.nlp import (
+from llmfoundry.eval.metrics.nlp import (
     InContextLearningGenerationExactMatchAccuracy,
     InContextLearningLMAccuracy,
     InContextLearningLMExpectedCalibrationError,

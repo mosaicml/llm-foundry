@@ -18,7 +18,7 @@ from composer.trainer import Trainer
 from composer.utils import dist, reproducibility
 from torch.utils.data import DataLoader
 
-from llmfoundry.icl.datasets import (
+from llmfoundry.eval.datasets import (
     InContextLearningDataset,
     InContextLearningGenerationTaskWithAnswersDataset,
     InContextLearningMultipleChoiceTaskDataset,
@@ -32,7 +32,7 @@ from llmfoundry.icl.datasets import (
     tokenizer_needs_prefix_space,
     trim_context,
 )
-from llmfoundry.icl.metrics import (
+from llmfoundry.eval.metrics import (
     InContextLearningGenerationExactMatchAccuracy,
     InContextLearningLMAccuracy,
     InContextLearningMultipleChoiceAccuracy,

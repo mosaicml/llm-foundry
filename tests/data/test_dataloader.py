@@ -41,7 +41,7 @@ from llmfoundry.data.text_data import (
 )
 from llmfoundry.data.utils import get_tokens_per_batch_func
 # yapf: enable
-from llmfoundry.data_prep.convert_dataset_hf import convert_dataset_hf
+from llmfoundry.data_prep import convert_dataset_hf
 from llmfoundry.utils.builders import build_tokenizer
 from llmfoundry.utils.config_utils import to_dict_container
 # yapf: disable

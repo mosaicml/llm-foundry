@@ -4,7 +4,7 @@
 """Streaming dataset conversion scripts for C4 and The Pile."""
 from argparse import ArgumentParser, Namespace
 
-from llmfoundry.data_prep.convert_dataset_hf import convert_dataset_hf_from_args
+from llmfoundry.data_prep import convert_dataset_hf_from_args
 
 
 def parse_args() -> Namespace:

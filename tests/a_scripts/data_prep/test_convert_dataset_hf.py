@@ -5,7 +5,7 @@ import os
 from argparse import Namespace
 from pathlib import Path
 
-from llmfoundry.data_prep.convert_dataset_hf import convert_dataset_hf
+from llmfoundry.data_prep import convert_dataset_hf
 
 
 def test_download_script_from_api(tmp_path: Path):

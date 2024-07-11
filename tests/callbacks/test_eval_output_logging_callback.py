@@ -18,9 +18,9 @@ from torch.utils.data import DataLoader
 from torchmetrics import Metric
 
 from llmfoundry.callbacks.eval_output_logging_callback import EvalOutputLogging
-from llmfoundry.eval.datasets.in_context_learning_evaluation import \
+from llmfoundry.icl.datasets.in_context_learning_evaluation import \
     InContextLearningMultipleChoiceTaskDataset
-from llmfoundry.eval.metrics.nlp import (
+from llmfoundry.icl.metrics.nlp import (
     InContextLearningLMAccuracy,
     InContextLearningMultipleChoiceAccuracy,
 )

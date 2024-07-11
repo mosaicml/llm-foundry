@@ -23,7 +23,7 @@ from omegaconf import OmegaConf as om
 
 from llmfoundry.callbacks import AsyncEval, HuggingFaceCheckpointer
 from llmfoundry.data.dataloader import build_dataloader
-from llmfoundry.eval.metrics.nlp import InContextLearningMetric
+from llmfoundry.icl.metrics.nlp import InContextLearningMetric
 from llmfoundry.layers_registry import ffns_with_megablocks
 from llmfoundry.utils import (
     find_mosaicml_logger,

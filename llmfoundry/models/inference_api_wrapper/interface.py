@@ -10,7 +10,7 @@ from omegaconf import DictConfig
 from torchmetrics import Metric
 from transformers import AutoTokenizer
 
-from llmfoundry.eval.metrics import InContextLearningMetric
+from llmfoundry.icl.metrics import InContextLearningMetric
 from llmfoundry.metrics import DEFAULT_CAUSAL_LM_EVAL_METRICS
 
 __all__ = ['InferenceAPIEvalWrapper']

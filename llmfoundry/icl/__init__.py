@@ -1,9 +1,15 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""A collection of common torchmetrics."""
-
-from llmfoundry.eval.metrics.nlp import (
+from llmfoundry.icl.datasets.in_context_learning_evaluation import (
+    InContextLearningDataset,
+    InContextLearningGenerationTaskWithAnswersDataset,
+    InContextLearningLMTaskDataset,
+    InContextLearningMultipleChoiceTaskDataset,
+    InContextLearningSchemaTaskDataset,
+    get_icl_task_dataloader,
+)
+from llmfoundry.icl.metrics.nlp import (
     InContextLearningGenerationExactMatchAccuracy,
     InContextLearningLMAccuracy,
     InContextLearningLMExpectedCalibrationError,
@@ -11,8 +17,13 @@ from llmfoundry.eval.metrics.nlp import (
     InContextLearningMetric,
     InContextLearningMultipleChoiceAccuracy,
 )
-
 __all__ = [
+    'InContextLearningDataset',
+    'InContextLearningLMTaskDataset',
+    'InContextLearningMultipleChoiceTaskDataset',
+    'InContextLearningSchemaTaskDataset',
+    'InContextLearningGenerationTaskWithAnswersDataset',
+    'get_icl_task_dataloader',
     'InContextLearningMetric',
     'InContextLearningLMAccuracy',
     'InContextLearningMultipleChoiceAccuracy',

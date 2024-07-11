@@ -11,10 +11,10 @@ import pytest
 from composer import Trainer
 from composer.loggers import InMemoryLogger
 
+from llmfoundry.train import evaluate  # noqa: E402
 from llmfoundry.utils import build_tokenizer
 from llmfoundry.utils.builders import build_composer_model
 from llmfoundry.utils.config_utils import EVAL_CONFIG_KEYS, to_dict_container
-from llmfoundry.eval import evaluate  # noqa: E402
 from tests.data_utils import create_c4_dataset_xxsmall, gpt_tiny_cfg
 
 

@@ -8,7 +8,7 @@ import pytest
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
-from llmfoundry.eval import evaluate  # noqa: E402
+from llmfoundry.train import evaluate  # noqa: E402
 
 
 class TestHuggingFaceEvalYAMLInputs:

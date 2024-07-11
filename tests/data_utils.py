@@ -11,7 +11,8 @@ from typing import Dict, List, Optional
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
-from scripts.data_prep.convert_dataset_hf import main as main_hf  # noqa: E402
+from llmfoundry.data_prep.convert_dataset_hf import \
+    convert_dataset_hf  # noqa: E402
 from scripts.data_prep.convert_dataset_json import \
     main as main_json  # noqa: E402
 
@@ -230,7 +231,7 @@ def create_c4_dataset_xxsmall(path: Path) -> str:
     downloaded_split = 'val_xxsmall'  # very fast to convert
 
     # Hyperparameters from https://github.com/mosaicml/llm-foundry/blob/340a56658560ebceb2a3aa69d6e37813e415acd0/README.md#L188
-    main_hf(
+    convert_dataset_hf(
         Namespace(
             **{
                 'dataset': 'c4',

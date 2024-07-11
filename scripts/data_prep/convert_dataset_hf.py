@@ -5,7 +5,9 @@
 import json
 import os
 from argparse import ArgumentParser, Namespace
+
 from llmfoundry.data_prep.convert_dataset_hf import convert_dataset_hf
+
 
 def parse_args() -> Namespace:
     """Parse commandline arguments."""
@@ -71,6 +73,7 @@ def parse_args() -> Namespace:
     if parsed.eos_text is None:
         parsed.eos_text = ''
     return parsed
+
 
 if __name__ == '__main__':
     convert_dataset_hf(parse_args())

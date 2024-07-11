@@ -40,6 +40,8 @@ from llmfoundry.data.text_data import (
     build_text_dataloader,
 )
 from llmfoundry.data.utils import get_tokens_per_batch_func
+# yapf: enable
+from llmfoundry.data_prep.convert_dataset_hf import convert_dataset_hf
 from llmfoundry.utils.builders import build_tokenizer
 from llmfoundry.utils.config_utils import to_dict_container
 # yapf: disable
@@ -55,8 +57,6 @@ from llmfoundry.utils.exceptions import (
     NotEnoughDatasetSamplesError,
     UnknownExampleTypeError,
 )
-# yapf: enable
-from scripts.data_prep.convert_dataset_hf import main as main_hf
 from scripts.data_prep.convert_finetuning_dataset import get_columns_and_format
 from tests.data_utils import (
     make_tiny_conversation_ft_dataset,
@@ -204,7 +204,7 @@ def test_correct_padding(
     path = get_abs_data_path(data_local)
     shutil.rmtree(path, ignore_errors=True)
     if pretokenize:
-        main_hf(
+        convert_dataset_hf(
             Namespace(
                 **{
                     'dataset': 'c4',
@@ -223,7 +223,7 @@ def test_correct_padding(
             ),
         )
     else:
-        main_hf(
+        convert_dataset_hf(
             Namespace(
                 **{
                     'dataset': 'c4',

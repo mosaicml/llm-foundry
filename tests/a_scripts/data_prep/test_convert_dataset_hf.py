@@ -5,13 +5,13 @@ import os
 from argparse import Namespace
 from pathlib import Path
 
-from scripts.data_prep.convert_dataset_hf import main as main_hf
+from llmfoundry.data_prep.convert_dataset_hf import convert_dataset_hf
 
 
 def test_download_script_from_api(tmp_path: Path):
     # test calling it directly
     path = os.path.join(tmp_path, 'my-copy-c4-1')
-    main_hf(
+    convert_dataset_hf(
         Namespace(
             **{
                 'dataset': 'c4',

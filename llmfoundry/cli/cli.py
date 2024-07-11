@@ -6,8 +6,7 @@ from typing import Optional
 import typer
 
 from llmfoundry.cli import registry_cli
-from llmfoundry.train import train_from_yaml
-from llmfoundry.train import eval_from_yaml
+from llmfoundry.train import eval_from_yaml, train_from_yaml
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
 app.add_typer(registry_cli.app, name='registry')
@@ -24,6 +23,7 @@ def train(
 ):
     """Run the training with optional overrides from CLI."""
     train_from_yaml(yaml_path, args_list)
+
 
 @app.command(name='eval')
 def eval(

@@ -3,7 +3,7 @@
 
 """Natively supported in-context learning evaluation datasets."""
 
-from llmfoundry.evla.datasets.in_context_learning_evaluation import (
+from llmfoundry.eval.datasets.in_context_learning_evaluation import (
     InContextLearningDataset,
     InContextLearningGenerationTaskWithAnswersDataset,
     InContextLearningLMTaskDataset,

@@ -9,7 +9,7 @@ import pytest
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
-from scripts.train.train import main  # noqa: E402
+from llmfoundry.train import train  # noqa: E402
 
 
 def make_fake_index_file(path: str) -> None:
@@ -65,7 +65,7 @@ class TestTrainingYAMLInputs:
         with pytest.raises(
             (omegaconf.errors.MissingMandatoryValue, TypeError, ValueError),
         ):
-            main(cfg)
+            train(cfg)
 
     def test_missing_mandatory_parameters_fail(self, cfg: DictConfig) -> None:
         """Check that missing mandatory parameters fail to train."""
@@ -87,7 +87,7 @@ class TestTrainingYAMLInputs:
                 omegaconf.errors.InterpolationKeyError,
                 omegaconf.errors.MissingMandatoryValue,
             )):
-                main(cfg)
+                train(cfg)
             cfg[param] = orig_param
 
     def test_optional_misspelled_params_raise_error(
@@ -115,7 +115,7 @@ class TestTrainingYAMLInputs:
             updated_param = param + '-misspelling'
             cfg[updated_param] = orig_value
             with pytest.raises(ValueError):
-                main(cfg)
+                train(cfg)
             # restore configs.
             cfg = copy.deepcopy(old_cfg)
 
@@ -130,7 +130,7 @@ class TestTrainingYAMLInputs:
         cfg.eval_loader.dataset.local = data_local
         cfg.optimizer.beta2 = 'extra-parameter'
         with pytest.raises(TypeError):
-            main(cfg)
+            train(cfg)
 
     def test_invalid_name_in_optimizer_cfg_errors(
         self,
@@ -143,7 +143,7 @@ class TestTrainingYAMLInputs:
         cfg.train_loader.dataset.local = data_local
         cfg.eval_loader.dataset.local = data_local
         with pytest.raises(ValueError) as exception_info:
-            main(cfg)
+            train(cfg)
         assert str(exception_info.value).startswith(
             "Cant't find 'invalid-optimizer' in registry llmfoundry -> optimizers.",
         )
@@ -154,7 +154,7 @@ class TestTrainingYAMLInputs:
     ) -> None:
         cfg.scheduler.t_warmup_extra = 'extra-parameter'
         with pytest.raises(TypeError):
-            main(cfg)
+            train(cfg)
 
     def test_invalid_name_in_scheduler_cfg_errors(
         self,
@@ -162,7 +162,7 @@ class TestTrainingYAMLInputs:
     ) -> None:
         cfg.scheduler.name = 'invalid-scheduler'
         with pytest.raises(ValueError) as exception_info:
-            main(cfg)
+            train(cfg)
         assert str(exception_info.value).startswith(
             "Cant't find 'invalid-scheduler' in registry llmfoundry -> schedulers.",
         )
@@ -181,7 +181,7 @@ class TestTrainingYAMLInputs:
         second_eval_loader.label = 'eval_1'
         cfg.eval_loader = om.create([first_eval_loader, second_eval_loader])
         with pytest.raises(ValueError) as exception_info:
-            main(cfg)
+            train(cfg)
         assert str(
             exception_info.value,
         ) == 'When specifying multiple evaluation datasets, each one must include the \

@@ -34,10 +34,6 @@ from pyspark.sql.connect.dataframe import DataFrame
 from pyspark.sql.dataframe import DataFrame as SparkDataFrame
 from pyspark.sql.types import Row
 
-from llmfoundry.utils import (
-    maybe_create_mosaicml_logger,
-    no_override_excepthook,
-)
 from llmfoundry.utils.exceptions import (
     ClusterDoesNotExistError,
     FailedToConnectToDatabricksError,
@@ -46,6 +42,8 @@ from llmfoundry.utils.exceptions import (
 
 MINIMUM_DB_CONNECT_DBR_VERSION = '14.1'
 MINIMUM_SQ_CONNECT_DBR_VERSION = '12.2'
+
+TABLENAME_PATTERN = re.compile(r'(\S+)\.(\S+)\.(\S+)')
 
 log = logging.getLogger(__name__)
 
@@ -286,6 +284,27 @@ def download(
 
 def download_starargs(args: Tuple) -> None:
     return download(*args)
+
+
+def format_tablename(table_name: str) -> str:
+    """Escape catalog, schema and table names with backticks.
+
+    This needs to be done when running SQL queries/setting spark sessions to prevent invalid identifier errors.
+
+    Args:
+        table_name (str): catalog.scheme.tablename on UC
+    """
+    match = re.match(TABLENAME_PATTERN, table_name)
+
+    if match is None:
+        return table_name
+
+    formatted_identifiers = []
+    for i in range(1, 4):
+        identifier = f'`{match.group(i)}`'
+        formatted_identifiers.append(identifier)
+
+    return '.'.join(formatted_identifiers)
 
 
 def fetch_data(
@@ -586,6 +605,8 @@ def fetch_DT(args: Namespace) -> None:
         use_serverless=args.use_serverless,
     )
 
+    args.delta_table_name = format_tablename(args.delta_table_name)
+
     fetch(
         method,
         args.delta_table_name,
@@ -667,18 +688,10 @@ if __name__ == '__main__':
         'The name of the combined final jsonl that combines all partitioned jsonl',
     )
     args = parser.parse_args()
-    mosaicml_logger = maybe_create_mosaicml_logger()
+    w = WorkspaceClient()
+    args.DATABRICKS_HOST = w.config.host
+    args.DATABRICKS_TOKEN = w.config.token
 
-    try:
-        w = WorkspaceClient()
-        args.DATABRICKS_HOST = w.config.host
-        args.DATABRICKS_TOKEN = w.config.token
-
-        tik = time.time()
-        fetch_DT(args)
-        log.info(f'Elapsed time {time.time() - tik}')
-
-    except Exception as e:
-        if mosaicml_logger is not None and no_override_excepthook():
-            mosaicml_logger.log_exception(e)
-        raise e
+    tik = time.time()
+    fetch_DT(args)
+    log.info(f'Elapsed time {time.time() - tik}')

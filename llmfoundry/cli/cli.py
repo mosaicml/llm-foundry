@@ -37,10 +37,7 @@ def convert_dataset_hf_cli(
         '--data_subset',
         help='Subset of the dataset (e.g., "all" or "en")'
     ),  # type: ignore
-    splits: List[str] = typer.
-    Option(['train', 'train_small', 'val', 'val_small', 'val_xsmall'],  # type: ignore
-           '--splits',
-           help='Dataset splits'),
+    splits: str = typer.Option('train, train_small, val, val_small, val_xsmall', '--splits', help='Comma-separated list of dataset splits'), # type: ignore
     out_root: str = typer.
     Option(..., '--out_root', help='Output root directory'),  # type: ignore
     compression: Optional[str] = typer.
@@ -69,6 +66,9 @@ def convert_dataset_hf_cli(
     num_workers: Optional[int] = typer.
     Option(None, '--num_workers', help='Number of workers'),  # type: ignore
 ):
+    # Convert comma-separated splits into a list
+    splits_list = splits.split(',') if splits else []
+
     # Initialize tokenizer_kwargs as an empty dictionary
     tokenizer_kwargs_dict: Dict[str, Any] = {}
 
@@ -81,7 +81,7 @@ def convert_dataset_hf_cli(
     args = Namespace(
         dataset=dataset,
         data_subset=data_subset,
-        splits=splits,
+        splits=splits_list,
         out_root=out_root,
         compression=compression,
         concat_tokens=concat_tokens,

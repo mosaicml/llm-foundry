@@ -5,13 +5,13 @@ import os
 from argparse import Namespace
 from pathlib import Path
 
-from scripts.data_prep.convert_dataset_json import main as main_json
+from llmfoundry.data_prep import convert_dataset_json
 
 
 def test_json_script_from_api(tmp_path: Path):
     # test calling it directly
     path = os.path.join(tmp_path, 'my-copy-arxiv-1')
-    main_json(
+    convert_dataset_json(
         Namespace(
             **{
                 'path': 'scripts/data_prep/example_data/arxiv.jsonl',

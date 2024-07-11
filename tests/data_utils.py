@@ -11,9 +11,8 @@ from typing import Dict, List, Optional
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
+from llmfoundry.data_prep import convert_dataset_json  # noqa: E402
 from scripts.data_prep.convert_dataset_hf import main as main_hf  # noqa: E402
-from scripts.data_prep.convert_dataset_json import \
-    main as main_json  # noqa: E402
 
 
 def make_tiny_ft_dataset(
@@ -269,7 +268,7 @@ def create_arxiv_dataset(path: Path) -> str:
     if not os.getcwd().endswith('scripts'):
         arxiv_path = os.path.join('scripts', arxiv_path)
 
-    main_json(
+    convert_dataset_json(
         Namespace(
             **{
                 'path': arxiv_path,

@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Streaming dataset conversion scripts for C4 and The Pile."""
+import json
 import os
 import platform
 from argparse import Namespace
@@ -388,3 +389,34 @@ def convert_dataset_hf(args: Namespace) -> None:
             else:
                 for sample in tqdm(samples, desc=folder_split):
                     out.write(sample)
+
+
+def convert_dataset_hf_from_args(args: Namespace) -> None:
+    if args.tokenizer_kwargs is not None:
+        args.tokenizer_kwargs = json.loads(args.tokenizer_kwargs)
+    else:
+        args.tokenizer_kwargs = {}
+
+    if os.path.isdir(args.out_root) and len(
+        set(os.listdir(args.out_root)).intersection(set(args.splits)),
+    ) > 0:
+        raise ValueError(
+            f'--out_root={args.out_root} contains {os.listdir(args.out_root)} which cannot overlap with the requested splits {args.splits}.',
+        )
+
+    # Make sure we have needed concat options
+    if (
+        args.concat_tokens is not None and
+        isinstance(args.concat_tokens, int) and args.tokenizer is None
+    ):
+        args.error(
+            'When setting --concat_tokens, you must specify a --tokenizer',
+        )
+
+    # now that we have validated them, change BOS/EOS to strings
+    if args.bos_text is None:
+        args.bos_text = ''
+    if args.eos_text is None:
+        args.eos_text = ''
+
+    convert_dataset_hf(args)

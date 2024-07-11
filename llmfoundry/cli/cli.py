@@ -1,14 +1,13 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-import json
 from argparse import Namespace
-from typing import Any, Dict, List, Optional
+from typing import Optional
 
 import typer
 
 from llmfoundry.cli import registry_cli
-from llmfoundry.data_prep import convert_dataset_hf
+from llmfoundry.data_prep import convert_dataset_hf_from_args
 from llmfoundry.train import train_from_yaml
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
@@ -35,9 +34,13 @@ def convert_dataset_hf_cli(
     data_subset: Optional[str] = typer.Option(
         None,
         '--data_subset',
-        help='Subset of the dataset (e.g., "all" or "en")'
+        help='Subset of the dataset (e.g., "all" or "en")',
     ),  # type: ignore
-    splits: str = typer.Option('train, train_small, val, val_small, val_xsmall', '--splits', help='Comma-separated list of dataset splits'), # type: ignore
+    splits: str = typer.Option(
+        'train, train_small, val, val_small, val_xsmall',
+        '--splits',
+        help='Comma-separated list of dataset splits',
+    ),  # type: ignore
     out_root: str = typer.
     Option(..., '--out_root', help='Output root directory'),  # type: ignore
     compression: Optional[str] = typer.
@@ -45,14 +48,14 @@ def convert_dataset_hf_cli(
     concat_tokens: Optional[int] = typer.Option(
         None,
         '--concat_tokens',
-        help='Concatenate tokens up to this many tokens'
+        help='Concatenate tokens up to this many tokens',
     ),  # type: ignore
     tokenizer: Optional[str] = typer.
     Option(None, '--tokenizer', help='Tokenizer name'),  # type: ignore
     tokenizer_kwargs: Optional[str] = typer.Option(
         None,
         '--tokenizer_kwargs',
-        help='Tokenizer keyword arguments in JSON format'
+        help='Tokenizer keyword arguments in JSON format',
     ),  # type: ignore
     bos_text: Optional[str] = typer.Option(None, '--bos_text',
                                            help='BOS text'),  # type: ignore
@@ -61,22 +64,13 @@ def convert_dataset_hf_cli(
     no_wrap: bool = typer.Option(
         False,
         '--no_wrap',
-        help='Do not wrap text across max_length boundaries'
+        help='Do not wrap text across max_length boundaries',
     ),  # type: ignore
     num_workers: Optional[int] = typer.
     Option(None, '--num_workers', help='Number of workers'),  # type: ignore
 ):
     # Convert comma-separated splits into a list
     splits_list = splits.split(',') if splits else []
-
-    # Initialize tokenizer_kwargs as an empty dictionary
-    tokenizer_kwargs_dict: Dict[str, Any] = {}
-
-    # Convert tokenizer_kwargs from JSON string to dictionary if it is a string
-    if tokenizer_kwargs is not None:
-        tokenizer_kwargs_dict = json.loads(tokenizer_kwargs)
-    else:
-        tokenizer_kwargs_dict = {}
 
     args = Namespace(
         dataset=dataset,
@@ -86,13 +80,13 @@ def convert_dataset_hf_cli(
         compression=compression,
         concat_tokens=concat_tokens,
         tokenizer=tokenizer,
-        tokenizer_kwargs=tokenizer_kwargs_dict,
+        tokenizer_kwargs=tokenizer,
         bos_text=bos_text,
         eos_text=eos_text,
         no_wrap=no_wrap,
         num_workers=num_workers,
     )
-    convert_dataset_hf(args)
+    convert_dataset_hf_from_args(args)
 
 
 if __name__ == '__main__':

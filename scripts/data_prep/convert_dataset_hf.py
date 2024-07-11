@@ -2,11 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Streaming dataset conversion scripts for C4 and The Pile."""
-import json
-import os
 from argparse import ArgumentParser, Namespace
 
-from llmfoundry.data_prep.convert_dataset_hf import convert_dataset_hf
+from llmfoundry.data_prep.convert_dataset_hf import convert_dataset_hf_from_args
 
 
 def parse_args() -> Namespace:
@@ -45,35 +43,8 @@ def parse_args() -> Namespace:
     parser.add_argument('--num_workers', type=int, required=False, default=None)
 
     parsed = parser.parse_args()
-
-    if parsed.tokenizer_kwargs is not None:
-        parsed.tokenizer_kwargs = json.loads(parsed.tokenizer_kwargs)
-    else:
-        parsed.tokenizer_kwargs = {}
-
-    if os.path.isdir(parsed.out_root) and len(
-        set(os.listdir(parsed.out_root)).intersection(set(parsed.splits)),
-    ) > 0:
-        raise ValueError(
-            f'--out_root={parsed.out_root} contains {os.listdir(parsed.out_root)} which cannot overlap with the requested splits {parsed.splits}.',
-        )
-
-    # Make sure we have needed concat options
-    if (
-        parsed.concat_tokens is not None and
-        isinstance(parsed.concat_tokens, int) and parsed.tokenizer is None
-    ):
-        parser.error(
-            'When setting --concat_tokens, you must specify a --tokenizer',
-        )
-
-    # now that we have validated them, change BOS/EOS to strings
-    if parsed.bos_text is None:
-        parsed.bos_text = ''
-    if parsed.eos_text is None:
-        parsed.eos_text = ''
     return parsed
 
 
 if __name__ == '__main__':
-    convert_dataset_hf(parse_args())
+    convert_dataset_hf_from_args(parse_args())

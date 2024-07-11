@@ -4,7 +4,7 @@
 import logging
 import os
 import time
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 import pandas as pd
 import torch
@@ -50,13 +50,13 @@ def evaluate_model(
     dist_timeout: Union[float, int],
     run_name: str,
     seed: int,
-    icl_tasks: Union[str, List[Dict[str, Any]]],
+    icl_tasks: Union[str, list[Dict[str, Any]]],
     max_seq_len: int,
     device_eval_batch_size: Union[int, float],
     eval_gauntlet_config: Optional[Union[str, Dict[str, Any]]],
-    eval_loader_config: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]],
+    eval_loader_config: Optional[Union[Dict[str, Any], list[Dict[str, Any]]]],
     fsdp_config: Optional[Dict[str, Any]],
-    loggers: List[LoggerDestination],
+    loggers: list[LoggerDestination],
     python_log_level: Optional[str],
     precision: str,
     eval_gauntlet_df: Optional[pd.DataFrame],
@@ -86,7 +86,7 @@ def evaluate_model(
     )
 
     # Callbacks
-    callbacks: List[Callback] = [
+    callbacks: list[Callback] = [
         build_callback(name=str(name), kwargs=callback_cfg)
         for name, callback_cfg in callback_configs.items()
     ] if callback_configs else []
@@ -178,7 +178,7 @@ def evaluate_model(
     return (trainer, logger_keys, eval_gauntlet_callback, eval_gauntlet_df)
 
 
-def evaluate(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
+def evaluate(cfg: DictConfig) -> Tuple[list[Trainer], pd.DataFrame]:
     # Run user provided code if specified
     for code_path in cfg.get('code_paths', []):
         import_file(code_path)
@@ -226,7 +226,7 @@ def evaluate(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     trainers = []
 
     # Build loggers
-    loggers: List[LoggerDestination] = [
+    loggers: list[LoggerDestination] = [
         build_logger(name, logger_cfg)
         for name, logger_cfg in (eval_config.loggers or {}).items()
     ]
@@ -340,7 +340,7 @@ def evaluate(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
 
 
 def calculate_markdown_results(
-    logger_keys: List[str],
+    logger_keys: list[str],
     trainer: Trainer,
     benchmark_to_taxonomy: Dict[str, str],
     model_name: str,
@@ -433,7 +433,7 @@ def calculate_markdown_results(
                                        ignore_index=True)
     return df
 
-def eval_from_yaml(yaml_path: str, args_list: List[str]) -> Tuple[List[Trainer], pd.DataFrame]:
+def eval_from_yaml(yaml_path: str, args_list: list[str]) -> Tuple[list[Trainer], pd.DataFrame]:
     with open(yaml_path) as f:
         yaml_cfg = om.load(f)
     if args_list:

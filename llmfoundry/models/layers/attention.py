@@ -212,7 +212,7 @@ def check_valid_inputs(
     valid_dtypes: Optional[list[torch.dtype]] = None,
 ):
     if valid_dtypes is None:
-        valid_dtypes = [torch.float16, torch.bfloat16]
+        valid_dtypes = [torch.float32, torch.float16, torch.bfloat16]
     for tensor in tensors:
         if tensor.dtype not in valid_dtypes:
             raise TypeError(f'{tensor.dtype=} must be in {valid_dtypes=}.')

@@ -18,9 +18,7 @@ from typing import (
     Tuple,
     Union,
 )
-from llmfoundry.eval.datasets.in_context_learning_evaluation import \
-                get_icl_task_dataloader
-from llmfoundry.data.dataloader import build_dataloader
+
 import torch
 from composer.core import Algorithm, Callback, Evaluator
 from composer.loggers import LoggerDestination
@@ -35,6 +33,9 @@ from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from llmfoundry import registry
 from llmfoundry.callbacks import EvalGauntlet
+from llmfoundry.data.dataloader import build_dataloader
+from llmfoundry.eval.datasets.in_context_learning_evaluation import \
+    get_icl_task_dataloader
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
 from llmfoundry.utils.config_utils import to_dict_container, to_list_container
 from llmfoundry.utils.registry_utils import construct_from_registry
@@ -617,6 +618,7 @@ def build_icl_evaluators(
                 early_stopping_criteria,
                 list,
             )
+
             dataloaders = get_icl_task_dataloader(
                 icl_task_type=icl_cfg['icl_task_type'],
                 dataset_uri=icl_cfg['dataset_uri'],

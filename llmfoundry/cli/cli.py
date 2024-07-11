@@ -35,14 +35,12 @@ def convert_dataset_hf_cli(
     data_subset: Optional[str] = typer.Option(
         None,
         '--data_subset',
-        help='Subset of the dataset (e.g., "all" or "en")',
+        help='Subset of the dataset (e.g., "all" or "en")'
     ),  # type: ignore
-    splits: List[str] = typer.Option(
-        ['train', 'train_small', 'val', 'val_small', 'val_xsmall'
-        ],  # type: ignore
-        '--splits',
-        help='Dataset splits'
-    ),
+    splits: List[str] = typer.
+    Option(['train', 'train_small', 'val', 'val_small', 'val_xsmall'],  # type: ignore
+           '--splits',
+           help='Dataset splits'),
     out_root: str = typer.
     Option(..., '--out_root', help='Output root directory'),  # type: ignore
     compression: Optional[str] = typer.
@@ -50,14 +48,14 @@ def convert_dataset_hf_cli(
     concat_tokens: Optional[int] = typer.Option(
         None,
         '--concat_tokens',
-        help='Concatenate tokens up to this many tokens',
+        help='Concatenate tokens up to this many tokens'
     ),  # type: ignore
     tokenizer: Optional[str] = typer.
     Option(None, '--tokenizer', help='Tokenizer name'),  # type: ignore
     tokenizer_kwargs: Optional[str] = typer.Option(
         None,
         '--tokenizer_kwargs',
-        help='Tokenizer keyword arguments in JSON format',
+        help='Tokenizer keyword arguments in JSON format'
     ),  # type: ignore
     bos_text: Optional[str] = typer.Option(None, '--bos_text',
                                            help='BOS text'),  # type: ignore
@@ -66,7 +64,7 @@ def convert_dataset_hf_cli(
     no_wrap: bool = typer.Option(
         False,
         '--no_wrap',
-        help='Do not wrap text across max_length boundaries',
+        help='Do not wrap text across max_length boundaries'
     ),  # type: ignore
     num_workers: Optional[int] = typer.
     Option(None, '--num_workers', help='Number of workers'),  # type: ignore

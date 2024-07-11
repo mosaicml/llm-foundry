@@ -80,7 +80,7 @@ def convert_dataset_hf_cli(
         compression=compression,
         concat_tokens=concat_tokens,
         tokenizer=tokenizer,
-        tokenizer_kwargs=tokenizer,
+        tokenizer_kwargs=tokenizer_kwargs,
         bos_text=bos_text,
         eos_text=eos_text,
         no_wrap=no_wrap,

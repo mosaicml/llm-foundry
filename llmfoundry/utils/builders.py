@@ -33,7 +33,6 @@ from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from llmfoundry import registry
 from llmfoundry.callbacks import EvalGauntlet
-from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
 from llmfoundry.utils.config_utils import to_dict_container, to_list_container
 from llmfoundry.utils.registry_utils import construct_from_registry
@@ -99,6 +98,7 @@ def build_eval_loaders(
     tokenizer: PreTrainedTokenizerBase,
     device_eval_batch_size: Union[int, float],
 ) -> List[Evaluator]:
+    from llmfoundry.data.dataloader import build_dataloader
     evaluators: List[Evaluator] = []
     if isinstance(eval_loader_config, list):
         eval_configs = eval_loader_config
@@ -508,6 +508,8 @@ def build_icl_evaluators(
     destination_dir: Optional[str] = None,
     icl_subset_num_batches: Optional[int] = None,
 ) -> Tuple[List[Evaluator], List[str]]:
+    from llmfoundry.eval.datasets.in_context_learning_evaluation import \
+                get_icl_task_dataloader # for circular import
     if destination_dir is None:
         destination_dir = os.getcwd()
 
@@ -616,8 +618,6 @@ def build_icl_evaluators(
                 early_stopping_criteria,
                 list,
             )
-            from llmfoundry.eval.datasets.in_context_learning_evaluation import \
-                get_icl_task_dataloader # for circular import
             dataloaders = get_icl_task_dataloader(
                 icl_task_type=icl_cfg['icl_task_type'],
                 dataset_uri=icl_cfg['dataset_uri'],

@@ -392,7 +392,8 @@ def convert_dataset_hf(args: Namespace) -> None:
 
 
 def convert_dataset_hf_from_args(args: Namespace) -> None:
-    if args.tokenizer_kwargs is not None:
+    print(args)
+    if args.tokenizer_kwargs:
         args.tokenizer_kwargs = json.loads(args.tokenizer_kwargs)
     else:
         args.tokenizer_kwargs = {}

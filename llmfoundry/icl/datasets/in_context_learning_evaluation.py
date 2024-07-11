@@ -20,7 +20,7 @@ from datasets import IterableDataset, load_dataset
 from torch.utils.data import DataLoader, Dataset
 
 from llmfoundry import registry
-from llmfoundry.eval.datasets.utils import (
+from llmfoundry.icl.datasets.utils import (
     convert_tokens_to_tensors,
     get_continuation_span,
     get_fewshot_sample_idxs,

@@ -508,7 +508,7 @@ def build_icl_evaluators(
     destination_dir: Optional[str] = None,
     icl_subset_num_batches: Optional[int] = None,
 ) -> Tuple[List[Evaluator], List[str]]:
-    from llmfoundry.eval.datasets.in_context_learning_evaluation import \
+    from llmfoundry.icl.datasets.in_context_learning_evaluation import \
                 get_icl_task_dataloader # for circular import
     if destination_dir is None:
         destination_dir = os.getcwd()

@@ -23,9 +23,12 @@ from llmfoundry.eval.eval import (
     eval_from_yaml,
 )
 
+from llmfoundry.eval.util import find_mosaicml_logger
+
 __all__ = [
     'evaluate',
     'eval_from_yaml',
+    'find_mosaicml_logger',
     'InContextLearningDataset',
     'InContextLearningLMTaskDataset',
     'InContextLearningMultipleChoiceTaskDataset',

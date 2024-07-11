@@ -34,10 +34,7 @@ def convert_dataset_hf_cli(
     data_subset: Optional[str] = typer.Argument(
         None, help='Subset of the dataset (e.g., "all" or "en")', # type: ignore
     ),
-    splits: List[str] = typer.Argument([
-        'train', 'train_small', 'val', 'val_small', 'val_xsmall', # type: ignore
-    ],
-                                       help='Dataset splits'), # type: ignore
+    splits: List[str] = typer.Option(['train', 'train_small', 'val', 'val_small', 'val_xsmall'], help='Dataset splits'), # type: ignore
     out_root: str = typer.Argument(..., help='Output root directory'), # type: ignore
     compression: Optional[str] = typer.Argument(None, help='Compression type'), # type: ignore
     concat_tokens: Optional[int] = typer.Argument(

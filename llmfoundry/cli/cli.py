@@ -3,7 +3,7 @@
 
 import json
 from argparse import Namespace
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import typer
 
@@ -30,44 +30,29 @@ def train_from_yaml_cli(
 
 @app.command(name='convert_dataset_hf')
 def convert_dataset_hf_cli(
-    dataset: str = typer.Option(..., '--dataset',
-                                help='Name of the dataset'),  # type: ignore
-    data_subset: Optional[str] = typer.Option(
-        None,
-        '--data_subset',
-        help='Subset of the dataset (e.g., "all" or "en")'
-    ),  # type: ignore
-    splits: list[str] = typer.
-    Option(['train', 'train_small', 'val', 'val_small', 'val_xsmall'],
-           '--splits',
-           help='Dataset splits'),  # type: ignore
-    out_root: str = typer.
-    Option(..., '--out_root', help='Output root directory'),  # type: ignore
-    compression: Optional[str] = typer.
-    Option(None, '--compression', help='Compression type'),  # type: ignore
-    concat_tokens: Optional[int] = typer.Option(
-        None,
-        '--concat_tokens',
-        help='Concatenate tokens up to this many tokens'
-    ),  # type: ignore
-    tokenizer: Optional[str] = typer.
-    Option(None, '--tokenizer', help='Tokenizer name'),  # type: ignore
-    tokenizer_kwargs: Optional[str] = typer.Option(
-        None,
-        '--tokenizer_kwargs',
-        help='Tokenizer keyword arguments in JSON format'
-    ),  # type: ignore
-    bos_text: Optional[str] = typer.Option('', '--bos_text',
-                                           help='BOS text'),  # type: ignore
-    eos_text: Optional[str] = typer.Option('', '--eos_text',
-                                           help='EOS text'),  # type: ignore
+    dataset: str = typer.Argument(..., help='Name of the dataset'), # type: ignore
+    data_subset: Optional[str] = typer.Argument(
+        None, help='Subset of the dataset (e.g., "all" or "en")', # type: ignore
+    ),
+    splits: List[str] = typer.Argument([
+        'train', 'train_small', 'val', 'val_small', 'val_xsmall', # type: ignore
+    ],
+                                       help='Dataset splits'), # type: ignore
+    out_root: str = typer.Argument(..., help='Output root directory'), # type: ignore
+    compression: Optional[str] = typer.Argument(None, help='Compression type'), # type: ignore
+    concat_tokens: Optional[int] = typer.Argument(
+        None, help='Concatenate tokens up to this many tokens', # type: ignore
+    ),
+    tokenizer: Optional[str] = typer.Argument(None, help='Tokenizer name'), # type: ignore
+    tokenizer_kwargs: Optional[str] = typer.Argument( # type: ignore
+        None, help='Tokenizer keyword arguments in JSON format',
+    ),
+    bos_text: Optional[str] = typer.Argument(None, help='BOS text'), # type: ignore
+    eos_text: Optional[str] = typer.Argument(None, help='EOS text'), # type: ignore
     no_wrap: bool = typer.Option(
-        False,
-        '--no_wrap',
-        help='Do not wrap text across max_length boundaries'
-    ),  # type: ignore
-    num_workers: Optional[int] = typer.
-    Option(None, '--num_workers', help='Number of workers'),  # type: ignore
+        False, help='Do not wrap text across max_length boundaries', # type: ignore
+    ),
+    num_workers: Optional[int] = typer.Argument(None, help='Number of workers'), # type: ignore
 ):
     # Initialize tokenizer_kwargs as an empty dictionary
     tokenizer_kwargs_dict: Dict[str, Any] = {}

@@ -434,8 +434,10 @@ def calculate_markdown_results(
     return df
 
 
-def eval_from_yaml(yaml_path: str,
-                   args_list: Optional[list[str]]) -> Tuple[list[Trainer], pd.DataFrame]:
+def eval_from_yaml(
+    yaml_path: str,
+    args_list: Optional[list[str]],
+) -> Tuple[list[Trainer], pd.DataFrame]:
     with open(yaml_path) as f:
         yaml_cfg = om.load(f)
     if args_list:

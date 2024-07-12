@@ -57,7 +57,7 @@ from llmfoundry.utils.exceptions import (
 )
 # yapf: enable
 from scripts.data_prep.convert_dataset_hf import main as main_hf
-from scripts.data_prep.convert_finetuning_dataset import get_columns_and_format
+from llmfoundry.data_prep import get_columns_and_format
 from tests.data_utils import (
     make_tiny_conversation_ft_dataset,
     make_tiny_ft_dataset,

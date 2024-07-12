@@ -28,7 +28,7 @@ def train(
 
 
 @app.command(name='convert_dataset_json')
-def convert_dataset_json_from_args(
+def convert_dataset_json_from_args_cli(
     path: str = typer.Option(..., '--path', help='Path to the input data file'
                             ),  # type: ignore
     out_root: str = typer.

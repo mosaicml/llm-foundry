@@ -27,8 +27,8 @@ def train(
     train_from_yaml(yaml_path, args_list)
 
 
-@app.command(name='convert_finentuning_dataset')
-def convert_finentuning_dataset_cli(
+@app.command(name='convert_finetuning_dataset')
+def convert_finetuning_dataset_cli(
     dataset: str = typer.Option(
         ...,
         '--dataset',

@@ -29,17 +29,22 @@ def train(
 
 @app.command(name='convert_dataset_json')
 def convert_dataset_json_from_args_cli(
-    path: str = typer.Option(..., '--path', help='Path to the input data file'
-                            ),  # type: ignore
+    path: str = typer.Option(
+        ...,
+        '--path',
+        help='Path to the input data file',
+    ),  # type: ignore
     out_root: str = typer.
     Option(..., '--out_root', help='Output root directory'),  # type: ignore
     compression: str = typer.Option(
-        None, '--compression', help='Compression type, if any'
+        None,
+        '--compression',
+        help='Compression type, if any',
     ),  # type: ignore
     concat_tokens: int = typer.Option(
         None,
         '--concat_tokens',
-        help='Convert text to tokens and concatenate up to this many tokens'
+        help='Convert text to tokens and concatenate up to this many tokens',
     ),  # type: ignore
     split: str = typer.
     Option('train', '--split', help='Dataset split to process'),  # type: ignore
@@ -48,18 +53,22 @@ def convert_dataset_json_from_args_cli(
     bos_text: Optional[str] = typer.Option(
         None,
         '--bos_text',
-        help='Text to insert at the beginning of each sequence'
+        help='Text to insert at the beginning of each sequence',
     ),  # type: ignore
     eos_text: Optional[str] = typer.Option(
-        None, '--eos_text', help='Text to insert at the end of each sequence'
+        None,
+        '--eos_text',
+        help='Text to insert at the end of each sequence',
     ),  # type: ignore
     no_wrap: bool = typer.Option(
         False,
         '--no_wrap',
-        help='Do not wrap text across max_length boundaries'
+        help='Do not wrap text across max_length boundaries',
     ),  # type: ignore
     num_workers: int = typer.Option(
-        None, '--num_workers', help='Number of workers for data loading'
+        None,
+        '--num_workers',
+        help='Number of workers for data loading',
     ),  # type: ignore
 ):
     args = Namespace(

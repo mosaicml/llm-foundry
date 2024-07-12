@@ -626,6 +626,7 @@ def fetch_DT(args: Namespace) -> None:
         os.path.join(args.json_output_folder, args.json_output_filename),
     )
 
+
 def convert_delta_to_json_from_args(args: Namespace) -> None:
     w = WorkspaceClient()
     args.DATABRICKS_HOST = w.config.host

@@ -27,8 +27,8 @@ def train(
     train_from_yaml(yaml_path, args_list)
 
 
-@app.command(name='convert_text_to_mds')
-def convert_text_to_mds_cli(
+@app.command(name='convert_finentuning_dataset')
+def convert_finentuning_dataset_cli(
     dataset: str = typer.Option(
         ...,
         '--dataset',

@@ -184,11 +184,18 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     for code_path in cfg.get('code_paths', []):
         import_file(code_path)
 
-    # Allow for single model to be specified in the config to be consistent with train.py
+    # Allow for single model to be specified in the config to be compatible with train.py syntax
     if 'model' in cfg:
         if 'models' in cfg:
             raise ValueError('Please specify either model or models in the config, not both')
-        cfg['models'] = [cfg.pop('model')]
+        model_cfg = {}
+        top_level_keys = ['model', 'tokenizer', 'load_path']
+        for key in top_level_keys:
+            if key not in cfg:
+                raise ValueError(f'When specifying model, "{key}" must be provided in the config')
+            model_cfg[key] = cfg.pop(key)
+        model_cfg['model_name'] = cfg.pop('model_name', 'unnamed')
+        cfg['models'] = [model_cfg]
 
     logged_cfg, eval_config = make_dataclass_and_log_config(
         cfg,

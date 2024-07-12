@@ -184,6 +184,12 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     for code_path in cfg.get('code_paths', []):
         import_file(code_path)
 
+    # Allow for single model to be specified in the config to be consistent with train.py
+    if 'model' in cfg:
+        if 'models' in cfg:
+            raise ValueError('Please specify either model or models in the config, not both')
+        cfg['models'] = [cfg.pop('model')]
+
     logged_cfg, eval_config = make_dataclass_and_log_config(
         cfg,
         EvalConfig,

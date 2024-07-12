@@ -4,6 +4,7 @@
 from argparse import Namespace
 from typing import Optional
 
+import psutil
 import typer
 
 from llmfoundry.cli import registry_cli
@@ -32,48 +33,48 @@ def convert_text_to_mds_cli(
     output_folder: str = typer.
     Option(..., help='The folder to write output to'),  # type: ignore
     input_folder: str = typer.Option(
-        ..., help='The folder with text files to convert to MDS'
+        ..., help='The folder with text files to convert to MDS',
     ),  # type: ignore
     compression: str = typer.Option(
-        'zstd', help='The compression algorithm to use for MDS writing'
+        'zstd', help='The compression algorithm to use for MDS writing',
     ),  # type: ignore
     concat_tokens: int = typer.Option(
         ...,
-        help='Convert text to tokens and concatenate up to this many tokens'
+        help='Convert text to tokens and concatenate up to this many tokens',
     ),  # type: ignore
-    tokenizer: str = typer.Option(..., help='The name of the tokenizer to use'
+    tokenizer: str = typer.Option(..., help='The name of the tokenizer to use',
                                  ),  # type: ignore
     bos_text: Optional[str] = typer.Option(
         None,
         help=
-        'The text to prepend to each example to separate concatenated examples'
+        'The text to prepend to each example to separate concatenated examples',
     ),  # type: ignore
     eos_text: Optional[str] = typer.Option(
         None,
         help=
-        'The text to append to each example to separate concatenated examples'
+        'The text to append to each example to separate concatenated examples',
     ),  # type: ignore
     use_tokenizer_eos: bool = typer.
     Option(False, help='Use the EOS text from the tokenizer.'),  # type: ignore
     no_wrap: bool = typer.Option(
         False,
-        help='Whether to let text examples wrap across multiple training examples'
+        help='Whether to let text examples wrap across multiple training examples',
     ),  # type: ignore
     processes: int = typer.Option(
         min(max(psutil.cpu_count() - 2, 1), 32), # type: ignore
-        help='The number of processes to use to download and convert the dataset'
+        help='The number of processes to use to download and convert the dataset',
     ),  # type: ignore
     reprocess: bool = typer.Option(
         False,
         help=
-        'If true, reprocess the input_folder to MDS format. Otherwise, only reprocess upon changes to the input folder or dataset creation parameters.'
+        'If true, reprocess the input_folder to MDS format. Otherwise, only reprocess upon changes to the input folder or dataset creation parameters.',
     ),  # type: ignore
     trust_remote_code: bool = typer.Option(
         False,
-        help='If true, allows custom code to be executed to load the tokenizer'
+        help='If true, allows custom code to be executed to load the tokenizer',
     ),  # type: ignore
     logging_level: str = typer.Option(
-        'INFO', help='Logging level for the script. Default is INFO.'
+        'INFO', help='Logging level for the script. Default is INFO.',
     ),  # type: ignore
 ):
     args = Namespace(

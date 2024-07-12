@@ -192,6 +192,53 @@ def build_finetuning_dataloader(
         },
     )
 
+    # START: Test out ChronosDataset
+    if isinstance(tokenizer, ChronosTokenizerWrapper):
+        training_data_paths = [dataset_cfg.get('remote')]
+        
+        train_datasets = [
+            Filter(
+                partial(
+                    has_enough_observations,
+                    min_length=30,
+                    max_missing_prop=0.9,
+                ),
+                FileDataset(path=Path(data_path), freq="h"),
+            )
+            for data_path in training_data_paths
+        ]
+        shuffled_train_dataset = ChronosDataset(
+            datasets=train_datasets, 
+            probabilities=[1.0], 
+            tokenizer=tokenizer.chronos_tokenizer, 
+            context_length=18, 
+            prediction_length=12, 
+            min_past=18, 
+            mode="training", 
+        ).shuffle(shuffle_buffer_length=1000)
+        dl = DataLoader(
+            dataset=shuffled_train_dataset,
+            # collate_fn=collate_fn,
+            batch_size=dataloader_batch_size,
+            drop_last=drop_last,
+            sampler=None,  # `sampler` not defined
+            num_workers=num_workers,
+            pin_memory=pin_memory,
+            prefetch_factor=prefetch_factor,
+            persistent_workers=persistent_workers,
+            timeout=timeout,
+        )
+        return construct_from_registry(
+            name='data_spec',
+            registry=registry.data_specs,
+            partial_function=False,
+            kwargs={
+                'dl': dl,
+                'dataset_cfg': dataset_cfg,
+            },
+        )
+    # END: Done testing out ChronosDataset
+
     streaming_dataset = None  # for pyright
     sampler = None
     if dataset_cfg.get(

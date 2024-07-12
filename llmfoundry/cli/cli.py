@@ -60,7 +60,7 @@ def convert_text_to_mds_cli(
         help='Whether to let text examples wrap across multiple training examples'
     ),  # type: ignore
     processes: int = typer.Option(
-        min(max(psutil.cpu_count() - 2, 1), 32),
+        min(max(psutil.cpu_count() - 2, 1), 32), # type: ignore
         help='The number of processes to use to download and convert the dataset'
     ),  # type: ignore
     reprocess: bool = typer.Option(

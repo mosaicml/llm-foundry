@@ -28,7 +28,7 @@ def train(
 
 
 @app.command(name='convert_dataset_json')
-def convert_dataset_json_from_args_cli(
+def convert_dataset_json_cli(
     path: str = typer.Option(
         ...,
         '--path',

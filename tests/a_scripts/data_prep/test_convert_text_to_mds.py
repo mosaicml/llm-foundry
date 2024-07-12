@@ -13,7 +13,7 @@ import pytest
 from streaming import StreamingDataset
 from transformers import AutoTokenizer
 
-from llmfoundry.data_prep import (
+from llmfoundry.data_prep.convert_text_to_mds import (
     DONE_FILENAME,
     convert_text_to_mds,
     download_and_convert,
@@ -83,15 +83,15 @@ def _assert_files_exist(prefix: str, files: List[str]):
 @pytest.mark.parametrize('processes', [1, 2, 3])
 @patch.object(ProcessPoolExecutor, 'map', new=Mock(wraps=_mock_map))
 @patch(
-    'llmfoundry.data_prep.maybe_create_object_store_from_uri',
+    'llmfoundry.data_prep.convert_text_to_mds.maybe_create_object_store_from_uri',
 )
-@patch('llmfoundry.data_prep.parse_uri')
+@patch('llmfoundry.data_prep.convert_text_to_mds.parse_uri')
 @patch(
-    'llmfoundry.data_prep.download_and_convert',
+    'llmfoundry.data_prep.convert_text_to_mds.download_and_convert',
     wraps=download_and_convert,
 )
 @patch(
-    'llmfoundry.data_prep.merge_shard_groups',
+    'llmfoundry.data_prep.convert_text_to_mds.merge_shard_groups',
     wraps=merge_shard_groups,
 )
 def test_single_and_multi_process(

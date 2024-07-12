@@ -37,6 +37,7 @@ from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.eval.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
+from llmfoundry.tokenizers.chronos_tokenizer import ChronosTokenizerWrapper
 from llmfoundry.utils.config_utils import to_dict_container, to_list_container
 from llmfoundry.utils.registry_utils import construct_from_registry
 
@@ -469,6 +470,11 @@ def build_tokenizer(
 
     if tokenizer_name.startswith('tiktoken'):
         tokenizer = TiktokenTokenizerWrapper(**tokenizer_kwargs)
+    elif tokenizer_name.startswith('amazon/chronos'):
+        tokenizer = ChronosTokenizerWrapper(
+            tokenizer_name,
+            **tokenizer_kwargs,
+        )
     else:
         tokenizer = AutoTokenizer.from_pretrained(
             tokenizer_name,

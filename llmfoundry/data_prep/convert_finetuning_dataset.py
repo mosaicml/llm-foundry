@@ -26,6 +26,7 @@ from llmfoundry.utils.builders import build_tokenizer
 
 HFDataset = Union[DatasetDict, Dataset, IterableDatasetDict, IterableDataset]
 
+
 def build_dataloader(
     dataset: HFDataset,
     batch_size: int,
@@ -227,6 +228,7 @@ def convert_finetuning_dataset(args: Namespace) -> None:
                 'the prompt or response was empty, or the response was all padding tokens.',
             )
 
+
 def convert_finetuning_dataset_from_args(args: Namespace):
     if os.path.isdir(args.out_root) and len(
         set(os.listdir(args.out_root)).intersection(set(args.splits)),
@@ -240,9 +242,7 @@ def convert_finetuning_dataset_from_args(args: Namespace):
     else:
         args.tokenizer_kwargs = {}
 
-    if len(args.data_files) > 0 and len(
-        args.data_files,
-    ) != len(args.splits):
+    if len(args.data_files) > 0 and len(args.data_files,) != len(args.splits):
         raise ValueError(
             f'If data_files is set, data_files and splits must have the same length. Got {len(args.data_files)=} while {len(args.splits)=}',
         )

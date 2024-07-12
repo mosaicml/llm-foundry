@@ -40,6 +40,7 @@ from llmfoundry.data.text_data import (
     build_text_dataloader,
 )
 from llmfoundry.data.utils import get_tokens_per_batch_func
+from llmfoundry.data_prep import get_columns_and_format
 from llmfoundry.utils.builders import build_tokenizer
 from llmfoundry.utils.config_utils import to_dict_container
 # yapf: disable
@@ -57,7 +58,6 @@ from llmfoundry.utils.exceptions import (
 )
 # yapf: enable
 from scripts.data_prep.convert_dataset_hf import main as main_hf
-from llmfoundry.data_prep import get_columns_and_format
 from tests.data_utils import (
     make_tiny_conversation_ft_dataset,
     make_tiny_ft_dataset,

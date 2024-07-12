@@ -91,7 +91,7 @@ def _assert_files_exist(prefix: str, files: List[str]):
     wraps=download_and_convert,
 )
 @patch(
-    'llmfoundry.data_prep..merge_shard_groups',
+    'llmfoundry.data_prep.merge_shard_groups',
     wraps=merge_shard_groups,
 )
 def test_single_and_multi_process(

@@ -3,15 +3,15 @@
 variables:
   global_seed: 17
   model_name: amazon/chronos-t5-small
-  save_folder: /mnt/workdisk/kushal/llm-foundry/scripts/output/chronos-t5-small-finetuning-1
+  save_folder: /mnt/workdisk/kushal/llm-foundry-fork/kushal-testing/output/chronos-t5-small-finetuning-1
 
   max_seq_len: 30  # Depends on dataset
 
   # Run Name
   run_name:  # If left blank, will be read from env var $RUN_NAME
 
-  max_duration: 200ba
-  save_interval: 20ba
+  max_duration: 10ba
+  save_interval: 5ba
 
 max_seq_len: ${variables.max_seq_len}
 run_name: ${variables.run_name}
@@ -31,8 +31,8 @@ train_loader:
   name: finetuning
   dataset:
     max_seq_len: ${variables.max_seq_len}
-    local: /mnt/workdisk/kushal/llm-foundry/kushal-testing/tmp/hospital_data/hospital.arrow
-    remote: /mnt/workdisk/kushal/llm-foundry/kushal-testing/tmp/hospital_data/hospital.arrow
+    local: /mnt/workdisk/kushal/llm-foundry-fork/kushal-testing/tmp/hospital_data/hospital.arrow
+    remote: /mnt/workdisk/kushal/llm-foundry-fork/kushal-testing/tmp/hospital_data/hospital.arrow
     allow_pad_trimming: false
     decoder_only_format: false
     shuffle: true

@@ -47,4 +47,18 @@ def parse_args() -> Namespace:
 
 
 if __name__ == '__main__':
-    convert_dataset_hf_from_args(**vars(parse_args()),)
+    args = parse_args()
+    convert_dataset_hf_from_args(
+        dataset=args.dataset,
+        data_subset=args.data_subset,
+        splits=args.splits,
+        out_root=args.out_root,
+        compression=args.compression,
+        concat_tokens=args.concat_tokens,
+        tokenizer=args.tokenizer,
+        tokenizer_kwargs=args.tokenizer_kwargs,
+        bos_text=args.bos_text,
+        eos_text=args.eos_text,
+        no_wrap=args.no_wrap,
+        num_workers=args.num_workers
+    )

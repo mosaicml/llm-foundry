@@ -34,7 +34,7 @@ def convert_dataset_hf(
     out_root: Annotated[str, Option(..., help='Output root directory')],
     data_subset: Annotated[
         Optional[str],
-        Option(None, help='Subset of the dataset (e.g., "all" or "en")'),
+        Option(help='Subset of the dataset (e.g., "all" or "en")'),
     ] = None,
     splits: Annotated[str,
                       Option(help='Comma-separated list of dataset splits',)

@@ -9,7 +9,7 @@ from argparse import ArgumentParser, Namespace
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 from glob import glob
-from typing import Dict, Iterable, List, Tuple, cast
+from typing import Dict, Iterable, List, Optional, Tuple, cast
 
 import numpy as np
 import psutil
@@ -582,36 +582,65 @@ def _configure_logging(logging_level: str):
     log.info(f'Logging level set to {logging_level}')
 
 
-def convert_text_to_mds_from_args(args: Namespace) -> None:
-    if args.use_tokenizer_eos:
+def convert_text_to_mds_from_args(
+    output_folder: str,
+    input_folder: str,
+    compression: Optional[str],
+    concat_tokens: int,
+    tokenizer: str,
+    bos_text: Optional[str],
+    eos_text: Optional[str],
+    use_tokenizer_eos: bool,
+    no_wrap: bool,
+    processes: int,
+    reprocess: bool,
+    trust_remote_code: bool,
+    logging_level: str,
+) -> None:
+    if use_tokenizer_eos:
         # Ensure that eos text is not specified twice.
-        if args.eos_text is not None:
-            args.error(
+        if eos_text is not None:
+            ValueError(
                 'Cannot set --eos_text with --use_tokenizer_eos. Please specify one.',
             )
         tokenizer = AutoTokenizer.from_pretrained(
-            args.tokenizer,
-            trust_remote_code=args.trust_remote_code,
+            tokenizer,
+            trust_remote_code=trust_remote_code,
         )
-        args.eos_text = tokenizer.eos_token
+        eos_text = tokenizer.eos_token
 
     # now that we have validated them, change BOS/EOS to strings
-    if args.bos_text is None:
-        args.bos_text = ''
-    if args.eos_text is None:
-        args.eos_text = ''
-    _configure_logging(args.logging_level)
+    if bos_text is None:
+        bos_text = ''
+    if eos_text is None:
+        eos_text = ''
+    _configure_logging(logging_level)
+
+    # Define args for _args_str
+    args = Namespace(
+        tokenizer=tokenizer,
+        output_folder=output_folder,
+        input_folder=input_folder,
+        compression=compression,
+        concat_tokens=concat_tokens,
+        eos_text=eos_text,
+        bos_text=bos_text,
+        no_wrap=no_wrap,
+        processes=processes,
+        reprocess=reprocess,
+        trust_remote_code=trust_remote_code,
+    )
     convert_text_to_mds(
-        tokenizer_name=args.tokenizer,
-        output_folder=args.output_folder,
-        input_folder=args.input_folder,
-        concat_tokens=args.concat_tokens,
-        eos_text=args.eos_text,
-        bos_text=args.bos_text,
-        no_wrap=args.no_wrap,
-        compression=args.compression,
-        processes=args.processes,
-        reprocess=args.reprocess,
-        trust_remote_code=args.trust_remote_code,
+        tokenizer_name=tokenizer,
+        output_folder=output_folder,
+        input_folder=input_folder,
+        concat_tokens=concat_tokens,
+        eos_text=eos_text,
+        bos_text=bos_text,
+        no_wrap=no_wrap,
+        compression=compression,
+        processes=processes,
+        reprocess=reprocess,
+        trust_remote_code=trust_remote_code,
         args_str=_args_str(args),
     )

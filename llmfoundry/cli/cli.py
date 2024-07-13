@@ -8,7 +8,7 @@ from typing import Optional
 import typer
 
 from llmfoundry.cli import registry_cli
-from llmfoundry.data_prep.convert_dataset_json import \
+from llmfoundry.data_prep.convert_delta_to_json import \
     convert_delta_to_json_from_args
 from llmfoundry.train import train_from_yaml
 

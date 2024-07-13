@@ -47,4 +47,4 @@ def parse_args() -> Namespace:
 
 
 if __name__ == '__main__':
-    convert_dataset_hf_from_args(parse_args())
+    convert_dataset_hf_from_args(**vars(parse_args()),)

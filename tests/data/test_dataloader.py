@@ -5,7 +5,6 @@ import os
 import pathlib
 import random
 import shutil
-from argparse import Namespace
 from contextlib import nullcontext as does_not_raise
 from pathlib import Path
 from typing import ContextManager, Literal, Optional, Union
@@ -205,41 +204,33 @@ def test_correct_padding(
     shutil.rmtree(path, ignore_errors=True)
     if pretokenize:
         convert_dataset_hf(
-            Namespace(
-                **{
-                    'dataset': 'c4',
-                    'data_subset': 'en',
-                    'splits': [split],
-                    'out_root': path,
-                    'compression': None,
-                    'concat_tokens': 2048,
-                    'tokenizer': tokenizer_name,
-                    'tokenizer_kwargs': {},
-                    'bos_text': bos_text,
-                    'eos_text': eos_text,
-                    'no_wrap': False,
-                    'num_workers': None,
-                },
-            ),
+            dataset='c4',
+            data_subset='en',
+            splits=[split],
+            out_root=path,
+            compression=None,
+            concat_tokens=2048,
+            tokenizer=tokenizer_name,
+            tokenizer_kwargs={},
+            bos_text=bos_text,
+            eos_text=eos_text,
+            no_wrap=False,
+            num_workers=None,
         )
     else:
         convert_dataset_hf(
-            Namespace(
-                **{
-                    'dataset': 'c4',
-                    'data_subset': 'en',
-                    'splits': [split],
-                    'out_root': path,
-                    'compression': None,
-                    'concat_tokens': None,
-                    'tokenizer': tokenizer_name,
-                    'tokenizer_kwargs': {},
-                    'bos_text': bos_text,
-                    'eos_text': eos_text,
-                    'no_wrap': False,
-                    'num_workers': None,
-                },
-            ),
+            dataset='c4',
+            data_subset='en',
+            splits=[split],
+            out_root=path,
+            compression=None,
+            concat_tokens=None,
+            tokenizer=tokenizer_name,
+            tokenizer_kwargs={},
+            bos_text=bos_text,
+            eos_text=eos_text,
+            no_wrap=False,
+            num_workers=None,
         )
     if not os.path.isdir(path):
         raise RuntimeError(f'c4 dataset at {path} not set up as expected')

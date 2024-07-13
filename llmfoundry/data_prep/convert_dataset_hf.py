@@ -5,10 +5,9 @@
 import json
 import os
 import platform
-from argparse import Namespace
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, Iterable, Optional, Union
+from typing import Any, Dict, Iterable, Optional, Union
 
 import datasets as hf_datasets
 import psutil
@@ -299,22 +298,49 @@ def generate_samples(
             }
 
 
-def convert_dataset_hf(args: Namespace) -> None:
-    """Main: create C4/pile streaming dataset.
+def convert_dataset_hf(
+    dataset: str,
+    data_subset: Optional[str],
+    splits: list[str],
+    out_root: str,
+    compression: Optional[str],
+    concat_tokens: Optional[int],
+    tokenizer: Optional[str],
+    tokenizer_kwargs: dict[str, Any],
+    bos_text: Optional[str],
+    eos_text: Optional[str],
+    no_wrap: bool,
+    num_workers: Optional[int],
+) -> None:
+    """Converts HuggingFace datasets to MDS format.
 
     Args:
-        args (Namespace): Commandline arguments.
+        dataset (str): Name of the dataset
+        data_subset (Optional[str]): Subset of the dataset (e.g., "all" or "en")
+        splits (list[str]): Comma-separated list of dataset splits
+        out_root (str): Output root directory
+        compression (Optional[str]): Compression type
+        concat_tokens (Optional[int]): Concatenate tokens up to this many tokens
+        tokenizer (Optional[str]): Tokenizer name
+        tokenizer_kwargs (Optional[str]): Tokenizer keyword arguments in JSON format
+        bos_text (Optional[str]): BOS text
+        eos_text (Optional[str]): EOS text
+        no_wrap (bool): Do not wrap text across max_length boundaries
+        num_workers (Optional[int]): Number of workers
+
+    Raises:
+        KeyError: If constants are not defined for the split
     """
     try:
-        dataset_constants = CONSTS[args.dataset]
+        dataset_constants = CONSTS[dataset]
     except KeyError:
         raise ValueError(
-            f'Constants for dataset "{args.dataset}" not found. Currently only "the_pile" and "c4" are supported.',
+            f'Constants for dataset "{dataset}" not found. Currently only "the_pile" and "c4" are supported.',
         )
 
-    if args.concat_tokens is not None:
+    if concat_tokens is not None:
         mode = ConcatMode.CONCAT_TOKENS
-        tokenizer = build_tokenizer(args.tokenizer, args.tokenizer_kwargs)
+        tokenizer = build_tokenizer(tokenizer, tokenizer_kwargs)
         # we will enforce length, so suppress warnings about sequences too long for the model
         tokenizer.model_max_length = int(1e30)
         columns = {'tokens': 'ndarray:int32'}
@@ -323,7 +349,7 @@ def convert_dataset_hf(args: Namespace) -> None:
         tokenizer = None
         columns = {'text': 'str'}
 
-    for split_name in args.splits:
+    for split_name in splits:
         try:
             split = dataset_constants.splits[split_name]
         except KeyError:
@@ -333,25 +359,25 @@ def convert_dataset_hf(args: Namespace) -> None:
         expected_num_samples = split.raw_samples
         truncate_num_samples = split.truncated_samples
         # Only generate the splits requested
-        if folder_split not in args.splits:
+        if folder_split not in splits:
             continue
 
         # Get samples
         dataset = build_hf_dataset(
-            dataset_name=args.dataset,
-            data_subset=args.data_subset,
+            dataset_name=dataset,
+            data_subset=data_subset,
             split=hf_split,
             mode=mode,
-            max_length=args.concat_tokens,
-            bos_text=args.bos_text,
-            eos_text=args.eos_text,
-            no_wrap=args.no_wrap,
+            max_length=concat_tokens,
+            bos_text=bos_text,
+            eos_text=eos_text,
+            no_wrap=no_wrap,
             tokenizer=tokenizer,
         )
         loader = build_dataloader(
             dataset=dataset,
             batch_size=512,
-            num_workers=args.num_workers,
+            num_workers=num_workers,
         )
         samples = generate_samples(
             loader,
@@ -364,7 +390,7 @@ def convert_dataset_hf(args: Namespace) -> None:
                 chars_per_sample=dataset_constants.chars_per_sample,
                 chars_per_token=dataset_constants.chars_per_token,
                 mode=mode,
-                max_length=args.concat_tokens,
+                max_length=concat_tokens,
             )
         else:
             denominator = None
@@ -376,8 +402,8 @@ def convert_dataset_hf(args: Namespace) -> None:
         )
         with MDSWriter(
             columns=columns,
-            out=os.path.join(args.out_root, folder_split),
-            compression=args.compression,
+            out=os.path.join(out_root, folder_split),
+            compression=compression,
         ) as out:
             if denominator is not None:
                 for sample in tqdm(
@@ -391,32 +417,79 @@ def convert_dataset_hf(args: Namespace) -> None:
                     out.write(sample)
 
 
-def convert_dataset_hf_from_args(args: Namespace) -> None:
-    if args.tokenizer_kwargs:
-        args.tokenizer_kwargs = json.loads(args.tokenizer_kwargs)
-    else:
-        args.tokenizer_kwargs = {}
+def convert_dataset_hf_from_args(
+    dataset: str,
+    data_subset: Optional[str],
+    splits: list[str],
+    out_root: str,
+    compression: Optional[str],
+    concat_tokens: Optional[int],
+    tokenizer: Optional[str],
+    tokenizer_kwargs: Optional[str],
+    bos_text: Optional[str],
+    eos_text: Optional[str],
+    no_wrap: bool,
+    num_workers: Optional[int],
+) -> None:
+    """A wrapper for `convert_dataset_hf` to ensure that all parameters are
+    valid and parsable.
 
-    if os.path.isdir(args.out_root) and len(
-        set(os.listdir(args.out_root)).intersection(set(args.splits)),
+    Args:
+        dataset (str): Name of the dataset
+        data_subset (Optional[str]): Subset of the dataset
+        splits (list[str]): Comma-separated list of dataset splits
+        out_root (str): Output root directory
+        compression (Optional[str]): Compression type
+        concat_tokens (Optional[int]): Concatenate tokens up to this many tokens
+        tokenizer (Optional[str]): Tokenizer name
+        tokenizer_kwargs (Optional[str]): Tokenizer keyword arguments in JSON format
+        bos_text (Optional[str]): BOS text
+        eos_text (Optional[str]): EOS text
+        no_wrap (bool): Do not wrap text across max_length boundaries
+        num_workers (Optional[int]): Number of workers
+
+    Raises:
+        ValueError: If the output directory already contains the requested splits
+        ValueError: If `concat_tokens` is set but `tokenizer` is not
+    """
+    if tokenizer_kwargs:
+        parsed_tokenizer_kwargs = json.loads(tokenizer_kwargs)
+    else:
+        parsed_tokenizer_kwargs = {}
+
+    if os.path.isdir(out_root) and len(
+        set(os.listdir(out_root)).intersection(set(splits)),
     ) > 0:
         raise ValueError(
-            f'--out_root={args.out_root} contains {os.listdir(args.out_root)} which cannot overlap with the requested splits {args.splits}.',
+            f'--out_root={out_root} contains {os.listdir(out_root)} which cannot overlap with the requested splits {splits}.',
         )
 
     # Make sure we have needed concat options
     if (
-        args.concat_tokens is not None and
-        isinstance(args.concat_tokens, int) and args.tokenizer is None
+        concat_tokens is not None and isinstance(concat_tokens, int) and
+        tokenizer is None
     ):
-        args.error(
+        raise ValueError(
             'When setting --concat_tokens, you must specify a --tokenizer',
         )
 
     # now that we have validated them, change BOS/EOS to strings
-    if args.bos_text is None:
-        args.bos_text = ''
-    if args.eos_text is None:
-        args.eos_text = ''
+    if bos_text is None:
+        bos_text = ''
+    if eos_text is None:
+        eos_text = ''
 
-    convert_dataset_hf(args)
+    convert_dataset_hf(
+        dataset=dataset,
+        data_subset=data_subset,
+        splits=splits,
+        out_root=out_root,
+        compression=compression,
+        concat_tokens=concat_tokens,
+        tokenizer=tokenizer,
+        tokenizer_kwargs=parsed_tokenizer_kwargs,
+        bos_text=bos_text,
+        eos_text=eos_text,
+        no_wrap=no_wrap,
+        num_workers=num_workers,
+    )

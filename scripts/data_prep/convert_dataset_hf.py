@@ -60,5 +60,5 @@ if __name__ == '__main__':
         bos_text=args.bos_text,
         eos_text=args.eos_text,
         no_wrap=args.no_wrap,
-        num_workers=args.num_workers
+        num_workers=args.num_workers,
     )

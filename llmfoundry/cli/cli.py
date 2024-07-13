@@ -37,9 +37,8 @@ def convert_dataset_hf(
         Option(None, help='Subset of the dataset (e.g., "all" or "en")'),
     ] = None,
     splits: Annotated[str,
-                      Option(
-                          help='Comma-separated list of dataset splits',
-                      )] = 'train, train_small, val, val_small, val_xsmall',
+                      Option(help='Comma-separated list of dataset splits',)
+                     ] = 'train, train_small, val, val_small, val_xsmall',
     compression: Annotated[Optional[str],
                            Option(help='Compression type')] = None,
     concat_tokens: Annotated[
@@ -50,10 +49,8 @@ def convert_dataset_hf(
     tokenizer_kwargs: Annotated[
         Optional[str],
         Option(help='Tokenizer keyword arguments in JSON format')] = None,
-    bos_text: Annotated[Optional[str],
-                        Option(help='BOS text')] = None,
-    eos_text: Annotated[Optional[str],
-                        Option(help='EOS text')] = None,
+    bos_text: Annotated[Optional[str], Option(help='BOS text')] = None,
+    eos_text: Annotated[Optional[str], Option(help='EOS text')] = None,
     no_wrap: Annotated[
         bool,
         Option(help='Do not wrap text across max_length boundaries'),

@@ -131,5 +131,5 @@ if __name__ == '__main__':
         processes=args.processes,
         reprocess=args.reprocess,
         trust_remote_code=args.trust_remote_code,
-        logging_level=args.logging,
+        logging_level=args.logging_level,
     )

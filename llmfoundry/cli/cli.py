@@ -33,36 +33,44 @@ def train(
 def convert_delta_to_json_cli(
     delta_table_name: str = typer.Option(
         ...,
+        '--delta_table_name',
         help='UC table <catalog>.<schema>.<table name>',
     ),  # type: ignore
     json_output_folder: str = typer.Option(
         ...,
+        '--json_output_folder',
         help='Local path to save the converted json',
     ),  # type: ignore
     http_path: Optional[str] = typer.Option(
         None,
+        '--http_path',
         help='If set, dbsql method is used',
     ),  # type: ignore
     batch_size: int = typer.Option(
         1 << 30,
+        '--batch_size',
         help='Row chunks to transmit a time to avoid OOM',
     ),  # type: ignore
     processes: int = typer.Option(
         os.cpu_count(), # type: ignore
+        '--processes',
         help='Number of processes allowed to use',
     ),  # type: ignore
     cluster_id: Optional[str] = typer.Option(
         None,
+        '--cluster_id',
         help=
         'Cluster ID with runtime newer than 14.1.0 and access mode of either assigned or shared can use databricks-connect.',
     ),  # type: ignore
     use_serverless: bool = typer.Option(
         False,
+        '--use_serverless',
         help=
         'Use serverless or not. Make sure the workspace is entitled with serverless',
     ),  # type: ignore
     json_output_filename: str = typer.Option(
         'train-00000-of-00001.jsonl',
+        '--json_output_filename',
         help=
         'The name of the combined final jsonl that combines all partitioned jsonl',
     ),  # type: ignore

@@ -17,11 +17,11 @@ def test_download_script_from_api(tmp_path: Path):
         out_root=path,
         compression=None,
         concat_tokens=None,
-        bos_text=None,
-        eos_text=None,
+        bos_text='',
+        eos_text='',
         no_wrap=False,
         num_workers=None,
         tokenizer=None,
-        tokenizer_kwargs=None,
+        tokenizer_kwargs={},
     )
     assert os.path.exists(path)

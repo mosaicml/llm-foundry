@@ -307,8 +307,8 @@ def convert_dataset_hf(
     concat_tokens: Optional[int],
     tokenizer: Optional[str],
     tokenizer_kwargs: dict[str, Any],
-    bos_text: Optional[str],
-    eos_text: Optional[str],
+    bos_text: str,
+    eos_text: str,
     no_wrap: bool,
     num_workers: Optional[int],
 ) -> None:
@@ -338,15 +338,15 @@ def convert_dataset_hf(
             f'Constants for dataset "{dataset}" not found. Currently only "the_pile" and "c4" are supported.',
         )
 
-    if concat_tokens is not None:
+    if concat_tokens is not None and tokenizer is not None:
         mode = ConcatMode.CONCAT_TOKENS
-        tokenizer = build_tokenizer(tokenizer, tokenizer_kwargs)
+        built_tokenizer = build_tokenizer(tokenizer, tokenizer_kwargs)
         # we will enforce length, so suppress warnings about sequences too long for the model
-        tokenizer.model_max_length = int(1e30)
+        built_tokenizer.model_max_length = int(1e30)
         columns = {'tokens': 'ndarray:int32'}
     else:
         mode = ConcatMode.NO_CONCAT
-        tokenizer = None
+        built_tokenizer = None
         columns = {'text': 'str'}
 
     for split_name in splits:
@@ -363,7 +363,7 @@ def convert_dataset_hf(
             continue
 
         # Get samples
-        dataset = build_hf_dataset(
+        hf_dataset = build_hf_dataset(
             dataset_name=dataset,
             data_subset=data_subset,
             split=hf_split,
@@ -372,10 +372,10 @@ def convert_dataset_hf(
             bos_text=bos_text,
             eos_text=eos_text,
             no_wrap=no_wrap,
-            tokenizer=tokenizer,
+            tokenizer=built_tokenizer,
         )
         loader = build_dataloader(
-            dataset=dataset,
+            dataset=hf_dataset,
             batch_size=512,
             num_workers=num_workers,
         )
@@ -384,7 +384,7 @@ def convert_dataset_hf(
             truncate_num_samples=truncate_num_samples,
         )
 
-        if expected_num_samples is not None:
+        if expected_num_samples is not None and concat_tokens is not None:
             denominator = truncate_num_samples if truncate_num_samples is not None else _est_progress_denominator(
                 total_samples=expected_num_samples,
                 chars_per_sample=dataset_constants.chars_per_sample,
@@ -431,8 +431,12 @@ def convert_dataset_hf_from_args(
     no_wrap: bool,
     num_workers: Optional[int],
 ) -> None:
-    """A wrapper for `convert_dataset_hf` to ensure that all parameters are
-    valid and parsable.
+    """A wrapper for `convert_dataset_hf`
+
+    Wrapper is used to ensure that all parameters are valid and parsable. Particularly,
+    tokenizer_kwargs will be parsed from JSON (or None) to a dictionary. Out_root will also be
+    checked to ensure that the requested splits do not overlap with existing directories and
+    concat_tokens will be validated to ensure that a tokenizer is provided if concat_tokens is set.
 
     Args:
         dataset (str): Name of the dataset
@@ -473,12 +477,7 @@ def convert_dataset_hf_from_args(
             'When setting --concat_tokens, you must specify a --tokenizer',
         )
 
-    # now that we have validated them, change BOS/EOS to strings
-    if bos_text is None:
-        bos_text = ''
-    if eos_text is None:
-        eos_text = ''
-
+    # now that we have validated them, change BOS/EOS to strings and convert
     convert_dataset_hf(
         dataset=dataset,
         data_subset=data_subset,
@@ -488,8 +487,8 @@ def convert_dataset_hf_from_args(
         concat_tokens=concat_tokens,
         tokenizer=tokenizer,
         tokenizer_kwargs=parsed_tokenizer_kwargs,
-        bos_text=bos_text,
-        eos_text=eos_text,
+        bos_text=bos_text if bos_text else '',
+        eos_text=eos_text if eos_text else '',
         no_wrap=no_wrap,
         num_workers=num_workers,
     )

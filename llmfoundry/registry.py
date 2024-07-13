@@ -353,7 +353,7 @@ _load_planners_description = (
 load_planners = create_registry(
     'llmfoundry',
     'load_planners',
-    generic_type=LoadPlanner,
+    generic_type=Type[LoadPlanner],
     entry_points=True,
     description=_load_planners_description,
 )
@@ -369,7 +369,7 @@ _save_planners_description = (
 save_planners = create_registry(
     'llmfoundry',
     'save_planners',
-    generic_type=SavePlanner,
+    generic_type=Type[SavePlanner],
     entry_points=True,
     description=_save_planners_description,
 )

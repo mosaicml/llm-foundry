@@ -1,26 +1,28 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Optional
+from typing import Annotated, Optional
 
-import typer
+from typer import Argument, Option, Typer
 
 from llmfoundry.cli import registry_cli
 from llmfoundry.data_prep import convert_dataset_json_from_args
 from llmfoundry.train import train_from_yaml
 
-app = typer.Typer(pretty_exceptions_show_locals=False)
+app = Typer(pretty_exceptions_show_locals=False)
 app.add_typer(registry_cli.app, name='registry')
 
 
 @app.command(name='train')
 def train(
-    yaml_path: str = typer.Argument(
-        ...,
-        help='Path to the YAML configuration file',
-    ),  # type: ignore
-    args_list: Optional[list[str]] = typer.
-    Argument(None, help='Additional command line arguments'),  # type: ignore
+    yaml_path: Annotated[str,
+                         Argument(
+                             ...,
+                             help='Path to the YAML configuration file',
+                         )],
+    args_list: Annotated[
+        Optional[list[str]],
+        Argument(help='Additional command line arguments')] = None,
 ):
     """Run the training with optional overrides from CLI."""
     train_from_yaml(yaml_path, args_list)
@@ -28,47 +30,30 @@ def train(
 
 @app.command(name='convert_dataset_json')
 def convert_dataset_json(
-    path: str = typer.Option(
-        ...,
-        '--path',
-        help='Path to the input data file',
-    ),  # type: ignore
-    out_root: str = typer.
-    Option(..., '--out_root', help='Output root directory'),  # type: ignore
-    compression: str = typer.Option(
-        None,
-        '--compression',
-        help='Compression type, if any',
-    ),  # type: ignore
-    concat_tokens: int = typer.Option(
-        None,
-        '--concat_tokens',
-        help='Convert text to tokens and concatenate up to this many tokens',
-    ),  # type: ignore
-    split: str = typer.
-    Option('train', '--split', help='Dataset split to process'),  # type: ignore
-    tokenizer: Optional[str] = typer.
-    Option(None, '--tokenizer', help='Tokenizer name'),  # type: ignore
-    bos_text: Optional[str] = typer.Option(
-        None,
-        '--bos_text',
-        help='Text to insert at the beginning of each sequence',
-    ),  # type: ignore
-    eos_text: Optional[str] = typer.Option(
-        None,
-        '--eos_text',
-        help='Text to insert at the end of each sequence',
-    ),  # type: ignore
-    no_wrap: bool = typer.Option(
-        False,
-        '--no_wrap',
-        help='Do not wrap text across max_length boundaries',
-    ),  # type: ignore
-    num_workers: int = typer.Option(
-        None,
-        '--num_workers',
-        help='Number of workers for data loading',
-    ),  # type: ignore
+    path: Annotated[str, Option(..., help='Path to the input data file')],
+    out_root: Annotated[str, Option(..., help='Output root directory')],
+    concat_tokens: Annotated[
+        int,
+        Option(
+            ...,
+            help='Convert text to tokens and concatenate up to this many tokens',
+        )],
+    tokenizer: Annotated[str, Option(..., help='Tokenizer name')],
+    compression: Annotated[Optional[str],
+                           Option(help='Compression type, if any')] = 'zstd',
+    split: Annotated[str, Option(help='Dataset split to process')] = 'train',
+    bos_text: Annotated[
+        Optional[str],
+        Option(help='Text to insert at the beginning of each sequence')] = None,
+    eos_text: Annotated[
+        Optional[str],
+        Option(help='Text to insert at the end of each sequence')] = None,
+    no_wrap: Annotated[
+        bool,
+        Option(help='Do not wrap text across max_length boundaries')] = False,
+    num_workers: Annotated[
+        Optional[int],
+        Option(help='Number of workers for data loading')] = None,
 ):
     convert_dataset_json_from_args(
         path=path,

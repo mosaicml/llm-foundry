@@ -102,10 +102,19 @@ def convert_dataset_json(
     no_wrap: bool = False,
     num_workers: Optional[int] = None,
 ) -> None:
-    """Main: create C4/pile streaming dataset.
+    """Create C4/pile streaming dataset.
 
     Args:
-        args (Namespace): Commandline arguments.
+        path (str): Path to the input data file
+        out_root (str): Output root directory
+        compression (Optional[str]): Compression type, if any
+        concat_tokens (Optional[int]): Convert text to tokens and concatenate up to this many tokens
+        split (str): Dataset split to process
+        tokenizer (Optional[str]): Tokenizer name
+        bos_text (str): Text to insert at the beginning of each sequence
+        eos_text (str): Text to insert at the end of each sequence
+        no_wrap (bool): Do not wrap text across max_length boundaries
+        num_workers (Optional[int]): Number of workers for data loading
     """
     if concat_tokens is not None:
         mode = ConcatMode.CONCAT_TOKENS
@@ -159,6 +168,31 @@ def convert_dataset_json_from_args(
     no_wrap: bool = False,
     num_workers: Optional[int] = None,
 ) -> None:
+    """A wrapper for `convert_dataset_hf`
+
+    Wrapper is used to ensure that all
+    parameters are valid and parsable. Particularly, tokenizer_kwargs will be
+    parsed from JSON (or None) to a dictionary. Out_root will also be checked to
+    ensure that the requested splits do not overlap with existing directories
+    and concat_tokens will be validated to ensure that a tokenizer is provided
+    if concat_tokens is set.
+
+    Args:
+        path (str): Path to the input data file
+        out_root (str): Output root directory
+        compression (Optional[str]): Compression type, if any
+        concat_tokens (Optional[int]): Convert text to tokens and concatenate up to this many tokens
+        split (str): Dataset split to process
+        tokenizer (Optional[str]): Tokenizer name
+        bos_text (Optional[str]): Text to insert at the beginning of each sequence
+        eos_text (Optional[str]): Text to insert at the end of each sequence
+        no_wrap (bool): Do not wrap text across max_length boundaries
+        num_workers (Optional[int]): Number of workers for data loading
+
+    Raises:
+        ValueError: If the out_root directory exists and contains files that overlap with the requested splits
+        ValueError: If concat_tokens is set and a tokenizer is not provided
+    """
     if os.path.isdir(out_root) and len(
         set(os.listdir(out_root)).intersection(set(split)),
     ) > 0:

@@ -22,7 +22,7 @@ def train(
                          )],
     args_list: Annotated[
         Optional[list[str]],
-        Argument(None, help='Additional command line arguments')],
+        Argument(help='Additional command line arguments')] = None,
 ):
     """Run the training with optional overrides from CLI."""
     train_from_yaml(yaml_path, args_list)
@@ -38,29 +38,28 @@ def convert_dataset_hf(
     ] = None,
     splits: Annotated[str,
                       Option(
-                          'train, train_small, val, val_small, val_xsmall',
                           help='Comma-separated list of dataset splits',
                       )] = 'train, train_small, val, val_small, val_xsmall',
     compression: Annotated[Optional[str],
-                           Option(None, help='Compression type')] = None,
+                           Option(help='Compression type')] = None,
     concat_tokens: Annotated[
         Optional[int],
-        Option(None, help='Concatenate tokens up to this many tokens')] = None,
+        Option(help='Concatenate tokens up to this many tokens')] = None,
     tokenizer: Annotated[Optional[str],
-                         Option(None, help='Tokenizer name')] = None,
+                         Option(help='Tokenizer name')] = None,
     tokenizer_kwargs: Annotated[
         Optional[str],
-        Option(None, help='Tokenizer keyword arguments in JSON format')] = None,
+        Option(help='Tokenizer keyword arguments in JSON format')] = None,
     bos_text: Annotated[Optional[str],
-                        Option(None, help='BOS text')] = None,
+                        Option(help='BOS text')] = None,
     eos_text: Annotated[Optional[str],
-                        Option(None, help='EOS text')] = None,
+                        Option(help='EOS text')] = None,
     no_wrap: Annotated[
         bool,
-        Option(False, help='Do not wrap text across max_length boundaries'),
+        Option(help='Do not wrap text across max_length boundaries'),
     ] = False,
     num_workers: Annotated[Optional[int],
-                           Option(None, help='Number of workers')] = None,
+                           Option(help='Number of workers')] = None,
 ):
     # Convert comma-separated splits into a list
     splits_list = splits.split(',') if splits else []

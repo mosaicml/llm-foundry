@@ -188,7 +188,7 @@ def build_icl_data_and_gauntlet(
     return icl_evaluators, logger_keys, eval_gauntlet_cb
 
 
-def build_load_planner(name: str,) -> LoadPlanner:
+def build_load_planner(name: str) -> LoadPlanner:
     """Builds a load planner from the registry.
 
     Args:
@@ -207,7 +207,7 @@ def build_load_planner(name: str,) -> LoadPlanner:
     )
 
 
-def build_save_planner(name: str,) -> SavePlanner:
+def build_save_planner(name: str) -> SavePlanner:
     """Builds a save planner from the registry.
 
     Args:

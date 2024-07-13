@@ -118,4 +118,18 @@ def parse_args() -> Namespace:
 
 if __name__ == '__main__':
     args = parse_args()
-    convert_text_to_mds_from_args(args)
+    convert_text_to_mds_from_args(
+        output_folder=args.output_folder,
+        input_folder=args.input_folder,
+        compression=args.compression,
+        concat_tokens=args.concat_tokens,
+        tokenizer=args.tokenizer,
+        bos_text=args.bos_text,
+        eos_text=args.eos_text,
+        use_tokenizer_eos=args.use_tokenizer_eos,
+        no_wrap=args.no_wrap,
+        processes=args.processes,
+        reprocess=args.reprocess,
+        trust_remote_code=args.trust_remote_code,
+        logging_level=args.logging,
+    )

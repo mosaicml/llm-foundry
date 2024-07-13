@@ -585,7 +585,7 @@ def _configure_logging(logging_level: str):
 def convert_text_to_mds_from_args(
     output_folder: str,
     input_folder: str,
-    compression: Optional[str],
+    compression: str,
     concat_tokens: int,
     tokenizer: str,
     bos_text: Optional[str],
@@ -603,11 +603,11 @@ def convert_text_to_mds_from_args(
             ValueError(
                 'Cannot set --eos_text with --use_tokenizer_eos. Please specify one.',
             )
-        tokenizer = AutoTokenizer.from_pretrained(
+        built_tokenizer = AutoTokenizer.from_pretrained(
             tokenizer,
             trust_remote_code=trust_remote_code,
         )
-        eos_text = tokenizer.eos_token
+        eos_text = built_tokenizer.eos_token
 
     # now that we have validated them, change BOS/EOS to strings
     if bos_text is None:

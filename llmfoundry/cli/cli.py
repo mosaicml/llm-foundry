@@ -30,13 +30,13 @@ def train(
 
 
 @app.command(name='convert_text_to_mds')
-def convert_text_to_mds_cli(
+def convert_text_to_mds(
     output_folder: Annotated[str, Option(..., '--output_folder', help='The folder to write output to')],
     input_folder: Annotated[str, Option(..., '--input_folder', help='The folder with text files to convert to MDS')],
     concat_tokens: Annotated[int, Option(..., help='Convert text to tokens and concatenate up to this many tokens')],
     tokenizer: Annotated[str, Option(..., help='The name of the tokenizer to use')],
-    bos_text: Annotated[str, Option(help='The text to prepend to each example to separate concatenated examples')] = None,
-    eos_text: Annotated[str, Option(help='The text to append to each example to separate concatenated examples')] = None,
+    bos_text: Annotated[Optional[str], Option(help='The text to prepend to each example to separate concatenated examples')] = None,
+    eos_text: Annotated[Optional[str], Option(help='The text to append to each example to separate concatenated examples')] = None,
     compression: Annotated[str, Option(help='The compression algorithm to use for MDS writing')] = 'zstd',
     use_tokenizer_eos: Annotated[bool, Option(help='Use the EOS text from the tokenizer')] = False,
     no_wrap: Annotated[bool, Option(help='Whether to let text examples wrap across multiple training examples')] = False,

@@ -6,7 +6,7 @@ from composer.core import Algorithm, Callback, DataSpec
 from composer.loggers import LoggerDestination
 from composer.models import ComposerModel
 from composer.optim import ComposerScheduler
-from torch.distributed.checkpoint import LoadPlanner
+from torch.distributed.checkpoint import LoadPlanner, SavePlanner
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader as TorchDataloader
 from torch.utils.data import Dataset
@@ -356,6 +356,22 @@ load_planners = create_registry(
     generic_type=LoadPlanner,
     entry_points=True,
     description=_load_planners_description,
+)
+
+_save_planners_description = (
+    """The save_planners registry is used to register classes that implement the SavePlanner interface.
+    The savePlanner will be passed as part of the FSDP config arg of the Trainer. It will be used to save distributed checkpoints.
+    Returns:
+        SavePlanner: The save planner.
+    """
+)
+
+save_planners = create_registry(
+    'llmfoundry',
+    'save_planners',
+    generic_type=SavePlanner,
+    entry_points=True,
+    description=_save_planners_description,
 )
 
 __all__ = [

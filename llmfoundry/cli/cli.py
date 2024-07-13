@@ -37,7 +37,7 @@ def convert_dataset_hf(
         Option(help='Subset of the dataset (e.g., "all" or "en")'),
     ] = None,
     splits: Annotated[str,
-                      Option(help='Comma-separated list of dataset splits',)
+                      Option(help='Comma-separated list of dataset splits',),
                      ] = 'train, train_small, val, val_small, val_xsmall',
     compression: Annotated[Optional[str],
                            Option(help='Compression type')] = None,

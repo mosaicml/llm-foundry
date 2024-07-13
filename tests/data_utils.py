@@ -269,19 +269,15 @@ def create_arxiv_dataset(path: Path) -> str:
         arxiv_path = os.path.join('scripts', arxiv_path)
 
     convert_dataset_json(
-        Namespace(
-            **{
-                'path': arxiv_path,
-                'out_root': arxiv_dir,
-                'compression': None,
-                'split': downloaded_split,
-                'concat_tokens': None,
-                'bos_text': None,
-                'eos_text': None,
-                'no_wrap': False,
-                'num_workers': None,
-            },
-        ),
+        path=arxiv_path,
+        out_root=arxiv_dir,
+        compression=None,
+        split=downloaded_split,
+        concat_tokens=None,
+        bos_text='',
+        eos_text='',
+        no_wrap=False,
+        num_workers=None,
     )
 
     return arxiv_dir

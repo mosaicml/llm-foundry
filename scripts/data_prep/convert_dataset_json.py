@@ -35,4 +35,15 @@ def parse_args() -> Namespace:
 
 
 if __name__ == '__main__':
-    convert_dataset_json_from_args(parse_args())
+    args = parse_args()
+    convert_dataset_json_from_args(
+        path=args.path,
+        out_root=args.out_root,
+        compression=args.compression,
+        concat_tokens=args.concat_tokens,
+        split=args.split,
+        tokenizer=args.tokenizer,
+        bos_text=args.bos_text,
+        eos_text=args.eos_text,
+        no_wrap=args.no_wrap,
+    )

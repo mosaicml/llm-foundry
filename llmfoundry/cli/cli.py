@@ -1,7 +1,6 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from argparse import Namespace
 from typing import Optional
 
 import typer
@@ -28,7 +27,7 @@ def train(
 
 
 @app.command(name='convert_dataset_json')
-def convert_dataset_json_cli(
+def convert_dataset_json(
     path: str = typer.Option(
         ...,
         '--path',
@@ -71,19 +70,18 @@ def convert_dataset_json_cli(
         help='Number of workers for data loading',
     ),  # type: ignore
 ):
-    args = Namespace(
+    convert_dataset_json_from_args(
         path=path,
+        split=split,
         out_root=out_root,
         compression=compression,
         concat_tokens=concat_tokens,
-        split=split,
         tokenizer=tokenizer,
         bos_text=bos_text,
         eos_text=eos_text,
         no_wrap=no_wrap,
         num_workers=num_workers,
     )
-    convert_dataset_json_from_args(args)
 
 
 if __name__ == '__main__':

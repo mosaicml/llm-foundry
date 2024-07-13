@@ -3,7 +3,6 @@
 
 """Streaming dataset conversion scripts for json files."""
 import os
-from argparse import Namespace
 from enum import Enum
 from glob import glob
 from typing import Optional
@@ -91,33 +90,44 @@ def build_hf_dataset(
     return dataset
 
 
-def convert_dataset_json(args: Namespace) -> None:
+def convert_dataset_json(
+    path: str,
+    out_root: str,
+    compression: Optional[str],
+    concat_tokens: Optional[int],
+    split: str,
+    tokenizer: Optional[str] = None,
+    bos_text: str = '',
+    eos_text: str = '',
+    no_wrap: bool = False,
+    num_workers: Optional[int] = None,
+) -> None:
     """Main: create C4/pile streaming dataset.
 
     Args:
         args (Namespace): Commandline arguments.
     """
-    if args.concat_tokens is not None:
+    if concat_tokens is not None:
         mode = ConcatMode.CONCAT_TOKENS
-        tokenizer = AutoTokenizer.from_pretrained(args.tokenizer)
+        built_tokenizer = AutoTokenizer.from_pretrained(tokenizer)
         # we will enforce length, so suppress warnings about sequences too long for the model
-        tokenizer.model_max_length = int(1e30)
+        built_tokenizer.model_max_length = int(1e30)
         columns = {'tokens': 'ndarray:int32'}
     else:
         mode = ConcatMode.NO_CONCAT
-        tokenizer = None
+        built_tokenizer = None
         columns = {'text': 'str'}
 
     # Get samples
     dataset = build_hf_dataset(
-        path=args.path,
-        split=args.split,
+        path=path,
+        split=split,
         mode=mode,
-        max_length=args.concat_tokens,
-        bos_text=args.bos_text,
-        eos_text=args.eos_text,
-        no_wrap=args.no_wrap,
-        tokenizer=tokenizer,
+        max_length=concat_tokens,
+        bos_text=bos_text,
+        eos_text=eos_text,
+        no_wrap=no_wrap,
+        tokenizer=built_tokenizer,
     )
 
     print('here')
@@ -130,34 +140,56 @@ def convert_dataset_json(args: Namespace) -> None:
     print(f'It will finish at a value below 100% if tokenizing')
     with MDSWriter(
         columns=columns,
-        out=os.path.join(args.out_root),
-        compression=args.compression,
+        out=os.path.join(out_root),
+        compression=compression,
     ) as out:
         for sample in tqdm(dataset):
             out.write(sample)
 
 
-def convert_dataset_json_from_args(args: Namespace) -> None:
-    if os.path.isdir(args.out_root) and len(
-        set(os.listdir(args.out_root)).intersection(set(args.split)),
+def convert_dataset_json_from_args(
+    path: str,
+    out_root: str,
+    compression: Optional[str],
+    concat_tokens: Optional[int],
+    split: str,
+    tokenizer: Optional[str] = None,
+    bos_text: Optional[str] = None,
+    eos_text: Optional[str] = None,
+    no_wrap: bool = False,
+    num_workers: Optional[int] = None,
+) -> None:
+    if os.path.isdir(out_root) and len(
+        set(os.listdir(out_root)).intersection(set(split)),
     ) > 0:
         raise ValueError(
-            f'--out_root={args.out_root} contains {os.listdir(args.out_root)} which cannot overlap with the requested splits {args.splits}.',
+            f'--out_root={out_root} contains {os.listdir(out_root)} which cannot overlap with the requested splits {split}.',
         )
 
     # Make sure we have needed concat options
     if (
-        args.concat_tokens is not None and
-        isinstance(args.concat_tokens, int) and args.tokenizer is None
+        concat_tokens is not None and isinstance(concat_tokens, int) and
+        tokenizer is None
     ):
-        args.error(
+        ValueError(
             'When setting --concat_tokens, you must specify a --tokenizer',
         )
 
     # now that we have validated them, change BOS/EOS to strings
-    if args.bos_text is None:
-        args.bos_text = ''
-    if args.eos_text is None:
-        args.eos_text = ''
+    if bos_text is None:
+        bos_text = ''
+    if eos_text is None:
+        eos_text = ''
 
-    convert_dataset_json(args)
+    convert_dataset_json(
+        path=path,
+        out_root=out_root,
+        compression=compression,
+        concat_tokens=concat_tokens,
+        split=split,
+        tokenizer=tokenizer,
+        bos_text=bos_text,
+        eos_text=eos_text,
+        no_wrap=no_wrap,
+        num_workers=num_workers,
+    )

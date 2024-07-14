@@ -174,7 +174,7 @@ def convert_finetuning_dataset(
         data_file = None
         if len(data_files) > 0:
             data_file = data_files[i]
-        dataset = hf_datasets.load_dataset(
+        loaded_dataset = hf_datasets.load_dataset(
             path=dataset,
             name=data_subset,
             split=split_name,
@@ -183,16 +183,16 @@ def convert_finetuning_dataset(
         )
         # Determine the output columns
         columns, example_type = get_columns_and_format(
-            dataset=dataset,
+            dataset=loaded_dataset,
             tokenizing=tokenizer is not None,
             preprocessing_fn=preprocessing_fn,
         )
         # Prepare the iterables
         if example_type == 'chat':
-            samples = iter(dataset)
+            samples = iter(loaded_dataset)
         else:
             loader = build_dataloader(
-                dataset=dataset,
+                dataset=loaded_dataset,
                 batch_size=512,
                 num_workers=num_workers,
             )

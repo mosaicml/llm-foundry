@@ -543,29 +543,6 @@ def convert_text_to_mds(
             )
 
 
-def _args_str(original_args: Namespace) -> str:
-    """Create a string from the args to determine whether to reprocess.
-
-    Args:
-        original_args (Namespace): Arguments to main function.
-    """
-    # Take the arguments that influence the final result.
-    # reprocess and max_mds_writer_workers are not taken.
-    args = Namespace(
-        tokenizer_name=original_args.tokenizer,
-        output_folder=original_args.output_folder,
-        input_folder=original_args.input_folder,
-        concat_tokens=original_args.concat_tokens,
-        eos_text=original_args.eos_text,
-        bos_text=original_args.bos_text,
-        no_wrap=original_args.no_wrap,
-        compression=original_args.compression,
-        processes=original_args.processes,
-    )
-
-    return str(args)
-
-
 def _configure_logging(logging_level: str):
     """Configure logging.
 
@@ -617,19 +594,19 @@ def convert_text_to_mds_from_args(
     _configure_logging(logging_level)
 
     # Define args for _args_str
-    args = Namespace(
-        tokenizer=tokenizer,
-        output_folder=output_folder,
-        input_folder=input_folder,
-        compression=compression,
-        concat_tokens=concat_tokens,
-        eos_text=eos_text,
-        bos_text=bos_text,
-        no_wrap=no_wrap,
-        processes=processes,
-        reprocess=reprocess,
-        trust_remote_code=trust_remote_code,
-    )
+    args = {
+        'tokenizer': tokenizer,
+        'output_folder': output_folder,
+        'input_folder': input_folder,
+        'compression': compression,
+        'concat_tokens': concat_tokens,
+        'eos_text': eos_text,
+        'bos_text': bos_text,
+        'no_wrap': no_wrap,
+        'processes': processes,
+        'reprocess': reprocess,
+        'trust_remote_code': trust_remote_code,
+    }
     convert_text_to_mds(
         tokenizer_name=tokenizer,
         output_folder=output_folder,
@@ -642,5 +619,5 @@ def convert_text_to_mds_from_args(
         processes=processes,
         reprocess=reprocess,
         trust_remote_code=trust_remote_code,
-        args_str=_args_str(args),
+        args_str=str(args),
     )

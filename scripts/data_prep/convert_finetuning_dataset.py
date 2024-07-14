@@ -112,4 +112,22 @@ if __name__ == '__main__':
     >>>    --preprocessor llmfoundry.data.finetuning.tasks:p3_preprocessing_function \
     >>>    --out_root s3://<bucket>/muennighoff-p3
     """
-    convert_finetuning_dataset_from_args(parse_args())
+    args = parse_args()
+    convert_finetuning_dataset_from_args(
+        dataset=args.dataset,
+        data_subset=args.data_subset,
+        splits=args.splits,
+        preprocessor=args.preprocessor,
+        data_files=args.data_files,
+        skip_preprocessing=args.skip_preprocessing,
+        out_root=args.out_root,
+        local=args.local,
+        compression=args.compression,
+        num_workers=args.num_workers,
+        tokenizer=args.tokenizer,
+        tokenizer_kwargs=args.tokenizer_kwargs,
+        max_seq_len=args.max_seq_len,
+        target_prompts=args.target_prompts,
+        target_responses=args.target_responses,
+        encoder_decoder=args.encoder_decoder,
+    )

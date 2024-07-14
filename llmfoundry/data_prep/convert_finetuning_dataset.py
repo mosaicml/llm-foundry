@@ -5,8 +5,7 @@ import json
 import os
 import platform
 import warnings
-from argparse import Namespace
-from typing import Callable, Dict, Iterable, Optional, Union
+from typing import Any, Callable, Dict, Iterable, Optional, Union
 
 import datasets as hf_datasets
 import psutil
@@ -102,43 +101,82 @@ def get_columns_and_format(
         return {'prompt': 'str', 'response': 'str'}, example_type
 
 
-def convert_finetuning_dataset(args: Namespace) -> None:
-    if args.skip_preprocessing:
+def convert_finetuning_dataset(
+    dataset: str,
+    data_subset: Optional[str],
+    splits: list[str],
+    preprocessor: Optional[str],
+    data_files: list[str],
+    skip_preprocessing: bool,
+    out_root: str,
+    local: Optional[str],
+    compression: Optional[str],
+    num_workers: Optional[int],
+    tokenizer: Optional[str],
+    tokenizer_kwargs: dict[str, Any],
+    max_seq_len: int,
+    target_prompts: str,
+    target_responses: str,
+    encoder_decoder: bool,
+) -> None:
+    """Converts Finetuning datasets to MDS format.
+    Args:
+        dataset (str): Name of the dataset (e.g., first argument to `datasets.load_dataset`, for jsonl data format, it is `json`).
+        data_subset (Optional[str]): Subset of data to use.
+        splits (list[str]): Comma-separated list of dataset splits
+        preprocessor (Optional[str]): Name or import path of function used to preprocess (reformat) the dataset.
+        data_files (list[str]): Data file for each split. Comma-separated.
+        skip_preprocessing (bool): Whether to skip preprocessing.
+        out_root (str): Root path of output directory where MDS shards will be stored. Can be a remote URI.
+        local (Optional[str]): Root path of local directory if you want to keep a local copy when out_root is remote.
+        compression (Optional[str]): Name of compression algorithm to use.
+        num_workers (Optional[int]): Number of workers.
+        tokenizer (Optional[str]): Tokenizer used for processing.
+        tokenizer_kwargs (dict[str, Any]): Keyword arguments for tokenizer initialization in JSON format.
+        max_seq_len (int): Maximum sequence length.
+        target_prompts (str): Policy for when to use prompts as training targets.
+        target_responses (str): Policy for which responses to treat as training targets.
+        encoder_decoder (bool): Set if the data are intended to be used to train an encoder-decoder model.
+
+    Raises:
+        ValueError: If the target settings are invalid.
+    """
+    if skip_preprocessing:
         preprocessing_fn = lambda x: x  # Just an identity function
     else:
-        preprocessor_str = args.preprocessor
+        preprocessor_str = preprocessor
         preprocessing_fn = dataset_constructor.get_preprocessing_fn_from_str(
             preprocessor=preprocessor_str,
-            dataset_name=args.dataset,
+            dataset_name=dataset,
         )
         if preprocessing_fn is None:
             raise ValueError(
-                '`args.preprocessor` was not set and no preprocessing function ' +\
-                'has been registered for `args.dataset`. If this was intentional ' +\
+                '`preprocessor` was not set and no preprocessing function ' +\
+                'has been registered for `dataset`. If this was intentional ' +\
                 '(e.g., because your dataset is already correctly formatted), ' +\
                 'include the "--skip-preprocessing" flag to avoid this error.',
             )
 
     # Make sure the target settings are valid
     validate_target_settings(
-        target_prompts=args.target_prompts,
-        target_responses=args.target_responses,
-        decoder_only_format=not args.encoder_decoder,
+        target_prompts=target_prompts,
+        target_responses=target_responses,
+        decoder_only_format=not encoder_decoder,
     )
 
     tokenizer = None
-    tokenizer_kwargs = args.tokenizer_kwargs
-    tokenizer_kwargs.update({'model_max_length': args.max_seq_len})
-    if args.tokenizer:
-        tokenizer = build_tokenizer(args.tokenizer, tokenizer_kwargs)
+    tokenizer_kwargs = tokenizer_kwargs
+    tokenizer_kwargs.update({'model_max_length': max_seq_len})
+    if tokenizer:
+        tokenizer = build_tokenizer(tokenizer, tokenizer_kwargs)
 
-    for i, split_name in enumerate(args.splits):
+    for i, split_name in enumerate(splits):
         data_file = None
-        if len(args.data_files) > 0:
-            data_file = args.data_files[i]
+        if len(data_files) > 0:
+            data_file = data_files[i]
         dataset = hf_datasets.load_dataset(
-            path=args.dataset,
-            name=args.data_subset,
+            path=dataset,
+            name=data_subset,
             split=split_name,
             data_files=data_file,
             streaming=True,
@@ -156,22 +194,22 @@ def convert_finetuning_dataset(args: Namespace) -> None:
             loader = build_dataloader(
                 dataset=dataset,
                 batch_size=512,
-                num_workers=args.num_workers,
+                num_workers=num_workers,
             )
             samples = generate_samples(loader)
 
         # Write samples
         print(f'Converting {split_name} to MDS format...')
-        out = os.path.join(args.out_root, split_name)
-        if args.local is not None:
-            out = (os.path.join(args.local, split_name), out)
+        out = os.path.join(out_root, split_name)
+        if local is not None:
+            out = (os.path.join(local, split_name), out)
             keep_local = True
         else:
             keep_local = False
         with MDSWriter(
             columns=columns,
             out=out,
-            compression=args.compression,
+            compression=compression,
             keep_local=keep_local,
         ) as out:
             examples_removed = 0
@@ -194,10 +232,10 @@ def convert_finetuning_dataset(args: Namespace) -> None:
                         tokenizer=tokenizer,
                     )
                     if not is_valid_ift_example(
-                        args.max_seq_len,
-                        target_prompts=args.target_prompts,
-                        target_responses=args.target_responses,
-                        decoder_only_format=not args.encoder_decoder,
+                        max_seq_len,
+                        target_prompts=target_prompts,
+                        target_responses=target_responses,
+                        decoder_only_format=not encoder_decoder,
                         example=sample,
                     ):
                         examples_removed += 1
@@ -223,27 +261,84 @@ def convert_finetuning_dataset(args: Namespace) -> None:
 
         if tokenizer is not None and examples_removed > 0:
             warnings.warn(
-                f'Dropped {examples_removed} examples where the prompt was longer than {args.max_seq_len}, '
+                f'Dropped {examples_removed} examples where the prompt was longer than {max_seq_len}, '
                 +
                 'the prompt or response was empty, or the response was all padding tokens.',
             )
 
 
-def convert_finetuning_dataset_from_args(args: Namespace):
-    if os.path.isdir(args.out_root) and len(
-        set(os.listdir(args.out_root)).intersection(set(args.splits)),
+def convert_finetuning_dataset_from_args(
+    dataset: str,
+    data_subset: Optional[str],
+    splits: list[str],
+    preprocessor: Optional[str],
+    data_files: list[str],
+    skip_preprocessing: bool,
+    out_root: str,
+    local: Optional[str],
+    compression: Optional[str],
+    num_workers: Optional[int],
+    tokenizer: Optional[str],
+    tokenizer_kwargs: Optional[str],
+    max_seq_len: int,
+    target_prompts: str,
+    target_responses: str,
+    encoder_decoder: bool,
+):
+    """A wrapper for `convert_dataset_hf`
+    Args:
+        dataset (str): Name of the dataset (e.g., first argument to `datasets.load_dataset`, for jsonl data format, it is `json`).
+        data_subset (Optional[str]): Subset of data to use.
+        splits (list[str]): Comma-separated list of dataset splits
+        preprocessor (Optional[str]): Name or import path of function used to preprocess (reformat) the dataset.
+        data_files (list[str]): Data file for each split. Comma-separated.
+        skip_preprocessing (bool): Whether to skip preprocessing.
+        out_root (str): Root path of output directory where MDS shards will be stored. Can be a remote URI.
+        local (Optional[str]): Root path of local directory if you want to keep a local copy when out_root is remote.
+        compression (Optional[str]): Name of compression algorithm to use.
+        num_workers (Optional[int]): Number of workers.
+        tokenizer (Optional[str]): Tokenizer used for processing.
+        tokenizer_kwargs (Optional[str]): Keyword arguments for tokenizer initialization in JSON format.
+        max_seq_len (int): Maximum sequence length.
+        target_prompts (str): Policy for when to use prompts as training targets.
+        target_responses (str): Policy for which responses to treat as training targets.
+        encoder_decoder (bool): Set if the data are intended to be used to train an encoder-decoder model
+
+    Raises:
+        ValueError: If the target settings are invalid.
+        ValueError: If the output directory already contains the requested splits.
+        """
+    if os.path.isdir(out_root) and len(
+        set(os.listdir(out_root)).intersection(set(splits)),
     ) > 0:
         raise ValueError(
-            f'--out_root={args.out_root} contains {os.listdir(args.out_root)} which cannot overlap with the requested splits {args.splits}.',
+            f'--out_root={out_root} contains {os.listdir(out_root)} which cannot overlap with the requested splits {splits}.',
         )
 
-    if args.tokenizer_kwargs is not None:
-        args.tokenizer_kwargs = json.loads(args.tokenizer_kwargs)
+    if tokenizer_kwargs is not None:
+        parsed_tokenizer_kwargs = json.loads(tokenizer_kwargs)
     else:
-        args.tokenizer_kwargs = {}
+        parsed_tokenizer_kwargs = {}
 
-    if len(args.data_files) > 0 and len(args.data_files,) != len(args.splits):
+    if len(data_files) > 0 and len(data_files,) != len(splits):
         raise ValueError(
-            f'If data_files is set, data_files and splits must have the same length. Got {len(args.data_files)=} while {len(args.splits)=}',
+            f'If data_files is set, data_files and splits must have the same length. Got {len(data_files)=} while {len(splits)=}',
         )
-    convert_finetuning_dataset(args)
+    convert_finetuning_dataset(
+        dataset=dataset,
+        data_subset=data_subset,
+        splits=splits,
+        preprocessor=preprocessor,
+        data_files=data_files,
+        skip_preprocessing=skip_preprocessing,
+        out_root=out_root,
+        local=local,
+        compression=compression,
+        num_workers=num_workers,
+        tokenizer=tokenizer,
+        tokenizer_kwargs=parsed_tokenizer_kwargs,
+        max_seq_len=max_seq_len,
+        target_prompts=target_prompts,
+        target_responses=target_responses,
+        encoder_decoder=encoder_decoder,
+    )

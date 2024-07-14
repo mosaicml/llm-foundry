@@ -577,13 +577,14 @@ def fetch_DT(
     delta_table_name: str,
     json_output_folder: str,
     http_path: Optional[str],
-    batch_size: int,
     processes: int,
     cluster_id: Optional[str],
     use_serverless: bool,
-    json_output_filename: str,
     DATABRICKS_HOST: str,
     DATABRICKS_TOKEN: str,
+    batch_size: int = 1 << 30,
+    processes: int = os.cpu_count(), # type: ignore
+    json_output_filename: str = 'train-00000-of-00001.jsonl'
 ) -> None:
     """Fetch UC Delta Table to local as jsonl."""
     log.info(f'Start .... Convert delta to json')
@@ -646,9 +647,9 @@ def convert_delta_to_json_from_args(
     http_path: Optional[str],
     cluster_id: Optional[str],
     use_serverless: bool,
-    batch_size: int = 1 << 30,
-    processes: int = os.cpu_count(), # type: ignore
-    json_output_filename: str = 'train-00000-of-00001.jsonl',
+    batch_size: int,
+    processes: int, # type: ignore
+    json_output_filename: str,
 ) -> None:
     w = WorkspaceClient()
     DATABRICKS_HOST = w.config.host

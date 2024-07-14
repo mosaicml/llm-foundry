@@ -489,7 +489,7 @@ def fetch(
 
 
 def validate_and_get_cluster_info(
-    cluster_id: str,
+    cluster_id: Optional[str],
     databricks_host: str,
     databricks_token: str,
     http_path: Optional[str],
@@ -511,6 +511,8 @@ def validate_and_get_cluster_info(
     if use_serverless:
         method = 'dbconnect'
     else:
+        if not cluster_id:
+            raise ValueError('cluster_id is not set, however use_serverless is False')
         w = WorkspaceClient()
         res = w.clusters.get(cluster_id=cluster_id)
         if res is None:
@@ -609,7 +611,7 @@ def fetch_DT(
 
     # validate_and_get_cluster_info allows cluster_id to be None if use_serverless is True
     method, dbsql, sparkSession = validate_and_get_cluster_info(
-        cluster_id=cluster_id, # type: ignore
+        cluster_id=cluster_id,
         databricks_host=DATABRICKS_HOST,
         databricks_token=DATABRICKS_TOKEN,
         http_path=http_path,

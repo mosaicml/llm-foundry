@@ -79,4 +79,13 @@ if __name__ == '__main__':
         'The name of the combined final jsonl that combines all partitioned jsonl',
     )
     args = parser.parse_args()
-    convert_delta_to_json_from_args(args)
+    convert_delta_to_json_from_args(
+        delta_table_name=args.delta_table_name,
+        json_output_folder=args.json_output_folder,
+        http_path=args.http_path,
+        batch_size=args.batch_size,
+        processes=args.processes,
+        cluster_id=args.cluster_id,
+        use_serverless=args.use_serverless,
+        json_output_filename=args.json_output_filename,
+    )

@@ -6,7 +6,6 @@ import os
 import re
 import time
 import urllib.parse
-from argparse import Namespace
 from collections import namedtuple
 from concurrent.futures import ProcessPoolExecutor
 from typing import Iterable, List, Optional, Tuple, Union
@@ -572,47 +571,59 @@ def validate_and_get_cluster_info(
     return method, dbsql, sparkSession
 
 
-def fetch_DT(args: Namespace) -> None:
+def fetch_DT(
+    delta_table_name: str,
+    json_output_folder: str,
+    http_path: Optional[str],
+    batch_size: int,
+    processes: int,
+    cluster_id: Optional[str],
+    use_serverless: bool,
+    json_output_filename: str,
+    DATABRICKS_HOST: str,
+    DATABRICKS_TOKEN: str,
+) -> None:
     """Fetch UC Delta Table to local as jsonl."""
     log.info(f'Start .... Convert delta to json')
 
-    obj = urllib.parse.urlparse(args.json_output_folder)
+    obj = urllib.parse.urlparse(json_output_folder)
     if obj.scheme != '':
         raise ValueError(
             'Check the json_output_folder and verify it is a local path!',
         )
 
-    if os.path.exists(args.json_output_folder):
-        if not os.path.isdir(args.json_output_folder) or os.listdir(
-            args.json_output_folder,
+    if os.path.exists(json_output_folder):
+        if not os.path.isdir(json_output_folder) or os.listdir(
+            json_output_folder,
         ):
             raise RuntimeError(
-                f'Output folder {args.json_output_folder} already exists and is not empty. Please remove it and retry.',
+                f'Output folder {json_output_folder} already exists and is not empty. Please remove it and retry.',
             )
 
-    os.makedirs(args.json_output_folder, exist_ok=True)
+    os.makedirs(json_output_folder, exist_ok=True)
 
-    if not args.json_output_filename.endswith('.jsonl'):
+    if not json_output_filename.endswith('.jsonl'):
         raise ValueError('json_output_filename needs to be a jsonl file')
 
-    log.info(f'Directory {args.json_output_folder} created.')
+    log.info(f'Directory {json_output_folder} created.')
 
+    # validate_and_get_cluster_info allows cluster_id to be None if use_serverless is True
     method, dbsql, sparkSession = validate_and_get_cluster_info(
-        cluster_id=args.cluster_id,
-        databricks_host=args.DATABRICKS_HOST,
-        databricks_token=args.DATABRICKS_TOKEN,
-        http_path=args.http_path,
-        use_serverless=args.use_serverless,
+        cluster_id=cluster_id, # type: ignore
+        databricks_host=DATABRICKS_HOST,
+        databricks_token=DATABRICKS_TOKEN,
+        http_path=http_path,
+        use_serverless=use_serverless,
     )
 
-    args.delta_table_name = format_tablename(args.delta_table_name)
+    formatted_delta_table_name = format_tablename(delta_table_name)
 
     fetch(
         method,
-        args.delta_table_name,
-        args.json_output_folder,
-        args.batch_size,
-        args.processes,
+        formatted_delta_table_name,
+        json_output_folder,
+        batch_size,
+        processes,
         sparkSession,
         dbsql,
     )
@@ -622,16 +633,36 @@ def fetch_DT(args: Namespace) -> None:
 
     # combine downloaded jsonl into one big jsonl for IFT
     iterative_combine_jsons(
-        args.json_output_folder,
-        os.path.join(args.json_output_folder, args.json_output_filename),
+        json_output_folder,
+        os.path.join(json_output_folder, json_output_filename),
     )
 
 
-def convert_delta_to_json_from_args(args: Namespace) -> None:
+def convert_delta_to_json_from_args(
+    delta_table_name: str,
+    json_output_folder: str,
+    http_path: Optional[str],
+    batch_size: int,
+    processes: int,
+    cluster_id: Optional[str],
+    use_serverless: bool,
+    json_output_filename: str,
+) -> None:
     w = WorkspaceClient()
-    args.DATABRICKS_HOST = w.config.host
-    args.DATABRICKS_TOKEN = w.config.token
+    DATABRICKS_HOST = w.config.host
+    DATABRICKS_TOKEN = w.config.token
 
     tik = time.time()
-    fetch_DT(args)
+    fetch_DT(
+        delta_table_name=delta_table_name,
+        json_output_folder=json_output_folder,
+        http_path=http_path,
+        batch_size=batch_size,
+        processes=processes,
+        cluster_id=cluster_id,
+        use_serverless=use_serverless,
+        json_output_filename=json_output_filename,
+        DATABRICKS_HOST=DATABRICKS_HOST,
+        DATABRICKS_TOKEN=DATABRICKS_TOKEN,
+    )
     log.info(f'Elapsed time {time.time() - tik}')

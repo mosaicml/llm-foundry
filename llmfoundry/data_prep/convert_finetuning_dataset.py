@@ -120,6 +120,7 @@ def convert_finetuning_dataset(
     encoder_decoder: bool,
 ) -> None:
     """Converts Finetuning datasets to MDS format.
+
     Args:
         dataset (str): Name of the dataset (e.g., first argument to `datasets.load_dataset`, for jsonl data format, it is `json`).
         data_subset (Optional[str]): Subset of data to use.
@@ -285,7 +286,8 @@ def convert_finetuning_dataset_from_args(
     target_responses: str,
     encoder_decoder: bool,
 ):
-    """A wrapper for `convert_dataset_hf`
+    """A wrapper for `convert_finetuning_dataset`
+
     Args:
         dataset (str): Name of the dataset (e.g., first argument to `datasets.load_dataset`, for jsonl data format, it is `json`).
         data_subset (Optional[str]): Subset of data to use.
@@ -307,7 +309,7 @@ def convert_finetuning_dataset_from_args(
     Raises:
         ValueError: If the target settings are invalid.
         ValueError: If the output directory already contains the requested splits.
-        """
+    """
     if os.path.isdir(out_root) and len(
         set(os.listdir(out_root)).intersection(set(splits)),
     ) > 0:

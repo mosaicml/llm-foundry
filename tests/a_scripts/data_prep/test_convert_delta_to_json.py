@@ -59,7 +59,6 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
             use_serverless=use_serverless,
             batch_size=batch_size,
             json_output_filename=json_output_filename,
-            processes=1,
         )
         mock_sql_connect.assert_called_once_with(
             server_hostname='test_host',
@@ -221,9 +220,6 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
             DATABRICKS_HOST=DATABRICKS_HOST,
             DATABRICKS_TOKEN=DATABRICKS_TOKEN,
             use_serverless=use_serverless,
-            batch_size=1,
-            processes=1,
-            json_output_filename='tmp.jsonl',
         )
         mock_databricks_session.builder.remote.assert_called_once_with(
             host=DATABRICKS_HOST,
@@ -266,9 +262,6 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
             DATABRICKS_HOST=DATABRICKS_HOST,
             DATABRICKS_TOKEN=DATABRICKS_TOKEN,
             use_serverless=use_serverless,
-            batch_size=1,
-            processes=1,
-            json_output_filename='tmp.jsonl',
         )
         mock_sql_connect.assert_called_once_with(
             server_hostname=DATABRICKS_HOST,
@@ -311,9 +304,6 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
             DATABRICKS_HOST=DATABRICKS_HOST,
             DATABRICKS_TOKEN=DATABRICKS_TOKEN,
             use_serverless=use_serverless,
-            batch_size=1,
-            processes=1,
-            json_output_filename='tmp.jsonl',
         )
         mock_sql_connect.assert_called_once_with(
             server_hostname=DATABRICKS_HOST,
@@ -356,9 +346,6 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
             DATABRICKS_HOST=DATABRICKS_HOST,
             DATABRICKS_TOKEN=DATABRICKS_TOKEN,
             use_serverless=use_serverless,
-            batch_size=1,
-            processes=1,
-            json_output_filename='tmp.jsonl',
         )
         mock_sql_connect.assert_called_once_with(
             server_hostname='test-host',
@@ -401,9 +388,6 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
             DATABRICKS_HOST=DATABRICKS_HOST,
             DATABRICKS_TOKEN=DATABRICKS_TOKEN,
             use_serverless=use_serverless,
-            batch_size=1,
-            processes=1,
-            json_output_filename='tmp.jsonl',
         )
         assert not mock_sql_connect.called
         assert not mock_databricks_session.builder.remote.called

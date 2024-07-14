@@ -644,11 +644,11 @@ def convert_delta_to_json_from_args(
     delta_table_name: str,
     json_output_folder: str,
     http_path: Optional[str],
-    batch_size: int,
-    processes: int,
     cluster_id: Optional[str],
     use_serverless: bool,
-    json_output_filename: str,
+    batch_size: int = 1 << 30,
+    processes: int = os.cpu_count(), # type: ignore
+    json_output_filename: str = 'train-00000-of-00001.jsonl',
 ) -> None:
     w = WorkspaceClient()
     DATABRICKS_HOST = w.config.host

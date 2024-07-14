@@ -577,7 +577,6 @@ def fetch_DT(
     delta_table_name: str,
     json_output_folder: str,
     http_path: Optional[str],
-    processes: int,
     cluster_id: Optional[str],
     use_serverless: bool,
     DATABRICKS_HOST: str,

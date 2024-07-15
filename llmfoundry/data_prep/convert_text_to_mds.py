@@ -574,13 +574,13 @@ def convert_text_to_mds_from_args(
     trust_remote_code: bool,
     logging_level: str,
 ) -> None:
-    """A wrapper for `convert_text_to_mds`
+    """A wrapper for `convert_text_to_mds` to parse arguments.
 
     Args:
-        output_folder (str): The folder to write output to
-        input_folder (str): The folder with text files to convert to MDS
+        output_folder (str): Folder to write MDS shards to
+        input_folder (str): Folder of text files to process
         compression (str): The compression algorithm to use for MDS writing
-        concat_tokens (int): Convert text to tokens and concatenate up to this many tokens
+        concat_tokens (int): Concatenate up to this many tokens
         tokenizer (str): The name of the tokenizer to use
         bos_text (Optional[str]): The text to prepend to each example to separate concatenated examples
         eos_text (Optional[str]): The text to append to each example to separate concatenated examples

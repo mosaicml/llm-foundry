@@ -11,7 +11,7 @@ DEEPSPEED_USE_HPU=1 composer -n 8 --world_size 8 train/train.py "train/yamls/pre
 	run_name=$NAME \
 	device=hpu \
 	optimizer="{'name':'decoupled_lionw', 'lr':0.0001}" \
-	data_local=/root/datasets/c4 \
+	variables.data_local=/root/datasets/c4 \
 	train_loader.dataset.split=train_small \
 	train_loader.dataset.num_canonical_nodes=1 \
 	train_loader.dataset.shuffle_block_size=100 \
@@ -26,6 +26,8 @@ DEEPSPEED_USE_HPU=1 composer -n 8 --world_size 8 train/train.py "train/yamls/pre
 	deepspeed_config.zero_optimization.overlap_comm=false \
 	deepspeed_config.zero_optimization.contiguous_gradients=true \
 	deepspeed_config.zero_optimization.reduce_scatter=false \
+	deepspeed_config.train_micro_batch_size_per_gpu=$DTMS \
+	deepspeed_config.train_batch_size=$GTBS \
 	fsdp_config=null \
 	model.attn_config.attn_impl=$ATTN_IMPL \
 	model.loss_fn=torch_crossentropy \
@@ -35,6 +37,6 @@ DEEPSPEED_USE_HPU=1 composer -n 8 --world_size 8 train/train.py "train/yamls/pre
 	callbacks.speed_monitor.window_size=5 \
 	global_train_batch_size=$GTBS \
 	device_train_microbatch_size=$DTMS \
-	loggers.wandb="{}"
 
 pkill -9 python3
+

@@ -95,6 +95,7 @@ def convert_finetuning_dataset_cli(
             'Set if the data are intended to be used to train an encoder-decoder model.',
         )] = False,
 ):
+    """Convert a Finetuning Dataset to MDS streaming format."""
     # Convert comma-separated args
     splits_list = splits.split(',') if splits else []
     data_files_list = data_files.split(',') if data_files else []

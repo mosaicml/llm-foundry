@@ -431,12 +431,7 @@ def convert_dataset_hf_from_args(
     no_wrap: bool,
     num_workers: Optional[int],
 ) -> None:
-    """A wrapper for `convert_dataset_hf`
-
-    Wrapper is used to ensure that all parameters are valid and parsable. Particularly,
-    tokenizer_kwargs will be parsed from JSON (or None) to a dictionary. Out_root will also be
-    checked to ensure that the requested splits do not overlap with existing directories and
-    concat_tokens will be validated to ensure that a tokenizer is provided if concat_tokens is set.
+    """A wrapper for `convert_dataset_hf` that parses arguments.
 
     Args:
         dataset (str): Name of the dataset

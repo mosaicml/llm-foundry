@@ -58,6 +58,7 @@ def convert_dataset_hf(
     num_workers: Annotated[Optional[int],
                            Option(help='Number of workers')] = None,
 ):
+    """Converts dataset from HuggingFace into JSON files."""
     # Convert comma-separated splits into a list
     splits_list = splits.split(',') if splits else []
     convert_dataset_hf_from_args(

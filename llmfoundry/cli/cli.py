@@ -55,6 +55,7 @@ def convert_dataset_json(
         Optional[int],
         Option(help='Number of workers for data loading')] = None,
 ):
+    """Convert a dataset from JSON to MDS streaming format."""
     convert_dataset_json_from_args(
         path=path,
         split=split,

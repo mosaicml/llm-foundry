@@ -196,6 +196,7 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
             raise ValueError(
                 'When specifying model, "tokenizer" must be provided in the config'
             )
+        model_cfg['tokenizer'] = cfg.pop('tokenizer')
         if 'load_path' in cfg:
             model_cfg['load_path'] = cfg.pop('load_path')
         model_cfg['model_name'] = cfg.pop('model_name', 'unnamed')

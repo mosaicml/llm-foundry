@@ -322,9 +322,9 @@ def convert_dataset_hf(
         compression (Optional[str]): Compression type
         concat_tokens (Optional[int]): Concatenate tokens up to this many tokens
         tokenizer (Optional[str]): Tokenizer name
-        tokenizer_kwargs (Optional[str]): Tokenizer keyword arguments in JSON format
-        bos_text (Optional[str]): BOS text
-        eos_text (Optional[str]): EOS text
+        tokenizer_kwargs (dict[str, Any]): Tokenizer keyword arguments
+        bos_text (str): BOS text
+        eos_text (str): EOS text
         no_wrap (bool): Do not wrap text across max_length boundaries
         num_workers (Optional[int]): Number of workers
 
@@ -435,7 +435,7 @@ def convert_dataset_hf_from_args(
 
     Args:
         dataset (str): Name of the dataset
-        data_subset (Optional[str]): Subset of the dataset
+        data_subset (Optional[str]): Subset of the dataset (e.g., "all" or "en")
         splits (list[str]): Comma-separated list of dataset splits
         out_root (str): Output root directory
         compression (Optional[str]): Compression type

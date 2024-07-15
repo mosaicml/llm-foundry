@@ -1,0 +1,1 @@
+{"shards": [{"column_encodings": ["ndarray:float64:30"], "column_names": ["text"], "column_sizes": [240], "compression": null, "format": "mds", "hashes": [], "raw_data": {"basename": "shard.00000.mds", "bytes": 5071, "hashes": {}}, "samples": 20, "size_limit": 67108864, "version": 2, "zip_data": null}], "version": 2}

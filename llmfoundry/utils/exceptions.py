@@ -29,6 +29,8 @@ __all__ = [
     'OutputFolderNotEmptyError',
     'MisconfiguredHfDatasetError',
     'RunTimeoutError',
+    'DatasetMissingFileError',
+    'DatasetInvalidFolderError',
 ]
 
 ALLOWED_RESPONSE_KEYS = {'response', 'completion'}
@@ -354,3 +356,26 @@ class RunTimeoutError(InternalError):
     def __init__(self, timeout: int) -> None:
         message = f'Run timed out after {timeout} seconds.'
         super().__init__(message, timeout=timeout)
+
+
+class DatasetMissingFileError(UserError):
+    """Error thrown when a dataset cannot find a file."""
+
+    def __init__(
+        self,
+        file_name: str,
+        supported_extensions: Any,  # Run into type error when using List[str]
+    ) -> None:
+        message = "Could not find the file '{file_name}' with any of the supported extensions: "
+        message += ', '.join(supported_extensions) + '.'
+        message += ' Please check your train / eval data and try again.'
+        super().__init__(message, file_name=file_name)
+
+
+class DatasetInvalidFolderError(UserError):
+    """Error thrown when a dataset folder is invalid."""
+
+    def __init__(self, folder_path: str) -> None:
+        message = f"Could not find objects at the path '{folder_path}'. "
+        message += 'Please check your `input_folder` and try again.'
+        super().__init__(message, folder_path=folder_path)

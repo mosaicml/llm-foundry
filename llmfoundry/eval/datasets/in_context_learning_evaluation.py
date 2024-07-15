@@ -172,17 +172,26 @@ class InContextLearningDataset(Dataset):
             self.dataset = self.dataset.map(strip_data)
 
         fewshot_rng = random.Random(fewshot_random_seed)
+        self._prepared = False
+        self.num_fewshot = num_fewshot
+        self.prompt_string = prompt_string
+        self.fewshot_rng = fewshot_rng
+
+    def _prepare_dataset(self):
         self.dataset: HFDataset = self.dataset.map(
             self._prep_example,
             with_indices=True,
             fn_kwargs={
-                'num_fewshot': num_fewshot,
-                'prompt_string': prompt_string,
-                'fewshot_rng': fewshot_rng,
+                'num_fewshot': self.num_fewshot,
+                'prompt_string': self.prompt_string,
+                'fewshot_rng': self.fewshot_rng,
             },
         )
+        self._prepared = True
 
     def __getitem__(self, index: int) -> Dict:
+        if not self._prepared:
+            self._prepare_dataset()
         return self.dataset[index]
 
     def __len__(self) -> int:

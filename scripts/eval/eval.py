@@ -191,13 +191,13 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
                 'Please specify either model or models in the config, not both'
             )
         model_cfg = {}
-        top_level_keys = ['model', 'tokenizer', 'load_path']
-        for key in top_level_keys:
-            if key not in cfg:
-                raise ValueError(
-                    f'When specifying model, "{key}" must be provided in the config'
-                )
-            model_cfg[key] = cfg.pop(key)
+        model_cfg['model'] = cfg.pop('model')
+        if 'tokenizer' not in cfg:
+            raise ValueError(
+                'When specifying model, "tokenizer" must be provided in the config'
+            )
+        if 'load_path' in cfg:
+            model_cfg['load_path'] = cfg.pop('load_path')
         model_cfg['model_name'] = cfg.pop('model_name', 'unnamed')
         cfg['models'] = [model_cfg]
 

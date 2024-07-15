@@ -512,7 +512,9 @@ def validate_and_get_cluster_info(
         method = 'dbconnect'
     else:
         if not cluster_id:
-            raise ValueError('cluster_id is not set, however use_serverless is False')
+            raise ValueError(
+                'cluster_id is not set, however use_serverless is False',
+            )
         w = WorkspaceClient()
         res = w.clusters.get(cluster_id=cluster_id)
         if res is None:
@@ -551,6 +553,8 @@ def validate_and_get_cluster_info(
                 ).header('x-databricks-session-id', session_id).getOrCreate()
 
             else:
+                if not cluster_id:
+                    raise ValueError('cluster_id is needed for dbconnect.',)
                 sparkSession = DatabricksSession.builder.remote(
                     host=databricks_host,
                     token=databricks_token,
@@ -583,7 +587,7 @@ def fetch_DT(
     DATABRICKS_TOKEN: str,
     batch_size: int = 1 << 30,
     processes: int = os.cpu_count(), # type: ignore
-    json_output_filename: str = 'train-00000-of-00001.jsonl'
+    json_output_filename: str = 'train-00000-of-00001.jsonl',
 ) -> None:
     """Fetch UC Delta Table to local as jsonl."""
     log.info(f'Start .... Convert delta to json')

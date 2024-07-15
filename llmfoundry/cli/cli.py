@@ -41,6 +41,7 @@ def convert_delta_to_json_cli(
     use_serverless: Annotated[bool, Option(help='Use serverless or not. Make sure the workspace is entitled with serverless')] = False,
     json_output_filename: Annotated[str, Option(help='The name of the combined final jsonl that combines all partitioned jsonl')] = 'train-00000-of-00001.jsonl',
 ):
+    """Convert a Delta table into JSON files."""
     convert_delta_to_json_from_args(
         delta_table_name=delta_table_name,
         json_output_folder=json_output_folder,

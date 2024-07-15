@@ -574,7 +574,7 @@ def convert_text_to_mds_from_args(
     trust_remote_code: bool,
     logging_level: str,
 ) -> None:
-    """A wrapper for `convert_finetuning_dataset`
+    """A wrapper for `convert_text_to_mds`
 
     Args:
         output_folder (str): The folder to write output to

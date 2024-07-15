@@ -240,8 +240,18 @@ class ChronosDataset(IterableDataset, ShuffleMixin):
         input_ids, attention_mask, scale = self.tokenizer.context_input_transform(
             past_target
         )
+        
+        # Add padding to surpass "assert" statement in chronos.py
+        # length = entry["future_target"].shape[-1]
+        # prediction_length = self.tokenizer.config.prediction_length
+        # if length < prediction_length:
+        #     padding = np.full(((prediction_length - length),), np.nan)
+        #     entry["future_target"] = np.concatenate((entry["future_target"], padding), axis=0)
+        
         future_target = torch.tensor(entry["future_target"]).unsqueeze(0)
         labels, labels_mask = self.tokenizer.label_input_transform(future_target, scale)
+        
+        
         labels[labels_mask == 0] = -100
         return {
             "input_ids": input_ids.squeeze(0),
@@ -305,10 +315,10 @@ class ChronosDataset(IterableDataset, ShuffleMixin):
             # Seems to run for 100,126 iterations under standard configurations, stops (50%), then continued until 100,158 iterations (100%) (depends on `shuffle_buffer_length`)
             while True:
                 # `idx` = 0 for a single dataset
-                logging.debug(f'i == {i}, iterators == {iterators}, len(iterators) == {len(iterators)}, probs == {probs}, range(len(iterators)) == {range(len(iterators))}')
+                # logging.debug(f'i == {i}, iterators == {iterators}, len(iterators) == {len(iterators)}, probs == {probs}, range(len(iterators)) == {range(len(iterators))}')
                 try:
                     idx = np.random.choice(range(len(iterators)), p=probs)
-                except Exception as e:
+                except:
                     # print(f'ERROR (i == {i}): {e}')
                     return
                 try:

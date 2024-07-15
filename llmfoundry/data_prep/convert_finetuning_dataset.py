@@ -133,11 +133,11 @@ def convert_finetuning_dataset(
         compression (Optional[str]): Name of compression algorithm to use.
         num_workers (Optional[int]): Number of workers.
         tokenizer (Optional[str]): Tokenizer used for processing.
-        tokenizer_kwargs (dict[str, Any]): Keyword arguments for tokenizer initialization in JSON format.
+        tokenizer_kwargs (dict[str, Any]): Keyword arguments for tokenizer initialization.
         max_seq_len (int): Maximum sequence length.
         target_prompts (str): Policy for when to use prompts as training targets.
         target_responses (str): Policy for which responses to treat as training targets.
-        encoder_decoder (bool): Set if the data are intended to be used to train an encoder-decoder model.
+        encoder_decoder (bool): Set if the data are intended to be used to train an encoder-decoder model
 
     Raises:
         ValueError: If the target settings are invalid.
@@ -286,7 +286,7 @@ def convert_finetuning_dataset_from_args(
     target_responses: str,
     encoder_decoder: bool,
 ):
-    """A wrapper for `convert_finetuning_dataset`
+    """A wrapper for `convert_finetuning_dataset` to parse arguments.
 
     Args:
         dataset (str): Name of the dataset (e.g., first argument to `datasets.load_dataset`, for jsonl data format, it is `json`).
@@ -304,7 +304,7 @@ def convert_finetuning_dataset_from_args(
         max_seq_len (int): Maximum sequence length.
         target_prompts (str): Policy for when to use prompts as training targets.
         target_responses (str): Policy for which responses to treat as training targets.
-        encoder_decoder (bool): Set if the data are intended to be used to train an encoder-decoder model
+        encoder_decoder (bool): Set if the data are intended to be used to train an encoder-decoder model.
 
     Raises:
         ValueError: If the target settings are invalid.

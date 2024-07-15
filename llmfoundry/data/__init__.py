@@ -23,6 +23,9 @@ from llmfoundry.data.text_data import (
     StreamingTextDataset,
     build_text_dataloader,
 )
+from llmfoundry.data.timeseries_data import (
+    build_timeseries_dataloader
+)
 from llmfoundry.data.utils import (
     get_data_spec,
     get_finetuning_collator,
@@ -38,6 +41,7 @@ from llmfoundry.registry import (
 
 dataloaders.register('text', func=build_text_dataloader)
 dataloaders.register('finetuning', func=build_finetuning_dataloader)
+dataloaders.register('timeseries', func=build_timeseries_dataloader)
 
 dataset_replication_validators.register(
     'dataset_replication_validator',
@@ -53,6 +57,7 @@ __all__ = [
     'StreamingFinetuningDataset',
     'StreamingTextDataset',
     'build_text_dataloader',
+    'build_timeseries_dataloader',
     'NoConcatDataset',
     'ConcatTokensDataset',
     'build_dataloader',

@@ -39,7 +39,6 @@ from llmfoundry.data.text_data import (
     build_text_dataloader,
 )
 from llmfoundry.data.utils import get_tokens_per_batch_func
-# yapf: enable
 from llmfoundry.data_prep import convert_dataset_hf
 from llmfoundry.utils.builders import build_tokenizer
 from llmfoundry.utils.config_utils import to_dict_container
@@ -56,6 +55,7 @@ from llmfoundry.utils.exceptions import (
     NotEnoughDatasetSamplesError,
     UnknownExampleTypeError,
 )
+# yapf: enable
 from scripts.data_prep.convert_finetuning_dataset import get_columns_and_format
 from tests.data_utils import (
     make_tiny_conversation_ft_dataset,

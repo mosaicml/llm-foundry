@@ -662,7 +662,7 @@ def convert_delta_to_json_from_args(
         http_path (Optional[str]): If set, dbsql method is used
         batch_size (int): Row chunks to transmit a time to avoid OOM
         processes (int): Number of processes allowed to use
-        cluster_id (Optional[str]): Cluster ID with runtime newer than 14.1.0 and access mode of either assigned or shared can use databricks-connect
+        cluster_id (Optional[str]): Cluster ID with runtime newer than 14.1.0 and access mode of either assigned or shared can use databricks-connect.
         use_serverless (bool): Use serverless or not. Make sure the workspace is entitled with serverless
         json_output_filename (str): The name of the combined final jsonl that combines all partitioned jsonl
     """

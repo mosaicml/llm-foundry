@@ -162,6 +162,7 @@ class TrainConfig:
     load_ignore_keys: Optional[List[str]] = None
     save_ignore_keys: Optional[List[str]] = None
     only_hf_checkpoint: bool = False
+    only_composer_checkpoint: bool = False
 
     # Dataloader
     device_train_microbatch_size: Union[str, int, float] = 'auto'

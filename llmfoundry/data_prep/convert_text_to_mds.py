@@ -574,6 +574,26 @@ def convert_text_to_mds_from_args(
     trust_remote_code: bool,
     logging_level: str,
 ) -> None:
+    """A wrapper for `convert_finetuning_dataset`
+
+    Args:
+        output_folder (str): The folder to write output to
+        input_folder (str): The folder with text files to convert to MDS
+        compression (str): The compression algorithm to use for MDS writing
+        concat_tokens (int): Convert text to tokens and concatenate up to this many tokens
+        tokenizer (str): The name of the tokenizer to use
+        bos_text (Optional[str]): The text to prepend to each example to separate concatenated examples
+        eos_text (Optional[str]): The text to append to each example to separate concatenated examples
+        use_tokenizer_eos (bool): Use the EOS text from the tokenizer
+        no_wrap (bool): Whether to let text examples wrap across multiple training examples
+        processes (int): The number of processes to use to download and convert the dataset
+        reprocess (bool): If true, reprocess the input_folder to MDS format. Otherwise, only reprocess upon changes to the input folder or dataset creation parameters.
+        trust_remote_code (bool): If true, allows custom code to be executed to load the tokenizer
+        logging_level (str): Logging level for the script. Default is INFO.
+
+    Raises:
+        ValueError: If `use_tokenizer_eos` is True and `eos_text` is not None
+    """
     if use_tokenizer_eos:
         # Ensure that eos text is not specified twice.
         if eos_text is not None:

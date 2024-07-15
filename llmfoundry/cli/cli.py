@@ -55,6 +55,7 @@ def convert_text_to_mds(
     )] = 'INFO',
 
 ):
+    """Convert text files to MDS streaming format."""
     convert_text_to_mds_from_args(
         output_folder=output_folder,
         input_folder=input_folder,

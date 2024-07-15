@@ -3,7 +3,7 @@
 variables:
   global_seed: 17
   model_name: google-t5/t5-small
-  save_folder: /mnt/workdisk/kushal/llm-foundry/scripts/output/t5-small-6
+  save_folder: /mnt/workdisk/kushal/llm-foundry-fork/tmp/output/t5-small-1
 
   max_seq_len: 1024
 

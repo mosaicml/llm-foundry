@@ -90,6 +90,7 @@ from llmfoundry.utils.exceptions import (
 )
 #  yapf: enable
 from llmfoundry.utils.logging_utils import SpecificWarningFilter
+# from llmfoundry.tokenizers import ChronosTokenizerWrapper
 
 log = logging.getLogger(__name__)
 
@@ -676,6 +677,27 @@ class StreamingFinetuningDataset(StreamingDataset):
                 )
             # Convert to latest format by wrapping sample as a "turn"
             return {'turns': [sample]}
+        # if 'timeseries' in sample:
+        #     logging.debug(f'llmfoundry.data.finetuning.tasks.StreamingFinetuningDataset.__getitem__(idx): "timeseries" in sample! sample == {sample}')
+        #     # Only proceed if `tokenizer` is the right type
+        #     if isinstance(self.tokenizer, ChronosTokenizerWrapper):
+        #         context_len, horizon_len = 18, 12  # TODO: See how to get this from config file
+        #         assert context_len + horizon_len == len(sample['timeseries']), "Invalid context and horizon lengths"
+                
+        #         # Create the entry to get formatted: { 'past_target': np.ndarray([...]), 'future_target': np.ndarray([...]) }
+        #         context, horizon = sample['timeseries'][: context_len].astype(np.float32), sample['timeseries'][-horizon_len :].astype(np.float32)
+        #         entry = {'past_target': context, 'future_target': horizon}
+        #         logging.debug(f'entry == {entry}')
+            
+        #         batch_encoding = self.tokenizer._to_hf_format(entry=entry)
+        #         # del batch_encoding["labels"]
+        #         # logging.debug(f'batch_encoding (after removing `labels`) == {batch_encoding}')
+        #         return {'turns': [batch_encoding]}
+        #     else:
+        #         raise TypeError(
+        #             f'Expected tokenizer to be a ChronosTokenizerWrapper, but found {type(self.tokenizer)}',
+        #         )
+            
         return tokenize_formatted_example(sample, tokenizer=self.tokenizer)
 
     def state_dict(self, num_samples: int,

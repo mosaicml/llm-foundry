@@ -174,6 +174,7 @@ def _log_num_params(model: ComposerModel, logged_cfg: Dict[str, Any]):
 
 def _initialize_dist_with_barrier(dist_timeout: Union[int, float]):
     """Initialize distributed and test setup with a barrier.
+
     Args:
         dist_timeout (Union[int, float]): Timeout for initializing the process group
     """

@@ -11,7 +11,7 @@ from typing import Dict, List, Optional
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
-from llmfoundry.data_prep import convert_dataset_hf  # noqa: E402
+from llmfoundry.command_utils import convert_dataset_hf
 from scripts.data_prep.convert_dataset_json import \
     main as main_json  # noqa: E402
 

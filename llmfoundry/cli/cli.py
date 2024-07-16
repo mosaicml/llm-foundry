@@ -6,42 +6,20 @@ from typing import Annotated, Optional
 from typer import Argument, Option, Typer
 
 from llmfoundry.cli import registry_cli
-from llmfoundry.data_prep import convert_dataset_hf_from_args
-from llmfoundry.command_utils import eval_from_yaml, train_from_yaml
+from llmfoundry.command_utils import (
+    convert_dataset_hf_from_args,
+    eval_from_yaml,
+    train_from_yaml,
+)
 
 app = Typer(pretty_exceptions_show_locals=False)
 app.add_typer(registry_cli.app, name='registry')
 
-
-@app.command(name='train')
-def train(
-    yaml_path: Annotated[str,
-                         Argument(
-                             ...,
-                             help='Path to the YAML configuration file',
-                         )],
-    args_list: Annotated[
-        Optional[list[str]],
-        Argument(help='Additional command line arguments')] = None,
-):
-    """Run the training with optional overrides from CLI."""
-    train_from_yaml(yaml_path, args_list)
+# data_prep submodules
+data_prep_app = Typer()
 
 
-@app.command(name='eval')
-def eval(
-    yaml_path: Annotated[str, Argument(
-        ...,
-        help='Path to the YAML configuration file',
-    )], 
-    args_list: 
-    Annotated[Optional[list[str]], Argument(None, help='Additional command line arguments')],
-):
-    """Run the training with optional overrides from CLI."""
-    eval_from_yaml(yaml_path, args_list)
-
-
-@app.command(name='convert_dataset_hf')
+@data_prep_app.command(name='convert_dataset_hf')
 def convert_dataset_hf(
     dataset: Annotated[str, Option(..., help='Name of the dataset')],
     out_root: Annotated[str, Option(..., help='Output root directory')],
@@ -88,6 +66,39 @@ def convert_dataset_hf(
         no_wrap=no_wrap,
         num_workers=num_workers,
     )
+
+
+app.add_typer(data_prep_app, name='data_prep')
+
+
+@app.command(name='train')
+def train(
+    yaml_path: Annotated[str,
+                         Argument(
+                             ...,
+                             help='Path to the YAML configuration file',
+                         )],
+    args_list: Annotated[
+        Optional[list[str]],
+        Argument(help='Additional command line arguments')] = None,
+):
+    """Run the training with optional overrides from CLI."""
+    train_from_yaml(yaml_path, args_list)
+
+
+@app.command(name='eval')
+def eval(
+    yaml_path: Annotated[str,
+                         Argument(
+                             ...,
+                             help='Path to the YAML configuration file',
+                         )],
+    args_list: Annotated[
+        Optional[list[str]],
+        Argument(None, help='Additional command line arguments')],
+):
+    """Run the training with optional overrides from CLI."""
+    eval_from_yaml(yaml_path, args_list)
 
 
 if __name__ == '__main__':

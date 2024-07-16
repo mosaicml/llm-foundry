@@ -21,6 +21,7 @@ from omegaconf import OmegaConf as om
 from streaming import MDSWriter
 from streaming.base.util import clean_stale_shared_memory
 
+from llmfoundry.command_utils import convert_dataset_hf
 from llmfoundry.data import build_dataloader, build_finetuning_dataloader
 from llmfoundry.data.finetuning.collator import (
     _HF_IGNORE_INDEX,
@@ -39,7 +40,6 @@ from llmfoundry.data.text_data import (
     build_text_dataloader,
 )
 from llmfoundry.data.utils import get_tokens_per_batch_func
-from llmfoundry.data_prep import convert_dataset_hf
 from llmfoundry.utils.builders import build_tokenizer
 from llmfoundry.utils.config_utils import to_dict_container
 # yapf: disable

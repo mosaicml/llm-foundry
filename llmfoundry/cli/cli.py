@@ -7,6 +7,7 @@ import typer
 
 from llmfoundry.cli import registry_cli
 from llmfoundry.command_utils import eval_from_yaml
+from llmfoundry.train import train_from_yaml
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
 app.add_typer(registry_cli.app, name='registry')

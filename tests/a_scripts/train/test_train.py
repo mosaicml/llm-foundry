@@ -11,8 +11,8 @@ from composer.loggers import InMemoryLogger
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 
-from llmfoundry.command_utils import TrainConfig  # noqa: E402
-from llmfoundry.command_utils import TRAIN_CONFIG_KEYS, train, validate_config
+from llmfoundry.train import TrainConfig  # noqa: E402
+from llmfoundry.train import TRAIN_CONFIG_KEYS, train, validate_config
 from llmfoundry.utils.config_utils import (
     make_dataclass_and_log_config,
     update_batch_size_info,

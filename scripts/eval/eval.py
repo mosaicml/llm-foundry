@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import sys
 
-from llmfoundry.train import eval_from_yaml
+from llmfoundry.command_utils import eval_from_yaml
 
 if __name__ == '__main__':
     yaml_path, args_list = sys.argv[1], sys.argv[2:]

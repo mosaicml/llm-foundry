@@ -58,9 +58,7 @@ class ConcatTokensFromFilesDataset(AbstractConcatTokensDataset):
     ):
         self.files = files
         super().__init__(tokenizer, max_length, bos_text, eos_text, no_wrap)
-        log.info(
-            f'Initialized ConcatTokensFromFilesDataset with {len(list(files))} files',
-        )
+        log.info(f'Initialized ConcatTokensFromFilesDataset.')
 
     def __iter__(self) -> Iterable[Dict[str, NDArray]]:
         log.info(

@@ -17,6 +17,7 @@ MINI_TASKS = './eval/yamls/mini_tasks_v0.2.yaml'
 QA_MC_TASKS = './eval/yamls/qa_mc_tasks_v0.3.yaml'
 ALL_TASKS = './eval/yamls/tasks_v0.3.yaml'
 LM_TASKS = './eval/yamls/lm_tasks_v0.3.yaml'
+BROKEN_TASKS = './eval/yamls/broken_tasks.yaml'
 EVAL_GAUNTLET = './eval/yamls/eval_gauntlet_v0.3.yaml'
 
 def get_dbrx_config(engine_dir, tokenizer_name, icl_tasks=MINI_TASKS):
@@ -24,7 +25,7 @@ def get_dbrx_config(engine_dir, tokenizer_name, icl_tasks=MINI_TASKS):
         'run_name': 'trtllm-eval',
         'seed': 0,
         'max_seq_len': 2048,
-        'device_eval_batch_size': 8,
+        'device_eval_batch_size': 4,
         'precision': 'amp_bf16',
         'dist_timeout': 6000,
         'models':
@@ -37,8 +38,6 @@ def get_dbrx_config(engine_dir, tokenizer_name, icl_tasks=MINI_TASKS):
                     'version': 'dbrx',
                     'engine_dir': engine_dir,
                     'log_level': 'error',
-                    'eos_token_id': 100257,
-                    'pad_token_id': 100277,
                 },
                 'tokenizer':
                 {
@@ -61,13 +60,13 @@ def get_dbrx_config(engine_dir, tokenizer_name, icl_tasks=MINI_TASKS):
 
 
 
-def get_llama_config(engine_dir, tokenizer_name, icl_tasks=ALL_TASKS):
+def get_llama_config(engine_dir, tokenizer_name, icl_tasks=MINI_TASKS):
     return {
         'run_name': 'trtllm-eval',
         'seed': 0,
-        'max_seq_len': 2048,
-        'device_eval_batch_size': 8, # Llama-7B should be batch size 32
-        'precision': 'amp_fp16',
+        'max_seq_len': 1024,
+        'device_eval_batch_size': 4, # Llama-7B should be batch size 32
+        'precision': 'amp_bf16',
         'dist_timeout': 6000,
         'models':
         [
@@ -79,20 +78,21 @@ def get_llama_config(engine_dir, tokenizer_name, icl_tasks=ALL_TASKS):
                     'version': 'llama',
                     'engine_dir': engine_dir,
                     'log_level': 'error',
-                    'eos_token_id': 2,
-                    'pad_token_id': 2
+                    'end_token_id': 128009,
+                    'pad_token_id': 128001,
+ 
                 },
                 'tokenizer':
                 {
                     'name': tokenizer_name,
-                }
+               }
             }
         ],
         'icl_tasks': icl_tasks,
         'eval_gauntlet': EVAL_GAUNTLET,
         'loggers': {
             'wandb': {
-                'project': 'nik-quant-eval'
+                'project': 'nik-llama3-eval'
             }
         }
     }
@@ -100,25 +100,20 @@ def get_llama_config(engine_dir, tokenizer_name, icl_tasks=ALL_TASKS):
 def engine_dir_str(model_type, model_dir, variant, ngpus=8):
     return f"{trt_folder_path}examples/{model_type}/tmp/{model_type}/{model_dir}/trt_engines/{variant}/{ngpus}-gpu"
 
-
-LLAMA_TOK_DIR = '/mnt/workdisk/nikhil/llama-70b-chat-hf/'
-DBRX_TOK_DIR = '/mnt/workdisk/nikhil/dbrx/03_25_hf_ckpt/'
-
-LLAMA_7B_DIR = '7B-chat-quality-eval'
-LLAMA_70B_DIR = '70B-chat-quality-eval'
+LLAMA_TOK_DIR = '/mnt/workdisk/nikhil/models/llama3-70b-instruct-hf/'
+DBRX_TOK_DIR = '/mnt/workdisk/nikhil/models/dbrx-hf/03_25_hf_ckpt/'
 
 # LLama URLs
-# fp8_engine_dir = '/mnt/workdisk/nikhil/engines-quality-eval/llama-2-70b-chat-tp8-fp8'
-# llama7b_int8_config = get_llama_config(engine_dir_str('llama', LLAMA_7B_DIR, 'int8_kv_cache_weight_only', 1), LLAMA_TOK_DIR)
-#llama70b_fp8_config = get_llama_config(fp8_engine_dir, LLAMA_TOK_DIR)
-# llama70b_int8_config = get_llama_config(engine_dir_str('llama', LLAMA_70B_DIR, 'int8_kv_cache_weight_only'), LLAMA_TOK_DIR)
-# llama70b_smoothquant_config = get_llama_config(engine_dir_str('llama', LLAMA_70B_DIR, 'sq0.8'), LLAMA_TOK_DIR)
-# llama70b_fp16_config = get_llama_config(engine_dir_str('llama', LLAMA_70B_DIR, 'fp16'), LLAMA_TOK_DIR)
+#llama_bf16_engine_dir = '/mnt/workdisk/nikhil/engines/llama3_70b_bf16_logits_v0.10'
+#llama_fp8_engine_dir = '/mnt/workdisk/nikhil/engines/llama3_70b_fp8_logits_0521/'
+llama_fp8_engine_dir = '/mnt/workdisk/nikhil/engines/llama3_70b_fp8_logits_v2_v0.10'
+llama70b_config = get_llama_config(llama_fp8_engine_dir, LLAMA_TOK_DIR)
 
-dbrx_bf16_engine_dir = '/workspace/dbrx/03_25_tllm_engine_bf16_all_logits'
-dbrx_int8_engine_dir = '/mnt/workdisk/nikhil/dbrx/03_25_tllm_engine_int8_all_logits'
-dbrx_bf16_config = get_dbrx_config(dbrx_bf16_engine_dir, DBRX_TOK_DIR)
-dbrx_int8_config = get_dbrx_config(dbrx_int8_engine_dir, DBRX_TOK_DIR)
+#dbrx_bf16_engine_dir = '/mnt/workdisk/nikhil/engines/dbrx_bf16_logits_0521/'
+#dbrx_bf16_config = get_dbrx_config(dbrx_bf16_engine_dir, DBRX_TOK_DIR)
+
+dbrx_fp8_engine_dir = '/mnt/workdisk/nikhil/engines/dbrx_fp8_logits_v2_v0.10' 
+dbrx_fp8_config = get_dbrx_config(dbrx_fp8_engine_dir, DBRX_TOK_DIR)
 
 def run_eval(config):
     print("RUNNING EVAL")
@@ -126,11 +121,6 @@ def run_eval(config):
     print("OmegaConfig dictionary", om.to_yaml(om_dict_config))
     run_evaluation(om_dict_config)
 
-# run_eval(llama7b_int8_config)
-# run_eval(llama70b_int8_config)
-# run_eval(llama70b_fp16_config)
-# run_eval(llama70b_fp8_config)
-# run_eval(llama70b_smoothquant_config)
-# run_eval(dbrx_bf16_config)
-run_eval(dbrx_int8_config)
+# run_eval(dbrx_fp8_config)
+run_eval(llama70b_config)
 

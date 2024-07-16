@@ -59,12 +59,12 @@ class ConcatTokensFromFilesDataset(AbstractConcatTokensDataset):
         self.files = files
         super().__init__(tokenizer, max_length, bos_text, eos_text, no_wrap)
         log.info(
-            f'Initialized ConcatTokensFromFilesDataset with {len(list(files))} files'
+            f'Initialized ConcatTokensFromFilesDataset with {len(list(files))} files',
         )
 
     def __iter__(self) -> Iterable[Dict[str, NDArray]]:
         log.info(
-            'Starting iteration over files in ConcatTokensFromFilesDataset'
+            'Starting iteration over files in ConcatTokensFromFilesDataset',
         )
         buffer = []
         for file in self.files:
@@ -109,7 +109,7 @@ class ConcatTokensFromFilesDataset(AbstractConcatTokensDataset):
             yield {'tokens': np.asarray(concat_sample, dtype=np.int32)}
 
         log.info(
-            'Finished iterating over files in ConcatTokensFromFilesDataset'
+            'Finished iterating over files in ConcatTokensFromFilesDataset',
         )
 
 
@@ -292,14 +292,14 @@ def get_task_args(
         trust_remote_code (bool): If true, allows custom code to be executed to load the tokenizer
     """
     log.info(
-        f'Preparing task arguments for {len(object_names)} objects across {n_groups} groups'
+        f'Preparing task arguments for {len(object_names)} objects across {n_groups} groups',
     )
     num_objects = len(object_names)
     objs_per_group = math.ceil(num_objects / n_groups)
     for group, i in enumerate(range(0, num_objects, objs_per_group)):
         output_subdir = os.path.join(output_root, str(group))
         log.info(
-            f'Created task for group {group} with {min(objs_per_group, num_objects - i)} objects'
+            f'Created task for group {group} with {min(objs_per_group, num_objects - i)} objects',
         )
         yield (
             object_names[i:min(i + objs_per_group, num_objects)],
@@ -418,7 +418,7 @@ def is_already_processed(
         object_names (List[str]): Names of objects to convert to MDS format
     """
     log.info(
-        f'Checking if {len(object_names)} objects have already been processed in {output_root}'
+        f'Checking if {len(object_names)} objects have already been processed in {output_root}',
     )
 
     # Retrieve the done file contents

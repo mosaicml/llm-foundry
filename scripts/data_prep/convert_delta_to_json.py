@@ -186,7 +186,7 @@ def iterative_combine_jsons(json_directory: str, output_file: str) -> None:
         output_file(str): path to the output combined JSONL file
     """
     log.info(
-        f'Starting to combine JSON files from {json_directory} into {output_file}'
+        f'Starting to combine JSON files from {json_directory} into {output_file}',
     )
     json_files = [f for f in os.listdir(json_directory) if f.endswith('.jsonl')]
     log.info(f'Found {len(json_files)} JSON files to combine')
@@ -445,7 +445,7 @@ def fetch(
     """
     log.info(f'Starting data fetch for table: {tablename}')
     log.info(
-        f'Method: {method}, Batch size: {batch_size}, Processes: {processes}'
+        f'Method: {method}, Batch size: {batch_size}, Processes: {processes}',
     )
 
     cursor = dbsql.cursor() if dbsql is not None else None
@@ -527,7 +527,7 @@ def validate_and_get_cluster_info(
     """
     log.info('Validating cluster information and getting connection details')
     log.debug(
-        f'Cluster ID: {cluster_id}, Host: {databricks_host}, Use Serverless: {use_serverless}'
+        f'Cluster ID: {cluster_id}, Host: {databricks_host}, Use Serverless: {use_serverless}',
     )
 
     method = 'dbsql'

@@ -1,12 +1,18 @@
+# Copyright 2024 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 from typing import Annotated, Optional
-from typer import Typer, Option
+
+from typer import Option, Typer
+
 from llmfoundry.command_utils import (
     convert_dataset_hf_from_args,
 )
 
 app = Typer(pretty_exceptions_show_locals=False)
-@app.command(name='convert_dataset_hf')
 
+
+@app.command(name='convert_dataset_hf')
 def convert_dataset_hf(
     dataset: Annotated[str, Option(..., help='Name of the dataset')],
     out_root: Annotated[str, Option(..., help='Output root directory')],

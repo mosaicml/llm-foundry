@@ -18,11 +18,6 @@ app = Typer(pretty_exceptions_show_locals=False)
 app.add_typer(registry_cli.app, name='registry')
 app.add_typer(data_prep_cli.app, name='data_prep')
 
-# data_prep submodules
-data_prep_app = Typer()
-
-app.add_typer(data_prep_app, name='data_prep')
-
 
 @app.command(name='train')
 def train(

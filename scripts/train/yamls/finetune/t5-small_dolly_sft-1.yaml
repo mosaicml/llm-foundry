@@ -10,6 +10,9 @@ variables:
   # Run Name
   run_name:  # If left blank, will be read from env var $RUN_NAME
 
+  max_duration: 2ba
+  save_interval: 1ba
+
 max_seq_len: ${variables.max_seq_len}
 run_name: ${variables.run_name}
 
@@ -63,7 +66,7 @@ algorithms:
     clipping_type: norm
     clipping_threshold: 1.0
 
-max_duration: 2ba #1ep
+max_duration: ${variables.max_duration} #original: 1ep
 eval_interval: 1  # this is the only allowed value for no eval
 # eval_first: false
 # eval_subset_num_batches: -1
@@ -105,7 +108,7 @@ loggers:
     experiment_name: /Users/kushal.kodnad+intern@databricks.com/t5-small-experiment
 
 # Checkpoint to local filesystem or remote object store
-save_interval: 1ba
+save_interval: ${variables.save_interval}
 # save_num_checkpoints_to_keep: 1  # Important, this cleans up checkpoints saved to DISK
 # save_folder: ./{run_name}/checkpoints
 # save_folder: s3://my-bucket/my-folder/{run_name}/checkpoints

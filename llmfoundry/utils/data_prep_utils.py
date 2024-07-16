@@ -146,6 +146,7 @@ def configure_logging(logging_level: str, log: logging.Logger):
 
     Args:
         logging_level (str): Logging level.
+        log (logging.Logger): Logger.
     """
     logging.basicConfig(
         format=

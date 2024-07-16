@@ -381,7 +381,6 @@ def main(args: Namespace) -> None:
     Args:
         args (Namespace): Commandline arguments.
     """
-
     log.info(f"Starting dataset conversion for {args.dataset}")
 
     try:

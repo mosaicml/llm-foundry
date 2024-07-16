@@ -15,7 +15,7 @@ from torch.utils.data import IterableDataset
 from tqdm import tqdm
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from utils import configure_logging
+from llmfoundry.utils.data_prep_utils import configure_logging
 from llmfoundry.data import ConcatTokensDataset, NoConcatDataset
 
 log = logging.getLogger(__name__)
@@ -166,7 +166,7 @@ def main(args: Namespace) -> None:
         tokenizer = None
         columns = {'text': 'str'}
 
-    log.info(f"Building HuggingFace dataset: {args.dataset}, subset: {args.data_subset}, split: {hf_split}, mode: {mode}")
+    log.info(f"Building HuggingFace dataset: {args.dataset}, subset: {args.data_subset}, split: {args.split}, mode: {mode}")
     log.info(f"Max length: {args.concat_tokens}, BOS: {args.bos_text}, EOS: {args.eos_text}, No wrap: {args.no_wrap}")
 
     # Get samples

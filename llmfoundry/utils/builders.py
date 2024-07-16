@@ -188,7 +188,7 @@ def build_icl_data_and_gauntlet(
     return icl_evaluators, logger_keys, eval_gauntlet_cb
 
 
-def build_load_planner(name: str) -> LoadPlanner:
+def build_load_planner(name: str, **kwargs: Any) -> LoadPlanner:
     """Builds a load planner from the registry.
 
     Args:
@@ -203,11 +203,11 @@ def build_load_planner(name: str) -> LoadPlanner:
         partial_function=True,
         pre_validation_function=LoadPlanner,
         post_validation_function=None,
-        kwargs={},
+        kwargs=kwargs,
     )
 
 
-def build_save_planner(name: str) -> SavePlanner:
+def build_save_planner(name: str, **kwargs: Any) -> SavePlanner:
     """Builds a save planner from the registry.
 
     Args:
@@ -222,7 +222,7 @@ def build_save_planner(name: str) -> SavePlanner:
         partial_function=True,
         pre_validation_function=SavePlanner,
         post_validation_function=None,
-        kwargs={},
+        kwargs=kwargs,
     )
 
 

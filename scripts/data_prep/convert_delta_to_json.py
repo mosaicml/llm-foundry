@@ -11,7 +11,7 @@ from collections import namedtuple
 from concurrent.futures import ProcessPoolExecutor
 from typing import Iterable, List, Optional, Tuple, Union
 from uuid import uuid4
-from utils import configure_logging
+from llmfoundry.utils.data_prep_utils import configure_logging
 
 import google.protobuf.any_pb2 as any_pb2
 import lz4.frame

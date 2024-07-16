@@ -22,7 +22,7 @@ from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.data import ConcatTokensDataset, NoConcatDataset
 from llmfoundry.utils.builders import build_tokenizer
-from utils import configure_logging
+from llmfoundry.utils.data_prep_utils import configure_logging
 
 log = logging.getLogger(__name__)
 

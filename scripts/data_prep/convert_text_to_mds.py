@@ -22,7 +22,7 @@ from numpy.typing import NDArray
 from streaming import MDSWriter
 from tqdm import tqdm
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
-from utils import configure_logging
+from llmfoundry.utils.data_prep_utils import configure_logging
 
 from llmfoundry.data.data import AbstractConcatTokensDataset
 from llmfoundry.utils.data_prep_utils import (

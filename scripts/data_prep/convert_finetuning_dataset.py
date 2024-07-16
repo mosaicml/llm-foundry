@@ -15,7 +15,7 @@ from datasets import Dataset, DatasetDict, IterableDataset, IterableDatasetDict
 from streaming import MDSWriter
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from utils import configure_logging
+from llmfoundry.utils.data_prep_utils import configure_logging
 
 from llmfoundry.data.finetuning.collator import validate_target_settings
 from llmfoundry.data.finetuning.tasks import (

@@ -510,7 +510,7 @@ def convert_text_to_mds(
 
     object_names = get_object_names(input_folder)
     if len(object_names) == 0:
-        log.error(f"No text files found in input folder: {input_folder}')
+        log.error(f'No text files found in input folder: {input_folder}')
         raise InputFolderMissingDataError(input_folder)
 
     # Check if the text files in the bucket have already been processed.
@@ -533,7 +533,7 @@ def convert_text_to_mds(
 
 
     if os.path.isdir(output_folder) and len(os.listdir(output_folder)) > 0:
-        log.error(f"Output folder is not empty: {output_folder}')
+        log.error(f'Output folder is not empty: {output_folder}')
         raise OutputFolderNotEmptyError(output_folder)
 
     if processes > 1:

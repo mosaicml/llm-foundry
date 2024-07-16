@@ -1,17 +1,20 @@
-# Make changes to be compatible with StreamingFinetuningDataset subclass
+# Make changes to be compatible with build_finetuning_dataloader and ChronosDataset
 
 variables:
   global_seed: 17
   model_name: amazon/chronos-t5-small
-  save_folder: /mnt/workdisk/kushal/llm-foundry-fork/tmp/output/chronos-t5-small-finetuning-4
+  save_folder: /mnt/workdisk/kushal/llm-foundry-fork/tmp/output/chronos-t5-small-finetuning-7
 
-  max_seq_len: 30  # Depends on dataset
+  # max_seq_len: 30
+  context_length: 18  # Depends on dataset
+  prediction_length: 12  # Depends on dataset
+  min_past: 18  # Depends on dataset
 
   # Run Name
   run_name:  # If left blank, will be read from env var $RUN_NAME
 
-  max_duration: 1ba
-  save_interval: 1ba
+  max_duration: 2000ba
+  save_interval: 500ba
 
 max_seq_len: ${variables.max_seq_len}
 run_name: ${variables.run_name}
@@ -28,10 +31,15 @@ tokenizer:
 
 # Dataloaders
 train_loader:
-  name: finetuning
+  name: timeseries
   dataset:
-    max_seq_len: ${variables.max_seq_len}
-    local: /mnt/workdisk/kushal/llm-foundry-fork/tmp/data/hospital.arrow
+    # max_seq_len: ${variables.max_seq_len}
+    context_length: ${variables.context_length}
+    prediction_length: ${variables.prediction_length}
+    min_past: ${variables.min_past}
+    shuffle_buffer_length: 200_000
+    max_missing_prop: 0.9
+    local: /mnt/workdisk/kushal/llm-foundry-fork/tmp/tmp_data_file.arrow
     remote: /mnt/workdisk/kushal/llm-foundry-fork/tmp/data/hospital.arrow
     allow_pad_trimming: false
     decoder_only_format: false
@@ -54,7 +62,7 @@ scheduler:
 optimizer:
   # mimic HF defaults to replicate dolly
   name: decoupled_adamw
-  lr: 1.0e-5
+  lr: 0.001  # original: 1.0e-5
   betas:
   - 0.9
   - 0.999
@@ -70,12 +78,12 @@ max_duration: ${variables.max_duration} #1ep
 eval_interval: 1  # this is the only allowed value for no eval
 # eval_first: false
 # eval_subset_num_batches: -1
-global_train_batch_size: 64  # assuming 8 gpus
+global_train_batch_size: 32  # original: 64 (assuming 8 gpus)
 
 # System
 seed: ${variables.global_seed}
-device_eval_batch_size: 8
-device_train_microbatch_size: 8
+device_eval_batch_size: 32  # original: 8
+device_train_microbatch_size: 32  # original: 8
 # device_train_microbatch_size: auto
 precision: amp_bf16
 
@@ -89,8 +97,8 @@ fsdp_config:
   limit_all_gathers: true
 
 # Logging
-progress_bar: false
-log_to_console: true
+progress_bar: true  # original: false
+log_to_console: false  # original: true
 console_log_interval: 1ba
 
 callbacks:

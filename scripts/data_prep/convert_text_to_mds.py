@@ -303,6 +303,12 @@ def get_task_args(
             trust_remote_code,
         )
 
+def download_and_convert_starargs(args: Tuple):
+    """Helper function to call download_and_convert with star args.
+    This helps us use download_and_convert with multiprocessing.
+    """
+    return download_and_convert(*args)
+
 
 def download_and_convert(
     file_names: List[str],

@@ -31,12 +31,12 @@ from llmfoundry.utils.exceptions import (
 from llmfoundry.utils.registry_utils import construct_from_registry
 
 # New import statements
-from llmfoundry.tokenizers import ChronosTokenizerWrapper
-from llmfoundry.data.chronos_dataset import ChronosDataset, has_enough_observations
-from gluonts.itertools import Filter
-from gluonts.dataset.common import FileDataset
-from functools import partial
-from pathlib import Path
+# from llmfoundry.tokenizers import ChronosTokenizerWrapper
+# from llmfoundry.data.chronos_dataset import ChronosDataset, has_enough_observations
+# from gluonts.itertools import Filter
+# from gluonts.dataset.common import FileDataset
+# from functools import partial
+# from pathlib import Path
 
 log = logging.getLogger(__name__)
 
@@ -201,50 +201,50 @@ def build_finetuning_dataloader(
     )
 
     # START: Test out ChronosDataset
-    if isinstance(tokenizer, ChronosTokenizerWrapper):
-        training_data_paths = [dataset_cfg.get('remote')]
+    # if isinstance(tokenizer, ChronosTokenizerWrapper):
+    #     training_data_paths = [dataset_cfg.get('remote')]
         
-        train_datasets = [
-            Filter(
-                partial(
-                    has_enough_observations,
-                    min_length=30,
-                    max_missing_prop=0.9,
-                ),
-                FileDataset(path=Path(data_path), freq="h"),
-            )
-            for data_path in training_data_paths
-        ]
-        shuffled_train_dataset = ChronosDataset(
-            datasets=train_datasets, 
-            probabilities=[1.0], 
-            tokenizer=tokenizer.chronos_tokenizer, 
-            context_length=18, 
-            prediction_length=12, 
-            min_past=18, 
-            mode="training", 
-        ).shuffle(shuffle_buffer_length=1000)
-        dl = DataLoader(
-            dataset=shuffled_train_dataset,
-            # collate_fn=collate_fn,
-            batch_size=dataloader_batch_size,
-            drop_last=drop_last,
-            sampler=None,  # `sampler` not defined
-            num_workers=num_workers,
-            pin_memory=pin_memory,
-            prefetch_factor=prefetch_factor,
-            persistent_workers=persistent_workers,
-            timeout=timeout,
-        )
-        return construct_from_registry(
-            name='data_spec',
-            registry=registry.data_specs,
-            partial_function=False,
-            kwargs={
-                'dl': dl,
-                'dataset_cfg': dataset_cfg,
-            },
-        )
+    #     train_datasets = [
+    #         Filter(
+    #             partial(
+    #                 has_enough_observations,
+    #                 min_length=30,
+    #                 max_missing_prop=0.9,
+    #             ),
+    #             FileDataset(path=Path(data_path), freq="h"),
+    #         )
+    #         for data_path in training_data_paths
+    #     ]
+    #     shuffled_train_dataset = ChronosDataset(
+    #         datasets=train_datasets, 
+    #         probabilities=[1.0], 
+    #         tokenizer=tokenizer.chronos_tokenizer, 
+    #         context_length=18, 
+    #         prediction_length=12, 
+    #         min_past=18, 
+    #         mode="training", 
+    #     ).shuffle(shuffle_buffer_length=1000)
+    #     dl = DataLoader(
+    #         dataset=shuffled_train_dataset,
+    #         # collate_fn=collate_fn,
+    #         batch_size=dataloader_batch_size,
+    #         drop_last=drop_last,
+    #         sampler=None,  # `sampler` not defined
+    #         num_workers=num_workers,
+    #         pin_memory=pin_memory,
+    #         prefetch_factor=prefetch_factor,
+    #         persistent_workers=persistent_workers,
+    #         timeout=timeout,
+    #     )
+    #     return construct_from_registry(
+    #         name='data_spec',
+    #         registry=registry.data_specs,
+    #         partial_function=False,
+    #         kwargs={
+    #             'dl': dl,
+    #             'dataset_cfg': dataset_cfg,
+    #         },
+    #     )
     # END: Done testing out ChronosDataset
 
     streaming_dataset = None  # for pyright
@@ -292,6 +292,7 @@ def build_finetuning_dataloader(
         )
 
     else:
+        logging.debug('llmfoundry.data.finetuning.dataloader.build_finetuning_dataloader(): Building a HF dataloader now...')
         # Build HF dataloader
         dataset_name_or_path = dataset_cfg['hf_name']
         split = dataset_cfg.get('split')
@@ -338,6 +339,7 @@ def build_finetuning_dataloader(
             decoder_only_format=dataset_cfg['decoder_only_format'],
             hf_kwargs=dataset_cfg.get('hf_kwargs', {}),
         )
+        logging.debug(f'llmfoundry.data.finetuning.dataloader.build_finetuning_dataloader(): Built dataset from HF with type {type(streaming_dataset)}')
 
         # Ensure dataset is large enough.
         if drop_last:
@@ -379,6 +381,7 @@ def build_finetuning_dataloader(
         persistent_workers=persistent_workers,
         timeout=timeout,
     )
+    logging.debug(f'llmfoundry.data.finetuning.dataloader.build_finetuning_dataloader(): Built dataloader from HF with type {type(dl)}')
 
     return construct_from_registry(
         name='data_spec',

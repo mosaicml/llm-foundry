@@ -82,6 +82,8 @@ def to_cf(self: SparkConnectClient,
            - Total row count of all parts of the result.
            - A boolean indicating whether the result has been truncated.
     """
+    log.info(f"Executing query plan with format: {type}")
+
     req = self._execute_plan_request_with_metadata()
     req.plan.CopyFrom(plan)
 
@@ -166,6 +168,7 @@ def collect_as_cf(self: DataFrame,
             - Total row count of all parts of the result.
             - A boolean indicating whether the result is truncated or overflowed.
     """
+    log.info(f"Collecting DataFrame as cloud fetch with format: {type}")
     query = self._plan.to_proto(self._session.client)  # pyright: ignore
     return self._session.client.to_cf(query, type)  # pyright: ignore
 
@@ -182,13 +185,16 @@ def iterative_combine_jsons(json_directory: str, output_file: str) -> None:
         json_directory(str): directory containing the JSONL files
         output_file(str): path to the output combined JSONL file
     """
+    log.info(f"Starting to combine JSON files from {json_directory} into {output_file}")
     json_files = [f for f in os.listdir(json_directory) if f.endswith('.jsonl')]
+    log.info(f"Found {len(json_files)} JSON files to combine")
     with open(output_file, 'w') as outfile:
         for file_name in json_files:
+            log.debug(f"Processing file: {file_name}")
             with open(os.path.join(json_directory, file_name), 'r') as infile:
                 for line in infile:
                     outfile.write(line)
-    log.info('JSON files have been combined into a JSONL file.')
+    log.info('JSON files have been successfully combined into a JSONL file.')
 
 
 def run_query(
@@ -207,6 +213,9 @@ def run_query(
         spark (Optional[SparkSession]): spark session
         collect (bool): whether to get the underlying data from spark dataframe
     """
+    log.info(f"Executing query using method: {method}")
+    log.debug(f"Query: {query}")
+
     if method == 'dbsql':
         if cursor is None:
             raise ValueError(f'cursor cannot be None if using method dbsql')
@@ -247,6 +256,8 @@ def download(
         resp_format (str): whether to use arrow or json when collect
         compressed (bool): if data is compressed before downloading. Need decompress if compressed=True.
     """
+    log.info(f"Downloading part {ipart} from URL: {url}")
+
     resp = requests.get(url)
     if resp.status_code == 200:
         if resp_format == 'json':
@@ -294,6 +305,7 @@ def format_tablename(table_name: str) -> str:
     Args:
         table_name (str): catalog.scheme.tablename on UC
     """
+    log.debug(f"Formatting table name: {table_name}")
     match = re.match(TABLENAME_PATTERN, table_name)
 
     if match is None:
@@ -337,6 +349,7 @@ def fetch_data(
     Returns:
         None: The function doesn't return any value, but writes the result to a JSONL file.
     """
+    log.info(f"Fetching data from {start} to {end} using method: {method}")
     query = f"""
     WITH NumberedRows AS (
         SELECT
@@ -428,6 +441,9 @@ def fetch(
         sparkSession (pyspark.sql.sparksession): spark session
         dbsql (databricks.sql.connect): dbsql session
     """
+    log.info(f"Starting data fetch for table: {tablename}")
+    log.info(f"Method: {method}, Batch size: {batch_size}, Processes: {processes}")
+
     cursor = dbsql.cursor() if dbsql is not None else None
     try:
         nrows = get_total_rows(
@@ -505,6 +521,9 @@ def validate_and_get_cluster_info(
         http_path (Optional[str]): http path to use for sql connect
         use_serverless (bool): whether to use serverless or not
     """
+    log.info("Validating cluster information and getting connection details")
+    log.debug(f"Cluster ID: {cluster_id}, Host: {databricks_host}, Use Serverless: {use_serverless}")
+
     method = 'dbsql'
     dbsql = None
     sparkSession = None
@@ -575,6 +594,10 @@ def validate_and_get_cluster_info(
 def fetch_DT(args: Namespace) -> None:
     """Fetch UC Delta Table to local as jsonl."""
     log.info(f'Start .... Convert delta to json')
+    log.info("Starting Delta Table to JSON conversion process")
+    log.info(f"Delta Table: {args.delta_table_name}")
+    log.info(f"Output Folder: {args.json_output_folder}")
+    log.info(f"Output Filename: {args.json_output_filename}")
 
     obj = urllib.parse.urlparse(args.json_output_folder)
     if obj.scheme != '':
@@ -625,6 +648,8 @@ def fetch_DT(args: Namespace) -> None:
         args.json_output_folder,
         os.path.join(args.json_output_folder, args.json_output_filename),
     )
+    
+    log.info("Delta Table to JSON conversion completed successfully")
 
 
 if __name__ == '__main__':
@@ -695,3 +720,5 @@ if __name__ == '__main__':
     tik = time.time()
     fetch_DT(args)
     log.info(f'Elapsed time {time.time() - tik}')
+    log.info("Delta Table to JSON conversion script completed")
+

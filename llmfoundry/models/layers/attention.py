@@ -411,6 +411,7 @@ class GroupedQueryAttention(nn.Module):
         clip_qkv: Optional[float] = None,
         qk_ln: bool = False,
         qk_gn: bool = False,
+        fused_weights: bool = True,
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
@@ -426,6 +427,7 @@ class GroupedQueryAttention(nn.Module):
         self.clip_qkv = clip_qkv
         self.qk_ln = qk_ln
         self.qk_gn = qk_gn
+        self.fused_weights = fused_weights
 
         self.d_model = d_model
         self.n_heads = n_heads
@@ -462,29 +464,72 @@ class GroupedQueryAttention(nn.Module):
             self.softmax_scale = 1 / math.sqrt(self.d_model / self.n_heads)
         self.attn_dropout_p = attn_pdrop
 
-        if self.reuse_kv_layer_idx is None:
-            self.Wqkv = build_fc(
-                name=fc_type_name,
-                in_features=self.d_model,
-                out_features=self.d_model + 2 * self.kv_n_heads * self.head_dim,
-                fc_kwargs=fc_type,
-            )
-            # for param init fn; enables shape based init of fused layers
-            fuse_splits = [
-                i * self.head_dim
-                for i in range(1, self.n_heads + 2 * self.kv_n_heads)
-            ]
-            self.Wqkv._fused = (0, fuse_splits)
+        if self.fused_weights:
+            if self.reuse_kv_layer_idx is None:
+                self.Wqkv = build_fc(
+                    name=fc_type_name,
+                    in_features=self.d_model,
+                    out_features=self.d_model +
+                    2 * self.kv_n_heads * self.head_dim,
+                    fc_kwargs=fc_type,
+                )
+                # for param init fn; enables shape based init of fused layers
+                fuse_splits = [
+                    i * self.head_dim
+                    for i in range(1, self.n_heads + 2 * self.kv_n_heads)
+                ]
+                self.Wqkv._fused = (0, fuse_splits)
+            else:
+                self.Wq = build_fc(
+                    name=fc_type_name,
+                    in_features=self.d_model,
+                    out_features=self.d_model,
+                    fc_kwargs=fc_type,
+                )
+                # for param init fn; enables shape based init of fused layers
+                fuse_splits = [
+                    i * self.head_dim for i in range(1, self.n_heads)
+                ]
+                self.Wq._fused = (0, fuse_splits)
         else:
-            self.Wq = build_fc(
-                name=fc_type_name,
-                in_features=self.d_model,
-                out_features=self.d_model,
-                fc_kwargs=fc_type,
-            )
-            # for param init fn; enables shape based init of fused layers
-            fuse_splits = [i * self.head_dim for i in range(1, self.n_heads)]
-            self.Wq._fused = (0, fuse_splits)
+            if self.reuse_kv_layer_idx is None:
+                self.Wq = build_fc(
+                    name=fc_type_name,
+                    in_features=self.d_model,
+                    out_features=self.d_model,
+                    fc_kwargs=fc_type,
+                )
+                self.Wk = build_fc(
+                    name=fc_type_name,
+                    in_features=self.d_model,
+                    out_features=self.kv_n_heads * self.head_dim,
+                    fc_kwargs=fc_type,
+                )
+                self.Wv = build_fc(
+                    name=fc_type_name,
+                    in_features=self.d_model,
+                    out_features=self.kv_n_heads * self.head_dim,
+                    fc_kwargs=fc_type,
+                )
+                # for param init fn; enables shape based init of fused layers
+                fuse_splits = [
+                    i * self.head_dim for i in range(1, self.n_heads)
+                ]
+                self.Wq._fused = (0, fuse_splits)
+                self.Wk._fused = (0, fuse_splits)
+                self.Wv._fused = (0, fuse_splits)
+            else:
+                self.Wq = build_fc(
+                    name=fc_type_name,
+                    in_features=self.d_model,
+                    out_features=self.d_model,
+                    fc_kwargs=fc_type,
+                )
+                # for param init fn; enables shape based init of fused layers
+                fuse_splits = [
+                    i * self.head_dim for i in range(1, self.n_heads)
+                ]
+                self.Wq._fused = (0, fuse_splits)
 
         if self.qk_ln or self.qk_gn:
             norm_size = self.head_dim if qk_gn else d_model
@@ -601,19 +646,29 @@ class GroupedQueryAttention(nn.Module):
                 query = self.q_ln(query).to(dtype).view(q_shape)
             return query, key, value
 
-        qkv = self.Wqkv(x)
+        if self.fused_weights:
+            qkv = self.Wqkv(x)
 
-        if self.clip_qkv:
-            qkv = qkv.clamp(min=-self.clip_qkv, max=self.clip_qkv)
+            if self.clip_qkv:
+                qkv = qkv.clamp(min=-self.clip_qkv, max=self.clip_qkv)
 
-        query, key, value = qkv.split(
-            [
-                self.d_model,
-                self.kv_n_heads * self.head_dim,
-                self.kv_n_heads * self.head_dim,
-            ],
-            dim=2,
-        )
+            query, key, value = qkv.split(
+                [
+                    self.d_model,
+                    self.kv_n_heads * self.head_dim,
+                    self.kv_n_heads * self.head_dim,
+                ],
+                dim=2,
+            )
+        else:
+            query = self.Wq(x)
+            key = self.Wk(x)
+            value = self.Wv(x)
+
+            if self.clip_qkv:
+                query = query.clamp(min=-self.clip_qkv, max=self.clip_qkv)
+                key = key.clamp(min=-self.clip_qkv, max=self.clip_qkv)
+                value = value.clamp(min=-self.clip_qkv, max=self.clip_qkv)
 
         if self.qk_ln or self.qk_gn:
             # Applying layernorm to qk
@@ -753,6 +808,7 @@ class MultiheadAttention(GroupedQueryAttention):
         clip_qkv: Optional[float] = None,
         qk_ln: bool = False,
         qk_gn: bool = False,
+        fused_weights: bool = True,
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
@@ -770,6 +826,7 @@ class MultiheadAttention(GroupedQueryAttention):
             clip_qkv=clip_qkv,
             qk_ln=qk_ln,
             qk_gn=qk_gn,
+            fused_weights=fused_weights,
             softmax_scale=softmax_scale,
             attn_pdrop=attn_pdrop,
             norm_type=norm_type,
@@ -796,6 +853,7 @@ class MultiQueryAttention(GroupedQueryAttention):
         clip_qkv: Optional[float] = None,
         qk_ln: bool = False,
         qk_gn: bool = False,
+        fused_weights: bool = True,
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
@@ -813,6 +871,7 @@ class MultiQueryAttention(GroupedQueryAttention):
             clip_qkv=clip_qkv,
             qk_ln=qk_ln,
             qk_gn=qk_gn,
+            fused_weights=fused_weights,
             softmax_scale=softmax_scale,
             attn_pdrop=attn_pdrop,
             norm_type=norm_type,

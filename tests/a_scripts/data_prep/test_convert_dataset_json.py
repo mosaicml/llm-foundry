@@ -4,7 +4,7 @@
 import os
 from pathlib import Path
 
-from llmfoundry.data_prep import convert_dataset_json
+from llmfoundry.command_utils import convert_dataset_json
 
 
 def test_json_script_from_api(tmp_path: Path):

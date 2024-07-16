@@ -4,7 +4,7 @@
 """Streaming dataset conversion scripts for json files."""
 from argparse import ArgumentParser, Namespace
 
-from llmfoundry.data_prep import convert_dataset_json_from_args
+from llmfoundry.command_utils import convert_dataset_json_from_args
 
 
 def parse_args() -> Namespace:

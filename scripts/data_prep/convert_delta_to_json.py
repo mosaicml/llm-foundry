@@ -185,7 +185,9 @@ def iterative_combine_jsons(json_directory: str, output_file: str) -> None:
         json_directory(str): directory containing the JSONL files
         output_file(str): path to the output combined JSONL file
     """
-    log.info(f'Starting to combine JSON files from {json_directory} into {output_file}')
+    log.info(
+        f'Starting to combine JSON files from {json_directory} into {output_file}'
+    )
     json_files = [f for f in os.listdir(json_directory) if f.endswith('.jsonl')]
     log.info(f'Found {len(json_files)} JSON files to combine')
     with open(output_file, 'w') as outfile:
@@ -442,7 +444,9 @@ def fetch(
         dbsql (databricks.sql.connect): dbsql session
     """
     log.info(f'Starting data fetch for table: {tablename}')
-    log.info(f'Method: {method}, Batch size: {batch_size}, Processes: {processes}')
+    log.info(
+        f'Method: {method}, Batch size: {batch_size}, Processes: {processes}'
+    )
 
     cursor = dbsql.cursor() if dbsql is not None else None
     try:
@@ -522,7 +526,9 @@ def validate_and_get_cluster_info(
         use_serverless (bool): whether to use serverless or not
     """
     log.info('Validating cluster information and getting connection details')
-    log.debug(f'Cluster ID: {cluster_id}, Host: {databricks_host}, Use Serverless: {use_serverless}')
+    log.debug(
+        f'Cluster ID: {cluster_id}, Host: {databricks_host}, Use Serverless: {use_serverless}'
+    )
 
     method = 'dbsql'
     dbsql = None
@@ -590,7 +596,7 @@ def validate_and_get_cluster_info(
             raise FailedToCreateSQLConnectionError() from e
     return method, dbsql, sparkSession
 
- 
+
 def fetch_DT(args: Namespace) -> None:
     """Fetch UC Delta Table to local as jsonl."""
     log.info(f'Start .... Convert delta to json')
@@ -648,7 +654,7 @@ def fetch_DT(args: Namespace) -> None:
         args.json_output_folder,
         os.path.join(args.json_output_folder, args.json_output_filename),
     )
-    
+
     log.info('Delta Table to JSON conversion completed successfully')
 
 
@@ -721,4 +727,3 @@ if __name__ == '__main__':
     fetch_DT(args)
     log.info(f'Elapsed time {time.time() - tik}')
     log.info('Delta Table to JSON conversion script completed')
-

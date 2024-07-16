@@ -58,10 +58,14 @@ class ConcatTokensFromFilesDataset(AbstractConcatTokensDataset):
     ):
         self.files = files
         super().__init__(tokenizer, max_length, bos_text, eos_text, no_wrap)
-        log.info(f'Initialized ConcatTokensFromFilesDataset with {len(list(files))} files')
+        log.info(
+            f'Initialized ConcatTokensFromFilesDataset with {len(list(files))} files'
+        )
 
     def __iter__(self) -> Iterable[Dict[str, NDArray]]:
-        log.info('Starting iteration over files in ConcatTokensFromFilesDataset')
+        log.info(
+            'Starting iteration over files in ConcatTokensFromFilesDataset'
+        )
         buffer = []
         for file in self.files:
             log.info(f'Processing file: {file}')
@@ -87,7 +91,8 @@ class ConcatTokensFromFilesDataset(AbstractConcatTokensDataset):
                     buffer += iids
                     while len(buffer) >= self.max_length:
                         concat_sample = buffer[:self.max_length]
-                        buffer = buffer[self.max_length:] if self.should_wrap else []
+                        buffer = buffer[self.
+                                        max_length:] if self.should_wrap else []
                         yield {
                             'tokens': np.asarray(concat_sample, dtype=np.int32),
                         }
@@ -102,8 +107,10 @@ class ConcatTokensFromFilesDataset(AbstractConcatTokensDataset):
             concat_sample = buffer[:self.max_length]
             buffer = buffer[self.max_length:] if self.should_wrap else []
             yield {'tokens': np.asarray(concat_sample, dtype=np.int32)}
-        
-        log.info('Finished iterating over files in ConcatTokensFromFilesDataset')
+
+        log.info(
+            'Finished iterating over files in ConcatTokensFromFilesDataset'
+        )
 
 
 def parse_args() -> Namespace:
@@ -284,12 +291,16 @@ def get_task_args(
         compression (str): The compression algorithm to use for MDS writing
         trust_remote_code (bool): If true, allows custom code to be executed to load the tokenizer
     """
-    log.info(f'Preparing task arguments for {len(object_names)} objects across {n_groups} groups')
+    log.info(
+        f'Preparing task arguments for {len(object_names)} objects across {n_groups} groups'
+    )
     num_objects = len(object_names)
     objs_per_group = math.ceil(num_objects / n_groups)
     for group, i in enumerate(range(0, num_objects, objs_per_group)):
         output_subdir = os.path.join(output_root, str(group))
-        log.info(f'Created task for group {group} with {min(objs_per_group, num_objects - i)} objects')
+        log.info(
+            f'Created task for group {group} with {min(objs_per_group, num_objects - i)} objects'
+        )
         yield (
             object_names[i:min(i + objs_per_group, num_objects)],
             output_subdir,
@@ -303,8 +314,10 @@ def get_task_args(
             trust_remote_code,
         )
 
+
 def download_and_convert_starargs(args: Tuple):
     """Helper function to call download_and_convert with star args.
+
     This helps us use download_and_convert with multiprocessing.
     """
     return download_and_convert(*args)
@@ -404,7 +417,9 @@ def is_already_processed(
         args_str (str): String representation of the arguments
         object_names (List[str]): Names of objects to convert to MDS format
     """
-    log.info(f'Checking if {len(object_names)} objects have already been processed in {output_root}')
+    log.info(
+        f'Checking if {len(object_names)} objects have already been processed in {output_root}'
+    )
 
     # Retrieve the done file contents
     output_object_store = maybe_create_object_store_from_uri(output_root)
@@ -437,7 +452,7 @@ def is_already_processed(
         with open(done_file) as df:
             done_file_contents = df.read().splitlines()
         log.info(f'Retrieved done file contents from local storage')
-    
+
     # Compare the arguments
     prev_args_str = done_file_contents[0]
     if prev_args_str != args_str:
@@ -453,7 +468,7 @@ def is_already_processed(
         if object_names[idx] != prev_name:
             log.info('File names have changed, reprocessing required')
             return False
-    
+
     log.info('All files have already been processed')
     return True
 
@@ -531,7 +546,6 @@ def convert_text_to_mds(
     ).name if is_remote_output else output_folder
     log.info(f'Using local output folder: {local_output_folder}')
 
- 
     if os.path.isdir(output_folder) and len(os.listdir(output_folder)) > 0:
         log.error(f'Output folder is not empty: {output_folder}')
         raise OutputFolderNotEmptyError(output_folder)

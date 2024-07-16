@@ -395,4 +395,7 @@ class MPTConfig(PretrainedConfig):
                 'sliding_window_size': None,
                 'reuse_kv_layer_idx': None,
             },
+            'ffn_config': {
+                'moe_num_experts': None,
+            }
         }

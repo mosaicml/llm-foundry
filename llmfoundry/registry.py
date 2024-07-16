@@ -360,7 +360,9 @@ load_planners = create_registry(
 
 _save_planners_description = (
     """The save_planners registry is used to register classes that implement the SavePlanner interface.
+
     The savePlanner will be passed as part of the FSDP config arg of the Trainer. It will be used to save distributed checkpoints.
+    
     Returns:
         SavePlanner: The save planner.
     """

@@ -469,7 +469,6 @@ def write_done_file(folder: str, args_str: str, object_names: List[str]):
         args_str (str): String representation of arguments
         object_names (List[str]): List of objects to convert to MDS format
     """
-
     with open(os.path.join(folder, DONE_FILENAME), 'w') as done_file:
         log.info(f"Writing done file.")
         done_file.write('\n'.join([args_str] + object_names) + '\n')

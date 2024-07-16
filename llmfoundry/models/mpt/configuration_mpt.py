@@ -397,5 +397,5 @@ class MPTConfig(PretrainedConfig):
             },
             'ffn_config': {
                 'moe_num_experts': None,
-            }
+            },
         }

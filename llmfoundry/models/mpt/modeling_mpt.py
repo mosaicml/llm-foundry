@@ -510,8 +510,12 @@ class MPTModel(MPTPreTrainedModel):
                     'ffn_config',
                     {},
                 ):
-                    if override_config['ffn_config']['moe_num_experts'] % block_args['ffn_config']['moe_world_size']!=0:
-                        raise ValueError('moe_num_experts of every layer should be divisible by the moe_world_size.')
+                    if override_config['ffn_config'][
+                        'moe_num_experts'] % block_args['ffn_config'][
+                            'moe_world_size'] != 0:
+                        raise ValueError(
+                            'moe_num_experts of every layer should be divisible by the moe_world_size.',
+                        )
                 if 'reuse_kv_layer_idx' in override_config.get(
                     'attn_config',
                     {},

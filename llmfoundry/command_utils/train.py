@@ -567,6 +567,7 @@ def train_from_yaml(
 ) -> Trainer:
     """Run the training with optional overrides from CLI."""
     # Load yaml and CLI arguments.
+    om.clear_resolver('oc.env')
     with open(yaml_path) as f:
         yaml_cfg = om.load(f)
     if args_list:

@@ -14,15 +14,12 @@ from composer.trainer import Trainer
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
-from rich.traceback import install
 
 from llmfoundry.utils import (
     find_mosaicml_logger,
     log_eval_analytics,
     maybe_create_mosaicml_logger,
 )
-
-install()
 from llmfoundry.utils.builders import (
     add_metrics_to_eval_loaders,
     build_callback,
@@ -438,6 +435,9 @@ def eval_from_yaml(
     yaml_path: str,
     args_list: Optional[list[str]],
 ) -> Tuple[list[Trainer], pd.DataFrame]:
+    """Run the evaluation with optional overrides from CLI."""
+    # Load yaml and CLI arguments.
+    om.clear_resolver('oc.env')
     with open(yaml_path) as f:
         yaml_cfg = om.load(f)
     if args_list:

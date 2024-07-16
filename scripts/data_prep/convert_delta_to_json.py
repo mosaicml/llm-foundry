@@ -590,7 +590,7 @@ def validate_and_get_cluster_info(
             raise FailedToCreateSQLConnectionError() from e
     return method, dbsql, sparkSession
 
-
+ 
 def fetch_DT(args: Namespace) -> None:
     """Fetch UC Delta Table to local as jsonl."""
     log.info(f'Start .... Convert delta to json')

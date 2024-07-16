@@ -531,7 +531,7 @@ def convert_text_to_mds(
     ).name if is_remote_output else output_folder
     log.info(f'Using local output folder: {local_output_folder}')
 
-
+ 
     if os.path.isdir(output_folder) and len(os.listdir(output_folder)) > 0:
         log.error(f'Output folder is not empty: {output_folder}')
         raise OutputFolderNotEmptyError(output_folder)

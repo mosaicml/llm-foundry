@@ -97,7 +97,7 @@ def eval(
         Optional[list[str]],
         Argument(help='Additional command line arguments')] = None,
 ):
-    """Run the training with optional overrides from CLI."""
+    """Run the eval with optional overrides from CLI."""
     eval_from_yaml(yaml_path, args_list)
 
 

@@ -28,9 +28,9 @@ from llmfoundry.data import (
     stream_remote_local_validate,
 )
 from llmfoundry.utils.registry_utils import construct_from_registry
-from llmfoundry.data.finetuning.dataloader import _validate_config
 
 # New import statements
+from llmfoundry.tokenizers import ChronosTokenizerWrapper
 from llmfoundry.data.chronos_dataset import ChronosDataset, has_enough_observations
 from gluonts.itertools import Filter
 from gluonts.dataset.common import FileDataset
@@ -241,6 +241,8 @@ def build_timeseries_dataloader(
     timeout: int = 0,
 ) -> DataSpec:
     
+    assert isinstance(tokenizer, ChronosTokenizerWrapper), "tokenizer is not of type ChronosTokenizerWrapper"
+    
     dataset_cfg = dataset
     _validate_config(**dataset_cfg)
     
@@ -260,7 +262,7 @@ def build_timeseries_dataloader(
     # )
     
     dataloader_cfg = {
-        'name': 'timeseries',  # changed
+        'name': 'timeseries',
         'dataset': dataset_cfg,
         'drop_last': drop_last,
         'num_workers': num_workers,
@@ -270,7 +272,7 @@ def build_timeseries_dataloader(
         'timeout': timeout,
     }
     
-    replication_factor, dataset_batch_size = construct_from_registry(
+    _, dataset_batch_size = construct_from_registry(
         name='dataset_replication_validator',
         registry=registry.dataset_replication_validators,
         partial_function=False,
@@ -280,25 +282,20 @@ def build_timeseries_dataloader(
             'device_batch_size': device_batch_size,
         },
     )
+    dataloader_batch_size = dataset_batch_size  # TODO: Might need to change this
     
-    collate_fn, dataloader_batch_size = construct_from_registry(
-        name='finetuning_collator',  # TODO: should be timeseries_collator
-        registry=registry.collators,
-        partial_function=False,
-        kwargs={
-            'dataloader_cfg': dataloader_cfg,
-            'tokenizer': tokenizer,
-            'dataset_batch_size': dataset_batch_size,
-        },
-    )
-    
+    context_length = dataset_cfg.get('context_length', 512)
+    prediction_length = dataset_cfg.get('prediction_length', 64)
+    min_past = dataset_cfg.get('min_past', 60)
+    max_missing_prop = dataset_cfg.get('max_missing_prop', 0.9)
+    shuffle_buffer_length = dataset_cfg.get('shuffle_buffer_length', 100_000)
     training_data_paths = [dataset_cfg.get('remote')]  # Used to create `train_datasets`
     train_datasets = [
         Filter(
             partial(
                 has_enough_observations,
-                min_length=30,
-                max_missing_prop=0.9,
+                min_length=min_past + prediction_length,
+                max_missing_prop=max_missing_prop,
             ),
             FileDataset(path=Path(data_path), freq="h"),
         )
@@ -308,18 +305,18 @@ def build_timeseries_dataloader(
         datasets=train_datasets, 
         probabilities=[1.0], 
         tokenizer=tokenizer.chronos_tokenizer, 
-        context_length=18, 
-        prediction_length=12, 
-        min_past=18, 
+        context_length=context_length,
+        prediction_length=prediction_length,
+        min_past=min_past,
         mode="training", 
-    ).shuffle(shuffle_buffer_length=1000)  # TODO: Get `shuffle_buffer_length` from config
+    ).shuffle(shuffle_buffer_length=shuffle_buffer_length)
     
     dl = DataLoader(
         dataset=shuffled_train_dataset,
         # collate_fn=collate_fn,
         batch_size=dataloader_batch_size,
         drop_last=drop_last,
-        sampler=None,  # `sampler` not defined
+        # sampler=sampler,  # `sampler` not defined
         num_workers=num_workers,
         pin_memory=pin_memory,
         prefetch_factor=prefetch_factor,
@@ -336,6 +333,39 @@ def build_timeseries_dataloader(
             'dataset_cfg': dataset_cfg,
         },
     )
+
+def _validate_config(
+    context_length: int,
+    prediction_length: int,
+    min_past: int,
+    shuffle_buffer_length: int,
+    max_missing_prop: float,
+    decoder_only_format: bool = False,
+    hf_name: Optional[str] = None,
+    local: Optional[str] = None,
+    remote: Optional[str] = None,
+    hf_kwargs: Optional[Dict[str, Any]] = None,
+    preprocessing_fn: Optional[str] = None,
+    safe_load: Optional[bool] = None,
+    streams: Optional[Dict[str, Any]] = None,
+    target_prompts: Optional[str] = None,
+    target_responses: Optional[str] = None,
+    **kwargs: Dict[str, Any],
+) -> None:
+    """Validates the dataset configuration.
+
+    Makes sure that the dataset is properly configured for either
+    a HuggingFace dataset or a streaming dataset. Must be valid for one or
+    the other.
+
+    Args:
+        dataset_cfg (DictConfig): The dataset configuration to be validated.
+
+    Raises:
+        ValueError: If the dataset configuration does not meet the requirements.
+    """
+    # TODO: Implement this function
+
 
 
 # Helpful to test if your dataloader is working locally

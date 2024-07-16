@@ -471,7 +471,7 @@ def write_done_file(folder: str, args_str: str, object_names: List[str]):
     """
 
     with open(os.path.join(folder, DONE_FILENAME), 'w') as done_file:
-            log.info(f"Writing done file to {done_file_path}")
+        log.info(f"Writing done file.")
         done_file.write('\n'.join([args_str] + object_names) + '\n')
     log.info(f"Done file written successfully")
 

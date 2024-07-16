@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import logging 
 import json
 import os
 import platform
@@ -14,6 +15,7 @@ from datasets import Dataset, DatasetDict, IterableDataset, IterableDatasetDict
 from streaming import MDSWriter
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from utils import configure_logging
 
 from llmfoundry.data.finetuning.collator import validate_target_settings
 from llmfoundry.data.finetuning.tasks import (
@@ -23,6 +25,8 @@ from llmfoundry.data.finetuning.tasks import (
     tokenize_formatted_example,
 )
 from llmfoundry.utils.builders import build_tokenizer
+
+log = logging.getLogger(__name__)
 
 HFDataset = Union[DatasetDict, Dataset, IterableDatasetDict, IterableDataset]
 
@@ -113,6 +117,13 @@ def parse_args() -> Namespace:
         help='Used to determine which samples are valid at max_seq_len. ' +\
              'Set this flag if the data are intended to be used to train an encoder-decoder model. If so, you must use the default ' +\
             '``target_prompts`` and ``target_responses`` settings of "none" and "last", respectively.',
+    )
+    parser.add_argument(
+        '--logging-level',
+        type=str,
+        required=False,
+        default='INFO',
+        help='Logging level for the script. Default is INFO.',
     )
 
     parsed = parser.parse_args()
@@ -247,7 +258,9 @@ def main(args: Namespace) -> None:
     tokenizer_kwargs = args.tokenizer_kwargs
     tokenizer_kwargs.update({'model_max_length': args.max_seq_len})
     if args.tokenizer:
+        log.info(f'Building tokenizer with args: {args.tokenizer} and kwargs: {tokenizer_kwargs}')
         tokenizer = build_tokenizer(args.tokenizer, tokenizer_kwargs)
+        log.info(f'Finished building tokenizer')
 
     for i, split_name in enumerate(args.splits):
         data_file = None
@@ -270,6 +283,7 @@ def main(args: Namespace) -> None:
         if example_type == 'chat':
             samples = iter(dataset)
         else:
+            log.info(f'Building dataloader for split: {split_name}')
             loader = build_dataloader(
                 dataset=dataset,
                 batch_size=512,
@@ -338,6 +352,8 @@ def main(args: Namespace) -> None:
                     else:
                         out.write(formatted_sample)
 
+        log.info(f'Finished converting {split_name} to MDS format.')
+
         if tokenizer is not None and examples_removed > 0:
             warnings.warn(
                 f'Dropped {examples_removed} examples where the prompt was longer than {args.max_seq_len}, '
@@ -355,4 +371,6 @@ if __name__ == '__main__':
     >>>    --preprocessor llmfoundry.data.finetuning.tasks:p3_preprocessing_function \
     >>>    --out_root s3://<bucket>/muennighoff-p3
     """
-    main(parse_args())
+    args = parse_args()
+    configure_logging(args.logging_level, log)
+    main(args)

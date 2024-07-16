@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Streaming dataset conversion scripts for json files."""
+import logging
 import os
 from argparse import ArgumentParser, Namespace
 from enum import Enum
@@ -14,9 +15,10 @@ from torch.utils.data import IterableDataset
 from tqdm import tqdm
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
+from utils import configure_logging
 from llmfoundry.data import ConcatTokensDataset, NoConcatDataset
 
-
+log = logging.getLogger(__name__)
 class ConcatMode(Enum):
     NO_CONCAT = 'NO_CONCAT'
     CONCAT_TOKENS = 'CONCAT_TOKENS'
@@ -44,6 +46,13 @@ def parse_args() -> Namespace:
     parser.add_argument('--bos_text', type=str, required=False, default=None)
     parser.add_argument('--eos_text', type=str, required=False, default=None)
     parser.add_argument('--no_wrap', default=False, action='store_true')
+    parser.add_argument(
+        '--logging-level',
+        type=str,
+        required=False,
+        default='INFO',
+        help='Logging level for the script. Default is INFO.',
+    )
 
     parsed = parser.parse_args()
 
@@ -157,6 +166,9 @@ def main(args: Namespace) -> None:
         tokenizer = None
         columns = {'text': 'str'}
 
+    log.info(f"Building HuggingFace dataset: {args.dataset}, subset: {args.data_subset}, split: {hf_split}, mode: {mode}")
+    log.info(f"Max length: {args.concat_tokens}, BOS: {args.bos_text}, EOS: {args.eos_text}, No wrap: {args.no_wrap}")
+
     # Get samples
     dataset = build_hf_dataset(
         path=args.path,
@@ -187,4 +199,6 @@ def main(args: Namespace) -> None:
 
 
 if __name__ == '__main__':
+    args = parse_args()
+    configure_logging(args.logging_level, log)
     main(parse_args())

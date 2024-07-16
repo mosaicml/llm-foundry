@@ -11,6 +11,7 @@ from collections import namedtuple
 from concurrent.futures import ProcessPoolExecutor
 from typing import Iterable, List, Optional, Tuple, Union
 from uuid import uuid4
+from utils import configure_logging
 
 import google.protobuf.any_pb2 as any_pb2
 import lz4.frame
@@ -604,9 +605,13 @@ def fetch_DT(args: Namespace) -> None:
         http_path=args.http_path,
         use_serverless=args.use_serverless,
     )
+    log.info('Cluster information validated. dbsql and sparkSession objects successfully created.')
+
 
     args.delta_table_name = format_tablename(args.delta_table_name)
+    log.info(f'Table name formatted to: {args.delta_table_name}')
 
+    log.info(f"Fetching UC Table: {args.delta_table_name} with batch size: {args.batch_size}, processes: {args.processes}, and output folder: {args.json_output_folder}")
     fetch(
         method,
         args.delta_table_name,
@@ -616,9 +621,12 @@ def fetch_DT(args: Namespace) -> None:
         sparkSession,
         dbsql,
     )
+    log.info(f"Successfully fetched UC Table: {args.delta_table_name}")
 
     if dbsql is not None:
+        log.info("Closing the dbsql connection.")
         dbsql.close()
+        log.info("dbsql connection closed.")
 
     # combine downloaded jsonl into one big jsonl for IFT
     iterative_combine_jsons(
@@ -687,10 +695,19 @@ if __name__ == '__main__':
         help=
         'The name of the combined final jsonl that combines all partitioned jsonl',
     )
+    parser.add_argument(
+        '--logging-level',
+        type=str,
+        required=False,
+        default='INFO',
+        help='Logging level for the script. Default is INFO.',
+    )
+
     args = parser.parse_args()
     w = WorkspaceClient()
     args.DATABRICKS_HOST = w.config.host
     args.DATABRICKS_TOKEN = w.config.token
+    configure_logging(args.logging_level, log)
 
     tik = time.time()
     fetch_DT(args)

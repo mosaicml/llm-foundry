@@ -22,6 +22,7 @@ from numpy.typing import NDArray
 from streaming import MDSWriter
 from tqdm import tqdm
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
+from utils import configure_logging
 
 from llmfoundry.data.data import AbstractConcatTokensDataset
 from llmfoundry.utils.data_prep_utils import (
@@ -368,7 +369,8 @@ def download_and_convert(
         ) as out:
             for sample in tqdm(dataset):
                 out.write(sample)
-
+        
+        log.info("Write to MDS complete.")
 
 def is_remote_path(path: str) -> bool:
     """Checks whether a path is a remote path.
@@ -483,9 +485,11 @@ def convert_text_to_mds(
     """
     is_remote_output = is_remote_path(output_folder)
 
+    log.info(f'Getting object names from input folder: {input_folder}')
     object_names = get_object_names(input_folder)
     if len(object_names) == 0:
         raise InputFolderMissingDataError(input_folder)
+    log.info(f'Successfully retrieved {len(object_names)} object names from input folder.')
 
     # Check if the text files in the bucket have already been processed.
     if not reprocess and is_already_processed(
@@ -526,7 +530,9 @@ def convert_text_to_mds(
             list(executor.map(download_and_convert_starargs, args))
 
         # Merge the mds shards from each of the processes into a single folder
+        log.info(f'Merging MDS shards from each process into a single folder: {local_output_folder}')
         merge_shard_groups(local_output_folder)
+        log.info(f'Successfully merged MDS shards.')
     else:
         download_and_convert(
             object_names,
@@ -541,8 +547,10 @@ def convert_text_to_mds(
             trust_remote_code,
         )
 
+    log.info(f"Writing done file to {local_output_folder} with args: {args_str} and object names: {object_names}.")
     # Write a done file with the args and object names
     write_done_file(local_output_folder, args_str, object_names)
+    log.info(f"Done file written to {local_output_folder}.")
 
     if is_remote_output:
         # Upload the local output to the remote location
@@ -556,10 +564,12 @@ def convert_text_to_mds(
         for file in files_to_upload:
             assert not os.path.isdir(file)
             remote_path = os.path.join(output_folder_prefix, file)
+            log.info(f'Uploading {file} to {remote_path}')
             output_object_store.upload_object(
                 remote_path,
                 os.path.join(local_output_folder, file),
             )
+            log.info(f'Successfully uploaded {file} to {remote_path}')
 
 
 def _args_str(original_args: Namespace) -> str:
@@ -584,26 +594,9 @@ def _args_str(original_args: Namespace) -> str:
 
     return str(args)
 
-
-def _configure_logging(logging_level: str):
-    """Configure logging.
-
-    Args:
-        logging_level (str): Logging level.
-    """
-    logging.basicConfig(
-        format=
-        f'%(asctime)s: [%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s',
-    )
-    logging_level = logging_level.upper()
-    logging.getLogger('llmfoundry').setLevel(logging_level)
-    logging.getLogger(__name__).setLevel(logging_level)
-    log.info(f'Logging level set to {logging_level}')
-
-
 if __name__ == '__main__':
     args = parse_args()
-    _configure_logging(args.logging_level)
+    configure_logging(args.logging_level, log)
     convert_text_to_mds(
         tokenizer_name=args.tokenizer,
         output_folder=args.output_folder,

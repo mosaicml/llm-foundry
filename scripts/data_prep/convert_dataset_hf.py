@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Streaming dataset conversion scripts for C4 and The Pile."""
+import logging
 import json
 import os
 import platform
@@ -21,7 +22,9 @@ from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.data import ConcatTokensDataset, NoConcatDataset
 from llmfoundry.utils.builders import build_tokenizer
+from utils import configure_logging
 
+log = logging.getLogger(__name__)
 
 class ConcatMode(Enum):
     NO_CONCAT = 'NO_CONCAT'
@@ -62,6 +65,13 @@ def parse_args() -> Namespace:
     parser.add_argument('--eos_text', type=str, required=False, default=None)
     parser.add_argument('--no_wrap', default=False, action='store_true')
     parser.add_argument('--num_workers', type=int, required=False, default=None)
+    parser.add_argument(
+        '--logging-level',
+        type=str,
+        required=False,
+        default='INFO',
+        help='Logging level for the script. Default is INFO.',
+    )
 
     parsed = parser.parse_args()
 
@@ -371,6 +381,9 @@ def main(args: Namespace) -> None:
     Args:
         args (Namespace): Commandline arguments.
     """
+
+    log.info(f"Starting dataset conversion for {args.dataset}")
+
     try:
         dataset_constants = CONSTS[args.dataset]
     except KeyError:
@@ -380,7 +393,10 @@ def main(args: Namespace) -> None:
 
     if args.concat_tokens is not None:
         mode = ConcatMode.CONCAT_TOKENS
+
+        log.info(f"Building tokenizer {args.tokenizer} with kwargs {args.tokenizer_kwargs}")
         tokenizer = build_tokenizer(args.tokenizer, args.tokenizer_kwargs)
+        log.info(f"Built tokenizer")
         # we will enforce length, so suppress warnings about sequences too long for the model
         tokenizer.model_max_length = int(1e30)
         columns = {'tokens': 'ndarray:int32'}
@@ -402,6 +418,8 @@ def main(args: Namespace) -> None:
         if folder_split not in args.splits:
             continue
 
+        log.info(f"Building HuggingFace dataset: {args.dataset}, subset: {args.data_subset}, split: {hf_split}, mode: {mode}")
+        log.info(f"Max length: {args.concat_tokens}, BOS: {args.bos_text}, EOS: {args.eos_text}, No wrap: {args.no_wrap}")
         # Get samples
         dataset = build_hf_dataset(
             dataset_name=args.dataset,
@@ -414,11 +432,15 @@ def main(args: Namespace) -> None:
             no_wrap=args.no_wrap,
             tokenizer=tokenizer,
         )
+
+        log.info(f"Building data loader for split: {split_name}")
         loader = build_dataloader(
             dataset=dataset,
             batch_size=512,
             num_workers=args.num_workers,
         )
+
+        log.info(f"Generating samples for split: {split_name}")
         samples = generate_samples(
             loader,
             truncate_num_samples=truncate_num_samples,
@@ -456,6 +478,8 @@ def main(args: Namespace) -> None:
                 for sample in tqdm(samples, desc=folder_split):
                     out.write(sample)
 
-
 if __name__ == '__main__':
-    main(parse_args())
+    args = parse_args()
+    configure_logging(args.logging_level, log)
+    main(args)
+

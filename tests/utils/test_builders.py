@@ -13,7 +13,10 @@ import torch.nn as nn
 from composer.callbacks import Generate
 from composer.core import Evaluator
 from composer.loggers import WandBLogger
-from torch.distributed.checkpoint import LoadPlanner, SavePlanner
+from torch.distributed.checkpoint.default_planner import (
+    DefaultLoadPlanner,
+    DefaultSavePlanner,
+)
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.callbacks import HuggingFaceCheckpointer
@@ -351,7 +354,7 @@ def test_build_eval_loaders(monkeypatch: pytest.MonkeyPatch):
 
 def test_build_load_planner():
     # Dummy LoadPlanner for testing
-    class DummyLoadPlanner(LoadPlanner):
+    class DummyLoadPlanner(DefaultLoadPlanner):
 
         def __init__(self, is_test: bool):
             self.is_test = is_test
@@ -365,7 +368,7 @@ def test_build_load_planner():
 
 def test_build_save_planner():
     # Dummy SavePlanner for testing
-    class DummySavePlanner(SavePlanner):
+    class DummySavePlanner(DefaultSavePlanner):
 
         def __init__(self, is_test: bool):
             self.is_test = is_test

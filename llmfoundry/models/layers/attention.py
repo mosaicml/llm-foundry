@@ -647,6 +647,7 @@ class GroupedQueryAttention(nn.Module):
             return query, key, value
 
         if self.fused_weights:
+            print("using fused weights like normal :)")
             qkv = self.Wqkv(x)
 
             if self.clip_qkv:
@@ -661,6 +662,7 @@ class GroupedQueryAttention(nn.Module):
                 dim=2,
             )
         else:
+            print("NOT USING FUSED WEIGHTS >:O")
             query = self.Wq(x)
             key = self.Wk(x)
             value = self.Wv(x)

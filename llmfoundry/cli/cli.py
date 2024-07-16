@@ -95,7 +95,7 @@ def eval(
                          )],
     args_list: Annotated[
         Optional[list[str]],
-        Argument(None, help='Additional command line arguments')],
+        Argument(help='Additional command line arguments')] = None,
 ):
     """Run the training with optional overrides from CLI."""
     eval_from_yaml(yaml_path, args_list)

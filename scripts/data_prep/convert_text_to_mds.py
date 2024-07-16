@@ -58,13 +58,13 @@ class ConcatTokensFromFilesDataset(AbstractConcatTokensDataset):
     ):
         self.files = files
         super().__init__(tokenizer, max_length, bos_text, eos_text, no_wrap)
-        log.info(f"Initialized ConcatTokensFromFilesDataset with {len(list(files))} files")
+        log.info(f'Initialized ConcatTokensFromFilesDataset with {len(list(files))} files')
 
     def __iter__(self) -> Iterable[Dict[str, NDArray]]:
-        log.info("Starting iteration over files in ConcatTokensFromFilesDataset")
+        log.info('Starting iteration over files in ConcatTokensFromFilesDataset')
         buffer = []
         for file in self.files:
-            log.info(f"Processing file: {file}")
+            log.info(f'Processing file: {file}')
             with open(file, 'r') as f:
                 buffer += self.bos_tokens
                 first_chunk = True
@@ -103,7 +103,7 @@ class ConcatTokensFromFilesDataset(AbstractConcatTokensDataset):
             buffer = buffer[self.max_length:] if self.should_wrap else []
             yield {'tokens': np.asarray(concat_sample, dtype=np.int32)}
         
-        log.info("Finished iterating over files in ConcatTokensFromFilesDataset")
+        log.info('Finished iterating over files in ConcatTokensFromFilesDataset')
 
 
 def parse_args() -> Namespace:
@@ -241,7 +241,7 @@ def get_object_names(input_folder: str) -> List[str]:
             name for name in object_store.list_objects(folder_prefix)
             if name.endswith('.txt')
         ]
-        log.info(f"Found {len(names)} text files in remote storage")
+        log.info(f'Found {len(names)} text files in remote storage')
     else:
         # input_folder is a local folder
         names = [
@@ -284,12 +284,12 @@ def get_task_args(
         compression (str): The compression algorithm to use for MDS writing
         trust_remote_code (bool): If true, allows custom code to be executed to load the tokenizer
     """
-    log.info(f"Preparing task arguments for {len(object_names)} objects across {n_groups} groups")
+    log.info(f'Preparing task arguments for {len(object_names)} objects across {n_groups} groups')
     num_objects = len(object_names)
     objs_per_group = math.ceil(num_objects / n_groups)
     for group, i in enumerate(range(0, num_objects, objs_per_group)):
         output_subdir = os.path.join(output_root, str(group))
-        log.info(f"Created task for group {group} with {min(objs_per_group, num_objects - i)} objects")
+        log.info(f'Created task for group {group} with {min(objs_per_group, num_objects - i)} objects')
         yield (
             object_names[i:min(i + objs_per_group, num_objects)],
             output_subdir,
@@ -336,19 +336,19 @@ def download_and_convert(
         compression (str): The compression algorithm to use for MDS writing
         trust_remote_code (bool): If true, allows custom code to be executed to load the tokenizer
     """
-    log.info(f"Starting download and conversion for {len(file_names)} files")
+    log.info(f'Starting download and conversion for {len(file_names)} files')
 
     object_store = maybe_create_object_store_from_uri(input_folder)
 
     # Download file_names
     with tempfile.TemporaryDirectory() as tmp_dir:
-        log.info(f"Created temporary directory: {tmp_dir}")
+        log.info(f'Created temporary directory: {tmp_dir}')
         downloading_iter = DownloadingIterable(
             object_names=file_names,
             output_folder=tmp_dir,
             object_store=object_store,
         )
-        log.info(f"Initializing tokenizer: {tokenizer_name}")
+        log.info(f'Initializing tokenizer: {tokenizer_name}')
         tokenizer = AutoTokenizer.from_pretrained(
             tokenizer_name,
             trust_remote_code=trust_remote_code,
@@ -377,7 +377,7 @@ def download_and_convert(
             for sample in tqdm(dataset):
                 out.write(sample)
 
-    log.info(f"Completed download and conversion for {len(file_names)} files")
+    log.info(f'Completed download and conversion for {len(file_names)} files')
 
 
 def is_remote_path(path: str) -> bool:
@@ -404,7 +404,7 @@ def is_already_processed(
         args_str (str): String representation of the arguments
         object_names (List[str]): Names of objects to convert to MDS format
     """
-    log.info(f"Checking if {len(object_names)} objects have already been processed in {output_root}")
+    log.info(f'Checking if {len(object_names)} objects have already been processed in {output_root}')
 
     # Retrieve the done file contents
     output_object_store = maybe_create_object_store_from_uri(output_root)
@@ -424,37 +424,37 @@ def is_already_processed(
                 )
                 with open(done_file) as df:
                     done_file_contents = df.read().splitlines()
-                log.info(f"Retrieved done file contents from remote storage")
+                log.info(f'Retrieved done file contents from remote storage')
         except FileNotFoundError:
-            log.info("Done file not found in remote storage")
+            log.info('Done file not found in remote storage')
             return False
     else:
         # Read the local done file
         done_file = os.path.join(output_root, DONE_FILENAME)
         if not os.path.isfile(done_file):
-            log.info("Done file not found in local storage")
+            log.info('Done file not found in local storage')
             return False
         with open(done_file) as df:
             done_file_contents = df.read().splitlines()
-        log.info(f"Retrieved done file contents from local storage")
+        log.info(f'Retrieved done file contents from local storage')
     
     # Compare the arguments
     prev_args_str = done_file_contents[0]
     if prev_args_str != args_str:
-        log.info("Arguments have changed, reprocessing required")
+        log.info('Arguments have changed, reprocessing required')
         return False
 
     # Compare file names
     prev_names = done_file_contents[1:]
     if len(prev_names) != len(object_names):
-        log.info("Number of files has changed, reprocessing required")
+        log.info('Number of files has changed, reprocessing required')
         return False
     for idx, prev_name in enumerate(prev_names):
         if object_names[idx] != prev_name:
-            log.info("File names have changed, reprocessing required")
+            log.info('File names have changed, reprocessing required')
             return False
     
-    log.info("All files have already been processed")
+    log.info('All files have already been processed')
     return True
 
 
@@ -470,9 +470,9 @@ def write_done_file(folder: str, args_str: str, object_names: List[str]):
         object_names (List[str]): List of objects to convert to MDS format
     """
     with open(os.path.join(folder, DONE_FILENAME), 'w') as done_file:
-        log.info(f"Writing done file.")
+        log.info(f'Writing done file.')
         done_file.write('\n'.join([args_str] + object_names) + '\n')
-    log.info(f"Done file written successfully")
+    log.info(f'Done file written successfully')
 
 
 def convert_text_to_mds(
@@ -506,11 +506,11 @@ def convert_text_to_mds(
         trust_remote_code (bool): If true, allows custom code to be executed to load the tokenizer
     """
     is_remote_output = is_remote_path(output_folder)
-    log.info(f"Output is remote: {is_remote_output}")
+    log.info(f'Output is remote: {is_remote_output}')
 
     object_names = get_object_names(input_folder)
     if len(object_names) == 0:
-        log.error(f"No text files found in input folder: {input_folder}")
+        log.error(f"No text files found in input folder: {input_folder}')
         raise InputFolderMissingDataError(input_folder)
 
     # Check if the text files in the bucket have already been processed.
@@ -529,15 +529,15 @@ def convert_text_to_mds(
     # Use a temporary local directory if the output is remote and there are more than 1 processes
     local_output_folder = tempfile.TemporaryDirectory(
     ).name if is_remote_output else output_folder
-    log.info(f"Using local output folder: {local_output_folder}")
+    log.info(f'Using local output folder: {local_output_folder}')
 
 
     if os.path.isdir(output_folder) and len(os.listdir(output_folder)) > 0:
-        log.error(f"Output folder is not empty: {output_folder}")
+        log.error(f"Output folder is not empty: {output_folder}')
         raise OutputFolderNotEmptyError(output_folder)
 
     if processes > 1:
-        log.info(f"Using multiprocessing with {processes} processes")
+        log.info(f'Using multiprocessing with {processes} processes')
         # Download and convert the text files in parallel
         args = get_task_args(
             object_names,
@@ -555,11 +555,11 @@ def convert_text_to_mds(
         with ProcessPoolExecutor(max_workers=processes) as executor:
             list(executor.map(download_and_convert_starargs, args))
 
-        log.info("Merging MDS shards from each process")
+        log.info('Merging MDS shards from each process')
         # Merge the mds shards from each of the processes into a single folder
         merge_shard_groups(local_output_folder)
     else:
-        log.info("Using single process for download and conversion")
+        log.info('Using single process for download and conversion')
         download_and_convert(
             object_names,
             local_output_folder,

@@ -30,12 +30,12 @@ def train(
 
 @app.command(name='eval')
 def eval(
-    yaml_path: str = typer.Argument(
+    yaml_path: Annotated[str, Argument(
         ...,
         help='Path to the YAML configuration file',
-    ),  # type: ignore
-    args_list: Optional[list[str]] = typer.
-    Argument(None, help='Additional command line arguments'),  # type: ignore
+    )], 
+    args_list: 
+    Annotated[Optional[list[str]], Argument(None, help='Additional command line arguments')],
 ):
     """Run the training with optional overrides from CLI."""
     eval_from_yaml(yaml_path, args_list)

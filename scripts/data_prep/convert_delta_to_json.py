@@ -305,7 +305,7 @@ def format_tablename(table_name: str) -> str:
     Args:
         table_name (str): catalog.scheme.tablename on UC
     """
-    log.debug(f"Formatting table name: {table_name}")
+    log.debug(f'Formatting table name: {table_name}')
     match = re.match(TABLENAME_PATTERN, table_name)
 
     if match is None:

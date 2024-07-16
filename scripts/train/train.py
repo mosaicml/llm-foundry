@@ -3,7 +3,7 @@
 import sys
 import logging
 
-from llmfoundry.train import train_from_yaml
+from llmfoundry.command_utils import train_from_yaml
 
 if __name__ == '__main__':
     logging.basicConfig(filename='./tmp/train_logfile.log', filemode='w', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')

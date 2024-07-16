@@ -155,4 +155,3 @@ def configure_logging(logging_level: str, log: logging.Logger):
     logging.getLogger('llmfoundry').setLevel(logging_level)
     logging.getLogger(__name__).setLevel(logging_level)
     log.info(f'Logging level set to {logging_level}')
-    

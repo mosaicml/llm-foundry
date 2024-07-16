@@ -5,7 +5,6 @@ import os
 import pathlib
 import random
 import shutil
-from argparse import Namespace
 from contextlib import nullcontext as does_not_raise
 from pathlib import Path
 from typing import ContextManager, Literal, Optional, Union
@@ -22,6 +21,7 @@ from omegaconf import OmegaConf as om
 from streaming import MDSWriter
 from streaming.base.util import clean_stale_shared_memory
 
+from llmfoundry.command_utils import convert_dataset_hf
 from llmfoundry.data import build_dataloader, build_finetuning_dataloader
 from llmfoundry.data.finetuning.collator import (
     _HF_IGNORE_INDEX,
@@ -56,7 +56,6 @@ from llmfoundry.utils.exceptions import (
     UnknownExampleTypeError,
 )
 # yapf: enable
-from scripts.data_prep.convert_dataset_hf import main as main_hf
 from scripts.data_prep.convert_finetuning_dataset import get_columns_and_format
 from tests.data_utils import (
     make_tiny_conversation_ft_dataset,
@@ -204,42 +203,34 @@ def test_correct_padding(
     path = get_abs_data_path(data_local)
     shutil.rmtree(path, ignore_errors=True)
     if pretokenize:
-        main_hf(
-            Namespace(
-                **{
-                    'dataset': 'c4',
-                    'data_subset': 'en',
-                    'splits': [split],
-                    'out_root': path,
-                    'compression': None,
-                    'concat_tokens': 2048,
-                    'tokenizer': tokenizer_name,
-                    'tokenizer_kwargs': {},
-                    'bos_text': bos_text,
-                    'eos_text': eos_text,
-                    'no_wrap': False,
-                    'num_workers': None,
-                },
-            ),
+        convert_dataset_hf(
+            dataset='c4',
+            data_subset='en',
+            splits=[split],
+            out_root=path,
+            compression=None,
+            concat_tokens=2048,
+            tokenizer=tokenizer_name,
+            tokenizer_kwargs={},
+            bos_text=bos_text,
+            eos_text=eos_text,
+            no_wrap=False,
+            num_workers=None,
         )
     else:
-        main_hf(
-            Namespace(
-                **{
-                    'dataset': 'c4',
-                    'data_subset': 'en',
-                    'splits': [split],
-                    'out_root': path,
-                    'compression': None,
-                    'concat_tokens': None,
-                    'tokenizer': tokenizer_name,
-                    'tokenizer_kwargs': {},
-                    'bos_text': bos_text,
-                    'eos_text': eos_text,
-                    'no_wrap': False,
-                    'num_workers': None,
-                },
-            ),
+        convert_dataset_hf(
+            dataset='c4',
+            data_subset='en',
+            splits=[split],
+            out_root=path,
+            compression=None,
+            concat_tokens=None,
+            tokenizer=tokenizer_name,
+            tokenizer_kwargs={},
+            bos_text=bos_text,
+            eos_text=eos_text,
+            no_wrap=False,
+            num_workers=None,
         )
     if not os.path.isdir(path):
         raise RuntimeError(f'c4 dataset at {path} not set up as expected')

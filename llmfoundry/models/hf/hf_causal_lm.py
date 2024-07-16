@@ -90,6 +90,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         use_train_metrics: bool = True,
         additional_train_metrics: Optional[List] = None,
         additional_eval_metrics: Optional[List] = None,
+        should_save_peft_only: bool = True,
     ):
 
         config_overrides = config_overrides or {}
@@ -131,6 +132,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             eval_metrics=eval_metrics,
             init_device=init_device,
             peft_config=peft_config_object,
+            should_save_peft_only=should_save_peft_only,
         )
 
     @staticmethod

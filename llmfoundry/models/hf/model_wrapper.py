@@ -40,6 +40,7 @@ class HuggingFaceModelWithFSDP(HuggingFaceModel):
         shift_labels: bool = False,
         init_device: Optional[str] = None,
         peft_config: Optional['PeftConfig'] = None,
+        should_save_peft_only: bool = True,
     ):
         super().__init__(
             model,
@@ -49,7 +50,7 @@ class HuggingFaceModelWithFSDP(HuggingFaceModel):
             eval_metrics=eval_metrics,
             shift_labels=shift_labels,
             peft_config=peft_config,
-            should_save_peft_only=True,
+            should_save_peft_only=should_save_peft_only,
         )
 
         self.prepare_inner_model(self.model, init_device)

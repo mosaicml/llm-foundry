@@ -537,6 +537,12 @@ def train(cfg: DictConfig) -> Trainer:
         hf_checkpointer_callback._save_checkpoint(trainer.state, trainer.logger)
         return trainer
 
+    if train_cfg.only_composer_checkpoint:
+        log.info('Not training. Only saving composer checkpoint.')
+        trainer.save_checkpoint_to_save_folder()
+        log.info('Done saving checkpoint.')
+        return trainer
+
     if train_cfg.log_config:
         log.info('Logging config')
         log_config(logged_cfg)

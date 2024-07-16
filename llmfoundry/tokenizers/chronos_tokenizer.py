@@ -25,11 +25,10 @@ VOCAB_FILES_NAMES = {"vocab_file": "vocab.txt"}
 class ChronosTokenizerWrapper(PreTrainedTokenizer):
     
     chronos_tokenizer: ChronosTokenizer
-    # chronos_pipeline: ChronosPipeline
     pad_token_id: int
     eos_token_id: int
     
-    def __init__(self, tokenizer_name: str, **kwargs: Dict[str, Any]):
+    def __init__(self, tokenizer_name: Optional[str]='amazon/chronos-t5-small', **kwargs: Dict[str, Any]):
         config = AutoConfig.from_pretrained(
             tokenizer_name,
             **kwargs,
@@ -39,11 +38,6 @@ class ChronosTokenizerWrapper(PreTrainedTokenizer):
         chronos_config = ChronosConfig(**config.chronos_config)  # dictionary of content in "chronos_config" of amazon/chronos-t5-{} config.json
         self.chronos_tokenizer = chronos_config.create_tokenizer()  # type: chronos.chronos.MeanScaleUniformBins
         # Get the ChronosConfig object with: self.chronos_tokenizer.config
-        # self.chronos_pipeline = ChronosPipeline.from_pretrained(
-        #     tokenizer_name, 
-        #     device_map=device_map, 
-        #     torch_dtype=torch.bfloat16
-        # )
         
         # Initialize PreTrainedTokenizer attributes
         super().__init__(
@@ -241,22 +235,22 @@ class ChronosTokenizerWrapper(PreTrainedTokenizer):
     #     return super().prepare_for_tokenization(text=tokens, is_split_into_words=is_split_into_words)
     
     
-    # def _to_hf_format(self, entry: Dict[str, Any]) -> Dict[str, Any]:     
-    #     # Pad horizon to acceptable length - checked in label_input_transform()
-    #     horizon = entry['future_target']
-    #     padding = np.full(((self.chronos_tokenizer.config.prediction_length - len(horizon)),), np.nan, dtype=horizon.dtype)
-    #     entry['future_target'] = np.concatenate([horizon, padding])
+    def _to_hf_format(self, entry: Dict[str, Any]) -> Dict[str, Any]:     
+        # Pad horizon to acceptable length - checked in label_input_transform()
+        horizon = entry['future_target']
+        padding = np.full(((self.chronos_tokenizer.config.prediction_length - len(horizon)),), np.nan, dtype=horizon.dtype)
+        entry['future_target'] = np.concatenate([horizon, padding])
         
-    #     past_target = torch.tensor(entry["past_target"]).unsqueeze(0)
-    #     input_ids, attention_mask, scale = self.chronos_tokenizer.context_input_transform(context=past_target)
-    #     future_target = torch.tensor(entry["future_target"]).unsqueeze(0)
-    #     labels, labels_mask = self.chronos_tokenizer.label_input_transform(label=future_target, scale=scale)
-    #     labels[labels_mask == 0] = -100
-    #     return {
-    #         "input_ids": input_ids.squeeze(0),
-    #         "attention_mask": attention_mask.squeeze(0),
-    #         "labels": labels.squeeze(0),
-    #     }
+        past_target = torch.tensor(entry["past_target"]).unsqueeze(0)
+        input_ids, attention_mask, scale = self.chronos_tokenizer.context_input_transform(context=past_target)
+        future_target = torch.tensor(entry["future_target"]).unsqueeze(0)
+        labels, labels_mask = self.chronos_tokenizer.label_input_transform(label=future_target, scale=scale)
+        labels[labels_mask == 0] = -100
+        return {
+            "input_ids": input_ids.squeeze(0),
+            "attention_mask": attention_mask.squeeze(0),
+            "labels": labels.squeeze(0),
+        }
     
     # This method will get called is there is a self.tokenizer(...) call in another class, where self.tokenizer has type `ChronosTokenizerWrapper`
     # def __call__(

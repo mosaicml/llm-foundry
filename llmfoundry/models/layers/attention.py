@@ -626,7 +626,8 @@ class GroupedQueryAttention(nn.Module):
                 dtype = query.dtype
                 query = self.q_ln(query).to(dtype).view(q_shape)
             return query, key, value
-        elif self.fused_qkv:
+
+        if self.fused_qkv:
             qkv = self.Wqkv(x)
 
             if self.clip_qkv:

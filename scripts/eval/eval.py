@@ -180,8 +180,7 @@ def evaluate_model(
 
 
 def allow_toplevel_keys(cfg: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Transform the config to allow top-level keys for model configuration.
+    """Transform the config to allow top-level keys for model configuration.
 
     This function allows users to use the 'train.py' syntax in 'eval.py'.
     It converts a config with top-level 'model', 'tokenizer', and (optionally) 'load_path' keys
@@ -206,20 +205,19 @@ def allow_toplevel_keys(cfg: Dict[str, Any]) -> Dict[str, Any]:
         load_path: /path/to/checkpoint
     ```
     """
-
     if 'model' in cfg:
         if 'models' in cfg:
             raise ValueError(
-                'Please specify either model or models in the config, not both'
+                'Please specify either model or models in the config, not both',
             )
         model_cfg = {
             'model': cfg.pop('model'),
             'tokenizer': cfg.pop('tokenizer', None),
-            'model_name': cfg.pop('model_name', 'unnamed')
+            'model_name': cfg.pop('model_name', 'unnamed'),
         }
         if 'tokenizer' not in model_cfg or model_cfg['tokenizer'] is None:
             raise ValueError(
-                'When specifying model, "tokenizer" must be provided in the config'
+                'When specifying model, "tokenizer" must be provided in the config',
             )
         if 'load_path' in cfg:
             model_cfg['load_path'] = cfg.pop('load_path')
@@ -232,7 +230,6 @@ def main(cfg: DictConfig) -> Tuple[List[Trainer], pd.DataFrame]:
     # Run user provided code if specified
     for code_path in cfg.get('code_paths', []):
         import_file(code_path)
-
 
     logged_cfg, eval_config = make_dataclass_and_log_config(
         cfg,

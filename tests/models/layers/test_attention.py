@@ -123,6 +123,8 @@ def test_unfused_wqkv(attn_name: str, dim: int):
     loss_unfused = out_unfused.sum()
     loss_unfused.backward()
 
+    assert isinstance(x1.grad, torch.Tensor)
+    assert isinstance(x2.grad, torch.Tensor)
     assert torch.allclose(x1.grad, x2.grad)
     combined_grad = torch.concat(
         [

@@ -70,7 +70,7 @@ class MPTConfig(PretrainedConfig):
                 attn_impl (str): The attention implementation to use. One of 'torch' or 'flash'.
                 qk_ln (bool): Whether to apply layer normalization to the queries and keys in the attention layer.
                 qk_gn (bool): Whether to apply group normalization to the queries and keys in the attention layer.
-                fused_weights (bool): Whether to fuse the Wq, Wk, and Wv weight matrices in the attention layer. If True, the weights are fused into a single
+                fused_qkv (bool): Whether to fuse the Wq, Wk, and Wv weight matrices in the attention layer. If True, the weights are fused into a single
                     Wqkv matrix, which can be faster for matmuls. If False, the weights are kept separate. Defaults to True.
                 clip_qkv (Optional[float]): If not None, clip the queries, keys, and values in the attention layer to
                     this value.

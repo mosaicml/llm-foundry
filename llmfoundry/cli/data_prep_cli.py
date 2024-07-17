@@ -3,6 +3,7 @@
 
 from typing import Annotated, Optional
 
+import psutil
 from typer import Option, Typer
 
 from llmfoundry.command_utils import (

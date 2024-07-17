@@ -14,10 +14,11 @@ from llmfoundry.models.layers.layer_builders import build_attention_layer
 @pytest.mark.parametrize('dim', [1024])
 def test_unfused_wqkv(attn_name: str, dim: int):
     d_head = 128
+    n_heads = dim // d_head
 
     generic_attn_kwargs = {
         'd_model': dim,
-        'n_heads': dim // d_head,
+        'n_heads': n_heads,
         'fc_type': {
             'name': 'torch',
         },
@@ -32,7 +33,14 @@ def test_unfused_wqkv(attn_name: str, dim: int):
     }
 
     if attn_name == 'grouped_query_attention':
-        generic_attn_kwargs['kv_n_heads'] = 2
+        kv_n_heads = 2
+        generic_attn_kwargs['kv_n_heads'] = kv_n_heads
+    elif attn_name == 'multiquery_attention':
+        kv_n_heads = 1
+    elif attn_name == 'multihead_attention':
+        kv_n_heads = n_heads
+    else:
+        raise ValueError(f'Unknown attention name: {attn_name}')
 
     attn_config_fused = generic_attn_kwargs.copy()
     attn_config_fused['fused_qkv'] = True
@@ -64,6 +72,18 @@ def test_unfused_wqkv(attn_name: str, dim: int):
     attn_unfused.Wk.bias.data = attn_fused.Wqkv.bias[dim:dim + kv_heads_len]
     attn_unfused.Wv.bias.data = attn_fused.Wqkv.bias[dim + kv_heads_len:]
     attn_unfused.out_proj.bias.data = attn_fused.out_proj.bias
+
+    # Make sure initialization fuse splits are as expected.
+    all_fuse_splits = (
+        0, [i * d_head for i in range(1, n_heads + 2 * kv_n_heads)]
+    )
+    q_fuse_splits = (0, [i * d_head for i in range(1, n_heads)])
+    kv_fuse_splits = (0, [i * d_head for i in range(1, kv_n_heads)])
+
+    assert attn_fused.Wqkv._fused == all_fuse_splits
+    assert attn_unfused.Wq._fused == q_fuse_splits
+    assert attn_unfused.Wk._fused == kv_fuse_splits
+    assert attn_unfused.Wv._fused == kv_fuse_splits
 
     assert torch.allclose(
         attn_fused.Wqkv.weight,

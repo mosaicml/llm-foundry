@@ -75,7 +75,8 @@ def test_unfused_wqkv(attn_name: str, dim: int):
 
     # Make sure initialization fuse splits are as expected.
     all_fuse_splits = (
-        0, [i * d_head for i in range(1, n_heads + 2 * kv_n_heads)]
+        0,
+        [i * d_head for i in range(1, n_heads + 2 * kv_n_heads)],
     )
     q_fuse_splits = (0, [i * d_head for i in range(1, n_heads)])
     kv_fuse_splits = (0, [i * d_head for i in range(1, kv_n_heads)])

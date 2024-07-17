@@ -6,7 +6,7 @@ from argparse import ArgumentParser, Namespace
 
 import psutil
 
-from llmfoundry.data_prep import convert_text_to_mds_from_args
+from llmfoundry.command_utils import convert_text_to_mds_from_args
 
 log = logging.getLogger(__name__)
 

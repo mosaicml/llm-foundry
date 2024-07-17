@@ -11,7 +11,7 @@ from typing import Dict, List, Optional
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
-from scripts.data_prep.convert_dataset_hf import main as main_hf  # noqa: E402
+from llmfoundry.command_utils import convert_dataset_hf
 from scripts.data_prep.convert_dataset_json import \
     main as main_json  # noqa: E402
 
@@ -230,23 +230,19 @@ def create_c4_dataset_xxsmall(path: Path) -> str:
     downloaded_split = 'val_xxsmall'  # very fast to convert
 
     # Hyperparameters from https://github.com/mosaicml/llm-foundry/blob/340a56658560ebceb2a3aa69d6e37813e415acd0/README.md#L188
-    main_hf(
-        Namespace(
-            **{
-                'dataset': 'c4',
-                'data_subset': 'en',
-                'splits': [downloaded_split],
-                'out_root': c4_dir,
-                'compression': None,
-                'concat_tokens': 2048,
-                'tokenizer': 'EleutherAI/gpt-neox-20b',
-                'tokenizer_kwargs': {},
-                'bos_text': '',
-                'eos_text': '<|endoftext|>',
-                'no_wrap': False,
-                'num_workers': 8,
-            },
-        ),
+    convert_dataset_hf(
+        dataset='c4',
+        data_subset='en',
+        splits=[downloaded_split],
+        out_root=c4_dir,
+        compression=None,
+        concat_tokens=2048,
+        tokenizer='EleutherAI/gpt-neox-20b',
+        tokenizer_kwargs={},
+        bos_text='',
+        eos_text='<|endoftext|>',
+        no_wrap=False,
+        num_workers=8,
     )
 
     # copy the small downloaded_split to other c4 splits for mocking purposes

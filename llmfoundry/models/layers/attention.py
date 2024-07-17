@@ -472,16 +472,13 @@ class GroupedQueryAttention(nn.Module):
                 fc_kwargs=fc_type,
             )
             # for param init fn; enables shape based init of fused layers
-            fuse_splits = [
-                i * self.head_dim for i in range(1, self.n_heads)
-            ]
+            fuse_splits = [i * self.head_dim for i in range(1, self.n_heads)]
             self.Wq._fused = (0, fuse_splits)
         elif self.fused_qkv:
             self.Wqkv = build_fc(
                 name=fc_type_name,
                 in_features=self.d_model,
-                out_features=self.d_model +
-                2 * self.kv_n_heads * self.head_dim,
+                out_features=self.d_model + 2 * self.kv_n_heads * self.head_dim,
                 fc_kwargs=fc_type,
             )
             # for param init fn; enables shape based init of fused layers
@@ -489,7 +486,7 @@ class GroupedQueryAttention(nn.Module):
                 i * self.head_dim
                 for i in range(1, self.n_heads + 2 * self.kv_n_heads)
             ]
-            self.Wqkv._fused = (0, fuse_splits)  
+            self.Wqkv._fused = (0, fuse_splits)
         else:
             self.Wq = build_fc(
                 name=fc_type_name,
@@ -510,9 +507,7 @@ class GroupedQueryAttention(nn.Module):
                 fc_kwargs=fc_type,
             )
             # for param init fn; enables shape based init of fused layers
-            fuse_splits = [
-                i * self.head_dim for i in range(1, self.n_heads)
-            ]
+            fuse_splits = [i * self.head_dim for i in range(1, self.n_heads)]
             self.Wq._fused = (0, fuse_splits)
             self.Wk._fused = (0, fuse_splits)
             self.Wv._fused = (0, fuse_splits)
@@ -570,7 +565,7 @@ class GroupedQueryAttention(nn.Module):
                 key,
                 value,
             )
-        
+
         extra_attn_kwargs = self.get_implementation_specific_args(
             attention_mask,
             alibi_slopes,
@@ -630,6 +625,7 @@ class GroupedQueryAttention(nn.Module):
                     query = query.view(b, s, self.n_heads, -1)
                 dtype = query.dtype
                 query = self.q_ln(query).to(dtype).view(q_shape)
+            return query, key, value
         elif self.fused_qkv:
             qkv = self.Wqkv(x)
 

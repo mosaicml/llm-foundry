@@ -1,3 +1,6 @@
+# Copyright 2024 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 import logging
 import math
 import os
@@ -5,7 +8,7 @@ import tempfile
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 from glob import glob
-from typing import Dict, Iterable, List, Tuple, cast, Optional
+from typing import Dict, Iterable, List, Optional, Tuple, cast
 
 import numpy as np
 from composer.utils import (

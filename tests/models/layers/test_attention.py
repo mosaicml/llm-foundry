@@ -67,21 +67,25 @@ def test_unfused_wqkv(attn_name: str, dim: int):
 
     assert torch.allclose(
         attn_fused.Wqkv.weight,
-        torch.cat([
-            attn_unfused.Wq.weight,
-            attn_unfused.Wk.weight,
-            attn_unfused.Wv.weight,
-        ],
-                  dim=0),
+        torch.cat(
+            [
+                attn_unfused.Wq.weight,
+                attn_unfused.Wk.weight,
+                attn_unfused.Wv.weight,
+            ],
+            dim=0,
+        ),
     )
     assert torch.allclose(
         attn_fused.Wqkv.bias,
-        torch.cat([
-            attn_unfused.Wq.bias,
-            attn_unfused.Wk.bias,
-            attn_unfused.Wv.bias,
-        ],
-                  dim=0),
+        torch.cat(
+            [
+                attn_unfused.Wq.bias,
+                attn_unfused.Wk.bias,
+                attn_unfused.Wv.bias,
+            ],
+            dim=0,
+        ),
     )
     assert torch.allclose(
         attn_fused.out_proj.weight,
@@ -120,12 +124,14 @@ def test_unfused_wqkv(attn_name: str, dim: int):
     loss_unfused.backward()
 
     assert torch.allclose(x1.grad, x2.grad)
-    combined_grad = torch.concat([
-        attn_unfused.Wq.weight.grad,
-        attn_unfused.Wk.weight.grad,
-        attn_unfused.Wv.weight.grad,
-    ],
-                                 dim=0)
+    combined_grad = torch.concat(
+        [
+            attn_unfused.Wq.weight.grad,
+            attn_unfused.Wk.weight.grad,
+            attn_unfused.Wv.weight.grad,
+        ],
+        dim=0,
+    )
     assert isinstance(attn_fused.Wqkv.weight.grad, torch.Tensor)
     assert isinstance(combined_grad, torch.Tensor)
     assert torch.allclose(attn_fused.Wqkv.weight.grad, combined_grad)

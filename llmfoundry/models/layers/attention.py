@@ -507,10 +507,13 @@ class GroupedQueryAttention(nn.Module):
                 fc_kwargs=fc_type,
             )
             # for param init fn; enables shape based init of fused layers
-            fuse_splits = [i * self.head_dim for i in range(1, self.n_heads)]
-            self.Wq._fused = (0, fuse_splits)
-            self.Wk._fused = (0, fuse_splits)
-            self.Wv._fused = (0, fuse_splits)
+            q_fuse_splits = [i * self.head_dim for i in range(1, self.n_heads)]
+            kv_fuse_splits = [
+                i * self.head_dim for i in range(1, self.kv_n_heads)
+            ]
+            self.Wq._fused = (0, q_fuse_splits)
+            self.Wk._fused = (0, kv_fuse_splits)
+            self.Wv._fused = (0, kv_fuse_splits)
 
         if self.qk_ln or self.qk_gn:
             norm_size = self.head_dim if qk_gn else d_model

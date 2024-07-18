@@ -9,7 +9,7 @@ from argparse import Namespace
 from typing import Any
 from unittest.mock import MagicMock, mock_open, patch
 
-from llmfoundry.data_prep.convert_delta_to_json import (
+from llmfoundry.command_utils.data_prep.convert_delta_to_json import (
     download,
     fetch_DT,
     format_tablename,
@@ -20,11 +20,19 @@ from llmfoundry.data_prep.convert_delta_to_json import (
 
 class TestConvertDeltaToJsonl(unittest.TestCase):
 
-    @patch('llmfoundry.data_prep.convert_delta_to_json.sql.connect')
-    @patch('llmfoundry.data_prep.convert_delta_to_json.os.makedirs')
-    @patch('llmfoundry.data_prep.convert_delta_to_json.iterative_combine_jsons')
-    @patch('llmfoundry.data_prep.convert_delta_to_json.fetch')
-    @patch('llmfoundry.data_prep.convert_delta_to_json.WorkspaceClient')
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.sql.connect',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.os.makedirs',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.iterative_combine_jsons',
+    )
+    @patch('llmfoundry.command_utils.data_prep.convert_delta_to_json.fetch')
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.WorkspaceClient',
+    )
     def test_stream_delta_to_json(
         self,
         mock_workspace_client: Any,
@@ -72,7 +80,9 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
             '/path/to/jsonl/combined.jsonl',
         )
 
-    @patch('llmfoundry.data_prep.convert_delta_to_json.os.listdir')
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.os.listdir',
+    )
     @patch(
         'builtins.open',
         new_callable=mock_open,
@@ -108,7 +118,9 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         """
         self.assertEqual(mock_file().write.call_count, 2)
 
-    @patch('llmfoundry.data_prep.convert_delta_to_json.SparkSession')
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.SparkSession',
+    )
     def test_run_query_dbconnect(self, mock_spark: Any):
         method = 'dbconnect'
         mock_cursor = None
@@ -124,7 +136,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         mock_spark.sql.assert_called_once_with('SELECT * FROM table')
         self.assertEqual(result, 'result')
 
-    @patch('llmfoundry.data_prep.convert_delta_to_json.Cursor')
+    @patch('llmfoundry.command_utils.data_prep.convert_delta_to_json.Cursor')
     def test_run_query_dbsql(self, mock_cursor: Any):
         method = 'dbsql'
         mock_cursor.fetchall.return_value = 'result'
@@ -140,14 +152,18 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         mock_cursor.execute.assert_called_once_with('SELECT * FROM table')
         self.assertEqual(result, 'result')
 
-    @patch('llmfoundry.data_prep.convert_delta_to_json.requests.get')
-    @patch('llmfoundry.data_prep.convert_delta_to_json.pd.DataFrame.to_json')
     @patch(
-        'llmfoundry.data_prep.convert_delta_to_json.os.path.join',
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.requests.get',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.pd.DataFrame.to_json',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.os.path.join',
         return_value='/fake/path/part_1.jsonl',
     )
     @patch(
-        'llmfoundry.data_prep.convert_delta_to_json.time.sleep',
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.time.sleep',
     )  # Mock sleep to speed up the test
     def test_download_success(
         self,
@@ -180,12 +196,22 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
 
         mock_get.assert_called_once_with('http://fakeurl.com/data')
 
-    @patch('llmfoundry.data_prep.convert_delta_to_json.sql.connect')
-    @patch('llmfoundry.data_prep.convert_delta_to_json.DatabricksSession')
-    @patch('llmfoundry.data_prep.convert_delta_to_json.WorkspaceClient')
-    @patch('llmfoundry.data_prep.convert_delta_to_json.os.makedirs')
-    @patch('llmfoundry.data_prep.convert_delta_to_json.iterative_combine_jsons')
-    @patch('llmfoundry.data_prep.convert_delta_to_json.fetch')
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.sql.connect',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.DatabricksSession',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.WorkspaceClient',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.os.makedirs',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.iterative_combine_jsons',
+    )
+    @patch('llmfoundry.command_utils.data_prep.convert_delta_to_json.fetch')
     def test_dbconnect_called(
         self,
         mock_fetch: Any,
@@ -227,12 +253,22 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
             cluster_id=cluster_id,
         )
 
-    @patch('llmfoundry.data_prep.convert_delta_to_json.sql.connect')
-    @patch('llmfoundry.data_prep.convert_delta_to_json.DatabricksSession')
-    @patch('llmfoundry.data_prep.convert_delta_to_json.WorkspaceClient')
-    @patch('llmfoundry.data_prep.convert_delta_to_json.os.makedirs')
-    @patch('llmfoundry.data_prep.convert_delta_to_json.iterative_combine_jsons')
-    @patch('llmfoundry.data_prep.convert_delta_to_json.fetch')
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.sql.connect',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.DatabricksSession',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.WorkspaceClient',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.os.makedirs',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.iterative_combine_jsons',
+    )
+    @patch('llmfoundry.command_utils.data_prep.convert_delta_to_json.fetch')
     def test_sqlconnect_called_dbr13(
         self,
         mock_fetch: Any,
@@ -269,12 +305,22 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
             access_token=DATABRICKS_TOKEN,
         )
 
-    @patch('llmfoundry.data_prep.convert_delta_to_json.sql.connect')
-    @patch('llmfoundry.data_prep.convert_delta_to_json.DatabricksSession')
-    @patch('llmfoundry.data_prep.convert_delta_to_json.WorkspaceClient')
-    @patch('llmfoundry.data_prep.convert_delta_to_json.os.makedirs')
-    @patch('llmfoundry.data_prep.convert_delta_to_json.iterative_combine_jsons')
-    @patch('llmfoundry.data_prep.convert_delta_to_json.fetch')
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.sql.connect',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.DatabricksSession',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.WorkspaceClient',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.os.makedirs',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.iterative_combine_jsons',
+    )
+    @patch('llmfoundry.command_utils.data_prep.convert_delta_to_json.fetch')
     def test_sqlconnect_called_dbr14(
         self,
         mock_fetch: Any,
@@ -311,12 +357,22 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
             access_token=DATABRICKS_TOKEN,
         )
 
-    @patch('llmfoundry.data_prep.convert_delta_to_json.sql.connect')
-    @patch('llmfoundry.data_prep.convert_delta_to_json.DatabricksSession')
-    @patch('llmfoundry.data_prep.convert_delta_to_json.WorkspaceClient')
-    @patch('llmfoundry.data_prep.convert_delta_to_json.os.makedirs')
-    @patch('llmfoundry.data_prep.convert_delta_to_json.iterative_combine_jsons')
-    @patch('llmfoundry.data_prep.convert_delta_to_json.fetch')
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.sql.connect',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.DatabricksSession',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.WorkspaceClient',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.os.makedirs',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.iterative_combine_jsons',
+    )
+    @patch('llmfoundry.command_utils.data_prep.convert_delta_to_json.fetch')
     def test_sqlconnect_called_https(
         self,
         mock_fetch: Any,
@@ -353,12 +409,22 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
             access_token=DATABRICKS_TOKEN,
         )
 
-    @patch('llmfoundry.data_prep.convert_delta_to_json.sql.connect')
-    @patch('llmfoundry.data_prep.convert_delta_to_json.DatabricksSession')
-    @patch('llmfoundry.data_prep.convert_delta_to_json.WorkspaceClient')
-    @patch('llmfoundry.data_prep.convert_delta_to_json.os.makedirs')
-    @patch('llmfoundry.data_prep.convert_delta_to_json.iterative_combine_jsons')
-    @patch('llmfoundry.data_prep.convert_delta_to_json.fetch')
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.sql.connect',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.DatabricksSession',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.WorkspaceClient',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.os.makedirs',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.iterative_combine_jsons',
+    )
+    @patch('llmfoundry.command_utils.data_prep.convert_delta_to_json.fetch')
     def test_serverless(
         self,
         mock_fetch: Any,

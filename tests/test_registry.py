@@ -44,6 +44,8 @@ def test_expected_registries_exist():
         'fcs',
         'icl_datasets',
         'config_transforms',
+        'load_planners',
+        'save_planners',
     }
 
     assert existing_registries == expected_registry_names

@@ -897,10 +897,6 @@ class DatasetConstructor:
                         SUPPORTED_EXTENSIONS,
                     )
 
-            hf_metadata_dir = os.path.join(dataset_name, '.huggingface')
-            if os.path.exists(hf_metadata_dir):
-                shutil.rmtree(hf_metadata_dir)
-
             dataset = hf_datasets.load_dataset(
                 dataset_name,
                 split=split,
@@ -918,6 +914,8 @@ class DatasetConstructor:
             detected_cpu_count = os.cpu_count() or 1
             detected_cpus_with_margin = detected_cpu_count - 8
             num_cpus_to_use = max(1, detected_cpus_with_margin)
+            if len(dataset) < num_cpus_to_use:
+                num_cpus_to_use = 1
 
             columns_to_remove = list(dataset[0].keys())
             tokenized_dataset = dataset.map(

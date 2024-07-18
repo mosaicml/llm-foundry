@@ -6,7 +6,7 @@ from typing import Union
 
 from datasets import Dataset, DatasetDict, IterableDataset, IterableDatasetDict
 
-from llmfoundry.data_prep import convert_finetuning_dataset_from_args
+from llmfoundry.command_utils import convert_finetuning_dataset_from_args
 
 HFDataset = Union[DatasetDict, Dataset, IterableDatasetDict, IterableDataset]
 

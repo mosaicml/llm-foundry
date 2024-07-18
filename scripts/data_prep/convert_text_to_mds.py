@@ -123,7 +123,7 @@ if __name__ == '__main__':
         input_folder=args.input_folder,
         compression=args.compression,
         concat_tokens=args.concat_tokens,
-        tokenizer=args.tokenizer,
+        tokenizer_name=args.tokenizer,
         bos_text=args.bos_text,
         eos_text=args.eos_text,
         use_tokenizer_eos=args.use_tokenizer_eos,

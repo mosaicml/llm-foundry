@@ -95,7 +95,7 @@ def convert_text_to_mds(
         input_folder=input_folder,
         compression=compression,
         concat_tokens=concat_tokens,
-        tokenizer=tokenizer,
+        tokenizer_name=tokenizer,
         bos_text=bos_text,
         eos_text=eos_text,
         use_tokenizer_eos=use_tokenizer_eos,

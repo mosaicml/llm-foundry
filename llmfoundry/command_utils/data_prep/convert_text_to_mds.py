@@ -503,7 +503,7 @@ def convert_text_to_mds_from_args(
     input_folder: str,
     compression: str,
     concat_tokens: int,
-    tokenizer: str,
+    tokenizer_name: str,
     bos_text: Optional[str],
     eos_text: Optional[str],
     use_tokenizer_eos: bool,
@@ -520,7 +520,7 @@ def convert_text_to_mds_from_args(
         input_folder (str): Folder of text files to process
         compression (str): The compression algorithm to use for MDS writing
         concat_tokens (int): Concatenate up to this many tokens
-        tokenizer (str): The name of the tokenizer to use
+        tokenizer_name (str): The name of the tokenizer to use
         bos_text (Optional[str]): The text to prepend to each example to separate concatenated examples
         eos_text (Optional[str]): The text to append to each example to separate concatenated examples
         use_tokenizer_eos (bool): Use the EOS text from the tokenizer
@@ -539,11 +539,11 @@ def convert_text_to_mds_from_args(
             ValueError(
                 'Cannot set --eos_text with --use_tokenizer_eos. Please specify one.',
             )
-        built_tokenizer = AutoTokenizer.from_pretrained(
-            tokenizer,
+        tokenizer = AutoTokenizer.from_pretrained(
+            tokenizer_name,
             trust_remote_code=trust_remote_code,
         )
-        eos_text = built_tokenizer.eos_token
+        eos_text = tokenizer.eos_token
 
     # now that we have validated them, change BOS/EOS to strings
     if bos_text is None:
@@ -554,7 +554,7 @@ def convert_text_to_mds_from_args(
 
     # Define args for _args_str
     args = {
-        'tokenizer': tokenizer,
+        'tokenizer': tokenizer_name,
         'output_folder': output_folder,
         'input_folder': input_folder,
         'compression': compression,
@@ -567,7 +567,7 @@ def convert_text_to_mds_from_args(
         'trust_remote_code': trust_remote_code,
     }
     convert_text_to_mds(
-        tokenizer_name=tokenizer,
+        tokenizer_name=tokenizer_name,
         output_folder=output_folder,
         input_folder=input_folder,
         concat_tokens=concat_tokens,

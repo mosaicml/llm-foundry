@@ -895,6 +895,10 @@ class DatasetConstructor:
                         dataset_name,
                         SUPPORTED_EXTENSIONS,
                     )
+                
+            print('+'*30)
+            print(os.listdir(dataset_name))
+            print('+'*30)
 
             dataset = hf_datasets.load_dataset(
                 dataset_name,

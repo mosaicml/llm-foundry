@@ -34,7 +34,6 @@ those keys are strings (i.e. text).
 import importlib
 import logging
 import os
-import shutil
 import warnings
 from collections.abc import Mapping
 from functools import partial

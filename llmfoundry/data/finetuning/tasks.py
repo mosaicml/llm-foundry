@@ -34,6 +34,7 @@ those keys are strings (i.e. text).
 import importlib
 import logging
 import os
+import shutil
 import warnings
 from collections.abc import Mapping
 from functools import partial
@@ -895,10 +896,8 @@ class DatasetConstructor:
                         dataset_name,
                         SUPPORTED_EXTENSIONS,
                     )
-                
-            print('+'*30)
-            print(os.listdir(dataset_name))
-            print('+'*30)
+
+            shutil.rmtree(os.path.join(dataset_name, '.huggingface'))
 
             dataset = hf_datasets.load_dataset(
                 dataset_name,

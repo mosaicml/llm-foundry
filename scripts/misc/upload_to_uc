@@ -1,0 +1,100 @@
+import argparse
+import mlflow
+from mlflow import MlflowClient
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import pandas as pd
+from mlflow.models.signature import ModelSignature
+from mlflow.types import DataType, Schema, ColSpec
+
+def download_artifacts(experiment_path: str, run_name: str) -> str:
+    # Returns the parent path to the downloaded artifacts
+    # Get the MLflow experiment by the given experiment path
+    experiment = mlflow.get_experiment_by_name(name=experiment_path)
+    # Get me the experiment run id given the experiment run name
+    client = MlflowClient()
+    runs = client.search_runs(experiment.experiment_id)
+    for run in runs:
+        if run.info.run_name == run_name:
+            run_id = run.info.run_id
+            break
+    print(f"Found MLflow run with run_id: {run_id}")
+
+    print("Start downloading files temporarily...")
+    # Only download the config file and HF related artifacts
+    all_artifacts = mlflow.artifacts.list_artifacts(run_id=run_id)
+    subdir = mlflow.artifacts.list_artifacts(run_id=run_id, artifact_path=f'{run_name}/checkpoints/huggingface')
+    local_path = ''
+    for artifact in subdir:
+        print(f"Downloading artifact at path: {artifact.path}")
+        local_path = mlflow.artifacts.download_artifacts(run_id=run_id, artifact_path=artifact.path)
+    return Path(local_path)
+
+def load_model_from_mlflow_and_log_to_uc(experiment_path: str, run_name: str, model_name: str):
+    with TemporaryDirectory() as tempdir:
+        # Given the experiment path, download all the artifacts associated with the experiment
+        parent_dir = download_artifacts(experiment_path, run_name)
+        print("Finished downloading files temporarily. Now loading model...")
+
+        # Now that all files are downloaded, you can load the model and tokenizer from the tempdir
+        tokenizer = AutoTokenizer.from_pretrained(parent_dir, trust_remote_code=True)
+        print("Tokenizer loaded...")
+        model = AutoModelForCausalLM.from_pretrained(parent_dir, trust_remote_code=True)
+        print("Model loaded...")
+
+        # Load model, we will then log the model in MLflow ensuring to add the metadata to the mlflow.transformers.log_model.
+        # We may need to set our experiment. Comment this out if you know you won't need to.
+        print("Creating Experiment")
+        mlflow.set_experiment(experiment_path)
+
+        # Log model to MLflow - This will take approx. 5mins to complete.
+        # Define input and output schema
+        input_schema = Schema([
+            ColSpec(DataType.string, "prompt"),
+            ColSpec(DataType.double, "temperature", optional=True),
+            ColSpec(DataType.long, "max_tokens", optional=True)
+        ])
+
+        output_schema = Schema([ColSpec(DataType.string)])
+        signature = ModelSignature(inputs=input_schema, outputs=output_schema)
+
+        print("Logging model with MLflow.")
+        with mlflow.start_run() as mlflow_run:
+            components = {
+                "model": model,
+                "tokenizer": tokenizer,
+            }
+
+            mlflow.transformers.log_model(
+                transformers_model=components,
+                artifact_path="model",
+                input_example=pd.DataFrame({
+                    "prompt": ["what is mlflow?"],  # This input example is just an example
+                    "temperature": [0.1],
+                    "max_tokens": [256]
+                }),
+                signature=signature,
+                task='text-generation',
+                metadata={'task': 'llm/v1/completions'},  # This metadata is currently needed for optimized serving
+                registered_model_name=model_name,
+            )
+
+            return mlflow_run
+
+def main():
+    parser = argparse.ArgumentParser(description="Load model from MLflow and log to Unity Catalog.")
+    parser.add_argument("--experiment_path", type=str, required=True, help="Path to the MLflow experiment.")
+    parser.add_argument("--run_name", type=str, required=True, help="Name of the MLflow run.")
+    parser.add_argument("--model_name", type=str, required=True, help="Name to register the model under in Unity Catalog.")
+
+    args = parser.parse_args()
+
+    mlflow.set_tracking_uri('databricks')
+    mlflow.set_registry_uri('databricks-uc')
+
+    mlflow_run = load_model_from_mlflow_and_log_to_uc(experiment_path=args.experiment_path, run_name=args.run_name, model_name=args.model_name)
+    print(f"MLflow Run ID: {mlflow_run.info.run_id}")
+
+if __name__ == "__main__":
+    main()

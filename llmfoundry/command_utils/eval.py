@@ -206,7 +206,7 @@ def allow_toplevel_keys(cfg: Dict[str, Any]) -> Dict[str, Any]:
             raise ValueError(
                 'Please specify either model or models in the config, not both',
             )
-        default_name = cfg.get('model').get('name')
+        default_name = cfg.get('model').get('name') # type: ignore
         model_cfg = {
             'model': cfg.pop('model'),
             'tokenizer': cfg.pop('tokenizer', None),

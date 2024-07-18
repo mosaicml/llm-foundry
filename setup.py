@@ -78,7 +78,6 @@ install_requires = [
     'lz4>=4,<5',
     'mosaicml[databricks]>=0.23.4,<0.24',
     'databricks-sql-connector>=3,<4',
-    'databricks-connect==14.1.0',
 ]
 
 extra_deps = {}

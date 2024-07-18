@@ -76,6 +76,9 @@ install_requires = [
     'catalogue>=2,<3',
     'typer<1',
     'lz4>=4,<5',
+    'mosaicml[databricks]>=0.23.4,<0.24',
+    'databricks-sql-connector>=3,<4',
+    'databricks-connect==14.1.0',
 ]
 
 extra_deps = {}
@@ -92,7 +95,9 @@ extra_deps['dev'] = [
     'hf_transfer==0.1.3',
 ]
 
+# Databricks group kept for backwards compatibility
 extra_deps['databricks'] = [
+    'lz4>=4,<5',
     'mosaicml[databricks]>=0.23.4,<0.24',
     'databricks-sql-connector>=3,<4',
     'databricks-connect==14.1.0',

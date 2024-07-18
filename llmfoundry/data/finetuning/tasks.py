@@ -897,7 +897,9 @@ class DatasetConstructor:
                         SUPPORTED_EXTENSIONS,
                     )
 
-            shutil.rmtree(os.path.join(dataset_name, '.huggingface'))
+            hf_metadata_dir = os.path.join(dataset_name, '.huggingface')
+            if os.path.exists(hf_metadata_dir):
+                shutil.rmtree(hf_metadata_dir)
 
             dataset = hf_datasets.load_dataset(
                 dataset_name,

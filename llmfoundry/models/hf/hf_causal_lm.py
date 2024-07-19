@@ -216,6 +216,22 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                 + 'Please `pip install llm-foundry[gpu]`.',
             )
 
+        # Hugging Face copies the modules into the
+        # transformers modules cache. On particular systems, this operation seems to cause contention between
+        # the different processes. To avoid this contention, we first create the config on local rank
+        # zero. This will set up the transformers module cache and avoid the future contention.
+        if dist.get_local_rank() == 0:
+            AutoConfig.from_pretrained(
+                pretrained_model_name_or_path,
+                trust_remote_code=trust_remote_code,
+                use_auth_token=use_auth_token,
+                attn_implementation=requested_attention_implementation,
+                use_cache=
+                False,  # Necessary due to https://github.com/huggingface/transformers/issues/28056
+            )
+
+        dist.barrier()
+
         # Construct the Hugging Face config to use
         config = AutoConfig.from_pretrained(
             pretrained_model_name_or_path,

@@ -574,7 +574,9 @@ class HuggingFaceCheckpointer(Callback):
         if dist.get_global_rank() == 0:
             if self.mlflow_registered_model_name and self._is_last_batch(state):
 
-                new_model_instance = self.transform_model_pre_registration(new_model_instance)
+                new_model_instance = self.transform_model_pre_registration(
+                    new_model_instance
+                )
 
                 components = {'model': new_model_instance}
                 if original_tokenizer is not None:

@@ -16,10 +16,6 @@ import pandas as pd
 import pyarrow as pa
 import requests
 from composer.utils import retry
-from databricks import sql
-from databricks.sdk import WorkspaceClient
-from databricks.sql.client import Connection as Connection
-from databricks.sql.client import Cursor as Cursor
 from packaging import version
 
 from llmfoundry.utils.exceptions import (
@@ -37,7 +33,17 @@ try:
     from databricks.connect import DatabricksSession
 except ImportError as e:
     raise ImportError(
-        'databricks-connect is not installed or improperly configured.',
+        'databricks is not installed or improperly configured.',
+    ) from e
+
+try:
+    from databricks import sql
+    from databricks.sdk import WorkspaceClient
+    from databricks.sql.client import Connection as Connection
+    from databricks.sql.client import Cursor as Cursor
+except ImportError as e:
+    raise ImportError(
+        'databricks-sdk is not installed or improperly configured.',
     ) from e
 
 try:

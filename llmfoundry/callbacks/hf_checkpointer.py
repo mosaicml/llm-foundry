@@ -576,7 +576,8 @@ class HuggingFaceCheckpointer(Callback):
             if self.mlflow_registered_model_name and self._is_last_batch(state):
 
                 new_model_instance = self.transform_model_pre_registration(
-                    new_model_instance
+                    new_model_instance,
+                    composer_model,
                 )
 
                 components = {'model': new_model_instance}

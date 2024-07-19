@@ -517,7 +517,12 @@ def test_softcap(softcap: float):
     _assert_approx_equal(value_1.grad, value_2.grad)
 
 
-def _assert_approx_equal(value1: torch.Tensor, value2: torch.Tensor, atol: float = 1e-2, rtol: float = 1e-2):
-    actual_difference = torch.norm(value2 - value1) 
+def _assert_approx_equal(
+    value1: torch.Tensor,
+    value2: torch.Tensor,
+    atol: float = 1e-2,
+    rtol: float = 1e-2,
+):
+    actual_difference = torch.norm(value2 - value1)
     allowed_difference = atol + rtol * torch.norm(value2)
     assert actual_difference < allowed_difference, f'{actual_difference=}, {allowed_difference=}'

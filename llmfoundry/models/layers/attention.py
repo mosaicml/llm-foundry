@@ -150,9 +150,7 @@ def scaled_multihead_dot_product_attention(
     attn_weight = q.matmul(k) * softmax_scale
 
     if softcap > 0:
-        attn_weight /= softcap
-        attn_weight = attn_weight.tanh()
-        attn_weight *= softcap
+        attn_weight = softcap * torch.tanh(attn_weight / softcap)
 
     if attn_bias is not None:
         # clamp to 0 necessary for torch 2.0 compile()

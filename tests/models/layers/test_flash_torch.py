@@ -77,6 +77,7 @@ def allclose_helper(
 )
 @pytest.mark.parametrize('attn_uses_sequence_id', [True, False])
 @pytest.mark.parametrize('pad_attention_mask', [True, False])
+@pytest.mark.parametrize('softcap', [0.0, 8.0])
 def test_attn_impl(
     attn_impl_0: str,
     attn_impl_1: str,
@@ -87,6 +88,7 @@ def test_attn_impl(
     attn_type: str,
     attn_uses_sequence_id: bool,
     pad_attention_mask: bool,
+    softcap: float,
     device: str = 'cuda',
 ):
     """Compare all attn impl with each other.
@@ -111,6 +113,13 @@ def test_attn_impl(
             'Using sequence id with flash attention requires flash attention v2.1.2 or higher.',
         )
 
+    if softcap > 0.0 and (
+        attn_impl_0 == 'flash' or attn_impl_1 == 'flash'
+    ) and (not is_flash_v2_installed(v2_version='v2.6.1')):
+        pytest.skip(
+            'Softcapping flash attention requires flash attention v2.6.1 or higher.',
+        )
+
     if not (alibi or rope) and attn_uses_sequence_id:
         pytest.skip('attn_uses_sequence_id requires alibi or rope.')
 
@@ -122,6 +131,7 @@ def test_attn_impl(
         'clip_qkv': clip_qkv,
         'qk_ln': qk_ln,
         'qk_gn': qk_gn,
+        'softcap': softcap,
     })
 
     n, s, f = 2, 4, cfg.d_model

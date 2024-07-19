@@ -241,13 +241,6 @@ class ChronosDataset(IterableDataset, ShuffleMixin):
             past_target
         )
         
-        # Add padding to surpass "assert" statement in chronos.py
-        # length = entry["future_target"].shape[-1]
-        # prediction_length = self.tokenizer.config.prediction_length
-        # if length < prediction_length:
-        #     padding = np.full(((prediction_length - length),), np.nan)
-        #     entry["future_target"] = np.concatenate((entry["future_target"], padding), axis=0)
-        
         future_target = torch.tensor(entry["future_target"]).unsqueeze(0)
         labels, labels_mask = self.tokenizer.label_input_transform(future_target, scale)
         

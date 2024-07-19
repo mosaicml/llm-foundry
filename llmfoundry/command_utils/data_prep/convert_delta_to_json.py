@@ -54,7 +54,7 @@ except ImportError as e:
     raise ImportError(
         'pyspark is not installed or improperly configured.',
     ) from e
-f
+
 MINIMUM_DB_CONNECT_DBR_VERSION = '14.1'
 MINIMUM_SQ_CONNECT_DBR_VERSION = '12.2'
 

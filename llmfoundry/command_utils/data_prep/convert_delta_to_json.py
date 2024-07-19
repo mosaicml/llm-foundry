@@ -16,6 +16,7 @@ import pandas as pd
 import pyarrow as pa
 import requests
 from composer.utils import retry
+from databricks.sdk import WorkspaceClient
 from packaging import version
 
 from llmfoundry.utils.exceptions import (
@@ -143,7 +144,9 @@ def to_cf(self: 'SparkConnectClient',
             is_overflow |= batch.truncated
     return result, row_count, is_overflow
 
+
 from pyspark.sql.connect.client.core import SparkConnectClient
+
 SparkConnectClient.to_cf = to_cf  # pyright: ignore
 
 
@@ -168,7 +171,9 @@ def collect_as_cf(self: 'DataFrame',
     query = self._plan.to_proto(self._session.client)  # pyright: ignore
     return self._session.client.to_cf(query, type)  # pyright: ignore
 
+
 from pyspark.sql.connect.dataframe import DataFrame
+
 DataFrame.collect_cf = collect_as_cf  # pyright: ignore
 
 
@@ -516,7 +521,6 @@ def validate_and_get_cluster_info(
             raise ValueError(
                 'cluster_id is not set, however use_serverless is False',
             )
-        from databricks.sdk import WorkspaceClient
         w = WorkspaceClient()
         res = w.clusters.get(cluster_id=cluster_id)
         if res is None:
@@ -660,18 +664,17 @@ def _check_imports():
         _ = DatabricksSession
     except ImportError as e:
         raise ImportError(
-            'databricks is not installed or improperly configured.'
+            'databricks is not installed or improperly configured.',
         ) from e
 
     try:
         from databricks import sql
-        from databricks.sdk import WorkspaceClient
         from databricks.sql.client import Connection as Connection
         from databricks.sql.client import Cursor as Cursor
         _ = (sql, WorkspaceClient, Connection, Cursor)
     except ImportError as e:
         raise ImportError(
-            'databricks-sdk is not installed or improperly configured.'
+            'databricks-sdk is not installed or improperly configured.',
         ) from e
 
     try:
@@ -685,13 +688,18 @@ def _check_imports():
         from pyspark.sql.dataframe import DataFrame as SparkDataFrame
         from pyspark.sql.types import Row
         _ = (
-            pb2, cloud_pb2, SparkSession, SparkConnectClient,
-            ExecutePlanResponseReattachableIterator, DataFrame, SparkDataFrame,
-            Row
+            pb2,
+            cloud_pb2,
+            SparkSession,
+            SparkConnectClient,
+            ExecutePlanResponseReattachableIterator,
+            DataFrame,
+            SparkDataFrame,
+            Row,
         )
     except ImportError as e:
         raise ImportError(
-            'pyspark is not installed or improperly configured.'
+            'pyspark is not installed or improperly configured.',
         ) from e
 
 
@@ -718,7 +726,6 @@ def convert_delta_to_json_from_args(
         json_output_filename (str): The name of the combined final jsonl that combines all partitioned jsonl
     """
     _check_imports()
-    from databricks.sdk import WorkspaceClient
     w = WorkspaceClient()
     DATABRICKS_HOST = w.config.host
     DATABRICKS_TOKEN = w.config.token

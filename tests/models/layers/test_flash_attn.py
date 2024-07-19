@@ -432,5 +432,92 @@ def test_alibi_bias(n_heads: int):
     _assert_approx_equal(value_1.grad, value_2.grad)
 
 
-def _assert_approx_equal(value1: torch.Tensor, value2: torch.Tensor):
-    assert torch.norm(value2 - value1) <= 1e-2 + 1e-2 * torch.norm(value2)
+@pytest.mark.gpu
+@pytest.mark.skipif(
+    not is_flash_v2_installed(v2_version='v2.6.1'),
+    reason='softcap only supported by Flash Attention after v2.6.1.',
+)
+@pytest.mark.parametrize('softcap', [0.0, 50.0])
+def test_softcap(softcap: float):
+    # Test that softcap in attention works as expected.
+    dtype = torch.bfloat16
+    device = 'cuda'
+    d = 128
+    seqlen_1 = 8
+    bsz = 2
+    n_heads = 4
+
+    query_1 = torch.randn(bsz, seqlen_1,
+                          n_heads * d).to(dtype=dtype, device=device)
+    if softcap > 0.0:
+        query_1 = query_1 * softcap
+    query_1.requires_grad = True
+    key_1 = torch.randn(bsz, seqlen_1,
+                        n_heads * d).to(dtype=dtype, device=device)
+    key_1.requires_grad = True
+    value_1 = torch.randn(bsz, seqlen_1,
+                          n_heads * d).to(dtype=dtype, device=device)
+    value_1.requires_grad = True
+    output_1, _, _ = flash_attn_fn(
+        query=query_1,
+        key=key_1,
+        value=value_1,
+        n_heads=n_heads,
+        kv_n_heads=n_heads,
+        past_key_value=None,
+        softmax_scale=1 / math.sqrt(d),
+        attn_bias=None,
+        key_padding_mask=None,
+        is_causal=True,
+        dropout_p=0.0,
+        training=False,
+        needs_weights=False,
+        flash_attn_padding_info=gen_flash_attn_padding_info(
+            bsz,
+            seqlen_1,
+            0,
+            query_1.device,
+            None,
+            None,
+        ),
+        should_repeat_kv_for_gqa=True,
+        softcap=softcap,
+    )
+    output_1.sum().backward()
+
+    query_2 = query_1.detach().clone()
+    query_2.requires_grad = True
+    key_2 = key_1.detach().clone()
+    key_2.requires_grad = True
+    value_2 = value_1.detach().clone()
+    value_2.requires_grad = True
+    output_2, _, _ = scaled_multihead_dot_product_attention(
+        query=query_2,
+        key=key_2,
+        value=value_2,
+        n_heads=n_heads,
+        kv_n_heads=n_heads,
+        past_key_value=None,
+        softmax_scale=1 / math.sqrt(d),
+        key_padding_mask=None,
+        is_causal=True,
+        dropout_p=0.0,
+        training=False,
+        needs_weights=False,
+        softcap=softcap,
+    )
+    output_2.sum().backward()
+
+    _assert_approx_equal(output_1, output_2, rtol=3e-2)
+    assert (query_2.grad is not None) and (query_1.grad is not None)
+    _assert_approx_equal(query_1.grad, query_2.grad)
+    assert (key_2.grad is not None) and (key_1.grad is not None)
+    _assert_approx_equal(key_1.grad, key_2.grad)
+    assert (value_2.grad is not None) and (value_1.grad is not None)
+    _assert_approx_equal(value_1.grad, value_2.grad)
+
+
+def _assert_approx_equal(value1: torch.Tensor, value2: torch.Tensor, atol: float = 1e-2, rtol: float = 1e-2):
+    actual_difference = torch.norm(value2 - value1) 
+    allowed_difference = atol + rtol * torch.norm(value2)
+    assert actual_difference < allowed_difference, f'{actual_difference=}, {allowed_difference=}'

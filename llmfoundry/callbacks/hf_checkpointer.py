@@ -481,9 +481,6 @@ class HuggingFaceCheckpointer(Callback):
                              FSDP)) else contextlib.nullcontext()
             with state_dict_context:
                 state_dict = state_dict_model.state_dict()
-        
-        print("State dict model type:", type(state_dict_model))
-        print("is it a hugging face model?", isinstance(state_dict_model, HuggingFaceModel))
 
         # Convert the state dict to the requested precision
         for k, v in state_dict.items():
@@ -524,8 +521,6 @@ class HuggingFaceCheckpointer(Callback):
             # Then load the state dict in with "assign" so that the state dict
             # is loaded properly even though the model is initially on meta device.
             new_model_instance.load_state_dict(state_dict, assign=True)
-            print(state_dict.keys())
-            exit(0)
             del state_dict
 
             # Transform the model and tokenizer before saving
@@ -579,9 +574,7 @@ class HuggingFaceCheckpointer(Callback):
         if dist.get_global_rank() == 0:
             if self.mlflow_registered_model_name and self._is_last_batch(state):
 
-                new_model_instance = self.transform_model_pre_registration(
-                    new_model_instance,
-                )
+                new_model_instance = self.transform_model_pre_registration(new_model_instance)
 
                 components = {'model': new_model_instance}
                 if original_tokenizer is not None:

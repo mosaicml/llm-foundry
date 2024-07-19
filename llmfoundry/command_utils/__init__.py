@@ -8,6 +8,10 @@ from llmfoundry.command_utils.data_prep.convert_dataset_json import (
     convert_dataset_json,
     convert_dataset_json_from_args,
 )
+from llmfoundry.command_utils.data_prep.convert_text_to_mds import (
+    convert_text_to_mds,
+    convert_text_to_mds_from_args,
+)
 from llmfoundry.command_utils.eval import (
     eval_from_yaml,
     evaluate,
@@ -32,4 +36,6 @@ __all__ = [
     'convert_dataset_hf_from_args',
     'convert_dataset_json',
     'convert_dataset_json_from_args',
+    'convert_text_to_mds',
+    'convert_text_to_mds_from_args',
 ]

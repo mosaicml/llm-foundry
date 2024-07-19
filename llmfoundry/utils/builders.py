@@ -27,6 +27,7 @@ from composer.optim.scheduler import ComposerScheduler
 from composer.utils import dist
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
+from torch.distributed.checkpoint import LoadPlanner, SavePlanner
 from torch.optim.optimizer import Optimizer
 from torchmetrics import Metric
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
@@ -186,6 +187,44 @@ def build_icl_data_and_gauntlet(
         }
         eval_gauntlet_cb = EvalGauntlet(**eval_gauntlet)
     return icl_evaluators, logger_keys, eval_gauntlet_cb
+
+
+def build_load_planner(name: str, **kwargs: Any) -> LoadPlanner:
+    """Builds a load planner from the registry.
+
+    Args:
+        name: Name of the load planner to build.
+
+    Returns:
+        LoadPlanner: The load planner.
+    """
+    return construct_from_registry(
+        name=name,
+        registry=registry.load_planners,
+        partial_function=True,
+        pre_validation_function=LoadPlanner,
+        post_validation_function=None,
+        kwargs=kwargs,
+    )
+
+
+def build_save_planner(name: str, **kwargs: Any) -> SavePlanner:
+    """Builds a save planner from the registry.
+
+    Args:
+        name: Name of the save planner to build.
+
+    Returns:
+        savePlanner: The save planner.
+    """
+    return construct_from_registry(
+        name=name,
+        registry=registry.save_planners,
+        partial_function=True,
+        pre_validation_function=SavePlanner,
+        post_validation_function=None,
+        kwargs=kwargs,
+    )
 
 
 def build_composer_model(

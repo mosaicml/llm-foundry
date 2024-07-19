@@ -179,6 +179,7 @@ class HuggingFaceCheckpointer(Callback):
             'bfloat16': torch.bfloat16,
         }[precision]
         self.flatten_imports = flatten_imports
+        self.using_peft = False
 
         # mlflow config setup
         self.mlflow_registered_model_name = mlflow_registered_model_name

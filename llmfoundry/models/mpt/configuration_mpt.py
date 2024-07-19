@@ -331,6 +331,15 @@ class MPTConfig(PretrainedConfig):
             raise NotImplementedError(
                 'sliding window only implemented with flash attention v2.3.0 or higher.',
             )
+        if self.attn_config['softcap'] < 0:
+            raise ValueError('Attention softcap should be non-negative.')
+        if self.attn_config['softcap'] != 0.0 and not (
+            self.attn_config['attn_impl'] == 'flash' and
+            is_flash_v2_installed(v2_version='v2.6.1')
+        ):
+            raise NotImplementedError(
+                'Attention softcap is only implemented with flash attention v2.6.1 or higher.',
+            )
         if self.embedding_fraction > 1 or self.embedding_fraction <= 0:
             raise ValueError(
                 'model.embedding_fraction must be between 0 (exclusive) and 1 (inclusive)!',

@@ -20,6 +20,7 @@ attn_config_defaults: Dict = {
     'softmax_scale': None,
     'attn_uses_sequence_id': False,
     'sliding_window_size': -1,
+    'softcap': 0.0,
     'alibi': False,
     'alibi_bias_max': 8,
     'rope': False,

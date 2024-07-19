@@ -22,25 +22,27 @@ def download_artifacts(experiment_path: str, run_name: str) -> str:
     print(f"Found MLflow run with run_id: {run_id}")
 
     print("Start downloading files temporarily...")
-    # Only download the config file and HF related artifacts
+    # Only download the artifacts that start with "model-"
+    local_paths = []
     all_artifacts = mlflow.artifacts.list_artifacts(run_id=run_id)
-    subdir = mlflow.artifacts.list_artifacts(run_id=run_id, artifact_path=f'{run_name}/checkpoints/huggingface')
-    local_path = ''
-    for artifact in subdir:
-        print(f"Downloading artifact at path: {artifact.path}")
-        local_path = mlflow.artifacts.download_artifacts(run_id=run_id, artifact_path=artifact.path)
-    return Path(local_path)
+    for artifact in all_artifacts:
+        if artifact.path.startswith('model-'):
+            print(f"Downloading artifact at path: {artifact.path}")
+            local_path = mlflow.artifacts.download_artifacts(run_id=run_id, artifact_path=artifact.path)
+            local_paths.append(Path(local_path))
+    return local_paths
 
 def load_model_from_mlflow_and_log_to_uc(experiment_path: str, run_name: str, model_name: str):
     with TemporaryDirectory() as tempdir:
         # Given the experiment path, download all the artifacts associated with the experiment
-        parent_dir = download_artifacts(experiment_path, run_name)
+        local_paths = download_artifacts(experiment_path, run_name)
         print("Finished downloading files temporarily. Now loading model...")
 
-        # Now that all files are downloaded, you can load the model and tokenizer from the tempdir
-        tokenizer = AutoTokenizer.from_pretrained(parent_dir, trust_remote_code=True)
+        # Now that all files are downloaded, you can load the model and tokenizer from the local_paths
+        model_dir = local_paths[0].parent  # Assuming all artifacts are in the same parent directory
+        tokenizer = AutoTokenizer.from_pretrained(model_dir, trust_remote_code=True)
         print("Tokenizer loaded...")
-        model = AutoModelForCausalLM.from_pretrained(parent_dir, trust_remote_code=True)
+        model = AutoModelForCausalLM.from_pretrained(model_dir, trust_remote_code=True)
         print("Model loaded...")
 
         # Load model, we will then log the model in MLflow ensuring to add the metadata to the mlflow.transformers.log_model.

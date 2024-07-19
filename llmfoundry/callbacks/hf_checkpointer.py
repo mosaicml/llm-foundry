@@ -481,6 +481,9 @@ class HuggingFaceCheckpointer(Callback):
                              FSDP)) else contextlib.nullcontext()
             with state_dict_context:
                 state_dict = state_dict_model.state_dict()
+        
+        print("State dict model type:", type(state_dict_model))
+        print("is it a hugging face model?", isinstance(state_dict_model, HuggingFaceModel))
 
         # Convert the state dict to the requested precision
         for k, v in state_dict.items():

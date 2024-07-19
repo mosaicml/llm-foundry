@@ -425,6 +425,8 @@ class HuggingFaceCheckpointer(Callback):
             state_dict_model = state.model.model
             original_tokenizer = state.model.tokenizer
 
+        self.using_peft = composer_model.using_peft
+
         if version.parse(torch.__version__) > version.parse('2.2.9'):
             from torch.distributed._tensor import DTensor
             from torch.distributed.checkpoint.state_dict import (
@@ -502,7 +504,7 @@ class HuggingFaceCheckpointer(Callback):
             # First create the model instance on meta device to avoid the
             # initialization cost.
             with init_empty_weights():
-                if composer_model.using_peft:
+                if self.using_peft:
                     active_adapter = original_model.active_adapter
                     base_model = original_model.get_base_model()
                     new_base_model_instance = type(base_model)(new_config)
@@ -599,7 +601,7 @@ class HuggingFaceCheckpointer(Callback):
                     model_saving_kwargs: Dict[str, Any] = {
                         'path': local_save_path,
                     }
-                    if composer_model.using_peft:
+                    if self.using_peft:
                         model_saving_kwargs['flavor'] = 'peft'
                         model_saving_kwargs['save_pretrained_dir'
                                            ] = temp_save_dir

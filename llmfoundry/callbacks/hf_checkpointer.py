@@ -365,7 +365,6 @@ class HuggingFaceCheckpointer(Callback):
     def transform_model_pre_registration(
         self,
         model: PreTrainedModel,
-        composer_model,
     ) -> PreTrainedModel:
         """Transform the model before registering with MLFlow.
 
@@ -374,7 +373,6 @@ class HuggingFaceCheckpointer(Callback):
 
         Args:
             model (PreTrainedModel): The model to be transformed.
-            composer_model: The composer model.
 
         Returns:
             PreTrainedModel: The transformed model.
@@ -484,7 +482,7 @@ class HuggingFaceCheckpointer(Callback):
             with state_dict_context:
                 state_dict = state_dict_model.state_dict()
 
-        # Convert the state dict to the requested precis
+        # Convert the state dict to the requested precision
         for k, v in state_dict.items():
             if isinstance(v, torch.Tensor):
                 state_dict[k] = v.to(dtype=self.dtype)
@@ -515,11 +513,10 @@ class HuggingFaceCheckpointer(Callback):
                     )
                     new_model_instance.to(dtype=self.dtype)
                 else:
-                    with init_empty_weights():
-                        new_model_instance = type(original_model)(new_config)
-                        new_model_instance.generation_config.update(
-                            **original_model.generation_config.to_dict(),
-                        )
+                    new_model_instance = type(original_model)(new_config)
+                    new_model_instance.generation_config.update(
+                        **original_model.generation_config.to_dict(),
+                    )
 
             # Then load the state dict in with "assign" so that the state dict
             # is loaded properly even though the model is initially on meta device.
@@ -579,7 +576,6 @@ class HuggingFaceCheckpointer(Callback):
 
                 new_model_instance = self.transform_model_pre_registration(
                     new_model_instance,
-                    composer_model,
                 )
 
                 components = {'model': new_model_instance}

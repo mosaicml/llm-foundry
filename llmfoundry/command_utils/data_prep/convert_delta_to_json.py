@@ -168,7 +168,7 @@ def collect_as_cf(self: 'DataFrame',
     query = self._plan.to_proto(self._session.client)  # pyright: ignore
     return self._session.client.to_cf(query, type)  # pyright: ignore
 
-
+from pyspark.sql.connect.dataframe import DataFrame
 DataFrame.collect_cf = collect_as_cf  # pyright: ignore
 
 

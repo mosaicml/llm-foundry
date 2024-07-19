@@ -8,7 +8,7 @@ import time
 import urllib.parse
 from collections import namedtuple
 from concurrent.futures import ProcessPoolExecutor
-from typing import Iterable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Iterable, List, Optional, Tuple, Union
 from uuid import uuid4
 
 import google.protobuf.any_pb2 as any_pb2
@@ -24,42 +24,15 @@ from llmfoundry.utils.exceptions import (
     FailedToCreateSQLConnectionError,
 )
 
-try:
-    import lz4.frame
-except ImportError as e:
-    raise ImportError('lz4 is not installed.',) from e
-
-try:
-    from databricks.connect import DatabricksSession
-except ImportError as e:
-    raise ImportError(
-        'databricks is not installed or improperly configured.',
-    ) from e
-
-try:
-    from databricks import sql
-    from databricks.sdk import WorkspaceClient
+if TYPE_CHECKING:
+    import pyspark.sql.connect.proto as pb2
     from databricks.sql.client import Connection as Connection
     from databricks.sql.client import Cursor as Cursor
-except ImportError as e:
-    raise ImportError(
-        'databricks-sdk is not installed or improperly configured.',
-    ) from e
-
-try:
-    import pyspark.sql.connect.proto as pb2
-    import pyspark.sql.connect.proto.cloud_pb2 as cloud_pb2
     from pyspark.sql import SparkSession
     from pyspark.sql.connect.client.core import SparkConnectClient
-    from pyspark.sql.connect.client.reattach import \
-        ExecutePlanResponseReattachableIterator
     from pyspark.sql.connect.dataframe import DataFrame
     from pyspark.sql.dataframe import DataFrame as SparkDataFrame
     from pyspark.sql.types import Row
-except ImportError as e:
-    raise ImportError(
-        'pyspark is not installed or improperly configured.',
-    ) from e
 
 MINIMUM_DB_CONNECT_DBR_VERSION = '14.1'
 MINIMUM_SQ_CONNECT_DBR_VERSION = '12.2'
@@ -83,8 +56,8 @@ Result = namedtuple(
 # To be able to use the code make sure this module is not overriden by DB Connect classes.
 
 
-def to_cf(self: SparkConnectClient,
-          plan: pb2.Plan,
+def to_cf(self: 'SparkConnectClient',
+          plan: 'pb2.Plan',
           type: str = 'json') -> Tuple[List[Result], int, bool]:
     """Executes the query plans and return as presigned URLS for cloud fetch.
 
@@ -105,6 +78,9 @@ def to_cf(self: SparkConnectClient,
     """
     req = self._execute_plan_request_with_metadata()
     req.plan.CopyFrom(plan)
+
+    import pyspark.sql.connect.proto as pb2
+    import pyspark.sql.connect.proto.cloud_pb2 as cloud_pb2
 
     # Add the request options
     if type == 'json':
@@ -132,6 +108,8 @@ def to_cf(self: SparkConnectClient,
     )
 
     # Create the iterator
+    from pyspark.sql.connect.client.reattach import \
+        ExecutePlanResponseReattachableIterator
     iterator = ExecutePlanResponseReattachableIterator(
         req,
         self._stub,
@@ -169,7 +147,7 @@ def to_cf(self: SparkConnectClient,
 SparkConnectClient.to_cf = to_cf  # pyright: ignore
 
 
-def collect_as_cf(self: DataFrame,
+def collect_as_cf(self: 'DataFrame',
                   type: str = 'json') -> Tuple[List[Result], int, bool]:
     """Collects DataFrame execution plan as presigned URLs.
 
@@ -215,10 +193,10 @@ def iterative_combine_jsons(json_directory: str, output_file: str) -> None:
 def run_query(
     query: str,
     method: str,
-    cursor: Optional[Cursor] = None,
-    spark: Optional[SparkSession] = None,
+    cursor: Optional['Cursor'] = None,
+    spark: Optional['SparkSession'] = None,
     collect: bool = True,
-) -> Optional[Union[List[Row], DataFrame, SparkDataFrame]]:
+) -> Optional[Union[List['Row'], 'DataFrame', 'SparkDataFrame']]:
     """Run SQL query via databricks-connect or databricks-sql.
 
     Args:
@@ -286,6 +264,7 @@ def download(
         if compressed:
             # The data is lz4 compressed arrow format.
             # Decompress the data
+            import lz4.frame
             decompressed_data = lz4.frame.decompress(resp.content)
             # Convert the decompressed data into a PyArrow table
             reader = pa.ipc.open_stream(decompressed_data)
@@ -330,8 +309,8 @@ def format_tablename(table_name: str) -> str:
 
 def fetch_data(
     method: str,
-    cursor: Optional[Cursor],
-    sparkSession: Optional[SparkSession],
+    cursor: Optional['Cursor'],
+    sparkSession: Optional['SparkSession'],
     start: int,
     end: int,
     order_by: str,
@@ -395,8 +374,8 @@ def fetch_data(
 def get_total_rows(
     tablename: str,
     method: str,
-    cursor: Optional[Cursor],
-    sparkSession: Optional[SparkSession],
+    cursor: Optional['Cursor'],
+    sparkSession: Optional['SparkSession'],
 ):
     ans = run_query(
         f'SELECT COUNT(*) FROM {tablename}',
@@ -413,8 +392,8 @@ def get_total_rows(
 def get_columns_info(
     tablename: str,
     method: str,
-    cursor: Optional[Cursor],
-    sparkSession: Optional[SparkSession],
+    cursor: Optional['Cursor'],
+    sparkSession: Optional['SparkSession'],
 ):
     ans = run_query(
         f'SHOW COLUMNS IN {tablename}',
@@ -435,8 +414,8 @@ def fetch(
     json_output_folder: str,
     batch_size: int = 1 << 30,
     processes: int = 1,
-    sparkSession: Optional[SparkSession] = None,
-    dbsql: Optional[Connection] = None,
+    sparkSession: Optional['SparkSession'] = None,
+    dbsql: Optional['Connection'] = None,
 ) -> None:
     """Fetch UC delta table with databricks-connect as JSONL.
 
@@ -537,6 +516,7 @@ def validate_and_get_cluster_info(
             raise ValueError(
                 'cluster_id is not set, however use_serverless is False',
             )
+        from databricks.sdk import WorkspaceClient
         w = WorkspaceClient()
         res = w.clusters.get(cluster_id=cluster_id)
         if res is None:
@@ -565,6 +545,7 @@ def validate_and_get_cluster_info(
             method = 'dbconnect'
 
     if method == 'dbconnect':
+        from databricks.connect import DatabricksSession
         try:
             if use_serverless:
                 session_id = str(uuid4())
@@ -587,6 +568,7 @@ def validate_and_get_cluster_info(
             raise FailedToConnectToDatabricksError() from e
     else:
         try:
+            from databricks import sql
             dbsql = sql.connect(
                 server_hostname=re.compile(r'^https?://').sub(
                     '', databricks_host).strip(
@@ -666,6 +648,53 @@ def fetch_DT(
     )
 
 
+def _check_imports():
+    try:
+        import lz4.frame
+        _ = lz4.frame
+    except ImportError as e:
+        raise ImportError('lz4 is not installed.') from e
+
+    try:
+        from databricks.connect import DatabricksSession
+        _ = DatabricksSession
+    except ImportError as e:
+        raise ImportError(
+            'databricks is not installed or improperly configured.'
+        ) from e
+
+    try:
+        from databricks import sql
+        from databricks.sdk import WorkspaceClient
+        from databricks.sql.client import Connection as Connection
+        from databricks.sql.client import Cursor as Cursor
+        _ = (sql, WorkspaceClient, Connection, Cursor)
+    except ImportError as e:
+        raise ImportError(
+            'databricks-sdk is not installed or improperly configured.'
+        ) from e
+
+    try:
+        import pyspark.sql.connect.proto as pb2
+        import pyspark.sql.connect.proto.cloud_pb2 as cloud_pb2
+        from pyspark.sql import SparkSession
+        from pyspark.sql.connect.client.core import SparkConnectClient
+        from pyspark.sql.connect.client.reattach import \
+            ExecutePlanResponseReattachableIterator
+        from pyspark.sql.connect.dataframe import DataFrame
+        from pyspark.sql.dataframe import DataFrame as SparkDataFrame
+        from pyspark.sql.types import Row
+        _ = (
+            pb2, cloud_pb2, SparkSession, SparkConnectClient,
+            ExecutePlanResponseReattachableIterator, DataFrame, SparkDataFrame,
+            Row
+        )
+    except ImportError as e:
+        raise ImportError(
+            'pyspark is not installed or improperly configured.'
+        ) from e
+
+
 def convert_delta_to_json_from_args(
     delta_table_name: str,
     json_output_folder: str,
@@ -688,6 +717,8 @@ def convert_delta_to_json_from_args(
         use_serverless (bool): Use serverless or not. Make sure the workspace is entitled with serverless
         json_output_filename (str): The name of the combined final jsonl that combines all partitioned jsonl
     """
+    _check_imports()
+    from databricks.sdk import WorkspaceClient
     w = WorkspaceClient()
     DATABRICKS_HOST = w.config.host
     DATABRICKS_TOKEN = w.config.token

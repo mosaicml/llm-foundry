@@ -365,6 +365,7 @@ class HuggingFaceCheckpointer(Callback):
     def transform_model_pre_registration(
         self,
         model: PreTrainedModel,
+        composer_model,
     ) -> PreTrainedModel:
         """Transform the model before registering with MLFlow.
 
@@ -373,6 +374,7 @@ class HuggingFaceCheckpointer(Callback):
 
         Args:
             model (PreTrainedModel): The model to be transformed.
+            composer_model: The composer model.
 
         Returns:
             PreTrainedModel: The transformed model.

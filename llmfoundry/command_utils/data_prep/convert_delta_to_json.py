@@ -12,32 +12,48 @@ from typing import Iterable, List, Optional, Tuple, Union
 from uuid import uuid4
 
 import google.protobuf.any_pb2 as any_pb2
-import lz4.frame
 import pandas as pd
 import pyarrow as pa
-import pyspark.sql.connect.proto as pb2
-import pyspark.sql.connect.proto.cloud_pb2 as cloud_pb2
 import requests
 from composer.utils import retry
 from databricks import sql
-from databricks.connect import DatabricksSession
 from databricks.sdk import WorkspaceClient
 from databricks.sql.client import Connection as Connection
 from databricks.sql.client import Cursor as Cursor
 from packaging import version
-from pyspark.sql import SparkSession
-from pyspark.sql.connect.client.core import SparkConnectClient
-from pyspark.sql.connect.client.reattach import \
-    ExecutePlanResponseReattachableIterator
-from pyspark.sql.connect.dataframe import DataFrame
-from pyspark.sql.dataframe import DataFrame as SparkDataFrame
-from pyspark.sql.types import Row
 
 from llmfoundry.utils.exceptions import (
     ClusterDoesNotExistError,
     FailedToConnectToDatabricksError,
     FailedToCreateSQLConnectionError,
 )
+
+try:
+    import lz4.frame
+except ImportError as e:
+    raise ImportError('lz4 is not installed.',) from e
+
+try:
+    from databricks.connect import DatabricksSession
+except ImportError as e:
+    raise ImportError(
+        'databricks-connect is not installed or improperly configured.',
+    ) from e
+
+try:
+    import pyspark.sql.connect.proto as pb2
+    import pyspark.sql.connect.proto.cloud_pb2 as cloud_pb2
+    from pyspark.sql import SparkSession
+    from pyspark.sql.connect.client.core import SparkConnectClient
+    from pyspark.sql.connect.client.reattach import \
+        ExecutePlanResponseReattachableIterator
+    from pyspark.sql.connect.dataframe import DataFrame
+    from pyspark.sql.dataframe import DataFrame as SparkDataFrame
+    from pyspark.sql.types import Row
+except ImportError as e:
+    raise ImportError(
+        'pyspark is not installed or improperly configured.',
+    ) from e
 
 MINIMUM_DB_CONNECT_DBR_VERSION = '14.1'
 MINIMUM_SQ_CONNECT_DBR_VERSION = '12.2'

@@ -143,7 +143,7 @@ def to_cf(self: 'SparkConnectClient',
             is_overflow |= batch.truncated
     return result, row_count, is_overflow
 
-
+from pyspark.sql.connect.client.core import SparkConnectClient
 SparkConnectClient.to_cf = to_cf  # pyright: ignore
 
 

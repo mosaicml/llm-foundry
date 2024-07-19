@@ -9,7 +9,7 @@ from argparse import ArgumentParser
 from databricks.sql.client import Connection as Connection
 from databricks.sql.client import Cursor as Cursor
 
-from llmfoundry.command_utils import convert_delta_to_json_from_args
+from llmfoundry.command_utils import convert_delta_to_json_from_argsf
 
 MINIMUM_DB_CONNECT_DBR_VERSION = '14.1'
 MINIMUM_SQ_CONNECT_DBR_VERSION = '12.2'

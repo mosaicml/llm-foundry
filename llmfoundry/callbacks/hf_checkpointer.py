@@ -497,26 +497,25 @@ class HuggingFaceCheckpointer(Callback):
 
             log.debug(f'Creating new model instance')
 
-            if composer_model.using_peft:
-                # We don't use meta here because the state dict does not contain the full
-                # model, only the adapter weights.
-                active_adapter = original_model.active_adapter
-                base_model = original_model.get_base_model()
-                new_base_model_instance = type(base_model)(new_config)
+            # First create the model instance on meta device to avoid the
+            # initialization cost.
+            with init_empty_weights():
+                if composer_model.using_peft:
+                    active_adapter = original_model.active_adapter
+                    base_model = original_model.get_base_model()
+                    new_base_model_instance = type(base_model)(new_config)
 
-                new_model_instance = type(original_model)(
-                    new_base_model_instance,
-                    original_model.peft_config[active_adapter],
-                )
-                new_model_instance.to(dtype=self.dtype)
-            else:
-                # First create the model instance on meta device to avoid the
-                # initialization cost.
-                with init_empty_weights():
-                    new_model_instance = type(original_model)(new_config)
-                    new_model_instance.generation_config.update(
-                        **original_model.generation_config.to_dict(),
+                    new_model_instance = type(original_model)(
+                        new_base_model_instance,
+                        original_model.peft_config[active_adapter],
                     )
+                    new_model_instance.to(dtype=self.dtype)
+                else:
+                    with init_empty_weights():
+                        new_model_instance = type(original_model)(new_config)
+                        new_model_instance.generation_config.update(
+                            **original_model.generation_config.to_dict(),
+                        )
 
             # Then load the state dict in with "assign" so that the state dict
             # is loaded properly even though the model is initially on meta device.

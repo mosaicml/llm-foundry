@@ -383,6 +383,9 @@ def test_huggingface_conversion_callback_interval(
     mlflow_logger_mock.model_registry_prefix = ''
     mlflow_logger_mock._experiment_id = 'mlflow-experiment-id'
     mlflow_logger_mock._run_id = 'mlflow-run-id'
+    checkpointer_callback.transform_model_pre_registration = MagicMock(
+        wraps=checkpointer_callback.transform_model_pre_registration,
+    )
     trainer = Trainer(
         model=original_model,
         device='gpu',
@@ -407,8 +410,10 @@ def test_huggingface_conversion_callback_interval(
             input_example=ANY,
             metadata={},
         )
+        assert checkpointer_callback.transform_model_pre_registration.call_count == 1
         assert mlflow_logger_mock.register_model_with_run_id.call_count == 1
     else:
+        assert checkpointer_callback.transform_model_pre_registration.call_count == 0
         assert mlflow_logger_mock.save_model.call_count == 0
         assert mlflow_logger_mock.register_model_with_run_id.call_count == 0
 

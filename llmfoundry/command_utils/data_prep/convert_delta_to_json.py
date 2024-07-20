@@ -16,7 +16,6 @@ import pandas as pd
 import pyarrow as pa
 import requests
 from composer.utils import retry
-from databricks.sdk import WorkspaceClient
 from packaging import version
 
 from llmfoundry.utils.exceptions import (
@@ -521,6 +520,7 @@ def validate_and_get_cluster_info(
             raise ValueError(
                 'cluster_id is not set, however use_serverless is False',
             )
+        from databricks.sdk import WorkspaceClient
         w = WorkspaceClient()
         res = w.clusters.get(cluster_id=cluster_id)
         if res is None:
@@ -653,6 +653,7 @@ def fetch_DT(
 
 
 def _check_imports():
+    global DatabricksSession, SparkSession, Cursor, sql, WorkspaceClient
     try:
         import lz4.frame
         _ = lz4.frame
@@ -661,18 +662,21 @@ def _check_imports():
 
     try:
         from databricks.connect import DatabricksSession
-        _ = DatabricksSession
     except ImportError as e:
+        DatabricksSession = None
         raise ImportError(
-            'databricks is not installed or improperly configured.',
+            'databricks-connect is not installed or improperly configured.',
         ) from e
 
     try:
         from databricks import sql
+        from databricks.sdk import WorkspaceClient
         from databricks.sql.client import Connection as Connection
         from databricks.sql.client import Cursor as Cursor
-        _ = (sql, WorkspaceClient, Connection, Cursor)
     except ImportError as e:
+        sql = None
+        Cursor = None
+        WorkspaceClient = None
         raise ImportError(
             'databricks-sdk is not installed or improperly configured.',
         ) from e
@@ -698,6 +702,7 @@ def _check_imports():
             Row,
         )
     except ImportError as e:
+        SparkSession = None
         raise ImportError(
             'pyspark is not installed or improperly configured.',
         ) from e
@@ -726,6 +731,7 @@ def convert_delta_to_json_from_args(
         json_output_filename (str): The name of the combined final jsonl that combines all partitioned jsonl
     """
     _check_imports()
+    from databricks.sdk import WorkspaceClient
     w = WorkspaceClient()
     DATABRICKS_HOST = w.config.host
     DATABRICKS_TOKEN = w.config.token

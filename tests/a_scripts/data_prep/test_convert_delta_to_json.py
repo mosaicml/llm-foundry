@@ -18,7 +18,7 @@ from llmfoundry.command_utils.data_prep.convert_delta_to_json import (
 class TestConvertDeltaToJsonl(unittest.TestCase):
 
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_json._check_imports.sql.connect',
+        'databricks.sql.connect',
     )
     @patch(
         'llmfoundry.command_utils.data_prep.convert_delta_to_json.os.makedirs',
@@ -28,7 +28,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
     )
     @patch('llmfoundry.command_utils.data_prep.convert_delta_to_json.fetch')
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_json._check_imports.WorkspaceClient',
+        'databricks.sdk.WorkspaceClient',
     )
     def test_stream_delta_to_json(
         self,
@@ -196,13 +196,13 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         mock_get.assert_called_once_with('http://fakeurl.com/data')
 
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_json._check_imports.sql.connect',
+        'databricks.sql.connect',
     )
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_json._check_imports.DatabricksSession',
+        'databricks.connect.DatabricksSession',
     )
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_json._check_imports.WorkspaceClient',
+        'databricks.sdk.WorkspaceClient',
     )
     @patch(
         'llmfoundry.command_utils.data_prep.convert_delta_to_json.os.makedirs',
@@ -253,13 +253,13 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )
 
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_json._check_imports.sql.connect',
+        'databricks.sql.connect',
     )
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_json._check_imports.DatabricksSession',
+        'databricks.connect.DatabricksSession',
     )
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_json._check_imports.WorkspaceClient',
+        'databricks.sdk.WorkspaceClient',
     )
     @patch(
         'llmfoundry.command_utils.data_prep.convert_delta_to_json.os.makedirs',
@@ -305,13 +305,13 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )
 
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_json._check_imports.sql.connect',
+        'databricks.sql.connect',
     )
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_json._check_imports.DatabricksSession',
+        'databricks.connect.DatabricksSession',
     )
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_json._check_imports.WorkspaceClient',
+        'databricks.sdk.WorkspaceClient',
     )
     @patch(
         'llmfoundry.command_utils.data_prep.convert_delta_to_json.os.makedirs',
@@ -357,13 +357,13 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )
 
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_json._check_imports.sql.connect',
+        'databricks.sql.connect',
     )
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_json._check_imports.DatabricksSession',
+        'databricks.connect.DatabricksSession',
     )
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_json._check_imports.WorkspaceClient',
+        'databricks.sdk.WorkspaceClient',
     )
     @patch(
         'llmfoundry.command_utils.data_prep.convert_delta_to_json.os.makedirs',
@@ -409,13 +409,13 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )
 
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_json._check_imports.sql.connect',
+        'databricks.sql.connect',
     )
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_json._check_imports.DatabricksSession',
+        'databricks.connect.DatabricksSession',
     )
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_json._check_imports.WorkspaceClient',
+        'databricks.sdk.WorkspaceClient',
     )
     @patch(
         'llmfoundry.command_utils.data_prep.convert_delta_to_json.os.makedirs',

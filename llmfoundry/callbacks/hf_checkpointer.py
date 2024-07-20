@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import numpy as np
 import torch
 import torch.nn as nn
+from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from composer.core import Callback, Event, Precision, State, Time, TimeUnit
 from composer.core.state import fsdp_state_dict_type_context
 from composer.loggers import Logger, MLFlowLogger
@@ -275,6 +276,15 @@ class HuggingFaceCheckpointer(Callback):
                 mlflow.environment_variables.MLFLOW_HUGGINGFACE_MODEL_MAX_SHARD_SIZE.set(
                     '1GB',
                 )
+            
+            # Check if the model is using PEFT
+            if state.is_model_ddp:
+                composer_model = state.model.module
+            elif isinstance(state.model.model, FSDP):
+                composer_model = state.model
+            else:
+                composer_model = state.model
+            self.using_peft = composer_model.using_peft
         elif event == Event.FIT_END:
             # Wait for all child processes spawned by the callback to finish.
             timeout = 3600
@@ -406,25 +416,19 @@ class HuggingFaceCheckpointer(Callback):
         temp_save_dir = tempfile.mkdtemp() if use_temp_dir else save_dir
 
         log.debug('Gathering state dict')
-        from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 
         if state.is_model_ddp:
-            composer_model = state.model.module
             original_model: PreTrainedModel = state.model.module.model
             state_dict_model = state.model.module.model
             original_tokenizer = state.model.module.tokenizer
         elif isinstance(state.model.model, FSDP):
-            composer_model = state.model
             original_model: PreTrainedModel = state.model.model.module
             state_dict_model = state.model.model
             original_tokenizer = state.model.tokenizer
         else:
-            composer_model = state.model
             original_model: PreTrainedModel = state.model.model
             state_dict_model = state.model.model
             original_tokenizer = state.model.tokenizer
-
-        self.using_peft = composer_model.using_peft
 
         if version.parse(torch.__version__) > version.parse('2.2.9'):
             from torch.distributed._tensor import DTensor
@@ -512,7 +516,6 @@ class HuggingFaceCheckpointer(Callback):
                         new_base_model_instance,
                         original_model.peft_config[active_adapter],
                     )
-                    new_model_instance.to(dtype=self.dtype)
                 else:
                     new_model_instance = type(original_model)(new_config)
                     new_model_instance.generation_config.update(

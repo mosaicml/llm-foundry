@@ -382,7 +382,7 @@ class HuggingFaceCheckpointer(Callback):
     ) -> PreTrainedModel:
         """Transform the model before registering with MLFlow.
 
-        This allows a subclass to modify the model before registering with MLFlow. The base class implementation will
+        This allows a subclass to modify the model before registering with MLflow. The base class implementation will
         make no modifications.
 
         Args:

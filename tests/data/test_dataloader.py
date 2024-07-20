@@ -22,7 +22,6 @@ from streaming import MDSWriter
 from streaming.base.util import clean_stale_shared_memory
 
 from llmfoundry.command_utils import convert_dataset_hf
-# yapf: enable
 from llmfoundry.command_utils.data_prep.convert_finetuning_dataset import \
     get_columns_and_format
 from llmfoundry.data import build_dataloader, build_finetuning_dataloader

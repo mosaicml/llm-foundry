@@ -653,7 +653,6 @@ def fetch_DT(
 
 
 def _check_imports():
-    global DatabricksSession, SparkSession, Cursor, sql, WorkspaceClient
     try:
         import lz4.frame
         _ = lz4.frame
@@ -662,6 +661,7 @@ def _check_imports():
 
     try:
         from databricks.connect import DatabricksSession
+        _ = DatabricksSession
     except ImportError as e:
         raise ImportError(
             'databricks-connect is not installed or improperly configured.',
@@ -672,6 +672,7 @@ def _check_imports():
         from databricks.sdk import WorkspaceClient
         from databricks.sql.client import Connection as Connection
         from databricks.sql.client import Cursor as Cursor
+        _ = WorkspaceClient, Connection, Cursor, sql
     except ImportError as e:
         raise ImportError(
             'databricks-sdk is not installed or improperly configured.',

@@ -116,7 +116,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         self.assertEqual(mock_file().write.call_count, 2)
 
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_json.run_query.SparkSession',
+        'pyspark.sql.SparkSession',
     )
     def test_run_query_dbconnect(self, mock_spark: Any):
         method = 'dbconnect'
@@ -134,7 +134,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         self.assertEqual(result, 'result')
 
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_json.run_query.Cursor',
+        'databricks.sql.client.Cursor',
     )
     def test_run_query_dbsql(self, mock_cursor: Any):
         method = 'dbsql'

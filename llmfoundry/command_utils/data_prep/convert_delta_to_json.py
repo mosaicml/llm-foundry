@@ -663,7 +663,6 @@ def _check_imports():
     try:
         from databricks.connect import DatabricksSession
     except ImportError as e:
-        DatabricksSession = None
         raise ImportError(
             'databricks-connect is not installed or improperly configured.',
         ) from e
@@ -674,9 +673,6 @@ def _check_imports():
         from databricks.sql.client import Connection as Connection
         from databricks.sql.client import Cursor as Cursor
     except ImportError as e:
-        sql = None
-        Cursor = None
-        WorkspaceClient = None
         raise ImportError(
             'databricks-sdk is not installed or improperly configured.',
         ) from e
@@ -702,7 +698,6 @@ def _check_imports():
             Row,
         )
     except ImportError as e:
-        SparkSession = None
         raise ImportError(
             'pyspark is not installed or improperly configured.',
         ) from e

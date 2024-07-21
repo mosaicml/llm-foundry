@@ -150,6 +150,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             prepare_for_fsdp=True,
         )
 
+        self.transform_model(model)
+
         train_metrics, eval_metrics = ComposerHFCausalLM.build_metrics(
             use_train_metrics=use_train_metrics,
             additional_train_metrics=additional_train_metrics,
@@ -176,6 +178,17 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             peft_config=peft_config_object,
             should_save_peft_only=should_save_peft_only,
         )
+
+    def transform_model(self, model: PreTrainedModel) -> PreTrainedModel:
+        """Transforms the model after initialization.
+
+        Args:
+            model (PreTrainedModel): The model to transform.
+
+        Returns:
+            PreTrainedModel: The transformed model.
+        """
+        return model
 
     @staticmethod
     def build_metrics(

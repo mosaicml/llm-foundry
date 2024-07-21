@@ -11,7 +11,6 @@ from typing import (
     Any,
     Dict,
     List,
-    Mapping,
     Optional,
     Tuple,
     Union,
@@ -23,7 +22,6 @@ from torchmetrics import Metric
 from transformers import (
     AutoConfig,
     AutoModelForCausalLM,
-    PretrainedConfig,
     PreTrainedModel,
     PreTrainedTokenizerBase,
 )
@@ -36,7 +34,7 @@ from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithFSDP
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.utils import init_empty_weights
-from llmfoundry.utils.config_utils import get_hf_config_value
+from llmfoundry.utils.config_utils import set_config_overrides
 
 if TYPE_CHECKING:
     from peft import PeftConfig, PeftModel
@@ -44,48 +42,6 @@ if TYPE_CHECKING:
 __all__ = ['ComposerHFCausalLM']
 
 log = logging.getLogger(__name__)
-
-
-def set_config_overrides(
-    config: PretrainedConfig,
-    config_overrides: Dict[str, Any],
-):
-    # set config overrides
-    for k, v in config_overrides.items():
-        if not hasattr(config, k):
-            raise ValueError(
-                f'config does not have attribute "{k}" to override ({k}: {v}).',
-            )
-
-        attr = getattr(config, k)
-        # attempt to disallow typos in nested configs
-        if isinstance(attr, Mapping):
-            extra_keys = [_k for _k in v.keys() if _k not in attr.keys()]
-            if extra_keys:
-                raise ValueError(
-                    f'Config dict override got unknown keys. ' +
-                    f'Extra keys: {extra_keys}. ' +
-                    f'Expected (a subset of) keys: {list(attr.keys())}.',
-                )
-            getattr(config, k).update(v)
-        # necessary case to allow for rope_scaling to be overriden in llama config
-        elif attr is None and isinstance(v, Mapping):
-            setattr(config, k, {})
-            getattr(config, k).update(v)
-        elif isinstance(attr, PretrainedConfig):
-            if not isinstance(v, Mapping):
-                raise ValueError(
-                    f'Expected a dictionary for config override {k}, but got {v}.',
-                )
-
-            for _k, _v in v.items():
-                if not hasattr(attr, _k):
-                    raise ValueError(
-                        f'config does not have attribute "{_k}" to override ({k}: {_k}: {_v}).',
-                    )
-                setattr(attr, _k, _v)
-        else:
-            setattr(config, k, v)
 
 
 class ComposerHFCausalLM(HuggingFaceModelWithFSDP):

@@ -36,8 +36,10 @@ from llmfoundry.utils.builders import (
     build_callback,
     build_composer_model,
     build_evaluators,
+    build_load_planner,
     build_logger,
     build_optimizer,
+    build_save_planner,
     build_scheduler,
     build_tokenizer,
 )
@@ -255,6 +257,31 @@ def train(cfg: DictConfig) -> Trainer:
 
     # Optional fsdp data, fine-tuning, and eval configs
     fsdp_config: Optional[Dict[str, Any]] = train_cfg.fsdp_config
+
+    if fsdp_config is not None:
+        if 'load_planner' in fsdp_config:
+            load_planners = fsdp_config['load_planner'].items()
+            if len(load_planners) > 1:
+                raise ValueError(
+                    'Only one load planner can be specified in the config.',
+                )
+            load_planner_name, load_planner_config = load_planners[0]
+            fsdp_config['load_planner'] = build_load_planner(
+                load_planner_name,
+                **load_planner_config,
+            )
+
+        if 'save_planner' in fsdp_config:
+            save_planners = fsdp_config['save_planner'].items()
+            if len(save_planners) > 1:
+                raise ValueError(
+                    'Only one save planner can be specified in the config.',
+                )
+            save_planner_name, save_planner_config = save_planners[0]
+            fsdp_config['save_planner'] = build_save_planner(
+                save_planner_name,
+                **save_planner_config,
+            )
 
     eval_loader_config = train_cfg.eval_loader if train_cfg.eval_loader is not None else train_cfg.eval_loaders
     icl_tasks_config = train_cfg.icl_tasks or train_cfg.icl_tasks_str
@@ -567,6 +594,7 @@ def train_from_yaml(
 ) -> Trainer:
     """Run the training with optional overrides from CLI."""
     # Load yaml and CLI arguments.
+    om.clear_resolver('oc.env')
     with open(yaml_path) as f:
         yaml_cfg = om.load(f)
     if args_list:

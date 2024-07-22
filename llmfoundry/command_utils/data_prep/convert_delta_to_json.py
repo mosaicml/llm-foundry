@@ -34,6 +34,18 @@ if TYPE_CHECKING:
     from pyspark.sql.dataframe import DataFrame as SparkDataFrame
     from pyspark.sql.types import Row
 
+try:
+    from pyspark.sql.connect.client.core import SparkConnectClient
+    spark_connect_client_installed = True
+except ImportError:
+    spark_connect_client_installed = False
+
+try:
+    from pyspark.sql.connect.dataframe import DataFrame
+    data_frame_installed = True
+except ImportError:
+    data_frame_installed = False
+
 MINIMUM_DB_CONNECT_DBR_VERSION = '14.1'
 MINIMUM_SQ_CONNECT_DBR_VERSION = '12.2'
 
@@ -143,10 +155,9 @@ def to_cf(self: 'SparkConnectClient',
             is_overflow |= batch.truncated
     return result, row_count, is_overflow
 
-try:
-    from pyspark.sql.connect.client.core import SparkConnectClient
+if spark_connect_client_installed:
     SparkConnectClient.to_cf = to_cf  # pyright: ignore
-except ImportError:
+else:
     raise ImportError(
         'pyspark SparkConnectClient is not installed or improperly configured.',
     )
@@ -174,10 +185,9 @@ def collect_as_cf(self: 'DataFrame',
     return self._session.client.to_cf(query, type)  # pyright: ignore
 
 
-try:
-    from pyspark.sql.connect.dataframe import DataFrame
+if data_frame_installed:
     DataFrame.collect_cf = collect_as_cf  # pyright: ignore
-except ImportError:
+else:
     raise ImportError(
         'pyspark DataFrame is not installed or improperly configured.',
     )

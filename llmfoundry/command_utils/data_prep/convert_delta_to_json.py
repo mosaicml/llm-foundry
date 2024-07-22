@@ -143,10 +143,13 @@ def to_cf(self: 'SparkConnectClient',
             is_overflow |= batch.truncated
     return result, row_count, is_overflow
 
-
-from pyspark.sql.connect.client.core import SparkConnectClient
-
-SparkConnectClient.to_cf = to_cf  # pyright: ignore
+try:
+    from pyspark.sql.connect.client.core import SparkConnectClient
+    SparkConnectClient.to_cf = to_cf  # pyright: ignore
+except ImportError:
+    raise ImportError(
+        'pyspark SparkConnectClient is not installed or improperly configured.',
+    )
 
 
 def collect_as_cf(self: 'DataFrame',
@@ -171,10 +174,13 @@ def collect_as_cf(self: 'DataFrame',
     return self._session.client.to_cf(query, type)  # pyright: ignore
 
 
-from pyspark.sql.connect.dataframe import DataFrame
-
-DataFrame.collect_cf = collect_as_cf  # pyright: ignore
-
+try:
+    from pyspark.sql.connect.dataframe import DataFrame
+    DataFrame.collect_cf = collect_as_cf  # pyright: ignore
+except ImportError:
+    raise ImportError(
+        'pyspark DataFrame is not installed or improperly configured.',
+    )
 
 def iterative_combine_jsons(json_directory: str, output_file: str) -> None:
     """Combine jsonl files in json_directory into one big jsonl file.

@@ -442,19 +442,22 @@ class HuggingFaceCheckpointer(Callback):
             prefix: str,
             *args: Any,
         ) -> Dict[str, Any]:
-            dtensor_fqns = []
             for fqn in state_dict.keys():
                 tensor = state_dict[fqn]
                 if isinstance(tensor, DTensor):
-                    dtensor_fqns.append(fqn)
                     tensor = tensor.full_tensor()  # type: ignore
                     if dist.get_global_rank() == 0:
                         if cpu_offload:
                             tensor = tensor.cpu()
                         state_dict[fqn] = tensor
+                    else:
+                        state_dict[fqn] = None
+                # Convert the state dict to the requested precision
+                if isinstance(tensor, torch.Tensor):
+                    state_dict[fqn] = tensor.to(dtype=self.dtype)
+                    del tensor
             if dist.get_global_rank() != 0:
-                for fqn in dtensor_fqns:
-                    del state_dict[fqn]
+                state_dict = {}
             return state_dict
 
         hooks = []
@@ -473,11 +476,6 @@ class HuggingFaceCheckpointer(Callback):
         )
         for hook in hooks:
             hook.remove()
-
-        # Convert the state dict to the requested precision
-        for k, v in state_dict.items():
-            if isinstance(v, torch.Tensor):
-                state_dict[k] = v.to(dtype=self.dtype)
 
         new_model_instance = None  # Need this for pyright because variable could be unbound
 
@@ -537,7 +535,7 @@ class HuggingFaceCheckpointer(Callback):
                 original_tokenizer.save_pretrained(temp_save_dir)
 
             # Only need to edit files for MPT because it has custom code
-            if original_model.config.model_type == 'mpt':
+            if new_model_instance.config.model_type == 'mpt':
                 log.debug('Editing MPT files for HuggingFace compatibility')
                 edit_files_for_hf_compatibility(
                     temp_save_dir,

@@ -436,7 +436,7 @@ class HuggingFaceCheckpointer(Callback):
         cpu_offload = True
 
         # Add a dtensor->cpu tensor hook to avoid CUDA OOM
-        def dtensor_to_tensor_hook(
+        def tensor_hook(
             module: nn.Module,
             state_dict: Dict[str, Any],
             prefix: str,
@@ -449,6 +449,7 @@ class HuggingFaceCheckpointer(Callback):
                     dtensor_fqns.append(fqn)
                     tensor = tensor.full_tensor()  # type: ignore
                     if dist.get_global_rank() == 0:
+                        # Offload any DTensors to CPU
                         if cpu_offload:
                             tensor = tensor.cpu()
                         state_dict[fqn] = tensor
@@ -464,10 +465,7 @@ class HuggingFaceCheckpointer(Callback):
 
         hooks = []
         for _, module in state_dict_model.named_modules():
-            if isinstance(module, FSDP):
-                hooks.append(
-                    module._register_state_dict_hook(dtensor_to_tensor_hook),
-                )
+            hooks.append(module._register_state_dict_hook(tensor_hook),)
 
         state_dict = get_model_state_dict(
             state_dict_model,

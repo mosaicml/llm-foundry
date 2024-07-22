@@ -20,6 +20,8 @@ from llmfoundry.command_utils.eval import (
     eval_from_yaml,
     evaluate,
 )
+from llmfoundry.command_utils.misc.convert_examples_ckpt import \
+    convert_examples_ckpt_from_args
 from llmfoundry.command_utils.train import (
     TRAIN_CONFIG_KEYS,
     TrainConfig,
@@ -44,4 +46,5 @@ __all__ = [
     'convert_finetuning_dataset',
     'convert_text_to_mds',
     'convert_text_to_mds_from_args',
+    'convert_examples_ckpt_from_args',
 ]

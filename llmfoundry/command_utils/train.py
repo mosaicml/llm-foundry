@@ -546,6 +546,11 @@ def train(cfg: DictConfig) -> Trainer:
         compile_config=compile_config,
     )
 
+    for name, param in trainer.state.model.named_parameters():
+        print(name)
+        print(type(param))
+        print(param.size())
+
     # Optionally just save an HF checkpoint
     if train_cfg.only_hf_checkpoint:
         hf_checkpointer_callbacks = [

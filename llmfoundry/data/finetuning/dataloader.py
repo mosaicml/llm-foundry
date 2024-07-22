@@ -534,42 +534,27 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
 
         # Since we don't know exactly what the extension will be, since it is one of a list
         # use a signal file to wait for instead of the desired file
-        signal_file_path = os.path.join(
-            finetune_dir,
-            f'.node_{dist.get_node_rank()}_local_rank0_completed',
-        )
-        if dist.get_local_rank() == 0:
-            try:
-                get_file(path=name, destination=destination, overwrite=True)
-            except FileNotFoundError as e:
-                if extension == SUPPORTED_EXTENSIONS[-1]:
-                    files_searched = [
-                        f'{name}/{split}{ext}' for ext in SUPPORTED_EXTENSIONS
-                    ]
-                    raise FileNotFoundError(
-                        f'Could not find a file with any of ' + \
-                        f'the supported extensions: {SUPPORTED_EXTENSIONS}\n' + \
-                        f'at {files_searched}',
-                    ) from e
-                else:
-                    log.debug(
-                        f'Could not find {name}, looking for another extension',
-                    )
-                continue
+        with dist.busy_wait_for_local_rank_zero(finetune_dir):
+            if dist.get_local_rank() == 0:
+                try:
+                    get_file(path=name, destination=destination, overwrite=True)
+                except FileNotFoundError as e:
+                    if extension == SUPPORTED_EXTENSIONS[-1]:
+                        files_searched = [
+                            f'{name}/{split}{ext}'
+                            for ext in SUPPORTED_EXTENSIONS
+                        ]
+                        raise FileNotFoundError(
+                            f'Could not find a file with any of ' + \
+                            f'the supported extensions: {SUPPORTED_EXTENSIONS}\n' + \
+                            f'at {files_searched}',
+                        ) from e
+                    else:
+                        log.debug(
+                            f'Could not find {name}, looking for another extension',
+                        )
+                    continue
 
-            os.makedirs(os.path.dirname(signal_file_path), exist_ok=True)
-            with open(signal_file_path, 'wb') as f:
-                f.write(b'local_rank0_completed_download')
-
-        # Avoid the collective call until the local rank zero has finished trying to download the dataset
-        # so that we don't timeout for large downloads. This syncs all processes on the node
-        with dist.local_rank_zero_download_and_wait(signal_file_path):
-            # Then, wait to ensure every node has finished trying to download the dataset
-            dist.barrier()
-
-        # clean up signal file
-        if dist.get_local_rank() == 0:
-            os.remove(signal_file_path)
         dist.barrier()
         break
     return finetune_dir

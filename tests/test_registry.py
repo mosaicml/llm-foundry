@@ -24,6 +24,7 @@ def test_expected_registries_exist():
         'loggers',
         'optimizers',
         'schedulers',
+        'tokenizers',
         'callbacks',
         'algorithms',
         'callbacks_with_config',

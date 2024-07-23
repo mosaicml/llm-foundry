@@ -22,7 +22,6 @@ from tqdm import tqdm
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from llmfoundry.data.data import AbstractConcatTokensDataset
-from llmfoundry.utils.builders import build_tokenizer
 from llmfoundry.utils.data_prep_utils import (
     DownloadingIterable,
     download_file,

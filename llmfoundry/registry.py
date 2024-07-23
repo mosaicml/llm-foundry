@@ -396,6 +396,7 @@ __all__ = [
     'optimizers',
     'algorithms',
     'schedulers',
+    'tokenizers',
     'models',
     'dataset_replication_validators',
     'collators',

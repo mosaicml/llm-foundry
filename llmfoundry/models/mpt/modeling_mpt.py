@@ -1396,9 +1396,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         return MPTConfig
 
     def get_targets(self, batch: Mapping) -> torch.Tensor:
-        targets = torch.roll(batch['labels'], shifts=-1)
-        targets[:, -1] = -100
-        return targets
+        return get_targets(batch['labels'])
 
     def forward(self, batch: MutableMapping) -> CausalLMOutputWithPast:
         if self.config.ffn_config['ffn_type'] in ffns_with_megablocks:

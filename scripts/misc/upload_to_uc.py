@@ -46,13 +46,29 @@ def load_model_from_mlflow_and_log_to_uc(
         parent_dir = download_artifacts(experiment_path, run_name)
         print("Finished downloading files temporarily. Now loading model...")
 
+
+        print(parent_dir)
+        try:
+            # Now that all files are downloaded, you can load the model and tokenizer from the tempdir
+            tokenizer = AutoTokenizer.from_pretrained(
+                parent_dir, trust_remote_code=True
+            )
+            print("Tokenizer loaded...")
+            model = AutoModelForCausalLM.from_pretrained(
+                parent_dir, trust_remote_code=True
+            )
+            print("Model loaded...")
+        except Exception as e:
+            print(f"Error loading model angd tokenizer: {e}")
+            print("trying again!")
+        new_dir = str(Path(parent_dir).parent)
         # Now that all files are downloaded, you can load the model and tokenizer from the tempdir
         tokenizer = AutoTokenizer.from_pretrained(
-            parent_dir, trust_remote_code=True
+            new_dir, trust_remote_code=True
         )
         print("Tokenizer loaded...")
         model = AutoModelForCausalLM.from_pretrained(
-            parent_dir, trust_remote_code=True
+            new_dir, trust_remote_code=True
         )
         print("Model loaded...")
 

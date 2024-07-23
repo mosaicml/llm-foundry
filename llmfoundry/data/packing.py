@@ -424,8 +424,6 @@ def profile_packing(
     dataloader_cfg = copy.deepcopy(dataloader_cfg)
     dataloader_cfg.update({
         'drop_last': False,
-        'num_workers': 0,
-        'prefetch_factor': None,
         'persistent_workers': False,
     })
     dataloader_cfg['dataset']['packing_ratio'] = 1.0

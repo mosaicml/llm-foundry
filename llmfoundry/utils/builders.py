@@ -27,6 +27,7 @@ from composer.optim.scheduler import ComposerScheduler
 from composer.utils import dist
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
+from torch.distributed.checkpoint import LoadPlanner, SavePlanner
 from torch.optim.optimizer import Optimizer
 from torchmetrics import Metric
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
@@ -36,7 +37,6 @@ from llmfoundry.callbacks import EvalGauntlet
 from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.eval.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
-from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
 from llmfoundry.utils.config_utils import to_dict_container, to_list_container
 from llmfoundry.utils.registry_utils import construct_from_registry
 
@@ -185,6 +185,44 @@ def build_icl_data_and_gauntlet(
         }
         eval_gauntlet_cb = EvalGauntlet(**eval_gauntlet)
     return icl_evaluators, logger_keys, eval_gauntlet_cb
+
+
+def build_load_planner(name: str, **kwargs: Any) -> LoadPlanner:
+    """Builds a load planner from the registry.
+
+    Args:
+        name: Name of the load planner to build.
+
+    Returns:
+        LoadPlanner: The load planner.
+    """
+    return construct_from_registry(
+        name=name,
+        registry=registry.load_planners,
+        partial_function=True,
+        pre_validation_function=LoadPlanner,
+        post_validation_function=None,
+        kwargs=kwargs,
+    )
+
+
+def build_save_planner(name: str, **kwargs: Any) -> SavePlanner:
+    """Builds a save planner from the registry.
+
+    Args:
+        name: Name of the save planner to build.
+
+    Returns:
+        savePlanner: The save planner.
+    """
+    return construct_from_registry(
+        name=name,
+        registry=registry.save_planners,
+        partial_function=True,
+        pre_validation_function=SavePlanner,
+        post_validation_function=None,
+        kwargs=kwargs,
+    )
 
 
 def build_composer_model(
@@ -467,8 +505,15 @@ def build_tokenizer(
         with dist.local_rank_zero_download_and_wait(signal_file_path):
             pass
 
-    if tokenizer_name.startswith('tiktoken'):
-        tokenizer = TiktokenTokenizerWrapper(**tokenizer_kwargs)
+    if tokenizer_name in registry.tokenizers:
+        tokenizer = construct_from_registry(
+            name=tokenizer_name,
+            registry=registry.tokenizers,
+            partial_function=True,
+            pre_validation_function=PreTrainedTokenizerBase,
+            post_validation_function=None,
+            kwargs=tokenizer_kwargs,
+        )
     else:
         tokenizer = AutoTokenizer.from_pretrained(
             tokenizer_name,

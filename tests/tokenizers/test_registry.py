@@ -35,7 +35,7 @@ class DummyTokenizer(PreTrainedTokenizer):
     def encode(self, text: str) -> List[int]:
         return [ord(character) for character in text]
 
-    def decode(self, token_ids: List[int]) -> List[str]:
+    def decode(self, token_ids: List[int]) -> str:
         return ''.join([chr(token) for token in token_ids])
 
     def __call__(self, text: str) -> BatchEncoding:

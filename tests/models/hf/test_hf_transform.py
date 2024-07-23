@@ -57,7 +57,6 @@ def test_hf_transform(peft_config: Optional[dict]):
             self,
             peft_config_dict: Dict[str, Any],
         ) -> PeftConfig:
-            print('GOT PEFT CONFIG')
             peft_config_dict['target_modules'] = ['o_proj']
             return super().get_peft_config(peft_config_dict)
 

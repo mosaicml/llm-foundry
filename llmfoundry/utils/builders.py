@@ -37,7 +37,6 @@ from llmfoundry.callbacks import EvalGauntlet
 from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.eval.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
-from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
 from llmfoundry.utils.config_utils import to_dict_container, to_list_container
 from llmfoundry.utils.registry_utils import construct_from_registry
 
@@ -498,7 +497,7 @@ def build_tokenizer(
     os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
-    signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_completed_tokenizer_setup'
+    signal_file_path = dist.get_node_signal_file_name()
 
     if dist.is_available() and dist.is_initialized(
     ) and dist.get_world_size() > 1:
@@ -506,8 +505,15 @@ def build_tokenizer(
         with dist.local_rank_zero_download_and_wait(signal_file_path):
             pass
 
-    if tokenizer_name.startswith('tiktoken'):
-        tokenizer = TiktokenTokenizerWrapper(**tokenizer_kwargs)
+    if tokenizer_name in registry.tokenizers:
+        tokenizer = construct_from_registry(
+            name=tokenizer_name,
+            registry=registry.tokenizers,
+            partial_function=True,
+            pre_validation_function=PreTrainedTokenizerBase,
+            post_validation_function=None,
+            kwargs=tokenizer_kwargs,
+        )
     else:
         tokenizer = AutoTokenizer.from_pretrained(
             tokenizer_name,

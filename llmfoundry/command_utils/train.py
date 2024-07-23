@@ -260,7 +260,7 @@ def train(cfg: DictConfig) -> Trainer:
 
     if fsdp_config is not None:
         if 'load_planner' in fsdp_config:
-            load_planners = fsdp_config['load_planner'].items()
+            load_planners = list(fsdp_config['load_planner'].items())
             if len(load_planners) > 1:
                 raise ValueError(
                     'Only one load planner can be specified in the config.',
@@ -272,7 +272,7 @@ def train(cfg: DictConfig) -> Trainer:
             )
 
         if 'save_planner' in fsdp_config:
-            save_planners = fsdp_config['save_planner'].items()
+            save_planners = list(fsdp_config['save_planner'].items())
             if len(save_planners) > 1:
                 raise ValueError(
                     'Only one save planner can be specified in the config.',

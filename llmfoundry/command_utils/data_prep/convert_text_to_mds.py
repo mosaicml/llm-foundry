@@ -394,6 +394,13 @@ def convert_text_to_mds(
         reprocess (bool): Whether to always reprocess the given folder of text files
         trust_remote_code (bool): If true, allows custom code to be executed to load the tokenizer
     """
+    # Load the tokenizer once on the main process so that the files are cached to avoid race conditions
+    # in the Hugging Face load code
+    AutoTokenizer.from_pretrained(
+        tokenizer_name,
+        trust_remote_code=trust_remote_code,
+    )
+
     is_remote_output = is_remote_path(output_folder)
     log.info(f'Output is remote: {is_remote_output}')
 

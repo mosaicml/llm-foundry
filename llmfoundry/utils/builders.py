@@ -505,6 +505,11 @@ def build_tokenizer(
         with dist.local_rank_zero_download_and_wait(signal_file_path):
             pass
 
+    names = dist.all_gather_object(signal_file_path)
+    print("+"*30)
+    print(names)
+    print("+"*30)
+
     if tokenizer_name in registry.tokenizers:
         tokenizer = construct_from_registry(
             name=tokenizer_name,

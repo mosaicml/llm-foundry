@@ -439,7 +439,10 @@ def test_alibi_bias(n_heads: int):
     reason=
     'attn_logit_softcapping only supported by Flash Attention after v2.6.2.',
 )
-@pytest.mark.parametrize('attn_logit_softcapping', [None, 50.0])
+@pytest.mark.parametrize(
+    'attn_logit_softcapping',
+    [None, 0.1, 1.0, 10.0, 100.0],
+)
 def test_attn_logit_softcapping(attn_logit_softcapping: Optional[float]):
     # Test that attn_logit_softcapping in attention works as expected.
     dtype = torch.bfloat16
@@ -451,8 +454,6 @@ def test_attn_logit_softcapping(attn_logit_softcapping: Optional[float]):
 
     query_1 = torch.randn(bsz, seqlen_1,
                           n_heads * d).to(dtype=dtype, device=device)
-    if attn_logit_softcapping is not None:
-        query_1 = query_1 * attn_logit_softcapping
     query_1.requires_grad = True
     key_1 = torch.randn(bsz, seqlen_1,
                         n_heads * d).to(dtype=dtype, device=device)
@@ -510,7 +511,7 @@ def test_attn_logit_softcapping(attn_logit_softcapping: Optional[float]):
     )
     output_2.sum().backward()
 
-    _assert_approx_equal(output_1, output_2, rtol=3e-2)
+    _assert_approx_equal(output_1, output_2)
     assert (query_2.grad is not None) and (query_1.grad is not None)
     _assert_approx_equal(query_1.grad, query_2.grad)
     assert (key_2.grad is not None) and (key_1.grad is not None)

@@ -398,7 +398,8 @@ def convert_text_to_mds(
     # Load the tokenizer once on the main process so that the files are cached to avoid race conditions
     # in the Hugging Face load code
     AutoTokenizer.from_pretrained(
-        tokenizer_name, trust_remote_code=trust_remote_code
+        tokenizer_name,
+        trust_remote_code=trust_remote_code,
     )
 
     is_remote_output = is_remote_path(output_folder)

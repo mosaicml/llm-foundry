@@ -183,6 +183,7 @@ class MPTConfig(PretrainedConfig):
         if block_overrides is not None:
             self._validate_block_overrides(block_overrides)
         self.block_overrides = block_overrides
+        self.final_logit_softcapping = final_logit_softcapping
 
         if isinstance(fc_type, str):
             fc_type = {'name': fc_type}

@@ -103,6 +103,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             config_overrides=config_overrides,
             load_in_8bit=load_in_8bit,
             pretrained=pretrained,
+            prepare_for_fsdp=False,
         )
 
         model = self.transform_model(model)
@@ -191,6 +192,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         config_overrides: Dict[str, Any],
         load_in_8bit: bool,
         pretrained: bool,
+        prepare_for_fsdp: bool = False,
     ) -> Union[PreTrainedModel, 'PeftModel']:
         """Builds the inner model for the ComposerHFCausalLM.
 
@@ -360,6 +362,9 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                 model,
                 pretrained_lora_id_or_path,
             )
+
+        if prepare_for_fsdp:
+            ComposerHFCausalLM.prepare_inner_model(model, init_device)
 
         return model
 

@@ -21,8 +21,8 @@ from streaming import MDSWriter
 from tqdm import tqdm
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
-from llmfoundry.utils.builders import build_tokenizer
 from llmfoundry.data.data import AbstractConcatTokensDataset
+from llmfoundry.utils.builders import build_tokenizer
 from llmfoundry.utils.data_prep_utils import (
     DownloadingIterable,
     download_file,
@@ -397,7 +397,9 @@ def convert_text_to_mds(
     """
     # Load the tokenizer once on the main process so that the files are cached to avoid race conditions
     # in the Hugging Face load code
-    AutoTokenizer.from_pretrained(tokenizer_name, trust_remote_code=trust_remote_code)
+    AutoTokenizer.from_pretrained(
+        tokenizer_name, trust_remote_code=trust_remote_code
+    )
 
     is_remote_output = is_remote_path(output_folder)
     log.info(f'Output is remote: {is_remote_output}')

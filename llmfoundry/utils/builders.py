@@ -499,11 +499,6 @@ def build_tokenizer(
 
     signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_completed_tokenizer_setup'
 
-    names = dist.all_gather_object(signal_file_path)
-    print("+"*30)
-    print(names)
-    print("+"*30)
-
     if dist.is_available() and dist.is_initialized(
     ) and dist.get_world_size() > 1:
         # Make sure the tokenizer files are downloaded and cached first by local rank 0

@@ -540,6 +540,15 @@ def build_tokenizer(
 
     return tokenizer
 
+    # return construct_from_registry(
+    #     name=tokenizer_name,
+    #     registry=registry.tokenizers,
+    #     partial_function=True,
+    #     pre_validation_function=PreTrainedTokenizerBase,
+    #     post_validation_function=None,
+    #     kwargs=tokenizer_kwargs,
+    # )
+
 
 def build_icl_evaluators(
     icl_tasks: Union[str, List[Dict[str, Any]]],

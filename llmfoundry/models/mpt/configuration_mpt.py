@@ -50,6 +50,7 @@ class MPTConfig(PretrainedConfig):
         tie_word_embeddings: bool = True,
         use_pad_tok_in_ffn: bool = True,
         block_overrides: Optional[Dict[str, Any]] = None,
+        final_logit_softcapping: Optional[float] = None,
         **kwargs: Any,
     ):
         """The MPT configuration class.
@@ -145,6 +146,7 @@ class MPTConfig(PretrainedConfig):
                             reuse_kv_layer:
                                 attn_config:
                                     reuse_kv_layer_idx: -6 # Relative index of the layer whose kv cache to reuse
+            final_logit_softcapping (float | None): Softcapping threshold for final logit. Set to None to disable (default value None). Please see https://arxiv.org/pdf/2403.08295 for more details.
         """
         self.d_model = d_model
         self.n_heads = n_heads
@@ -331,14 +333,17 @@ class MPTConfig(PretrainedConfig):
             raise NotImplementedError(
                 'sliding window only implemented with flash attention v2.3.0 or higher.',
             )
-        if self.attn_config['softcap'] < 0:
-            raise ValueError('Attention softcap should be non-negative.')
-        if self.attn_config['softcap'] != 0.0 and self.attn_config[
-            'attn_impl'
-        ] == 'flash' and not is_flash_v2_installed(v2_version='v2.6.1',):
-            raise NotImplementedError(
-                'Attention softcap is only implemented with torch attention or flash attention v2.6.1 (or higher).',
-            )
+        if self.attn_config['attn_logit_softcapping'] is not None:
+            if self.attn_config['attn_logit_softcapping'] <= 0:
+                raise ValueError(
+                    'Attention attn_logit_softcapping should be positive.',
+                )
+            if self.attn_config[
+                'attn_impl'
+            ] == 'flash' and not is_flash_v2_installed(v2_version='v2.6.2',):
+                raise NotImplementedError(
+                    'Attention attn_logit_softcapping is only implemented with torch attention or flash attention v2.6.2 (or higher).',
+                )
         if self.embedding_fraction > 1 or self.embedding_fraction <= 0:
             raise ValueError(
                 'model.embedding_fraction must be between 0 (exclusive) and 1 (inclusive)!',

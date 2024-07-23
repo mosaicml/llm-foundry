@@ -112,7 +112,7 @@ def scaled_multihead_dot_product_attention(
     dropout_p: float = 0.0,
     training: bool = False,
     needs_weights: bool = False,
-    softcap: float = 0.0,
+    attn_logit_softcapping: Optional[float] = None,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
 
@@ -149,8 +149,10 @@ def scaled_multihead_dot_product_attention(
 
     attn_weight = q.matmul(k) * softmax_scale
 
-    if softcap > 0:
-        attn_weight = softcap * torch.tanh(attn_weight / softcap)
+    if attn_logit_softcapping is not None:
+        attn_weight = attn_logit_softcapping * torch.tanh(
+            attn_weight / attn_logit_softcapping,
+        )
 
     if attn_bias is not None:
         # clamp to 0 necessary for torch 2.0 compile()
@@ -242,7 +244,7 @@ def flash_attn_fn(
     sliding_window_size: int = -1,
     alibi_slopes: Optional[torch.Tensor] = None,
     flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
-    softcap: float = 0.0,
+    attn_logit_softcapping: Optional[float] = None,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
     if key_padding_mask is not None:
@@ -367,8 +369,10 @@ def flash_attn_fn(
             raise ValueError(
                 'alibi_slopes is only supported for flash-attn>=2.4.2',
             )
-        if is_flash_v2_installed(v2_version='v2.6.1'):
-            extra_attn_kwargs['softcap'] = softcap
+        if is_flash_v2_installed(
+            v2_version='v2.6.2',
+        ) and attn_logit_softcapping is not None:
+            extra_attn_kwargs['attn_logit_softcapping'] = attn_logit_softcapping
         output_unpad = flash_attn_interface.flash_attn_varlen_func(
             q=query_unpad,
             k=key_unpad,
@@ -427,7 +431,7 @@ class GroupedQueryAttention(nn.Module):
         bias: bool = True,
         sliding_window_size: int = -1,
         reuse_kv_layer_idx: Optional[int] = None,
-        softcap: float = 0.0,
+        attn_logit_softcapping: Optional[float] = None,
     ):
         super().__init__()
 
@@ -442,7 +446,7 @@ class GroupedQueryAttention(nn.Module):
         self.kv_n_heads = kv_n_heads
         self.sliding_window_size = sliding_window_size
         self.reuse_kv_layer_idx = reuse_kv_layer_idx
-        self.softcap = softcap
+        self.attn_logit_softcapping = attn_logit_softcapping
 
         self.head_dim = d_model // n_heads
 
@@ -597,7 +601,7 @@ class GroupedQueryAttention(nn.Module):
             dropout_p=self.attn_dropout_p,
             training=self.training,
             needs_weights=needs_weights,
-            softcap=self.softcap,
+            attn_logit_softcapping=self.attn_logit_softcapping,
             **extra_attn_kwargs,
         )
 
@@ -811,7 +815,7 @@ class MultiheadAttention(GroupedQueryAttention):
         bias: bool = True,
         sliding_window_size: int = -1,
         reuse_kv_layer_idx: Optional[int] = None,
-        softcap: float = 0.0,
+        attn_logit_softcapping: Optional[float] = None,
     ):
         super().__init__(
             d_model=d_model,
@@ -830,7 +834,7 @@ class MultiheadAttention(GroupedQueryAttention):
             bias=bias,
             sliding_window_size=sliding_window_size,
             reuse_kv_layer_idx=reuse_kv_layer_idx,
-            softcap=softcap,
+            attn_logit_softcapping=attn_logit_softcapping,
         )
 
 
@@ -858,7 +862,7 @@ class MultiQueryAttention(GroupedQueryAttention):
         bias: bool = True,
         sliding_window_size: int = -1,
         reuse_kv_layer_idx: Optional[int] = None,
-        softcap: float = 0.0,
+        attn_logit_softcapping: Optional[float] = None,
     ):
         super().__init__(
             d_model=d_model,
@@ -877,7 +881,7 @@ class MultiQueryAttention(GroupedQueryAttention):
             bias=bias,
             sliding_window_size=sliding_window_size,
             reuse_kv_layer_idx=reuse_kv_layer_idx,
-            softcap=softcap,
+            attn_logit_softcapping=attn_logit_softcapping,
         )
 
 

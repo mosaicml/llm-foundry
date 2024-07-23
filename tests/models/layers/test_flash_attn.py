@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import math
+from typing import Optional
 
 import pytest
 import torch
@@ -434,12 +435,13 @@ def test_alibi_bias(n_heads: int):
 
 @pytest.mark.gpu
 @pytest.mark.skipif(
-    not is_flash_v2_installed(v2_version='v2.6.1'),
-    reason='softcap only supported by Flash Attention after v2.6.1.',
+    not is_flash_v2_installed(v2_version='v2.6.2'),
+    reason=
+    'attn_logit_softcapping only supported by Flash Attention after v2.6.2.',
 )
-@pytest.mark.parametrize('softcap', [0.0, 50.0])
-def test_softcap(softcap: float):
-    # Test that softcap in attention works as expected.
+@pytest.mark.parametrize('attn_logit_softcapping', [None, 50.0])
+def test_attn_logit_softcapping(attn_logit_softcapping: Optional[float]):
+    # Test that attn_logit_softcapping in attention works as expected.
     dtype = torch.bfloat16
     device = 'cuda'
     d = 128
@@ -449,8 +451,8 @@ def test_softcap(softcap: float):
 
     query_1 = torch.randn(bsz, seqlen_1,
                           n_heads * d).to(dtype=dtype, device=device)
-    if softcap > 0.0:
-        query_1 = query_1 * softcap
+    if attn_logit_softcapping is not None:
+        query_1 = query_1 * attn_logit_softcapping
     query_1.requires_grad = True
     key_1 = torch.randn(bsz, seqlen_1,
                         n_heads * d).to(dtype=dtype, device=device)
@@ -481,7 +483,7 @@ def test_softcap(softcap: float):
             None,
         ),
         should_repeat_kv_for_gqa=True,
-        softcap=softcap,
+        attn_logit_softcapping=attn_logit_softcapping,
     )
     output_1.sum().backward()
 
@@ -504,7 +506,7 @@ def test_softcap(softcap: float):
         dropout_p=0.0,
         training=False,
         needs_weights=False,
-        softcap=softcap,
+        attn_logit_softcapping=attn_logit_softcapping,
     )
     output_2.sum().backward()
 

@@ -1035,6 +1035,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
                         f"{logit_scale=} is not recognized as an option; use numeric value or 'inv_sqrt_d_model'.",
                     )
             self.logit_scale = logit_scale
+        self.final_logit_softcapping = config.final_logit_softcapping
 
     @property
     def backbone_model_class(self) -> Type[MPTModel]:
@@ -1133,6 +1134,11 @@ class MPTForCausalLM(MPTPreTrainedModel):
                     f'Multiplying logits by {self.logit_scale=}. This will produce uniform (uninformative) outputs.',
                 )
             logits *= self.logit_scale
+
+        if self.final_logit_softcapping is not None:
+            logits = self.final_logit_softcapping * torch.tanh(
+                logits / self.final_logit_softcapping,
+            )
 
         loss = None
         if labels is not None:

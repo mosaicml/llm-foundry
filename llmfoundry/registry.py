@@ -155,6 +155,19 @@ schedulers = create_registry(
     description=_schedulers_description,
 )
 
+_tokenizers_description = (
+    'The tokenizers registry is used to register tokenizers that implement the transformers.PreTrainedTokenizerBase interface. '
+    +
+    'The tokenizer will be passed to the build_dataloader() and build_composer_model() methods in train.py.'
+)
+tokenizers = create_registry(
+    'llmfoundry',
+    'tokenizers',
+    generic_type=Type[PreTrainedTokenizerBase],
+    entry_points=True,
+    description=_tokenizers_description,
+)
+
 _models_description = (
     """The models registry is used to register classes that implement the ComposerModel interface.
 

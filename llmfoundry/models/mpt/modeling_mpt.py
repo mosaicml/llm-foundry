@@ -134,6 +134,8 @@ def gen_rotary_embedding(
                 device=
                 'cpu',  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
             )
+        elif rope_hf_config['type'] == 'llama3':
+            raise NotImplementedError()
     raise ValueError('rope_impl needs to be either dail or hf')
 
 

@@ -66,7 +66,6 @@ def test_hf_transform(peft_config: Optional[dict]):
     inner_model = maybe_get_underlying_model(model)
 
     if peft_config:
-        print('model type', type(composer_model.model), type(composer_model))
         peft_model = composer_model.model
         assert isinstance(peft_model, PeftModel)
 

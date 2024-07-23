@@ -499,16 +499,16 @@ def build_tokenizer(
 
     signal_file_path = dist.get_node_signal_file_name()
 
+    names = dist.all_gather_object(signal_file_path)
+    print("+"*30)
+    print(names)
+    print("+"*30)
+
     if dist.is_available() and dist.is_initialized(
     ) and dist.get_world_size() > 1:
         # Make sure the tokenizer files are downloaded and cached first by local rank 0
         with dist.local_rank_zero_download_and_wait(signal_file_path):
             pass
-
-    names = dist.all_gather_object(signal_file_path)
-    print("+"*30)
-    print(names)
-    print("+"*30)
 
     if tokenizer_name in registry.tokenizers:
         tokenizer = construct_from_registry(

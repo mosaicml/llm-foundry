@@ -50,10 +50,6 @@ from transformers.modeling_outputs import (
     CausalLMOutputWithPast,
 )
 from transformers.models.llama.modeling_llama import LlamaConfig
-from transformers.models.llama.modeling_llama import \
-    LlamaDynamicNTKScalingRotaryEmbedding as HFDynamicNTKScalingRotaryEmbedding
-from transformers.models.llama.modeling_llama import \
-    LlamaLinearScalingRotaryEmbedding as HFLinearScalingRotaryEmbedding
 from transformers.models.llama.modeling_llama import LlamaRotaryEmbedding
 from transformers.models.llama.modeling_llama import \
     LlamaRotaryEmbedding as HFRotaryEmbedding
@@ -159,44 +155,19 @@ def gen_rotary_embedding(
             'cpu',  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
         )
     elif rope_impl == 'hf':
+        llama_rope_config = {**rope_hf_config}
+        llama_rope_config['rope_type'] = rope_hf_config.get('type')
+        partial_llama_config = PartialLlamaConfig(
+            rope_scaling=llama_rope_config,
+            rope_theta=rope_theta,
+            max_position_embeddings=max_seq_len,
+            hidden_size=d_model,
+            num_attention_heads=n_heads,
+        )
         if rope_hf_config['type'] == 'no_scaling':
-            return HFRotaryEmbeddingFoundry(
-                rope_head_dim,
-                max_position_embeddings=max_seq_len,
-                base=rope_theta,
-                device=
-                'cpu',  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
-            )
-        elif rope_hf_config['type'] == 'linear':
-            return HFLinearScalingRotaryEmbedding(
-                rope_head_dim,
-                max_position_embeddings=max_seq_len,
-                base=rope_theta,
-                scaling_factor=rope_hf_config['factor'],
-                device=
-                'cpu',  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
-            )
-        elif rope_hf_config['type'] == 'dynamic':
-            return HFDynamicNTKScalingRotaryEmbedding(
-                rope_head_dim,
-                max_position_embeddings=max_seq_len,
-                base=rope_theta,
-                scaling_factor=rope_hf_config['factor'],
-                device=
-                'cpu',  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
-            )
-        elif rope_hf_config['type'] == 'llama3':
-            llama_rope_config = {**rope_hf_config}
-            llama_rope_config['rope_type'] = rope_hf_config.get('type')
-            return LlamaRotaryEmbedding(
-                config=PartialLlamaConfig(
-                    rope_scaling=llama_rope_config,
-                    rope_theta=rope_theta,
-                    max_position_embeddings=max_seq_len,
-                    hidden_size=d_model,
-                    num_attention_heads=n_heads,
-                ),
-            )
+            return HFRotaryEmbeddingFoundry(config=partial_llama_config)
+        elif rope_hf_config['type'] in {'llama3', 'linear', 'dynamic'}:
+            return LlamaRotaryEmbedding(config=partial_llama_config)
     raise ValueError('rope_impl needs to be either dail or hf')
 
 

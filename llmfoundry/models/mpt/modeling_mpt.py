@@ -102,10 +102,10 @@ _ALLOWED_LLAMA_CONFIG_KEYS = {
     'hidden_size',
     'num_attention_heads',
 
-    # not set but llama modeling code tries to read this attribute
+    # Not set but llama modeling code tries to read this attribute
     'partial_rotary_factor',
 
-    # benign transformers attributes needed for __init__
+    # Benign transformers attributes needed for __init__
     '_get_generation_defaults',
     'label2id',
     'id2label',

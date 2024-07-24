@@ -257,6 +257,8 @@ def test_attn_impl(
                 rope_dail_config=pos_emb_config.get('rope_dail_config', {}),
                 rope_hf_config=pos_emb_config.get('rope_hf_config', {}),
                 max_seq_len=s,
+                d_model=cfg.d_model,
+                n_heads=cfg.n_heads,
             ).to(device)
             pos = torch.arange(s).unsqueeze(0).to(device=device)
             # adjust the position indices to account for padding tokens
@@ -670,6 +672,8 @@ def test_reuse_prev_layer_kv_cache(
                 rope_dail_config=pos_emb_config.get('rope_dail_config', {}),
                 rope_hf_config=pos_emb_config.get('rope_hf_config', {}),
                 max_seq_len=s,
+                d_model=cfg['d_model'],
+                n_heads=cfg['n_heads'],
             ).to(device)
             pos = torch.arange(s).unsqueeze(0).to(device=device)
             # adjust the position indices to account for padding tokens

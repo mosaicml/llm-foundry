@@ -112,12 +112,11 @@ _ALLOWED_LLAMA_CONFIG_KEYS = {
 
 
 class PartialLlamaConfig(LlamaConfig):
-    """Holds the rope config for Llama models and throws
+    """Holds the rope config for Llama models and throws.
 
-    an `InvalidConfigAccessError` if any other config elements
-    are read. This class is necessary because the 
-    `LlamaRotaryEmbedding` class takes a full `LlamaConfig` now
-    instead of the old keyword arguments.
+    an `InvalidConfigAccessError` if any other config elements are read. This
+    class is necessary because the `LlamaRotaryEmbedding` class takes a full
+    `LlamaConfig` now instead of the old keyword arguments.
     """
 
     def __getattribute__(self, key: str):
@@ -165,6 +164,7 @@ def gen_rotary_embedding(
             num_attention_heads=n_heads,
         )
         if rope_hf_config['type'] == 'no_scaling':
+            llama_rope_config['rope_type'] = 'default'
             return HFRotaryEmbeddingFoundry(config=partial_llama_config)
         elif rope_hf_config['type'] in {'llama3', 'linear', 'dynamic'}:
             return LlamaRotaryEmbedding(config=partial_llama_config)

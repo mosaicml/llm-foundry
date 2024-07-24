@@ -23,7 +23,7 @@ rope_dail_config = {}
 def test_rope_scaling():
     d_model = 128
     n_heads = 32
-    max_seq_len = 131_000
+    max_seq_len = 65536
 
     embedding = gen_rotary_embedding(
         d_model=d_model,

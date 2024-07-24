@@ -49,10 +49,10 @@ from transformers.modeling_outputs import (
     BaseModelOutputWithPast,
     CausalLMOutputWithPast,
 )
-from transformers.models.llama.modeling_llama import LlamaConfig
-from transformers.models.llama.modeling_llama import LlamaRotaryEmbedding
-from transformers.models.llama.modeling_llama import \
-    LlamaRotaryEmbedding as HFRotaryEmbedding
+from transformers.models.llama.modeling_llama import (
+    LlamaConfig,
+    LlamaRotaryEmbedding,
+)
 
 from llmfoundry.layers_registry import norms, param_init_fns
 from llmfoundry.models.layers.attention import (
@@ -166,7 +166,7 @@ def gen_rotary_embedding(
             num_attention_heads=n_heads,
         )
         if rope_hf_config['type'] == 'no_scaling':
-            return HFRotaryEmbeddingFoundry(config=partial_llama_config)
+            return LlamaRotaryEmbeddingFoundry(config=partial_llama_config)
         elif rope_hf_config['type'] in {'llama3', 'linear', 'dynamic'}:
             return LlamaRotaryEmbedding(config=partial_llama_config)
     raise ValueError('rope_impl needs to be either dail or hf')
@@ -341,7 +341,7 @@ def apply_sequence_id(
     return attn_bias
 
 
-class HFRotaryEmbeddingFoundry(HFRotaryEmbedding):
+class LlamaRotaryEmbeddingFoundry(LlamaRotaryEmbedding):
 
     @torch.no_grad()
     def forward(

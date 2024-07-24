@@ -116,6 +116,13 @@ _ALLOWED_LLAMA_CONFIG_KEYS = {
 
 
 class PartialLlamaConfig(LlamaConfig):
+    """Holds the rope config for Llama models and throws
+
+    an `InvalidConfigAccessError` if any other config elements
+    are read. This class is necessary because the 
+    `LlamaRotaryEmbedding` class takes a full `LlamaConfig` now
+    instead of the old keyword arguments.
+    """
 
     def __getattribute__(self, key: str):
         if key not in _ALLOWED_LLAMA_CONFIG_KEYS:
@@ -128,9 +135,6 @@ class PartialLlamaConfig(LlamaConfig):
             raise InvalidConfigAccessError(key)
 
         return super().__getitem__(key)
-
-    def _get_generation_defaults(self):
-        return {}
 
 
 def gen_rotary_embedding(

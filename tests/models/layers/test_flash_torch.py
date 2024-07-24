@@ -251,7 +251,6 @@ def test_attn_impl(
         rotary_emb_w_meta_info = None
         if rope:
             rotary_embedding = gen_rotary_embedding(
-                rope_head_dim=cfg.d_model // cfg.n_heads,
                 rope_impl=pos_emb_config['rope_impl'],
                 rope_theta=pos_emb_config['rope_theta'],
                 rope_dail_config=pos_emb_config.get('rope_dail_config', {}),
@@ -666,7 +665,6 @@ def test_reuse_prev_layer_kv_cache(
         rotary_emb_w_meta_info = None
         if rope:
             rotary_embedding = gen_rotary_embedding(
-                rope_head_dim=cfg['d_model'] // cfg['n_heads'],
                 rope_impl=pos_emb_config['rope_impl'],
                 rope_theta=pos_emb_config['rope_theta'],
                 rope_dail_config=pos_emb_config.get('rope_dail_config', {}),

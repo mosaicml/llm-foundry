@@ -94,30 +94,41 @@ class InvalidConfigAccessError(KeyError):
     pass
 
 
+_ALLOWED_LLAMA_CONFIG_KEYS = {
+    'rope_scaling',
+    'rope_theta',
+    'max_position_embeddings',
+    'hidden_size',
+    'num_attention_heads',
+    '_get_generation_defaults',
+    'label2id',
+    'id2label',
+    'torch_dtype',
+    'problem_type',
+    '__class__',
+    'partial_rotary_factor',
+}
+
+
 class PartialLlamaConfig(LlamaConfig):
-    _ALLOWED_KEYS = {
-        'rope_scaling',
-        'rope_theta',
-        'max_position_embeddings',
-        'hidden_size',
-        'num_attention_heads',
-    }
 
     def __getattribute__(self, key: str):
-        if key not in self._ALLOWED_KEYS:
+        if key not in _ALLOWED_LLAMA_CONFIG_KEYS:
             raise InvalidConfigAccessError(key)
 
         return super().__getattribute__(key)
 
     def __getitem__(self, key: str):
-        if key not in self._ALLOWED_KEYS:
+        if key not in _ALLOWED_LLAMA_CONFIG_KEYS:
             raise InvalidConfigAccessError(key)
 
         return super().__getitem__(key)
 
+    def _get_generation_defaults(self):
+        return {}
+
 
 def gen_rotary_embedding(
-    rope_head_dim: int,
     rope_impl: str,
     rope_theta: int,
     rope_dail_config: dict,
@@ -126,6 +137,7 @@ def gen_rotary_embedding(
     d_model: int,
     n_heads: int,
 ):
+    rope_head_dim = d_model // n_heads
     if rope_impl == 'dail':
         return DAILRotaryEmbedding(
             dim=rope_head_dim,
@@ -165,9 +177,11 @@ def gen_rotary_embedding(
                 'cpu',  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
             )
         elif rope_hf_config['type'] == 'llama3':
+            llama_rope_config = {**rope_hf_config}
+            llama_rope_config['rope_type'] = rope_hf_config.pop('type')
             return LlamaRotaryEmbedding(
                 config=PartialLlamaConfig(
-                    rope_scaling=rope_hf_config,
+                    rope_scaling=llama_rope_config,
                     rope_theta=rope_theta,
                     max_position_embeddings=max_seq_len,
                     hidden_size=d_model,
@@ -439,7 +453,6 @@ class MPTModel(MPTPreTrainedModel):
         if self.rope:
             self.rope_impl = config.attn_config['rope_impl']
             self.rotary_embedding = gen_rotary_embedding(
-                rope_head_dim=config.d_model // config.n_heads,
                 rope_impl=self.rope_impl,
                 rope_theta=config.attn_config['rope_theta'],
                 rope_dail_config=config.attn_config['rope_dail_config'],

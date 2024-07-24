@@ -77,7 +77,6 @@ def test_rope_dail_vs_hf(attn_type: str, seq_len: int, device: str = 'cuda'):
         }
 
         dail_rope = gen_rotary_embedding(
-            rope_head_dim=cfg.d_model // cfg.n_heads,
             rope_impl=dail_rope_config['rope_impl'],
             rope_theta=dail_rope_config['rope_theta'],
             rope_dail_config=dail_rope_config['rope_dail_config'],
@@ -94,7 +93,6 @@ def test_rope_dail_vs_hf(attn_type: str, seq_len: int, device: str = 'cuda'):
         }
 
         hf_rope = gen_rotary_embedding(
-            rope_head_dim=cfg.d_model // cfg.n_heads,
             rope_impl=hf_rope_config['rope_impl'],
             rope_theta=hf_rope_config['rope_theta'],
             rope_dail_config={},

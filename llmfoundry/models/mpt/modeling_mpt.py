@@ -90,6 +90,32 @@ from llmfoundry.models.layers.norm import LPLayerNorm  # type: ignore
 log = logging.getLogger(__name__)
 
 
+class InvalidConfigAccessError(KeyError):
+    pass
+
+
+class PartialLlamaConfig(LlamaConfig):
+    _ALLOWED_KEYS = {
+        'rope_scaling',
+        'rope_theta',
+        'max_position_embeddings',
+        'hidden_size',
+        'num_attention_heads',
+    }
+
+    def __getattribute__(self, key: str):
+        if key not in self._ALLOWED_KEYS:
+            raise InvalidConfigAccessError(key)
+
+        return super().__getattribute__(key)
+
+    def __getitem__(self, key: str):
+        if key not in self._ALLOWED_KEYS:
+            raise InvalidConfigAccessError(key)
+
+        return super().__getitem__(key)
+
+
 def gen_rotary_embedding(
     rope_head_dim: int,
     rope_impl: str,
@@ -140,7 +166,7 @@ def gen_rotary_embedding(
             )
         elif rope_hf_config['type'] == 'llama3':
             return LlamaRotaryEmbedding(
-                config=LlamaConfig(
+                config=PartialLlamaConfig(
                     rope_scaling=rope_hf_config,
                     rope_theta=rope_theta,
                     max_position_embeddings=max_seq_len,

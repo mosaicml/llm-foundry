@@ -95,7 +95,7 @@ class InvalidConfigAccessError(KeyError):
 
 
 _ALLOWED_LLAMA_CONFIG_KEYS = {
-    # these are the only config keys that are set and are safe to read from
+    # These are the only config keys that are set and are safe to read from
     'rope_scaling',
     'rope_theta',
     'max_position_embeddings',

@@ -565,6 +565,7 @@ class HuggingFaceCheckpointer(Callback):
 
                 new_model_instance = self.transform_model_pre_registration(
                     new_model_instance,
+                    original_tokenizer,
                 )
 
                 components = {'model': new_model_instance}

@@ -99,15 +99,33 @@ def test_rope_scaling():
 
     assert isinstance(embedding, LlamaRotaryEmbedding)
 
-    x = torch.randn(1, max_seq_len, d_model)
+    xq = torch.randn(1, max_seq_len, n_heads, d_model // n_heads)
+    xk = torch.randn(1, max_seq_len, n_heads, d_model // n_heads)
     position_ids = torch.arange(max_seq_len).unsqueeze(0)
 
     freqs_cis = precompute_freqs_cis(
-        d_model,
+        d_model // n_heads,
         max_seq_len,
         rope_config['rope_theta'],
+        use_scaled=True,
     )
 
-    rope_embeddings = embedding.forward(x, position_ids)
+    rope_embeddings_q, rope_embeddings_k = embedding.forward(
+        xq,
+        position_ids,
+    ), embedding.forward(xk, position_ids)
 
-    # ??? WIP
+    rope_embeddings_q, rope_embeddings_k = torch.stack(
+        rope_embeddings_q,
+        dim=-1,
+    ), torch.stack(rope_embeddings_k, dim=-1)
+
+    rope_embeddings_q, rope_embeddings_k = rope_embeddings_q.reshape(
+        *rope_embeddings_q.shape[:-2],
+        -1,
+    ), rope_embeddings_k.reshape(*rope_embeddings_k.shape[:-2], -1)
+
+    expected_q, expected_k = apply_rotary_emb(xq, xk, freqs_cis)
+
+    torch.testing.assert_close(rope_embeddings_q, expected_q)
+    torch.testing.assert_close(rope_embeddings_k, expected_k)

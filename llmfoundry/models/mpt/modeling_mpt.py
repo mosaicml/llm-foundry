@@ -155,7 +155,7 @@ def gen_rotary_embedding(
         )
     elif rope_impl == 'hf':
         llama_rope_config = {**rope_hf_config}
-        llama_rope_config['rope_type'] = rope_hf_config.get('type')
+        llama_rope_config['rope_type'] = rope_hf_config.pop('type')
         if llama_rope_config['rope_type'] == 'no_scaling':
             llama_rope_config['rope_type'] = 'default'
         partial_llama_config = PartialLlamaConfig(

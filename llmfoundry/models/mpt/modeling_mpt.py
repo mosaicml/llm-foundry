@@ -45,15 +45,16 @@ if is_flash_v2_installed():
 import logging
 
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
-from transformers.models.llama.modeling_llama import LlamaRotaryEmbedding
 from transformers.modeling_outputs import (
     BaseModelOutputWithPast,
     CausalLMOutputWithPast,
 )
+from transformers.models.llama.modeling_llama import LlamaConfig
 from transformers.models.llama.modeling_llama import \
     LlamaDynamicNTKScalingRotaryEmbedding as HFDynamicNTKScalingRotaryEmbedding
 from transformers.models.llama.modeling_llama import \
     LlamaLinearScalingRotaryEmbedding as HFLinearScalingRotaryEmbedding
+from transformers.models.llama.modeling_llama import LlamaRotaryEmbedding
 from transformers.models.llama.modeling_llama import \
     LlamaRotaryEmbedding as HFRotaryEmbedding
 
@@ -137,12 +138,10 @@ def gen_rotary_embedding(
             )
         elif rope_hf_config['type'] == 'llama3':
             return LlamaRotaryEmbedding(
-                dim=rope_head_dim,
-                max_position_embeddings=max_seq_len,
-                base=rope_theta,
-                scaling_factor=rope_hf_config['factor'],
-                device=
-                'cpu',  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
+                config=LlamaConfig(
+                    rope_scaling=rope_hf_config,
+                    rope_theta=rope_theta,
+                ),
             )
     raise ValueError('rope_impl needs to be either dail or hf')
 

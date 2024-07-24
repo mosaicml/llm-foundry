@@ -1294,6 +1294,40 @@ class MPTForCausalLM(MPTPreTrainedModel):
         return reordered_past
 
 
+def get_targets(labels: torch.Tensor) -> torch.Tensor:
+    targets = torch.roll(labels, shifts=-1)
+    targets[:, -1] = -100
+    return targets
+
+
+def compute_loss_from_logits(
+    outputs: CausalLMOutputWithPast,
+    shift_labels: bool,
+    labels: torch.Tensor,
+    loss_fn: nn.Module,
+    sample_weighing_factor: Optional[torch.Tensor] = None,
+) -> torch.Tensor:
+    targets = get_targets(labels) if shift_labels else labels
+
+    losses = loss_fn(
+        outputs.logits.view(-1, outputs.logits.size(-1)),
+        targets.view(-1),
+    )
+
+    if torch.all(targets == loss_fn.ignore_index):
+        loss = losses.sum()
+    else:
+        loss = losses.sum() / (targets != loss_fn.ignore_index).sum()
+        if sample_weighing_factor is not None:
+            if sample_weighing_factor.shape[0] > 1:
+                raise ValueError(
+                    'Sample weighing factor is not supported when batch["sample_weighing_factor"].shape[0] > 1.',
+                )
+            loss = loss * sample_weighing_factor[0].item()
+
+    return loss
+
+
 class ComposerMPTCausalLM(HuggingFaceModel):
 
     def __init__(
@@ -1371,9 +1405,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         return MPTConfig
 
     def get_targets(self, batch: Mapping) -> torch.Tensor:
-        targets = torch.roll(batch['labels'], shifts=-1)
-        targets[:, -1] = -100
-        return targets
+        return get_targets(batch['labels'])
 
     def forward(self, batch: MutableMapping) -> CausalLMOutputWithPast:
         if self.config.ffn_config['ffn_type'] in ffns_with_megablocks:
@@ -1394,26 +1426,13 @@ class ComposerMPTCausalLM(HuggingFaceModel):
 
     def loss(self, outputs: CausalLMOutputWithPast,
              batch: Mapping) -> Union[dict, torch.Tensor]:
-        if self.shift_labels:
-            targets = self.get_targets(batch)
-        else:
-            targets = batch['labels']
-
-        losses = self.loss_fn(
-            outputs.logits.view(-1, outputs.logits.size(-1)),
-            targets.view(-1),
+        loss = compute_loss_from_logits(
+            outputs,
+            self.shift_labels,
+            batch['labels'],
+            self.loss_fn,
+            batch.get('sample_weighing_factor', None),
         )
-
-        if torch.all(targets == self.loss_fn.ignore_index):
-            loss = losses.sum()
-        else:
-            loss = losses.sum() / (targets != self.loss_fn.ignore_index).sum()
-            if 'sample_weighing_factor' in batch:
-                if batch['sample_weighing_factor'].shape[0] > 1:
-                    raise ValueError(
-                        'Sample weighing factor is not supported when batch["sample_weighing_factor"].shape[0] > 1.',
-                    )
-                loss = loss * batch['sample_weighing_factor'][0].item()
 
         if self.config.ffn_config['ffn_type'] in ffns_with_megablocks:
             # MegaBlocks MoE load balancing loss
@@ -1429,7 +1448,6 @@ class ComposerMPTCausalLM(HuggingFaceModel):
                 'loss': loss,
                 'lbl': lbl,
             }
-
         return loss
 
     @cached_property

@@ -306,6 +306,7 @@ class MPTConfig(PretrainedConfig):
             'no_scaling',
             'linear',
             'dynamic',
+            'llama3',
         ]:
             raise ValueError(
                 'If using hf implementation of rope, the type should be one of "no_scaling", "linear" or "dynamic".',

@@ -95,18 +95,23 @@ class InvalidConfigAccessError(KeyError):
 
 
 _ALLOWED_LLAMA_CONFIG_KEYS = {
+    # these are the only config keys that are set and are safe to read from
     'rope_scaling',
     'rope_theta',
     'max_position_embeddings',
     'hidden_size',
     'num_attention_heads',
+
+    # not set but llama modeling code tries to read this attribute
+    'partial_rotary_factor',
+
+    # benign transformers attributes needed for __init__
     '_get_generation_defaults',
     'label2id',
     'id2label',
     'torch_dtype',
     'problem_type',
     '__class__',
-    'partial_rotary_factor',
 }
 
 

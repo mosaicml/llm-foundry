@@ -183,7 +183,7 @@ def gen_rotary_embedding(
             )
         elif rope_hf_config['type'] == 'llama3':
             llama_rope_config = {**rope_hf_config}
-            llama_rope_config['rope_type'] = rope_hf_config.pop('type')
+            llama_rope_config['rope_type'] = rope_hf_config.get('type')
             return LlamaRotaryEmbedding(
                 config=PartialLlamaConfig(
                     rope_scaling=llama_rope_config,

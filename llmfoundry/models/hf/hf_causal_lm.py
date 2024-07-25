@@ -141,8 +141,11 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
 
         print("All named parameters:")
         for name, param in self.model.named_parameters():
-            print("name: ", name)
-            print("param device: ", param.device)
+            if "lora" in name:
+                print("name: ", name)
+                print("param mean: ", param.mean())
+                print("param std: ", param.std())
+            
 
     def transform_model(self, model: PreTrainedModel) -> PreTrainedModel:
         """Transforms the model after initialization.

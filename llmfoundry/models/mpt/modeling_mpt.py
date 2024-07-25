@@ -767,6 +767,14 @@ class MPTModel(MPTPreTrainedModel):
         use_cache: Optional[bool] = None,
         inputs_embeds: Optional[torch.Tensor] = None,
     ) -> BaseModelOutputWithPast:
+        
+        print("All named parameters:")
+        for name, param in self.named_parameters():
+            if "lora" in name:
+                print("name: ", name)
+                print("param mean: ", param.mean())
+                print("param std: ", param.std())
+
         return_dict = (
             return_dict if return_dict is not None else self.config.return_dict
         )

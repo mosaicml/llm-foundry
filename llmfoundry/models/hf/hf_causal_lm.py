@@ -90,6 +90,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         additional_eval_metrics: Optional[List] = None,
         should_save_peft_only: bool = True,
     ):
+        
+        print("INIT HF MODEL")
 
         config_overrides = config_overrides or {}
 

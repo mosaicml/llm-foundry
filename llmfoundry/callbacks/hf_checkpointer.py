@@ -483,8 +483,6 @@ class HuggingFaceCheckpointer(Callback):
             if dist.get_global_rank() != 0:
                 state_dict = {}
             return state_dict
-        
-        assert False
 
         hooks = []
         for _, module in state_dict_model.named_modules():

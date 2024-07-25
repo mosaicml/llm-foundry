@@ -139,6 +139,11 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             should_save_peft_only=should_save_peft_only,
         )
 
+        print("All named parameters:")
+        for name, param in model.named_parameters():
+            print("name: ", name)
+            print("param device: ", param.device)
+
     def transform_model(self, model: PreTrainedModel) -> PreTrainedModel:
         """Transforms the model after initialization.
 
@@ -367,11 +372,6 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
 
         if prepare_for_fsdp:
             ComposerHFCausalLM.prepare_inner_model(model, init_device)
-
-        print("All named parameters:")
-        for name, param in model.named_parameters():
-            print("name: ", name)
-            print("param device: ", param.device)
 
         return model
 

@@ -487,19 +487,20 @@ class HuggingFaceCheckpointer(Callback):
                         if cpu_offload:
                             tensor = tensor.cpu()
                         state_dict[fqn] = tensor
+                    else:
+                        state_dict[fqn] = None
                 # Convert the state dict to the requested precision
-                if isinstance(tensor, torch.Tensor):
-                    state_dict[fqn] = tensor.to(dtype=self.dtype)
+                # if isinstance(tensor, torch.Tensor):
+                #     state_dict[fqn] = tensor.to(dtype=self.dtype)
                 del tensor
             if dist.get_global_rank() != 0:
-                for fqn in dtensor_fqns:
-                    del state_dict[fqn]
+                state_dict = {}
             return state_dict
 
         hooks = []
         for _, module in state_dict_model.named_modules():
-            # if isinstance(module, FSDP):
-            hooks.append(module._register_state_dict_hook(tensor_hook),)
+            if isinstance(module, FSDP):
+                hooks.append(module._register_state_dict_hook(tensor_hook),)
 
 
         state_dict = get_model_state_dict(

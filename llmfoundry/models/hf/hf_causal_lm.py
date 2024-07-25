@@ -366,6 +366,11 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         if prepare_for_fsdp:
             ComposerHFCausalLM.prepare_inner_model(model, init_device)
 
+        print("All named parameters:")
+        for name, param in model.named_parameters():
+            print("name: ", name)
+            print("param device: ", param.device)
+
         return model
 
     def get_peft_config(self, peft_config_dict: Dict[str, Any]) -> 'PeftConfig':

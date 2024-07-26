@@ -375,7 +375,7 @@ class HuggingFaceCheckpointer(Callback):
             if 'moe_world_size' in getattr(copied_config, 'ffn_config', {}):
                 copied_config.ffn_config['moe_world_size'] = 1
         return copied_config
-    
+
     def pre_register_edit(self, local_save_path: str):
         """Edit the model before registering with MLflow.
 
@@ -629,9 +629,7 @@ class HuggingFaceCheckpointer(Callback):
                             os.path.join(local_save_path, license_filename),
                         )
 
-                    self.pre_register_edit(
-                        local_save_path,
-                    )
+                    self.pre_register_edit(local_save_path,)
 
                     # Spawn a new process to register the model.
                     process = SpawnProcess(

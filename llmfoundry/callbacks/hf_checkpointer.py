@@ -376,6 +376,17 @@ class HuggingFaceCheckpointer(Callback):
                 copied_config.ffn_config['moe_world_size'] = 1
         return copied_config
 
+    def pre_register_edit(self, local_save_path: str):
+        """Edit the model before registering with MLflow.
+
+        This allows a subclass to modify the model before registering with MLflow. The base class implementation will
+        make no modifications.
+
+        Args:
+            local_save_path (str): The path to the model to be transformed.
+        """
+        pass
+
     def transform_model_pre_registration(
         self,
         model: PreTrainedModel,
@@ -617,6 +628,8 @@ class HuggingFaceCheckpointer(Callback):
                             mlflow_logger._run_id,
                             os.path.join(local_save_path, license_filename),
                         )
+
+                    self.pre_register_edit(local_save_path,)
 
                     # Spawn a new process to register the model.
                     process = SpawnProcess(

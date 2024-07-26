@@ -50,7 +50,7 @@ DBRX is a state-of-the-art open source LLM trained by Databricks Mosaic team. It
 | DBRX Base          | 32768          | https://huggingface.co/databricks/dbrx-base        |
 | DBRX Instruct      | 32768          | https://huggingface.co/databricks/dbrx-instruct    |
 
-Our model weights and code are licensed for both researchers and commercial entities. The Databricks Open Source License can be found at [LICENSE](https://github.com/databricks/dbrx/LICENSE), and our Acceptable Use Policy can be found [here](https://www.databricks.com/legal/acceptable-use-policy-open-model).
+Our model weights and code are licensed for both researchers and commercial entities. The Databricks Open Source License can be found at [LICENSE](https://github.com/databricks/dbrx/blob/main/LICENSE), and our Acceptable Use Policy can be found [here](https://www.databricks.com/legal/acceptable-use-policy-open-model).
 
 For more information about the DBRX models, see https://github.com/databricks/dbrx.
 

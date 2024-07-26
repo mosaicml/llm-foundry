@@ -102,6 +102,7 @@ class MPTConfig(PretrainedConfig):
             no_bias (bool): Whether to use bias in all layers.
             embedding_fraction (float): The fraction to scale the gradients of the embedding layer by.
             norm_type (str): choose type of norm to use
+            norm_eps (float): epsilon value for norm layer
             use_cache (bool): Whether or not the model should return the last key/values attentions
             init_config (Dict): A dictionary used to configure the model initialization:
                 init_config.name: The parameter initialization scheme to use. Options: 'default_', 'baseline_',

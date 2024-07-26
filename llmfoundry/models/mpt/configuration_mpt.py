@@ -44,6 +44,7 @@ class MPTConfig(PretrainedConfig):
         no_bias: bool = False,
         embedding_fraction: float = 1.0,
         norm_type: str = 'low_precision_layernorm',
+        norm_eps: float = 1e-05,
         use_cache: bool = False,
         init_config: Optional[Dict] = None,
         fc_type: Union[str, Dict] = 'torch',
@@ -101,6 +102,7 @@ class MPTConfig(PretrainedConfig):
             no_bias (bool): Whether to use bias in all layers.
             embedding_fraction (float): The fraction to scale the gradients of the embedding layer by.
             norm_type (str): choose type of norm to use
+            norm_eps (float): epsilon value for norm layer
             use_cache (bool): Whether or not the model should return the last key/values attentions
             init_config (Dict): A dictionary used to configure the model initialization:
                 init_config.name: The parameter initialization scheme to use. Options: 'default_', 'baseline_',
@@ -168,6 +170,7 @@ class MPTConfig(PretrainedConfig):
         self.no_bias = no_bias
         self.embedding_fraction = embedding_fraction
         self.norm_type = norm_type
+        self.norm_eps = norm_eps
         self.use_cache = use_cache
         self.init_config = init_config if init_config is not None else copy.deepcopy(
             init_config_defaults,

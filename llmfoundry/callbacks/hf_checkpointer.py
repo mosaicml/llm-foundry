@@ -613,6 +613,8 @@ class HuggingFaceCheckpointer(Callback):
                     ) if is_te_imported and state.precision == Precision.AMP_FP8 else contextlib.nullcontext(
                     )
                     with context_manager:
+                        # Add the pip requirements directly to avoid mlflow
+                        # attempting to run inference on the model
                         model_saving_kwargs['pip_requirements'] = [
                             'transformers',
                             'torch',

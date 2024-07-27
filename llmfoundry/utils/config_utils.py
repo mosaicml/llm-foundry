@@ -531,7 +531,6 @@ def process_init_device(model_cfg: Dict[str, Any], fsdp_config: Optional[Dict]):
                 fsdp_config['sync_module_states'] = True
 
             # Set defaults for mixed initialization
-            fsdp_config.setdefault('use_orig_params', False)
             fsdp_config.setdefault('load_monolith_rank0_only', True)
 
     # Set ffn_config.device_mesh to fsdp_config.device_mesh

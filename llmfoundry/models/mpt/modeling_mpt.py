@@ -430,19 +430,20 @@ class MPTModel(MPTPreTrainedModel):
             device=config.init_device,
         )
 
-        self.rope = config.attn_config['rope']
-        self.rope_impl = None
-        if self.rope:
-            self.rope_impl = config.attn_config['rope_impl']
-            self.rotary_embedding = gen_rotary_embedding(
-                rope_impl=self.rope_impl,
-                rope_theta=config.attn_config['rope_theta'],
-                rope_dail_config=config.attn_config['rope_dail_config'],
-                rope_hf_config=config.attn_config['rope_hf_config'],
-                max_seq_len=self.config.max_seq_len,
-                d_model=config.d_model,
-                n_heads=config.n_heads,
-            )
+        with torch.device('meta'):
+            self.rope = config.attn_config['rope']
+            self.rope_impl = None
+            if self.rope:
+                self.rope_impl = config.attn_config['rope_impl']
+                self.rotary_embedding = gen_rotary_embedding(
+                    rope_impl=self.rope_impl,
+                    rope_theta=config.attn_config['rope_theta'],
+                    rope_dail_config=config.attn_config['rope_dail_config'],
+                    rope_hf_config=config.attn_config['rope_hf_config'],
+                    max_seq_len=self.config.max_seq_len,
+                    d_model=config.d_model,
+                    n_heads=config.n_heads,
+                )
 
         if config.init_device != 'meta':
             log.info(

@@ -544,6 +544,7 @@ def train(cfg: DictConfig) -> Trainer:
         dist_timeout=train_cfg.dist_timeout,
         profiler=profiler,
         compile_config=compile_config,
+        spin_dataloaders=train_cfg.spin_dataloaders,
     )
 
     # Optionally just save an HF checkpoint

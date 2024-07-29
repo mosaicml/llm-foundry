@@ -217,10 +217,13 @@ class HuggingFaceCheckpointer(Callback):
             )
 
         self.mlflow_logging_config = mlflow_logging_config
-        self.pretrained_model_name = self.mlflow_logging_config['metadata'].get(
-            'pretrained_model_name',
-            None,
-        )
+        if 'metadata' in self.mlflow_logging_config:
+            self.pretrained_model_name = self.mlflow_logging_config['metadata'].get(
+                'pretrained_model_name',
+                None,
+            )
+        else:
+            self.pretrained_model_name = None
 
         self.huggingface_folder_name_fstr = os.path.join(
             'huggingface',

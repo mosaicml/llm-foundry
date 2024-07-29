@@ -541,9 +541,13 @@ class HuggingFaceCheckpointer(Callback):
                 new_model_instance.name_or_path = self.pretrained_model_name
                 if self.using_peft:
                     for k in new_model_instance.peft_config.keys():
+                        new_model_instance.base_model.name_or_path = self.pretrained_model_name
                         new_model_instance.peft_config[
                             k
                         ].base_model_name_or_path = self.pretrained_model_name
+                    print("PEFT CONFIG IS:")
+                    for k,v in new_model_instance.peft_config.items():
+                        print("key:", k, "value:", v)
 
             log.debug('Saving Hugging Face checkpoint to disk')
             # This context manager casts the TE extra state in io.BytesIO format to tensor format

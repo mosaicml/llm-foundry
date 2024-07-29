@@ -218,10 +218,11 @@ class HuggingFaceCheckpointer(Callback):
 
         self.mlflow_logging_config = mlflow_logging_config
         if 'metadata' in self.mlflow_logging_config:
-            self.pretrained_model_name = self.mlflow_logging_config['metadata'].get(
-                'pretrained_model_name',
-                None,
-            )
+            self.pretrained_model_name = self.mlflow_logging_config[
+                'metadata'].get(
+                    'pretrained_model_name',
+                    None,
+                )
         else:
             self.pretrained_model_name = None
 
@@ -540,14 +541,11 @@ class HuggingFaceCheckpointer(Callback):
             if self.pretrained_model_name is not None:
                 new_model_instance.name_or_path = self.pretrained_model_name
                 if self.using_peft:
+                    new_model_instance.base_model.name_or_path = self.pretrained_model_name
                     for k in new_model_instance.peft_config.keys():
-                        new_model_instance.base_model.name_or_path = self.pretrained_model_name
                         new_model_instance.peft_config[
                             k
                         ].base_model_name_or_path = self.pretrained_model_name
-                    print("PEFT CONFIG IS:")
-                    for k,v in new_model_instance.peft_config.items():
-                        print("key:", k, "value:", v)
 
             log.debug('Saving Hugging Face checkpoint to disk')
             # This context manager casts the TE extra state in io.BytesIO format to tensor format

@@ -587,10 +587,14 @@ class HuggingFaceCheckpointer(Callback):
                         overwrite=self.overwrite,
                     )
 
+        print(f'Rank {dist.get_global_rank()} reached barrier')
         dist.barrier()
+        print(f'Rank {dist.get_global_rank()} past barrier')
 
         if dist.get_global_rank() == 0:
+            print(f'Rank {dist.get_global_rank()} entering uc')
             if self.mlflow_registered_model_name and self._is_last_batch(state):
+                print(f'Rank {dist.get_global_rank()} entering uc 2')
 
                 new_model_instance = self.transform_model_pre_registration(
                     new_model_instance,
@@ -602,6 +606,7 @@ class HuggingFaceCheckpointer(Callback):
 
                 log.debug('Logging Hugging Face model to MLFlow')
                 for i, mlflow_logger in enumerate(self.mlflow_loggers):
+                    print(f'Rank {dist.get_global_rank()} looping {i}')
                     log.debug(
                         f'Registering model to UC at {mlflow_logger.model_registry_prefix}.{self.mlflow_registered_model_name}',
                     )
@@ -668,6 +673,7 @@ class HuggingFaceCheckpointer(Callback):
                                 3600,
                         },
                     )
+                    print(f'Rank {dist.get_global_rank()} starting process')
                     process.start()
                     self.child_processes.append(process)
 
@@ -675,7 +681,11 @@ class HuggingFaceCheckpointer(Callback):
                     if use_temp_dir:
                         self.temp_save_dir = temp_save_dir
             else:
+                print(f'Rank {dist.get_global_rank()} maybe cleaning')
                 # Clean up the temporary directory if we don't need to register to mlflow.
                 if use_temp_dir:
+                    print(f'Rank {dist.get_global_rank()} cleaning')
                     shutil.rmtree(temp_save_dir)
+        print(f'Rank {dist.get_global_rank()} reached barrier 2')
         dist.barrier()
+        print(f'Rank {dist.get_global_rank()} past barrier 2')

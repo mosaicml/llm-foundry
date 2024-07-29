@@ -54,9 +54,14 @@ _FFN_ACT_FN_DEFAULT = {
 
 
 def quickgelu_activation(input: torch.Tensor) -> torch.Tensor:
-    """
-    Applies GELU approximation that is fast but somewhat inaccurate.
-    See: https://github.com/hendrycks/GELUs
+    """Applies GELU approximation that is fast but somewhat inaccurate.
+
+    Args:
+        input (torch.Tensor): Input tensor of shape(*), where * means any
+            number of dimensions
+
+    Returns:
+        torch.Tensor: Tensor with same shape as input tensor
     """
     return input * torch.sigmoid(1.702 * input)
 

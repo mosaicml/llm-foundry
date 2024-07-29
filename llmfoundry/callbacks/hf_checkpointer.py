@@ -218,7 +218,8 @@ class HuggingFaceCheckpointer(Callback):
 
         self.mlflow_logging_config = mlflow_logging_config
         self.pretrained_model_name = self.mlflow_logging_config['metadata'].get(
-            'pretrained_model_name', None
+            'pretrained_model_name',
+            None,
         )
 
         self.huggingface_folder_name_fstr = os.path.join(
@@ -520,8 +521,6 @@ class HuggingFaceCheckpointer(Callback):
                     new_model_instance.generation_config.update(
                         **original_model.generation_config.to_dict(),
                     )
-                if self.pretrained_model_name is not None:
-                    new_model_instance.name_or_path = self.pretrained_model_name
 
             # Then load the state dict in with "assign" so that the state dict
             # is loaded properly even though the model is initially on meta device.
@@ -533,6 +532,15 @@ class HuggingFaceCheckpointer(Callback):
                 new_model_instance,
                 original_tokenizer,
             )
+
+            # Ensure that the pretrained model name is correctly set on the saved HF checkpoint.
+            if self.pretrained_model_name is not None:
+                new_model_instance.name_or_path = self.pretrained_model_name
+                if self.using_peft:
+                    for k in new_model_instance.peft_config.keys():
+                        new_model_instance.peft_config[
+                            k
+                        ].base_model_name_or_path = self.pretrained_model_name
 
             log.debug('Saving Hugging Face checkpoint to disk')
             # This context manager casts the TE extra state in io.BytesIO format to tensor format

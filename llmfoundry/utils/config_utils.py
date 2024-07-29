@@ -341,8 +341,6 @@ def make_dataclass_and_log_config(
         transforms,
     )
 
-    logged_cfg.update(unstructured_config, merge=True)
-
     arg_config_keys = set(unstructured_config.keys())
     extraneous_keys = set.difference(arg_config_keys, dataclass_fields)
 

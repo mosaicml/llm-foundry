@@ -44,6 +44,7 @@ class MPTConfig(PretrainedConfig):
         no_bias: bool = False,
         embedding_fraction: float = 1.0,
         norm_type: str = 'low_precision_layernorm',
+        norm_eps: float = 1e-05,
         use_cache: bool = False,
         init_config: Optional[Dict] = None,
         fc_type: Union[str, Dict] = 'torch',
@@ -70,6 +71,8 @@ class MPTConfig(PretrainedConfig):
                 attn_impl (str): The attention implementation to use. One of 'torch' or 'flash'.
                 qk_ln (bool): Whether to apply layer normalization to the queries and keys in the attention layer.
                 qk_gn (bool): Whether to apply group normalization to the queries and keys in the attention layer.
+                fused_qkv (bool): Whether to fuse the Wq, Wk, and Wv weight matrices in the attention layer. If True, the weights are fused into a single
+                    Wqkv matrix, which can be faster for matmuls. If False, the weights are kept separate. Defaults to True.
                 clip_qkv (Optional[float]): If not None, clip the queries, keys, and values in the attention layer to
                     this value.
                 softmax_scale (Optional[float]): If not None, scale the softmax in the attention layer by this value. If None,
@@ -99,6 +102,7 @@ class MPTConfig(PretrainedConfig):
             no_bias (bool): Whether to use bias in all layers.
             embedding_fraction (float): The fraction to scale the gradients of the embedding layer by.
             norm_type (str): choose type of norm to use
+            norm_eps (float): epsilon value for norm layer
             use_cache (bool): Whether or not the model should return the last key/values attentions
             init_config (Dict): A dictionary used to configure the model initialization:
                 init_config.name: The parameter initialization scheme to use. Options: 'default_', 'baseline_',
@@ -166,6 +170,7 @@ class MPTConfig(PretrainedConfig):
         self.no_bias = no_bias
         self.embedding_fraction = embedding_fraction
         self.norm_type = norm_type
+        self.norm_eps = norm_eps
         self.use_cache = use_cache
         self.init_config = init_config if init_config is not None else copy.deepcopy(
             init_config_defaults,
@@ -304,6 +309,7 @@ class MPTConfig(PretrainedConfig):
             'no_scaling',
             'linear',
             'dynamic',
+            'llama3',
         ]:
             raise ValueError(
                 'If using hf implementation of rope, the type should be one of "no_scaling", "linear" or "dynamic".',

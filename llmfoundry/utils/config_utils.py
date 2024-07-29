@@ -162,10 +162,12 @@ class TrainConfig:
     load_ignore_keys: Optional[List[str]] = None
     save_ignore_keys: Optional[List[str]] = None
     only_hf_checkpoint: bool = False
+    only_composer_checkpoint: bool = False
 
     # Dataloader
     device_train_microbatch_size: Union[str, int, float] = 'auto'
     global_train_batch_size: Optional[int] = None
+    spin_dataloaders: bool = True
 
     # Eval dataloader
     eval_subset_num_batches: int = -1
@@ -347,9 +349,9 @@ def make_dataclass_and_log_config(
     if 'variables' not in unstructured_config:
         unstructured_config['variables'] = {}
 
-    for key in extraneous_keys:
+    if len(extraneous_keys) > 0:
         raise ValueError(
-            f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary. Please place any variables under the `variables` key.',
+            f'Unused parameters {sorted(extraneous_keys)} found in cfg. Please check your yaml to ensure these parameters are necessary. Please place any variables under the `variables` key.',
         )
 
     dataclass_dict_config: DictConfig = om.structured(
@@ -530,7 +532,6 @@ def process_init_device(model_cfg: Dict[str, Any], fsdp_config: Optional[Dict]):
                 fsdp_config['sync_module_states'] = True
 
             # Set defaults for mixed initialization
-            fsdp_config.setdefault('use_orig_params', False)
             fsdp_config.setdefault('load_monolith_rank0_only', True)
 
     # Set ffn_config.device_mesh to fsdp_config.device_mesh
@@ -811,3 +812,45 @@ def _verify_uc_path(path: str) -> bool:
                 f'but your `UCVolumeDatasetSource` might be invalid.',
             )
     return False
+
+
+def set_config_overrides(
+    config: PretrainedConfig,
+    config_overrides: Dict[str, Any],
+):
+    # set config overrides
+    for k, v in config_overrides.items():
+        if not hasattr(config, k):
+            raise ValueError(
+                f'config does not have attribute "{k}" to override ({k}: {v}).',
+            )
+
+        attr = getattr(config, k)
+        # attempt to disallow typos in nested configs
+        if isinstance(attr, Mapping):
+            extra_keys = [_k for _k in v.keys() if _k not in attr.keys()]
+            if extra_keys:
+                raise ValueError(
+                    f'Config dict override got unknown keys. ' +
+                    f'Extra keys: {extra_keys}. ' +
+                    f'Expected (a subset of) keys: {list(attr.keys())}.',
+                )
+            getattr(config, k).update(v)
+        # necessary case to allow for rope_scaling to be overriden in llama config
+        elif attr is None and isinstance(v, Mapping):
+            setattr(config, k, {})
+            getattr(config, k).update(v)
+        elif isinstance(attr, PretrainedConfig):
+            if not isinstance(v, Mapping):
+                raise ValueError(
+                    f'Expected a dictionary for config override {k}, but got {v}.',
+                )
+
+            for _k, _v in v.items():
+                if not hasattr(attr, _k):
+                    raise ValueError(
+                        f'config does not have attribute "{_k}" to override ({k}: {_k}: {_v}).',
+                    )
+                setattr(attr, _k, _v)
+        else:
+            setattr(config, k, v)

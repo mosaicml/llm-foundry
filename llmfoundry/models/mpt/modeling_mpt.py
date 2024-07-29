@@ -49,12 +49,10 @@ from transformers.modeling_outputs import (
     BaseModelOutputWithPast,
     CausalLMOutputWithPast,
 )
-from transformers.models.llama.modeling_llama import \
-    LlamaDynamicNTKScalingRotaryEmbedding as HFDynamicNTKScalingRotaryEmbedding
-from transformers.models.llama.modeling_llama import \
-    LlamaLinearScalingRotaryEmbedding as HFLinearScalingRotaryEmbedding
-from transformers.models.llama.modeling_llama import \
-    LlamaRotaryEmbedding as HFRotaryEmbedding
+from transformers.models.llama.modeling_llama import (
+    LlamaConfig,
+    LlamaRotaryEmbedding,
+)
 
 from llmfoundry.layers_registry import norms, param_init_fns
 from llmfoundry.models.layers.attention import (
@@ -88,14 +86,62 @@ from llmfoundry.models.layers.norm import LPLayerNorm  # type: ignore
 log = logging.getLogger(__name__)
 
 
+class InvalidConfigAccessError(KeyError):
+    pass
+
+
+_ALLOWED_LLAMA_CONFIG_KEYS = {
+    # These are the only config keys that are set and are safe to read from
+    'rope_scaling',
+    'rope_theta',
+    'max_position_embeddings',
+    'hidden_size',
+    'num_attention_heads',
+
+    # Not set but llama modeling code tries to read this attribute
+    'partial_rotary_factor',
+
+    # Benign transformers attributes needed for __init__
+    '_get_generation_defaults',
+    'label2id',
+    'id2label',
+    'torch_dtype',
+    'problem_type',
+    '__class__',
+}
+
+
+class PartialLlamaConfig(LlamaConfig):
+    """Holds the rope config for Llama models and throws.
+
+    an `InvalidConfigAccessError` if any other config elements are read. This
+    class is necessary because the `LlamaRotaryEmbedding` class takes a full
+    `LlamaConfig` now instead of the old keyword arguments.
+    """
+
+    def __getattribute__(self, key: str):
+        if key not in _ALLOWED_LLAMA_CONFIG_KEYS:
+            raise InvalidConfigAccessError(key)
+
+        return super().__getattribute__(key)
+
+    def __getitem__(self, key: str):
+        if key not in _ALLOWED_LLAMA_CONFIG_KEYS:
+            raise InvalidConfigAccessError(key)
+
+        return super().__getitem__(key)
+
+
 def gen_rotary_embedding(
-    rope_head_dim: int,
     rope_impl: str,
     rope_theta: int,
     rope_dail_config: dict,
     rope_hf_config: dict,
     max_seq_len: int,
+    d_model: int,
+    n_heads: int,
 ):
+    rope_head_dim = d_model // n_heads
     if rope_impl == 'dail':
         return DAILRotaryEmbedding(
             dim=rope_head_dim,
@@ -108,32 +154,21 @@ def gen_rotary_embedding(
             'cpu',  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
         )
     elif rope_impl == 'hf':
+        llama_rope_config = {**rope_hf_config}
+        llama_rope_config['rope_type'] = llama_rope_config.pop('type')
+        if llama_rope_config['rope_type'] == 'no_scaling':
+            llama_rope_config['rope_type'] = 'default'
+        partial_llama_config = PartialLlamaConfig(
+            rope_scaling=llama_rope_config,
+            rope_theta=rope_theta,
+            max_position_embeddings=max_seq_len,
+            hidden_size=d_model,
+            num_attention_heads=n_heads,
+        )
         if rope_hf_config['type'] == 'no_scaling':
-            return HFRotaryEmbeddingFoundry(
-                rope_head_dim,
-                max_position_embeddings=max_seq_len,
-                base=rope_theta,
-                device=
-                'cpu',  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
-            )
-        elif rope_hf_config['type'] == 'linear':
-            return HFLinearScalingRotaryEmbedding(
-                rope_head_dim,
-                max_position_embeddings=max_seq_len,
-                base=rope_theta,
-                scaling_factor=rope_hf_config['factor'],
-                device=
-                'cpu',  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
-            )
-        elif rope_hf_config['type'] == 'dynamic':
-            return HFDynamicNTKScalingRotaryEmbedding(
-                rope_head_dim,
-                max_position_embeddings=max_seq_len,
-                base=rope_theta,
-                scaling_factor=rope_hf_config['factor'],
-                device=
-                'cpu',  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
-            )
+            return LlamaRotaryEmbeddingFoundry(config=partial_llama_config)
+        elif rope_hf_config['type'] in {'llama3', 'linear', 'dynamic'}:
+            return LlamaRotaryEmbedding(config=partial_llama_config)
     raise ValueError('rope_impl needs to be either dail or hf')
 
 
@@ -306,7 +341,7 @@ def apply_sequence_id(
     return attn_bias
 
 
-class HFRotaryEmbeddingFoundry(HFRotaryEmbedding):
+class LlamaRotaryEmbeddingFoundry(LlamaRotaryEmbedding):
 
     @torch.no_grad()
     def forward(
@@ -391,6 +426,7 @@ class MPTModel(MPTPreTrainedModel):
         self.norm_f = build_norm(
             name=config.norm_type.lower(),
             normalized_shape=config.d_model,
+            eps=config.norm_eps,
             device=config.init_device,
         )
 
@@ -399,12 +435,13 @@ class MPTModel(MPTPreTrainedModel):
         if self.rope:
             self.rope_impl = config.attn_config['rope_impl']
             self.rotary_embedding = gen_rotary_embedding(
-                rope_head_dim=config.d_model // config.n_heads,
                 rope_impl=self.rope_impl,
                 rope_theta=config.attn_config['rope_theta'],
                 rope_dail_config=config.attn_config['rope_dail_config'],
                 rope_hf_config=config.attn_config['rope_hf_config'],
                 max_seq_len=self.config.max_seq_len,
+                d_model=config.d_model,
+                n_heads=config.n_heads,
             )
 
         if config.init_device != 'meta':
@@ -1285,6 +1322,40 @@ class MPTForCausalLM(MPTPreTrainedModel):
         return reordered_past
 
 
+def get_targets(labels: torch.Tensor) -> torch.Tensor:
+    targets = torch.roll(labels, shifts=-1)
+    targets[:, -1] = -100
+    return targets
+
+
+def compute_loss_from_logits(
+    outputs: CausalLMOutputWithPast,
+    shift_labels: bool,
+    labels: torch.Tensor,
+    loss_fn: nn.Module,
+    sample_weighing_factor: Optional[torch.Tensor] = None,
+) -> torch.Tensor:
+    targets = get_targets(labels) if shift_labels else labels
+
+    losses = loss_fn(
+        outputs.logits.view(-1, outputs.logits.size(-1)),
+        targets.view(-1),
+    )
+
+    if torch.all(targets == loss_fn.ignore_index):
+        loss = losses.sum()
+    else:
+        loss = losses.sum() / (targets != loss_fn.ignore_index).sum()
+        if sample_weighing_factor is not None:
+            if sample_weighing_factor.shape[0] > 1:
+                raise ValueError(
+                    'Sample weighing factor is not supported when batch["sample_weighing_factor"].shape[0] > 1.',
+                )
+            loss = loss * sample_weighing_factor[0].item()
+
+    return loss
+
+
 class ComposerMPTCausalLM(HuggingFaceModel):
 
     def __init__(
@@ -1362,9 +1433,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         return MPTConfig
 
     def get_targets(self, batch: Mapping) -> torch.Tensor:
-        targets = torch.roll(batch['labels'], shifts=-1)
-        targets[:, -1] = -100
-        return targets
+        return get_targets(batch['labels'])
 
     def forward(self, batch: MutableMapping) -> CausalLMOutputWithPast:
         if self.config.ffn_config['ffn_type'] in ffns_with_megablocks:
@@ -1385,26 +1454,13 @@ class ComposerMPTCausalLM(HuggingFaceModel):
 
     def loss(self, outputs: CausalLMOutputWithPast,
              batch: Mapping) -> Union[dict, torch.Tensor]:
-        if self.shift_labels:
-            targets = self.get_targets(batch)
-        else:
-            targets = batch['labels']
-
-        losses = self.loss_fn(
-            outputs.logits.view(-1, outputs.logits.size(-1)),
-            targets.view(-1),
+        loss = compute_loss_from_logits(
+            outputs,
+            self.shift_labels,
+            batch['labels'],
+            self.loss_fn,
+            batch.get('sample_weighing_factor', None),
         )
-
-        if torch.all(targets == self.loss_fn.ignore_index):
-            loss = losses.sum()
-        else:
-            loss = losses.sum() / (targets != self.loss_fn.ignore_index).sum()
-            if 'sample_weighing_factor' in batch:
-                if batch['sample_weighing_factor'].shape[0] > 1:
-                    raise ValueError(
-                        'Sample weighing factor is not supported when batch["sample_weighing_factor"].shape[0] > 1.',
-                    )
-                loss = loss * batch['sample_weighing_factor'][0].item()
 
         if self.config.ffn_config['ffn_type'] in ffns_with_megablocks:
             # MegaBlocks MoE load balancing loss
@@ -1420,7 +1476,6 @@ class ComposerMPTCausalLM(HuggingFaceModel):
                 'loss': loss,
                 'lbl': lbl,
             }
-
         return loss
 
     @cached_property

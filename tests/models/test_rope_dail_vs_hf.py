@@ -77,12 +77,13 @@ def test_rope_dail_vs_hf(attn_type: str, seq_len: int, device: str = 'cuda'):
         }
 
         dail_rope = gen_rotary_embedding(
-            rope_head_dim=cfg.d_model // cfg.n_heads,
             rope_impl=dail_rope_config['rope_impl'],
             rope_theta=dail_rope_config['rope_theta'],
             rope_dail_config=dail_rope_config['rope_dail_config'],
             rope_hf_config={},
             max_seq_len=seq_len,
+            d_model=cfg.d_model,
+            n_heads=cfg.n_heads,
         ).to('cuda')
         dail_rope_w_meta_info = {
             'impl': 'dail',
@@ -92,12 +93,13 @@ def test_rope_dail_vs_hf(attn_type: str, seq_len: int, device: str = 'cuda'):
         }
 
         hf_rope = gen_rotary_embedding(
-            rope_head_dim=cfg.d_model // cfg.n_heads,
             rope_impl=hf_rope_config['rope_impl'],
             rope_theta=hf_rope_config['rope_theta'],
             rope_dail_config={},
             rope_hf_config=hf_rope_config['rope_hf_config'],
             max_seq_len=seq_len,
+            d_model=cfg.d_model,
+            n_heads=cfg.n_heads,
         ).to('cuda')
         pos = torch.arange(seq_len).unsqueeze(0).to(device='cuda')
         # adjust the position indices to account for padding tokens

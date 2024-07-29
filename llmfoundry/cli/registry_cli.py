@@ -3,15 +3,15 @@
 
 from typing import Optional
 
-import typer
 from rich.console import Console
 from rich.table import Table
+from typer import Typer
 
 from llmfoundry import registry
 from llmfoundry.utils.registry_utils import TypedRegistry
 
 console = Console()
-app = typer.Typer(pretty_exceptions_show_locals=False)
+app = Typer(pretty_exceptions_show_locals=False)
 
 
 def _get_registries(group: Optional[str] = None) -> list[TypedRegistry]:

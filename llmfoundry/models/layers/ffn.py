@@ -53,6 +53,14 @@ _FFN_ACT_FN_DEFAULT = {
 }
 
 
+def quickgelu_activation(input: torch.Tensor) -> torch.Tensor:
+    """
+    Applies GELU approximation that is fast but somewhat inaccurate.
+    See: https://github.com/hendrycks/GELUs
+    """
+    return input * torch.sigmoid(1.702 * input)
+
+
 def resolve_ffn_act_fn(
     config: Optional[dict] = None,
 ) -> Callable[[torch.Tensor], torch.Tensor]:
@@ -70,10 +78,13 @@ def resolve_ffn_act_fn(
         config = _FFN_ACT_FN_DEFAULT
     config = deepcopy(config)
     name = config.pop('name')
-    if not hasattr(torch.nn.functional, name):
-        raise ValueError(f'Unrecognized activation function name ({name}).')
-    act = getattr(torch.nn.functional, name)
-    return partial(act, **config)
+    if name == 'quick_gelu':
+        return quickgelu_activation
+    else:
+        if not hasattr(torch.nn.functional, name):
+            raise ValueError(f'Unrecognized activation function name ({name}).')
+        act = getattr(torch.nn.functional, name)
+        return partial(act, **config)
 
 
 _DEFAULT_ACT_FN = resolve_ffn_act_fn(_FFN_ACT_FN_DEFAULT)

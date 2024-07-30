@@ -61,16 +61,16 @@ jobs:
           echo "Triggered by pull_request event."
           STAGING_REPO="mosaicml/ci-staging"
           GHCR_STAGING_REPO="ghcr.io/databricks-mosaic/ci-staging"
-          IMAGE_TAG="${STAGING_REPO}:${{matrix.name}}-${GIT_SHA}"
           GHCR_IMAGE_TAG="${GHCR_STAGING_REPO}:${{matrix.name}}-${GIT_SHA}"
+          IMAGE_TAG="${STAGING_REPO}:${{matrix.name}}-${GIT_SHA},${GHCR_IMAGE_TAG}"
           IMAGE_CACHE="${STAGING_REPO}:${{matrix.name}}-buildcache"
         else
           # Triggered by push or workflow_dispatch event
           echo "Triggered by ${{ github.event_name }} event, releasing to prod"
           PROD_REPO="mosaicml/llm-foundry"
-          IMAGE_TAG="${PROD_REPO}:${{matrix.name}}-${GIT_SHA},${PROD_REPO}:${{matrix.name}}-latest"
           GHCR_PROD_REPO="ghcr.io/databricks-mosaic/llm-foundry"
           GHCR_IMAGE_TAG="${GHCR_PROD_REPO}:${{matrix.name}}-${GIT_SHA},${GHCR_PROD_REPO}:${{matrix.name}}-latest"
+          IMAGE_TAG="${PROD_REPO}:${{matrix.name}}-${GIT_SHA},${PROD_REPO}:${{matrix.name}}-latest,${GHCR_IMAGE_TAG}"
           IMAGE_CACHE="${PROD_REPO}:${{matrix.name}}-buildcache"
         fi
 
@@ -82,7 +82,7 @@ jobs:
       uses: docker/build-push-action@v3
       with:
         context: .
-        tags: ${{ env.IMAGE_TAG }},${{ env.GHCR_IMAGE_TAG}}
+        tags: ${{ env.IMAGE_TAG }}
         push: true
         cache-from: type=registry,ref=${{ env.IMAGE_CACHE }}
         cache-to: type=registry,ref=${{ env.IMAGE_CACHE }},mode=max

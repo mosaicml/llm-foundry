@@ -44,7 +44,7 @@ jobs:
       uses: docker/login-action@v2
       with:
         username: ${{ secrets.GHCR_USERNAME }}
-        password: ${{ secrets.GHCR_PASSWORD }}
+        password: ${{ secrets.GHCR_TOKEN }}
 
     - name: Calculate Docker Image Variables
       run: |

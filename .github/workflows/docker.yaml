@@ -12,7 +12,7 @@ on:
   workflow_dispatch: {}
 jobs:
   docker-build:
-    runs-on: mosaic-4wide
+    runs-on: mosaic-8wide
     if: github.repository_owner == 'mosaicml'
     strategy:
       matrix:
@@ -45,6 +45,7 @@ jobs:
       with:
         username: ${{ secrets.GHCR_USERNAME }}
         password: ${{ secrets.GHCR_TOKEN }}
+        registry: ghcr.io
 
     - name: Calculate Docker Image Variables
       run: |

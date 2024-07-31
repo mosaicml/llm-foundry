@@ -5,7 +5,7 @@ variables:
   model_name: amazon/chronos-t5-small
   save_folder: ./{run_name}/checkpoints  # TODO: Change
   remote: ./scripts/train/yamls/finetune/hospital.arrow # TODO: Change
-  local: /tmp/chronos
+  local: 
 
   context_length: 512
   prediction_length: 12  # Depends on dataset

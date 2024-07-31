@@ -25,6 +25,8 @@ model:
   name: hf_t5
   pretrained_model_name_or_path: ${variables.model_name}
   pretrained: true
+  use_auth_token: true
+  trust_remote_code: true
 
 # Tokenizer
 tokenizer:

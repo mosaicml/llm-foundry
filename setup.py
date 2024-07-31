@@ -15,7 +15,7 @@ _PACKAGE_DIR = 'llmfoundry'
 _REPO_REAL_PATH = os.path.dirname(os.path.realpath(__file__))
 _PACKAGE_REAL_PATH = os.path.join(_REPO_REAL_PATH, _PACKAGE_DIR)
 
-# Read the composer version
+# Read the llm-foundry version
 # We can't use `.__version__` from the library since it's not installed yet
 version_path = os.path.join(_PACKAGE_REAL_PATH, '_version.py')
 with open(version_path, encoding='utf-8') as f:
@@ -23,7 +23,7 @@ with open(version_path, encoding='utf-8') as f:
     version_locals: Mapping[str, object] = {}
     content = f.read()
     exec(content, version_globals, version_locals)
-    repo_version = version_locals['__version__']
+    repo_version = str(version_locals['__version__'])
 
 # Use repo README for PyPi description
 with open('README.md', 'r', encoding='utf-8') as fh:

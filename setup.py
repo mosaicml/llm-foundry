@@ -70,7 +70,7 @@ install_requires = [
     'onnx==1.16.1',
     'onnxruntime==1.18.1',
     'boto3>=1.21.45,<2',
-    'huggingface-hub>=0.19.0,<0.24',
+    'huggingface-hub>=0.19.0,<0.25',
     'beautifulsoup4>=4.12.2,<5',  # required for model download utils
     'tenacity>=8.2.3,<9',
     'catalogue>=2,<3',

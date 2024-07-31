@@ -26,6 +26,7 @@ except ImportError as e:
             ' in LLM Foundry setup.py and update accordingly. The latest Docker image can be found in the README.',
         ) from e
 
+from llmfoundry._version import __version__
 from llmfoundry.utils.logging_utils import SpecificWarningFilter
 
 # Filter out Hugging Face warning for not using a pinned revision of the model
@@ -87,5 +88,3 @@ __all__ = [
     'tokenizers',
     'utils',
 ]
-
-__version__ = '0.11.0.dev0'

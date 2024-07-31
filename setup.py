@@ -6,6 +6,7 @@
 import copy
 import os
 import re
+from typing import Any, Dict, Mapping
 
 import setuptools
 from setuptools import setup
@@ -15,17 +16,15 @@ _PACKAGE_DIR = 'llmfoundry'
 _REPO_REAL_PATH = os.path.dirname(os.path.realpath(__file__))
 _PACKAGE_REAL_PATH = os.path.join(_REPO_REAL_PATH, _PACKAGE_DIR)
 
-# Read the repo version
+# Read the composer version
 # We can't use `.__version__` from the library since it's not installed yet
-with open(os.path.join(_PACKAGE_REAL_PATH, '__init__.py')) as f:
+version_path = os.path.join(_PACKAGE_REAL_PATH, '_version.py')
+with open(version_path, encoding='utf-8') as f:
+    version_globals: Dict[str, Any] = {}
+    version_locals: Mapping[str, object] = {}
     content = f.read()
-# regex: '__version__', whitespace?, '=', whitespace, quote, version, quote
-# we put parens around the version so that it becomes elem 1 of the match
-expr = re.compile(
-    r"""^__version__\s*=\s*['"]([0-9]+\.[0-9]+\.[0-9]+(?:\.\w+)?)['"]""",
-    re.MULTILINE,
-)
-repo_version = expr.findall(content)[0]
+    exec(content, version_globals, version_locals)
+    repo_version = version_locals['__version__']
 
 # Use repo README for PyPi description
 with open('README.md', 'r', encoding='utf-8') as fh:

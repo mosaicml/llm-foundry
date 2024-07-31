@@ -3,8 +3,8 @@
 variables:
   global_seed: 17
   model_name: chronos_tokenizer
-  save_folder: /mnt/workdisk/mosaicml/llm-foundry/tmp/output/chronos-t5-small-finetuning-1  # TODO: Change
-  remote: /mnt/workdisk/mosaicml/llm-foundry/scripts/train/yamls/finetune/hospital.arrow # TODO: Change
+  save_folder: ./tmp/output/chronos-t5-small-finetuning-1  # TODO: Change
+  remote: ./scripts/train/yamls/finetune/hospital.arrow # TODO: Change
   local: /tmp
 
   context_length: 512

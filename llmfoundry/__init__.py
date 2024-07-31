@@ -36,6 +36,7 @@ new_files_warning_filter = SpecificWarningFilter(
 
 logger.addFilter(new_files_warning_filter)
 
+from llmfoundry._version import __version__
 from llmfoundry import (
     algorithms,
     callbacks,

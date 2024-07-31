@@ -79,7 +79,7 @@ reportMissingImports = "none"
 # Pytest
 [tool.pytest.ini_options]
 # By default, skip gpu tests
-addopts = "--tb=short -m 'not gpu'"
+addopts = "--tb=short -m 'not gpu' --color=yes"
 
 markers = [
     # For distributed testing

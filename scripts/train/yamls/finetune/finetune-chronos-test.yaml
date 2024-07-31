@@ -4,7 +4,8 @@ variables:
   global_seed: 17
   model_name: chronos_tokenizer
   save_folder: /mnt/workdisk/mosaicml/llm-foundry/tmp/output/chronos-t5-small-finetuning-1  # TODO: Change
-  local: /mnt/workdisk/mosaicml/llm-foundry/scripts/train/yamls/finetune/hospital.arrow # TODO: Change
+  remote: /mnt/workdisk/mosaicml/llm-foundry/scripts/train/yamls/finetune/hospital.arrow # TODO: Change
+  local: /tmp
 
   context_length: 512
   prediction_length: 12  # Depends on dataset
@@ -42,6 +43,7 @@ train_loader:
     min_past: ${variables.min_past}
     shuffle_buffer_length: 100_000  # original: 100_000
     max_missing_prop: 0.9
+    remote: ${variables.remote}
     local: ${variables.local}
     allow_pad_trimming: false
     decoder_only_format: false

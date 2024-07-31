@@ -3,7 +3,7 @@
 variables:
   global_seed: 17
   model_name: amazon/chronos-t5-small
-  save_folder: oci://mosaicml-internal-checkpoints/vincent/chronos/  # TODO: Change
+  save_folder: ./{run_name}/checkpoints  # TODO: Change
   remote: ./scripts/train/yamls/finetune/hospital.arrow # TODO: Change
   local: /tmp/chronos
 

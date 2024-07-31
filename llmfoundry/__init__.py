@@ -36,7 +36,6 @@ new_files_warning_filter = SpecificWarningFilter(
 
 logger.addFilter(new_files_warning_filter)
 
-from llmfoundry._version import __version__
 from llmfoundry import (
     algorithms,
     callbacks,
@@ -51,6 +50,7 @@ from llmfoundry import (
     tokenizers,
     utils,
 )
+from llmfoundry._version import __version__
 from llmfoundry.data import StreamingFinetuningDataset, StreamingTextDataset
 from llmfoundry.eval import InContextLearningDataset, InContextLearningMetric
 from llmfoundry.models.hf import ComposerHFCausalLM
@@ -64,6 +64,7 @@ from llmfoundry.models.mpt import (
 from llmfoundry.optim import DecoupledLionW
 
 __all__ = [
+    '__version__',
     'StreamingFinetuningDataset',
     'StreamingTextDataset',
     'InContextLearningDataset',

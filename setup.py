@@ -5,7 +5,6 @@
 
 import copy
 import os
-import re
 from typing import Any, Dict, Mapping
 
 import setuptools

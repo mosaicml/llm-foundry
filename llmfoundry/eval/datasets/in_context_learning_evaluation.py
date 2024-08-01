@@ -253,9 +253,6 @@ class InContextLearningDataset(Dataset):
             Dataset as HFDataset,)  # pyright: ignore[reportGeneralTypeIssues]
         from datasets import (
             load_dataset,)  # pyright: ignore[reportGeneralTypeIssues]
-        from datasets import (
-            ,
-        )
         if 'hf://' in dataset_uri:
             dataset_uri = dataset_uri.replace('hf://', '')
             if hf_loading_vars is None:

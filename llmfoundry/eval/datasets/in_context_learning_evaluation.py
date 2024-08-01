@@ -249,8 +249,8 @@ class InContextLearningDataset(Dataset):
         Returns:
             dataset: A loaded HF dataset
         """
-        from datasets import (
-            Dataset as HFDataset,)  # pyright: ignore[reportGeneralTypeIssues]
+        from datasets import \
+            Dataset as HFDataset  # pyright: ignore[reportGeneralTypeIssues]
         from datasets import (  # pyright: ignore[reportGeneralTypeIssues]
             load_dataset,
         )

@@ -90,6 +90,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             errors (str, optional): Paradigm to follow when decoding bytes to UTF-8. See
                 [bytes.decode](https://docs.python.org/3/library/stdtypes.html#bytes.decode) for more information.
                 Defaults to `"replace"`.
+            kwargs (Any): Other relevant keyword arguments.
         """
         try:
             import tiktoken

@@ -34,7 +34,7 @@ def build_hf_dataset(
     """Build an IterableDataset over the HF C4 or pile source data.
 
     Args:
-        dataset_name (str): Dataset name
+        path (str): Dataset name
         split (str): Split name.
         mode (ConcatMode): NO_CONCAT, or CONCAT_TOKENS
         max_length (int): The length of concatenated tokens

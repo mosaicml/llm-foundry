@@ -68,7 +68,6 @@ from llmfoundry.data.finetuning.collator import (
     stitch_turns_decoder_only,
     stitch_turns_encoder_decoder,
 )
-
 # yapf: disable
 from llmfoundry.utils.exceptions import (
     ALLOWED_MESSAGES_KEYS,
@@ -89,7 +88,6 @@ from llmfoundry.utils.exceptions import (
     UnableToProcessPromptResponseError,
     UnknownExampleTypeError,
 )
-
 #  yapf: enable
 from llmfoundry.utils.logging_utils import SpecificWarningFilter
 

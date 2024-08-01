@@ -80,7 +80,7 @@ class InContextLearningMetric(Metric):
         Args:
             batch (dict): Batch must consist minimally of `input_ids` as well as any other structure needed
                 to compute the metric.
-            output_logits (torch.Tensor): The model outputs evaluated on the batch `input_ids`
+            outputs (torch.Tensor): The model outputs evaluated on the batch `input_ids`.
             labels (torch.Tensor): The correct outputs.
 
         Raises:

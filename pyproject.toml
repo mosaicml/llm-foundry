@@ -27,6 +27,7 @@ select = [
     "PERF",
     "PLE",
     "COM812",
+    "D", # pydocstyle
 ]
 
 extend-select = ["D404"] # pydocstyle

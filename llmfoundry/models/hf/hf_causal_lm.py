@@ -205,6 +205,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             use_auth_token (bool): Whether to use an authentication token.
             config_overrides (Dict[str, Any]): The configuration overrides.
             load_in_8bit (bool): Whether to load in 8-bit.
+            pretrained (bool): Whether the model is pretrained.
             prepare_for_fsdp (bool, optional): Whether to prepare the model for FSDP wrapping. Default: False.
 
         Returns:

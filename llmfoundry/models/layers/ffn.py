@@ -429,6 +429,7 @@ def set_ffn_device_mesh(
         ffn (nn.Module): The FFN module.
         moe_world_size (int): The MoE world size.
         device_mesh (DeviceMesh): The full device mesh.
+        get_fsdp_submesh (Callable[[DeviceMesh], DeviceMesh]): A function to get the fsdp submesh.
 
     Raises:
         RuntimeError: If the device mesh is 3D.

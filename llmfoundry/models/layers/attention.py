@@ -606,6 +606,7 @@ class GroupedQueryAttention(nn.Module):
 
         Args:
             x (torch.Tensor): The input tensor.
+            prev_layer_key_value  (Optional[Tuple[torch.Tensor, torch.Tensor]]): The key value of the previous layer.
 
         Returns:
             query (torch.Tensor): The query tensor.

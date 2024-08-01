@@ -147,6 +147,7 @@ class MPTConfig(PretrainedConfig):
                             reuse_kv_layer:
                                 attn_config:
                                     reuse_kv_layer_idx: -6 # Relative index of the layer whose kv cache to reuse
+            kwargs (Any): Other relevant keyword arguments.
         """
         self.d_model = d_model
         self.n_heads = n_heads

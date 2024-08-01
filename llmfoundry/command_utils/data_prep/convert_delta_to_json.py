@@ -78,15 +78,16 @@ def to_cf(self: 'SparkConnectClient',
     return the schema and drops all other responses.
 
     Args:
-       plan (pb2.Plan): The plan object to be executed by spark.
-       type (str): The output format of the result, supported formats are 'json', 'csv', and 'arrow'.
+        self (SparkConnectClient): The SparkConnectClient we are processing.
+        plan (pb2.Plan): The plan object to be executed by spark.
+        type (str): The output format of the result, supported formats are 'json', 'csv', and 'arrow'.
 
     Returns:
-       Tuple[List[Result], int, bool]: A tuple containing:
-           - A list of Result namedtuples, each containing a URL, row count, compressed size,
-             and uncompressed size of the part of the result.
-           - Total row count of all parts of the result.
-           - A boolean indicating whether the result has been truncated.
+        Tuple[List[Result], int, bool]: A tuple containing:
+            - A list of Result namedtuples, each containing a URL, row count, compressed size,
+                and uncompressed size of the part of the result.
+            - Total row count of all parts of the result.
+            - A boolean indicating whether the result has been truncated.
     """
     req = self._execute_plan_request_with_metadata()
     req.plan.CopyFrom(plan)
@@ -120,8 +121,9 @@ def to_cf(self: 'SparkConnectClient',
     )
 
     # Create the iterator
-    from pyspark.sql.connect.client.reattach import \
-        ExecutePlanResponseReattachableIterator
+    from pyspark.sql.connect.client.reattach import (
+        ExecutePlanResponseReattachableIterator,
+    )
     iterator = ExecutePlanResponseReattachableIterator(
         req,
         self._stub,
@@ -169,6 +171,7 @@ def collect_as_cf(self: 'DataFrame',
     uses the `to_cf` method to execute the plan and fetch results as presigned URLs.
 
     Args:
+        self (pd.DataFrame): The dataframe we are processing.
         type (str): The output format of the result, supported formats are 'json', 'csv', and 'arrow'.
 
     Returns:
@@ -693,8 +696,9 @@ def _check_imports():
         import pyspark.sql.connect.proto.cloud_pb2 as cloud_pb2
         from pyspark.sql import SparkSession
         from pyspark.sql.connect.client.core import SparkConnectClient
-        from pyspark.sql.connect.client.reattach import \
-            ExecutePlanResponseReattachableIterator
+        from pyspark.sql.connect.client.reattach import (
+            ExecutePlanResponseReattachableIterator,
+        )
         from pyspark.sql.connect.dataframe import DataFrame
         from pyspark.sql.dataframe import DataFrame as SparkDataFrame
         from pyspark.sql.types import Row

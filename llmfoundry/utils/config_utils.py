@@ -341,8 +341,6 @@ def make_dataclass_and_log_config(
         transforms,
     )
 
-    logged_cfg.update(unstructured_config, merge=True)
-
     arg_config_keys = set(unstructured_config.keys())
     extraneous_keys = set.difference(arg_config_keys, dataclass_fields)
 
@@ -468,6 +466,9 @@ def update_config_with_batch_size_info(
 
     Args:
         cfg (Dict[str, Any]): The config to update.
+        device_train_batch_size (Union[int, float]): The batch size of the training dataset for each device.
+        device_train_microbatch_size (Union[int, float, Literal['auto']]): The microbatch size of the training dataset for each device.
+        device_train_grad_accum (Union[int, Literal['auto']]): The gradient accumulation settings for each device.
 
     Returns:
         Dict[str, Any]: The updated config.

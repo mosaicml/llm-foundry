@@ -9,6 +9,8 @@ on:
     - main
     - release/**
   workflow_dispatch:
+permissions:
+  contents: read
 # Cancel old runs when a new commit is pushed to the same branch if not on main or dev
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -16,6 +18,7 @@ concurrency:
 jobs:
   pytest-gpu-1:
     name: ${{ matrix.name }}
+    if: github.repository_owner == 'mosaicml'
     runs-on: linux-ubuntu-latest
     strategy:
       fail-fast: false
@@ -44,6 +47,7 @@ jobs:
         ci_repo_gpu_test_ref: ${{ matrix.ci_repo_gpu_test_ref }}
   pytest-gpu-2:
     name: ${{ matrix.name }}
+    if: github.repository_owner == 'mosaicml'
     runs-on: linux-ubuntu-latest
     strategy:
       fail-fast: false
@@ -72,6 +76,7 @@ jobs:
         ci_repo_gpu_test_ref: ${{ matrix.ci_repo_gpu_test_ref }}
   pytest-gpu-4:
     name: ${{ matrix.name }}
+    if: github.repository_owner == 'mosaicml'
     runs-on: linux-ubuntu-latest
     strategy:
       fail-fast: false

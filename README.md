@@ -310,7 +310,7 @@ dependencies = [
 ]
 
 # Note: Even though in python code, this would be llmfoundry.registry.loggers,
-# when specified in the entry_points, it should be "llmfoundry_loggers". That is,
+# when specified in the entry_points, it has to be "llmfoundry_loggers". That is,
 # the segments of the name should be joined by an _ in the entry_points section.
 [project.entry-points."llmfoundry_loggers"]
 my_logger = "foundry_registry.loggers:MyLogger"

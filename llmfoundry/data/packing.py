@@ -337,7 +337,7 @@ def auto_packing_ratio(
         dataloader_cfg (DictConfig): The dataloader configuration for profiling.
         tokenizer (PreTrainedTokenizerBase): The tokenizer for profiling.
         device_batch_size (int): The size of the batches (number of examples) per device.
-        num_packing_ratio (int): The number of packing ratios to try.
+        num_packing_ratios (int): The number of packing ratios to try.
 
     Returns:
         A packing ratio that minimizes padding while maintaining zero waste.

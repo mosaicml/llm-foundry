@@ -50,6 +50,7 @@ from llmfoundry import (
     tokenizers,
     utils,
 )
+from llmfoundry._version import __version__
 from llmfoundry.data import StreamingFinetuningDataset, StreamingTextDataset
 from llmfoundry.eval import InContextLearningDataset, InContextLearningMetric
 from llmfoundry.models.hf import ComposerHFCausalLM
@@ -63,6 +64,7 @@ from llmfoundry.models.mpt import (
 from llmfoundry.optim import DecoupledLionW
 
 __all__ = [
+    '__version__',
     'StreamingFinetuningDataset',
     'StreamingTextDataset',
     'InContextLearningDataset',
@@ -87,5 +89,3 @@ __all__ = [
     'tokenizers',
     'utils',
 ]
-
-__version__ = '0.11.0.dev0'

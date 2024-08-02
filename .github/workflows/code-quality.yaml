@@ -19,7 +19,7 @@ defaults:
     working-directory: .
 jobs:
   code-quality:
-    runs-on: ubuntu-20.04
+    runs-on: linux-ubuntu-latest
     timeout-minutes: 30
     strategy:
       matrix:

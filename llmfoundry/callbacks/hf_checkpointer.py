@@ -486,7 +486,8 @@ class HuggingFaceCheckpointer(Callback):
                 active_adapter = original_model.active_adapter
                 base_model = original_model.get_base_model()
                 new_base_model_instance = type(base_model)(new_config)
-
+                if new_config.vocab_size != len(original_tokenizer):
+                    new_base_model_instance.resize_token_embeddings(len(original_tokenizer))
                 new_model_instance = type(original_model)(
                     new_base_model_instance,
                     original_model.peft_config[active_adapter],
@@ -500,6 +501,8 @@ class HuggingFaceCheckpointer(Callback):
                     new_model_instance.generation_config.update(
                         **original_model.generation_config.to_dict(),
                     )
+                    if new_config.vocab_size != len(original_tokenizer):
+                        new_model_instance.resize_token_embeddings(len(original_tokenizer))
 
             # Then load the state dict in with "assign" so that the state dict
             # is loaded properly even though the model is initially on meta device.

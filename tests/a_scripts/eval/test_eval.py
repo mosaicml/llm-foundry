@@ -11,10 +11,10 @@ import pytest
 from composer import Trainer
 from composer.loggers import InMemoryLogger
 
+from llmfoundry.command_utils import evaluate
 from llmfoundry.utils import build_tokenizer
 from llmfoundry.utils.builders import build_composer_model
 from llmfoundry.utils.config_utils import EVAL_CONFIG_KEYS, to_dict_container
-from scripts.eval.eval import main  # noqa: E402
 from tests.data_utils import create_c4_dataset_xxsmall, gpt_tiny_cfg
 
 
@@ -75,7 +75,7 @@ def test_icl_eval(
     eval_cfg = copy.deepcopy(eval_cfg)
     eval_cfg.models[0].load_path = mock_saved_model_path
     assert isinstance(eval_cfg, om.DictConfig)
-    main(eval_cfg)
+    evaluate(eval_cfg)
     out, _ = capfd.readouterr()
     expected_results = '| Category                    | Benchmark      | Subtask   |   Accuracy | Number few shot   | Model    |\n|:----------------------------|:---------------|:----------|-----------:|:------------------|:---------|\n| language_understanding_lite | lambada_openai |           |          0 | 0-shot            | tiny_mpt |'
     assert expected_results in out
@@ -135,14 +135,14 @@ def test_loader_eval(
     test_cfg.loggers = om.DictConfig({'inmemory': om.DictConfig({})})
 
     # This test uses a training yaml with training-only keys present.
-    # We exclude these keys before calling `main` from the eval script.
+    # We exclude these keys before calling `evaluate` from the eval script.
     allowed_keys = EVAL_CONFIG_KEYS
     present_keys = set(test_cfg.keys())
     keys_to_pop = present_keys.difference(allowed_keys)
 
     [test_cfg.pop(key) for key in keys_to_pop]
 
-    trainers, eval_gauntlet_df = main(test_cfg)
+    trainers, eval_gauntlet_df = evaluate(test_cfg)
 
     assert eval_gauntlet_df is None
     assert len(trainers) == 1  # one per model

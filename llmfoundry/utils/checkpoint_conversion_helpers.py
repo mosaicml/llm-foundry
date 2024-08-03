@@ -177,6 +177,7 @@ def _convert_weight_to_ft_each(
         tensor_name (str): Name of the weight tensor. Used in naming the output file.
         config (Dict[str, Any]): Configuration for the model. This is used in getting model specific parameters.
         data (np.ndarray): Tensor data in np.ndarray format.
+        np_weight_data_type (np.dtype): Data type of the numpy array `data`.
 
     Returns:
         None: Writes to a file in `save_dir`. File name is based on the `tensor_name`

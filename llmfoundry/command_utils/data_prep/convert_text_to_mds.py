@@ -473,7 +473,7 @@ def convert_text_to_mds(
     with open(index_path, 'r') as index_file:
         if not json.load(index_file)['shards']:
             raise ValueError(
-                'Input data was too small, no shards written to output folder.'
+                'Input data was too small, no shards written to output folder.',
             )
 
     # Write a done file with the args and object names

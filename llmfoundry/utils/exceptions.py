@@ -352,9 +352,9 @@ class MisconfiguredHfDatasetError(UserError):
 class DatasetTooSmallError(UserError):
     """Error thrown when the dataset is too small to be processed."""
 
-    def __init__(self, dataset_path: str) -> None:
-        message = f'Your dataset in {dataset_path} is too small to be converted to MDS.'
-        super().__init__(message, dataset_path=dataset_path)
+    def __init__(self) -> None:
+        message = f'Your dataset is too small to be converted to MDS.'
+        super().__init__(message)
 
 
 class RunTimeoutError(InternalError):

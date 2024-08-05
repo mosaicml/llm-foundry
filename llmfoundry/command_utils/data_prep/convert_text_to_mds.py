@@ -473,7 +473,7 @@ def convert_text_to_mds(
     index_path = os.path.join(local_output_folder, 'index.json')
     with open(index_path, 'r') as index_file:
         if not json.load(index_file)['shards']:
-            raise DatasetTooSmallError(input_folder)
+            raise DatasetTooSmallError()
 
     # Write a done file with the args and object names
     write_done_file(local_output_folder, args_str, object_names)

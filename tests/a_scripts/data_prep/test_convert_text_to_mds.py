@@ -267,13 +267,15 @@ def test_input_folder_not_exist(tmp_path: pathlib.Path):
         )
 
 
-
 def test_dataset_too_small(tmp_path: pathlib.Path):
     input_folder = tmp_path / 'input'
     os.makedirs(input_folder, exist_ok=True)
     with open(input_folder / 'test.txt', 'w') as f:
         f.write('a')
-    with pytest.raises(ValueError, match='Input data was too small, no shards written to output folder.'):
+    with pytest.raises(
+        ValueError,
+        match='Input data was too small, no shards written to output folder.'
+    ):
         convert_text_to_mds(
             tokenizer_name='mosaicml/mpt-7b',
             output_folder=str(tmp_path / 'output'),

@@ -332,14 +332,14 @@ def make_dataclass_and_log_config(
                 'icl_tasks must be specified in the config',
             )
 
-    # Create copy of config for logging
-    logged_cfg: Dict[str, Any] = copy.deepcopy(unstructured_config)
-
     # Apply transforms to the unstructured config before constructing dataclass
     unstructured_config = apply_transforms_to_config(
         unstructured_config,
         transforms,
     )
+
+    # Create copy of config for logging
+    logged_cfg: Dict[str, Any] = copy.deepcopy(unstructured_config)
 
     arg_config_keys = set(unstructured_config.keys())
     extraneous_keys = set.difference(arg_config_keys, dataclass_fields)

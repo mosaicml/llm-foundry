@@ -112,7 +112,7 @@ extra_deps['peft'] = [
 ]
 
 extra_deps['openai'] = [
-    'openai==1.3.8',
+    'openai==1.38.0',
     'tiktoken==0.4.0',
 ]
 

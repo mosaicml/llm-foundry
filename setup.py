@@ -82,7 +82,7 @@ extra_deps['dev'] = [
     'pre-commit>=3.4.0,<4',
     'pytest>=7.2.1,<8',
     'pytest_codeblocks>=0.16.1,<0.17',
-    'pytest-cov>=4,<5',
+    'pytest-cov>=4,<6',
     'pyright==1.1.256',
     'toml>=0.10.2,<0.11',
     'packaging>=21,<23',

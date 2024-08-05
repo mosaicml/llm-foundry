@@ -309,9 +309,14 @@ dependencies = [
     "llm-foundry",
 ]
 
+# Note: Even though in python code, this would be llmfoundry.registry.loggers,
+# when specified in the entry_points, it has to be "llmfoundry_loggers". That is,
+# the segments of the name should be joined by an _ in the entry_points section.
 [project.entry-points."llmfoundry_loggers"]
 my_logger = "foundry_registry.loggers:MyLogger"
 ```
+
+If developing new components via entrypoints, it is important to note that Python entrypoints are global to the Python environment. This means that if you have multiple packages that register components with the same key, the last one installed will be the one used. This can be useful for overriding components in LLM Foundry, but can also lead to unexpected behavior if not careful. Additionally, if you change the pyproject.toml, you will need to reinstall the package for the changes to take effect. You can do this quickly by installing with `pip install -e . --no-deps` to avoid reinstalling dependencies.
 
 ### Direct call to register
 

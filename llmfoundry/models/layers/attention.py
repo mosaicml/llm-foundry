@@ -426,6 +426,7 @@ class GroupedQueryAttention(nn.Module):
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
+        norm_eps: float = 1e-05,
         fc_type: Optional[dict[str, Any]] = None,
         device: Optional[str] = None,
         bias: bool = True,
@@ -533,6 +534,7 @@ class GroupedQueryAttention(nn.Module):
             self.q_ln = build_norm(
                 name=norm_type.lower(),
                 normalized_shape=norm_size,
+                eps=norm_eps,
                 device=device,
             )
             if self.reuse_kv_layer_idx is None:
@@ -541,6 +543,7 @@ class GroupedQueryAttention(nn.Module):
                 self.k_ln = build_norm(
                     name=norm_type.lower(),
                     normalized_shape=norm_size,
+                    eps=norm_eps,
                     device=device,
                 )
 
@@ -617,6 +620,7 @@ class GroupedQueryAttention(nn.Module):
 
         Args:
             x (torch.Tensor): The input tensor.
+            prev_layer_key_value  (Optional[Tuple[torch.Tensor, torch.Tensor]]): The key value of the previous layer.
 
         Returns:
             query (torch.Tensor): The query tensor.
@@ -810,6 +814,7 @@ class MultiheadAttention(GroupedQueryAttention):
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
+        norm_eps: float = 1e-05,
         fc_type: Optional[dict[str, Any]] = None,
         device: Optional[str] = None,
         bias: bool = True,
@@ -829,6 +834,7 @@ class MultiheadAttention(GroupedQueryAttention):
             softmax_scale=softmax_scale,
             attn_pdrop=attn_pdrop,
             norm_type=norm_type,
+            norm_eps=norm_eps,
             fc_type=fc_type,
             device=device,
             bias=bias,
@@ -857,6 +863,7 @@ class MultiQueryAttention(GroupedQueryAttention):
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
+        norm_eps: float = 1e-05,
         fc_type: Optional[dict[str, Any]] = None,
         device: Optional[str] = None,
         bias: bool = True,
@@ -876,6 +883,7 @@ class MultiQueryAttention(GroupedQueryAttention):
             softmax_scale=softmax_scale,
             attn_pdrop=attn_pdrop,
             norm_type=norm_type,
+            norm_eps=norm_eps,
             fc_type=fc_type,
             device=device,
             bias=bias,

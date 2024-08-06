@@ -426,6 +426,7 @@ class MPTModel(MPTPreTrainedModel):
         self.norm_f = build_norm(
             name=config.norm_type.lower(),
             normalized_shape=config.d_model,
+            eps=config.norm_eps,
             device=config.init_device,
         )
 

@@ -205,6 +205,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             use_auth_token (bool): Whether to use an authentication token.
             config_overrides (Dict[str, Any]): The configuration overrides.
             load_in_8bit (bool): Whether to load in 8-bit.
+            pretrained (bool): Whether the model is pretrained.
             prepare_for_fsdp (bool, optional): Whether to prepare the model for FSDP wrapping. Default: False.
 
         Returns:
@@ -284,7 +285,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         # the different processes. To avoid this contention, we first create the model (on meta device) on local rank
         # zero. This will set up the transformers model cache and avoid the future contention.
         if dist.get_local_rank() == 0:
-            if os.path.isdir(pretrained_model_name_or_path):
+            if pretrained and os.path.isdir(pretrained_model_name_or_path):
                 with init_empty_weights(include_buffers=False):
                     with warnings.catch_warnings():
                         warnings.simplefilter('ignore', UserWarning)

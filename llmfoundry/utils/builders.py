@@ -35,8 +35,9 @@ from transformers import AutoTokenizer, PreTrainedTokenizerBase
 from llmfoundry import registry
 from llmfoundry.callbacks import EvalGauntlet
 from llmfoundry.data.dataloader import build_dataloader
-from llmfoundry.eval.datasets.in_context_learning_evaluation import \
-    get_icl_task_dataloader
+from llmfoundry.eval.datasets.in_context_learning_evaluation import (
+    get_icl_task_dataloader,
+)
 from llmfoundry.utils.config_utils import to_dict_container, to_list_container
 from llmfoundry.utils.registry_utils import construct_from_registry
 
@@ -126,8 +127,7 @@ def build_eval_loaders(
             # Load the eval data to fail fast. metrics will get added
             # later in add_metrics_to_eval_loaders, after the model is loaded
             metric_names=[],
-            # TODO: Fix type in Composer
-            device_eval_microbatch_size=device_eval_batch_size,  # type: ignore
+            device_eval_microbatch_size=device_eval_batch_size,
         )
         evaluators.append(eval_loader)
     return evaluators
@@ -191,7 +191,8 @@ def build_load_planner(name: str, **kwargs: Any) -> LoadPlanner:
     """Builds a load planner from the registry.
 
     Args:
-        name: Name of the load planner to build.
+        name (str): Name of the load planner to build.
+        kwargs (Any): Other relevant keyword arguments.
 
     Returns:
         LoadPlanner: The load planner.
@@ -210,7 +211,8 @@ def build_save_planner(name: str, **kwargs: Any) -> SavePlanner:
     """Builds a save planner from the registry.
 
     Args:
-        name: Name of the save planner to build.
+        name (str): Name of the save planner to build.
+        kwargs (Any): Other relevant keyword arguments.
 
     Returns:
         savePlanner: The save planner.

@@ -167,6 +167,7 @@ class TrainConfig:
     # Dataloader
     device_train_microbatch_size: Union[str, int, float] = 'auto'
     global_train_batch_size: Optional[int] = None
+    spin_dataloaders: bool = True
 
     # Eval dataloader
     eval_subset_num_batches: int = -1
@@ -331,16 +332,14 @@ def make_dataclass_and_log_config(
                 'icl_tasks must be specified in the config',
             )
 
-    # Create copy of config for logging
-    logged_cfg: Dict[str, Any] = copy.deepcopy(unstructured_config)
-
     # Apply transforms to the unstructured config before constructing dataclass
     unstructured_config = apply_transforms_to_config(
         unstructured_config,
         transforms,
     )
 
-    logged_cfg.update(unstructured_config, merge=True)
+    # Create copy of config for logging
+    logged_cfg: Dict[str, Any] = copy.deepcopy(unstructured_config)
 
     arg_config_keys = set(unstructured_config.keys())
     extraneous_keys = set.difference(arg_config_keys, dataclass_fields)
@@ -467,6 +466,9 @@ def update_config_with_batch_size_info(
 
     Args:
         cfg (Dict[str, Any]): The config to update.
+        device_train_batch_size (Union[int, float]): The batch size of the training dataset for each device.
+        device_train_microbatch_size (Union[int, float, Literal['auto']]): The microbatch size of the training dataset for each device.
+        device_train_grad_accum (Union[int, Literal['auto']]): The gradient accumulation settings for each device.
 
     Returns:
         Dict[str, Any]: The updated config.
@@ -531,7 +533,6 @@ def process_init_device(model_cfg: Dict[str, Any], fsdp_config: Optional[Dict]):
                 fsdp_config['sync_module_states'] = True
 
             # Set defaults for mixed initialization
-            fsdp_config.setdefault('use_orig_params', False)
             fsdp_config.setdefault('load_monolith_rank0_only', True)
 
     # Set ffn_config.device_mesh to fsdp_config.device_mesh

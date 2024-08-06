@@ -53,6 +53,19 @@ _FFN_ACT_FN_DEFAULT = {
 }
 
 
+def quickgelu_activation(input: torch.Tensor) -> torch.Tensor:
+    """Applies GELU approximation that is fast but somewhat inaccurate.
+
+    Args:
+        input (torch.Tensor): Input tensor of shape(*), where * means any
+            number of dimensions
+
+    Returns:
+        torch.Tensor: Tensor with same shape as input tensor
+    """
+    return input * torch.sigmoid(1.702 * input)
+
+
 def resolve_ffn_act_fn(
     config: Optional[dict] = None,
 ) -> Callable[[torch.Tensor], torch.Tensor]:
@@ -70,10 +83,13 @@ def resolve_ffn_act_fn(
         config = _FFN_ACT_FN_DEFAULT
     config = deepcopy(config)
     name = config.pop('name')
-    if not hasattr(torch.nn.functional, name):
-        raise ValueError(f'Unrecognized activation function name ({name}).')
-    act = getattr(torch.nn.functional, name)
-    return partial(act, **config)
+    if name == 'quick_gelu':
+        return quickgelu_activation
+    else:
+        if not hasattr(torch.nn.functional, name):
+            raise ValueError(f'Unrecognized activation function name ({name}).')
+        act = getattr(torch.nn.functional, name)
+        return partial(act, **config)
 
 
 _DEFAULT_ACT_FN = resolve_ffn_act_fn(_FFN_ACT_FN_DEFAULT)
@@ -413,6 +429,7 @@ def set_ffn_device_mesh(
         ffn (nn.Module): The FFN module.
         moe_world_size (int): The MoE world size.
         device_mesh (DeviceMesh): The full device mesh.
+        get_fsdp_submesh (Callable[[DeviceMesh], DeviceMesh]): A function to get the fsdp submesh.
 
     Raises:
         RuntimeError: If the device mesh is 3D.

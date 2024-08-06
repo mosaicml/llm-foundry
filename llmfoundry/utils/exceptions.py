@@ -353,7 +353,7 @@ class DatasetTooSmallError(UserError):
     """Error thrown when the dataset is too small to be processed."""
 
     def __init__(self) -> None:
-        message = f'Your dataset is too small to be converted to MDS.'
+        message = f'Your dataset is too small and produced no complete samples during preprocessing. Please provide more data.'
         super().__init__(message)
 
 

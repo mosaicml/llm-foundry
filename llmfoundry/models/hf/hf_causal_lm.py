@@ -276,6 +276,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                             pretrained_model_name_or_path,
                             trust_remote_code=trust_remote_code,
                             use_auth_token=use_auth_token,
+                            attn_implementation=
+                            requested_attention_implementation,
                             config=config,
                         )
             else:
@@ -283,6 +285,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                     AutoModelForCausalLM.from_config(
                         config,
                         trust_remote_code=trust_remote_code,
+                        attn_implementation=requested_attention_implementation,
                     )
 
         dist.barrier()
@@ -295,12 +298,14 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                     trust_remote_code=trust_remote_code,
                     use_auth_token=use_auth_token,
                     load_in_8bit=load_in_8bit,
+                    attn_implementation=requested_attention_implementation,
                     config=config,
                 )
             else:
                 model = AutoModelForCausalLM.from_config(
                     config,
                     trust_remote_code=trust_remote_code,
+                    attn_implementation=requested_attention_implementation,
                 )
         elif resolved_init_device == 'meta':
             if pretrained:
@@ -311,6 +316,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                 model = AutoModelForCausalLM.from_config(
                     config,
                     trust_remote_code=trust_remote_code,
+                    attn_implementation=requested_attention_implementation,
                 )
         else:
             raise ValueError(

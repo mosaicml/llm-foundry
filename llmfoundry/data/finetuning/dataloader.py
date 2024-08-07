@@ -180,9 +180,10 @@ def build_finetuning_dataloader(
         given a starting workload YAML.
     """
     dataset_cfg = dataset
-    is_streaming = dataset_cfg.get('remote') is not None or dataset_cfg.get(
-        'streams',
-    ) is not None
+    is_streaming = (
+        dataset_cfg.get('remote') is not None or
+        dataset_cfg.get('streams') is not None
+    )
     if is_streaming:
         dataset_constructor_keys = inspect.signature(
             dataset_constructor.streaming_dataset_class,

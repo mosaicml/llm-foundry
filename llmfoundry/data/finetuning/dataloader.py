@@ -42,6 +42,15 @@ __all__ = [
 # HuggingFace hardcodes the ignore index to -100
 _HF_IGNORE_INDEX = -100
 
+# Extra keys present in the dataset config dictionary beyond the constructor keys
+_ALLOWED_DATASET_KEYS = {
+    'packing_ratio',
+    'allow_pad_trimming',
+    'seq_parallel_replication',
+    'auto_packing_replication',
+    'max_leftover_bins_to_keep',
+}
+
 
 def build_finetuning_dataloader(
     tokenizer: PreTrainedTokenizerBase,
@@ -345,15 +354,6 @@ def build_finetuning_dataloader(
             'dataset_cfg': dataset_cfg,
         },
     )
-
-
-_ALLOWED_DATASET_KEYS = {
-    'packing_ratio',
-    'allow_pad_trimming',
-    'seq_parallel_replication',
-    'auto_packing_replication',
-    'max_leftover_bins_to_keep',
-}
 
 
 def _validate_config(

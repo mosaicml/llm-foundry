@@ -42,6 +42,7 @@ class MPTBlock(nn.Module):
         ffn_config: Optional[Dict] = None,
         resid_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
+        norm_eps: float = 1e-05,
         fc_type: Optional[dict[str, Any]] = None,
         device: Optional[str] = None,
         no_bias: bool = False,
@@ -84,6 +85,7 @@ class MPTBlock(nn.Module):
                 fc_type=fc_type,
                 resid_pdrop=resid_pdrop,
                 norm_type=norm_type,
+                norm_eps=norm_eps,
                 device=device,
                 no_bias=no_bias,
             )
@@ -99,6 +101,7 @@ class MPTBlock(nn.Module):
             self.norm_1 = build_norm(
                 name=norm_type.lower(),
                 normalized_shape=d_model,
+                eps=norm_eps,
                 device=device,
             )
             self.attn = build_attention_layer(
@@ -117,6 +120,7 @@ class MPTBlock(nn.Module):
                 self.norm_2 = build_norm(
                     name=norm_type.lower(),
                     normalized_shape=d_model,
+                    eps=norm_eps,
                     device=device,
                 )
 
@@ -260,6 +264,7 @@ class FusedNormAttentionNorm(nn.Module):
         fc_type: Optional[dict[str, Any]] = None,
         resid_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
+        norm_eps: float = 1e-05,
         device: Optional[str] = None,
         no_bias: bool = False,
         **kwargs: Any,
@@ -283,6 +288,7 @@ class FusedNormAttentionNorm(nn.Module):
         self.norm_1 = build_norm(
             name=norm_type.lower(),
             normalized_shape=d_model,
+            eps=norm_eps,
             device=device,
         )
         self.attn = build_attention_layer(
@@ -302,6 +308,7 @@ class FusedNormAttentionNorm(nn.Module):
             self.norm_2 = build_norm(
                 name=norm_type.lower(),
                 normalized_shape=d_model,
+                eps=norm_eps,
                 device=device,
             )
         self.resid_attn_dropout = nn.Dropout(resid_pdrop)

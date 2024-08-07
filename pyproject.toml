@@ -11,22 +11,43 @@ skip = [ "env", "wandb", "runs", "build", "node_modules" ]
 include_trailing_comma = true
 split_on_trailing_comma = true
 
-[tool.ruff.lint]
-select = [
-    "C4",
-    # TODO port pydocstyle
-    # "D", # pydocstyle
-    "LOG",
-    "PERF",
-    "PLE",
-    "COM812",
-]
+# Ruff global
 [tool.ruff]
 exclude = [
     "build/**",
     "docs/**",
     "node_modules/**",
 ]
+
+# Ruff linter
+[tool.ruff.lint]
+select = [
+    "C4",
+    "LOG",
+    "PERF",
+    "PLE",
+    "COM812",
+    "D", # pydocstyle
+]
+
+extend-select = ["D404"] # pydocstyle
+
+ignore = [
+    "D100",
+    "D101",
+    "D102",
+    "D103",
+    "D104",
+    "D105",
+    "D107",
+    "D400",
+    "D401",
+    "D415",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
 
 # Coverage
 [tool.coverage.run]
@@ -79,7 +100,7 @@ reportMissingImports = "none"
 # Pytest
 [tool.pytest.ini_options]
 # By default, skip gpu tests
-addopts = "--tb=short -m 'not gpu'"
+addopts = "--tb=short -m 'not gpu' --color=yes"
 
 markers = [
     # For distributed testing
@@ -506,8 +527,3 @@ ignore_patterns = [
     "wandb/**/*.py",
     "build/**/*.py",
 ]
-
-[tool.pydocstyle]
-convention="google"
-add_ignore="D100,D101,D102,D103,D104,D105,D107,D400,D401,D415"
-add_select="D404"

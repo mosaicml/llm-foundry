@@ -130,7 +130,7 @@ def make_padded_input(
     Args:
         context_enc (List): The encoded input to the model
         continuation_enc (List): The encoded desired output for the example
-        max_seq_list (int): Maximum length sequences can be
+        max_seq_len (int): Maximum length sequences can be
         pad_tok_id (int): The token id we pad with
         padding_side (str): Which side to pad the context on. Can be 'right' or 'left
 

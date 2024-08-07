@@ -163,7 +163,7 @@ def _is_empty_or_nonexistent(dirpath: str) -> bool:
     Args:
         dirpath (str): Directory path to check.
 
-    Returns
+    Returns:
         True if directory is empty or non-existent. False otherwise.
     """
     return not os.path.isdir(dirpath) or len(os.listdir(dirpath)) == 0
@@ -815,9 +815,33 @@ class DatasetConstructor:
         Note: This function will drop examples where the prompt is longer than the max_seq_len
 
         Args:
-            cfg (DictConfig): The dataset configuration.
-            max_seq_len (int): The maximum sequence length. Examples with prompts longer than this will be dropped.
-            tokenizer (Tokenizer): The tokenizer to be used for tokenizing the dataset.
+            dataset_name (str): The name of the HuggingFace dataset
+                to use. Can also be a remote http(s) directory or object store bucket
+                containing the file {split}.jsonl in the format (prompt, response),
+                in which case the builder will create a HuggingFace dataset.
+            split (str): The split of the HuggingFace dataset.
+            safe_load (bool, optional): Whether to enforce safe loading of the dataset.
+                If `None`, will default to not applying any safe loading.
+            max_seq_len (int): The maximum length of sequences
+                in the batch. See :class:`Seq2SeqFinetuningCollator` docstring
+                for details.
+            preprocessing_fn (Callable, optional): The preprocessing function to use for
+                formatting the data examples.
+            tokenizer (PreTrainedTokenizerBase): The tokenizer to be used for tokenizing
+                the HuggingFace dataset.
+            target_prompts (str): Which prompts are used as training targets.
+                Defaults to "none", meaning prompts are never used as training targets.
+                See :class:`Seq2SeqFinetuningCollator` docstring for details.
+            target_responses (str): Which responses are used as training targets.
+                Defaults to "last", meaning only the final response in multi-turn examples
+                will serve as training targets. See :class:`Seq2SeqFinetuningCollator` docstring for
+                details.
+            decoder_only_format (bool): Whether to format the
+                examples for a decoder-only model. See :class:`Seq2SeqFinetuningCollator`
+                docstring for details.
+            hf_kwargs (DictConfig, optional): Additional kwargs to
+                pass to `datasets.load_dataset`, which can be used to load
+                a dataset from local files.
 
         Returns:
             Dataset: The tokenized dataset.
@@ -908,6 +932,8 @@ class DatasetConstructor:
             detected_cpu_count = os.cpu_count() or 1
             detected_cpus_with_margin = detected_cpu_count - 8
             num_cpus_to_use = max(1, detected_cpus_with_margin)
+            if len(dataset) < num_cpus_to_use:
+                num_cpus_to_use = 1
 
             columns_to_remove = list(dataset[0].keys())
             tokenized_dataset = dataset.map(

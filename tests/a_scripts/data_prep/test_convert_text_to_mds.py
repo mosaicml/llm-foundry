@@ -13,17 +13,18 @@ import pytest
 from streaming import StreamingDataset
 from transformers import AutoTokenizer
 
-from llmfoundry.utils.exceptions import (
-    InputFolderMissingDataError,
-    OutputFolderNotEmptyError,
-)
-from scripts.data_prep.convert_text_to_mds import (
+from llmfoundry.command_utils.data_prep.convert_text_to_mds import (
     DONE_FILENAME,
     convert_text_to_mds,
     download_and_convert,
     is_already_processed,
     merge_shard_groups,
     write_done_file,
+)
+from llmfoundry.utils.exceptions import (
+    DatasetTooSmallError,
+    InputFolderMissingDataError,
+    OutputFolderNotEmptyError,
 )
 
 
@@ -83,15 +84,15 @@ def _assert_files_exist(prefix: str, files: List[str]):
 @pytest.mark.parametrize('processes', [1, 2, 3])
 @patch.object(ProcessPoolExecutor, 'map', new=Mock(wraps=_mock_map))
 @patch(
-    'scripts.data_prep.convert_text_to_mds.maybe_create_object_store_from_uri',
+    'llmfoundry.command_utils.data_prep.convert_text_to_mds.maybe_create_object_store_from_uri',
 )
-@patch('scripts.data_prep.convert_text_to_mds.parse_uri')
+@patch('llmfoundry.command_utils.data_prep.convert_text_to_mds.parse_uri')
 @patch(
-    'scripts.data_prep.convert_text_to_mds.download_and_convert',
+    'llmfoundry.command_utils.data_prep.convert_text_to_mds.download_and_convert',
     wraps=download_and_convert,
 )
 @patch(
-    'scripts.data_prep.convert_text_to_mds.merge_shard_groups',
+    'llmfoundry.command_utils.data_prep.convert_text_to_mds.merge_shard_groups',
     wraps=merge_shard_groups,
 )
 def test_single_and_multi_process(
@@ -256,6 +257,28 @@ def test_input_folder_not_exist(tmp_path: pathlib.Path):
             output_folder=str(tmp_path / 'output'),
             input_folder=str(tmp_path / 'input'),
             concat_tokens=1,
+            eos_text='',
+            bos_text='',
+            no_wrap=False,
+            compression='zstd',
+            processes=1,
+            args_str='Namespace()',
+            reprocess=False,
+            trust_remote_code=False,
+        )
+
+
+def test_dataset_too_small(tmp_path: pathlib.Path):
+    input_folder = tmp_path / 'input'
+    os.makedirs(input_folder, exist_ok=True)
+    with open(input_folder / 'test.txt', 'w') as f:
+        f.write('a')
+    with pytest.raises(DatasetTooSmallError):
+        convert_text_to_mds(
+            tokenizer_name='mosaicml/mpt-7b',
+            output_folder=str(tmp_path / 'output'),
+            input_folder=str(input_folder),
+            concat_tokens=2048,
             eos_text='',
             bos_text='',
             no_wrap=False,

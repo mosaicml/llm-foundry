@@ -4,16 +4,16 @@
 import json
 import os
 import shutil
-from argparse import Namespace
 from pathlib import Path
 from typing import Dict, List, Optional
 
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
-from llmfoundry.command_utils import convert_dataset_hf
-from scripts.data_prep.convert_dataset_json import \
-    main as main_json  # noqa: E402
+from llmfoundry.command_utils import (
+    convert_dataset_hf,
+    convert_dataset_json,
+)
 
 
 def make_tiny_ft_dataset(
@@ -265,20 +265,16 @@ def create_arxiv_dataset(path: Path) -> str:
     if not os.getcwd().endswith('scripts'):
         arxiv_path = os.path.join('scripts', arxiv_path)
 
-    main_json(
-        Namespace(
-            **{
-                'path': arxiv_path,
-                'out_root': arxiv_dir,
-                'compression': None,
-                'split': downloaded_split,
-                'concat_tokens': None,
-                'bos_text': None,
-                'eos_text': None,
-                'no_wrap': False,
-                'num_workers': None,
-            },
-        ),
+    convert_dataset_json(
+        path=arxiv_path,
+        out_root=arxiv_dir,
+        compression=None,
+        split=downloaded_split,
+        concat_tokens=None,
+        bos_text='',
+        eos_text='',
+        no_wrap=False,
+        num_workers=None,
     )
 
     return arxiv_dir

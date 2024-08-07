@@ -1,6 +1,7 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import json
 import logging
 import math
 import os
@@ -28,6 +29,7 @@ from llmfoundry.utils.data_prep_utils import (
     merge_shard_groups,
 )
 from llmfoundry.utils.exceptions import (
+    DatasetTooSmallError,
     InputFolderMissingDataError,
     OutputFolderNotEmptyError,
 )
@@ -467,6 +469,11 @@ def convert_text_to_mds(
             compression,
             trust_remote_code,
         )
+
+    index_path = os.path.join(local_output_folder, 'index.json')
+    with open(index_path, 'r') as index_file:
+        if not json.load(index_file)['shards']:
+            raise DatasetTooSmallError()
 
     # Write a done file with the args and object names
     write_done_file(local_output_folder, args_str, object_names)

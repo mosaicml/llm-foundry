@@ -260,7 +260,7 @@ def build_finetuning_dataloader(
             **{
                 k: v
                 for k, v in dataset_cfg.items()
-                if k in dataset_constructor_keys
+                if k in dataset_constructor_keys and k not in {'packing_ratio'}
             },
         )
 

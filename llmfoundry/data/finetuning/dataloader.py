@@ -44,6 +44,7 @@ _HF_IGNORE_INDEX = -100
 
 # Extra keys present in the dataset config dictionary beyond the constructor keys
 _ALLOWED_DATASET_KEYS = {
+    'shuffle',
     'packing_ratio',
     'allow_pad_trimming',
     'seq_parallel_replication',

@@ -47,6 +47,7 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
+    Type,
     Union,
     cast,
 )
@@ -115,6 +116,8 @@ DOWNLOADED_FT_DATASETS_DIRPATH = os.path.abspath(
 )
 SUPPORTED_EXTENSIONS = ['.csv', '.json', '.jsonl', '.parquet']
 HUGGINGFACE_FOLDER_EXTENSIONS = ['.lock', '.metadata']
+DEFAULT_TARGET_RESPONSES = 'all'
+DEFAULT_TARGET_PROMPTS = 'none'
 
 PromptResponseDict = Mapping[str, str]
 ChatFormattedDict = Mapping[str, List[Dict[str, str]]]
@@ -805,14 +808,14 @@ class DatasetConstructor:
         self,
         dataset_name: str,
         split: str,
-        safe_load: bool,
-        max_seq_len: int,
-        preprocessing_fn: Optional[Callable[[dict[str, Any]], Example]],
-        tokenizer: PreTrainedTokenizerBase,
-        target_prompts: str,
-        target_responses: str,
-        decoder_only_format: bool,
-        hf_kwargs: Dict[str, Any],
+        safe_load: bool = False,
+        max_seq_len: int = 2048,
+        preprocessing_fn: Optional[Callable[[dict[str, Any]], Example]] = None,
+        tokenizer: Optional[PreTrainedTokenizerBase] = None,
+        target_prompts: str = DEFAULT_TARGET_PROMPTS,
+        target_responses: str = DEFAULT_TARGET_RESPONSES,
+        decoder_only_format: bool = True,
+        hf_kwargs: Optional[Dict[str, Any]] = None,
     ) -> Union[hf_datasets.DatasetDict, hf_datasets.Dataset,
                hf_datasets.IterableDatasetDict, hf_datasets.IterableDataset]:
         """Load a HuggingFace Datasets, preprocess, and tokenize.
@@ -851,6 +854,12 @@ class DatasetConstructor:
         Returns:
             Dataset: The tokenized dataset.
         """
+        if hf_kwargs is None:
+            hf_kwargs = {}
+
+        if tokenizer is None:
+            raise ValueError('A tokenizer must be provided.')
+
         signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_data_prep_completed'
 
         # Non local rank 0 ranks will wait here for local rank 0 to finish the data processing.
@@ -999,12 +1008,16 @@ class DatasetConstructor:
         assert filtered_dataset is not None
         return filtered_dataset
 
+    @property
+    def streaming_dataset_class(self) -> Type[StreamingFinetuningDataset]:
+        return StreamingFinetuningDataset
+
     def build_from_streaming(
         self,
         *args: Any,
         **kwargs: Any,
     ) -> StreamingFinetuningDataset:
-        return StreamingFinetuningDataset(*args, **kwargs)
+        return self.streaming_dataset_class(*args, **kwargs)
 
 
 dataset_constructor = DatasetConstructor()

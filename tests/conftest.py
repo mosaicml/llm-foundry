@@ -24,10 +24,12 @@ pytest_plugins = [
 ]
 
 
-def _add_option(parser: pytest.Parser,
-                name: str,
-                help: str,
-                choices: Optional[List[str]] = None):
+def _add_option(
+    parser: pytest.Parser,
+    name: str,
+    help: str,
+    choices: Optional[List[str]] = None,
+):
     parser.addoption(
         f'--{name}',
         default=None,
@@ -44,11 +46,13 @@ def _add_option(parser: pytest.Parser,
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
-    _add_option(parser,
-                'seed',
-                help="""\
+    _add_option(
+        parser,
+        'seed',
+        help="""\
         Rank zero seed to use. `reproducibility.seed_all(seed + dist.get_global_rank())` will be invoked
-        before each test.""")
+        before each test.""",
+    )
 
 
 def _get_world_size(item: pytest.Item):
@@ -57,8 +61,10 @@ def _get_world_size(item: pytest.Item):
     return item.get_closest_marker('world_size', default=_default).args[0]
 
 
-def pytest_collection_modifyitems(config: pytest.Config,
-                                  items: List[pytest.Item]) -> None:
+def pytest_collection_modifyitems(
+    config: pytest.Config,
+    items: List[pytest.Item],
+) -> None:
     """Filter tests by world_size (for multi-GPU tests)"""
     world_size = int(os.environ.get('WORLD_SIZE', '1'))
 
@@ -70,7 +76,7 @@ def pytest_collection_modifyitems(config: pytest.Config,
     remaining = []
     deselected = []
     for item in items:
-        if all([condition(item) for condition in conditions]):
+        if all(condition(item) for condition in conditions):
             remaining.append(item)
         else:
             deselected.append(item)

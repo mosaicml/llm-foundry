@@ -1,5 +1,7 @@
+variables:
+  global_seed: 17
+
 max_seq_len: 512
-global_seed: 17
 
 # Run Name
 run_name:  # If left blank, will be read from env var $RUN_NAME

@@ -5,8 +5,10 @@ import ast
 
 import pytest
 
-from llmfoundry.utils.huggingface_hub_utils import (_flatten_import,
-                                                    _remove_import)
+from llmfoundry.utils.huggingface_hub_utils import (
+    _flatten_import,
+    _remove_import,
+)
 
 
 def test_flatten_import_true():
@@ -19,8 +21,10 @@ def test_flatten_import_false():
     assert not _flatten_import(node, ('x', 'z'))
 
 
-@pytest.mark.parametrize('prefix_to_remove,expected_imports_remaining',
-                         [('llmfoundry', 1), ('llmfoundry.utils', 2)])
+@pytest.mark.parametrize(
+    'prefix_to_remove,expected_imports_remaining',
+    [('llmfoundry', 1), ('llmfoundry.utils', 2)],
+)
 def test_remove_imports(prefix_to_remove: str, expected_imports_remaining: int):
     source_code = """
 from llmfoundry import a
@@ -33,8 +37,10 @@ from other_package import c
 
     imports_kept = 0
     for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and not _remove_import(
-                node, [prefix_to_remove]):
+        if isinstance(
+            node,
+            ast.ImportFrom,
+        ) and not _remove_import(node, [prefix_to_remove]):
             imports_kept += 1
 
     assert imports_kept == expected_imports_remaining

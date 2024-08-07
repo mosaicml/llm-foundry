@@ -21,6 +21,12 @@ from typing import Any, Callable, Optional
 
 import torch
 import torch.nn as nn
+from torch.distributed._tensor import DTensor
+
+__all__ = [
+    'init_empty_weights',
+    'init_on_device',
+]
 
 
 @contextmanager
@@ -51,8 +57,10 @@ def init_empty_weights(include_buffers: bool = False):
 
     </Tip>
     """
-    with init_on_device(torch.device('meta'),
-                        include_buffers=include_buffers) as f:
+    with init_on_device(
+        torch.device('meta'),
+        include_buffers=include_buffers,
+    ) as f:
         yield f
 
 
@@ -80,22 +88,31 @@ def init_on_device(device: torch.device, include_buffers: bool = False):
     if include_buffers:
         old_register_buffer = nn.Module.register_buffer
 
-    def register_empty_parameter(self: torch.nn.Module, name: str,
-                                 param: Optional[torch.nn.Parameter]):
+    def register_empty_parameter(
+        self: torch.nn.Module,
+        name: str,
+        param: Optional[torch.nn.Parameter],
+    ):
         old_register_parameter(self, name, param)
         if param is not None:
             parameter = self._parameters[name]
             assert parameter is not None
+            if isinstance(parameter, DTensor):
+                self._parameters[name] = parameter.to(device)  # type: ignore
+            else:
+                param_cls = type(parameter)
+                kwargs = parameter.__dict__
+                self._parameters[name] = param_cls(
+                    parameter.to(device),
+                    **kwargs,
+                )
 
-            param_cls = type(parameter)
-            kwargs = parameter.__dict__
-
-            self._parameters[name] = param_cls(parameter.to(device), **kwargs)
-
-    def register_empty_buffer(self: torch.nn.Module,
-                              name: str,
-                              tensor: Optional[torch.Tensor],
-                              persistent: bool = True):
+    def register_empty_buffer(
+        self: torch.nn.Module,
+        name: str,
+        tensor: Optional[torch.Tensor],
+        persistent: bool = True,
+    ):
         old_register_buffer(self, name, tensor, persistent=persistent)
         if tensor is not None:
             named_buffer = self._buffers[name]
@@ -125,8 +142,10 @@ def init_on_device(device: torch.device, include_buffers: bool = False):
             nn.Module.register_buffer = register_empty_buffer
         for torch_function_name in tensor_constructors_to_patch.keys():
             setattr(
-                torch, torch_function_name,
-                patch_tensor_constructor(getattr(torch, torch_function_name)))
+                torch,
+                torch_function_name,
+                patch_tensor_constructor(getattr(torch, torch_function_name)),
+            )
         yield
     finally:
         nn.Module.register_parameter = old_register_parameter

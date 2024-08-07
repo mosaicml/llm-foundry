@@ -64,14 +64,14 @@ model_args_list = [
         '--fsdp_config_activation_checkpointing true',
         '--fsdp_config_shard_strategy FULL_SHARD',
         '--microbatch_size 16',
-        '--attn_impl triton',
+        '--attn_impl flash',
     ],
     [
         '--model_yamls 30b.yaml',
         '--fsdp_config_activation_checkpointing true',
         '--fsdp_config_shard_strategy FULL_SHARD',
         '--microbatch_size 8',
-        '--attn_impl triton',
+        '--attn_impl flash',
     ],
     [
         '--model_yamls 70b.yaml',
@@ -85,7 +85,8 @@ model_args_list = [
 # Iterate over the arguments and call submit_benchmarks.py
 for num_gpu_args in num_gpu_args_list:
     for model_args in model_args_list:
-        command = ['python submit_benchmarks.py'
-                  ] + base_args + num_gpu_args + model_args
+        command = [
+            'python submit_benchmarks.py',
+        ] + base_args + num_gpu_args + model_args
         command = ' '.join(command)
         os.system(command)

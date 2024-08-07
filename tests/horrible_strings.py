@@ -1,14 +1,16 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-# taken from https://github.com/explosion/spaCy/blob/8f0d6b0a8c42e4852bf6e24cdf629043f2f39361/spacy/tests/tokenizer/test_naughty_strings.py#L7
+# ruff: noqa: PLE2502
+
+# Taken from https://github.com/explosion/spaCy/blob/8f0d6b0a8c42e4852bf6e24cdf629043f2f39361/spacy/tests/tokenizer/test_naughty_strings.py#L7
 HORRIBLE_STRINGS = [
     # ASCII punctuation
     r",./;'[]\-=",
     r'<>?:"{}|_+',
     r'!@#$%^&*()`~"',
     # Unicode additional control characters, byte order marks
-    r"­؀؁؂؃؄؅؜۝܏᠎​‌‍‎‏‪",
+    r"­؀؁؂؃؄؅؜۝܏᠎\u200b‌‍‎‏‪",
     r"￾",
     # Unicode Symbols
     r"Ω≈ç√∫˜µ≤≥÷",

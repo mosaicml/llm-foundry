@@ -15,23 +15,28 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 jobs:
   pytest-cpu:
-    uses: mosaicml/ci-testing/.github/workflows/pytest-cpu.yaml@v0.0.3
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
-        - name: "cpu-2.2.1"
-          container: mosaicml/pytorch:2.2.1_cpu-python3.11-ubuntu20.04
+        - name: "cpu-2.3.1"
+          pip_deps: "[all-cpu]"
+          container: mosaicml/pytorch:2.3.1_cpu-python3.11-ubuntu20.04
           markers: "not gpu"
           pytest_command: "coverage run -m pytest"
-    name: ${{ matrix.name }}
-    if: github.repository_owner == 'mosaicml'
-    with:
-      container: ${{ matrix.container }}
-      name: ${{ matrix.name }}
-      pip_deps: "[all-cpu]"
-      pytest-command: ${{ matrix.pytest_command }}
-      pytest-markers: ${{ matrix.markers }}
-      safe_directory: llm-foundry
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+    - name: Run PR CPU Tests
+      uses: mosaicml/ci-testing/.github/actions/pytest-cpu@v0.1.0
+      with:
+        name: ${{ matrix.name }}
+        container: ${{ matrix.container }}
+        pip_deps: ${{ matrix.pip_deps }}
+        pytest_command: ${{ matrix.pytest_command }}
+        pytest_markers: ${{ matrix.markers }}
+        safe_directory: llm-foundry
   coverage:
     uses: ./.github/workflows/coverage.yaml
     name: Coverage Results

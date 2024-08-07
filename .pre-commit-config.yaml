@@ -1,7 +1,12 @@
 default_language_version:
   python: python3
-exclude: llmfoundry/models/layers/flash_attn_triton.py
 repos:
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  # Ruff version.
+  rev: v0.2.2
+  hooks:
+  - id: ruff
+    args: [--fix, --exit-non-zero-on-fix]
 - repo: https://github.com/google/yapf
   rev: v0.32.0
   hooks:
@@ -72,17 +77,6 @@ repos:
   hooks:
   - id: docformatter
     args: [--in-place, --wrap-summaries=80, --wrap-descriptions=80]
-- repo: https://github.com/PyCQA/pydocstyle
-  hooks:
-  - id: pydocstyle
-    name: pydocstyle
-    entry: pydocstyle
-    language: python
-    types: [python]
-    exclude: (.ci|.github)
-    additional_dependencies:
-    - toml
-  rev: 6.1.1
 - repo: https://github.com/adrienverge/yamllint.git
   rev: v1.28.0
   hooks:

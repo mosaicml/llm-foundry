@@ -28,7 +28,7 @@ LLM inference consists of two stages: _prefill_ and _decode_. It's important to 
 
 During _prefill_, the model processes the input tokens/prompt/context. This is done in a single forward pass, making this stage fast, with excellent use of GPU hardware (ie. high Model Flop Utilization aka [MFU](https://github.com/mosaicml/llm-foundry/tree/main/scripts/train/benchmarking#mfu)). Typically, if people talk about LLM inference being slow, this is _not_ the stage that they are referring to.
 
-During _decode_, the model generates output tokens one at a time, i.e. autoregressively. This requires making N forward passes of the model for N tokens. This stage is slow and inefficient, because it requires moving gigabytes of model weights and pre-filled values for every single forward pass. Here, latency scales (mostly) linearly with the number of output tokens. Why mostly linear? When generating long sequences, the quadratic memory and compute complexity of the attention operation become more prominant.
+During _decode_, the model generates output tokens one at a time, i.e. autoregressively. This requires making N forward passes of the model for N tokens. This stage is slow and inefficient, because it requires moving gigabytes of model weights and pre-filled values for every single forward pass. Here, latency scales (mostly) linearly with the number of output tokens. Why mostly linear? When generating long sequences, the quadratic memory and compute complexity of the attention operation become more prominent.
 
 ##### KV cache
 
@@ -132,5 +132,5 @@ The benchmark script supports calling models directly from huggingface (using `h
 The analysis is done on a single A100 80GB GPU, with input length 512, and output length 64, while varying the batch size. As in previous sections, the batch sizes swept are 1, 2, 4, 8, 16, 32, 64, unless the GPU ran out of memory, in which case that point is not shown.
 
 As seen here, both MPT-7B and MPT-30B are among the fastest for inference in the open-source community, with MPT-30B being faster than the respective LLAMA-30B model.
-Among the 7B models, Falcon-7B tends to have higher througput at higher latencies than MPT-7B, though MPT-7B has higher throughput at lower latencies.
+Among the 7B models, Falcon-7B tends to have higher throughput at higher latencies than MPT-7B, though MPT-7B has higher throughput at lower latencies.
 Previously, we found that Falcon-7b was significantly slower than both MPT-7B and LLAMA-7B. This slow speed was due to the KV-cache not being used properly during generation, however this appears to be [fixed](https://huggingface.co/tiiuae/falcon-7b/tree/main) as of July 13, 2022.

@@ -21,7 +21,7 @@ def gen_random_batch(batch_size: int, vocab_size: int, max_seq_len: int):
                 dtype=torch.int64,
             ),
         'attention_mask':
-            torch.ones(size=(batch_size, max_seq_len), dtype=torch.bool)
+            torch.ones(size=(batch_size, max_seq_len), dtype=torch.bool),
     }
     return batch
 

@@ -2,6 +2,10 @@
 # This includes setup.py, the README, and the CODEOWNERS file itself!
 /* @mosaicml/composer-team-admins
 
+# Require team approval for code changes
+/llmfoundry/ @mosaicml/composer-team-eng
+/scripts/ @mosaicml/composer-team-eng
+
 # Require admin approval to change the CI build configuration
 # All CI Changes should be reviewed for security
 /.ci/ @mosaicml/composer-team-admins

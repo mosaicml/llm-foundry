@@ -1,9 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
-import copy
-import logging
-import os
 import sys
 import time
 import warnings
@@ -452,12 +448,8 @@ def calculate_markdown_results(logger_keys: List[str], trainer: Trainer,
                                        ignore_index=True)
     return df
 
+# from llmfoundry.command_utils import eval_from_yaml
 
-if __name__ == '__main__':
-    yaml_path, args_list = sys.argv[1], sys.argv[2:]
-    with open(yaml_path) as f:
-        yaml_cfg = om.load(f)
-    cli_cfg = om.from_cli(args_list)
-    cfg = om.merge(yaml_cfg, cli_cfg)
-    assert isinstance(cfg, DictConfig)
-    main(cfg)
+# if __name__ == '__main__':
+#     yaml_path, args_list = sys.argv[1], sys.argv[2:]
+#     eval_from_yaml(yaml_path, args_list)

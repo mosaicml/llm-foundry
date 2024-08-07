@@ -14,6 +14,7 @@ from streaming import MDSWriter
 from torch.utils.data import DataLoader
 
 from llmfoundry.data.finetuning.dataloader import build_finetuning_dataloader
+from llmfoundry.data.finetuning.tasks import StreamingFinetuningDataset
 from llmfoundry.data.packing import BinPackCollator, auto_packing_ratio
 from llmfoundry.utils.builders import build_tokenizer
 
@@ -36,11 +37,13 @@ def test_packing():
     """Tests that packing works for a single batch."""
     pad_token_id = 0
     max_seq_len = 5
-    packer = BinPackCollator(collator=lambda x: x,
-                             target_batch_size=2,
-                             max_seq_len=max_seq_len,
-                             pad_token_id=pad_token_id,
-                             padding_side='right')
+    packer = BinPackCollator(
+        collator=lambda x: x,
+        target_batch_size=2,
+        max_seq_len=max_seq_len,
+        pad_token_id=pad_token_id,
+        padding_side='right',
+    )
 
     batch = _data_to_batch([
         [1],
@@ -51,8 +54,10 @@ def test_packing():
 
     packed_samples = packer.pack(batch)
 
-    assert torch.equal(packed_samples['input_ids'],
-                       torch.Tensor([[3, 3, 3, 2, 2], [4, 4, 4, 4, 1]]))
+    assert torch.equal(
+        packed_samples['input_ids'],
+        torch.Tensor([[3, 3, 3, 2, 2], [4, 4, 4, 4, 1]]),
+    )
     assert torch.all(packed_samples['attention_mask'] == 1)
 
 
@@ -60,11 +65,13 @@ def test_packing_with_leftovers():
     """Tests that packing handles leftovers and computes waste correctly."""
     pad_token_id = 0
     max_seq_len = 5
-    packer = BinPackCollator(collator=lambda x: x,
-                             target_batch_size=2,
-                             max_seq_len=max_seq_len,
-                             pad_token_id=pad_token_id,
-                             padding_side='right')
+    packer = BinPackCollator(
+        collator=lambda x: x,
+        target_batch_size=2,
+        max_seq_len=max_seq_len,
+        pad_token_id=pad_token_id,
+        padding_side='right',
+    )
 
     batch = _data_to_batch([
         [1],
@@ -75,10 +82,14 @@ def test_packing_with_leftovers():
 
     packed_batch = packer.pack(batch)
 
-    assert torch.equal(packed_batch['input_ids'],
-                       torch.Tensor([[4, 4, 4, 4, 1], [4, 4, 4, 4, 0]]))
-    assert torch.equal(packed_batch['attention_mask'],
-                       torch.Tensor([[1, 1, 1, 1, 1], [1, 1, 1, 1, 0]]))
+    assert torch.equal(
+        packed_batch['input_ids'],
+        torch.Tensor([[4, 4, 4, 4, 1], [4, 4, 4, 4, 0]]),
+    )
+    assert torch.equal(
+        packed_batch['attention_mask'],
+        torch.Tensor([[1, 1, 1, 1, 1], [1, 1, 1, 1, 0]]),
+    )
 
     # Check leftovers and waste.
     assert len(packer._leftover_bins) == 1
@@ -91,10 +102,14 @@ def test_packing_with_leftovers():
     # Ensure that leftovers are used in the next batch if possible.
     batch = _data_to_batch([[1]], max_seq_len, pad_token_id)
     packed_batch = packer.pack(batch)
-    assert torch.equal(packed_batch['input_ids'],
-                       torch.Tensor([[2, 2, 0, 0, 0], [1, 0, 0, 0, 0]]))
-    assert torch.equal(packed_batch['attention_mask'],
-                       torch.Tensor([[1, 1, 0, 0, 0], [1, 0, 0, 0, 0]]))
+    assert torch.equal(
+        packed_batch['input_ids'],
+        torch.Tensor([[2, 2, 0, 0, 0], [1, 0, 0, 0, 0]]),
+    )
+    assert torch.equal(
+        packed_batch['attention_mask'],
+        torch.Tensor([[1, 1, 0, 0, 0], [1, 0, 0, 0, 0]]),
+    )
 
 
 @patch('llmfoundry.data.packing.profile_packing')
@@ -107,9 +122,9 @@ def test_auto_packing(profile_packing: Mock):
     profile_packing.return_value = [(1, .9, 0), (2, .8, 0), (3, .7, .5)]
 
     packing_ratio = auto_packing_ratio(
-        dataloader_cfg=DictConfig({'dataset': {
-            'max_seq_len': 2048
-        }}),
+        dataloader_cfg={'dataset': {
+            'max_seq_len': 2048,
+        }},
         tokenizer=None,
         device_batch_size=1,
     )  # Dummy values, profiling results are already set.
@@ -134,9 +149,9 @@ def test_dist_auto_packing(profile_packing: Mock):
                                         (3, .7, .5)]  # should pick 2
 
     packing_ratio = auto_packing_ratio(
-        dataloader_cfg=DictConfig({'dataset': {
-            'max_seq_len': 2048
-        }}),
+        dataloader_cfg={'dataset': {
+            'max_seq_len': 2048,
+        }},
         tokenizer=None,
         device_batch_size=1,
     )  # Dummy values, profiling results are already set.
@@ -151,8 +166,10 @@ def patched_packing_ratio(*args: Any, **kwargs: Any):
     return auto_packing_ratio(*args, **kwargs, num_packing_ratios=4)
 
 
-@patch('llmfoundry.data.finetuning.dataloader.auto_packing_ratio',
-       patched_packing_ratio)
+@patch(
+    'llmfoundry.data.finetuning.dataloader.auto_packing_ratio',
+    patched_packing_ratio,
+)
 def test_auto_packing_with_streaming_dataloader(tmp_path: Path):
     columns = {'prompt': 'str', 'response': 'str'}
     tokenizer = build_tokenizer('gpt2', {})
@@ -161,13 +178,12 @@ def test_auto_packing_with_streaming_dataloader(tmp_path: Path):
     with MDSWriter(out=remote_dir, columns=columns, compression=None) as out:
         out.write({'prompt': 'HELLO', 'response': 'WORLD'})
     cfg = DictConfig({
-        'name': 'finetuning',
         'dataset': {
             'remote': remote_dir,
             'local': local_dir,
             'packing_ratio': 'auto',
             'max_seq_len': 200,
-            'decoder_only_format': True
+            'decoder_only_format': True,
         },
         'drop_last': False,
         # Need to test with 0 num_workers because the packing collator object
@@ -179,8 +195,11 @@ def test_auto_packing_with_streaming_dataloader(tmp_path: Path):
         'timeout': 0,
     })
 
-    loader = build_finetuning_dataloader(cfg, tokenizer,
-                                         device_batch_size=6).dataloader
+    loader = build_finetuning_dataloader(
+        **cfg,
+        tokenizer=tokenizer,
+        device_batch_size=6,
+    ).dataloader
 
     batch_ix = 0
     for _ in loader:
@@ -188,16 +207,26 @@ def test_auto_packing_with_streaming_dataloader(tmp_path: Path):
         if batch_ix >= 3:
             break
 
+    assert isinstance(loader, DataLoader)
+    assert isinstance(loader.dataset, StreamingFinetuningDataset)
+    assert loader.dataset.packing_ratio is not None
+    assert isinstance(loader.batch_size, int)
+    assert loader.dataset.packing_ratio == int(loader.batch_size / 6)
+
+    state_dict = loader.dataset.state_dict(num_samples=2, from_beginning=False)
+    assert state_dict['sample_in_epoch'] == 2 * loader.dataset.packing_ratio
+
 
 @pytest.mark.parametrize('packing_ratio', ['auto', 2.0])
-@patch('llmfoundry.data.finetuning.dataloader.auto_packing_ratio',
-       patched_packing_ratio)
+@patch(
+    'llmfoundry.data.finetuning.dataloader.auto_packing_ratio',
+    patched_packing_ratio,
+)
 def test_packing_with_dataloader(packing_ratio: Any):
     """Tests that packing works with a dataloader."""
     reproducibility.seed_all(17)
     tokenizer = build_tokenizer('gpt2', {})
-    cfg = DictConfig({
-        'name': 'finetuning',
+    cfg = {
         'dataset': {
             'hf_name': 'tatsu-lab/alpaca',
             'split': 'train',
@@ -215,10 +244,13 @@ def test_packing_with_dataloader(packing_ratio: Any):
         'prefetch_factor': None,
         'persistent_workers': False,
         'timeout': 0,
-    })
+    }
 
-    loader = build_finetuning_dataloader(cfg, tokenizer,
-                                         device_batch_size=6).dataloader
+    loader = build_finetuning_dataloader(
+        **cfg,
+        tokenizer=tokenizer,
+        device_batch_size=6,
+    ).dataloader
 
     assert isinstance(loader, DataLoader)
     pack_collator = loader.collate_fn

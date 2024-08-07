@@ -25,17 +25,23 @@ class TokenAccuracy(Metric):
     # Ensures torchmetrics calls update only once
     full_state_update = False
 
-    def __init__(self,
-                 ignore_index: int = -100,
-                 dist_sync_on_step: bool = False):
+    def __init__(
+        self,
+        ignore_index: int = -100,
+        dist_sync_on_step: bool = False,
+    ):
         super().__init__(dist_sync_on_step=dist_sync_on_step)
         self.ignore_index = ignore_index
-        self.add_state('correct_tokens',
-                       default=torch.tensor(0),
-                       dist_reduce_fx='sum')
-        self.add_state('total_tokens',
-                       default=torch.tensor(0),
-                       dist_reduce_fx='sum')
+        self.add_state(
+            'correct_tokens',
+            default=torch.tensor(0),
+            dist_reduce_fx='sum',
+        )
+        self.add_state(
+            'total_tokens',
+            default=torch.tensor(0),
+            dist_reduce_fx='sum',
+        )
 
     def update(self, preds: torch.Tensor, target: torch.Tensor):
         """Updates the internal state with results from a new batch.

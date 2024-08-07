@@ -11,11 +11,11 @@ import pytest
 from composer import Trainer
 from composer.loggers import InMemoryLogger
 
-from llmfoundry import COMPOSER_MODEL_REGISTRY
+from llmfoundry.command_utils import evaluate
 from llmfoundry.utils import build_tokenizer
-from scripts.eval.eval import main  # noqa: E402
-from tests.data_utils import (create_arxiv_dataset, create_c4_dataset_xxsmall,
-                              gpt_tiny_cfg)
+from llmfoundry.utils.builders import build_composer_model
+from llmfoundry.utils.config_utils import EVAL_CONFIG_KEYS, to_dict_container
+from tests.data_utils import create_c4_dataset_xxsmall, gpt_tiny_cfg
 
 
 @pytest.fixture(autouse=True)
@@ -39,16 +39,24 @@ def eval_cfg(foundry_dir: str) -> Union[om.ListConfig, om.DictConfig]:
 
 @pytest.fixture()
 def mock_saved_model_path(eval_cfg: Union[om.ListConfig, om.DictConfig]):
+    eval_cfg = copy.deepcopy(eval_cfg)  # copy config before modifying
     model_cfg = eval_cfg.models[0]
     # set device to cpu
     device = 'cpu'
     model_cfg.model.init_device = device
     # build tokenizer
-    tokenizer = build_tokenizer(model_cfg.tokenizer.name,
-                                model_cfg.tokenizer.get('kwargs', {}))
+    tokenizer = build_tokenizer(
+        model_cfg.tokenizer.name,
+        model_cfg.tokenizer.get('kwargs', {}),
+    )
     # build model
-    model = COMPOSER_MODEL_REGISTRY[model_cfg.model.name](model_cfg.model,
-                                                          tokenizer)
+    name = model_cfg.model.pop('name')
+    model = build_composer_model(
+        name=name,
+        tokenizer=tokenizer,
+        cfg=to_dict_container(model_cfg.model),
+    )
+
     # create mocked save checkpoint
     trainer = Trainer(model=model, device=device)
     saved_model_path = os.path.join(os.getcwd(), 'test_model.pt')
@@ -59,11 +67,15 @@ def mock_saved_model_path(eval_cfg: Union[om.ListConfig, om.DictConfig]):
     os.remove(saved_model_path)
 
 
-def test_icl_eval(eval_cfg: Union[om.ListConfig, om.DictConfig], capfd: Any,
-                  mock_saved_model_path: Any):
+def test_icl_eval(
+    eval_cfg: Union[om.ListConfig, om.DictConfig],
+    capfd: Any,
+    mock_saved_model_path: Any,
+):
+    eval_cfg = copy.deepcopy(eval_cfg)
     eval_cfg.models[0].load_path = mock_saved_model_path
     assert isinstance(eval_cfg, om.DictConfig)
-    main(eval_cfg)
+    evaluate(eval_cfg)
     out, _ = capfd.readouterr()
     expected_results = '| Category                    | Benchmark      | Subtask   |   Accuracy | Number few shot   | Model    |\n|:----------------------------|:---------------|:----------|-----------:|:------------------|:---------|\n| language_understanding_lite | lambada_openai |           |          0 | 0-shot            | tiny_mpt |'
     assert expected_results in out
@@ -71,8 +83,11 @@ def test_icl_eval(eval_cfg: Union[om.ListConfig, om.DictConfig], capfd: Any,
     assert expected_results in out
 
 
-def test_loader_eval(capfd: Any, mock_saved_model_path: Any,
-                     tmp_path: pathlib.Path):
+def test_loader_eval(
+    capfd: Any,
+    mock_saved_model_path: Any,
+    tmp_path: pathlib.Path,
+):
 
     c4_dataset_name = create_c4_dataset_xxsmall(tmp_path)
 
@@ -88,8 +103,8 @@ def test_loader_eval(capfd: Any, mock_saved_model_path: Any,
                 'eval/local_data/language_understanding/lambada_openai_small.jsonl',
             'num_fewshot': [0],
             'icl_task_type':
-                'language_modeling'
-        })
+                'language_modeling',
+        }),
     ])
 
     # convert the model from a training to eval model
@@ -97,7 +112,7 @@ def test_loader_eval(capfd: Any, mock_saved_model_path: Any,
     eval_model = {
         'model_name': model.get('name'),
         'model': model,
-        'load_path': mock_saved_model_path
+        'load_path': mock_saved_model_path,
     }
 
     tokenizer = test_cfg.pop('tokenizer')
@@ -109,17 +124,25 @@ def test_loader_eval(capfd: Any, mock_saved_model_path: Any,
     first_eval_loader.label = 'c4'
     # Create second eval dataloader using the arxiv dataset.
     second_eval_loader = copy.deepcopy(first_eval_loader)
-    arxiv_dataset_name = create_arxiv_dataset(tmp_path)
-    second_eval_loader.data_local = arxiv_dataset_name
     second_eval_loader.label = 'arxiv'
-    test_cfg.eval_loader = om.OmegaConf.create(
-        [first_eval_loader, second_eval_loader])
+    test_cfg.eval_loader = om.OmegaConf.create([
+        first_eval_loader,
+        second_eval_loader,
+    ])
 
     test_cfg.max_duration = '1ba'
     test_cfg.eval_interval = '1ba'
     test_cfg.loggers = om.DictConfig({'inmemory': om.DictConfig({})})
 
-    trainers, eval_gauntlet_df = main(test_cfg)
+    # This test uses a training yaml with training-only keys present.
+    # We exclude these keys before calling `evaluate` from the eval script.
+    allowed_keys = EVAL_CONFIG_KEYS
+    present_keys = set(test_cfg.keys())
+    keys_to_pop = present_keys.difference(allowed_keys)
+
+    [test_cfg.pop(key) for key in keys_to_pop]
+
+    trainers, eval_gauntlet_df = evaluate(test_cfg)
 
     assert eval_gauntlet_df is None
     assert len(trainers) == 1  # one per model
@@ -136,19 +159,28 @@ def test_loader_eval(capfd: Any, mock_saved_model_path: Any,
     # Checks for first eval dataloader
     assert 'metrics/eval/c4/LanguageCrossEntropy' in inmemorylogger.data.keys()
     assert isinstance(
-        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'], list)
+        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'],
+        list,
+    )
     assert len(
-        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1]) > 0
+        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1],
+    ) > 0
     assert isinstance(
-        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1], tuple)
+        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1],
+        tuple,
+    )
 
     # Checks for second eval dataloader
     assert 'metrics/eval/arxiv/LanguageCrossEntropy' in inmemorylogger.data.keys(
     )
     assert isinstance(
-        inmemorylogger.data['metrics/eval/arxiv/LanguageCrossEntropy'], list)
+        inmemorylogger.data['metrics/eval/arxiv/LanguageCrossEntropy'],
+        list,
+    )
     assert len(
-        inmemorylogger.data['metrics/eval/arxiv/LanguageCrossEntropy'][-1]) > 0
+        inmemorylogger.data['metrics/eval/arxiv/LanguageCrossEntropy'][-1],
+    ) > 0
     assert isinstance(
         inmemorylogger.data['metrics/eval/arxiv/LanguageCrossEntropy'][-1],
-        tuple)
+        tuple,
+    )

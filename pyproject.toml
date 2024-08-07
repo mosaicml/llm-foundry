@@ -8,6 +8,46 @@ build-backend = "setuptools.build_meta"
 multi_line_output = 0
 line_length = 80
 skip = [ "env", "wandb", "runs", "build", "node_modules" ]
+include_trailing_comma = true
+split_on_trailing_comma = true
+
+# Ruff global
+[tool.ruff]
+exclude = [
+    "build/**",
+    "docs/**",
+    "node_modules/**",
+]
+
+# Ruff linter
+[tool.ruff.lint]
+select = [
+    "C4",
+    "LOG",
+    "PERF",
+    "PLE",
+    "COM812",
+    "D", # pydocstyle
+]
+
+extend-select = ["D404"] # pydocstyle
+
+ignore = [
+    "D100",
+    "D101",
+    "D102",
+    "D103",
+    "D104",
+    "D105",
+    "D107",
+    "D400",
+    "D401",
+    "D415",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
 
 # Coverage
 [tool.coverage.run]
@@ -22,8 +62,7 @@ include = [
 
 # Pyright
 [tool.pyright]
-exclude = ['env-**', 'venv*', '**/flash_attn_triton.py', '.venv']
-ignore = ['llmfoundry/models/layers/flash_attn_triton.py']
+exclude = ['env-**', 'venv*', '.venv']
 stubPath = ""  # suppress useless 'stubPath is not a valid directory' errors
 
 reportUnnecessaryIsInstance = "none" # it is ok to do this for clarity or safety
@@ -61,7 +100,7 @@ reportMissingImports = "none"
 # Pytest
 [tool.pytest.ini_options]
 # By default, skip gpu tests
-addopts = "--tb=short -m 'not gpu'"
+addopts = "--tb=short -m 'not gpu' --color=yes"
 
 markers = [
     # For distributed testing
@@ -164,7 +203,7 @@ blank_line_before_nested_class_or_def = true
 #        'key1': 'value1',
 #        'key2': 'value2',
 #    })
-coalesce_brackets = false
+coalesce_brackets = true
 
 # The column limit.
 column_limit = 80
@@ -199,7 +238,7 @@ continuation_indent_width = 4
 #       start_ts=now()-timedelta(days=3),
 #       end_ts=now(),
 #   )        # <--- this bracket is dedented and on a separate line
-dedent_closing_brackets = false
+dedent_closing_brackets = true
 
 # Disable the heuristic which places each list element on a separate line
 # if the list is comma-terminated.
@@ -370,7 +409,7 @@ split_all_top_level_comma_separated_values = false
 
 # Split before arguments if the argument list is terminated by a
 # comma.
-split_arguments_when_comma_terminated = false
+split_arguments_when_comma_terminated = true
 
 # Set to True to prefer splitting before '+', '-', '*', '/', '//', or '@'
 # rather than after.
@@ -488,8 +527,3 @@ ignore_patterns = [
     "wandb/**/*.py",
     "build/**/*.py",
 ]
-
-[tool.pydocstyle]
-convention="google"
-add_ignore="D100,D101,D102,D103,D104,D105,D107,D400,D401,D415"
-add_select="D404"

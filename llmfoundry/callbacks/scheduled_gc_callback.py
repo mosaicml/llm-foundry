@@ -8,6 +8,8 @@ import torch
 from composer.core import Callback, State
 from composer.loggers import Logger
 
+__all__ = ['ScheduledGarbageCollector']
+
 
 def gc_cuda():
     """Garbage collect Torch (CUDA) memory."""

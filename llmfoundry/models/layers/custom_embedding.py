@@ -5,6 +5,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
+__all__ = ['SharedEmbedding']
+
 
 class SharedEmbedding(nn.Embedding):
 

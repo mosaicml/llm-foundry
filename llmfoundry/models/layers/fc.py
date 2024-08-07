@@ -3,12 +3,12 @@
 
 from torch import nn
 
-FC_CLASS_REGISTRY = {
-    'torch': nn.Linear,
-}
+from llmfoundry.layers_registry import fcs
+
+fcs.register('torch', func=nn.Linear)
 
 try:
     import transformer_engine.pytorch as te
-    FC_CLASS_REGISTRY['te'] = te.Linear
+    fcs.register('te', func=te.Linear)
 except:
     pass

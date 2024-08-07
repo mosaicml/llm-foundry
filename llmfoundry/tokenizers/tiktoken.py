@@ -1,9 +1,14 @@
-# Copyright 2022 MosaicML LLM Foundry authors
+# Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
+
 from functools import lru_cache
 from typing import Any, Dict, List, Optional, Tuple
 
 from transformers import PreTrainedTokenizer
+
+__all__ = [
+    'TiktokenTokenizerWrapper',
+]
 
 DEFAULT_SYSTEM_PROMPT = """You are a helpful, respectful and honest assistant. Always answer as helpfully as possible."""
 
@@ -24,11 +29,13 @@ def bytes_to_unicode():
     32K bpe vocab. To avoid that, we want lookup tables between utf-8 bytes and
     unicode strings.
     """
-    bs = (list(range(ord('!'),
-                     ord('~') + 1)) + list(range(ord('¡'),
-                                                 ord('¬') + 1)) +
-          list(range(ord('®'),
-                     ord('ÿ') + 1)))
+    bs = (
+        list(range(ord('!'),
+                   ord('~') + 1)) + list(range(ord('¡'),
+                                               ord('¬') + 1)) +
+        list(range(ord('®'),
+                   ord('ÿ') + 1))
+    )
     cs = bs[:]
     n = 0
     for b in range(2**8):
@@ -50,18 +57,20 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
 
     model_input_names = ['input_ids', 'attention_mask']
 
-    def __init__(self,
-                 model_name: Optional[str] = None,
-                 encoding_name: Optional[str] = None,
-                 add_bos_token: bool = False,
-                 add_eos_token: bool = False,
-                 use_default_system_prompt: bool = False,
-                 unk_token: Optional[str] = '<|endoftext|>',
-                 eos_token: Optional[str] = '<|endoftext|>',
-                 bos_token: Optional[str] = '<|endoftext|>',
-                 pad_token: Optional[str] = None,
-                 errors: str = 'replace',
-                 **kwargs: Any):
+    def __init__(
+        self,
+        model_name: Optional[str] = None,
+        encoding_name: Optional[str] = None,
+        add_bos_token: bool = False,
+        add_eos_token: bool = False,
+        use_default_system_prompt: bool = False,
+        unk_token: Optional[str] = '<|endoftext|>',
+        eos_token: Optional[str] = '<|endoftext|>',
+        bos_token: Optional[str] = '<|endoftext|>',
+        pad_token: Optional[str] = None,
+        errors: str = 'replace',
+        **kwargs: Any,
+    ):
         """Constructor creates a tiktoken tokenizer to use as the underlying.
 
         tokenizer.
@@ -81,12 +90,14 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             errors (str, optional): Paradigm to follow when decoding bytes to UTF-8. See
                 [bytes.decode](https://docs.python.org/3/library/stdtypes.html#bytes.decode) for more information.
                 Defaults to `"replace"`.
+            kwargs (Any): Other relevant keyword arguments.
         """
         try:
             import tiktoken
         except:
             raise ImportError(
-                'You need to install tiktoken to use TiktokenTokenizerWrapper.')
+                'You need to install tiktoken to use TiktokenTokenizerWrapper.',
+            )
 
         # Workaround to make tiktokenizer picklable.
         # https://github.com/huggingface/datasets/issues/5536#issuecomment-1682309347
@@ -97,17 +108,22 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         from tiktoken import Encoding  # type: ignore (thirdParty)
 
         def pickle_Encoding(enc: Encoding):
-            return (functools.partial(Encoding,
-                                      enc.name,
-                                      pat_str=enc._pat_str,
-                                      mergeable_ranks=enc._mergeable_ranks,
-                                      special_tokens=enc._special_tokens), ())
+            return (
+                functools.partial(
+                    Encoding,
+                    enc.name,
+                    pat_str=enc._pat_str,
+                    mergeable_ranks=enc._mergeable_ranks,
+                    special_tokens=enc._special_tokens,
+                ),
+                (),
+            )
 
         copyreg.pickle(Encoding, pickle_Encoding)
 
         if model_name is not None and encoding_name is not None:
             raise ValueError(
-                'You need to specify either model_name or encoding_name, not both.'
+                'You need to specify either model_name or encoding_name, not both.',
             )
 
         self.model_name = model_name
@@ -121,7 +137,8 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
                 self.encoding_name)
         else:
             raise ValueError(
-                'You need to specify either model_name or encoding_name.')
+                'You need to specify either model_name or encoding_name.',
+            )
 
         self.add_bos_token = add_bos_token
         self.add_eos_token = add_eos_token
@@ -150,17 +167,19 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             if i in self.decoder:
                 self.encoder[self.decoder[i]] = i
 
-        super().__init__(model_name=model_name,
-                         encoding_name=encoding_name,
-                         add_bos_token=add_bos_token,
-                         add_eos_token=add_eos_token,
-                         use_default_system_prompt=use_default_system_prompt,
-                         unk_token=unk_token,
-                         eos_token=eos_token,
-                         bos_token=bos_token,
-                         pad_token=pad_token,
-                         errors=errors,
-                         **kwargs)
+        super().__init__(
+            model_name=model_name,
+            encoding_name=encoding_name,
+            add_bos_token=add_bos_token,
+            add_eos_token=add_eos_token,
+            use_default_system_prompt=use_default_system_prompt,
+            unk_token=unk_token,
+            eos_token=eos_token,
+            bos_token=bos_token,
+            pad_token=pad_token,
+            errors=errors,
+            **kwargs,
+        )
 
     @property
     def vocab_size(self) -> int:
@@ -200,12 +219,16 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             '{% if (add_generation_prompt == true and loop.last) %}'
             "{{ '\n' + '<|im_start|>' + 'assistant' + '\n' }}"
             '{% endif %}'
-            '{% endfor %}')
+            '{% endfor %}'
+        )
         template = template.replace(
             'USE_DEFAULT_PROMPT',
-            'true' if self.use_default_system_prompt else 'false')
-        template = template.replace('DEFAULT_SYSTEM_PROMPT',
-                                    DEFAULT_SYSTEM_PROMPT)
+            'true' if self.use_default_system_prompt else 'false',
+        )
+        template = template.replace(
+            'DEFAULT_SYSTEM_PROMPT',
+            DEFAULT_SYSTEM_PROMPT,
+        )
         return template
 
     def get_vocab(self) -> Dict[str, int]:
@@ -216,8 +239,9 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         vocab_clone = self.encoder.copy()
         extra_id_index = 0
         candidate_extra_id = f'<extra_id_{extra_id_index}>'
-        indices_to_fill_in = {i for i in range(self.vocab_size)} - set(
-            vocab_clone.values())
+        indices_to_fill_in = (
+            set(range(self.vocab_size)) - set(vocab_clone.values())
+        )
 
         # Add enough indices to make get_vocab() the right length
         for index_to_add in indices_to_fill_in:
@@ -229,13 +253,14 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             # Get an index to add and add the item
             vocab_clone[candidate_extra_id] = index_to_add
 
-        return vocab_clone
+        return dict(vocab_clone, **self.added_tokens_encoder)
 
     def _tokenize(self, text: str) -> List[str]:
         """Returns a tokenized string."""
         if not isinstance(text, str):
             raise ValueError(
-                f'Expected a string input to _tokenize but got {type(text)}.')
+                f'Expected a string input to _tokenize but got {type(text)}.',
+            )
 
         tokens = [
             self.decoder[t]
@@ -259,13 +284,14 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         """Converts a sequence of tokens (string) in a single string."""
         text = ''.join(tokens)
         text = bytearray([self.byte_decoder[c] for c in text
-                         ]).decode('utf-8', errors=self.errors)
+                         ],).decode('utf-8', errors=self.errors)
         return text
 
     def build_inputs_with_special_tokens(
-            self,
-            token_ids_0: List[int],
-            token_ids_1: Optional[List[int]] = None) -> List[int]:
+        self,
+        token_ids_0: List[int],
+        token_ids_1: Optional[List[int]] = None,
+    ) -> List[int]:
         bos_token_id = [self.bos_token_id] if self.add_bos_token else []
         eos_token_id = [self.eos_token_id] if self.add_eos_token else []
 
@@ -277,10 +303,11 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         return output
 
     def get_special_tokens_mask(
-            self,
-            token_ids_0: List[int],
-            token_ids_1: Optional[List[int]] = None,
-            already_has_special_tokens: bool = False) -> List[int]:
+        self,
+        token_ids_0: List[int],
+        token_ids_1: Optional[List[int]] = None,
+        already_has_special_tokens: bool = False,
+    ) -> List[int]:
         """Retrieves sequence ids from a token list that has no special tokens.
 
         Function copied from
@@ -304,29 +331,35 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             return super().get_special_tokens_mask(
                 token_ids_0=token_ids_0,
                 token_ids_1=token_ids_1,
-                already_has_special_tokens=True)
+                already_has_special_tokens=True,
+            )
 
         bos_token_id = [1] if self.add_bos_token else []
         eos_token_id = [1] if self.add_eos_token else []
 
         if token_ids_1 is None:
             return bos_token_id + ([0] * len(token_ids_0)) + eos_token_id
-        return (bos_token_id + ([0] * len(token_ids_0)) + eos_token_id +
-                bos_token_id + ([0] * len(token_ids_1)) + eos_token_id)
+        return (
+            bos_token_id + ([0] * len(token_ids_0)) + eos_token_id +
+            bos_token_id + ([0] * len(token_ids_1)) + eos_token_id
+        )
 
     def create_token_type_ids_from_sequences(
-            self,
-            token_ids_0: List[int],
-            token_ids_1: Optional[List[int]] = None) -> List[int]:
+        self,
+        token_ids_0: List[int],
+        token_ids_1: Optional[List[int]] = None,
+    ) -> List[int]:
         sep = [self.sep_token_id]
 
         if token_ids_1 is None:
             return len(token_ids_0 + sep) * [0]
         return len(token_ids_0 + sep) * [0] + len(token_ids_1 + sep) * [1]
 
-    def save_vocabulary(self,
-                        save_directory: str,
-                        filename_prefix: Optional[str] = None) -> Tuple[str]:
+    def save_vocabulary(
+        self,
+        save_directory: str,
+        filename_prefix: Optional[str] = None,
+    ) -> Tuple[str]:
 
         # ignore the below type to keep the original signature
         # we are knowingly breaking the signature here, although not 100% certain

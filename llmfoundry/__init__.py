@@ -9,71 +9,83 @@ warnings.filterwarnings('ignore', category=UserWarning, module='bitsandbytes')
 
 import logging
 
+try:
+    from flash_attn import flash_attn_func
+    del flash_attn_func
+except ImportError as e:
+    if 'undefined symbol' in str(e):
+        raise ImportError(
+            'The flash_attn package is not installed correctly. Usually this means that your runtime version'
+            +
+            ' of PyTorch is different from the version that flash_attn was installed with, which can occur when your'
+            +
+            ' workflow has resulted in PyTorch being reinstalled. This probably happened because you are using an old Docker image'
+            +
+            ' with the latest version of LLM Foundry. Check that the PyTorch version in your Docker image matches the PyTorch version'
+            +
+            ' in LLM Foundry setup.py and update accordingly. The latest Docker image can be found in the README.',
+        ) from e
+
 from llmfoundry.utils.logging_utils import SpecificWarningFilter
 
 # Filter out Hugging Face warning for not using a pinned revision of the model
-hf_dynamic_modules_logger = logging.getLogger(
-    'transformers.dynamic_module_utils')
+logger = logging.getLogger('transformers.dynamic_module_utils')
 new_files_warning_filter = SpecificWarningFilter(
-    'A new version of the following files was downloaded from')
+    'A new version of the following files was downloaded from',
+)
 
-hf_dynamic_modules_logger.addFilter(new_files_warning_filter)
+logger.addFilter(new_files_warning_filter)
 
-# Before importing any transformers models, we need to disable transformers flash attention if
-# we are in an environment with flash attention version <2. Transformers hard errors on a not properly
-# gated import otherwise.
-import transformers
-
-from llmfoundry import optim, utils
-from llmfoundry.data import (ConcatTokensDataset, MixtureOfDenoisersCollator,
-                             NoConcatDataset, Seq2SeqFinetuningCollator,
-                             build_finetuning_dataloader,
-                             build_text_denoising_dataloader)
-from llmfoundry.models.hf import (ComposerHFCausalLM, ComposerHFPrefixLM,
-                                  ComposerHFT5)
-from llmfoundry.models.layers.attention import (
-    MultiheadAttention, attn_bias_shape, build_alibi_bias, build_attn_bias,
-    flash_attn_fn, is_flash_v1_installed,
-    scaled_multihead_dot_product_attention, triton_flash_attn_fn)
-from llmfoundry.models.layers.blocks import MPTBlock
-from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY, MPTMLP, build_ffn
-from llmfoundry.models.model_registry import COMPOSER_MODEL_REGISTRY
-from llmfoundry.models.mpt import (ComposerMPTCausalLM, MPTConfig,
-                                   MPTForCausalLM, MPTModel, MPTPreTrainedModel)
-from llmfoundry.tokenizers import TiktokenTokenizerWrapper
-if is_flash_v1_installed():
-    transformers.utils.is_flash_attn_available = lambda: False
+from llmfoundry import (
+    algorithms,
+    callbacks,
+    cli,
+    data,
+    eval,
+    interfaces,
+    loggers,
+    metrics,
+    models,
+    optim,
+    tokenizers,
+    utils,
+)
+from llmfoundry._version import __version__
+from llmfoundry.data import StreamingFinetuningDataset, StreamingTextDataset
+from llmfoundry.eval import InContextLearningDataset, InContextLearningMetric
+from llmfoundry.models.hf import ComposerHFCausalLM
+from llmfoundry.models.mpt import (
+    ComposerMPTCausalLM,
+    MPTConfig,
+    MPTForCausalLM,
+    MPTModel,
+    MPTPreTrainedModel,
+)
+from llmfoundry.optim import DecoupledLionW
 
 __all__ = [
-    'build_text_denoising_dataloader',
-    'build_finetuning_dataloader',
-    'MixtureOfDenoisersCollator',
-    'Seq2SeqFinetuningCollator',
-    'MPTBlock',
-    'FFN_CLASS_REGISTRY',
-    'MPTMLP',
-    'build_ffn',
+    '__version__',
+    'StreamingFinetuningDataset',
+    'StreamingTextDataset',
+    'InContextLearningDataset',
+    'InContextLearningMetric',
+    'ComposerHFCausalLM',
     'MPTConfig',
     'MPTPreTrainedModel',
     'MPTModel',
     'MPTForCausalLM',
     'ComposerMPTCausalLM',
-    'ComposerHFCausalLM',
-    'ComposerHFPrefixLM',
-    'ComposerHFT5',
-    'COMPOSER_MODEL_REGISTRY',
-    'scaled_multihead_dot_product_attention',
-    'flash_attn_fn',
-    'triton_flash_attn_fn',
-    'MultiheadAttention',
-    'NoConcatDataset',
-    'ConcatTokensDataset',
-    'attn_bias_shape',
-    'build_attn_bias',
-    'build_alibi_bias',
+    'DecoupledLionW',
+    'algorithms',
+    'callbacks',
+    'cli',
+    'data',
+    'eval',
+    'interfaces',
+    'loggers',
+    'metrics',
+    'models',
     'optim',
+    'tokenizers',
     'utils',
-    'TiktokenTokenizerWrapper',
 ]
-
-__version__ = '0.5.0'

@@ -2,14 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 import copy
 import os
-import warnings
 
 import omegaconf
 import pytest
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
-from scripts.eval.eval import main  # noqa: E402
+from llmfoundry.command_utils import evaluate
 
 
 class TestHuggingFaceEvalYAMLInputs:
@@ -37,14 +36,21 @@ class TestHuggingFaceEvalYAMLInputs:
         ]
         mandatory_configs = ['models', 'icl_tasks']
         for p in mandatory_params + mandatory_configs:
-            with pytest.raises((omegaconf.errors.ConfigKeyError,
-                                omegaconf.errors.InterpolationKeyError)):
+            with pytest.raises((
+                omegaconf.errors.ConfigKeyError,
+                omegaconf.errors.InterpolationKeyError,
+                omegaconf.errors.MissingMandatoryValue,
+                TypeError,
+                ValueError,
+            )):
                 cfg[p + '-mispelled'] = cfg.pop(p)
-                main(cfg)
+                evaluate(cfg)
                 cfg[p] = cfg.pop(p + '-mispelled')
 
-    def test_optional_mispelled_params_raise_warning(self,
-                                                     cfg: DictConfig) -> None:
+    def test_optional_mispelled_params_raise_error(
+        self,
+        cfg: DictConfig,
+    ) -> None:
         """Check that warnings are raised for optional mispelled parameters."""
         optional_params = [
             'seed',
@@ -61,13 +67,8 @@ class TestHuggingFaceEvalYAMLInputs:
             orig_value = cfg.pop(param, None)
             updated_param = param + '-mispelling'
             cfg[updated_param] = orig_value
-            with warnings.catch_warnings(record=True) as warning_list:
-                try:
-                    main(cfg)
-                except:
-                    pass
-                assert any(f'Unused parameter {updated_param} found in cfg.' in
-                           str(warning.message) for warning in warning_list)
+            with pytest.raises(ValueError):
+                evaluate(cfg)
             # restore configs.
             cfg = copy.deepcopy(old_cfg)
 
@@ -85,7 +86,10 @@ class TestMPTEvalYAMLInputs:
             test_cfg = om.load(config)
 
         test_cfg.icl_tasks[0].dataset_uri = os.path.join(
-            foundry_dir, 'scripts', test_cfg.icl_tasks[0].dataset_uri)
+            foundry_dir,
+            'scripts',
+            test_cfg.icl_tasks[0].dataset_uri,
+        )
 
         # make tests use cpu initialized transformer models only
         test_cfg.models[0].model.init_device = 'cpu'
@@ -101,4 +105,4 @@ class TestMPTEvalYAMLInputs:
             + ' Please check your yaml and the model_cfg to ensure that load_path is set.'
         cfg.models[0].load_path = None
         with pytest.raises(ValueError, match=error_string):
-            main(cfg)
+            evaluate(cfg)

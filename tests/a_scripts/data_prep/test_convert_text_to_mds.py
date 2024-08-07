@@ -9,23 +9,33 @@ from glob import glob
 from typing import Callable, Iterable, List
 from unittest.mock import Mock, patch
 
-import numpy as np
 import pytest
 from streaming import StreamingDataset
 from transformers import AutoTokenizer
 
-from scripts.data_prep.convert_text_to_mds import (DONE_FILENAME,
-                                                   convert_text_to_mds,
-                                                   download_and_convert,
-                                                   is_already_processed,
-                                                   merge_shard_groups,
-                                                   write_done_file)
+from llmfoundry.command_utils.data_prep.convert_text_to_mds import (
+    DONE_FILENAME,
+    convert_text_to_mds,
+    download_and_convert,
+    is_already_processed,
+    merge_shard_groups,
+    write_done_file,
+)
+from llmfoundry.utils.exceptions import (
+    DatasetTooSmallError,
+    InputFolderMissingDataError,
+    OutputFolderNotEmptyError,
+)
 
 
 class MockObjectStore():
 
-    def __init__(self, remote_folder: str, n_text_files: int,
-                 text_content: str):
+    def __init__(
+        self,
+        remote_folder: str,
+        n_text_files: int,
+        text_content: str,
+    ):
         os.makedirs(remote_folder, exist_ok=True)
         for i in range(n_text_files):
             with open(os.path.join(remote_folder, f'test{i}.txt'), 'w') as f:
@@ -34,16 +44,19 @@ class MockObjectStore():
         self.remote_folder = remote_folder
         self.n_text_files = n_text_files
 
-    def download_object(self,
-                        object_name: str,
-                        filename: str,
-                        overwrite: bool = False):
+    def download_object(
+        self,
+        object_name: str,
+        filename: str,
+        overwrite: bool = False,
+    ):
         dirname = os.path.dirname(filename)
         if dirname:
             os.makedirs(dirname, exist_ok=True)
         with open(
-                os.path.join(self.remote_folder, os.path.basename(object_name)),
-                'rb') as remote_file, open(filename, 'wb') as local_file:
+            os.path.join(self.remote_folder, os.path.basename(object_name)),
+            'rb',
+        ) as remote_file, open(filename, 'wb') as local_file:
             local_file.write(remote_file.read())
 
     def list_objects(self, prefix: str) -> List[str]:
@@ -51,8 +64,9 @@ class MockObjectStore():
 
     def upload_object(self, object_name: str, filename: str):
         with open(
-                os.path.join(self.remote_folder, os.path.basename(object_name)),
-                'wb') as remote_file, open(filename, 'rb') as local_file:
+            os.path.join(self.remote_folder, os.path.basename(object_name)),
+            'wb',
+        ) as remote_file, open(filename, 'rb') as local_file:
             remote_file.write(local_file.read())
 
 
@@ -70,16 +84,25 @@ def _assert_files_exist(prefix: str, files: List[str]):
 @pytest.mark.parametrize('processes', [1, 2, 3])
 @patch.object(ProcessPoolExecutor, 'map', new=Mock(wraps=_mock_map))
 @patch(
-    'scripts.data_prep.convert_text_to_mds.maybe_create_object_store_from_uri')
-@patch('scripts.data_prep.convert_text_to_mds.parse_uri')
-@patch('scripts.data_prep.convert_text_to_mds.download_and_convert',
-       wraps=download_and_convert)
-@patch('scripts.data_prep.convert_text_to_mds.merge_shard_groups',
-       wraps=merge_shard_groups)
-def test_single_and_multi_process(merge_shard_groups: Mock,
-                                  download_and_convert: Mock, parse_uri: Mock,
-                                  maybe_create_object_store_from_uri: Mock,
-                                  tmp_path: pathlib.Path, processes: int):
+    'llmfoundry.command_utils.data_prep.convert_text_to_mds.maybe_create_object_store_from_uri',
+)
+@patch('llmfoundry.command_utils.data_prep.convert_text_to_mds.parse_uri')
+@patch(
+    'llmfoundry.command_utils.data_prep.convert_text_to_mds.download_and_convert',
+    wraps=download_and_convert,
+)
+@patch(
+    'llmfoundry.command_utils.data_prep.convert_text_to_mds.merge_shard_groups',
+    wraps=merge_shard_groups,
+)
+def test_single_and_multi_process(
+    merge_shard_groups: Mock,
+    download_and_convert: Mock,
+    parse_uri: Mock,
+    maybe_create_object_store_from_uri: Mock,
+    tmp_path: pathlib.Path,
+    processes: int,
+):
     remote_folder = os.path.join(tmp_path, 'remote')
     text_content = 'HELLO WORLD ' * 500
     tokenizer_name = 'mosaicml/mpt-7b'
@@ -87,7 +110,8 @@ def test_single_and_multi_process(merge_shard_groups: Mock,
     concat_tokens = 2048
 
     mock_object_store = Mock(
-        wraps=MockObjectStore(remote_folder, n_text_files, text_content))
+        wraps=MockObjectStore(remote_folder, n_text_files, text_content),
+    )
     maybe_create_object_store_from_uri.return_value = mock_object_store
     parse_uri.return_value = ('s3', 'fake-test-bucket', str(remote_folder))
 
@@ -104,6 +128,7 @@ def test_single_and_multi_process(merge_shard_groups: Mock,
             processes=processes,
             args_str='Namespace()',
             reprocess=False,
+            trust_remote_code=False,
         )
 
     call_convert_text_to_mds()
@@ -125,8 +150,10 @@ def test_single_and_multi_process(merge_shard_groups: Mock,
 
     # Check that correct output files exist
     shards = [f'shard.0000{i}.mds.zstd' for i in range(processes)]
-    _assert_files_exist(prefix=remote_folder,
-                        files=['index.json', DONE_FILENAME] + shards)
+    _assert_files_exist(
+        prefix=remote_folder,
+        files=['index.json', DONE_FILENAME] + shards,
+    )
 
     call_convert_text_to_mds()
 
@@ -151,10 +178,12 @@ def test_single_and_multi_process(merge_shard_groups: Mock,
     # Compute the expected number of tokens
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
     tokens_per_file = len(tokenizer(text_content)['input_ids'])
-    files_per_process = [n_text_files // processes
-                        ] * processes  # Distrubte the files equally
+    files_per_process = [
+        n_text_files // processes,
+    ] * processes  # Distrubte the files equally
     files_per_process[
-        0] += n_text_files % processes  # Give one of the processes the remainder
+        0
+    ] += n_text_files % processes  # Give one of the processes the remainder
     # expected number of tokens accounts for last tokens dropped by ConcatTokensDataset
     expected_n_tokens = sum([
         ((n_files * tokens_per_file) // concat_tokens) * concat_tokens
@@ -165,7 +194,7 @@ def test_single_and_multi_process(merge_shard_groups: Mock,
     n_tokens = 0
     for i in range(dataset.num_samples):
         sample = dataset[i]
-        tokens = np.frombuffer(sample['tokens'], dtype=int)
+        tokens = sample['tokens']
         if i == 0:  # For the first sample, check that the decoded sample matches the text_content
             decoded = tokenizer.decode(tokens)
             assert decoded == text_content[:len(decoded)]
@@ -193,6 +222,7 @@ def test_local_path(tmp_path: pathlib.Path):
             processes=1,
             args_str='Namespace()',
             reprocess=reprocess,
+            trust_remote_code=False,
         )
 
     # Create input text data
@@ -209,7 +239,7 @@ def test_local_path(tmp_path: pathlib.Path):
     assert os.path.exists(output_folder / 'shard.00000.mds.zstd')
 
     # Test reprocessing.
-    with pytest.raises(FileExistsError):
+    with pytest.raises(OutputFolderNotEmptyError):
         call_convert_text_to_mds(reprocess=True)
 
     shutil.rmtree(output_folder)
@@ -217,22 +247,77 @@ def test_local_path(tmp_path: pathlib.Path):
     call_convert_text_to_mds(reprocess=True)
 
 
+def test_input_folder_not_exist(tmp_path: pathlib.Path):
+    with pytest.raises(
+        InputFolderMissingDataError,
+        match='No text files were found',
+    ):
+        convert_text_to_mds(
+            tokenizer_name='mosaicml/mpt-7b',
+            output_folder=str(tmp_path / 'output'),
+            input_folder=str(tmp_path / 'input'),
+            concat_tokens=1,
+            eos_text='',
+            bos_text='',
+            no_wrap=False,
+            compression='zstd',
+            processes=1,
+            args_str='Namespace()',
+            reprocess=False,
+            trust_remote_code=False,
+        )
+
+
+def test_dataset_too_small(tmp_path: pathlib.Path):
+    input_folder = tmp_path / 'input'
+    os.makedirs(input_folder, exist_ok=True)
+    with open(input_folder / 'test.txt', 'w') as f:
+        f.write('a')
+    with pytest.raises(DatasetTooSmallError):
+        convert_text_to_mds(
+            tokenizer_name='mosaicml/mpt-7b',
+            output_folder=str(tmp_path / 'output'),
+            input_folder=str(input_folder),
+            concat_tokens=2048,
+            eos_text='',
+            bos_text='',
+            no_wrap=False,
+            compression='zstd',
+            processes=1,
+            args_str='Namespace()',
+            reprocess=False,
+            trust_remote_code=False,
+        )
+
+
 def test_is_already_processed(tmp_path: pathlib.Path):
     tmp_path_str = str(tmp_path)
     args_str = 'Namespace(x = 5)'
     object_names = ['test0.txt', 'test1.txt']
 
-    assert not is_already_processed(tmp_path_str, args_str,
-                                    object_names)  # Done file doesn't exist
+    assert not is_already_processed(
+        tmp_path_str,
+        args_str,
+        object_names,
+    )  # Done file doesn't exist
 
     write_done_file(tmp_path_str, args_str, object_names)
-    assert is_already_processed(tmp_path_str, args_str,
-                                object_names)  # Args and names match
+    assert is_already_processed(
+        tmp_path_str,
+        args_str,
+        object_names,
+    )  # Args and names match
 
     write_done_file(tmp_path_str, args_str, object_names + ['test2.txt'])
-    assert not is_already_processed(tmp_path_str, args_str,
-                                    object_names)  # Object names differ
+    assert not is_already_processed(
+        tmp_path_str,
+        args_str,
+        object_names,
+    )  # Object names differ
 
     write_done_file(tmp_path_str, 'Namespace()', object_names)
-    assert not is_already_processed(tmp_path_str, args_str,
-                                    object_names)  # Argument strings differ
+    assert not is_already_processed(
+        tmp_path_str,
+        args_str,
+        object_names,
+    )  # Argument strings differ

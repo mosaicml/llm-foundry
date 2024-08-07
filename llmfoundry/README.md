@@ -1,7 +1,7 @@
 
 # Source code
 
-LLMFoundry is a Python package for training, finetuning, evaluating, and serving large scale LLM models on distributed compute infrustructure using MosaicML's Composer with PyTorch
+LLMFoundry is a Python package for training, finetuning, evaluating, and serving large scale LLM models on distributed compute infrastructure using MosaicML's Composer with PyTorch
 
 At a granular level, LLMFoundry is a library that consists of the following components:
 

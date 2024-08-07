@@ -1,39 +1,31 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import torch
 from composer.core.types import Batch
-from composer.metrics import InContextLearningMetric
-from composer.metrics.nlp import (InContextLearningLMAccuracy,
-                                  InContextLearningLMExpectedCalibrationError,
-                                  InContextLearningMCExpectedCalibrationError,
-                                  InContextLearningMultipleChoiceAccuracy,
-                                  InContextLearningQAAccuracy,
-                                  LanguageCrossEntropy, LanguagePerplexity)
 from composer.models import ComposerModel
+from omegaconf import DictConfig
 from torchmetrics import Metric
 from transformers import AutoTokenizer
+
+from llmfoundry.eval.metrics import InContextLearningMetric
+from llmfoundry.metrics import DEFAULT_CAUSAL_LM_EVAL_METRICS
+
+__all__ = ['InferenceAPIEvalWrapper']
 
 
 class InferenceAPIEvalWrapper(ComposerModel):
 
-    def __init__(self, model_cfg: Dict, tokenizer: AutoTokenizer):
-        self.model_name = model_cfg['version']
+    def __init__(self, om_model_config: DictConfig, tokenizer: AutoTokenizer):
+        from llmfoundry.utils.builders import build_metric
 
         self.tokenizer = tokenizer
         self.labels = None
-        self.device = None
-        # set up training and eval metrics
         eval_metrics = [
-            LanguageCrossEntropy(),
-            LanguagePerplexity(),
-            InContextLearningLMAccuracy(),
-            InContextLearningMultipleChoiceAccuracy(),
-            InContextLearningQAAccuracy(),
-            InContextLearningLMExpectedCalibrationError(),
-            InContextLearningMCExpectedCalibrationError()
+            build_metric(metric, {})
+            for metric in DEFAULT_CAUSAL_LM_EVAL_METRICS
         ]
         self.eval_metrics = {
             metric.__class__.__name__: metric for metric in eval_metrics
@@ -63,8 +55,10 @@ class InferenceAPIEvalWrapper(ComposerModel):
         # model's generate function. Extra generation kwargs can be passed in via the batch. Strings will
         # be returned from eval_forward
         output_logits_batch = []
-        for tokens, cont_idxs in zip(batch['input_ids'],
-                                     batch['continuation_indices']):
+        for tokens, cont_idxs in zip(
+            batch['input_ids'],
+            batch['continuation_indices'],
+        ):
 
             seqlen = tokens.shape[0]
             tokens = tokens.tolist()
@@ -72,20 +66,24 @@ class InferenceAPIEvalWrapper(ComposerModel):
             expected_cont_tokens = tokens[cont_idxs[0]:cont_idxs[-1] + 1]
             output_logits = torch.nn.functional.one_hot(
                 torch.tensor(tokens[1:cont_idxs[0]]),
-                num_classes=len(self.tokenizer))
+                num_classes=len(self.tokenizer),
+            )
             for i in range(len(expected_cont_tokens)):
                 # decode one token at a time
-                prompt = self.tokenizer.decode(tokens[:cont_idxs[0]] +
-                                               expected_cont_tokens[0:i])
+                prompt = self.tokenizer.decode(
+                    tokens[:cont_idxs[0]] + expected_cont_tokens[0:i],
+                )
                 next_logit_tensor = self.get_next_token_logit_tensor(prompt)
                 if next_logit_tensor is None:
                     continue
-                output_logits = torch.cat(
-                    [output_logits,
-                     next_logit_tensor.reshape(1, -1)])
+                output_logits = torch.cat([
+                    output_logits,
+                    next_logit_tensor.reshape(1, -1),
+                ])
             padding = torch.nn.functional.one_hot(
                 torch.full((seqlen - output_logits.shape[0],), padding_tok),
-                num_classes=len(self.tokenizer))
+                num_classes=len(self.tokenizer),
+            )
             output_logits = torch.cat([output_logits, padding])
             output_logits_batch.append(output_logits)
 
@@ -105,18 +103,21 @@ class InferenceAPIEvalWrapper(ComposerModel):
         #print("**** Labels:",self.tokenizer.decode(self.labels[0]))
         #print("*******")
         self.labels[:, -1] = -100
-        if isinstance(metric, InContextLearningMetric) and batch.get(
-                'mode', None) == 'icl_task':
+        if isinstance(
+            metric,
+            InContextLearningMetric,
+        ) and batch.get('mode', None) == 'icl_task':
             assert self.labels is not None
             metric.update(batch, outputs, self.labels)
         else:
             raise NotImplementedError(
-                'Inference API wrapper only supports InContextLearningMetrics and mode=icl_task'
+                'Inference API wrapper only supports InContextLearningMetrics and mode=icl_task',
             )
         
     def forward(self):
         raise NotImplementedError(
-            "Inference API wrapper doesn't support forward")
+            "Inference API wrapper doesn't support forward",
+        )
 
     def loss(self):
         raise NotImplementedError("Inference API wrapper doesn't support loss")

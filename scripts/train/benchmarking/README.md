@@ -20,7 +20,7 @@ python submit_benchmarks.py --cluster [your_mosaicml_cluster] ARGS --RUN
 can be used to sweep a larger set of configurations. For example usage of `submit_benchmarks.py` see `sweep.sh` which lists all benchmarks in the tables.
 
 > **Note**
-> The `collect_results.py` will by default find all runs with `tput` in the run name. To customize this project tag, use `--project` in both the submissing and collection scripts.
+> The `collect_results.py` will by default find all runs with `tput` in the run name. To customize this project tag, use `--project` in both the submission and collection scripts.
 
 
 ## MFU and HFU
@@ -55,7 +55,7 @@ hfu* = 4 * flops_per_seq * seq_per_sec / (gpu_num * GPU_AVAILABLE_FLOPS)
 hfu = (4 * flops_per_seq + 4 * attn_flops_per_seq) * seq_per_sec / (gpu_num * GPU_AVAILABLE_FLOPS)
 ```
 
-Note that these are approximations. Actual HFU would be higher since it includes the floating point operations for normalization, activation, and residual lyaers, as well as **all** recomputation. For example, our models use Flash Attention, which requires including an extra recompute factor for its recomputation in the forward pass. Therefore, the attention multipler would be 5 instead of 4.
+Note that these are approximations. Actual HFU would be higher since it includes the floating point operations for normalization, activation, and residual layers, as well as **all** recomputation. For example, our models use Flash Attention, which requires including an extra recompute factor for its recomputation in the forward pass. Therefore, the attention multiplier would be 5 instead of 4.
 
 ## Results
 
@@ -65,7 +65,7 @@ python submit_benchmarks.py -m 13b.yaml 30b.yaml -t fp16 -b 21 21 -s 11 14 --RUN
 ```
 This will run 8 configs for 12 steps to get throughput numbers. `python collect_results.py` can then be used to parse all output training logs and create the tables below.
 
-Our microbatching engine enables microbatch sizes that do not divde Global Batchsize while being mathematically faithful to the global batch size. For example, a total batch size of 48, and a micro batch of 11, means we will accumulate gradients across microbatches of 11, 11, 11, 11, 4.
+Our microbatching engine enables microbatch sizes that do not divide global batch size while being mathematically faithful to the global batch size. For example, a total batch size of 48, and a micro batch of 11, means we will accumulate gradients across microbatches of 11, 11, 11, 11, 4.
 
 [comment]: # (TODO: Update tables with torch 2.0 after next Composer release)
 

@@ -116,7 +116,7 @@ DOWNLOADED_FT_DATASETS_DIRPATH = os.path.abspath(
 )
 SUPPORTED_EXTENSIONS = ['.csv', '.json', '.jsonl', '.parquet']
 HUGGINGFACE_FOLDER_EXTENSIONS = ['.lock', '.metadata']
-DEFAULT_TARGET_RESPONSES = 'all'
+DEFAULT_TARGET_RESPONSES = 'last'
 DEFAULT_TARGET_PROMPTS = 'none'
 
 PromptResponseDict = Mapping[str, str]

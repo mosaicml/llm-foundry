@@ -301,7 +301,7 @@ def build_finetuning_dataloader(
             **{
                 k: v
                 for k, v in dataset_cfg.items()
-                if k in dataset_constructor_keys and k != 'split'
+                if k in dataset_constructor_keys and k not in {'split', 'preprocessing_fn'}
             },
         )
 

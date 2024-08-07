@@ -857,6 +857,8 @@ class DatasetConstructor:
         if hf_kwargs is None:
             hf_kwargs = {}
 
+        # None is checked in the function, because argument defaults were added after the function was written and we want
+        # to preserve the ordering of the arguments for backwards compatibility.
         if tokenizer is None:
             raise ValueError('A tokenizer must be provided.')
 

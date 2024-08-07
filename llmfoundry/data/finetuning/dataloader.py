@@ -184,17 +184,23 @@ def build_finetuning_dataloader(
         'streams',
     ) is not None
     if is_streaming:
+        print('is_streaming')
         dataset_constructor_keys = inspect.signature(
             dataset_constructor.streaming_dataset_class,
         ).parameters.keys()
     else:
+        print('is not streaming')
         dataset_constructor_keys = inspect.signature(
             dataset_constructor.build_from_hf,
         ).parameters.keys()
+        print(inspect.signature(dataset_constructor.build_from_hf))
+        print(dataset_constructor_keys)
 
     allowed_dataset_config_keys = set(
         dataset_constructor_keys,
     ).union(_ALLOWED_DATASET_KEYS)
+    print(allowed_dataset_config_keys)
+    print(dataset_constructor_keys)
     _validate_config(
         **dataset_cfg,
         allowed_dataset_keys=allowed_dataset_config_keys,

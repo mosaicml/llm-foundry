@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import contextlib
+import copy
 import functools
 import logging
 import os
@@ -26,6 +27,7 @@ from composer.optim.scheduler import ComposerScheduler
 from composer.utils import dist
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
+from torch.distributed.checkpoint import LoadPlanner, SavePlanner
 from torch.optim.optimizer import Optimizer
 from torchmetrics import Metric
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
@@ -33,9 +35,9 @@ from transformers import AutoTokenizer, PreTrainedTokenizerBase
 from llmfoundry import registry
 from llmfoundry.callbacks import EvalGauntlet
 from llmfoundry.data.dataloader import build_dataloader
-from llmfoundry.eval.datasets.in_context_learning_evaluation import \
-    get_icl_task_dataloader
-from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
+from llmfoundry.eval.datasets.in_context_learning_evaluation import (
+    get_icl_task_dataloader,
+)
 from llmfoundry.utils.config_utils import to_dict_container, to_list_container
 from llmfoundry.utils.registry_utils import construct_from_registry
 
@@ -62,7 +64,7 @@ def build_evaluators(
     eval_gauntlet_config: Optional[Union[str, Dict[str, Any]]],
     *,
     tokenizer: PreTrainedTokenizerBase,
-    device_eval_batch_size: int,
+    device_eval_batch_size: Union[int, float],
     icl_seq_len: int,
     icl_subset_num_batches: Optional[int],
 ) -> Tuple[List[Evaluator], List[str], Optional[EvalGauntlet]]:
@@ -78,6 +80,10 @@ def build_evaluators(
     logger_keys = []
     eval_gauntlet_callback = None
     if icl_tasks_config is not None:
+        if not isinstance(device_eval_batch_size, int):
+            raise ValueError(
+                'device_eval_batch_size should be an int for icl tasks.',
+            )
         icl_evaluators, logger_keys, eval_gauntlet_callback = build_icl_data_and_gauntlet(
             icl_tasks_config,
             eval_gauntlet_config,
@@ -94,7 +100,7 @@ def build_evaluators(
 def build_eval_loaders(
     eval_loader_config: Union[Dict[str, Any], List[Dict[str, Any]]],
     tokenizer: PreTrainedTokenizerBase,
-    device_eval_batch_size: int,
+    device_eval_batch_size: Union[int, float],
 ) -> List[Evaluator]:
     evaluators: List[Evaluator] = []
     if isinstance(eval_loader_config, list):
@@ -181,6 +187,46 @@ def build_icl_data_and_gauntlet(
     return icl_evaluators, logger_keys, eval_gauntlet_cb
 
 
+def build_load_planner(name: str, **kwargs: Any) -> LoadPlanner:
+    """Builds a load planner from the registry.
+
+    Args:
+        name (str): Name of the load planner to build.
+        kwargs (Any): Other relevant keyword arguments.
+
+    Returns:
+        LoadPlanner: The load planner.
+    """
+    return construct_from_registry(
+        name=name,
+        registry=registry.load_planners,
+        partial_function=True,
+        pre_validation_function=LoadPlanner,
+        post_validation_function=None,
+        kwargs=kwargs,
+    )
+
+
+def build_save_planner(name: str, **kwargs: Any) -> SavePlanner:
+    """Builds a save planner from the registry.
+
+    Args:
+        name (str): Name of the save planner to build.
+        kwargs (Any): Other relevant keyword arguments.
+
+    Returns:
+        savePlanner: The save planner.
+    """
+    return construct_from_registry(
+        name=name,
+        registry=registry.save_planners,
+        partial_function=True,
+        pre_validation_function=SavePlanner,
+        post_validation_function=None,
+        kwargs=kwargs,
+    )
+
+
 def build_composer_model(
     name: str,
     cfg: Dict[str, Any],
@@ -248,7 +294,7 @@ def build_callback(
             raise ValueError(
                 f'`train_config` is a reserved keyword for callbacks with config. Please remove it from the kwargs.',
             )
-        kwargs['train_config'] = train_config
+        kwargs['train_config'] = copy.deepcopy(train_config)
         registry_to_use = registry.callbacks_with_config
 
     return construct_from_registry(
@@ -461,8 +507,15 @@ def build_tokenizer(
         with dist.local_rank_zero_download_and_wait(signal_file_path):
             pass
 
-    if tokenizer_name.startswith('tiktoken'):
-        tokenizer = TiktokenTokenizerWrapper(**tokenizer_kwargs)
+    if tokenizer_name in registry.tokenizers:
+        tokenizer = construct_from_registry(
+            name=tokenizer_name,
+            registry=registry.tokenizers,
+            partial_function=True,
+            pre_validation_function=PreTrainedTokenizerBase,
+            post_validation_function=None,
+            kwargs=tokenizer_kwargs,
+        )
     else:
         tokenizer = AutoTokenizer.from_pretrained(
             tokenizer_name,
@@ -545,22 +598,10 @@ def build_icl_evaluators(
                     f'No metric_names defined, unable to build default metrics for icl_task_type={icl_cfg["icl_task_type"]}.',
                 )
 
-        if 'prompt_string' not in icl_cfg:
-            icl_cfg['prompt_string'] = ''
-        if 'example_delimiter' not in icl_cfg:
-            icl_cfg['example_delimiter'] = '\n'
-        if 'continuation_delimiter' not in icl_cfg:
-            icl_cfg['continuation_delimiter'] = ' '
         if 'max_seq_len' not in icl_cfg:
             icl_cfg['max_seq_len'] = default_max_seq_len
         if 'batch_size' not in icl_cfg:
             icl_cfg['batch_size'] = default_batch_size
-        if 'pass_at_k' not in icl_cfg:
-            icl_cfg['pass_at_k'] = 1
-        if 'fewshot_random_seed' not in icl_cfg:
-            icl_cfg['fewshot_random_seed'] = 1234
-        if 'generations_per_sample' not in icl_cfg:
-            icl_cfg['generations_per_sample'] = 1
 
         if 'num_beams' in icl_cfg:
             raise ValueError(
@@ -579,6 +620,7 @@ def build_icl_evaluators(
                 pad_tok_id = tokenizer.eos_token_id
             else:
                 pad_tok_id = tokenizer.pad_token_id
+
             label = f'{icl_cfg["label"]}/{num_fewshot}-shot'
             metric_names = list(icl_cfg['metric_names'])
             # TODO: fix Composer bug when copying local paths and destination exists
@@ -589,38 +631,51 @@ def build_icl_evaluators(
 
             hf_parsing_map = icl_cfg.get('hf_parsing_map', {})
             hf_loading_vars = icl_cfg.get('hf_loading_vars', {})
-
             early_stopping_criteria = icl_cfg.get(
                 'early_stopping_criteria',
-                None,
+                [],
             )
+            # TODO: fix manual removal of non-constructor fields
+            icl_constructor_kwargs = copy.deepcopy(icl_cfg)
+            icl_constructor_kwargs.pop('label', None)
+            icl_constructor_kwargs.pop('metric_names', None)
+            icl_constructor_kwargs.pop('icl_task_type', None)
+            icl_constructor_kwargs.pop('batch_size', None)
+            icl_constructor_kwargs.pop('has_categories', None)
+
+            # Add custom constructor arguments
+            icl_constructor_kwargs['pad_tok_id'] = pad_tok_id
+            icl_constructor_kwargs['num_fewshot'] = num_fewshot
+
+            # Support backwards compatibility for the naming of "prelimiter" as "question_prelimiter"
+            if 'question_prelimiter' in icl_constructor_kwargs:
+                if 'prelimiter' in icl_constructor_kwargs:
+                    raise ValueError(
+                        'Both "question_prelimiter" and "prelimiter" are specified in the ICL task config. '
+                        +
+                        'Please only specify one of them, as they map to the same argument.',
+                    )
+                else:
+                    icl_constructor_kwargs['prelimiter'
+                                          ] = icl_constructor_kwargs.pop(
+                                              'question_prelimiter',
+                                          )
+
             assert early_stopping_criteria is None or isinstance(
                 early_stopping_criteria,
                 list,
             )
+
             dataloaders = get_icl_task_dataloader(
-                icl_cfg['icl_task_type'],
-                icl_cfg['dataset_uri'],
-                tokenizer,
+                icl_task_type=icl_cfg['icl_task_type'],
+                dataset_uri=icl_cfg['dataset_uri'],
+                tokenizer=tokenizer,
                 batch_size=icl_cfg['batch_size'],
-                max_seq_len=icl_cfg['max_seq_len'],
-                pad_tok_id=pad_tok_id,
-                num_fewshot=num_fewshot,
-                prompt_string=icl_cfg['prompt_string'],
-                example_delimiter=icl_cfg['example_delimiter'],
                 hf_loading_vars=hf_loading_vars,
                 hf_parsing_map=hf_parsing_map,
-                continuation_delimiter=icl_cfg['continuation_delimiter'],
-                question_prelimiter=icl_cfg.get('question_prelimiter', ''),
-                destination_path=destination_path,
-                fewshot_random_seed=icl_cfg['fewshot_random_seed'],
-                pass_at_k=icl_cfg['pass_at_k'],
-                generations_per_sample=icl_cfg['generations_per_sample'],
                 has_categories=icl_cfg.get('has_categories', False),
-                cot_delimiter=icl_cfg.get('cot_delimiter', ''),
-                generation_kwargs=icl_cfg.get('generation_kwargs', {}),
-                early_stopping_criteria=early_stopping_criteria,
-                do_normalization=icl_cfg.get('do_normalization', True),
+                destination_path=destination_path,
+                kwargs=icl_constructor_kwargs,
             )
             if 'has_categories' in icl_cfg and icl_cfg[
                 'has_categories'] and isinstance(dataloaders, dict):

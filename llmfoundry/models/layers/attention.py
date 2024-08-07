@@ -212,7 +212,7 @@ def check_valid_inputs(
     valid_dtypes: Optional[list[torch.dtype]] = None,
 ):
     if valid_dtypes is None:
-        valid_dtypes = [torch.float16, torch.bfloat16]
+        valid_dtypes = [torch.float32, torch.float16, torch.bfloat16]
     for tensor in tensors:
         if tensor.dtype not in valid_dtypes:
             raise TypeError(f'{tensor.dtype=} must be in {valid_dtypes=}.')
@@ -266,11 +266,13 @@ def flash_attn_fn(
 
     batch_size, seqlen = query.shape[:2]
 
-    indices_q = flash_attn_padding_info['indices_q']
-    indices_k = flash_attn_padding_info['indices_k']
-    indices_v = flash_attn_padding_info['indices_v']
-    cu_seqlens_q = flash_attn_padding_info['cu_seqlens_q']
-    cu_seqlens_k = flash_attn_padding_info['cu_seqlens_k']
+    # In the following lines we move the tensors to the same devices as query, key, and value respectively. These operations should be no-ops during training.
+    # This is done to fix pipeline parallel generation using hf.generate. Please see this comment for details: https://github.com/mosaicml/llm-foundry/pull/1332#issue-2386827204
+    indices_q = flash_attn_padding_info['indices_q'].to(query.device)
+    indices_k = flash_attn_padding_info['indices_k'].to(key.device)
+    indices_v = flash_attn_padding_info['indices_v'].to(value.device)
+    cu_seqlens_q = flash_attn_padding_info['cu_seqlens_q'].to(query.device)
+    cu_seqlens_k = flash_attn_padding_info['cu_seqlens_k'].to(key.device)
     max_seqlen_q = flash_attn_padding_info['max_seqlen_q']
     max_seqlen_k = flash_attn_padding_info['max_seqlen_k']
 
@@ -409,13 +411,16 @@ class GroupedQueryAttention(nn.Module):
         clip_qkv: Optional[float] = None,
         qk_ln: bool = False,
         qk_gn: bool = False,
+        fused_qkv: bool = True,
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
+        norm_eps: float = 1e-05,
         fc_type: Optional[dict[str, Any]] = None,
         device: Optional[str] = None,
         bias: bool = True,
         sliding_window_size: int = -1,
+        reuse_kv_layer_idx: Optional[int] = None,
     ):
         super().__init__()
 
@@ -423,11 +428,13 @@ class GroupedQueryAttention(nn.Module):
         self.clip_qkv = clip_qkv
         self.qk_ln = qk_ln
         self.qk_gn = qk_gn
+        self.fused_qkv = fused_qkv
 
         self.d_model = d_model
         self.n_heads = n_heads
         self.kv_n_heads = kv_n_heads
         self.sliding_window_size = sliding_window_size
+        self.reuse_kv_layer_idx = reuse_kv_layer_idx
 
         self.head_dim = d_model // n_heads
 
@@ -458,33 +465,74 @@ class GroupedQueryAttention(nn.Module):
             self.softmax_scale = 1 / math.sqrt(self.d_model / self.n_heads)
         self.attn_dropout_p = attn_pdrop
 
-        self.Wqkv = build_fc(
-            name=fc_type_name,
-            in_features=self.d_model,
-            out_features=self.d_model + 2 * self.kv_n_heads * self.head_dim,
-            fc_kwargs=fc_type,
-        )
-        # for param init fn; enables shape based init of fused layers
-        fuse_splits = [
-            i * self.head_dim
-            for i in range(1, self.n_heads + 2 * self.kv_n_heads)
-        ]
-        self.Wqkv._fused = (0, fuse_splits)
+        if self.reuse_kv_layer_idx is not None:
+            self.Wq = build_fc(
+                name=fc_type_name,
+                in_features=self.d_model,
+                out_features=self.d_model,
+                fc_kwargs=fc_type,
+            )
+            # for param init fn; enables shape based init of fused layers
+            fuse_splits = [i * self.head_dim for i in range(1, self.n_heads)]
+            self.Wq._fused = (0, fuse_splits)
+        elif self.fused_qkv:
+            self.Wqkv = build_fc(
+                name=fc_type_name,
+                in_features=self.d_model,
+                out_features=self.d_model + 2 * self.kv_n_heads * self.head_dim,
+                fc_kwargs=fc_type,
+            )
+            # for param init fn; enables shape based init of fused layers
+            fuse_splits = [
+                i * self.head_dim
+                for i in range(1, self.n_heads + 2 * self.kv_n_heads)
+            ]
+            self.Wqkv._fused = (0, fuse_splits)
+        else:
+            self.Wq = build_fc(
+                name=fc_type_name,
+                in_features=self.d_model,
+                out_features=self.d_model,
+                fc_kwargs=fc_type,
+            )
+            self.Wk = build_fc(
+                name=fc_type_name,
+                in_features=self.d_model,
+                out_features=self.kv_n_heads * self.head_dim,
+                fc_kwargs=fc_type,
+            )
+            self.Wv = build_fc(
+                name=fc_type_name,
+                in_features=self.d_model,
+                out_features=self.kv_n_heads * self.head_dim,
+                fc_kwargs=fc_type,
+            )
+            # for param init fn; enables shape based init of fused layers
+            q_fuse_splits = [i * self.head_dim for i in range(1, self.n_heads)]
+            kv_fuse_splits = [
+                i * self.head_dim for i in range(1, self.kv_n_heads)
+            ]
+            self.Wq._fused = (0, q_fuse_splits)
+            self.Wk._fused = (0, kv_fuse_splits)
+            self.Wv._fused = (0, kv_fuse_splits)
 
         if self.qk_ln or self.qk_gn:
             norm_size = self.head_dim if qk_gn else d_model
             self.q_ln = build_norm(
                 name=norm_type.lower(),
                 normalized_shape=norm_size,
+                eps=norm_eps,
                 device=device,
             )
-            if qk_ln:
-                norm_size = self.head_dim * kv_n_heads
-            self.k_ln = build_norm(
-                name=norm_type.lower(),
-                normalized_shape=norm_size,
-                device=device,
-            )
+            if self.reuse_kv_layer_idx is None:
+                if qk_ln:
+                    norm_size = self.head_dim * kv_n_heads
+                self.k_ln = build_norm(
+                    name=norm_type.lower(),
+                    normalized_shape=norm_size,
+                    eps=norm_eps,
+                    device=device,
+                )
 
         self.attn_fn = attention_implementations.get(self.attn_impl)
 
@@ -507,9 +555,14 @@ class GroupedQueryAttention(nn.Module):
         needs_weights: bool = False,
         alibi_slopes: Optional[torch.Tensor] = None,
         flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
+        prev_layer_key_value: Optional[Tuple[torch.Tensor,
+                                             torch.Tensor]] = None,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
         torch.Tensor, torch.Tensor]]]:
-        query, key, value = self.get_qkv(x)
+        extra_kwargs = {}
+        if prev_layer_key_value is not None:
+            extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
+        query, key, value = self.get_qkv(x, **extra_kwargs)
 
         if rotary_emb_w_meta_info is not None:
             query, key, value = self._apply_rotary_embeddings(
@@ -546,30 +599,64 @@ class GroupedQueryAttention(nn.Module):
     def get_qkv(
         self,
         x: torch.Tensor,
+        prev_layer_key_value: Optional[Tuple[torch.Tensor,
+                                             torch.Tensor]] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Computes and returns the query, key, and value tensors.
 
         Args:
             x (torch.Tensor): The input tensor.
+            prev_layer_key_value  (Optional[Tuple[torch.Tensor, torch.Tensor]]): The key value of the previous layer.
 
         Returns:
             query (torch.Tensor): The query tensor.
             key (torch.Tensor): The key tensor.
             value (torch.Tensor): The value tensor.
         """
-        qkv = self.Wqkv(x)
+        if self.reuse_kv_layer_idx is not None:
+            if prev_layer_key_value is None:
+                raise ValueError(
+                    'prev_layer_key_value is None, cannot reuse_prev_layer_kv.',
+                )
+            key, value = prev_layer_key_value
 
-        if self.clip_qkv:
-            qkv = qkv.clamp(min=-self.clip_qkv, max=self.clip_qkv)
+            query = self.Wq(x)
+            if self.clip_qkv:
+                query = query.clamp(min=-self.clip_qkv, max=self.clip_qkv)
 
-        query, key, value = qkv.split(
-            [
-                self.d_model,
-                self.kv_n_heads * self.head_dim,
-                self.kv_n_heads * self.head_dim,
-            ],
-            dim=2,
-        )
+            if self.qk_ln or self.qk_gn:
+                # Applying layernorm to qk
+                q_shape = query.shape
+                if self.qk_gn:
+                    b, s = query.shape[:2]
+                    query = query.view(b, s, self.n_heads, -1)
+                dtype = query.dtype
+                query = self.q_ln(query).to(dtype).view(q_shape)
+            return query, key, value
+
+        if self.fused_qkv:
+            qkv = self.Wqkv(x)
+
+            if self.clip_qkv:
+                qkv = qkv.clamp(min=-self.clip_qkv, max=self.clip_qkv)
+
+            query, key, value = qkv.split(
+                [
+                    self.d_model,
+                    self.kv_n_heads * self.head_dim,
+                    self.kv_n_heads * self.head_dim,
+                ],
+                dim=2,
+            )
+        else:
+            query = self.Wq(x)
+            key = self.Wk(x)
+            value = self.Wv(x)
+
+            if self.clip_qkv:
+                query = query.clamp(min=-self.clip_qkv, max=self.clip_qkv)
+                key = key.clamp(min=-self.clip_qkv, max=self.clip_qkv)
+                value = value.clamp(min=-self.clip_qkv, max=self.clip_qkv)
 
         if self.qk_ln or self.qk_gn:
             # Applying layernorm to qk
@@ -591,6 +678,10 @@ class GroupedQueryAttention(nn.Module):
         key: torch.Tensor,
         value: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        if self.reuse_kv_layer_idx is not None:
+            orig_key, orig_value = key, value
+            key, value = torch.empty_like(key), torch.empty_like(value)
+
         rotary_emb = rotary_emb_w_meta_info['rotary_emb']
         seq_len = rotary_emb_w_meta_info['seq_len']
         offset_info = rotary_emb_w_meta_info['offset_info']
@@ -602,6 +693,7 @@ class GroupedQueryAttention(nn.Module):
             value = value.view(bsz, seqlen, -1, self.head_dim)
 
             kv = torch.stack([key, value], dim=2)
+            # Note: Rotates in place (https://github.com/Dao-AILab/flash-attention/blob/320fb59487658f033f56711efd3d61b7c7a6f8f3/flash_attn/layers/rotary.py#L429)
             query, kv = rotary_emb(
                 query,
                 kv,
@@ -620,6 +712,10 @@ class GroupedQueryAttention(nn.Module):
             else:
                 (cos, sin) = rotary_emb(x=value, seq_len=seq_len)
             if is_transformers_version_gte('4.38'):
+                # In the following lines we move the cos and sin tensors to the same devices as query. These operations should be no-ops during training.
+                # This is done to fix pipeline parallel generation using hf.generate. Please see this comment for details: https://github.com/mosaicml/llm-foundry/pull/1332#issue-2386827204
+                cos = cos.to(query.device)
+                sin = sin.to(query.device)
                 query, key = apply_rotary_pos_emb(
                     q=query,
                     k=key,
@@ -652,6 +748,8 @@ class GroupedQueryAttention(nn.Module):
 
         query = query.view(bsz, seqlen, -1)
         key = key.view(bsz, seqlen, -1)
+        if self.reuse_kv_layer_idx is not None:
+            return query, orig_key, orig_value  # type: ignore
         return query, key, value
 
     def get_implementation_specific_args(
@@ -698,13 +796,16 @@ class MultiheadAttention(GroupedQueryAttention):
         clip_qkv: Optional[float] = None,
         qk_ln: bool = False,
         qk_gn: bool = False,
+        fused_qkv: bool = True,
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
+        norm_eps: float = 1e-05,
         fc_type: Optional[dict[str, Any]] = None,
         device: Optional[str] = None,
         bias: bool = True,
         sliding_window_size: int = -1,
+        reuse_kv_layer_idx: Optional[int] = None,
     ):
         super().__init__(
             d_model=d_model,
@@ -714,13 +815,16 @@ class MultiheadAttention(GroupedQueryAttention):
             clip_qkv=clip_qkv,
             qk_ln=qk_ln,
             qk_gn=qk_gn,
+            fused_qkv=fused_qkv,
             softmax_scale=softmax_scale,
             attn_pdrop=attn_pdrop,
             norm_type=norm_type,
+            norm_eps=norm_eps,
             fc_type=fc_type,
             device=device,
             bias=bias,
             sliding_window_size=sliding_window_size,
+            reuse_kv_layer_idx=reuse_kv_layer_idx,
         )
 
 
@@ -739,13 +843,16 @@ class MultiQueryAttention(GroupedQueryAttention):
         clip_qkv: Optional[float] = None,
         qk_ln: bool = False,
         qk_gn: bool = False,
+        fused_qkv: bool = True,
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
+        norm_eps: float = 1e-05,
         fc_type: Optional[dict[str, Any]] = None,
         device: Optional[str] = None,
         bias: bool = True,
         sliding_window_size: int = -1,
+        reuse_kv_layer_idx: Optional[int] = None,
     ):
         super().__init__(
             d_model=d_model,
@@ -755,13 +862,16 @@ class MultiQueryAttention(GroupedQueryAttention):
             clip_qkv=clip_qkv,
             qk_ln=qk_ln,
             qk_gn=qk_gn,
+            fused_qkv=fused_qkv,
             softmax_scale=softmax_scale,
             attn_pdrop=attn_pdrop,
             norm_type=norm_type,
+            norm_eps=norm_eps,
             fc_type=fc_type,
             device=device,
             bias=bias,
             sliding_window_size=sliding_window_size,
+            reuse_kv_layer_idx=reuse_kv_layer_idx,
         )
 
 

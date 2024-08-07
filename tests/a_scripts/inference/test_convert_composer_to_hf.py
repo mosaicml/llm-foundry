@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import contextlib
 import json
 import math
 import os
@@ -382,6 +383,14 @@ def test_huggingface_conversion_callback_interval(
     mlflow_logger_mock.model_registry_prefix = ''
     mlflow_logger_mock._experiment_id = 'mlflow-experiment-id'
     mlflow_logger_mock._run_id = 'mlflow-run-id'
+    mlflow_logger_mock._enabled = True
+    mlflow_logger_mock.run_url = 'fake-url'
+    checkpointer_callback.transform_model_pre_registration = MagicMock(
+        wraps=checkpointer_callback.transform_model_pre_registration,
+    )
+    checkpointer_callback.pre_register_edit = MagicMock(
+        wraps=checkpointer_callback.pre_register_edit,
+    )
     trainer = Trainer(
         model=original_model,
         device='gpu',
@@ -405,9 +414,14 @@ def test_huggingface_conversion_callback_interval(
             task='llm/v1/completions',
             input_example=ANY,
             metadata={},
+            pip_requirements=ANY,
         )
+        assert checkpointer_callback.transform_model_pre_registration.call_count == 1
+        assert checkpointer_callback.pre_register_edit.call_count == 1
         assert mlflow_logger_mock.register_model_with_run_id.call_count == 1
     else:
+        assert checkpointer_callback.transform_model_pre_registration.call_count == 0
+        assert checkpointer_callback.pre_register_edit.call_count == 0
         assert mlflow_logger_mock.save_model.call_count == 0
         assert mlflow_logger_mock.register_model_with_run_id.call_count == 0
 
@@ -468,6 +482,7 @@ def _get_model_and_tokenizer(
     model: str,
     max_seq_len: int,
     tie_word_embeddings: bool,
+    precision: str,
 ):
     if model == 'mpt':
         model_cfg = {
@@ -482,6 +497,7 @@ def _get_model_and_tokenizer(
             'attn_config': {
                 'attn_impl': 'torch',
             },
+            'fc_type': 'te' if precision == 'amp_fp8' else 'torch',
             'loss_fn': 'torch_crossentropy',
             'tie_word_embeddings': tie_word_embeddings,
         }
@@ -530,7 +546,7 @@ def _get_model_and_tokenizer(
         tokenizer_name = 'EleutherAI/gpt-neo-125M'
     elif model == 'llama2':
         assert tie_word_embeddings is None
-        if 'HUGGING_FACE_HUB_TOKEN' not in os.environ:
+        if 'HF_TOKEN' not in os.environ:
             pytest.skip(
                 'The CI cluster does not have access to the Llama models, so skip this test.',
             )
@@ -579,6 +595,7 @@ def _assert_mlflow_logger_calls(
                 'task': 'llm/v1/completions',
                 'input_example': default_input_example,
                 'metadata': {},
+                'pip_requirements': ANY,
             }
         mlflow_logger_mock.save_model.assert_called_with(**expectation)
         assert mlflow_logger_mock.register_model_with_run_id.call_count == 1
@@ -783,8 +800,9 @@ def _assert_checkpoint_equivalence(
 )
 @pytest.mark.parametrize('fsdp_state_dict_type', ['full', 'sharded', None])
 @pytest.mark.parametrize(
-    'hf_save_interval,save_interval,max_duration,expected_hf_checkpoints,expected_normal_checkpoints',
-    [('1ba', '1ba', '1ba', 1, 1)],
+    'hf_save_interval,save_interval,max_duration,expected_hf_checkpoints,expected_normal_checkpoints,trainer_precision',
+    [('1ba', '1ba', '1ba', 1, 1, 'amp_bf16'),
+     ('1ba', '1ba', '1ba', 1, 1, 'amp_fp8')],
 )
 @patch('os.cpu_count', MagicMock(return_value=1))
 @patch(
@@ -801,10 +819,30 @@ def test_huggingface_conversion_callback(
     max_duration: str,
     expected_hf_checkpoints: int,
     expected_normal_checkpoints: int,
+    trainer_precision: str,
     peft_config: Optional[dict],
 ):
     if model == 'mptmoe' and fsdp_state_dict_type is None:
         pytest.skip('mptmoe requires FSDP')
+    if trainer_precision == 'amp_fp8':
+        # Check if transformer-engine is installed for FP8.
+        try:
+            import transformer_engine.pytorch as te
+        except ImportError:
+            pytest.skip(
+                'Precision amp_fp8 requires transformer-engine to be installed',
+            )
+
+        # Check we are using mpt models only for FP8.
+        if (model == 'neo' or model == 'llama2'):
+            pytest.skip(
+                'Precision amp_fp8 works only for mpt models, not hf models',
+            )
+
+        # Check that we are using H100 or later for FP8.
+        if not (torch.cuda.get_device_capability() >= (8, 9)):
+            pytest.skip('Amp FP8 requires a GPU with compute capability >= 8.9')
+
     delete_transformers_cache()
 
     dist.initialize_dist(get_device('gpu'))
@@ -825,9 +863,10 @@ def test_huggingface_conversion_callback(
 
     # Get small version of each model
     model_cfg, tokenizer_name = _get_model_and_tokenizer(
-        model,
-        max_seq_len,
-        tie_word_embeddings,
+        model=model,
+        max_seq_len=max_seq_len,
+        tie_word_embeddings=tie_word_embeddings,
+        precision=trainer_precision,
     )
     assert model_cfg is not None
     assert tokenizer_name is not None
@@ -883,7 +922,7 @@ def test_huggingface_conversion_callback(
     trainer = Trainer(
         model=original_model,
         device='gpu',
-        precision='amp_bf16',
+        precision=trainer_precision,
         fsdp_config=fsdp_config if fsdp_state_dict_type is not None else None,
         train_dataloader=train_dataloader,
         save_folder=os.path.join(tmp_path, 'checkpoints'),
@@ -900,24 +939,29 @@ def test_huggingface_conversion_callback(
 
     # summon full params to check equivalence
     from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
-    with FSDP.summon_full_params(
-        trainer.state.model,
-        writeback=False,
-        recurse=True,
-    ):
-        _assert_checkpoint_equivalence(
-            tmp_path=tmp_path,
-            expected_normal_checkpoints=expected_normal_checkpoints,
-            expected_hf_checkpoints=expected_hf_checkpoints,
-            trainer=trainer,
-            batches_per_epoch=batches_per_epoch,
-            original_model=original_model,
-            precision=precision,
-            model=model,
-            tokenizer=tokenizer,
-            fsdp_state_dict_type=fsdp_state_dict_type,
-            peft_config=peft_config,
-        )
+
+    context_manager = te.onnx_export(  # type: ignore
+        True,
+    ) if trainer_precision == 'amp_fp8' else contextlib.nullcontext()
+    with context_manager:
+        with FSDP.summon_full_params(
+            trainer.state.model,
+            writeback=False,
+            recurse=True,
+        ):
+            _assert_checkpoint_equivalence(
+                tmp_path=tmp_path,
+                expected_normal_checkpoints=expected_normal_checkpoints,
+                expected_hf_checkpoints=expected_hf_checkpoints,
+                trainer=trainer,
+                batches_per_epoch=batches_per_epoch,
+                original_model=original_model,
+                precision=precision,
+                model=model,
+                tokenizer=tokenizer,
+                fsdp_state_dict_type=fsdp_state_dict_type,
+                peft_config=peft_config,
+            )
 
     dist.barrier()
     delete_transformers_cache()
@@ -955,7 +999,7 @@ def test_convert_and_generate(
         om_cfg['model']['config_overrides']['hidden_size'] = 36
     elif model == 'llama2':
         assert tie_word_embeddings is None
-        if 'HUGGING_FACE_HUB_TOKEN' not in os.environ:
+        if 'HF_TOKEN' not in os.environ:
             pytest.skip(
                 'The CI cluster does not have access to the Llama models, so skip this test.',
             )
@@ -1149,7 +1193,7 @@ def test_convert_and_generate_meta(
 @pytest.mark.world_size(4)
 @pytest.mark.gpu
 @pytest.mark.parametrize('num_experts', [2, 4, 8])
-@pytest.mark.parametrize('sharding_strategy', ['FULL_SHARD', 'HYBRID_SHARD'])
+@pytest.mark.parametrize('sharding_strategy', ['FULL_SHARD'])
 def test_mptmoe_huggingface_conversion_callback(
     tmp_path: pathlib.Path,
     num_experts: int,
@@ -1251,7 +1295,6 @@ def test_mptmoe_huggingface_conversion_callback(
         make_tiny_ft_dataset(path=tiny_dataset_path, size=dataset_size)
 
     dataloader_cfg = {
-        'name': 'finetuning',
         'dataset': {
             'hf_name': tiny_dataset_folder_path,
             'split': 'train',
@@ -1320,7 +1363,6 @@ def test_mptmoe_huggingface_conversion_callback(
         save_weights_only=True,
     )
     trainer.fit()
-    #self.state.outputs = self.state.model(self.state.batch)
     batch = trainer.state.batch
     model_output_logits = trainer.state.model(batch).logits
 
@@ -1398,7 +1440,6 @@ def test_mptmoe_huggingface_conversion_callback(
             loaded_model_logits = loaded_model(
                 input_ids=batch.get('input_ids', None),
                 attention_mask=batch.get('attention_mask', None),
-                prefix_mask=batch.get('bidirectional_mask', None),
                 sequence_id=batch.get('sequence_id', None),
                 inputs_embeds=batch.get('inputs_embeds', None),
             ).logits

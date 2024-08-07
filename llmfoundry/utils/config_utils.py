@@ -30,6 +30,7 @@ from transformers import PretrainedConfig
 
 from llmfoundry.layers_registry import ffns_with_megablocks
 from llmfoundry.models.utils import init_empty_weights
+from llmfoundry.registry import config_transforms
 
 log = logging.getLogger(__name__)
 
@@ -48,7 +49,7 @@ class EvalConfig:
     # Eval Config required parameters:
     models: List[Dict[str, Any]] = MISSING
     max_seq_len: int = MISSING
-    device_eval_batch_size: int = MISSING
+    device_eval_batch_size: Union[int, float] = MISSING
 
     # Eval Config optional parameters:
     code_paths: Optional[List[str]] = None
@@ -67,6 +68,7 @@ class EvalConfig:
     # Logging parameters
     python_log_level: Optional[str] = 'debug'
     loggers: Optional[Dict[str, Any]] = None
+    console_log_interval: Union[int, str] = '1ba'
     log_config: bool = True
 
     # Model/run parameters
@@ -99,12 +101,14 @@ class TrainConfig:
     optimizer: Dict[str, Any] = MISSING
     scheduler: Dict[str, Any] = MISSING
     train_loader: Dict[str, Any] = MISSING
-    device_train_batch_size: int = MISSING
-    device_eval_batch_size: int = MISSING
+    device_train_batch_size: Union[int, float] = MISSING
+    device_eval_batch_size: Union[int, float] = MISSING
     max_duration: Union[int, str] = MISSING
     eval_interval: Union[int, str] = MISSING
     max_seq_len: int = MISSING
-    seed: int = MISSING
+
+    # Seed
+    seed: int = 17
 
     # Precision
     precision: str = 'amp_bf16'
@@ -114,7 +118,7 @@ class TrainConfig:
 
     # Cuda allocation configuration
     max_split_size_mb: Optional[int] = None
-    expandable_segments: bool = False
+    expandable_segments: bool = True
     cuda_load_lazy: bool = False
 
     # Distributed training parameters
@@ -157,10 +161,13 @@ class TrainConfig:
     load_strict_model_weights: bool = True
     load_ignore_keys: Optional[List[str]] = None
     save_ignore_keys: Optional[List[str]] = None
+    only_hf_checkpoint: bool = False
+    only_composer_checkpoint: bool = False
 
     # Dataloader
-    device_train_microbatch_size: Union[str, int] = 'auto'
+    device_train_microbatch_size: Union[str, int, float] = 'auto'
     global_train_batch_size: Optional[int] = None
+    spin_dataloaders: bool = True
 
     # Eval dataloader
     eval_subset_num_batches: int = -1
@@ -169,6 +176,7 @@ class TrainConfig:
 
     # Metadata
     metadata: Optional[Dict[str, Any]] = None
+    flatten_metadata: bool = True
     run_name: Optional[str] = None
 
     # Resumption
@@ -179,6 +187,10 @@ class TrainConfig:
 
     # Variables to ignore
     variables: Optional[Dict[str, Any]] = None
+
+    # Fields created by `update_batch_size_info`
+    n_gpus: int = MISSING
+    device_train_grad_accum: Union[str, int] = MISSING
 
 
 TRAIN_CONFIG_KEYS = {field.name for field in fields(TrainConfig)}
@@ -233,16 +245,63 @@ def to_container(
 T = TypeVar('T')
 
 
+def apply_transforms_to_config(
+    cfg: Dict[str, Any],
+    transforms: Optional[Union[List[Callable[[Dict[str, Any]], Dict[str, Any]]],
+                               List[str], str]],
+) -> Dict[str, Any]:
+    """Applies a list of transforms to a config.
+
+    Args:
+        cfg (Dict[str, Any]): The config to transform.
+        transforms (Optional[Union[List[Callable[[Dict[str, Any]], Dict[str, Any]]], List[str], str]]): A list of
+            transform functions or strings representing transform functions to apply to the config. If a single string
+            with the value ``all`` is provided, all registered transforms will be applied.
+
+    Returns:
+        Dict[str, Any]: The transformed config.
+    """
+    if transforms is None or (
+        isinstance(transforms, list) and len(transforms) == 0
+    ):
+        return cfg
+
+    transform_functions = []
+    if isinstance(transforms, list):
+        for transform in transforms:
+            if isinstance(transform, str):
+                transform_functions.append(config_transforms.get(transform))
+            elif callable(transform):
+                transform_functions.append(transform)
+            else:
+                raise ValueError(
+                    f'Invalid transform: {transform}. Must be a string or callable.',
+                )
+    elif isinstance(transforms, str) and transforms == 'all':
+        transform_functions = [
+            config_transforms.get(transform)
+            for transform in config_transforms.get_all()
+        ]
+    else:
+        raise ValueError(
+            f'Invalid transforms: {transforms}. Must be a list of strings or callables, or ``all``.',
+        )
+
+    for transform in transform_functions:
+        cfg = transform(cfg)
+
+    return cfg
+
+
 def make_dataclass_and_log_config(
     cfg: DictConfig,
     dataclass_constructor: Callable[..., T],
     dataclass_fields: Set[str],
-    transforms: Optional[List[Callable[[Dict[str, Any]], Dict[str,
-                                                              Any]]]] = None,
+    transforms: Optional[Union[List[Callable[[Dict[str, Any]], Dict[str, Any]]],
+                               List[str], str]] = None,
     icl_tasks_required: bool = False,
 ) -> Tuple[Dict[str, Any], T]:
     """Converts a DictConfig to a dataclass and creates a logged config."""
-    # Resolve all interpolation variables as early as possible
     unstructured_config = om.to_container(cfg, resolve=True)
     assert isinstance(unstructured_config, dict)
     assert all(isinstance(k, str) for k in unstructured_config.keys())
@@ -273,14 +332,14 @@ def make_dataclass_and_log_config(
                 'icl_tasks must be specified in the config',
             )
 
+    # Apply transforms to the unstructured config before constructing dataclass
+    unstructured_config = apply_transforms_to_config(
+        unstructured_config,
+        transforms,
+    )
+
     # Create copy of config for logging
     logged_cfg: Dict[str, Any] = copy.deepcopy(unstructured_config)
-
-    # Apply transforms to the unstructured config before constructing dataclass
-    for transform in transforms or []:
-        unstructured_config = transform(unstructured_config)
-
-    logged_cfg.update(unstructured_config, merge=True)
 
     arg_config_keys = set(unstructured_config.keys())
     extraneous_keys = set.difference(arg_config_keys, dataclass_fields)
@@ -288,12 +347,10 @@ def make_dataclass_and_log_config(
     if 'variables' not in unstructured_config:
         unstructured_config['variables'] = {}
 
-    for key in extraneous_keys:
-        warnings.warn(
-            f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary. Interpreting {key} as a variable for logging purposes. Top-level variables are deprecated and will not be supported in future releases. Please place any variables under the `variables` key.',
-            category=DeprecationWarning,
+    if len(extraneous_keys) > 0:
+        raise ValueError(
+            f'Unused parameters {sorted(extraneous_keys)} found in cfg. Please check your yaml to ensure these parameters are necessary. Please place any variables under the `variables` key.',
         )
-        unstructured_config['variables'][key] = unstructured_config.pop(key)
 
     dataclass_dict_config: DictConfig = om.structured(
         dataclass_constructor(**unstructured_config),
@@ -365,20 +422,20 @@ def calculate_batch_size_info(
     data_replication_degree: int = 1,
 ) -> Tuple[Union[int, float], Union[int, float, Literal['auto']], Union[
     int, Literal['auto']]]:
-    if dist.get_world_size() % data_replication_degree != 0:
+
+    world_size = dist.get_world_size()
+    if world_size % data_replication_degree != 0:
         raise ValueError(
-            f'World size {dist.get_world_size()} is not divisible by data replication degree {data_replication_degree}.',
+            f'World size {world_size} is not divisible by data replication degree {data_replication_degree}.',
         )
-    if global_batch_size % (
-        dist.get_world_size() // data_replication_degree
-    ) != 0:
+    if global_batch_size % (world_size // data_replication_degree) != 0:
         raise ValueError(
-            f'Global batchsize {global_batch_size} is not divisible by {(dist.get_world_size() // data_replication_degree)=} '
+            f'Global batchsize {global_batch_size} is not divisible by {(world_size // data_replication_degree)=} '
             +
             'as a result, the batch size would be truncated, please adjust `global_batch_size` '
-            + f'to be divisible by world size, {dist.get_world_size()}.',
+            + f'to be divisible by world size, {world_size}.',
         )
-    device_batch_size = global_batch_size / dist.get_world_size()
+    device_batch_size = global_batch_size / world_size
     if device_batch_size == round(device_batch_size):
         device_batch_size = round(device_batch_size)
     if device_microbatch_size == 'auto':
@@ -399,14 +456,23 @@ def calculate_batch_size_info(
     return device_batch_size, device_microbatch_size, device_grad_accum
 
 
-# Coming soon: this conversion math will be done inside Composer Trainer
-def update_batch_size_info(cfg: Dict[str, Any]) -> Dict[str, Any]:
-    data_replication_degree = 1
-    device_train_batch_size, device_train_microbatch_size, device_train_grad_accum = calculate_batch_size_info(
-        cfg['global_train_batch_size'],
-        cfg['device_train_microbatch_size'],
-        data_replication_degree=data_replication_degree,
-    )
+def update_config_with_batch_size_info(
+    cfg: Dict[str, Any],
+    device_train_batch_size: Union[int, float],
+    device_train_microbatch_size: Union[int, float, Literal['auto']],
+    device_train_grad_accum: Union[int, Literal['auto']],
+) -> Dict[str, Any]:
+    """Update the config with batch size information.
+
+    Args:
+        cfg (Dict[str, Any]): The config to update.
+        device_train_batch_size (Union[int, float]): The batch size of the training dataset for each device.
+        device_train_microbatch_size (Union[int, float, Literal['auto']]): The microbatch size of the training dataset for each device.
+        device_train_grad_accum (Union[int, Literal['auto']]): The gradient accumulation settings for each device.
+
+    Returns:
+        Dict[str, Any]: The updated config.
+    """
     cfg['n_gpus'] = dist.get_world_size()
     cfg['device_train_batch_size'] = device_train_batch_size
     cfg['device_train_microbatch_size'] = device_train_microbatch_size
@@ -418,6 +484,22 @@ def update_batch_size_info(cfg: Dict[str, Any]) -> Dict[str, Any]:
                ] = 1  # TODO debug auto eval microbatching
         else:
             cfg['device_eval_batch_size'] = cfg['device_train_microbatch_size']
+    return cfg
+
+
+def update_batch_size_info(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    data_replication_degree = 1
+    device_train_batch_size, device_train_microbatch_size, device_train_grad_accum = calculate_batch_size_info(
+        cfg['global_train_batch_size'],
+        cfg['device_train_microbatch_size'],
+        data_replication_degree=data_replication_degree,
+    )
+    cfg = update_config_with_batch_size_info(
+        cfg,
+        device_train_batch_size,
+        device_train_microbatch_size,
+        device_train_grad_accum,
+    )
     return cfg
 
 
@@ -451,7 +533,6 @@ def process_init_device(model_cfg: Dict[str, Any], fsdp_config: Optional[Dict]):
                 fsdp_config['sync_module_states'] = True
 
             # Set defaults for mixed initialization
-            fsdp_config.setdefault('use_orig_params', False)
             fsdp_config.setdefault('load_monolith_rank0_only', True)
 
     # Set ffn_config.device_mesh to fsdp_config.device_mesh
@@ -591,8 +672,28 @@ def _process_data_source(
     # Check for HF path
     elif 'hf_name' in dataset and dataset['hf_name']:
         hf_path = dataset['hf_name']
-        backend, _, _ = parse_uri(hf_path)
-        if backend:
+        backend, _, uc_path = parse_uri(hf_path)
+        unsupported_file = True
+        if backend == 'dbfs':
+            assert cfg_split
+            from llmfoundry.data.finetuning.tasks import SUPPORTED_EXTENSIONS
+            possible_files = [
+                f'{cfg_split}{ext}' for ext in SUPPORTED_EXTENSIONS
+            ]
+            for file in possible_files:
+                path = os.path.join(uc_path, file)
+                # Ensure path starts with '/'
+                if not path.startswith('/'):
+                    path = '/' + path
+                if _verify_uc_path(path):
+                    data_paths.append(('uc_volume', path, true_split))
+                    unsupported_file = False
+                    break
+            if unsupported_file:
+                log.warning(
+                    f'{hf_path} does not contain a supported file extension.',
+                )
+        elif backend:
             hf_path = os.path.join(hf_path, cfg_split) if cfg_split else hf_path
             data_paths.append((backend, hf_path, true_split))
         elif os.path.exists(hf_path):
@@ -663,3 +764,94 @@ def log_dataset_uri(cfg: Dict[str, Any]) -> None:
         mlflow.log_input(
             mlflow.data.meta_dataset.MetaDataset(source, name=split),
         )
+
+
+def _verify_uc_path(path: str) -> bool:
+    """Verify a UC path exists.
+
+    Args:
+        path (str): UnityCatalog path
+    Returns:
+        (bool): If path exists or not
+    """
+    from databricks.sdk.errors.platform import NotFound, PermissionDenied
+    w = None
+    try:
+        from databricks.sdk import WorkspaceClient
+
+        w = WorkspaceClient()
+    except ImportError:
+        log.warning(
+            'Cannot verify the path of `UCVolumeDatasetSource` because of missing' + \
+            '`databricks-sdk`. Please install `databricks-sdk` via ' + \
+            '`pip install -U databricks-sdk`. This does not block creating ' + \
+            '`UCVolumeDatasetSource`, but your `UCVolumeDatasetSource` might be invalid.',
+        )
+        return False
+    except Exception as e:
+        log.warning(
+            f'Error occured when attempting to connect with Databricks WorkspaceClient. ' + \
+            f'Error details: {str(e)}. This does not block creating `UCVolumeDatasetSource`, ' + \
+            f'but your `UCVolumeDatasetSource` might be invalid.',
+        )
+
+    if w:
+        try:
+            w.files.get_metadata(path)
+        except (NotFound, PermissionDenied):
+            try:
+                # Check if `self.path` points to a valid UC directory.
+                w.files.get_directory_metadata(path)
+                return True
+            except (NotFound, PermissionDenied):
+                # Neither file nor directory exists, we throw an exception.
+                return False
+        except Exception as e:
+            log.warning(
+                f'Error occured when verifying path of `UCVolumeDatasetSource`. ' + \
+                f'Error details: {str(e)}. This does not block creating `UCVolumeDatasetSource`, ' + \
+                f'but your `UCVolumeDatasetSource` might be invalid.',
+            )
+    return False
+
+
+def set_config_overrides(
+    config: PretrainedConfig,
+    config_overrides: Dict[str, Any],
+):
+    # set config overrides
+    for k, v in config_overrides.items():
+        if not hasattr(config, k):
+            raise ValueError(
+                f'config does not have attribute "{k}" to override ({k}: {v}).',
+            )
+
+        attr = getattr(config, k)
+        # attempt to disallow typos in nested configs
+        if isinstance(attr, Mapping):
+            extra_keys = [_k for _k in v.keys() if _k not in attr.keys()]
+            if extra_keys:
+                raise ValueError(
+                    f'Config dict override got unknown keys. ' +
+                    f'Extra keys: {extra_keys}. ' +
+                    f'Expected (a subset of) keys: {list(attr.keys())}.',
+                )
+            getattr(config, k).update(v)
+        # necessary case to allow for rope_scaling to be overriden in llama config
+        elif attr is None and isinstance(v, Mapping):
+            setattr(config, k, {})
+            getattr(config, k).update(v)
+        elif isinstance(attr, PretrainedConfig):
+            if not isinstance(v, Mapping):
+                raise ValueError(
+                    f'Expected a dictionary for config override {k}, but got {v}.',
+                )
+
+            for _k, _v in v.items():
+                if not hasattr(attr, _k):
+                    raise ValueError(
+                        f'config does not have attribute "{_k}" to override ({k}: {_k}: {_v}).',
+                    )
+                setattr(attr, _k, _v)
+        else:
+            setattr(config, k, v)

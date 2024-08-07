@@ -262,9 +262,15 @@ class LossPerpVLen(Metric):
         self.sum_length += valid_labels_mask.sum(dim=0)
 
         if sequence_id is not None:
-            seq_id_expanded = torch.nn.functional.one_hot(
-                sequence_id,
-            ).transpose(-1, -2)
+            seq_id_mask = (sequence_id != -1)
+            sequence_id = torch.where(seq_id_mask, sequence_id, 0)
+            seq_id_expanded = torch.nn.functional.one_hot(sequence_id,)
+            seq_id_expanded = torch.where(
+                torch.unsqueeze(seq_id_mask, dim=-1),
+                seq_id_expanded,
+                0,
+            )
+            seq_id_expanded = seq_id_expanded.transpose(-1, -2)
             seq_lens = seq_id_expanded.sum(dim=-1)
             max_num_seq = seq_lens.shape[1]
             seq_tok_ids = torch.arange(seq_len, device=sequence_id.device)[

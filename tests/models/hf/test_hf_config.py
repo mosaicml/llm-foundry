@@ -172,7 +172,7 @@ def test_hf_config_override(
 
 
 @pytest.mark.skipif(
-    'HUGGING_FACE_HUB_TOKEN' not in os.environ,
+    'HF_TOKEN' not in os.environ,
     reason='CI does not have access to llama2',
 )
 def test_rope_scaling_override():
@@ -205,7 +205,7 @@ def test_rope_scaling_override():
 
 
 @pytest.mark.skipif(
-    'HUGGING_FACE_HUB_TOKEN' not in os.environ,
+    'HF_TOKEN' not in os.environ,
     reason='CI does not have access to Dbrx',
 )
 def test_nested_override():

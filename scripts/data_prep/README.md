@@ -35,6 +35,23 @@ python convert_dataset_json.py \
 
 Where `--path` can be a single json file, or a folder containing json files. `--split` denotes the intended split (hf defaults to `train`).
 
+### Raw text files
+
+Using the `convert_text_to_mds.py` script, we convert a [text file](https://ocw.mit.edu/ans7870/6/6.006/s08/lecturenotes/files/t8.shakespeare.txt) containing the complete works of William Shakespeare.
+
+<!--pytest.mark.skip-->
+```bash
+# Convert json dataset to StreamingDataset format
+mkdir shakespeare && cd shakespeare
+curl -O https://ocw.mit.edu/ans7870/6/6.006/s08/lecturenotes/files/t8.shakespeare.txt
+cd ..
+python convert_text_to_mds.py \
+  --output_folder my-copy-shakespeare \
+  --input_folder shakespeare \
+  --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b \
+  --compression zstd
+```
+
 ## Converting a finetuning dataset
 Using the `convert_finetuning_dataset.py` script you can run a command such as:
 <!--pytest.mark.skip-->

@@ -22,6 +22,18 @@ from llmfoundry.eval.datasets.utils import (
     tokenizer_needs_prefix_space,
     trim_context,
 )
+from llmfoundry.registry import icl_datasets
+
+icl_datasets.register(
+    'multiple_choice',
+    func=InContextLearningMultipleChoiceTaskDataset,
+)
+icl_datasets.register('schema', func=InContextLearningSchemaTaskDataset)
+icl_datasets.register('language_modeling', func=InContextLearningLMTaskDataset)
+icl_datasets.register(
+    'generation_task_with_answers',
+    func=InContextLearningGenerationTaskWithAnswersDataset,
+)
 
 __all__ = [
     'InContextLearningDataset',

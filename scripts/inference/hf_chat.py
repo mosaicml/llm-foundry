@@ -364,9 +364,7 @@ def main(args: Namespace) -> None:
     except Exception as e:
         raise RuntimeError(
             'If you are having auth problems, try logging in via `huggingface-cli login` '
-            +
-            'or by setting the environment variable `export HUGGING_FACE_HUB_TOKEN=... '
-            +
+            + 'or by setting the environment variable `export HF_TOKEN=... ' +
             'using your access token from https://huggingface.co/settings/tokens.',
         ) from e
 
@@ -389,9 +387,7 @@ def main(args: Namespace) -> None:
         raise RuntimeError(
             'Unable to load HF model. ' +
             'If you are having auth problems, try logging in via `huggingface-cli login` '
-            +
-            'or by setting the environment variable `export HUGGING_FACE_HUB_TOKEN=... '
-            +
+            + 'or by setting the environment variable `export HF_TOKEN=... ' +
             'using your access token from https://huggingface.co/settings/tokens.',
         ) from e
 

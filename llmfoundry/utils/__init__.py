@@ -1,10 +1,13 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+from llmfoundry.registry import config_transforms
 from llmfoundry.utils.builders import (
+    add_metrics_to_eval_loaders,
     build_algorithm,
     build_callback,
     build_composer_model,
+    build_eval_loaders,
     build_evaluators,
     build_icl_data_and_gauntlet,
     build_icl_evaluators,
@@ -59,9 +62,16 @@ from llmfoundry.utils.warnings import (
     experimental_function,
 )
 
+config_transforms.register(
+    'update_batch_size_info',
+    func=update_batch_size_info,
+)
+
 __all__ = [
+    'add_metrics_to_eval_loaders',
     'build_algorithm',
     'build_callback',
+    'build_eval_loaders',
     'build_evaluators',
     'build_icl_data_and_gauntlet',
     'build_icl_evaluators',

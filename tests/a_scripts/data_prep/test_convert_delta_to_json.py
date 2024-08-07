@@ -1,17 +1,15 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-# copyright 2022 mosaicml llm foundry authors
-# spdx-license-identifier: apache-2.0
-
 import unittest
 from argparse import Namespace
 from typing import Any
 from unittest.mock import MagicMock, mock_open, patch
 
-from scripts.data_prep.convert_delta_to_json import (
+from llmfoundry.command_utils.data_prep.convert_delta_to_json import (
     download,
     fetch_DT,
+    format_tablename,
     iterative_combine_jsons,
     run_query,
 )
@@ -19,11 +17,19 @@ from scripts.data_prep.convert_delta_to_json import (
 
 class TestConvertDeltaToJsonl(unittest.TestCase):
 
-    @patch('scripts.data_prep.convert_delta_to_json.sql.connect')
-    @patch('scripts.data_prep.convert_delta_to_json.os.makedirs')
-    @patch('scripts.data_prep.convert_delta_to_json.iterative_combine_jsons')
-    @patch('scripts.data_prep.convert_delta_to_json.fetch')
-    @patch('scripts.data_prep.convert_delta_to_json.WorkspaceClient')
+    @patch(
+        'databricks.sql.connect',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.os.makedirs',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.iterative_combine_jsons',
+    )
+    @patch('llmfoundry.command_utils.data_prep.convert_delta_to_json.fetch')
+    @patch(
+        'databricks.sdk.WorkspaceClient',
+    )
     def test_stream_delta_to_json(
         self,
         mock_workspace_client: Any,
@@ -32,19 +38,15 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         mock_makedirs: Any,
         mock_sql_connect: Any,
     ):
-
-        args = MagicMock()
-        args.delta_table_name = 'test_table'
-        args.json_output_folder = '/path/to/jsonl'
-        args.DATABRICKS_HOST = 'test_host'
-        args.DATABRICKS_TOKEN = 'test_token'
-        args.http_path = 'test_path'
-        args.batch_size = 1000
-        args.partitions = 1
-        args.cluster_id = '1234'
-        args.debug = False
-        args.use_serverless = False
-        args.json_output_filename = 'combined.jsonl'
+        delta_table_name = 'test_table'
+        json_output_folder = '/path/to/jsonl'
+        DATABRICKS_HOST = 'test_host'
+        DATABRICKS_TOKEN = 'test_token'
+        http_path = 'test_path'
+        batch_size = 1000
+        cluster_id = '1234'
+        use_serverless = False
+        json_output_filename = 'combined.jsonl'
 
         mock_cluster_get = MagicMock()
         mock_cluster_get.return_value = MagicMock(
@@ -52,7 +54,17 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )
         mock_workspace_client.return_value.clusters.get = mock_cluster_get
 
-        fetch_DT(args)
+        fetch_DT(
+            delta_table_name=delta_table_name,
+            json_output_folder=json_output_folder,
+            http_path=http_path,
+            cluster_id=cluster_id,
+            DATABRICKS_HOST=DATABRICKS_HOST,
+            DATABRICKS_TOKEN=DATABRICKS_TOKEN,
+            use_serverless=use_serverless,
+            batch_size=batch_size,
+            json_output_filename=json_output_filename,
+        )
         mock_sql_connect.assert_called_once_with(
             server_hostname='test_host',
             http_path='test_path',
@@ -65,7 +77,9 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
             '/path/to/jsonl/combined.jsonl',
         )
 
-    @patch('scripts.data_prep.convert_delta_to_json.os.listdir')
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.os.listdir',
+    )
     @patch(
         'builtins.open',
         new_callable=mock_open,
@@ -101,7 +115,9 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         """
         self.assertEqual(mock_file().write.call_count, 2)
 
-    @patch('scripts.data_prep.convert_delta_to_json.SparkSession')
+    @patch(
+        'pyspark.sql.SparkSession',
+    )
     def test_run_query_dbconnect(self, mock_spark: Any):
         method = 'dbconnect'
         mock_cursor = None
@@ -117,7 +133,9 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         mock_spark.sql.assert_called_once_with('SELECT * FROM table')
         self.assertEqual(result, 'result')
 
-    @patch('scripts.data_prep.convert_delta_to_json.Cursor')
+    @patch(
+        'databricks.sql.client.Cursor',
+    )
     def test_run_query_dbsql(self, mock_cursor: Any):
         method = 'dbsql'
         mock_cursor.fetchall.return_value = 'result'
@@ -133,14 +151,18 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         mock_cursor.execute.assert_called_once_with('SELECT * FROM table')
         self.assertEqual(result, 'result')
 
-    @patch('scripts.data_prep.convert_delta_to_json.requests.get')
-    @patch('scripts.data_prep.convert_delta_to_json.pd.DataFrame.to_json')
     @patch(
-        'scripts.data_prep.convert_delta_to_json.os.path.join',
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.requests.get',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.pd.DataFrame.to_json',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.os.path.join',
         return_value='/fake/path/part_1.jsonl',
     )
     @patch(
-        'scripts.data_prep.convert_delta_to_json.time.sleep',
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.time.sleep',
     )  # Mock sleep to speed up the test
     def test_download_success(
         self,
@@ -173,12 +195,22 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
 
         mock_get.assert_called_once_with('http://fakeurl.com/data')
 
-    @patch('scripts.data_prep.convert_delta_to_json.sql.connect')
-    @patch('scripts.data_prep.convert_delta_to_json.DatabricksSession')
-    @patch('scripts.data_prep.convert_delta_to_json.WorkspaceClient')
-    @patch('scripts.data_prep.convert_delta_to_json.os.makedirs')
-    @patch('scripts.data_prep.convert_delta_to_json.iterative_combine_jsons')
-    @patch('scripts.data_prep.convert_delta_to_json.fetch')
+    @patch(
+        'databricks.sql.connect',
+    )
+    @patch(
+        'databricks.connect.DatabricksSession',
+    )
+    @patch(
+        'databricks.sdk.WorkspaceClient',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.os.makedirs',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.iterative_combine_jsons',
+    )
+    @patch('llmfoundry.command_utils.data_prep.convert_delta_to_json.fetch')
     def test_dbconnect_called(
         self,
         mock_fetch: Any,
@@ -188,17 +220,14 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         mock_databricks_session: Any,
         mock_sql_connect: Any,
     ):
-
-        args = MagicMock()
-
-        args.delta_table_name = 'test_table'
-        args.json_output_folder = '/path/to/jsonl'
+        delta_table_name = 'test_table'
+        json_output_folder = '/path/to/jsonl'
         # Execute function with http_path=None (should use dbconnect)
-        args.http_path = None
-        args.cluster_id = '1234'
-        args.DATABRICKS_HOST = 'host'
-        args.DATABRICKS_TOKEN = 'token'
-        args.use_serverless = False
+        http_path = None
+        cluster_id = '1234'
+        DATABRICKS_HOST = 'host'
+        DATABRICKS_TOKEN = 'token'
+        use_serverless = False
 
         mock_cluster_response = Namespace(spark_version='14.1.0-scala2.12')
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
@@ -208,19 +237,37 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )  # Mock return value for getOrCreate
         mock_databricks_session.builder.remote.return_value = mock_remote
 
-        fetch_DT(args)
+        fetch_DT(
+            delta_table_name=delta_table_name,
+            json_output_folder=json_output_folder,
+            http_path=http_path,
+            cluster_id=cluster_id,
+            DATABRICKS_HOST=DATABRICKS_HOST,
+            DATABRICKS_TOKEN=DATABRICKS_TOKEN,
+            use_serverless=use_serverless,
+        )
         mock_databricks_session.builder.remote.assert_called_once_with(
-            host=args.DATABRICKS_HOST,
-            token=args.DATABRICKS_TOKEN,
-            cluster_id=args.cluster_id,
+            host=DATABRICKS_HOST,
+            token=DATABRICKS_TOKEN,
+            cluster_id=cluster_id,
         )
 
-    @patch('scripts.data_prep.convert_delta_to_json.sql.connect')
-    @patch('scripts.data_prep.convert_delta_to_json.DatabricksSession')
-    @patch('scripts.data_prep.convert_delta_to_json.WorkspaceClient')
-    @patch('scripts.data_prep.convert_delta_to_json.os.makedirs')
-    @patch('scripts.data_prep.convert_delta_to_json.iterative_combine_jsons')
-    @patch('scripts.data_prep.convert_delta_to_json.fetch')
+    @patch(
+        'databricks.sql.connect',
+    )
+    @patch(
+        'databricks.connect.DatabricksSession',
+    )
+    @patch(
+        'databricks.sdk.WorkspaceClient',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.os.makedirs',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.iterative_combine_jsons',
+    )
+    @patch('llmfoundry.command_utils.data_prep.convert_delta_to_json.fetch')
     def test_sqlconnect_called_dbr13(
         self,
         mock_fetch: Any,
@@ -230,34 +277,49 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         mock_databricks_session: Any,
         mock_sql_connect: Any,
     ):
-
-        args = MagicMock()
-
-        args.delta_table_name = 'test_table'
-        args.json_output_folder = '/path/to/jsonl'
+        delta_table_name = 'test_table'
+        json_output_folder = '/path/to/jsonl'
         # Execute function with http_path=None (should use dbconnect)
-        args.http_path = 'test_path'
-        args.cluster_id = '1234'
-        args.DATABRICKS_HOST = 'host'
-        args.DATABRICKS_TOKEN = 'token'
-        args.use_serverless = False
+        http_path = 'test_path'
+        cluster_id = '1234'
+        DATABRICKS_HOST = 'host'
+        DATABRICKS_TOKEN = 'token'
+        use_serverless = False
 
         mock_cluster_response = Namespace(spark_version='13.0.0-scala2.12')
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
-        fetch_DT(args)
+        fetch_DT(
+            delta_table_name=delta_table_name,
+            json_output_folder=json_output_folder,
+            http_path=http_path,
+            cluster_id=cluster_id,
+            DATABRICKS_HOST=DATABRICKS_HOST,
+            DATABRICKS_TOKEN=DATABRICKS_TOKEN,
+            use_serverless=use_serverless,
+        )
         mock_sql_connect.assert_called_once_with(
-            server_hostname=args.DATABRICKS_HOST,
-            http_path=args.http_path,
-            access_token=args.DATABRICKS_TOKEN,
+            server_hostname=DATABRICKS_HOST,
+            http_path=http_path,
+            access_token=DATABRICKS_TOKEN,
         )
 
-    @patch('scripts.data_prep.convert_delta_to_json.sql.connect')
-    @patch('scripts.data_prep.convert_delta_to_json.DatabricksSession')
-    @patch('scripts.data_prep.convert_delta_to_json.WorkspaceClient')
-    @patch('scripts.data_prep.convert_delta_to_json.os.makedirs')
-    @patch('scripts.data_prep.convert_delta_to_json.iterative_combine_jsons')
-    @patch('scripts.data_prep.convert_delta_to_json.fetch')
+    @patch(
+        'databricks.sql.connect',
+    )
+    @patch(
+        'databricks.connect.DatabricksSession',
+    )
+    @patch(
+        'databricks.sdk.WorkspaceClient',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.os.makedirs',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.iterative_combine_jsons',
+    )
+    @patch('llmfoundry.command_utils.data_prep.convert_delta_to_json.fetch')
     def test_sqlconnect_called_dbr14(
         self,
         mock_fetch: Any,
@@ -267,34 +329,49 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         mock_databricks_session: Any,
         mock_sql_connect: Any,
     ):
-
-        args = MagicMock()
-
-        args.delta_table_name = 'test_table'
-        args.json_output_folder = '/path/to/jsonl'
+        delta_table_name = 'test_table'
+        json_output_folder = '/path/to/jsonl'
         # Execute function with http_path=None (should use dbconnect)
-        args.http_path = 'test_path'
-        args.cluster_id = '1234'
-        args.DATABRICKS_HOST = 'host'
-        args.DATABRICKS_TOKEN = 'token'
-        args.use_serverless = False
+        http_path = 'test_path'
+        cluster_id = '1234'
+        DATABRICKS_HOST = 'host'
+        DATABRICKS_TOKEN = 'token'
+        use_serverless = False
 
         mock_cluster_response = Namespace(spark_version='14.2.0-scala2.12')
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
-        fetch_DT(args)
+        fetch_DT(
+            delta_table_name=delta_table_name,
+            json_output_folder=json_output_folder,
+            http_path=http_path,
+            cluster_id=cluster_id,
+            DATABRICKS_HOST=DATABRICKS_HOST,
+            DATABRICKS_TOKEN=DATABRICKS_TOKEN,
+            use_serverless=use_serverless,
+        )
         mock_sql_connect.assert_called_once_with(
-            server_hostname=args.DATABRICKS_HOST,
-            http_path=args.http_path,
-            access_token=args.DATABRICKS_TOKEN,
+            server_hostname=DATABRICKS_HOST,
+            http_path=http_path,
+            access_token=DATABRICKS_TOKEN,
         )
 
-    @patch('scripts.data_prep.convert_delta_to_json.sql.connect')
-    @patch('scripts.data_prep.convert_delta_to_json.DatabricksSession')
-    @patch('scripts.data_prep.convert_delta_to_json.WorkspaceClient')
-    @patch('scripts.data_prep.convert_delta_to_json.os.makedirs')
-    @patch('scripts.data_prep.convert_delta_to_json.iterative_combine_jsons')
-    @patch('scripts.data_prep.convert_delta_to_json.fetch')
+    @patch(
+        'databricks.sql.connect',
+    )
+    @patch(
+        'databricks.connect.DatabricksSession',
+    )
+    @patch(
+        'databricks.sdk.WorkspaceClient',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.os.makedirs',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.iterative_combine_jsons',
+    )
+    @patch('llmfoundry.command_utils.data_prep.convert_delta_to_json.fetch')
     def test_sqlconnect_called_https(
         self,
         mock_fetch: Any,
@@ -304,34 +381,49 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         mock_databricks_session: Any,
         mock_sql_connect: Any,
     ):
-
-        args = MagicMock()
-
-        args.delta_table_name = 'test_table'
-        args.json_output_folder = '/path/to/jsonl'
+        delta_table_name = 'test_table'
+        json_output_folder = '/path/to/jsonl'
         # Execute function with http_path=None (should use dbconnect)
-        args.http_path = 'test_path'
-        args.cluster_id = '1234'
-        args.DATABRICKS_HOST = 'https://test-host'
-        args.DATABRICKS_TOKEN = 'token'
-        args.use_serverless = False
+        http_path = 'test_path'
+        cluster_id = '1234'
+        DATABRICKS_HOST = 'https://test-host'
+        DATABRICKS_TOKEN = 'token'
+        use_serverless = False
 
         mock_cluster_response = Namespace(spark_version='14.2.0-scala2.12')
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
-        fetch_DT(args)
+        fetch_DT(
+            delta_table_name=delta_table_name,
+            json_output_folder=json_output_folder,
+            http_path=http_path,
+            cluster_id=cluster_id,
+            DATABRICKS_HOST=DATABRICKS_HOST,
+            DATABRICKS_TOKEN=DATABRICKS_TOKEN,
+            use_serverless=use_serverless,
+        )
         mock_sql_connect.assert_called_once_with(
             server_hostname='test-host',
-            http_path=args.http_path,
-            access_token=args.DATABRICKS_TOKEN,
+            http_path=http_path,
+            access_token=DATABRICKS_TOKEN,
         )
 
-    @patch('scripts.data_prep.convert_delta_to_json.sql.connect')
-    @patch('scripts.data_prep.convert_delta_to_json.DatabricksSession')
-    @patch('scripts.data_prep.convert_delta_to_json.WorkspaceClient')
-    @patch('scripts.data_prep.convert_delta_to_json.os.makedirs')
-    @patch('scripts.data_prep.convert_delta_to_json.iterative_combine_jsons')
-    @patch('scripts.data_prep.convert_delta_to_json.fetch')
+    @patch(
+        'databricks.sql.connect',
+    )
+    @patch(
+        'databricks.connect.DatabricksSession',
+    )
+    @patch(
+        'databricks.sdk.WorkspaceClient',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.os.makedirs',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.iterative_combine_jsons',
+    )
+    @patch('llmfoundry.command_utils.data_prep.convert_delta_to_json.fetch')
     def test_serverless(
         self,
         mock_fetch: Any,
@@ -341,21 +433,40 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         mock_databricks_session: Any,
         mock_sql_connect: Any,
     ):
-
-        args = MagicMock()
-
-        args.delta_table_name = 'test_table'
-        args.json_output_folder = '/path/to/jsonl'
+        delta_table_name = 'test_table'
+        json_output_folder = '/path/to/jsonl'
         # Execute function with http_path=None (should use dbconnect)
-        args.http_path = 'test_path'
-        args.cluster_id = '1234'
-        args.DATABRICKS_HOST = 'https://test-host'
-        args.DATABRICKS_TOKEN = 'token'
-        args.use_serverless = True
+        http_path = 'test_path'
+        cluster_id = '1234'
+        DATABRICKS_HOST = 'https://test-host'
+        DATABRICKS_TOKEN = 'token'
+        use_serverless = True
 
         mock_cluster_response = Namespace(spark_version='14.2.0-scala2.12')
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
-        fetch_DT(args)
+        fetch_DT(
+            delta_table_name=delta_table_name,
+            json_output_folder=json_output_folder,
+            http_path=http_path,
+            cluster_id=cluster_id,
+            DATABRICKS_HOST=DATABRICKS_HOST,
+            DATABRICKS_TOKEN=DATABRICKS_TOKEN,
+            use_serverless=use_serverless,
+        )
         assert not mock_sql_connect.called
         assert not mock_databricks_session.builder.remote.called
+
+    def test_format_tablename(self):
+        self.assertEqual(
+            format_tablename('test_catalog.hyphenated-schema.test_table'),
+            '`test_catalog`.`hyphenated-schema`.`test_table`',
+        )
+        self.assertEqual(
+            format_tablename('catalog.schema.table'),
+            '`catalog`.`schema`.`table`',
+        )
+        self.assertEqual(
+            format_tablename('hyphenated-catalog.schema.test_table'),
+            '`hyphenated-catalog`.`schema`.`test_table`',
+        )

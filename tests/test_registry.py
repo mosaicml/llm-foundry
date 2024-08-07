@@ -24,6 +24,7 @@ def test_expected_registries_exist():
         'loggers',
         'optimizers',
         'schedulers',
+        'tokenizers',
         'callbacks',
         'algorithms',
         'callbacks_with_config',
@@ -42,6 +43,10 @@ def test_expected_registries_exist():
         'attention_classes',
         'attention_implementations',
         'fcs',
+        'icl_datasets',
+        'config_transforms',
+        'load_planners',
+        'save_planners',
     }
 
     assert existing_registries == expected_registry_names

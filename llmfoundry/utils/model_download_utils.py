@@ -69,13 +69,13 @@ def download_from_hf_hub(
     Safetensors weights will be downloaded unless `prefer_safetensors` is set to False.
 
     Args:
-        repo_id (str): The Hugging Face Hub repo ID.
+        model (str): The Hugging Face Hub repo ID.
         save_dir (str, optional): The local path to the directory where the model files will be downloaded.
         prefer_safetensors (bool): Whether to prefer Safetensors weights over PyTorch weights if both are
             available. Defaults to True.
         tokenizer_only (bool): If true, only download tokenizer files.
         token (str, optional): The HuggingFace API token. If not provided, the token will be read from the
-            `HUGGING_FACE_HUB_TOKEN` environment variable.
+            `HF_TOKEN` environment variable.
 
     Raises:
         RepositoryNotFoundError: If the model repo doesn't exist or the token is unauthorized.
@@ -157,7 +157,7 @@ def _recursive_download(
 
     Args:
         session: A requests.Session through which to make requests to the remote server.
-        url (str): The base URL where the files are located.
+        base_url (str): The base URL where the files are located.
         path (str): The path from the base URL to the files to download. The full URL for the download is equal to
             '<base_url>/<path>'.
         save_dir (str): The directory to save downloaded files to.

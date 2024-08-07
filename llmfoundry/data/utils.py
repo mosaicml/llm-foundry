@@ -26,14 +26,6 @@ def _validate_cfg(
     eos_token_id = dataset_cfg.get('eos_token_id', None)
     bos_token_id = dataset_cfg.get('bos_token_id', None)
 
-    if eos_token_id is None and bos_token_id is None and (
-        hasattr(tokenizer, 'eos_token_id') or
-        hasattr(tokenizer, 'bos_token_id')
-    ):
-        log.warning(
-            'The user has not provided an eos_token_id or bos_token_id, but the tokenizer has an eos_token_id or a bos_token_id.',
-        )
-
     tokenizer_eos_token_id = getattr(tokenizer, 'eos_token_id', None)
     if eos_token_id is not None and eos_token_id != tokenizer_eos_token_id:
         eos_mismatch_str = f'Provided {eos_token_id=} does not match the eos_token_id of the tokenizer={tokenizer_eos_token_id}.'

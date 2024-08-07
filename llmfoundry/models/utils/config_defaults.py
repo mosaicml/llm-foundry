@@ -15,6 +15,7 @@ attn_config_defaults: Dict = {
     'attn_impl': 'flash',
     'qk_ln': False,
     'qk_gn': False,
+    'fused_qkv': True,
     'clip_qkv': None,
     'softmax_scale': None,
     'attn_uses_sequence_id': False,

@@ -160,6 +160,22 @@ class NotEnoughDatasetSamplesError(UserError):
 
 
 ## Tasks exceptions
+class InvalidExampleTypeError(UserError):
+    """Error thrown when a message type is not a `Mapping`."""
+
+    def __init__(self, example_type: str) -> None:
+        message = f'Expected example to be a `Mapping`, but found type {example_type}'
+        super().__init__(message, example_type=example_type)
+
+
+class InvalidMessageTypeError(UserError):
+    """Error thrown when a message type is not an `Iterable`."""
+
+    def __init__(self, message_type: str) -> None:
+        message = f'Expected message to be an `Iterable`, but found type {message_type}'
+        super().__init__(message, message_type=message_type)
+
+
 class UnknownExampleTypeError(UserError):
     """Error thrown when an unknown example type is used in a task."""
 

@@ -256,23 +256,6 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             False,  # Necessary due to https://github.com/huggingface/transformers/issues/28056
         )
 
-        # This is not ideal, however Hugging Face's _autoset_attn_implementation function
-        # forces you to load the model in fp16/bf16 if you want to use flash attention. Rather than loading
-        # the model and then casting it back to fp32, we are monkeypatching their check.
-        # https://github.com/huggingface/transformers/issues/28052
-        def _autoset_attn_implementation_monkeypatch(
-            cls,  # type: ignore
-            config,  # type: ignore
-            *args,  # type: ignore
-            **kwargs,  # type: ignore
-        ):  # type: ignore
-            config._attn_implementation = requested_attention_implementation
-            return config
-
-        PreTrainedModel._autoset_attn_implementation = classmethod(
-            _autoset_attn_implementation_monkeypatch,
-        )
-
         set_config_overrides(config, config_overrides)
 
         # We need to have all non-zero local ranks be not-pretrained
@@ -293,6 +276,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                             pretrained_model_name_or_path,
                             trust_remote_code=trust_remote_code,
                             use_auth_token=use_auth_token,
+                            attn_implementation=
+                            requested_attention_implementation,
                             config=config,
                         )
             else:
@@ -300,6 +285,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                     AutoModelForCausalLM.from_config(
                         config,
                         trust_remote_code=trust_remote_code,
+                        attn_implementation=requested_attention_implementation,
                     )
 
         dist.barrier()
@@ -312,12 +298,14 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                     trust_remote_code=trust_remote_code,
                     use_auth_token=use_auth_token,
                     load_in_8bit=load_in_8bit,
+                    attn_implementation=requested_attention_implementation,
                     config=config,
                 )
             else:
                 model = AutoModelForCausalLM.from_config(
                     config,
                     trust_remote_code=trust_remote_code,
+                    attn_implementation=requested_attention_implementation,
                 )
         elif resolved_init_device == 'meta':
             if pretrained:
@@ -328,6 +316,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                 model = AutoModelForCausalLM.from_config(
                     config,
                     trust_remote_code=trust_remote_code,
+                    attn_implementation=requested_attention_implementation,
                 )
         else:
             raise ValueError(

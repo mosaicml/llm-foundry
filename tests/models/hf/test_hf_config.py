@@ -7,9 +7,11 @@ from typing import Any, Dict, Mapping
 from unittest.mock import Mock, patch
 
 import pytest
+import torch
 from omegaconf import OmegaConf as om
 from transformers import PretrainedConfig
 
+from llmfoundry.models.hf.hf_fsdp import rgetattr
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils import build_tokenizer
 from llmfoundry.utils.builders import build_composer_model
@@ -235,3 +237,45 @@ def test_nested_override():
     assert isinstance(model.config.ffn_config, PretrainedConfig)
     # Ensure the other values still exist and are not set back to their defaults
     assert model.config.ffn_config.moe_num_experts == 16
+
+
+@pytest.mark.gpu
+def test_use_flash():
+    model_cfg = {
+        'name': 'hf_causal_lm',
+        'pretrained_model_name_or_path': 'codellama/CodeLlama-7b-hf',
+        'config_overrides': {
+            'num_hidden_layers': 2,
+            'hidden_size': 32,
+            'intermediate_size': 64,
+            'torch_dtype': 'bfloat16',
+        },
+        'pretrained': False,
+        'init_device': 'cpu',
+        'use_flash_attention_2': True,
+    }
+
+    name = model_cfg.pop('name')
+    model = build_composer_model(
+        name=name,
+        cfg=model_cfg,
+        tokenizer=None,  # type: ignore
+    )
+
+    from transformers.models.llama.modeling_llama import (
+        LlamaFlashAttention2,
+    )
+    flash_attn_class = LlamaFlashAttention2
+    attention_layers_attr = 'model.model.layers'
+    attention_attr = 'self_attn'
+
+    # check that it actually used flash attention 2
+    assert model.model.config._attn_implementation == ('flash_attention_2')
+    attention_layer = rgetattr(
+        rgetattr(model, attention_layers_attr)[0],
+        attention_attr,
+    )
+    assert isinstance(attention_layer, flash_attn_class)
+
+    # Make sure that HF has not cast the parameters to bf16
+    assert next(model.parameters()).dtype == torch.float32

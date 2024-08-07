@@ -153,7 +153,7 @@ def _get_example_type(example: Example) -> ExampleType:
     ):
         return 'prompt_response'
     else:
-        keys = str(example.keys())
+        keys = str(set(example.keys()))
         raise UnknownExampleTypeError(keys)
 
 

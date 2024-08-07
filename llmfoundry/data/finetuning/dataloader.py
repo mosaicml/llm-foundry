@@ -250,19 +250,20 @@ def build_finetuning_dataloader(
             streams_cfg,
         ) if streams_cfg is not None else None
 
-        # note: we don't need to use ** here because we're setting default values for almost all arguments
+        # Take the constructor args from above, minus args that have been created separately
+        dataset_constructor_args = {
+            k: v
+            for k, v in dataset_cfg.items()
+            if k in dataset_constructor_keys and
+            k not in {'streams', 'packing_ratio'}
+        }
         streaming_dataset = dataset_constructor.build_from_streaming(
             tokenizer=tokenizer,
             streams=streams,
             batch_size=dataloader_batch_size,
             replication=replication_factor,
             packing_ratio=dataloader_batch_size / dataset_batch_size,
-            **{
-                k: v
-                for k, v in dataset_cfg.items()
-                if k in dataset_constructor_keys and
-                k not in {'packing_ratio', 'streams'}
-            },
+            **dataset_constructor_args,
         )
 
     else:
@@ -293,18 +294,19 @@ def build_finetuning_dataloader(
                 dataset_name_or_path,
             )
 
-        # Build dataset from HF.
+        # Take the constructor args from above, minus args that have been created separately
+        dataset_constructor_args = {
+            k: v
+            for k, v in dataset_cfg.items()
+            if k in dataset_constructor_keys and
+            k not in {'split', 'preprocessing_fn'}
+        }
         streaming_dataset = dataset_constructor.build_from_hf(
             dataset_name=dataset_name_or_path,
             split=split,
             preprocessing_fn=preprocessing_fn,
             tokenizer=tokenizer,
-            **{
-                k: v
-                for k, v in dataset_cfg.items()
-                if k in dataset_constructor_keys and
-                k not in {'split', 'preprocessing_fn'}
-            },
+            **dataset_constructor_args,
         )
 
         # Ensure dataset is large enough.

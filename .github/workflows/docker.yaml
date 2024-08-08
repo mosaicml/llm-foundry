@@ -19,10 +19,10 @@ jobs:
         include:
         - name: "2.3.1_cu121"
           base_image: mosaicml/pytorch:2.3.1_cu121-python3.11-ubuntu20.04
-          dep_groups: "[gpu]"
+          dep_groups: "[all]"
         - name: "2.3.1_cu121_aws"
           base_image: mosaicml/pytorch:2.3.1_cu121-python3.11-ubuntu20.04-aws
-          dep_groups: "[gpu]"
+          dep_groups: "[all]"
     steps:
 
     - name: Checkout

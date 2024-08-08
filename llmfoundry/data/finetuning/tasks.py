@@ -78,8 +78,10 @@ from llmfoundry.utils.exceptions import (
     ConsecutiveRepeatedChatRolesError,
     IncorrectMessageKeyQuantityError,
     InvalidContentTypeError,
+    InvalidExampleTypeError,
     InvalidFileExtensionError,
     InvalidLastChatMessageRoleError,
+    InvalidMessageTypeError,
     InvalidPromptResponseKeysError,
     InvalidPromptTypeError,
     InvalidResponseTypeError,
@@ -139,9 +141,7 @@ def _get_example_type(example: Example) -> ExampleType:
         KeyError: If the example type is unknown.
     """
     if not isinstance(example, Mapping):
-        raise TypeError(
-            f'Expected example to be a Mapping, but found {type(example)}',
-        )
+        raise InvalidExampleTypeError(str(type(example)))
     if (
         len(example.keys()) == 1 and any(
             allowed_message_key in example
@@ -156,7 +156,8 @@ def _get_example_type(example: Example) -> ExampleType:
     ):
         return 'prompt_response'
     else:
-        raise UnknownExampleTypeError(str(example.keys()))
+        keys = str(set(example.keys()))
+        raise UnknownExampleTypeError(keys)
 
 
 def _is_empty_or_nonexistent(dirpath: str) -> bool:
@@ -173,23 +174,17 @@ def _is_empty_or_nonexistent(dirpath: str) -> bool:
 
 def _get_key(dictionary: Mapping[str, Any], allowed_keys: set[str]):
     if not isinstance(dictionary, Mapping):
-        raise TypeError(
-            f'Expected dictionary to be a mapping, but found {type(dictionary)}',
-        )
+        raise InvalidExampleTypeError(str(type(dictionary)))
     desired_keys = allowed_keys.intersection(dictionary.keys())
     return list(desired_keys)[0]
 
 
 def _validate_chat_formatted_example(example: ChatFormattedDict):
     if not isinstance(example, Mapping):
-        raise TypeError(
-            f'Expected example to be a mapping, but found {type(example)}',
-        )
+        raise InvalidExampleTypeError(str(type(example)))
     messages = example[_get_key(example, ALLOWED_MESSAGES_KEYS)]
     if not isinstance(messages, List):
-        raise TypeError(
-            f'Expected messages to be an iterable, but found {type(messages)}',
-        )
+        raise InvalidMessageTypeError(str(type(messages)))
     if len(messages) <= 1:
         raise NotEnoughChatDataError()
 

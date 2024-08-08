@@ -50,6 +50,7 @@ _ALLOWED_DATASET_KEYS = {
     'seq_parallel_replication',
     'auto_packing_replication',
     'max_leftover_bins_to_keep',
+    'pad_to_longest',
 }
 
 
@@ -630,6 +631,7 @@ def build_collate_fn(
     max_seq_len = dataset_cfg['max_seq_len']
     decoder_only_format = dataset_cfg['decoder_only_format']
     allow_pad_trimming = dataset_cfg.get('allow_pad_trimming', False)
+    pad_to_longest = dataset_cfg.get('pad_to_longest', False)
 
     collate_fn = Seq2SeqFinetuningCollator(
         tokenizer=tokenizer,
@@ -638,6 +640,7 @@ def build_collate_fn(
         target_responses=target_responses,
         target_prompts=target_prompts,
         allow_pad_trimming=allow_pad_trimming,
+        pad_to_longest=pad_to_longest,
     )
 
     packing_ratio = dataset_cfg.get('packing_ratio')

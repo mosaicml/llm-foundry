@@ -66,9 +66,11 @@ def test_tokenize_chat_example_malformed():
                 my_tokenizer,
             )  # type: ignore (the typing here is supposed to be malformed)
     with pytest.raises(InvalidExampleTypeError):
-        tokenize_formatted_example(
-            wrong_example_type,
-            my_tokenizer,
+        # Ignore the type here because it's the mistyping that we're
+        # trying to test.
+        tokenize_formatted_example( # type: ignore
+            wrong_example_type, # type: ignore
+            my_tokenizer, # type: ignore
         )
     with pytest.raises(InvalidMessageTypeError):
         tokenize_formatted_example(

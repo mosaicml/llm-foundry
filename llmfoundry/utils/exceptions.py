@@ -28,6 +28,7 @@ __all__ = [
     'InputFolderMissingDataError',
     'OutputFolderNotEmptyError',
     'MisconfiguredHfDatasetError',
+    'DatasetTooSmallError',
     'RunTimeoutError',
 ]
 
@@ -362,6 +363,14 @@ class MisconfiguredHfDatasetError(UserError):
         message = f'Your dataset (name={dataset_name}, split={split}) is misconfigured. ' + \
             'Please check your dataset format and make sure you can load your dataset locally.'
         super().__init__(message, dataset_name=dataset_name, split=split)
+
+
+class DatasetTooSmallError(UserError):
+    """Error thrown when the dataset is too small to be processed."""
+
+    def __init__(self) -> None:
+        message = f'Your dataset is too small and produced no complete samples during preprocessing. Please provide more data.'
+        super().__init__(message)
 
 
 class RunTimeoutError(InternalError):

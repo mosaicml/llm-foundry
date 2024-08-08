@@ -7,7 +7,7 @@ import random
 import shutil
 from contextlib import nullcontext as does_not_raise
 from pathlib import Path
-from typing import ContextManager, Literal, Optional, Union
+from typing import Any, Callable, ContextManager, Dict, Literal, Optional, Union
 from unittest.mock import MagicMock, patch
 
 import catalogue
@@ -22,6 +22,8 @@ from streaming import MDSWriter
 from streaming.base.util import clean_stale_shared_memory
 
 from llmfoundry.command_utils import convert_dataset_hf
+from llmfoundry.command_utils.data_prep.convert_finetuning_dataset import \
+    get_columns_and_format
 from llmfoundry.data import build_dataloader, build_finetuning_dataloader
 from llmfoundry.data.finetuning.collator import (
     _HF_IGNORE_INDEX,
@@ -55,8 +57,6 @@ from llmfoundry.utils.exceptions import (
     NotEnoughDatasetSamplesError,
     UnknownExampleTypeError,
 )
-# yapf: enable
-from scripts.data_prep.convert_finetuning_dataset import get_columns_and_format
 from tests.data_utils import (
     make_tiny_conversation_ft_dataset,
     make_tiny_ft_dataset,
@@ -1220,6 +1220,21 @@ def test_token_counting_func_dataloader_setting(
         'timeout': 0,
     }
 
+    def build_from_hf(
+        self,  # type: ignore
+        dataset_name: str,
+        split: str,
+        safe_load: bool = False,
+        max_seq_len: int = 2048,
+        preprocessing_fn: Optional[Callable] = None,
+        tokenizer: transformers.PreTrainedTokenizerBase = None,
+        target_prompts: str = 'last',
+        target_responses: str = 'none',
+        decoder_only_format: bool = True,
+        hf_kwargs: Optional[Dict[str, Any]] = None,
+    ):
+        return []
+
     if dataloader_type == 'finetuning-hf':
         cfg = DictConfig({
             'dataset': {
@@ -1235,8 +1250,7 @@ def test_token_counting_func_dataloader_setting(
         })
         monkeypatch.setattr(
             'llmfoundry.data.finetuning.tasks.DatasetConstructor.build_from_hf',
-            lambda *args,
-            **kwargs: [],
+            build_from_hf,
         )
         dl = build_finetuning_dataloader(
             tokenizer=gptt,

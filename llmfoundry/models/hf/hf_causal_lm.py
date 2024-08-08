@@ -11,7 +11,6 @@ from typing import (
     Any,
     Dict,
     List,
-    Mapping,
     Optional,
     Tuple,
     Union,
@@ -23,7 +22,6 @@ from torchmetrics import Metric
 from transformers import (
     AutoConfig,
     AutoModelForCausalLM,
-    PretrainedConfig,
     PreTrainedModel,
     PreTrainedTokenizerBase,
 )
@@ -36,7 +34,7 @@ from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
 from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithFSDP
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.utils import init_empty_weights
-from llmfoundry.utils.config_utils import get_hf_config_value
+from llmfoundry.utils.config_utils import set_config_overrides
 
 if TYPE_CHECKING:
     from peft import PeftConfig, PeftModel
@@ -105,8 +103,12 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             config_overrides=config_overrides,
             load_in_8bit=load_in_8bit,
             pretrained=pretrained,
-            prepare_for_fsdp=True,
+            prepare_for_fsdp=False,
         )
+
+        model = self.transform_model(model)
+
+        ComposerHFCausalLM.prepare_inner_model(model, init_device)
 
         train_metrics, eval_metrics = ComposerHFCausalLM.build_metrics(
             use_train_metrics=use_train_metrics,
@@ -121,7 +123,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
 
         peft_config_object = None
         if peft_config is not None:
-            peft_config_object = self._get_peft_config(peft_config)
+            peft_config_object = self.get_peft_config(peft_config)
 
         # Set up config args for the model construction and base classes
         super().__init__(
@@ -134,6 +136,17 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             peft_config=peft_config_object,
             should_save_peft_only=should_save_peft_only,
         )
+
+    def transform_model(self, model: PreTrainedModel) -> PreTrainedModel:
+        """Transforms the model after initialization.
+
+        Args:
+            model (PreTrainedModel): The model to transform.
+
+        Returns:
+            PreTrainedModel: The transformed model.
+        """
+        return model
 
     @staticmethod
     def build_metrics(
@@ -192,6 +205,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             use_auth_token (bool): Whether to use an authentication token.
             config_overrides (Dict[str, Any]): The configuration overrides.
             load_in_8bit (bool): Whether to load in 8-bit.
+            pretrained (bool): Whether the model is pretrained.
             prepare_for_fsdp (bool, optional): Whether to prepare the model for FSDP wrapping. Default: False.
 
         Returns:
@@ -216,6 +230,22 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                 + 'Please `pip install llm-foundry[gpu]`.',
             )
 
+        # Hugging Face copies the modules into the
+        # transformers modules cache. On particular systems, this operation seems to cause contention between
+        # the different processes. To avoid this contention, we first create the config on local rank
+        # zero. This will set up the transformers module cache and avoid the future contention.
+        if dist.get_local_rank() == 0:
+            AutoConfig.from_pretrained(
+                pretrained_model_name_or_path,
+                trust_remote_code=trust_remote_code,
+                use_auth_token=use_auth_token,
+                attn_implementation=requested_attention_implementation,
+                use_cache=
+                False,  # Necessary due to https://github.com/huggingface/transformers/issues/28056
+            )
+
+        dist.barrier()
+
         # Construct the Hugging Face config to use
         config = AutoConfig.from_pretrained(
             pretrained_model_name_or_path,
@@ -226,67 +256,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             False,  # Necessary due to https://github.com/huggingface/transformers/issues/28056
         )
 
-        # This is not ideal, however Hugging Face's _autoset_attn_implementation function
-        # forces you to load the model in fp16/bf16 if you want to use flash attention. Rather than loading
-        # the model and then casting it back to fp32, we are monkeypatching their check.
-        # https://github.com/huggingface/transformers/issues/28052
-        def _autoset_attn_implementation_monkeypatch(
-            cls,  # type: ignore
-            config,  # type: ignore
-            *args,  # type: ignore
-            **kwargs,  # type: ignore
-        ):  # type: ignore
-            config._attn_implementation = requested_attention_implementation
-            return config
-
-        PreTrainedModel._autoset_attn_implementation = classmethod(
-            _autoset_attn_implementation_monkeypatch,
-        )
-
-        # set config overrides
-        for k, v in config_overrides.items():
-            if not hasattr(config, k):
-                raise ValueError(
-                    f'config does not have attribute "{k}" to override ({k}: {v}).',
-                )
-
-            attr = getattr(config, k)
-            # attempt to disallow typos in nested configs
-            if isinstance(attr, Mapping):
-                extra_keys = [_k for _k in v.keys() if _k not in attr.keys()]
-                if extra_keys:
-                    raise ValueError(
-                        f'Config dict override got unknown keys. ' +
-                        f'Extra keys: {extra_keys}. ' +
-                        f'Expected (a subset of) keys: {list(attr.keys())}.',
-                    )
-                getattr(config, k).update(v)
-            # necessary case to allow for rope_scaling to be overriden in llama config
-            elif attr is None and isinstance(v, Mapping):
-                setattr(config, k, {})
-                getattr(config, k).update(v)
-            elif isinstance(attr, PretrainedConfig):
-                if not isinstance(v, Mapping):
-                    raise ValueError(
-                        f'Expected a dictionary for config override {k}, but got {v}.',
-                    )
-
-                for _k, _v in v.items():
-                    if not hasattr(attr, _k):
-                        raise ValueError(
-                            f'config does not have attribute "{_k}" to override ({k}: {_k}: {_v}).',
-                        )
-                    setattr(attr, _k, _v)
-            else:
-                setattr(config, k, v)
-
-        if hasattr(config, 'attn_config') and get_hf_config_value(
-            config.attn_config,
-            'seq_parallel_world_size',
-        ) is not None:
-            raise NotImplementedError(
-                'Sequence Parallelism is not supported for HuggingFace models.',
-            )
+        set_config_overrides(config, config_overrides)
 
         # We need to have all non-zero local ranks be not-pretrained
         # Rank 0 will still be pretrained, and distribute the weights appropriately
@@ -298,7 +268,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         # the different processes. To avoid this contention, we first create the model (on meta device) on local rank
         # zero. This will set up the transformers model cache and avoid the future contention.
         if dist.get_local_rank() == 0:
-            if os.path.isdir(pretrained_model_name_or_path):
+            if pretrained and os.path.isdir(pretrained_model_name_or_path):
                 with init_empty_weights(include_buffers=False):
                     with warnings.catch_warnings():
                         warnings.simplefilter('ignore', UserWarning)
@@ -306,6 +276,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                             pretrained_model_name_or_path,
                             trust_remote_code=trust_remote_code,
                             use_auth_token=use_auth_token,
+                            attn_implementation=
+                            requested_attention_implementation,
                             config=config,
                         )
             else:
@@ -313,6 +285,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                     AutoModelForCausalLM.from_config(
                         config,
                         trust_remote_code=trust_remote_code,
+                        attn_implementation=requested_attention_implementation,
                     )
 
         dist.barrier()
@@ -325,12 +298,14 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                     trust_remote_code=trust_remote_code,
                     use_auth_token=use_auth_token,
                     load_in_8bit=load_in_8bit,
+                    attn_implementation=requested_attention_implementation,
                     config=config,
                 )
             else:
                 model = AutoModelForCausalLM.from_config(
                     config,
                     trust_remote_code=trust_remote_code,
+                    attn_implementation=requested_attention_implementation,
                 )
         elif resolved_init_device == 'meta':
             if pretrained:
@@ -341,6 +316,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                 model = AutoModelForCausalLM.from_config(
                     config,
                     trust_remote_code=trust_remote_code,
+                    attn_implementation=requested_attention_implementation,
                 )
         else:
             raise ValueError(
@@ -379,10 +355,10 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
 
         if prepare_for_fsdp:
             ComposerHFCausalLM.prepare_inner_model(model, init_device)
+
         return model
 
-    @staticmethod
-    def _get_peft_config(peft_config_dict: Dict[str, Any]) -> 'PeftConfig':
+    def get_peft_config(self, peft_config_dict: Dict[str, Any]) -> 'PeftConfig':
         if peft_installed:
             from peft import LoraConfig
             peft_type = peft_config_dict.get('peft_type', '')

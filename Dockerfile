@@ -7,6 +7,8 @@ FROM $BASE_IMAGE
 ARG BRANCH_NAME
 ARG DEP_GROUPS
 
+ENV TORCH_CUDA_ARCH_LIST="8.0 8.6 8.7 8.9 9.0"
+
 # Check for changes in setup.py.
 # If there are changes, the docker cache is invalidated and a fresh pip installation is triggered.
 ADD https://raw.githubusercontent.com/mosaicml/llm-foundry/$BRANCH_NAME/setup.py setup.py

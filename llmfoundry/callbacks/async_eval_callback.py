@@ -557,7 +557,8 @@ class AsyncEval(CallbackWithConfig):
                 installation_path = i['path']
 
         if not found_llm_foundry:
-            from llmfoundry import __version__ as latest_foundry_version
+            from llmfoundry._version import \
+                __version__ as latest_foundry_version
 
             # If github integration is not found, foundry is likely installed
             # through the run command. In this case, we'll add the integration

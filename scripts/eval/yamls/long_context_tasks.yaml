@@ -105,7 +105,7 @@ icl_tasks:
   icl_task_type: generation_task_with_answers
   hf_loading_vars:
     name: wikiqa
-    context_length: 2048
+    context_length: 4096
     split: test
 -
   label: wikiqa_8k
@@ -114,7 +114,7 @@ icl_tasks:
   icl_task_type: generation_task_with_answers
   hf_loading_vars:
     name: wikiqa
-    context_length: 2048
+    context_length: 8192
     split: test
 -
   label: hotpotqa_beginning_2k

@@ -157,7 +157,7 @@ def evaluate_model(
 
     if should_log_config:
         log.info('Evaluation config:')
-        log_config(logged_config)
+        log_config(trainer.logger, logged_config)
 
     log.info(f'Starting eval for {model_name}...')
     if torch.cuda.is_available():

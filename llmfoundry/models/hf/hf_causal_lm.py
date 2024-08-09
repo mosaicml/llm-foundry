@@ -233,7 +233,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
 
         # Hugging Face copies the modules into the
         # transformers modules cache. On particular systems, this operation seems to cause contention between
-        # the different processes. To avoid this contention, we first create the config on local rank
+        # the different processes. To avoid this contention, we first create the config and generation config on local rank
         # zero. This will set up the transformers module cache and avoid the future contention.
         if dist.get_local_rank() == 0:
             AutoConfig.from_pretrained(
@@ -244,6 +244,13 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                 use_cache=
                 False,  # Necessary due to https://github.com/huggingface/transformers/issues/28056
             )
+            try:
+                GenerationConfig.from_pretrained(
+                    pretrained_model_name_or_path,
+                    use_auth_token=use_auth_token,
+                )
+            except OSError:
+                pass
 
         dist.barrier()
 

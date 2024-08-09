@@ -47,6 +47,7 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
+    Type,
     Union,
     cast,
 )
@@ -77,8 +78,10 @@ from llmfoundry.utils.exceptions import (
     ConsecutiveRepeatedChatRolesError,
     IncorrectMessageKeyQuantityError,
     InvalidContentTypeError,
+    InvalidExampleTypeError,
     InvalidFileExtensionError,
     InvalidLastChatMessageRoleError,
+    InvalidMessageTypeError,
     InvalidPromptResponseKeysError,
     InvalidPromptTypeError,
     InvalidResponseTypeError,
@@ -115,6 +118,8 @@ DOWNLOADED_FT_DATASETS_DIRPATH = os.path.abspath(
 )
 SUPPORTED_EXTENSIONS = ['.csv', '.json', '.jsonl', '.parquet']
 HUGGINGFACE_FOLDER_EXTENSIONS = ['.lock', '.metadata']
+DEFAULT_TARGET_RESPONSES = 'last'
+DEFAULT_TARGET_PROMPTS = 'none'
 
 PromptResponseDict = Mapping[str, str]
 ChatFormattedDict = Mapping[str, List[Dict[str, str]]]
@@ -136,9 +141,7 @@ def _get_example_type(example: Example) -> ExampleType:
         KeyError: If the example type is unknown.
     """
     if not isinstance(example, Mapping):
-        raise TypeError(
-            f'Expected example to be a Mapping, but found {type(example)}',
-        )
+        raise InvalidExampleTypeError(str(type(example)))
     if (
         len(example.keys()) == 1 and any(
             allowed_message_key in example
@@ -153,7 +156,8 @@ def _get_example_type(example: Example) -> ExampleType:
     ):
         return 'prompt_response'
     else:
-        raise UnknownExampleTypeError(str(example.keys()))
+        keys = str(set(example.keys()))
+        raise UnknownExampleTypeError(keys)
 
 
 def _is_empty_or_nonexistent(dirpath: str) -> bool:
@@ -170,23 +174,17 @@ def _is_empty_or_nonexistent(dirpath: str) -> bool:
 
 def _get_key(dictionary: Mapping[str, Any], allowed_keys: set[str]):
     if not isinstance(dictionary, Mapping):
-        raise TypeError(
-            f'Expected dictionary to be a mapping, but found {type(dictionary)}',
-        )
+        raise InvalidExampleTypeError(str(type(dictionary)))
     desired_keys = allowed_keys.intersection(dictionary.keys())
     return list(desired_keys)[0]
 
 
 def _validate_chat_formatted_example(example: ChatFormattedDict):
     if not isinstance(example, Mapping):
-        raise TypeError(
-            f'Expected example to be a mapping, but found {type(example)}',
-        )
+        raise InvalidExampleTypeError(str(type(example)))
     messages = example[_get_key(example, ALLOWED_MESSAGES_KEYS)]
     if not isinstance(messages, List):
-        raise TypeError(
-            f'Expected messages to be an iterable, but found {type(messages)}',
-        )
+        raise InvalidMessageTypeError(str(type(messages)))
     if len(messages) <= 1:
         raise NotEnoughChatDataError()
 
@@ -805,14 +803,14 @@ class DatasetConstructor:
         self,
         dataset_name: str,
         split: str,
-        safe_load: bool,
-        max_seq_len: int,
-        preprocessing_fn: Optional[Callable[[dict[str, Any]], Example]],
-        tokenizer: PreTrainedTokenizerBase,
-        target_prompts: str,
-        target_responses: str,
-        decoder_only_format: bool,
-        hf_kwargs: Dict[str, Any],
+        safe_load: bool = False,
+        max_seq_len: int = 2048,
+        preprocessing_fn: Optional[Callable[[dict[str, Any]], Example]] = None,
+        tokenizer: Optional[PreTrainedTokenizerBase] = None,
+        target_prompts: str = DEFAULT_TARGET_PROMPTS,
+        target_responses: str = DEFAULT_TARGET_RESPONSES,
+        decoder_only_format: bool = True,
+        hf_kwargs: Optional[Dict[str, Any]] = None,
     ) -> Union[hf_datasets.DatasetDict, hf_datasets.Dataset,
                hf_datasets.IterableDatasetDict, hf_datasets.IterableDataset]:
         """Load a HuggingFace Datasets, preprocess, and tokenize.
@@ -851,6 +849,14 @@ class DatasetConstructor:
         Returns:
             Dataset: The tokenized dataset.
         """
+        if hf_kwargs is None:
+            hf_kwargs = {}
+
+        # None is checked in the function, because argument defaults were added after the function was written and we want
+        # to preserve the ordering of the arguments for backwards compatibility.
+        if tokenizer is None:
+            raise ValueError('A tokenizer must be provided.')
+
         signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_data_prep_completed'
 
         # Non local rank 0 ranks will wait here for local rank 0 to finish the data processing.
@@ -999,12 +1005,16 @@ class DatasetConstructor:
         assert filtered_dataset is not None
         return filtered_dataset
 
+    @property
+    def streaming_dataset_class(self) -> Type[StreamingFinetuningDataset]:
+        return StreamingFinetuningDataset
+
     def build_from_streaming(
         self,
         *args: Any,
         **kwargs: Any,
     ) -> StreamingFinetuningDataset:
-        return StreamingFinetuningDataset(*args, **kwargs)
+        return self.streaming_dataset_class(*args, **kwargs)
 
 
 dataset_constructor = DatasetConstructor()

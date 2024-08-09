@@ -22,6 +22,7 @@ from torchmetrics import Metric
 from transformers import (
     AutoConfig,
     AutoModelForCausalLM,
+    GenerationConfig,
     PreTrainedModel,
     PreTrainedTokenizerBase,
 )
@@ -232,7 +233,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
 
         # Hugging Face copies the modules into the
         # transformers modules cache. On particular systems, this operation seems to cause contention between
-        # the different processes. To avoid this contention, we first create the config on local rank
+        # the different processes. To avoid this contention, we first create the config and generation config on local rank
         # zero. This will set up the transformers module cache and avoid the future contention.
         if dist.get_local_rank() == 0:
             AutoConfig.from_pretrained(
@@ -243,6 +244,13 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                 use_cache=
                 False,  # Necessary due to https://github.com/huggingface/transformers/issues/28056
             )
+            try:
+                GenerationConfig.from_pretrained(
+                    pretrained_model_name_or_path,
+                    use_auth_token=use_auth_token,
+                )
+            except OSError:
+                pass
 
         dist.barrier()
 
@@ -336,6 +344,17 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
 
         if dist.get_local_rank() == 0:
             os.remove(signal_file_path)
+
+        # Use the pretrained generation config for the model if it exists.
+        try:
+            model.generation_config = GenerationConfig.from_pretrained(
+                pretrained_model_name_or_path,
+                use_auth_token=use_auth_token,
+            )
+        except OSError:
+            log.warning(
+                f'No existing generation config found for the model with name or path {pretrained_model_name_or_path}. Using default generation config.',
+            )
 
         # Hugging Face's weight tying does not succeed if the model is inited on meta device
         # so we manually apply the weight tying here

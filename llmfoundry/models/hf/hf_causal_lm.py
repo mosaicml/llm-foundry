@@ -22,6 +22,7 @@ from torchmetrics import Metric
 from transformers import (
     AutoConfig,
     AutoModelForCausalLM,
+    GenerationConfig,
     PreTrainedModel,
     PreTrainedTokenizerBase,
 )
@@ -336,6 +337,17 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
 
         if dist.get_local_rank() == 0:
             os.remove(signal_file_path)
+
+        # Use the pretrained generation config for the model if it exists.
+        try:
+            model.generation_config = GenerationConfig.from_pretrained(
+                pretrained_model_name_or_path,
+                use_auth_token=use_auth_token,
+            )
+        except OSError:
+            log.warning(
+                f'No existing generation config found for the model with name or path {pretrained_model_name_or_path}. Using default generation config.',
+            )
 
         # Hugging Face's weight tying does not succeed if the model is inited on meta device
         # so we manually apply the weight tying here

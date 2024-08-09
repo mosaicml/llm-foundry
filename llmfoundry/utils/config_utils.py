@@ -104,7 +104,6 @@ class TrainConfig:
     device_train_batch_size: Union[int, float] = MISSING
     device_eval_batch_size: Union[int, float] = MISSING
     max_duration: Union[int, str] = MISSING
-    eval_interval: Union[int, str] = MISSING
     max_seq_len: int = MISSING
 
     # Seed
@@ -126,6 +125,7 @@ class TrainConfig:
     fsdp_config: Optional[Dict[str, Any]] = None
 
     # Evaluation parameters
+    eval_interval: Union[int, str] = 1
     eval_loader: Optional[Dict[str, Any]] = None
     eval_loaders: Optional[List[Dict[str, Any]]
                           ] = None  # should not be set by the user

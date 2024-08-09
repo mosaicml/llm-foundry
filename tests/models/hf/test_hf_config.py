@@ -292,7 +292,7 @@ def test_use_flash():
 
 def test_generation_config(tmp_path: Path):
     # Create a small llama model to edit and save.
-    config = AutoConfig.from_pretrained('meta-llama/Llama-2-7b-hf')
+    config = AutoConfig.from_pretrained('codellama/CodeLlama-7b-hf')
     set_config_overrides(
         config,
         config_overrides={

@@ -9,7 +9,8 @@ the future.
 
 import copy
 import logging
-from typing import Any
+import warnings
+from typing import Any, Optional, Union
 
 from composer import DataSpec
 from composer.core import State, Time, TimeUnit, ensure_time
@@ -23,6 +24,7 @@ from llmfoundry.utils.exceptions import (
     BaseContextualError,
     TrainDataLoaderLocation,
 )
+from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
 log = logging.getLogger(__name__)
 
@@ -32,19 +34,21 @@ __all__ = ['CurriculumLearning']
 class CurriculumLearning(CallbackWithConfig):
     """Starts an epoch with a different dataset when resuming from a checkpoint.
 
+    Example duration:
+    <number>tok
     Example schedule:
     [
         {
             'duration': <number>tok,
-            'train_loader': <dataloader parameters>, # matches top level train_loader
+            'dataset': <dataset parameters>,
         },
         {
             'duration': <number>tok,
-            'train_loader': <dataloader parameters>,
+            'dataset': <dataset parameters>,
         },
         {
             'duration': <number>tok,
-            'train_loader': <dataloader parameters>,
+            'dataset': <dataset parameters>,
         ],
     ]
 
@@ -53,48 +57,59 @@ class CurriculumLearning(CallbackWithConfig):
             being used. Note that this is the full train config and must
             contain the 'train_loader', 'device_train_batch_size', and
             'tokenizer' keys.
+        duration (Union[Time, str, int], optional): The duration of the first datamix
+            (which corresponds to the train_loader). Defaults to None.
         schedule (list[dict[str, Any]]): The list of datamixes to use and their
             durations. Duration units must match max_duration and be in terms of
             a TimeUnit that is supported by Iteration. The duration values must
             be positive. There must be at least one datamix in the schedule. The
-            first datamix in the schedule must match the train_loader in the
-            train_config. On resumption, previously trained on datamixes and
-            durations cannot be changed. The duration of the current datamix
-            must be greater than the saved timestamp. The dataset must be a
-            StreamingDataset.
+            first datamix during training is not included in the schedule. On
+            resumption, previously trained on datamixes and durations cannot be
+            changed. The duration of the current datamix must be greater than
+            the saved timestamp. The dataset must be a StreamingDataset.
     """
 
     def __init__(
         self,
         train_config: dict[str, Any],
         schedule: list[dict[str, Any]],
+        duration: Optional[Union[Time, str, int]] = None,
     ):
+        if duration is None:
+            warnings.warn(
+                VersionedDeprecationWarning(
+                    'Specifying the full schedule in the CurriculumLearning ' +
+                    'callback is deprecated. Please specify the duration of ' +
+                    'the first datamix separately and change the schedule ' +
+                    'use datasets instead of dataloaders.',
+                    remove_version='0.15.0',
+                ),
+            )
+
         # Ensure all duration units are in epochs or tokens and values are positive
         self._schedule = schedule
         if len(self._schedule) == 0:
             raise ValueError('The schedule must have at least one datamix.')
-        for index, datamix in enumerate(self._schedule):
+        if duration is not None:
+            first_datamix = {
+                'duration': duration,
+                'dataset': train_config['train_loader']['dataset'],
+            }
+            self._schedule.insert(0, first_datamix)
+        for datamix in self._schedule:
             self._validate_datamix(datamix)
 
-            if (
-                index == 0 and
-                train_config['train_loader'] != datamix['train_loader']
-            ):
-                raise ValueError((
-                    'The first datamix in the schedule must match the '
-                    'train_loader in the train_config.'
-                ))
-
         self._schedule_index = 0
-        self.device_train_batch_size = train_config['device_train_batch_size']
-        self.tokenizer = None
+        self._train_loader_config: dict[str, Any] = train_config['train_loader']
+        self._device_train_batch_size = train_config['device_train_batch_size']
+        self._tokenizer = None
 
     def init(self, state: State, logger: Logger):
         del logger  # unused
 
         if not hasattr(state.model, 'tokenizer'):
             raise ValueError('state.model must have a tokenizer attribute.')
-        self.tokenizer = state.model.tokenizer
+        self._tokenizer = state.model.tokenizer
 
     def before_load(self, state: State, logger: Logger):
         del logger  # unused
@@ -151,8 +166,13 @@ class CurriculumLearning(CallbackWithConfig):
             # which is stale
             clean_stale_shared_memory()
             datamix = copy.deepcopy(self._schedule[self._schedule_index])
+            train_loader_config = copy.deepcopy(self._train_loader_config)
+            if 'dataset' in datamix:
+                train_loader_config['dataset'].update(datamix['dataset'])
+            else:
+                train_loader_config = datamix['train_loader']
             data_spec = self._build_train_loader(
-                train_loader_config=datamix['train_loader'],
+                train_loader_config=train_loader_config,
                 logger=logger,
             )
             state.set_dataloader(
@@ -211,18 +231,20 @@ class CurriculumLearning(CallbackWithConfig):
         train_loader_config: dict[str, Any],
         logger: Logger,
     ) -> DataSpec:
+        del logger  # unused
+
         from llmfoundry.data.dataloader import build_dataloader
 
         # Copied from scripts/train/train.py
         log.info(
             f'Building train loader in CurriculumLearning callback for dataset {self._schedule_index}',
         )
-        assert self.tokenizer is not None
+        assert self._tokenizer is not None
         try:
             return build_dataloader(
                 train_loader_config,
-                self.tokenizer,
-                self.device_train_batch_size,
+                self._tokenizer,
+                self._device_train_batch_size,
             )
         except BaseContextualError as e:
             e.location = TrainDataLoaderLocation
@@ -260,5 +282,5 @@ class CurriculumLearning(CallbackWithConfig):
                 'Schedules can only be defined in terms of epochs or tokens.',
             )
 
-        if 'train_loader' not in datamix:
-            raise ValueError('Each datamix must have a train_loader.')
+        if 'train_loader' not in datamix and 'dataset' not in datamix:
+            raise ValueError('Each datamix must have a dataset.')

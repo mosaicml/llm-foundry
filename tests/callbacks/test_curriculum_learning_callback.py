@@ -22,7 +22,7 @@ from llmfoundry.utils.builders import build_callback
     [
         (None, '1ep'),
         ({
-            'dataset': 'some_dataset',
+            'hf_name': 'some_dataset',
         }, '1ep'),
         (None, '10tok'),
         (None, ''),
@@ -36,23 +36,29 @@ def test_curriculum_learning_callback_init(
 ):
     test_cfg = _get_test_cfg()
     test_cfg['train_loader'] = tiny_ft_dataloader_cfg
-    train_loader = test_cfg['train_loader'] if datamix is None else datamix
+    if datamix is None:
+        train_loader = test_cfg['train_loader']['dataset']
+    else:
+        train_loader = datamix
     kwargs = {
         'schedule': [{
             'duration': duration,
-            'train_loader': train_loader,
+            'dataset': train_loader,
         }, {
             'duration': '2ep',
-            'train_loader': {},
+            'dataset': {},
         }],
     }
+
+    kwargs['duration'] = kwargs['schedule'].pop(0)['duration']
+
     if duration == '':
         del kwargs['schedule'][0]['duration']
     if datamix is not None and len(datamix) == 0:
-        del kwargs['schedule'][0]['train_loader']
+        del kwargs['schedule'][0]['dataset']
 
     context = nullcontext()
-    if datamix is not None or duration == '':
+    if (datamix is not None and len(datamix) == 0) or duration == '':
         context = pytest.raises(ValueError)
     with context:
         callback = build_callback(
@@ -85,12 +91,14 @@ def test_curriculum_learning_callback_before_load(
     kwargs = {
         'schedule': [{
             'duration': duration,
-            'train_loader': test_cfg['train_loader'],
+            'dataset': test_cfg['train_loader']['dataset'],
         }, {
             'duration': '2ep',
-            'train_loader': test_cfg['train_loader'],
+            'dataset': test_cfg['train_loader']['dataset'],
         }],
     }
+
+    kwargs['duration'] = kwargs['schedule'].pop(0)['duration']
 
     callback = build_callback(
         'curriculum_learning',
@@ -123,12 +131,14 @@ def test_curriculum_learning_callback_after_load(build_tiny_mpt: Callable,):
     kwargs = {
         'schedule': [{
             'duration': '1ep',
-            'train_loader': test_cfg['train_loader'],
+            'dataset': test_cfg['train_loader']['dataset'],
         }, {
             'duration': '2ep',
-            'train_loader': test_cfg['train_loader'],
+            'dataset': test_cfg['train_loader']['dataset'],
         }],
     }
+
+    kwargs['duration'] = kwargs['schedule'].pop(0)['duration']
 
     callback = build_callback(
         'curriculum_learning',
@@ -168,12 +178,14 @@ def test_curriculum_learning_callback_iteration(
     kwargs = {
         'schedule': [{
             'duration': '1ep',
-            'train_loader': test_cfg['train_loader'],
+            'dataset': test_cfg['train_loader']['dataset'],
         }, {
             'duration': '2ep',
-            'train_loader': test_cfg['train_loader'],
+            'dataset': test_cfg['train_loader']['dataset'],
         }],
     }
+
+    kwargs['duration'] = kwargs['schedule'].pop(0)['duration']
 
     callback = build_callback(
         'curriculum_learning',
@@ -208,12 +220,14 @@ def test_curriculum_learning_callback_state_dict(build_tiny_mpt: Callable,):
     kwargs = {
         'schedule': [{
             'duration': '1ep',
-            'train_loader': test_cfg['train_loader'],
+            'dataset': test_cfg['train_loader']['dataset'],
         }, {
             'duration': '2ep',
-            'train_loader': test_cfg['train_loader'],
+            'dataset': test_cfg['train_loader']['dataset'],
         }],
     }
+
+    kwargs['duration'] = kwargs['schedule'].pop(0)['duration']
 
     callback = build_callback(
         'curriculum_learning',
@@ -249,12 +263,14 @@ def test_curriculum_learning_callback_load_state_dict(
     kwargs = {
         'schedule': [{
             'duration': '1ep',
-            'train_loader': test_cfg['train_loader'],
+            'dataset': test_cfg['train_loader']['dataset'],
         }, {
             'duration': '2ep',
-            'train_loader': test_cfg['train_loader'],
+            'dataset': test_cfg['train_loader']['dataset'],
         }],
     }
+
+    kwargs['duration'] = kwargs['schedule'].pop(0)['duration']
 
     callback = build_callback(
         'curriculum_learning',

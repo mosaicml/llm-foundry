@@ -2,7 +2,7 @@
 <p align="center">
   <a href="https://github.com/mosaicml/llm-foundry">
     <picture>
-      <img alt="LLM Foundry" src="./assets/llm-foundry.png" width="95%">
+      <img alt="AGI Foundry" src="./assets/llm-foundry.png" width="95%">
     </picture>
   </a>
 </p>
@@ -24,7 +24,7 @@
 </p>
 <br />
 
-# LLM Foundry
+# AGI Foundry
 
 This repository contains code for training, finetuning, evaluating, and deploying LLMs for inference with [Composer](https://github.com/mosaicml/composer) and the [MosaicML platform](https://forms.mosaicml.com/demo?utm_source=github.com&utm_medium=referral&utm_campaign=llm-foundry). Designed to be easy-to-use, efficient _and_ flexible, this codebase enables rapid experimentation with the latest techniques.
 
@@ -42,7 +42,7 @@ You'll find in this repo:
 
 # DBRX
 
-DBRX is a state-of-the-art open source LLM trained by Databricks Mosaic team. It uses the Mixture-of-Experts (MoE) architecture and was trained with optimized versions of [Composer](https://github.com/mosaicml/composer), LLM Foundry, and [MegaBlocks](https://github.com/databricks/megablocks). The model has 132B total parameters and 36B active parameters. We have released two DBRX models:
+DBRX is a state-of-the-art open source LLM trained by Databricks Mosaic team. It uses the Mixture-of-Experts (MoE) architecture and was trained with optimized versions of [Composer](https://github.com/mosaicml/composer), AGI Foundry, and [MegaBlocks](https://github.com/databricks/megablocks). The model has 132B total parameters and 36B active parameters. We have released two DBRX models:
 
 
 | Model              | Context Length | Download                                           |
@@ -109,7 +109,7 @@ Something missing? Contribute with a PR!
 # Hardware and Software Requirements
 This codebase has been tested with PyTorch 2.2 with NVIDIA A100s and H100s.
 This codebase may also work on systems with other devices, such as consumer NVIDIA cards and AMD cards, but we are not actively testing these systems.
-If you have success/failure using LLM Foundry on other systems, please let us know in a Github issue and we will update the support matrix!
+If you have success/failure using AGI Foundry on other systems, please let us know in a Github issue and we will update the support matrix!
 
 | Device         | Torch Version | Cuda Version | Status                       |
 | -------------- | ------------- | ------------ | ---------------------------- |
@@ -126,7 +126,7 @@ You can select a specific commit hash such as `mosaicml/llm-foundry:2.3.1_cu121-
 
 **Please Note:** The `mosaicml/llm-foundry` images do not come with the `llm-foundry` package preinstalled, just the dependencies. You will still need to `pip install llm-foundry` either from PyPi or from source.
 
-| Docker Image                                           | Torch Version | Cuda Version      | LLM Foundry dependencies installed? |
+| Docker Image                                           | Torch Version | Cuda Version      | AGI Foundry dependencies installed? |
 | ------------------------------------------------------ | ------------- | ----------------- | ----------------------------------- |
 | `mosaicml/pytorch:2.3.1_cu121-python3.11-ubuntu20.04`  | 2.3.1         | 12.1 (Infiniband) | No                                  |
 | `mosaicml/llm-foundry:2.3.1_cu121-latest`              | 2.3.1         | 12.1 (Infiniband) | Yes                                 |
@@ -141,7 +141,7 @@ To get started, clone the repo and set up your environment. Instructions to do s
 
 ### With Docker (recommended)
 
-We *strongly* recommend working with LLM Foundry inside a Docker container (see our recommended Docker image above). If you are doing so, follow these steps to clone the repo and install the requirements.
+We *strongly* recommend working with AGI Foundry inside a Docker container (see our recommended Docker image above). If you are doing so, follow these steps to clone the repo and install the requirements.
 
 <!--pytest.mark.skip-->
 ```bash
@@ -202,7 +202,7 @@ Notes:
 1. We don't yet have a Docker image where everything works perfectly. You might need to up/downgrade some packages (in our case, we needed to downgrade to `numpy==1.23.5`) before everything works without issue.
 
 ### Intel Gaudi
-Support for LLM Foundry on Intel Gaudi devices is experimental, please use the branch `habana_alpha` and see the [README on that branch](https://github.com/mosaicml/llm-foundry/blob/habana_alpha) which has [install instructions and known issues.](https://github.com/mosaicml/llm-foundry/tree/habana_alpha?tab=readme-ov-file#intel-gaudi)
+Support for AGI Foundry on Intel Gaudi devices is experimental, please use the branch `habana_alpha` and see the [README on that branch](https://github.com/mosaicml/llm-foundry/blob/habana_alpha) which has [install instructions and known issues.](https://github.com/mosaicml/llm-foundry/tree/habana_alpha?tab=readme-ov-file#intel-gaudi)
 
 For training and inference performance results on Intel Gaudi2 accelerators, see our blog: https://www.databricks.com/blog/llm-training-and-inference-intel-gaudi2-ai-accelerators
 
@@ -271,7 +271,7 @@ and uncomment the line containing `--hf_repo_for_upload ...` in the above call t
 
 # Registry
 
-You can use the registry to customize your workflows without forking the library. Some components of LLM Foundry are registrable, such as models, loggers, and callbacks. This means that you can register new options for these components, and then use them in your yaml config.
+You can use the registry to customize your workflows without forking the library. Some components of AGI Foundry are registrable, such as models, loggers, and callbacks. This means that you can register new options for these components, and then use them in your yaml config.
 
 ## Discovering registrable components
 To help find and understand registrable components, you can use the `llmfoundry registry` cli command.
@@ -291,7 +291,7 @@ There are a few ways to register a new component:
 ### Python entrypoints
 
 You can specify registered components via a Python entrypoint if you are building your own package with registered components.
-This would be the expected usage if you are building a large extension to LLM Foundry, and going to be overriding many components. Note that things registered via entrypoints will override components registered directly in code.
+This would be the expected usage if you are building a large extension to AGI Foundry, and going to be overriding many components. Note that things registered via entrypoints will override components registered directly in code.
 
 For example, the following would register the `MyLogger` class, under the key `my_logger`, in the `llm_foundry.loggers` registry:
 
@@ -316,7 +316,7 @@ dependencies = [
 my_logger = "foundry_registry.loggers:MyLogger"
 ```
 
-If developing new components via entrypoints, it is important to note that Python entrypoints are global to the Python environment. This means that if you have multiple packages that register components with the same key, the last one installed will be the one used. This can be useful for overriding components in LLM Foundry, but can also lead to unexpected behavior if not careful. Additionally, if you change the pyproject.toml, you will need to reinstall the package for the changes to take effect. You can do this quickly by installing with `pip install -e . --no-deps` to avoid reinstalling dependencies.
+If developing new components via entrypoints, it is important to note that Python entrypoints are global to the Python environment. This means that if you have multiple packages that register components with the same key, the last one installed will be the one used. This can be useful for overriding components in AGI Foundry, but can also lead to unexpected behavior if not careful. Additionally, if you change the pyproject.toml, you will need to reinstall the package for the changes to take effect. You can do this quickly by installing with `pip install -e . --no-deps` to avoid reinstalling dependencies.
 
 ### Direct call to register
 
@@ -347,7 +347,7 @@ class MyLogger(LoggerDestination):
     pass
 ```
 
-For both the direct call and decorator approaches, if using the LLM Foundry train/eval scripts, you will need to provide the `code_paths` argument, which is a list of files need to execute in order to register your components. For example, you may have a file called `foundry_imports.py` that contains the following:
+For both the direct call and decorator approaches, if using the AGI Foundry train/eval scripts, you will need to provide the `code_paths` argument, which is a list of files need to execute in order to register your components. For example, you may have a file called `foundry_imports.py` that contains the following:
 
 <!--pytest.mark.skip-->
 ```python
@@ -367,11 +367,11 @@ code_paths:
 ...
 ```
 
-One of these would be the expected usage if you are building a small extension to LLM Foundry, only overriding a few components, and thus don't want to create an entire package.
+One of these would be the expected usage if you are building a small extension to AGI Foundry, only overriding a few components, and thus don't want to create an entire package.
 
-# Learn more about LLM Foundry!
+# Learn more about AGI Foundry!
 
-Check out [TUTORIAL.md](https://github.com/mosaicml/llm-foundry/blob/main/TUTORIAL.md) to keep learning about working with LLM Foundry. The tutorial highlights example workflows, points you to other resources throughout the repo, and answers frequently asked questions!
+Check out [TUTORIAL.md](https://github.com/mosaicml/llm-foundry/blob/main/TUTORIAL.md) to keep learning about working with AGI Foundry. The tutorial highlights example workflows, points you to other resources throughout the repo, and answers frequently asked questions!
 
 # Contact Us
 

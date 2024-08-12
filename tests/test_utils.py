@@ -1,6 +1,7 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import copy
 from typing import Any, Dict, List
 
 import catalogue
@@ -70,3 +71,34 @@ def test_config_transforms():
 
     del catalogue.REGISTRY[
         ('llmfoundry', 'config_transforms', 'dummy_transform')]
+
+
+def test_logged_cfg():
+    config = DictConfig({
+        'global_train_batch_size': 1,
+        'device_train_microbatch_size': 1,
+        'model': {},
+        'scheduler': {},
+        'max_seq_len': 128,
+        'train_loader': {},
+        'max_duration': 1,
+        'tokenizer': {},
+        'eval_interval': 1,
+        'seed': 1,
+        'optimizer': {},
+        'variables': {},
+    },)
+    logged_config, _ = make_dataclass_and_log_config(
+        config,
+        TrainConfig,
+        TRAIN_CONFIG_KEYS,
+        transforms='all',
+    )
+    expected_config = copy.deepcopy(config)
+    expected_config.update({
+        'n_gpus': 1,
+        'device_train_batch_size': 1,
+        'device_train_grad_accum': 1,
+        'device_eval_batch_size': 1,
+    })
+    assert expected_config == logged_config

@@ -13,7 +13,6 @@ from typing import (
     List,
     Optional,
     Tuple,
-    Type,
     Union,
 )
 
@@ -27,6 +26,7 @@ from transformers import (
     PreTrainedModel,
     PreTrainedTokenizerBase,
 )
+from transformers.models.auto.auto_factory import _BaseAutoModelClass
 
 from llmfoundry.metrics import (
     DEFAULT_CAUSAL_LM_EVAL_METRICS,
@@ -194,7 +194,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         config_overrides: Dict[str, Any],
         load_in_8bit: bool,
         pretrained: bool,
-        model_cls: Union[Type, Type[PreTrainedModel]] = AutoModelForCausalLM,
+        model_cls: Union[_BaseAutoModelClass,
+                         PreTrainedModel] = AutoModelForCausalLM,
         prepare_for_fsdp: bool = False,
     ) -> Union[PreTrainedModel, 'PeftModel']:
         """Builds the inner model for the ComposerHFCausalLM.

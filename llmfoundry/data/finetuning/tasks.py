@@ -47,6 +47,7 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
+    Type,
     Union,
     cast,
 )
@@ -77,8 +78,10 @@ from llmfoundry.utils.exceptions import (
     ConsecutiveRepeatedChatRolesError,
     IncorrectMessageKeyQuantityError,
     InvalidContentTypeError,
+    InvalidExampleTypeError,
     InvalidFileExtensionError,
     InvalidLastChatMessageRoleError,
+    InvalidMessageTypeError,
     InvalidPromptResponseKeysError,
     InvalidPromptTypeError,
     InvalidResponseTypeError,
@@ -115,6 +118,8 @@ DOWNLOADED_FT_DATASETS_DIRPATH = os.path.abspath(
 )
 SUPPORTED_EXTENSIONS = ['.csv', '.json', '.jsonl', '.parquet']
 HUGGINGFACE_FOLDER_EXTENSIONS = ['.lock', '.metadata']
+DEFAULT_TARGET_RESPONSES = 'last'
+DEFAULT_TARGET_PROMPTS = 'none'
 
 PromptResponseDict = Mapping[str, str]
 ChatFormattedDict = Mapping[str, List[Dict[str, str]]]
@@ -136,9 +141,7 @@ def _get_example_type(example: Example) -> ExampleType:
         KeyError: If the example type is unknown.
     """
     if not isinstance(example, Mapping):
-        raise TypeError(
-            f'Expected example to be a Mapping, but found {type(example)}',
-        )
+        raise InvalidExampleTypeError(str(type(example)))
     if (
         len(example.keys()) == 1 and any(
             allowed_message_key in example
@@ -153,7 +156,8 @@ def _get_example_type(example: Example) -> ExampleType:
     ):
         return 'prompt_response'
     else:
-        raise UnknownExampleTypeError(str(example.keys()))
+        keys = str(set(example.keys()))
+        raise UnknownExampleTypeError(keys)
 
 
 def _is_empty_or_nonexistent(dirpath: str) -> bool:
@@ -162,7 +166,7 @@ def _is_empty_or_nonexistent(dirpath: str) -> bool:
     Args:
         dirpath (str): Directory path to check.
 
-    Returns
+    Returns:
         True if directory is empty or non-existent. False otherwise.
     """
     return not os.path.isdir(dirpath) or len(os.listdir(dirpath)) == 0
@@ -170,23 +174,17 @@ def _is_empty_or_nonexistent(dirpath: str) -> bool:
 
 def _get_key(dictionary: Mapping[str, Any], allowed_keys: set[str]):
     if not isinstance(dictionary, Mapping):
-        raise TypeError(
-            f'Expected dictionary to be a mapping, but found {type(dictionary)}',
-        )
+        raise InvalidExampleTypeError(str(type(dictionary)))
     desired_keys = allowed_keys.intersection(dictionary.keys())
     return list(desired_keys)[0]
 
 
 def _validate_chat_formatted_example(example: ChatFormattedDict):
     if not isinstance(example, Mapping):
-        raise TypeError(
-            f'Expected example to be a mapping, but found {type(example)}',
-        )
+        raise InvalidExampleTypeError(str(type(example)))
     messages = example[_get_key(example, ALLOWED_MESSAGES_KEYS)]
     if not isinstance(messages, List):
-        raise TypeError(
-            f'Expected messages to be an iterable, but found {type(messages)}',
-        )
+        raise InvalidMessageTypeError(str(type(messages)))
     if len(messages) <= 1:
         raise NotEnoughChatDataError()
 
@@ -805,14 +803,14 @@ class DatasetConstructor:
         self,
         dataset_name: str,
         split: str,
-        safe_load: bool,
-        max_seq_len: int,
-        preprocessing_fn: Optional[Callable[[dict[str, Any]], Example]],
-        tokenizer: PreTrainedTokenizerBase,
-        target_prompts: str,
-        target_responses: str,
-        decoder_only_format: bool,
-        hf_kwargs: Dict[str, Any],
+        safe_load: bool = False,
+        max_seq_len: int = 2048,
+        preprocessing_fn: Optional[Callable[[dict[str, Any]], Example]] = None,
+        tokenizer: Optional[PreTrainedTokenizerBase] = None,
+        target_prompts: str = DEFAULT_TARGET_PROMPTS,
+        target_responses: str = DEFAULT_TARGET_RESPONSES,
+        decoder_only_format: bool = True,
+        hf_kwargs: Optional[Dict[str, Any]] = None,
     ) -> Union[hf_datasets.DatasetDict, hf_datasets.Dataset,
                hf_datasets.IterableDatasetDict, hf_datasets.IterableDataset]:
         """Load a HuggingFace Datasets, preprocess, and tokenize.
@@ -820,13 +818,45 @@ class DatasetConstructor:
         Note: This function will drop examples where the prompt is longer than the max_seq_len
 
         Args:
-            cfg (DictConfig): The dataset configuration.
-            max_seq_len (int): The maximum sequence length. Examples with prompts longer than this will be dropped.
-            tokenizer (Tokenizer): The tokenizer to be used for tokenizing the dataset.
+            dataset_name (str): The name of the HuggingFace dataset
+                to use. Can also be a remote http(s) directory or object store bucket
+                containing the file {split}.jsonl in the format (prompt, response),
+                in which case the builder will create a HuggingFace dataset.
+            split (str): The split of the HuggingFace dataset.
+            safe_load (bool, optional): Whether to enforce safe loading of the dataset.
+                If `None`, will default to not applying any safe loading.
+            max_seq_len (int): The maximum length of sequences
+                in the batch. See :class:`Seq2SeqFinetuningCollator` docstring
+                for details.
+            preprocessing_fn (Callable, optional): The preprocessing function to use for
+                formatting the data examples.
+            tokenizer (PreTrainedTokenizerBase): The tokenizer to be used for tokenizing
+                the HuggingFace dataset.
+            target_prompts (str): Which prompts are used as training targets.
+                Defaults to "none", meaning prompts are never used as training targets.
+                See :class:`Seq2SeqFinetuningCollator` docstring for details.
+            target_responses (str): Which responses are used as training targets.
+                Defaults to "last", meaning only the final response in multi-turn examples
+                will serve as training targets. See :class:`Seq2SeqFinetuningCollator` docstring for
+                details.
+            decoder_only_format (bool): Whether to format the
+                examples for a decoder-only model. See :class:`Seq2SeqFinetuningCollator`
+                docstring for details.
+            hf_kwargs (DictConfig, optional): Additional kwargs to
+                pass to `datasets.load_dataset`, which can be used to load
+                a dataset from local files.
 
         Returns:
             Dataset: The tokenized dataset.
         """
+        if hf_kwargs is None:
+            hf_kwargs = {}
+
+        # None is checked in the function, because argument defaults were added after the function was written and we want
+        # to preserve the ordering of the arguments for backwards compatibility.
+        if tokenizer is None:
+            raise ValueError('A tokenizer must be provided.')
+
         signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_data_prep_completed'
 
         # Non local rank 0 ranks will wait here for local rank 0 to finish the data processing.
@@ -913,6 +943,8 @@ class DatasetConstructor:
             detected_cpu_count = os.cpu_count() or 1
             detected_cpus_with_margin = detected_cpu_count - 8
             num_cpus_to_use = max(1, detected_cpus_with_margin)
+            if len(dataset) < num_cpus_to_use:
+                num_cpus_to_use = 1
 
             columns_to_remove = list(dataset[0].keys())
             tokenized_dataset = dataset.map(
@@ -973,12 +1005,16 @@ class DatasetConstructor:
         assert filtered_dataset is not None
         return filtered_dataset
 
+    @property
+    def streaming_dataset_class(self) -> Type[StreamingFinetuningDataset]:
+        return StreamingFinetuningDataset
+
     def build_from_streaming(
         self,
         *args: Any,
         **kwargs: Any,
     ) -> StreamingFinetuningDataset:
-        return StreamingFinetuningDataset(*args, **kwargs)
+        return self.streaming_dataset_class(*args, **kwargs)
 
 
 dataset_constructor = DatasetConstructor()

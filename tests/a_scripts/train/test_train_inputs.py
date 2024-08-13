@@ -9,7 +9,7 @@ import pytest
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
-from llmfoundry.train import train  # noqa: E402
+from llmfoundry.command_utils import train
 
 
 def make_fake_index_file(path: str) -> None:

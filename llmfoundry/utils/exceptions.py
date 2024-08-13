@@ -28,6 +28,7 @@ __all__ = [
     'InputFolderMissingDataError',
     'OutputFolderNotEmptyError',
     'MisconfiguredHfDatasetError',
+    'DatasetTooSmallError',
     'RunTimeoutError',
 ]
 
@@ -160,6 +161,22 @@ class NotEnoughDatasetSamplesError(UserError):
 
 
 ## Tasks exceptions
+class InvalidExampleTypeError(UserError):
+    """Error thrown when a message type is not a `Mapping`."""
+
+    def __init__(self, example_type: str) -> None:
+        message = f'Expected example to be a `Mapping`, but found type {example_type}'
+        super().__init__(message, example_type=example_type)
+
+
+class InvalidMessageTypeError(UserError):
+    """Error thrown when a message type is not an `Iterable`."""
+
+    def __init__(self, message_type: str) -> None:
+        message = f'Expected message to be an `Iterable`, but found type {message_type}'
+        super().__init__(message, message_type=message_type)
+
+
 class UnknownExampleTypeError(UserError):
     """Error thrown when an unknown example type is used in a task."""
 
@@ -346,6 +363,14 @@ class MisconfiguredHfDatasetError(UserError):
         message = f'Your dataset (name={dataset_name}, split={split}) is misconfigured. ' + \
             'Please check your dataset format and make sure you can load your dataset locally.'
         super().__init__(message, dataset_name=dataset_name, split=split)
+
+
+class DatasetTooSmallError(UserError):
+    """Error thrown when the dataset is too small to be processed."""
+
+    def __init__(self) -> None:
+        message = f'Your dataset is too small and produced no complete samples during preprocessing. Please provide more data.'
+        super().__init__(message)
 
 
 class RunTimeoutError(InternalError):

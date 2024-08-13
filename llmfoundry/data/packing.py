@@ -20,7 +20,20 @@ __all__ = [
 
 
 class BinPackCollator:
-    """Utility collator for packing to reduce padding."""
+    """Utility collator for packing to reduce padding.
+
+    Args:
+        collator (Callable): The base collator to use.
+        target_batch_size (int): The number of bins.
+        max_seq_len(int): The maximum sequence length of a bin.
+        pad_token_id (int): The padding token id.
+        padding_side (Literal['left', 'right']): The side to pad on.
+        max_leftover_bins_to_keep (Optional[int]): The number of leftover bins
+            to keep.
+        is_profiling (bool): Whether the collator is being used for profiling.
+            In profiling mode, packing and padding the example tensors is
+            avoided for efficiency, and the returned batch will be None.
+    """
 
     def __init__(
         self,
@@ -30,6 +43,7 @@ class BinPackCollator:
         pad_token_id: int,
         padding_side: Literal['left', 'right'],
         max_leftover_bins_to_keep: Optional[int] = None,
+        is_profiling: bool = False,
     ):
         self.base_collator = collator
         self.out_size = int(target_batch_size)
@@ -56,6 +70,8 @@ class BinPackCollator:
 
         self._leftover_bins: List[Tuple[int, Dict[str, torch.Tensor]]] = []
 
+        self._is_profiling = is_profiling
+
     @property
     def waste(self) -> float:
         return 1 - (self.n_packed_tokens / self.n_total_tokens)
@@ -74,6 +90,9 @@ class BinPackCollator:
         return self.pack(batch)
 
     def pack(self, batch: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+        if self._is_profiling:
+            raise ValueError('Cannot pack in profiling mode.')
+
         assert 'attention_mask' in batch
         assert 'input_ids' in batch
 
@@ -86,13 +105,15 @@ class BinPackCollator:
             ]
         # Cut everything down to size
         sizes, trimmed_examples = _trim_batch(batch)
-        return self._pack_trimmed_examples(trimmed_examples, sizes)
+        packed_batch = self._pack_trimmed_examples(trimmed_examples, sizes)
+        assert packed_batch is not None
+        return packed_batch
 
     def _pack_trimmed_examples(
         self,
         trimmed_examples: List[Dict[str, torch.Tensor]],
         sizes: List[int],
-    ) -> Dict[str, torch.Tensor]:
+    ) -> Optional[Dict[str, torch.Tensor]]:
         """Packs trimmed examples into fixed-size bins and repads them.
 
         Args:
@@ -100,10 +121,12 @@ class BinPackCollator:
             sizes (List[int]): The sizes of the trimmed examples.
 
         Returns:
-            Dict[str, torch.Tensor]: A batch of repadded examples ready for processing
+            Optional[Dict[str, torch.Tensor]]: A batch of repadded examples
+                ready for processing. If the collator is in profiling mode,
+                returns None.
         """
         # Apply our CS 101 bin packing algorithm.
-        packed_examples, n_packed_tokens, n_total_tokens, leftover_bins = _first_fit_bin_packing(
+        packed_examples, n_packed_tokens, n_total_tokens, leftover_bins = self._first_fit_bin_packing(
             sizes=sizes,
             examples=trimmed_examples,
             num_bins=self.out_size,
@@ -115,14 +138,144 @@ class BinPackCollator:
         self.n_packed_examples += self.out_size
         self._leftover_bins = leftover_bins[:self.max_leftover_bins_to_keep]
 
+        if self._is_profiling:
+            return None
+
         # Re-pad to max_seq_len and batch
-        batch = _repad(
-            packed_examples,
-            max_seq_len=self.max_seq_len,
-            pad_token_id=self.pad_token_id,
-            padding_side=self.padding_side,
-        )
+        batch = self._convert_to_batch(packed_examples)
         return batch
+
+    def _convert_to_batch(
+        self,
+        packed_examples: List[Dict[str, torch.Tensor]],
+    ) -> Dict[str, torch.Tensor]:
+
+        pad_vals = {
+            'input_ids': self.pad_token_id,
+            'labels': -100,
+            'attention_mask': 0,
+            'sequence_id': -1,
+        }
+        keys = packed_examples[0].keys()
+        batch = {}
+        for key in keys:
+            batch[key] = torch.stack([
+                _pad_tensor(
+                    example[key],
+                    pad_vals[key],
+                    self.max_seq_len,
+                    self.padding_side,
+                ) for example in packed_examples
+            ])
+        return batch
+
+    def _first_fit_bin_packing(
+        self,
+        sizes: List[int],
+        examples: List[Dict[str, torch.Tensor]],
+        num_bins: int,
+        max_bin_size: int,
+        existing_bins: List[Tuple[int, Dict[str, torch.Tensor]]],
+    ) -> Tuple[List[Dict[str, torch.Tensor]], int, int, List[Tuple[int, Dict[
+        str, torch.Tensor]]]]:
+
+        # Will contain tuples (bin_size_size, packed_example)
+        bins: List[Tuple[int, Dict[str, torch.Tensor]]] = existing_bins
+
+        starting_total_bin_sizes = sum([bin_size for bin_size, _ in bins])
+
+        sizes_and_examples = list(zip(sizes, examples))
+        sorted_sizes_and_examples = sorted(
+            sizes_and_examples,
+            key=lambda x: x[0],
+            reverse=True,
+        )
+
+        required_num_examples = max(0, num_bins - len(bins))
+        num_examples = len(sizes)
+        if num_examples < required_num_examples:
+            for size, example in sorted_sizes_and_examples:
+                # Can't keep packing. All remaining items get their own bin.
+                bins.append((size, example))
+
+            total_bin_sizes = sum([bin_size for bin_size, _ in bins])
+            total_new_bin_sizes = total_bin_sizes - starting_total_bin_sizes
+            total_example_sizes = sum(sizes)
+            if total_new_bin_sizes != total_example_sizes:
+                raise AssertionError(
+                    f'Error in packing. {total_example_sizes=} does not equal {total_new_bin_sizes=}.',
+                )
+
+            sorted_bins = sorted(bins, key=lambda x: x[0], reverse=True)
+            bin_sizes, packed_examples = [], []
+            for bin_size, packed_example in sorted_bins:
+                bin_sizes.append(bin_size)
+                packed_examples.append(packed_example)
+
+            # Return:
+            #  - the num_bins largest packed examples
+            #  - the total tokens in those examples
+            #  - the total size of all new examples
+            #  - leftover bins
+            return packed_examples[:num_bins], sum(
+                bin_sizes[:num_bins],
+            ), sum(sizes), sorted_bins[num_bins:]
+
+        # Go through each item from longest to shortest.
+        # Note: all items will either go into an existing or new bin.
+        for i, (size, example) in enumerate(sorted_sizes_and_examples):
+            # If we can't keep packing, all remaining items get their own bin.
+            required_num_examples = max(0, num_bins - len(bins))
+            n_remaining = num_examples - i
+            assert n_remaining >= required_num_examples
+            if n_remaining == required_num_examples:
+                # Can't keep packing. All remaining items get their own bin.
+                bins.append((size, example))
+                continue
+
+            # Add it to the first bin it fits in
+            added = False
+            for bidx in range(len(bins)):
+                if bins[bidx][0] + size <= max_bin_size:
+                    bin_size, packed_example = bins.pop(bidx)
+                    bin_size = bin_size + size
+                    # When profiling, don't combine the tensor for efficiency
+                    # and return the first example which isn't "correct"
+                    if not self._is_profiling:
+                        packed_example = _combine_in_place(
+                            packed_example,
+                            example,
+                        )
+
+                    bins.append((bin_size, packed_example))
+                    added = True
+                    break
+            # If it didn't fit anywhere, open a new bin
+            if not added:
+                bins.append((size, example))
+
+        total_bin_sizes = sum([bin_size for bin_size, _ in bins])
+        total_new_bin_sizes = total_bin_sizes - starting_total_bin_sizes
+        total_example_sizes = sum(sizes)
+        if total_new_bin_sizes != total_example_sizes:
+            raise AssertionError(
+                f'Error in packing. {total_example_sizes=} does not equal {total_new_bin_sizes=}.',
+            )
+
+        sorted_bins = sorted(bins, key=lambda x: x[0], reverse=True)
+        bin_sizes, packed_examples = [], []
+        for bin_size, packed_example in sorted_bins:
+            bin_sizes.append(bin_size)
+            packed_examples.append(packed_example)
+
+        # Return:
+        #  - the num_bins largest packed examples
+        #  - the total tokens in those examples
+        #  - the total size of all new examples
+        #  - leftover bins
+        return packed_examples[:num_bins], sum(
+            bin_sizes[:num_bins],
+        ), sum(sizes), sorted_bins[num_bins:]
 
 
 def _trim_batch(
@@ -177,143 +330,25 @@ def _combine_in_place(
     return example
 
 
-def _first_fit_bin_packing(
-    sizes: List[int],
-    examples: List[Dict[str, torch.Tensor]],
-    num_bins: int,
-    max_bin_size: int,
-    existing_bins: List[Tuple[int, Dict[str, torch.Tensor]]],
-) -> Tuple[List[Dict[str, torch.Tensor]], int, int, List[Tuple[int, Dict[
-    str, torch.Tensor]]]]:
-
-    # Will contain tuples (bin_size_size, packed_example)
-    bins: List[Tuple[int, Dict[str, torch.Tensor]]] = existing_bins
-
-    starting_total_bin_sizes = sum([bin_size for bin_size, _ in bins])
-
-    sizes_and_examples = list(zip(sizes, examples))
-    sorted_sizes_and_examples = sorted(
-        sizes_and_examples,
-        key=lambda x: x[0],
-        reverse=True,
-    )
-
-    required_num_examples = max(0, num_bins - len(bins))
-    num_examples = len(sizes)
-    if num_examples < required_num_examples:
-        for size, example in sorted_sizes_and_examples:
-            # Can't keep packing. All remaining items get their own bin.
-            bins.append((size, example))
-
-        total_bin_sizes = sum([bin_size for bin_size, _ in bins])
-        total_new_bin_sizes = total_bin_sizes - starting_total_bin_sizes
-        total_example_sizes = sum(sizes)
-        if total_new_bin_sizes != total_example_sizes:
-            raise AssertionError(
-                f'Error in packing. {total_example_sizes=} does not equal {total_new_bin_sizes=}.',
-            )
-
-        sorted_bins = sorted(bins, key=lambda x: x[0], reverse=True)
-        bin_sizes, packed_examples = [], []
-        for bin_size, packed_example in sorted_bins:
-            bin_sizes.append(bin_size)
-            packed_examples.append(packed_example)
-
-        # Return:
-        #  - the num_bins largest packed examples
-        #  - the total tokens in those examples
-        #  - the total size of all new examples
-        #  - leftover bins
-        return packed_examples[:num_bins], sum(
-            bin_sizes[:num_bins],
-        ), sum(sizes), sorted_bins[num_bins:]
-
-    # Go through each item from longest to shortest.
-    # Note: all items will either go into an existing or new bin.
-    for i, (size, example) in enumerate(sorted_sizes_and_examples):
-        # If we can't keep packing, all remaining items get their own bin.
-        required_num_examples = max(0, num_bins - len(bins))
-        n_remaining = num_examples - i
-        assert n_remaining >= required_num_examples
-        if n_remaining == required_num_examples:
-            # Can't keep packing. All remaining items get their own bin.
-            bins.append((size, example))
-            continue
-
-        # Add it to the first bin it fits in
-        added = False
-        for bidx in range(len(bins)):
-            if bins[bidx][0] + size <= max_bin_size:
-                bin_size, packed_example = bins.pop(bidx)
-                bin_size = bin_size + size
-                packed_example = _combine_in_place(packed_example, example)
-                bins.append((bin_size, packed_example))
-                added = True
-                break
-        # If it didn't fit anywhere, open a new bin
-        if not added:
-            bins.append((size, example))
-
-    total_bin_sizes = sum([bin_size for bin_size, _ in bins])
-    total_new_bin_sizes = total_bin_sizes - starting_total_bin_sizes
-    total_example_sizes = sum(sizes)
-    if total_new_bin_sizes != total_example_sizes:
-        raise AssertionError(
-            f'Error in packing. {total_example_sizes=} does not equal {total_new_bin_sizes=}.',
-        )
-
-    sorted_bins = sorted(bins, key=lambda x: x[0], reverse=True)
-    bin_sizes, packed_examples = [], []
-    for bin_size, packed_example in sorted_bins:
-        bin_sizes.append(bin_size)
-        packed_examples.append(packed_example)
-
-    # Return:
-    #  - the num_bins largest packed examples
-    #  - the total tokens in those examples
-    #  - the total size of all new examples
-    #  - leftover bins
-    return packed_examples[:num_bins], sum(
-        bin_sizes[:num_bins],
-    ), sum(sizes), sorted_bins[num_bins:]
-
-
-def _repad(
-    packed_examples: List[Dict[str, torch.Tensor]],
+def _pad_tensor(
+    tensor: torch.Tensor,
+    pad_value: int,
     max_seq_len: int,
-    pad_token_id: int,
     padding_side: str,
-) -> Dict[str, torch.Tensor]:
-
-    def pad_tensor(tensor: torch.Tensor, pad_value: int):
-        if len(tensor) == max_seq_len:
-            return tensor
-        t = torch.full((max_seq_len,),
-                       pad_value,
-                       dtype=tensor.dtype,
-                       device=tensor.device)
-        if padding_side == 'left':
-            t[-len(tensor):] = tensor
-        elif padding_side == 'right':
-            t[:len(tensor)] = tensor
-        else:
-            raise ValueError(f'Unknown {padding_side=}')
-        return t
-
-    pad_vals = {
-        'input_ids': pad_token_id,
-        'labels': -100,
-        'attention_mask': 0,
-        'sequence_id': -1,
-    }
-    keys = packed_examples[0].keys()
-    batch = {}
-    for key in keys:
-        batch[key] = torch.stack([
-            pad_tensor(example[key], pad_vals[key])
-            for example in packed_examples
-        ])
-    return batch
+) -> torch.Tensor:
+    if len(tensor) == max_seq_len:
+        return tensor
+    t = torch.full((max_seq_len,),
+                   pad_value,
+                   dtype=tensor.dtype,
+                   device=tensor.device)
+    if padding_side == 'left':
+        t[-len(tensor):] = tensor
+    elif padding_side == 'right':
+        t[:len(tensor)] = tensor
+    else:
+        raise ValueError(f'Unknown {padding_side=}')
+    return t
 
 
 def auto_packing_ratio(
@@ -337,7 +372,7 @@ def auto_packing_ratio(
         dataloader_cfg (DictConfig): The dataloader configuration for profiling.
         tokenizer (PreTrainedTokenizerBase): The tokenizer for profiling.
         device_batch_size (int): The size of the batches (number of examples) per device.
-        num_packing_ratio (int): The number of packing ratios to try.
+        num_packing_ratios (int): The number of packing ratios to try.
 
     Returns:
         A packing ratio that minimizes padding while maintaining zero waste.
@@ -428,24 +463,23 @@ def profile_packing(
         'prefetch_factor': None,
         'persistent_workers': False,
     })
-    dataloader_cfg['dataset']['packing_ratio'] = 1.0
-    dataloader_cfg['dataset']['auto_packing_replication'
-                             ] = dataloader_cfg['dataset'].get(
-                                 'seq_parallel_replication',
-                                 1,
-                             ) or 1
-    dataloader_cfg['dataset']['seq_parallel_replication'] = 1
+    dataset_cfg = dataloader_cfg['dataset']
+    dataset_cfg['packing_ratio'] = 1.0
+    seq_parallel_replication = dataset_cfg.get('seq_parallel_replication', 1)
+    dataset_cfg['auto_packing_replication'] = seq_parallel_replication or 1
+    dataset_cfg['seq_parallel_replication'] = 1
+    dataset_cfg['pad_to_longest'] = True
 
     # If streaming dataset, use a temporary local folder for profiling
     local_rank_zero = dist.get_global_rank() - dist.get_local_rank()
-    if dataloader_cfg['dataset'].get('remote') is not None:
+    if dataset_cfg.get('remote') is not None:
         tmp_path_to_broadcast = tempfile.TemporaryDirectory().name
         gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
         tmp_path = gathered_paths[local_rank_zero]
-        dataloader_cfg['dataset']['local'] = tmp_path
+        dataset_cfg['local'] = tmp_path
 
-    if dataloader_cfg['dataset'].get('streams') is not None:
-        for stream_config in dataloader_cfg['dataset']['streams'].values():
+    if dataset_cfg.get('streams') is not None:
+        for stream_config in dataset_cfg['streams'].values():
             tmp_path_to_broadcast = tempfile.TemporaryDirectory().name
             gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
             tmp_path = gathered_paths[local_rank_zero]
@@ -492,6 +526,7 @@ def profile_packing(
             pad_token_id=0,  # <-- Doesn't need to be correct for profiling
             padding_side='left',  # <-- Doesn't need to be correct for profiling
             max_leftover_bins_to_keep=max_leftovers_to_keep,
+            is_profiling=True,
         )
 
         # Simulate feeding the packing collator a bunch of data

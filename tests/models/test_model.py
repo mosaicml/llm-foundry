@@ -35,8 +35,7 @@ from transformers import (
 )
 from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.models.bloom.modeling_bloom import build_alibi_tensor
-from transformers.models.llama.modeling_llama import \
-    LlamaRotaryEmbedding as HFRotaryEmbedding
+from transformers.models.llama.modeling_llama import LlamaRotaryEmbedding
 
 from llmfoundry import ComposerHFCausalLM
 from llmfoundry.layers_registry import norms
@@ -48,7 +47,7 @@ from llmfoundry.models.layers.attention import (
 )
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM, MPTModel
-from llmfoundry.models.mpt.modeling_mpt import HFRotaryEmbeddingFoundry
+from llmfoundry.models.mpt.modeling_mpt import LlamaRotaryEmbeddingFoundry
 from llmfoundry.utils import build_tokenizer
 from llmfoundry.utils.builders import build_composer_model
 from llmfoundry.utils.config_utils import to_dict_container
@@ -2924,7 +2923,7 @@ def test_hf_rotary_child_class_builds():
         list(range(max_seq_len)),
     ] * bsz)
 
-    rot_emb_mp = HFRotaryEmbeddingFoundry(
+    rot_emb_mp = LlamaRotaryEmbeddingFoundry(
         rope_head_dim,
         max_seq_len,
         rope_theta,
@@ -2932,7 +2931,7 @@ def test_hf_rotary_child_class_builds():
     )
     cos_mp, sin_mp = rot_emb_mp(value, position_ids)
 
-    rot_emb = HFRotaryEmbedding(
+    rot_emb = LlamaRotaryEmbedding(
         rope_head_dim,
         max_seq_len,
         rope_theta,

@@ -24,6 +24,7 @@ from transformers import (
     AutoConfig,
     AutoModelForCausalLM,
     GenerationConfig,
+    PretrainedConfig,
     PreTrainedModel,
     PreTrainedTokenizerBase,
 )
@@ -194,8 +195,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         config_overrides: Dict[str, Any],
         load_in_8bit: bool,
         pretrained: bool,
-        config_fn: Optional[Callable] = AutoConfig,
-        model_fn: Optional[Callable] = AutoModelForCausalLM,
+        config_fn: Optional[PretrainedConfig] = AutoConfig,
+        model_fn: Optional[PreTrainedModel] = AutoModelForCausalLM,
         prepare_for_fsdp: bool = False,
     ) -> Union[PreTrainedModel, 'PeftModel']:
         """Builds the inner model for the ComposerHFCausalLM.
@@ -210,7 +211,9 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             config_overrides (Dict[str, Any]): The configuration overrides.
             load_in_8bit (bool): Whether to load in 8-bit.
             pretrained (bool): Whether the model is pretrained.
-            prepare_for_fsdp (bool, optional): Whether to prepare the model for FSDP wrapping. Default: False.
+            config_fn (PretrainedConfig): HF class for configs. Default: ``AutoConfig``.
+            model_fn (PreTrainedModel): HF class for models. Default: ``AutoModelForCausalLM``.
+            prepare_for_fsdp (bool, optional): Whether to prepare the model for FSDP wrapping. Default: ``False``.
 
         Returns:
             Union[PreTrainedModel, 'PeftModel']: The built inner model.

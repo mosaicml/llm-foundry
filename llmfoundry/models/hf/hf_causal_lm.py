@@ -234,10 +234,13 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                 + 'Please `pip install llm-foundry[gpu]`.',
             )
 
-        assert hasattr(
-            model_cls,
-            'from_pretrained',
-        ), 'HF Model class is not supported, check arguments to function call!'
+        if not (
+            hasattr(model_cls, 'from_pretrained') and
+            hasattr(model_cls, 'from_config')
+        ):
+            raise AttributeError(
+                f'{model_cls=} has missing `from_pretrained` and `from_config` support.',
+            )
 
         # Hugging Face copies the modules into the
         # transformers modules cache. On particular systems, this operation seems to cause contention between

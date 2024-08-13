@@ -9,6 +9,7 @@ import warnings
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     Dict,
     List,
     Optional,
@@ -193,6 +194,8 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         config_overrides: Dict[str, Any],
         load_in_8bit: bool,
         pretrained: bool,
+        config_fn: Optional[Callable] = AutoConfig,
+        model_fn: Optional[Callable] = AutoModelForCausalLM,
         prepare_for_fsdp: bool = False,
     ) -> Union[PreTrainedModel, 'PeftModel']:
         """Builds the inner model for the ComposerHFCausalLM.
@@ -236,7 +239,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         # the different processes. To avoid this contention, we first create the config and generation config on local rank
         # zero. This will set up the transformers module cache and avoid the future contention.
         if dist.get_local_rank() == 0:
-            AutoConfig.from_pretrained(
+            config_fn.from_pretrained(
                 pretrained_model_name_or_path,
                 trust_remote_code=trust_remote_code,
                 use_auth_token=use_auth_token,
@@ -255,7 +258,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         dist.barrier()
 
         # Construct the Hugging Face config to use
-        config = AutoConfig.from_pretrained(
+        config = config_fn.from_pretrained(
             pretrained_model_name_or_path,
             trust_remote_code=trust_remote_code,
             use_auth_token=use_auth_token,
@@ -280,7 +283,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                 with init_empty_weights(include_buffers=False):
                     with warnings.catch_warnings():
                         warnings.simplefilter('ignore', UserWarning)
-                        AutoModelForCausalLM.from_pretrained(
+                        model_fn.from_pretrained(
                             pretrained_model_name_or_path,
                             trust_remote_code=trust_remote_code,
                             use_auth_token=use_auth_token,
@@ -290,7 +293,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                         )
             else:
                 with init_empty_weights(include_buffers=False):
-                    AutoModelForCausalLM.from_config(
+                    model_fn.from_config(
                         config,
                         trust_remote_code=trust_remote_code,
                         attn_implementation=requested_attention_implementation,
@@ -301,7 +304,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         # initialize the model on the correct device
         if resolved_init_device == 'cpu':
             if pretrained:
-                model = AutoModelForCausalLM.from_pretrained(
+                model = model_fn.from_pretrained(
                     pretrained_model_name_or_path,
                     trust_remote_code=trust_remote_code,
                     use_auth_token=use_auth_token,
@@ -310,7 +313,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                     config=config,
                 )
             else:
-                model = AutoModelForCausalLM.from_config(
+                model = model_fn.from_config(
                     config,
                     trust_remote_code=trust_remote_code,
                     attn_implementation=requested_attention_implementation,
@@ -321,7 +324,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                     'Setting cfg.pretrained=True is not supported when init_device="meta".',
                 )
             with init_empty_weights(include_buffers=False):
-                model = AutoModelForCausalLM.from_config(
+                model = model_fn.from_config(
                     config,
                     trust_remote_code=trust_remote_code,
                     attn_implementation=requested_attention_implementation,

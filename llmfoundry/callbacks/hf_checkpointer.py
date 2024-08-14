@@ -125,12 +125,16 @@ def _register_model_with_run_id_multiprocess(
         )
         logging.getLogger('composer').setLevel(composer_logging_level)
 
+    log.debug('Starting registering model.')
+
     # Register model.
     mlflow_logger.register_model_with_run_id(
         model_uri=model_uri,
         name=name,
         await_creation_for=await_creation_for,
     )
+
+    log.debug('Finished registering model.')
 
 
 class HuggingFaceCheckpointer(Callback):

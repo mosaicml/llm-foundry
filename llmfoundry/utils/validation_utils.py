@@ -84,7 +84,8 @@ def create_om_cfg(FT_API_args: Namespace):
 
 
 def token_counts_with_collate(FT_API_args):
-    from llmfoundry.data.finetuning import build_finetuning_dataloader, _build_collate_fn
+    from llmfoundry.data.finetuning import build_finetuning_dataloader
+    from llmfoundry import registry
 
     cfg, tokenizer = create_om_cfg(FT_API_args)
     detected_cpu_count = os.cpu_count() or 1
@@ -95,8 +96,16 @@ def token_counts_with_collate(FT_API_args):
     dataspec = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
     dataloader = dataspec.dataloader
 
-    collate_fn, dataloader_batch_size = _build_collate_fn(
-        cfg, tokenizer, device_batch_size)
+    collate_fn, dataloader_batch_size = construct_from_registry(
+        name='finetuning_collator',
+        registry=registry.collators,
+        partial_function=False,
+        kwargs={
+            'dataloader_cfg': dataloader_cfg,
+            'tokenizer': tokenizer,
+            'dataset_batch_size': dataset_batch_size,
+        },
+    )
 
     def mapper(example: dict):
         batch = collate_fn([example])

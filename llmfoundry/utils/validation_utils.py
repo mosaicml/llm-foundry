@@ -2,26 +2,36 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import json
-import os
 import re
-import tempfile
-from argparse import ArgumentParser, Namespace
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
-
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, Callable, Mapping, cast
+import torch
 import datasets
 import numpy as np
-import pandas as pd
-from composer.utils import (ObjectStore, maybe_create_object_store_from_uri,
-                            parse_uri)
 from datasets import get_dataset_split_names
 from huggingface_hub import dataset_info
 from omegaconf import OmegaConf as om
 from streaming.base.storage.download import download_file
 from streaming.base.storage.upload import CloudUploader
 
-from llmfoundry.data import ConcatTokensDataset
 from llmfoundry.utils import build_tokenizer
+from llmfoundry.command_utils.data_prep.convert_text_to_mds import ConcatTokensFromFilesDataset, get_object_names, get_task_args, is_remote_path, is_already_processed, _configure_logging, write_done_file
 
+
+import logging
+import math
+import os
+import tempfile
+from argparse import ArgumentParser, Namespace
+from concurrent.futures import ProcessPoolExecutor
+
+from composer.utils import (ObjectStore, maybe_create_object_store_from_uri,
+                            parse_uri)
+from transformers import AutoTokenizer
+
+from llmfoundry.utils.data_prep_utils import (DownloadingIterable,
+                                              merge_shard_groups)
+
+log = logging.getLogger(__name__)
 
 def create_om_cfg(FT_API_args: Namespace):
     task_type = FT_API_args.task_type
@@ -131,10 +141,6 @@ def token_counts_with_collate(FT_API_args):
     )
 
     return token_lens
-
-from typing import Any, Callable, Dict, List, Mapping, Optional, Union, cast
-
-import torch
 
 
 def get_num_samples_in_batch(batch: dict) -> int:
@@ -272,31 +278,6 @@ def integrity_check(out: Union[str, Tuple[str, str]]):
         return n_shard_files == actual_n_shard_files
 
 
-import logging
-import math
-import os
-import tempfile
-from argparse import ArgumentParser, Namespace
-from concurrent.futures import ProcessPoolExecutor
-from glob import glob
-from typing import Iterable, List, Tuple, cast
-
-import datasets as hf_datasets
-import psutil
-from composer.utils import (ObjectStore, maybe_create_object_store_from_uri,
-                            parse_uri)
-from streaming import MDSWriter
-from tqdm import tqdm
-from transformers import AutoTokenizer
-
-from llmfoundry.data import ConcatTokensDataset
-from llmfoundry.utils.data_prep_utils import (DownloadingIterable,
-                                              merge_shard_groups)
-
-log = logging.getLogger(__name__)
-DONE_FILENAME = '.text_to_mds_conversion_done'
-
-
 def parse_args(tokenizer,
                concat_tokens,
                output_folder,
@@ -396,7 +377,6 @@ def download_and_convert(
     return num_samples
 
 
-from llmfoundry.command_utils.data_prep.convert_text_to_mds import ConcatTokensFromFilesDataset, get_object_names, get_task_args, is_remote_path, is_already_processed, _configure_logging, write_done_file
 
 def convert_text_to_mds(
     tokenizer_name: str,

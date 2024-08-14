@@ -80,7 +80,7 @@ def experimental_function(feature_name: str) -> Callable[[F], F]:
 
 
 def experimental_class(
-    feature_name: str
+    feature_name: str,
 ) -> Callable[[Type], Type]:  # noqa: UP006
     """Class decorator to mark a class as experimental."""
 

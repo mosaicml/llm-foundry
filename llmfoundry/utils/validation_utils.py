@@ -88,14 +88,25 @@ def token_counts_with_collate(FT_API_args):
     from llmfoundry import registry
 
     cfg, tokenizer = create_om_cfg(FT_API_args)
+    dataloader = build_finetuning_dataloader(
+            **cfg,
+            tokenizer=tokenizer,
+            device_batch_size=1).dataloader
+
     detected_cpu_count = os.cpu_count() or 1
     num_cpus_to_use = max(1, detected_cpu_count)
     cfg.num_workers = num_cpus_to_use
 
-    device_batch_size = 1
-    dataspec = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
-    dataloader = dataspec.dataloader
-
+    dataloader_cfg = {
+        'name': 'finetuning',
+        'dataset': cfg.dataset,
+        'drop_last': cfg.drop_last,
+        'num_workers': cfg.num_workers,
+        'pin_memory': cfg.pin_memory,
+        'prefetch_factor': cfg.prefetch_factor,
+        'persistent_workers': cfg.persistent_workers,
+        'timeout': cfg.timeout,
+    }
     collate_fn, dataloader_batch_size = construct_from_registry(
         name='finetuning_collator',
         registry=registry.collators,
@@ -103,7 +114,7 @@ def token_counts_with_collate(FT_API_args):
         kwargs={
             'dataloader_cfg': dataloader_cfg,
             'tokenizer': tokenizer,
-            'dataset_batch_size': dataset_batch_size,
+            'dataset_batch_size': 1,
         },
     )
 
@@ -159,28 +170,16 @@ def get_num_samples_in_batch(batch: dict) -> int:
 
 
 def token_counts(FT_API_args):
-    from llmfoundry.data.finetuning import build_finetuning_dataloader
+    from llmfoundry.data import build_dataloader
 
     cfg, tokenizer = create_om_cfg(FT_API_args)
-    detected_cpu_count = os.cpu_count() or 1
-    num_cpus_to_use = max(1, detected_cpu_count)
-    cfg.num_workers = num_cpus_to_use
-
     device_batch_size = 1
-    dataspec = build_finetuning_dataloader(cfg, tokenizer, device_batch_size)
+    dataspec = build_dataloader(cfg, tokenizer, device_batch_size)
     dataloader = dataspec.dataloader
 
     token_lens = []
     for b in dataloader:
         token_lens.append(get_num_samples_in_batch(b)['ntokens'])
-
-    #token_lens = dataloader.dataset.map(
-    #    get_num_samples_in_batch,
-    #    batched=False,
-    #    num_proc=num_cpus_to_use,
-    #    desc='List of Token length',
-    #)
-
     return token_lens
 
 

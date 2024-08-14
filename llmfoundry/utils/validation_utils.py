@@ -8,13 +8,11 @@ import re
 import tempfile
 from argparse import Namespace
 from concurrent.futures import ProcessPoolExecutor
-from typing import Any, Mapping, Optional, Tuple, Union, cast
+from typing import Any, Mapping, Optional, Tuple, Union
 
 import torch
 from composer.utils import (
-    ObjectStore,
     maybe_create_object_store_from_uri,
-    parse_uri,
 )
 from datasets import get_dataset_split_names
 from huggingface_hub import dataset_info
@@ -29,7 +27,6 @@ from llmfoundry.command_utils.data_prep.convert_text_to_mds import (
     get_task_args,
     is_already_processed,
     is_remote_path,
-    write_done_file,
 )
 from llmfoundry.utils import build_tokenizer
 from llmfoundry.utils.data_prep_utils import (
@@ -37,7 +34,6 @@ from llmfoundry.utils.data_prep_utils import (
     merge_shard_groups,
 )
 from llmfoundry.utils.exceptions import (
-    DatasetTooSmallError,
     InputFolderMissingDataError,
     OutputFolderNotEmptyError,
 )

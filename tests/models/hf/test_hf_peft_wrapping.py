@@ -9,26 +9,22 @@ import pytest
 import torch
 import transformers
 from composer import Trainer
+from omegaconf import OmegaConf as om
 from peft import LoraConfig, get_peft_model
 
+from llmfoundry import COMPOSER_MODEL_REGISTRY
 from llmfoundry.models.hf.hf_fsdp import prepare_hf_model_for_fsdp
-from llmfoundry.utils.builders import build_composer_model, build_tokenizer
+from llmfoundry.utils.builders import build_tokenizer
 
 
 def test_peft_wraps():
-    mpt_cfg = transformers.AutoConfig.from_pretrained(
-        'mosaicml/mpt-7b',
-        n_layers=2,
-        trust_remote_code=True,
-    )
-    mpt = transformers.AutoModelForCausalLM.from_config(
-        mpt_cfg,
-        trust_remote_code=True,
-    )
-    mpt = get_peft_model(mpt, LoraConfig())
-    prepare_hf_model_for_fsdp(mpt, 'cpu')
+    mistral_cfg = transformers.AutoConfig.from_pretrained(
+        'mistralai/Mistral-7B-v0.1', num_hidden_layers=2)
+    mistral = transformers.AutoModelForCausalLM.from_config(mistral_cfg)
+    mistral = get_peft_model(mistral, LoraConfig())
+    prepare_hf_model_for_fsdp(mistral, 'cpu')
 
-    for n, m in mpt.named_modules():
+    for n, m in mistral.named_modules():
         if 'lora' in n and 'default' in n:
             has_parameters = any(True for _ in m.parameters())
             has_buffers = any(True for _ in m.buffers())
@@ -38,31 +34,25 @@ def test_peft_wraps():
 
 @pytest.mark.world_size(2)
 @pytest.mark.gpu
-@pytest.mark.parametrize(
-    'peft_config',
-    [{
-        'peft_type': 'LORA',
-        'task_type': 'CAUSAL_LM',
-        'lora_alpha': 32,
-        'lora_dropout': 0.05,
-        'r': 16,
-        'target_modules': [
-            'q_proj',
-            'k_proj',
-            'v_proj',
-        ],
-    }],
-)
+@pytest.mark.parametrize('peft_config', [{
+    'peft_type': 'LORA',
+    'task_type': 'CAUSAL_LM',
+    'lora_alpha': 32,
+    'lora_dropout': 0.05,
+    'r': 16,
+    'target_modules': [
+        'q_proj',
+        'k_proj',
+        'v_proj',
+    ],
+}])
 @pytest.mark.parametrize('init_device', ['mixed'])
 @patch('torch.nn.init.kaiming_uniform_', lambda w, a: torch.nn.init.ones_(w))
-def test_lora_mixed_init(
-    peft_config: Optional[dict],
-    tmp_path: pathlib.Path,
-    init_device: str,
-):
+def test_lora_mixed_init(peft_config: Optional[dict], tmp_path: pathlib.Path,
+                         init_device: str):
     model_cfg = {
         'name': 'hf_causal_lm',
-        'pretrained_model_name_or_path': 'codellama/CodeLlama-7b-hf',
+        'pretrained_model_name_or_path': 'mistralai/Mistral-7B-v0.1',
         'config_overrides': {
             'num_hidden_layers': 2,
             'hidden_size': 32,
@@ -71,10 +61,11 @@ def test_lora_mixed_init(
         'pretrained': False,
         'init_device': init_device,
     }
-    tokenizer_name = 'codellama/CodeLlama-7b-hf'
+    tokenizer_name = 'mistralai/Mistral-7B-v0.1'
 
     assert model_cfg is not None
     assert tokenizer_name is not None
+    model_cfg = om.create(model_cfg)
     model_cfg['peft_config'] = peft_config
 
     fsdp_config = {
@@ -93,12 +84,8 @@ def test_lora_mixed_init(
         tokenizer_kwargs={'model_max_length': 32},
     )
 
-    name = model_cfg.pop('name')
-    original_model = build_composer_model(
-        name=name,
-        cfg=model_cfg,
-        tokenizer=tokenizer,
-    )
+    original_model = COMPOSER_MODEL_REGISTRY[model_cfg['name']](model_cfg,
+                                                                tokenizer)
 
     trainer = Trainer(
         model=original_model,

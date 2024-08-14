@@ -9,18 +9,34 @@ from typing import Any, Dict, Optional, Union
 
 from transformers import PretrainedConfig
 
-from llmfoundry.layers_registry import ffns_with_megablocks
-from llmfoundry.models.layers.attention import (
-    check_alibi_support,
-    is_flash_v2_installed,
-)
-from llmfoundry.models.utils.config_defaults import (
-    attn_config_defaults,
-    fc_type_defaults,
-    ffn_config_defaults,
-    init_config_defaults,
-)
-from llmfoundry.utils.warnings import ExperimentalWarning
+from llmfoundry.models.layers.attention import (check_alibi_support,
+                                                is_flash_v2_installed)
+from llmfoundry.models.layers.blocks import attn_config_defaults
+
+# NOTE: All utils are imported directly even if unused so that
+# HuggingFace can detect all the needed files to copy into its modules folder.
+# Otherwise, certain modules are missing.
+# isort: off
+from llmfoundry.models.layers.fc import FC_CLASS_REGISTRY  # type: ignore (see note)
+from llmfoundry.models.layers.norm import LPLayerNorm  # type: ignore (see note)
+from llmfoundry.models.layers.ffn import FFN_CLASS_REGISTRY  # type: ignore (see note)
+
+from llmfoundry.utils.warnings import VersionedDeprecationWarning
+
+ffn_config_defaults: Dict = {
+    'ffn_type': 'mptmlp',
+}
+
+init_config_defaults: Dict = {
+    'name': 'kaiming_normal_',
+    'fan_mode': 'fan_in',
+    'init_nonlinearity': 'relu',
+    'init_div_is_residual': True,
+    'emb_init_std': None,
+    'emb_init_uniform_lim': None,
+    'init_std': None,
+    'init_gain': 0.0,
+}
 
 
 class MPTConfig(PretrainedConfig):
@@ -50,7 +66,6 @@ class MPTConfig(PretrainedConfig):
         fc_type: Union[str, Dict] = 'torch',
         tie_word_embeddings: bool = True,
         use_pad_tok_in_ffn: bool = True,
-        block_overrides: Optional[Dict[str, Any]] = None,
         **kwargs: Any,
     ):
         """The MPT configuration class.
@@ -71,8 +86,6 @@ class MPTConfig(PretrainedConfig):
                 attn_impl (str): The attention implementation to use. One of 'torch' or 'flash'.
                 qk_ln (bool): Whether to apply layer normalization to the queries and keys in the attention layer.
                 qk_gn (bool): Whether to apply group normalization to the queries and keys in the attention layer.
-                fused_qkv (bool): Whether to fuse the Wq, Wk, and Wv weight matrices in the attention layer. If True, the weights are fused into a single
-                    Wqkv matrix, which can be faster for matmuls. If False, the weights are kept separate. Defaults to True.
                 clip_qkv (Optional[float]): If not None, clip the queries, keys, and values in the attention layer to
                     this value.
                 softmax_scale (Optional[float]): If not None, scale the softmax in the attention layer by this value. If None,
@@ -281,8 +294,30 @@ class MPTConfig(PretrainedConfig):
             )
         if self.attn_config['attn_impl'] not in ['torch', 'flash']:
             raise ValueError(
-                f"Unknown attn_impl={self.attn_config['attn_impl']}",
-            )
+                f"Unknown attn_impl={self.attn_config['attn_impl']}")
+        if self.attn_config['prefix_lm']:
+            warnings.warn(
+                VersionedDeprecationWarning(
+                    'Support for Prefix Language Models is deprecated.',
+                    remove_version='0.7.0'))
+        if self.attn_config['attn_impl'] == 'triton':
+            warnings.warn(
+                VersionedDeprecationWarning(
+                    'Support for triton attention is deprecated. Please use torch or flash attention.',
+                    remove_version='0.7.0'))
+
+        if self.attn_config['prefix_lm'] and self.attn_config[
+                'attn_impl'] not in ['torch', 'triton']:
+            raise NotImplementedError(
+                'prefix_lm only implemented with torch and triton attention.')
+
+        if self.attn_config[
+                'attn_impl'] == 'triton' and not self.attn_config['prefix_lm']:
+            warnings.warn(
+                UserWarning(
+                    'If not using a Prefix Language Model, we recommend setting "attn_impl" to "flash" instead of "triton".'
+                ))
+
         if self.attn_config['alibi'] and not check_alibi_support(
             self.attn_config['attn_impl'],
         ):

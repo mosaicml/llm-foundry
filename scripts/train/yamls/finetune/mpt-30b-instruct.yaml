@@ -2,15 +2,8 @@ variables:
   tokenizer_name: mosaicml/mpt-30b
   global_seed: 17
 
-  max_seq_len: 8192
-
-  # Run Name
-  run_name:  # If left blank, will be read from env var $COMPOSER_RUN_NAME
-
-  icl_max_seq_len: 2048
-
-max_seq_len: ${variables.max_seq_len}
-run_name: ${variables.run_name}
+# Run Name
+run_name:  # If left blank, will be read from env var $COMPOSER_RUN_NAME
 
 # Model
 model:

@@ -25,10 +25,32 @@ try:
 except:
     unpad_input, pad_input = None, None
 
-__all__ = [
-    'MPTBlock',
-    'FusedNormAttentionNorm',
-]
+attn_config_defaults: Dict = {
+    'attn_type': 'multihead_attention',
+    'attn_pdrop': 0.0,
+    'attn_impl': 'triton',
+    'qk_ln': False,
+    'qk_gn': False,
+    'clip_qkv': None,
+    'softmax_scale': None,
+    'prefix_lm': False,
+    'attn_uses_sequence_id': False,
+    'sliding_window_size': -1,
+    'alibi': False,
+    'alibi_bias_max': 8,
+    'rope': False,
+    'rope_theta': 10000,
+    'rope_impl': 'dail',
+    'rope_dail_config': {
+        'type': 'original',
+        'pos_idx_in_fp32': True,
+        'xpos_scale_base': 512,
+    },
+    'rope_hf_config': {
+        'type': 'no_scaling',
+        'factor': 1.0,
+    },
+}
 
 
 class MPTBlock(nn.Module):
@@ -162,8 +184,6 @@ class MPTBlock(nn.Module):
         output_attentions: bool = False,
         alibi_slopes: Optional[torch.Tensor] = None,
         flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
-        prev_layer_key_value: Optional[Tuple[torch.Tensor,
-                                             torch.Tensor]] = None,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[
         torch.Tensor, torch.Tensor]]]:
         extra_kwargs = {}
@@ -342,7 +362,6 @@ class FusedNormAttentionNorm(nn.Module):
             needs_weights=output_attentions,
             alibi_slopes=alibi_slopes,
             flash_attn_padding_info=flash_attn_padding_info,
-            **extra_kwargs,
         )
         x = x + self.resid_attn_dropout(b)
         m = x

@@ -14,12 +14,6 @@ from transformers.models.opt.modeling_opt import OPTDecoder
 if TYPE_CHECKING:
     from peft import PeftModel
 
-__all__ = [
-    'prepare_hf_model_for_fsdp',
-    'prepare_hf_causal_lm_model_for_fsdp',
-    'prepare_hf_enc_dec_model_for_fsdp',
-]
-
 
 # helper functions
 def rhasattr(obj: Any, attr: str) -> bool:
@@ -75,12 +69,8 @@ def hf_get_causal_base_model(model: PreTrainedModel) -> Any:
     if hasattr(model, 'get_decoder'):
         return model.get_decoder()
 
-    decoder_attrs = (
-        'transformer',
-        'model.decoder',
-        'gpt_neox',
-        'model.transformer',
-    )
+    decoder_attrs = ('transformer', 'model.decoder', 'gpt_neox',
+                     'model.transformer')
     causal_base_model = findattr(model, decoder_attrs)
     if causal_base_model is None:
         raise ValueError(
@@ -144,10 +134,9 @@ def prepare_hf_model_for_fsdp(
         prepare_hf_causal_lm_model_for_fsdp(model, init_device)
 
 
-def prepare_hf_causal_lm_model_for_fsdp(
-    model: Union[PreTrainedModel, 'PeftModel'],
-    init_device: Optional[str],
-) -> None:
+def prepare_hf_causal_lm_model_for_fsdp(model: Union[PreTrainedModel,
+                                                     'PeftModel'],
+                                        init_device: Optional[str]) -> None:
     """FSDP wrap a HuggingFace decoder.
 
     Wrap any model for FSDP which follows one of the 3 existing conventions from
@@ -156,7 +145,8 @@ def prepare_hf_causal_lm_model_for_fsdp(
     causal_base_model = hf_get_causal_base_model(model)
 
     # OPT and olmo have an extra layer of wrapping, so special case here
-    if isinstance(causal_base_model, OPTDecoder):
+    if isinstance(causal_base_model,
+                  OPTDecoder) or model.config.model_type == 'olmo':
         underlying_model = maybe_get_underlying_model(model)
         underlying_model.model._fsdp_wrap = False
     model_block = hf_get_hidden_layers(causal_base_model)
@@ -202,8 +192,7 @@ def prepare_hf_causal_lm_model_for_fsdp(
         active_adapters = [adapter.lower() for adapter in model.active_adapters]
         for name, module in model.named_modules():
             if peft_type in name.lower() and any(
-                adapter in name.lower() for adapter in active_adapters
-            ):
+                    adapter in name.lower() for adapter in active_adapters):
                 has_parameters = next(module.parameters(), None) is not None
                 has_buffers = next(module.buffers(), None) is not None
                 if has_parameters or has_buffers:

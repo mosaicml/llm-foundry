@@ -101,19 +101,16 @@ class BinPackCollator:
                 'input_ids',
                 'labels',
                 'attention_mask',
+                'bidirectional_mask',
                 'sequence_id',
             ]
         # Cut everything down to size
         sizes, trimmed_examples = _trim_batch(batch)
-        packed_batch = self._pack_trimmed_examples(trimmed_examples, sizes)
-        assert packed_batch is not None
-        return packed_batch
+        return self._pack_trimmed_examples(trimmed_examples, sizes)
 
-    def _pack_trimmed_examples(
-        self,
-        trimmed_examples: List[Dict[str, torch.Tensor]],
-        sizes: List[int],
-    ) -> Optional[Dict[str, torch.Tensor]]:
+    def _pack_trimmed_examples(self, trimmed_examples: List[Dict[str,
+                                                                 torch.Tensor]],
+                               sizes: List[int]) -> Dict[str, torch.Tensor]:
         """Packs trimmed examples into fixed-size bins and repads them.
 
         Args:
@@ -121,9 +118,7 @@ class BinPackCollator:
             sizes (List[int]): The sizes of the trimmed examples.
 
         Returns:
-            Optional[Dict[str, torch.Tensor]]: A batch of repadded examples
-                ready for processing. If the collator is in profiling mode,
-                returns None.
+            Dict[str, torch.Tensor]: A batch of repadded examples ready for processing
         """
         # Apply our CS 101 bin packing algorithm.
         packed_examples, n_packed_tokens, n_total_tokens, leftover_bins = self._first_fit_bin_packing(
@@ -280,6 +275,26 @@ class BinPackCollator:
 
 def _trim_batch(
     batch: Dict[str, torch.Tensor],
+) -> Tuple[List[int], List[Dict[str, torch.Tensor]]]:
+    """Trims padding off all examples in batch.
+
+    Args:
+        batch (Dict[str, torch.Tensor]): Batch of padded data with tensors as values.
+
+    Returns:
+        A tuple with unpadded lengths of examples and a list of each trimmed example from the batch.
+    """
+    # Cut everything down to size
+    sizes, trimmed_examples = [], []
+    for idx in range(batch['attention_mask'].shape[0]):
+        size, trimmed_example = _extract_trim_batch_idx(batch, idx)
+        sizes.append(size)
+        trimmed_examples.append(trimmed_example)
+    return sizes, trimmed_examples
+
+
+def _trim_batch(
+    batch: Dict[str, torch.Tensor]
 ) -> Tuple[List[int], List[Dict[str, torch.Tensor]]]:
     """Trims padding off all examples in batch.
 
@@ -457,18 +472,11 @@ def profile_packing(
 
     # Turn off packing and sequence parallelism for the dataloader (we want raw, pre-packed, full-length examples)
     dataloader_cfg = copy.deepcopy(dataloader_cfg)
-    dataloader_cfg.update({
-        'drop_last': False,
-        'num_workers': 0,
-        'prefetch_factor': None,
-        'persistent_workers': False,
-    })
-    dataset_cfg = dataloader_cfg['dataset']
-    dataset_cfg['packing_ratio'] = 1.0
-    seq_parallel_replication = dataset_cfg.get('seq_parallel_replication', 1)
-    dataset_cfg['auto_packing_replication'] = seq_parallel_replication or 1
-    dataset_cfg['seq_parallel_replication'] = 1
-    dataset_cfg['pad_to_longest'] = True
+    dataloader_cfg.dataset.packing_ratio = 1.0
+    dataloader_cfg.drop_last = False
+    dataloader_cfg.num_workers = 0
+    dataloader_cfg.prefetch_factor = None
+    dataloader_cfg.persistent_workers = False
 
     # If streaming dataset, use a temporary local folder for profiling
     local_rank_zero = dist.get_global_rank() - dist.get_local_rank()
@@ -534,10 +542,8 @@ def profile_packing(
             batch = trimmed_examples_copy[idx:idx + raw_batch_size]
             if len(batch) < device_batch_size:
                 continue
-            packer._pack_trimmed_examples(
-                batch,
-                sizes[idx:idx + raw_batch_size],
-            )
+            packer._pack_trimmed_examples(batch,
+                                          sizes[idx:idx + raw_batch_size])
 
         if packer.n_packed_examples == 0:
             log.debug(

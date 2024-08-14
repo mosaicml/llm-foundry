@@ -151,7 +151,15 @@ class MPTMLP(nn.Module):
         bias: bool = True,
     ):
         super().__init__()
-        ffn_hidden_size = resolve_ffn_hidden_size(
+        ffn_hidden_size = resolve_ffn_hidden_size(d_model, expansion_ratio,
+                                                  ffn_hidden_size)
+        self.fc_kwargs: dict[str, Any] = {
+            'bias': bias,
+        }
+
+        self.fc_kwargs['device'] = device
+
+        self.up_proj = FC_CLASS_REGISTRY[fc_type](
             d_model,
             expansion_ratio,
             ffn_hidden_size,

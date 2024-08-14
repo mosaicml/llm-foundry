@@ -12,7 +12,7 @@ variables:
 max_seq_len: ${variables.max_seq_len}
 
 # Run Name
-run_name: ${variables.run_name}
+run_name:  # If left blank, will be read from env var $RUN_NAME
 
 # Model
 model:

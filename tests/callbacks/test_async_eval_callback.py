@@ -8,14 +8,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 from composer.core import Time, Timestamp, TimeUnit
 
-from llmfoundry.callbacks.async_eval_callback import (
-    AsyncEval,
-    get_eval_parameters,
-    get_run_name,
-    validate_eval_run_config,
-    validate_interval,
-)
-from llmfoundry.utils.builders import build_callback
+from llmfoundry.callbacks.async_eval_callback import (AsyncEval,
+                                                      get_eval_parameters,
+                                                      get_run_name,
+                                                      validate_eval_run_config,
+                                                      validate_interval)
 from mcli import Run, RunConfig, RunStatus
 
 RUN_NAME = 'foo_bar-1234'
@@ -252,42 +249,12 @@ FAKE_RUN = Run(
 )
 
 
-@patch(
-    'llmfoundry.callbacks.async_eval_callback.get_run',
-    return_value=FAKE_RUN,
-)
-def test_async_eval_callback_builds(mock_get_run: MagicMock):
-    kwargs = {'interval': 1}
-    config = {
-        'save_folder': 'foo',
-        'save_interval': 1,
-        'device_eval_batch_size': 2,
-        'max_seq_len': 3,
-        'model': {
-            'name': 'foo',
-        },
-        'tokenizer': {},
-        'icl_tasks': [],
-    }
-    callback = build_callback('async_eval', kwargs=kwargs, train_config=config)
-    assert isinstance(callback, AsyncEval)
-    assert callback.current_run.name == RUN_NAME
-    assert mock_get_run.call_count == 1
-    assert mock_get_run.call_args[0][0] == RUN_NAME
-
-
-@patch(
-    'llmfoundry.callbacks.async_eval_callback.get_run',
-    return_value=FAKE_RUN,
-)
-@patch(
-    'llmfoundry.callbacks.async_eval_callback.create_run',
-    return_value=FAKE_RUN,
-)
-def test_async_eval_callback_minimal(
-    mock_create_run: MagicMock,
-    mock_get_run: MagicMock,
-):
+@patch('llmfoundry.callbacks.async_eval_callback.get_run',
+       return_value=FAKE_RUN)
+@patch('llmfoundry.callbacks.async_eval_callback.create_run',
+       return_value=FAKE_RUN)
+def test_async_eval_callback_minimal(mock_create_run: MagicMock,
+                                     mock_get_run: MagicMock):
     callback = AsyncEval(
         BASIC_PARAMS,
         interval='2ba',
@@ -353,10 +320,8 @@ def test_async_eval_callback_minimal(
     assert parameters['run_name'] == 'eval-1ba-foo_bar'  # original run
 
 
-@patch(
-    'llmfoundry.callbacks.async_eval_callback.get_run',
-    return_value=FAKE_RUN,
-)
+@patch('llmfoundry.callbacks.async_eval_callback.get_run',
+       return_value=FAKE_RUN)
 def test_async_eval_state(mock_create_run: MagicMock):
     callback = AsyncEval(BASIC_PARAMS, interval='2ba')
 
@@ -411,26 +376,19 @@ FAKE_RUN_WITH_INTEGRATIONS.submitted_config.integrations = [
 ]
 
 
-@patch(
-    'llmfoundry.callbacks.async_eval_callback.get_run',
-    return_value=FAKE_RUN_WITH_INTEGRATIONS,
-)
-@patch(
-    'llmfoundry.callbacks.async_eval_callback.create_run',
-    return_value=FAKE_RUN_WITH_INTEGRATIONS,
-)
-def test_async_eval_callback_integrations(
-    mock_create_run: MagicMock,
-    mock_get_run: MagicMock,
-):
+@patch('llmfoundry.callbacks.async_eval_callback.get_run',
+       return_value=FAKE_RUN_WITH_INTEGRATIONS)
+@patch('llmfoundry.callbacks.async_eval_callback.create_run',
+       return_value=FAKE_RUN_WITH_INTEGRATIONS)
+def test_async_eval_callback_integrations(mock_create_run: MagicMock,
+                                          mock_get_run: MagicMock):
     callback = AsyncEval(
         BASIC_PARAMS,
         interval='2ba',
         eval_run_config={'compute': {
             'cluster': 'c2z3',
             'nodes': 2,
-        }},
-    )
+        }})
     assert mock_get_run.call_count == 1
 
     callback.launch_run('checkpoint/path', Time(1, TimeUnit.BATCH))
@@ -446,10 +404,8 @@ def test_async_eval_callback_integrations(
     assert f'cd {custom_path}/scripts' in run_config_created.command
 
 
-@patch(
-    'llmfoundry.callbacks.async_eval_callback.dist.get_world_size',
-    return_value=4,
-)
+@patch('llmfoundry.callbacks.async_eval_callback.dist.get_world_size',
+       return_value=4)
 def test_get_ready_sharded_checkpoints(mocked_get_world_size: MagicMock):
     assert not AsyncEval._get_ready_sharded_checkpoints({}, [])
     assert not AsyncEval._get_ready_sharded_checkpoints(

@@ -1,13 +1,8 @@
 variables:
   global_seed: 17
 
-  max_seq_len: 2048
-
-  # Run Name
-  run_name:  # If left blank, will be read from env var $RUN_NAME
-
-max_seq_len: ${variables.max_seq_len}
-run_name: ${variables.run_name}
+# Run Name
+run_name:  # If left blank, will be read from env var $RUN_NAME
 
 model:
   name: hf_causal_lm

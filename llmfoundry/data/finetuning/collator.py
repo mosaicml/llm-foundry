@@ -27,21 +27,18 @@ def ensure_list(x: Union[List, torch.Tensor]) -> List:
     return x
 
 
-def validate_target_settings(
-    target_prompts: str,
-    target_responses: str,
-    decoder_only_format: bool,
-):
+def validate_target_settings(target_prompts: str, target_responses: str,
+                             decoder_only_format: bool):
     """Raises an error if target settings are invalid."""
-    if (not decoder_only_format
-       ) and (target_prompts != 'none' or target_responses != 'last'):
+    if (not decoder_only_format) and (target_prompts != 'none' or
+                                      target_responses != 'last'):
         raise ValueError(
-            f'When using encoder_decoder format, you must use target_prompts="none" and target_responses="last".',
+            f'When using encoder_decoder format, you must use target_prompts="none" and target_responses="last".'
         )
 
     if target_responses not in {'all', 'last'}:
         raise ValueError(
-            f'target_responses must be either "last" or "all" but {target_responses=}',
+            f'target_responses must be either "last" or "all" but {target_responses=}'
         )
 
     if target_prompts.startswith('length>='):
@@ -50,43 +47,37 @@ def validate_target_settings(
             raise ValueError(
                 f'target_prompts starts with "length>=" but the rest of the string is not digits ({target_prompts=}). ' +\
                 'To use this configuration option, set target_prompts "length>=XX" where "XX" is a positive integer indicating ' +\
-                'the length cutoff. Prompts of at least XX tokens in length will be treated as targets.',
+                'the length cutoff. Prompts of at least XX tokens in length will be treated as targets.'
             )
         cutoff = int(cutoff)
         if cutoff <= 0:
             raise ValueError(
-                f'You are trying to set the target_prompts length cutoff to a negative number {cutoff=}. This is not allowed.',
+                f'You are trying to set the target_prompts length cutoff to a negative number {cutoff=}. This is not allowed.'
             )
     elif target_prompts not in {'all', 'none'}:
         raise ValueError(
-            f'target_prompts must either be "all", "none" or "length>=XX" where "XX" is a positive integer, but {target_prompts=}',
+            f'target_prompts must either be "all", "none" or "length>=XX" where "XX" is a positive integer, but {target_prompts=}'
         )
 
 
 ###### Functions to implement target_prompts and target_responses choices #####
-def _sequence_to_labels_all(
-    sequence: list[int],
-    is_last_turn: bool,
-    cutoff: Optional[int] = None,
-) -> list[int]:
+def _sequence_to_labels_all(sequence: list[int],
+                            is_last_turn: bool,
+                            cutoff: Optional[int] = None) -> list[int]:
     del is_last_turn, cutoff  # unused
     return sequence
 
 
-def _sequence_to_labels_none(
-    sequence: list[int],
-    is_last_turn: bool,
-    cutoff: Optional[int] = None,
-) -> list[int]:
+def _sequence_to_labels_none(sequence: list[int],
+                             is_last_turn: bool,
+                             cutoff: Optional[int] = None) -> list[int]:
     del is_last_turn, cutoff  # unused
     return [_HF_IGNORE_INDEX] * len(sequence)
 
 
-def _sequence_to_labels_last(
-    sequence: list[int],
-    is_last_turn: bool,
-    cutoff: Optional[int] = None,
-) -> list[int]:
+def _sequence_to_labels_last(sequence: list[int],
+                             is_last_turn: bool,
+                             cutoff: Optional[int] = None) -> list[int]:
     del cutoff  # unused
     if is_last_turn:
         return sequence
@@ -94,11 +85,9 @@ def _sequence_to_labels_last(
         return [_HF_IGNORE_INDEX] * len(sequence)
 
 
-def _sequence_to_labels_cutoff(
-    sequence: list[int],
-    is_last_turn: bool,
-    cutoff: Optional[int] = None,
-) -> list[int]:
+def _sequence_to_labels_cutoff(sequence: list[int],
+                               is_last_turn: bool,
+                               cutoff: Optional[int] = None) -> list[int]:
     del is_last_turn  # unused
     if cutoff is None:
         raise ValueError('input ``cutoff`` must be provided')
@@ -117,21 +106,18 @@ _TARGET_POLICY_LOOKUP = {
 
 
 def stitch_turns_decoder_only(
-    example_turns: list[dict[str, list[int]]],
-    target_prompts: str,
-    target_responses: str,
-    eos_token_id: Optional[int] = None,
-    validate: bool = False,
-) -> tuple[list[int], list[int]]:
+        example_turns: list[dict[str, list[int]]],
+        target_prompts: str,
+        target_responses: str,
+        eos_token_id: Optional[int] = None,
+        validate: bool = False) -> tuple[list[int], list[int]]:
     target_prompts = target_prompts.lower()
     target_responses = target_responses.lower()
 
     if validate:
-        validate_target_settings(
-            target_prompts,
-            target_responses,
-            decoder_only_format=True,
-        )
+        validate_target_settings(target_prompts,
+                                 target_responses,
+                                 decoder_only_format=True)
 
     if target_prompts.startswith('length'):
         prompt_cutoff = int(target_prompts.split('>=')[-1])
@@ -162,7 +148,7 @@ def stitch_turns_decoder_only(
 
     if len(input_ids) != len(labels):
         raise ValueError(
-            f'input_ids and labels should be the same length, {len(input_ids)=}, {len(labels)=}',
+            f'input_ids and labels should be the same length, {len(input_ids)=}, {len(labels)=}'
         )
     return input_ids, labels
 
@@ -261,10 +247,6 @@ class Seq2SeqFinetuningCollator:
             'decoder_input_ids',
             'decoder_attention_mask',
         ]
-        found_keys = [
-            illegal_key for illegal_key in illegal_keys
-            if illegal_key in self.batch_metadata
-        ]
         if found_keys:
             raise ValueError(
                 f'The following keys are in batch_metadata but are not allowed: {", ".join(found_keys)}.\n' +\
@@ -282,11 +264,8 @@ class Seq2SeqFinetuningCollator:
                 f'{self.__class__.__name__} requires that the tokenizer has the pad token set, but it is None',
             )
 
-        validate_target_settings(
-            self.target_prompts,
-            self.target_responses,
-            self.decoder_only_format,
-        )
+        validate_target_settings(self.target_prompts, self.target_responses,
+                                 self.decoder_only_format)
         if self.target_prompts.startswith('length'):
             self.prompt_cutoff = int(self.target_prompts.split('>=')[-1])
             self.prompt_to_target = _TARGET_POLICY_LOOKUP['length']
@@ -322,70 +301,68 @@ class Seq2SeqFinetuningCollator:
         return batch
 
     def _process_and_batch_decoder_only(
-        self,
-        examples: List[TokenizedExample],
-    ) -> Dict[str, torch.Tensor]:
+            self, examples: List[TokenizedExample]) -> Dict[str, torch.Tensor]:
         # Steps explained in comments
         processed_examples = []
-        input_ids_and_labels = [
-            stitch_turns_decoder_only(
+        for example in examples:
+            input_ids, labels = stitch_turns_decoder_only(
                 example_turns=example['turns'],
                 target_prompts=self.target_prompts,
                 target_responses=self.target_responses,
                 eos_token_id=self.tokenizer.eos_token_id,
-            ) for example in examples
-        ]
+            )
 
-        if self._pad_to_longest:
-            max_seq_len = max([
-                len(input_ids) for input_ids, _ in input_ids_and_labels
-            ])
-            max_seq_len = min(max_seq_len, self.max_seq_len)
-        else:
-            max_seq_len = self.max_seq_len
-
-        for input_ids, labels in input_ids_and_labels:
             orig_size = len(input_ids)
             # We may need to truncate the input_ids / labels in order to maintain max_seq_len
-            if orig_size > max_seq_len:
-                input_ids = input_ids[:max_seq_len]
-                labels = labels[:max_seq_len]
+            if orig_size > self.max_seq_len:
+                input_ids = input_ids[:self.max_seq_len]
+                labels = labels[:self.max_seq_len]
 
                 # Check to make sure there are still loss-generating tokens. Error if not.
                 if len([l for l in labels if l != _HF_IGNORE_INDEX]) == 0:
                     raise ValueError(
-                        f'Truncating to max_seq_len={max_seq_len} has removed all loss-generating tokens. ' +\
+                        f'Truncating to max_seq_len={self.max_seq_len} has removed all loss-generating tokens. ' +\
                         f'Pre-truncation sequence length was {orig_size}. ' +\
                         'This sample should have been filtered out before reaching the collator. If using ' +\
                         'pre-tokenized streaming data, this may have resulted from using different ' +\
                         '``target_prompts``, ``target_responses``, or ``max_seq_len`` ' +\
-                        'settings when preparing the streaming dataset than what are currently being used.',
+                        'settings when preparing the streaming dataset than what are currently being used.'
                     )
 
                 # Still issue a warning when truncating
                 if not self._warned_truncated:
                     warnings.warn(
-                        f'Truncating sequence of length={orig_size} to fit max_seq_len={max_seq_len}. ' +\
-                        f'If truncation is a problem, consider increasing max_seq_len.',
+                        f'Truncating sequence of length={orig_size} to fit max_seq_len={self.max_seq_len}. ' +\
+                        f'If truncation is a problem, consider increasing max_seq_len.'
                     )
                     self._warned_truncated = True
 
             attention_mask = [1] * len(input_ids)
+            # bidirectional_mask is used by our prefix lm model variants
+            # Note: this will be malformed if any loss-generating tokens are followed by non-loss-generating tokens
+            # (such as in the case of multi-turn chat examples)
+            bidirectional_mask = [
+                1 if label == _HF_IGNORE_INDEX else 0 for label in labels
+            ]
 
             # Annoyingly, we need to pad everything but input_ids
             # and attention_mask ourselves
             n_total = len(input_ids)
-            i_pad = [_HF_IGNORE_INDEX] * (max_seq_len - n_total)
+            i_pad = [_HF_IGNORE_INDEX] * (self.max_seq_len - n_total)
+            z_pad = [0] * (self.max_seq_len - n_total)
             if self.tokenizer.padding_side == 'left':
                 labels = i_pad + labels
+                bidirectional_mask = z_pad + bidirectional_mask
             else:
                 labels = labels + i_pad
+                bidirectional_mask = bidirectional_mask + z_pad
 
             # Update the example
             processed_example = {
                 'input_ids': input_ids,
                 'labels': labels,
                 'attention_mask': attention_mask,
+                'bidirectional_mask': bidirectional_mask,
             }
 
             processed_examples.append(processed_example)
@@ -421,30 +398,19 @@ class Seq2SeqFinetuningCollator:
         return batch
 
     def _process_and_batch_encoder_decoder(
-        self,
-        examples: List[TokenizedExample],
-    ) -> Dict[str, torch.Tensor]:
+            self, examples: List[TokenizedExample]) -> Dict[str, torch.Tensor]:
         # The encoder-decoder case is has some gotchas.
         # Steps are explained in comments.
         processed_examples = []
-        contexts_and_targets = [
-            stitch_turns_encoder_decoder(
+        for example in examples:
+            context, target = stitch_turns_encoder_decoder(
                 example_turns=example['turns'],
                 eos_token_id=self.tokenizer.eos_token_id,
-            ) for example in examples
-        ]
+            )
 
-        if self._pad_to_longest:
-            max_seq_len = 0
-            for context, target in contexts_and_targets:
-                max_seq_len = max(max_seq_len, len(context), len(target))
-        else:
-            max_seq_len = self.max_seq_len
-
-        for context, target in contexts_and_targets:
             # We need to pad labels ourselves. Because HF.
-            if len(target) < max_seq_len:
-                i_pad = [_HF_IGNORE_INDEX] * (max_seq_len - len(target))
+            if len(target) < self.max_seq_len:
+                i_pad = [_HF_IGNORE_INDEX] * (self.max_seq_len - len(target))
                 target = target + i_pad
             else:
                 if not self._warned_target:

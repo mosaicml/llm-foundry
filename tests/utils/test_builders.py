@@ -63,9 +63,8 @@ def test_tokenizer_builder(tokenizer_name: str, tokenizer_kwargs: dict):
 
 def test_tokenizer_no_EOS():
     with pytest.raises(
-        ValueError,
-        match='The tokenizer bert-base-uncased must have an eos_token.',
-    ):
+            ValueError,
+            match='The tokenizer bert-base-uncased must have an eos_token.'):
         build_tokenizer('bert-base-uncased', {})
 
 
@@ -168,8 +167,8 @@ def test_build_logger():
         'init_kwargs': {
             'config': {
                 'foo': 'bar',
-            },
-        },
+            }
+        }
     }
     wandb_logger = build_logger('wandb', logger_cfg)  # type: ignore
     assert isinstance(wandb_logger, WandBLogger)
@@ -196,53 +195,44 @@ class _DummyModule(nn.Module):
         return self.linear1(self.norm0(self.linear0(x)))
 
 
-@pytest.mark.parametrize(
-    'name, optimizer_config',
-    [
-        ('decoupled_adamw', {}),
-        ('decoupled_lionw', {}),
-        ('clip_lion', {}),
-        ('adalr_lion', {}),
-    ],
-)
-@pytest.mark.parametrize(
-    'opt_additional_config',
-    [
-        {
-            'disable_grad': 'norm',
-        },
-        {
-            'disable_grad': ['norm', 'bias'],
-        },
-        {
-            'param_groups': [{
-                'param_str_match': 'norm',
-                'lr': 1e-9,
-                'weight_decay': 0.0,
-            },],
-        },
-        {
-            'param_groups': [{
-                'param_str_match': 'no.*.bias',
-                'lr': 1e-9,
-                'weight_decay': 0.0,
-            },],
-        },
-        {
-            'param_groups': [{
-                'param_str_match': 'norm',
-                'lr': 1e-4,
-                'weight_decay': 0.0,
-            },],
-            'disable_grad': ['bias'],
-        },
-    ],
-)
-def test_build_optimizer(
-    name: str,
-    optimizer_config: Dict[str, Any],
-    opt_additional_config: Dict[str, Any],
-):
+@pytest.mark.parametrize('name, optimizer_config', [
+    ('decoupled_adamw', {}),
+    ('decoupled_lionw', {}),
+    ('clip_lion', {}),
+    ('adalr_lion', {}),
+])
+@pytest.mark.parametrize('opt_additional_config', [
+    {
+        'disable_grad': 'norm'
+    },
+    {
+        'disable_grad': ['norm', 'bias']
+    },
+    {
+        'param_groups': [{
+            'param_str_match': 'norm',
+            'lr': 1e-9,
+            'weight_decay': 0.0,
+        },]
+    },
+    {
+        'param_groups': [{
+            'param_str_match': 'no.*.bias',
+            'lr': 1e-9,
+            'weight_decay': 0.0,
+        },]
+    },
+    {
+        'param_groups': [{
+            'param_str_match': 'norm',
+            'lr': 1e-4,
+            'weight_decay': 0.0,
+        },],
+        'disable_grad': ['bias'],
+    },
+])
+def test_build_optimizer(name: str, optimizer_config: Dict[str, Any],
+                         opt_additional_config: Dict[str, Any]):
     model = _DummyModule()
     optimizer_config = deepcopy(optimizer_config)
     optimizer_config.update(deepcopy(opt_additional_config))

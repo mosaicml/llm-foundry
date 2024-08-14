@@ -91,19 +91,14 @@ def process_file(
     for node in ast.walk(tree):
         # Remove any imports matching the remove_imports_prefix
         if isinstance(
-            node,
-            ast.ImportFrom,
-        ) and node.module is not None and _remove_import(
-            node,
-            remove_imports_prefix,
-        ):
+                node,
+                ast.ImportFrom) and node.module is not None and _remove_import(
+                    node, remove_imports_prefix):
             nodes_to_remove.append(node)
         # Convert any (remaining) imports matching the flatten_imports_prefix
         # to relative imports
-        elif (
-            isinstance(node, ast.ImportFrom) and node.module is not None and
-            _flatten_import(node, flatten_imports_prefix)
-        ):
+        elif (isinstance(node, ast.ImportFrom) and node.module is not None and
+              _flatten_import(node, flatten_imports_prefix)):
             module_path = find_module_file(node.module)
             node.module = convert_to_relative_import(
                 node.module,
@@ -140,90 +135,11 @@ def process_file(
     return new_files_to_process
 
 
-def get_all_relative_imports(file_path: str) -> set[str]:
-    """Get all relative imports from a file.
-
-    Args:
-        file_path (str): The file to process.
-
-    Returns:
-        set[str]: The relative imports.
-    """
-    with open(file_path, 'r', encoding='utf-8') as f:
-        source = f.read()
-
-    tree = ast.parse(source)
-    relative_imports = set()
-    for node in ast.walk(tree):
-        if isinstance(
-            node,
-            ast.ImportFrom,
-        ) and node.module is not None and node.level == 1:
-            relative_imports.add(node.module)
-
-    return relative_imports
-
-
-def add_relative_imports(
-    file_path: str,
-    relative_imports_to_add: set[str],
-) -> None:
-    """Add relative imports to a file.
-
-    Args:
-        file_path (str): The file to add to.
-        relative_imports_to_add (set[str]): The set of relative imports to add
-    """
-    # Get the directory name where all the files are located
-    dir_name = os.path.dirname(file_path)
-
-    with open(file_path, 'r', encoding='utf-8') as f:
-        source = f.read()
-
-    tree = ast.parse(source)
-
-    for relative_import in relative_imports_to_add:
-        import_path = os.path.join(dir_name, relative_import + '.py')
-        # Open up the file we are adding an import to find something to import from it
-        with open(import_path, 'r', encoding='utf-8') as f:
-            import_source = f.read()
-        import_tree = ast.parse(import_source)
-        item_to_import = None
-        for node in ast.walk(import_tree):
-            # Find the first function or class
-            if isinstance(node,
-                          ast.FunctionDef) or isinstance(node, ast.ClassDef):
-                # Get its name to import it
-                item_to_import = node.name
-                break
-
-        if item_to_import is None:
-            item_to_import = '*'
-
-        # This will look like `from .relative_import import item_to_import`
-        import_node = ast.ImportFrom(
-            module=relative_import,
-            names=[ast.alias(name=item_to_import, asname=None)],
-            level=1,
-        )
-
-        # Insert near the top of the file, but past the from __future__ import
-        tree.body.insert(2, import_node)
-
-    with open(file_path, 'w', encoding='utf-8') as f:
-        f.write(ast.unparse(tree))
-
-
 def edit_files_for_hf_compatibility(
     folder: str,
     flatten_imports_prefix: Sequence[str] = ('llmfoundry',),
-    remove_imports_prefix: Sequence[str] = (
-        'composer',
-        'omegaconf',
-        'llmfoundry.metrics',
-        'llmfoundry.eval',
-        'llmfoundry.utils.builders',
-    ),
+    remove_imports_prefix: Sequence[str] = ('composer', 'omegaconf',
+                                            'llmfoundry.metrics'),
 ) -> None:
     """Edit files to be compatible with Hugging Face Hub.
 
@@ -231,23 +147,8 @@ def edit_files_for_hf_compatibility(
         folder (str): The folder to process.
         flatten_imports_prefix (Sequence[str], optional): Sequence of prefixes to flatten. Defaults to ('llmfoundry',).
         remove_imports_prefix (Sequence[str], optional): Sequence of prefixes to remove. Takes precedence over flattening.
-            Defaults to ('composer', 'omegaconf', 'llmfoundry.metrics', 'llmfoundry.utils.builders').
+            Defaults to ('composer', 'omegaconf', 'llmfoundry.metrics').
     """
-    listed_dir = os.listdir(folder)
-
-    # Try to acquire the config file to determine which python file is the entrypoint file
-    config_file_exists = 'config.json' in listed_dir
-    with open(os.path.join(folder, 'config.json'), 'r') as _f:
-        config = json.load(_f)
-
-    # If the config file exists, the entrypoint files would be specified in the auto map
-    entrypoint_files = set()
-    if config_file_exists:
-        for value in config.get('auto_map', {}).values():
-            split_path = value.split('.')
-            if len(split_path) > 1:
-                entrypoint_files.add(split_path[0] + '.py')
-
     files_to_process = [
         os.path.join(folder, filename)
         for filename in listed_dir

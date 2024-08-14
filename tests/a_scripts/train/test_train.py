@@ -161,32 +161,7 @@ def test_train_multi_eval(tmp_path: pathlib.Path):
     ) > 0
     assert isinstance(
         inmemorylogger.data['metrics/eval/arxiv/LanguageCrossEntropy'][-1],
-        tuple,
-    )
-
-
-@pytest.mark.gpu
-def test_validate_config():
-    conf_path: str = os.path.join(
-        REPO_DIR,
-        'scripts/train/yamls/pretrain/testing-moe.yaml',
-    )
-    with open(conf_path) as f:
-        test_cfg: DictConfig = om.load(f)  # type: ignore
-    test_cfg.model.ffn_config.moe_world_size = 4
-    test_cfg.fsdp_config.use_orig_params = False
-    with pytest.raises(
-        ValueError,
-        match=
-        'MoEs with expert parallelism (.*) require `use_orig_params=True`.',
-    ):
-        _, cfg_obj = make_dataclass_and_log_config(
-            test_cfg,
-            TrainConfig,
-            TRAIN_CONFIG_KEYS,
-            transforms=[update_batch_size_info],
-        )
-        validate_config(cfg_obj)
+        tuple)
 
 
 def test_eval_metrics_with_no_train_metrics(tmp_path: pathlib.Path):
@@ -201,7 +176,7 @@ def test_eval_metrics_with_no_train_metrics(tmp_path: pathlib.Path):
     test_cfg.eval_interval = '1ba'
     test_cfg.loggers = DictConfig({'inmemory': DictConfig({})})
     test_cfg.model['use_train_metrics'] = False
-    trainer = train(test_cfg)
+    trainer = main(test_cfg)
 
     # Check eval metrics exist
     inmemorylogger = trainer.logger.destinations[
@@ -210,13 +185,8 @@ def test_eval_metrics_with_no_train_metrics(tmp_path: pathlib.Path):
 
     assert 'metrics/eval/c4/LanguageCrossEntropy' in inmemorylogger.data.keys()
     assert isinstance(
-        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'],
-        list,
-    )
+        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'], list)
     assert len(
-        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1],
-    ) > 0
+        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1]) > 0
     assert isinstance(
-        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1],
-        tuple,
-    )
+        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1], tuple)

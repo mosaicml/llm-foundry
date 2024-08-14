@@ -1,19 +1,14 @@
 # Pretrain a gpt-neo-125m style model
 # this is NOT a finetuning run
 
-variables:
-  data_local: ./my-copy-c4
-  data_remote:  # If blank, files must be present in data_local
-  tokenizer_name: gpt2
-  global_seed: 17
+data_local: ./my-copy-c4
+data_remote:  # If blank, files must be present in data_local
+tokenizer_name: gpt2
+max_seq_len: 2048
+global_seed: 17
 
-  max_seq_len: 2048
-
-  # Run Name
-  run_name:  # If left blank, will be read from env var $RUN_NAME
-
-max_seq_len: ${variables.max_seq_len}
-run_name: ${variables.run_name}
+# Run Name
+run_name:  # If left blank, will be read from env var $RUN_NAME
 
 # Model
 model:

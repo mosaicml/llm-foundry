@@ -2,13 +2,8 @@ variables:
   global_seed: 17
   model_name: t5-small
 
-  max_seq_len: 1024
-
-  # Run Name
-  run_name:  # If left blank, will be read from env var $RUN_NAME
-
-max_seq_len: ${variables.max_seq_len}
-run_name: ${variables.run_name}
+# Run Name
+run_name:  # If left blank, will be read from env var $RUN_NAME
 
 # Model
 model:

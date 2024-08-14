@@ -1,14 +1,10 @@
-variables:
-  data_local: ./my-copy-c4
-  data_remote:  # If blank, files must be present in data_local
-  max_seq_len: 128
-  global_seed: 17
+data_local: ./my-copy-c4
+data_remote:  # If blank, files must be present in data_local
+max_seq_len: 128
+global_seed: 17
 
-  # Run Name
-  run_name: mpt_causal_lm_cpu  # If left blank, will be read from env var $RUN_NAME
-
-max_seq_len: ${variables.max_seq_len}
-run_name: ${variables.run_name}
+# Run Name
+run_name: mpt_causal_lm_cpu  # If left blank, will be read from env var $RUN_NAME
 
 # Model
 model:

@@ -128,7 +128,6 @@ def test_single_and_multi_process(
             processes=processes,
             args_str='Namespace()',
             reprocess=False,
-            trust_remote_code=False,
         )
 
     call_convert_text_to_mds()
@@ -222,7 +221,6 @@ def test_local_path(tmp_path: pathlib.Path):
             processes=1,
             args_str='Namespace()',
             reprocess=reprocess,
-            trust_remote_code=False,
         )
 
     # Create input text data
@@ -239,55 +237,12 @@ def test_local_path(tmp_path: pathlib.Path):
     assert os.path.exists(output_folder / 'shard.00000.mds.zstd')
 
     # Test reprocessing.
-    with pytest.raises(OutputFolderNotEmptyError):
+    with pytest.raises(FileExistsError):
         call_convert_text_to_mds(reprocess=True)
 
     shutil.rmtree(output_folder)
 
     call_convert_text_to_mds(reprocess=True)
-
-
-def test_input_folder_not_exist(tmp_path: pathlib.Path):
-    with pytest.raises(
-        InputFolderMissingDataError,
-        match='No text files were found',
-    ):
-        convert_text_to_mds(
-            tokenizer_name='mosaicml/mpt-7b',
-            output_folder=str(tmp_path / 'output'),
-            input_folder=str(tmp_path / 'input'),
-            concat_tokens=1,
-            eos_text='',
-            bos_text='',
-            no_wrap=False,
-            compression='zstd',
-            processes=1,
-            args_str='Namespace()',
-            reprocess=False,
-            trust_remote_code=False,
-        )
-
-
-def test_dataset_too_small(tmp_path: pathlib.Path):
-    input_folder = tmp_path / 'input'
-    os.makedirs(input_folder, exist_ok=True)
-    with open(input_folder / 'test.txt', 'w') as f:
-        f.write('a')
-    with pytest.raises(DatasetTooSmallError):
-        convert_text_to_mds(
-            tokenizer_name='mosaicml/mpt-7b',
-            output_folder=str(tmp_path / 'output'),
-            input_folder=str(input_folder),
-            concat_tokens=2048,
-            eos_text='',
-            bos_text='',
-            no_wrap=False,
-            compression='zstd',
-            processes=1,
-            args_str='Namespace()',
-            reprocess=False,
-            trust_remote_code=False,
-        )
 
 
 def test_is_already_processed(tmp_path: pathlib.Path):

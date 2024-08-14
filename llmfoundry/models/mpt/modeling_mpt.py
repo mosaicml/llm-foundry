@@ -8,7 +8,6 @@ Inspired by https://github.com/karpathy/minGPT/blob/master/mingpt/model.py
 
 from __future__ import annotations
 
-import copy
 import math
 import warnings
 from functools import cached_property
@@ -31,8 +30,9 @@ from composer.models import HuggingFaceModel
 from composer.utils import dist
 from tabulate import tabulate
 
-from llmfoundry.layers_registry import ffns_with_megablocks
+from llmfoundry.metrics import TokenAccuracy
 from llmfoundry.models.layers.attention import is_flash_v2_installed
+from llmfoundry.models.layers.norm import NORM_CLASS_REGISTRY
 
 if is_flash_v2_installed():
     try:  # This try...except is needed because transformers requires it despite the 'if' statement above
@@ -44,25 +44,11 @@ if is_flash_v2_installed():
 
 import logging
 
-from transformers import PreTrainedModel, PreTrainedTokenizerBase
-from transformers.modeling_outputs import (
-    BaseModelOutputWithPast,
-    CausalLMOutputWithPast,
-)
-from transformers.models.llama.modeling_llama import (
-    LlamaConfig,
-    LlamaRotaryEmbedding,
-)
-
-from llmfoundry.layers_registry import norms, param_init_fns
-from llmfoundry.models.layers.attention import (
-    attn_bias_shape,
-    build_attn_bias,
-    gen_slopes,
-)
+from llmfoundry.models.layers.attention import (attn_bias_shape,
+                                                build_attn_bias, gen_slopes)
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.layers.custom_embedding import SharedEmbedding
-from llmfoundry.models.layers.layer_builders import build_norm
+from llmfoundry.models.layers.ffn import build_ffn as build_ffn
 from llmfoundry.models.mpt.configuration_mpt import MPTConfig
 from llmfoundry.models.utils.act_ckpt import (
     build_act_ckpt_mod_to_blocks,
@@ -78,9 +64,29 @@ from llmfoundry.models.utils.mpt_param_count import (
 # Import the fcs and param_init_fns here so that the recursive code creating the files for hf checkpoints can find them
 # These are the exceptions because fc.py and param_init_fns.py are not imported in any other place in the import tree
 # isort: off
-from llmfoundry.models.layers.fc import fcs  #  type: ignore
-from llmfoundry.models.utils.param_init_fns import generic_param_init_fn_  # type: ignore
-from llmfoundry.models.layers.norm import LPLayerNorm  # type: ignore
+from llmfoundry.models.utils.adapt_tokenizer import (
+    AutoTokenizerForMOD,  # type: ignore (see note)
+    adapt_tokenizer_for_denoising,  # type: ignore (see note)
+)
+from llmfoundry.models.utils.hf_prefixlm_converter import (
+    add_bidirectional_mask_if_missing,  # type: ignore (see note)
+    convert_hf_causal_lm_to_prefix_lm,  # type: ignore (see note)
+)
+from llmfoundry.models.utils.meta_init_context import \
+    init_empty_weights  # type: ignore (see note)
+from llmfoundry.models.utils.param_init_fns import (
+    generic_param_init_fn_,  # type: ignore (see note)
+    MODEL_INIT_REGISTRY,
+)
+
+from llmfoundry.models.utils.act_ckpt import (pass_on_block_idx,
+                                              build_act_ckpt_mod_to_blocks,
+                                              check_mapping_blocks_overlap)
+
+try:
+    from llmfoundry.models.layers.flash_attn_triton import flash_attn_func as flash_attn_func
+except:
+    pass
 # isort: on
 
 log = logging.getLogger(__name__)
@@ -269,13 +275,12 @@ def gen_attention_mask_in_length(
 
 
 def gen_flash_attn_padding_info(
-    bsz: int,
-    S: int,
-    past_key_len: int,
-    device: torch.device,
-    attention_mask_in_length: Optional[torch.Tensor] = None,
-    attention_mask: Optional[torch.Tensor] = None,
-):
+        bsz: int,
+        S: int,
+        past_key_len: int,
+        device: torch.device,
+        attention_mask_in_length: Optional[torch.Tensor] = None,
+        attention_mask: Optional[torch.Tensor] = None):
     flash_attn_padding_info = {}
     if attention_mask_in_length is None:
         key_padding_mask = attention_mask
@@ -291,17 +296,11 @@ def gen_flash_attn_padding_info(
         unpadding_function = bert_padding.unpad_input_for_concatenated_sequences
 
     _, indices_q, cu_seqlens_q, max_seqlen_q = unpadding_function(
-        torch.empty(bsz, S, 1, device=device),
-        query_padding_mask,
-    )
+        torch.empty(bsz, S, 1, device=device), query_padding_mask)
     _, indices_k, cu_seqlens_k, max_seqlen_k = unpadding_function(
-        torch.empty(bsz, past_key_len + S, 1, device=device),
-        key_padding_mask,
-    )
+        torch.empty(bsz, past_key_len + S, 1, device=device), key_padding_mask)
     _, indices_v, _, _ = unpadding_function(
-        torch.empty(bsz, past_key_len + S, 1, device=device),
-        key_padding_mask,
-    )
+        torch.empty(bsz, past_key_len + S, 1, device=device), key_padding_mask)
 
     flash_attn_padding_info['indices_q'] = indices_q
     flash_attn_padding_info['indices_k'] = indices_k
@@ -313,11 +312,8 @@ def gen_flash_attn_padding_info(
     return flash_attn_padding_info
 
 
-def apply_sequence_id(
-    attn_bias: torch.Tensor,
-    sequence_id: torch.LongTensor,
-    max_seq_len: int,
-) -> torch.Tensor:
+def apply_sequence_id(attn_bias: torch.Tensor, sequence_id: torch.LongTensor,
+                      max_seq_len: int) -> torch.Tensor:
     seq_len = sequence_id.shape[-1]
     if seq_len > max_seq_len:
         raise ValueError(
@@ -366,8 +362,6 @@ def _fsdp_wrap_fn(
     module: nn.Module,
 ) -> bool:
     # FSDP Wrap function for MPT Models
-    if hasattr(module, '_fsdp_kwargs_dict'):
-        return module._fsdp_kwargs_dict
     return isinstance(module, MPTBlock)
 
 
@@ -410,12 +404,9 @@ class MPTModel(MPTPreTrainedModel):
                 config.max_seq_len,
                 config.d_model,
                 device=config.init_device,
-            )
-        self.emb_drop = nn.Dropout(config.emb_pdrop)
-        self.mb_args = None
-        self.shift_labels = True
-
-        self.blocks = self.construct_blocks(config=config,)
+                **config.to_dict(),
+            ) for _ in range(config.n_layers)
+        ])
 
         # Tag all modules in the transformer blocks with the corresponding block_idx and max_block_idx
         for i, block in enumerate(self.blocks):
@@ -423,12 +414,7 @@ class MPTModel(MPTPreTrainedModel):
             block.max_block_idx = config.n_layers - 1
             pass_on_block_idx(block)
 
-        self.norm_f = build_norm(
-            name=config.norm_type.lower(),
-            normalized_shape=config.d_model,
-            eps=config.norm_eps,
-            device=config.init_device,
-        )
+        self.norm_f = norm_class(config.d_model, device=config.init_device)
 
         self.rope = config.attn_config['rope']
         self.rope_impl = None
@@ -820,10 +806,12 @@ class MPTModel(MPTPreTrainedModel):
             )
         elif input_ids is not None:
             bsz = input_ids.size(0)
+            S = input_ids.size(1)
             x = self.wte(input_ids)
             input_device = input_ids.device
         elif inputs_embeds is not None:
             bsz = inputs_embeds.size(0)
+            S = inputs_embeds.size(1)
             x = inputs_embeds
             input_device = inputs_embeds.device
         else:
@@ -843,19 +831,18 @@ class MPTModel(MPTPreTrainedModel):
                 raise ValueError(
                     f'past_key_values must provide a past_key_value for each attention '
                     +
-                    f'layer in the network ({len(past_key_values)=}; {self.config.n_layers=}).',
+                    f'layer in the network ({len(past_key_values)=}; {self.config.n_layers=}).'
                 )
-            # For attn_impl: flash, the past key tensor spec is (batch, seq, dim).
-            # For attn_impl: torch, the past key tensor spec is (batch, heads, head_dim, seq).
+            # For attn_impl: triton and flash the past key tensor spec is (batch, seq, dim).
+            # For attn_impl: torch the past key tensor spec is (batch, heads, head_dim, seq).
             # Here we shift position embedding using the `seq` dim of the past key
             past_position = past_key_values[0][0].size(1)
             if self.attn_impl == 'torch':
                 past_position = past_key_values[0][0].size(3)
 
         if self.learned_pos_emb or self.rope:
-            if self.learned_pos_emb and (
-                S + past_position > self.config.max_seq_len
-            ):
+            if self.learned_pos_emb and (S + past_position >
+                                         self.config.max_seq_len):
                 raise ValueError(
                     f'Cannot forward input with past sequence length {past_position} and current sequence length '
                     +
@@ -938,15 +925,9 @@ class MPTModel(MPTPreTrainedModel):
         flash_attn_padding_info = {}
         if self.attn_impl == 'flash':
             flash_attn_padding_info = gen_flash_attn_padding_info(
-                bsz,
-                S,
-                past_position,
-                x.device,
-                attention_mask_in_length,
-                attention_mask,
-            )
+                bsz, S, past_position, x.device, attention_mask_in_length,
+                attention_mask)
 
-        layer_kv_cache_dict = {}
         for b_idx, block in enumerate(self.blocks):
             attn_block = block.norm_attn_norm.attn if self.blocks_fuse_norm_attn_norm else block.attn
             if attn_block.reuse_kv_layer_idx is not None:
@@ -977,7 +958,6 @@ class MPTModel(MPTPreTrainedModel):
                 output_attentions=bool(output_attentions),
                 alibi_slopes=alibi_slopes,
                 flash_attn_padding_info=flash_attn_padding_info,
-                **extra_kwargs,
             )
             if presents is not None:
                 presents += (present,)
@@ -1237,25 +1217,17 @@ class MPTForCausalLM(MPTPreTrainedModel):
         """
         if not hasattr(module, 'block_idx'):
             log.debug(
-                f'{module.__class__.__name__} cannot be activation checkpointed. Only transformer block or its submodules are eligible for activation checkpointing.',
+                f'{module.__class__.__name__} cannot be activation checkpointed. Only transformer block or its submodules are eligible for activation checkpointing.'
             )
             return False
 
-        act_ckpt_target = getattr(
-            self.config,
-            'activation_checkpointing_target',
-            None,
-        )
+        act_ckpt_target = getattr(self.config,
+                                  'activation_checkpointing_target', None)
         act_ckpt_mod_to_blocks = build_act_ckpt_mod_to_blocks(
-            act_ckpt_target,
-            MPTBlock,
-            module.max_block_idx,
-        )
+            act_ckpt_target, MPTBlock, module.max_block_idx)
 
-        check_mapping_blocks_overlap(
-            act_ckpt_mod_to_blocks,
-            module.max_block_idx,
-        )
+        check_mapping_blocks_overlap(act_ckpt_mod_to_blocks,
+                                     module.max_block_idx)
 
         for k in act_ckpt_mod_to_blocks.keys():
             if isinstance(module, k):
@@ -1372,18 +1344,22 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         )
         from llmfoundry.utils.builders import build_metric
 
-        additional_train_metrics = additional_train_metrics or []
-
-        model = self.model_class(self.config_class(**kwargs))
-
-        use_train_metrics = use_train_metrics
-        train_metric_names = DEFAULT_CAUSAL_LM_TRAIN_METRICS + additional_train_metrics
+        use_train_metrics = om_model_config.get('use_train_metrics', True)
         train_metrics = [
-            build_metric(metric, {}) for metric in train_metric_names
+            LanguageCrossEntropy(),
+            LanguagePerplexity(),
+            TokenAccuracy()
         ] if use_train_metrics else []
-        eval_metric_names = DEFAULT_CAUSAL_LM_EVAL_METRICS + additional_train_metrics
         eval_metrics = [
-            build_metric(metric, {}) for metric in eval_metric_names
+            LanguageCrossEntropy(),
+            LanguagePerplexity(),
+            TokenAccuracy(),
+            InContextLearningLMAccuracy(),
+            InContextLearningMultipleChoiceAccuracy(),
+            InContextLearningQAAccuracy(),
+            InContextLearningCodeEvalAccuracy(),
+            InContextLearningLMExpectedCalibrationError(),
+            InContextLearningMCExpectedCalibrationError(),
         ]
 
         super().__init__(

@@ -69,7 +69,7 @@ def download_from_hf_hub(
     Safetensors weights will be downloaded unless `prefer_safetensors` is set to False.
 
     Args:
-        model (str): The Hugging Face Hub repo ID.
+        repo_id (str): The Hugging Face Hub repo ID.
         save_dir (str, optional): The local path to the directory where the model files will be downloaded.
         prefer_safetensors (bool): Whether to prefer Safetensors weights over PyTorch weights if both are
             available. Defaults to True.
@@ -112,23 +112,21 @@ def download_from_hf_hub(
     else:
         raise ValueError(
             f'No supported model weights found in repo {model}.' +
-            ' Please make sure the repo contains either safetensors or pytorch weights.',
+            ' Please make sure the repo contains either safetensors or pytorch weights.'
         )
 
     allow_patterns = TOKENIZER_FILES if tokenizer_only else None
 
     download_start = time.time()
-    hf_hub.snapshot_download(
-        model,
-        local_dir=save_dir,
-        local_dir_use_symlinks=False,
-        ignore_patterns=ignore_patterns,
-        allow_patterns=allow_patterns,
-        token=token,
-    )
+    hf_hub.snapshot_download(model,
+                             local_dir=save_dir,
+                             local_dir_use_symlinks=False,
+                             ignore_patterns=ignore_patterns,
+                             allow_patterns=allow_patterns,
+                             token=token)
     download_duration = time.time() - download_start
     log.info(
-        f'Downloaded model {model} from Hugging Face Hub in {download_duration} seconds',
+        f'Downloaded model {model} from Hugging Face Hub in {download_duration} seconds'
     )
 
 
@@ -214,11 +212,10 @@ def _recursive_download(
         )
 
 
-@tenacity.retry(
-    retry=tenacity.retry_if_not_exception_type((PermissionError, ValueError)),
-    stop=tenacity.stop_after_attempt(3),
-    wait=tenacity.wait_exponential(min=1, max=10),
-)
+@tenacity.retry(retry=tenacity.retry_if_not_exception_type(
+    (PermissionError, ValueError)),
+                stop=tenacity.stop_after_attempt(3),
+                wait=tenacity.wait_exponential(min=1, max=10))
 def download_from_http_fileserver(
     url: str,
     save_dir: str,
@@ -239,23 +236,19 @@ def download_from_http_fileserver(
             if ignore_cert:
                 warnings.simplefilter('ignore', category=InsecureRequestWarning)
 
-            _recursive_download(
-                session,
-                url,
-                '',
-                save_dir,
-                ignore_cert=ignore_cert,
-            )
+            _recursive_download(session,
+                                url,
+                                '',
+                                save_dir,
+                                ignore_cert=ignore_cert)
 
 
-def download_from_oras(
-    model: str,
-    config_file: str,
-    credentials_dir: str,
-    save_dir: str,
-    tokenizer_only: bool = False,
-    concurrency: int = 10,
-):
+def download_from_oras(model: str,
+                       config_file: str,
+                       credentials_dir: str,
+                       save_dir: str,
+                       tokenizer_only: bool = False,
+                       concurrency: int = 10):
     """Download from an OCI-compliant registry using oras.
 
     Args:
@@ -264,12 +257,12 @@ def download_from_oras(
         credentials_dir (str): Path to a directory containing credentials for the registry. It is expected to contain three
             files: `username`, `password`, and `registry`, each of which contains the corresponding credential.
         save_dir (str): Path to the directory where files will be downloaded.
-        tokenizer_only (bool): If true, only download the tokenizer files.
+        tokenizer_only (bool): If true, only download the tokenzier files.
         concurrency (int): The number of concurrent downloads to run.
     """
     if shutil.which(ORAS_CLI) is None:
         raise Exception(
-            f'oras cli command `{ORAS_CLI}` is not found. Please install oras: https://oras.land/docs/installation ',
+            f'oras cli command `{ORAS_CLI}` is not found. Please install oras: https://oras.land/docs/installation '
         )
 
     def _read_secrets_file(secret_file_path: str,):
@@ -278,14 +271,12 @@ def download_from_oras(
                 return f.read().strip()
         except Exception as error:
             raise ValueError(
-                f'secrets file {secret_file_path} failed to be read',
-            ) from error
+                f'secrets file {secret_file_path} failed to be read') from error
 
     secrets = {}
     for secret in ['username', 'password', 'registry']:
         secrets[secret] = _read_secrets_file(
-            os.path.join(credentials_dir, secret),
-        )
+            os.path.join(credentials_dir, secret))
 
     with open(config_file, 'r', encoding='utf-8') as f:
         configs = yaml.safe_load(f.read())
@@ -294,10 +285,8 @@ def download_from_oras(
     path = configs[config_type][model]
     registry = secrets['registry']
 
-    def get_oras_cmd(
-        username: Optional[str] = None,
-        password: Optional[str] = None,
-    ):
+    def get_oras_cmd(username: Optional[str] = None,
+                     password: Optional[str] = None):
         cmd = [
             ORAS_CLI,
             'pull',
@@ -317,17 +306,11 @@ def download_from_oras(
 
     cmd_without_creds = get_oras_cmd()
     log.info(f'CMD for oras cli to run: {" ".join(cmd_without_creds)}')
-    cmd_to_run = get_oras_cmd(
-        username=secrets['username'],
-        password=secrets['password'],
-    )
+    cmd_to_run = get_oras_cmd(username=secrets['username'],
+                              password=secrets['password'])
     try:
         subprocess.run(cmd_to_run, check=True)
     except subprocess.CalledProcessError as e:
         # Intercept the error and replace the cmd, which may have sensitive info.
-        raise subprocess.CalledProcessError(
-            e.returncode,
-            cmd_without_creds,
-            e.output,
-            e.stderr,
-        )
+        raise subprocess.CalledProcessError(e.returncode, cmd_without_creds,
+                                            e.output, e.stderr)

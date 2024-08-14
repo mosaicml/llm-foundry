@@ -108,36 +108,31 @@ class StreamingTextDataset(StreamingDataset):
             devices need to see the same partition of the dataset. Defaults to ``None``.
     """
 
-    def __init__(
-        self,
-        tokenizer: PreTrainedTokenizerBase,
-        max_seq_len: int,
-        token_encoding_type: str = 'int64',
-        streams: Optional[Sequence[Stream]] = None,
-        remote: Optional[str] = None,
-        local: Optional[str] = None,
-        split: Optional[str] = None,
-        download_retry: int = 2,
-        download_timeout: float = 60,
-        validate_hash: Optional[str] = None,
-        keep_zip: bool = False,
-        epoch_size: Optional[Union[int, str]] = None,
-        predownload: Optional[int] = None,
-        cache_limit: Optional[Union[int, str]] = None,
-        partition_algo: str = 'relaxed',
-        num_canonical_nodes: Optional[int] = None,
-        batch_size: Optional[int] = None,
-        shuffle: bool = False,
-        shuffle_algo: str = 'py1e',
-        shuffle_seed: int = 9176,
-        shuffle_block_size: Optional[int] = None,
-        sampling_method: str = 'balanced',
-        sampling_granularity: int = 1,
-        batching_method: str = 'random',
-        allow_unsafe_types: bool = False,
-        replication: Optional[int] = None,
-        **kwargs: Any,
-    ):
+    def __init__(self,
+                 tokenizer: PreTrainedTokenizerBase,
+                 max_seq_len: int,
+                 streams: Optional[Sequence[Stream]] = None,
+                 remote: Optional[str] = None,
+                 local: Optional[str] = None,
+                 split: Optional[str] = None,
+                 download_retry: int = 2,
+                 download_timeout: float = 60,
+                 validate_hash: Optional[str] = None,
+                 keep_zip: bool = False,
+                 epoch_size: Optional[Union[int, str]] = None,
+                 predownload: Optional[int] = None,
+                 cache_limit: Optional[Union[int, str]] = None,
+                 partition_algo: str = 'relaxed',
+                 num_canonical_nodes: Optional[int] = None,
+                 batch_size: Optional[int] = None,
+                 shuffle: bool = False,
+                 shuffle_algo: str = 'py1e',
+                 shuffle_seed: int = 9176,
+                 shuffle_block_size: Optional[int] = None,
+                 sampling_method: str = 'balanced',
+                 sampling_granularity: int = 1,
+                 batching_method: str = 'random',
+                 **kwargs: Any):
 
         if len(kwargs) > 0:
             raise ValueError(
@@ -289,55 +284,32 @@ class ConcatenatedSequenceCollatorWrapper:
         return torch.cat([left_zeros, cumulative_sep[:, :-1]], dim=1)
 
 
-def build_streams(streams: Optional[Dict[str, Any]] = None,):
-    streams_dict = streams
+def build_streams(dataset_cfg: DictConfig):
+    streams_dict = dataset_cfg.pop('streams', None)
     # build streams
-    streams_ret = []
+    streams = None
     if streams_dict is not None:
-        streams_ret = [Stream(**stream) for stream in streams_dict.values()]
-    return streams_ret
+        streams = []
+        for _, stream in streams_dict.items():
+            # stream is the streams kwargs
+            # fwd all kwargs with **stream allows streaming to check args
+            streams.append(Stream(**stream))
+    return streams
 
 
 def build_text_dataloader(
+    cfg: DictConfig,
     tokenizer: PreTrainedTokenizerBase,
-    device_batch_size: Union[int, float],
-    dataset: Dict[str, Any],
-    drop_last: bool,
-    num_workers: int,
-    pin_memory: bool = True,
-    prefetch_factor: int = 2,
-    persistent_workers: bool = True,
-    timeout: int = 0,
+    device_batch_size: int,
 ) -> DataSpec:
-
-    dataset_cfg = dataset
+    assert cfg.name == 'text', f'Tried to build text dataloader with cfg.name={cfg.name}'
 
     # get kwargs
-    dataset_cfg['replication'], dataset_batch_size = construct_from_registry(
-        name='dataset_replication_validator',
-        registry=registry.dataset_replication_validators,
-        partial_function=False,
-        kwargs={
-            'dataset_cfg': dataset_cfg,
-            'tokenizer': tokenizer,
-            'device_batch_size': device_batch_size,
-        },
-    )
+    mlm_probability = cfg.dataset.pop('mlm_probability', None)
+    eos_token_id = cfg.dataset.pop('eos_token_id', None)
+    bos_token_id = cfg.dataset.pop('bos_token_id', None)
 
-    streams = build_streams(
-        streams=dataset_cfg.pop('streams')
-        if 'streams' in dataset_cfg else None,
-    )
-
-    valid_streaming_text_dataset_parameters = inspect.signature(
-        StreamingTextDataset,
-    ).parameters
-
-    dataset_config_subset_for_streaming_text_dataset = {
-        k: v
-        for k, v in dataset_cfg.items()
-        if k in valid_streaming_text_dataset_parameters
-    }
+    streams = build_streams(cfg.dataset)
 
     # build dataset potentially with streams
     text_dataset = StreamingTextDataset(

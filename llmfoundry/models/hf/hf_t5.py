@@ -5,7 +5,8 @@
 
 from __future__ import annotations
 
-from typing import List, Mapping, Optional
+import warnings
+from typing import Mapping
 
 from composer.utils import dist
 from transformers import (
@@ -16,9 +17,10 @@ from transformers import (
 
 from llmfoundry.metrics import DEFAULT_ENC_DEC_METRICS
 from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
-from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithFSDP
-from llmfoundry.models.utils import init_empty_weights
-from llmfoundry.utils.warnings import experimental_class
+from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithZLoss
+from llmfoundry.models.utils import (adapt_tokenizer_for_denoising,
+                                     init_empty_weights)
+from llmfoundry.utils.warnings import ExperimentalWarning
 
 __all__ = ['ComposerHFT5']
 
@@ -45,22 +47,9 @@ class ComposerHFT5(HuggingFaceModelWithFSDP):
         tokenizer (PreTrainedTokenizer): The tokenizer that the model will use.
     """
 
-    def __init__(
-        self,
-        tokenizer: PreTrainedTokenizerBase,
-        pretrained_model_name_or_path: str,
-        pretrained: Optional[bool] = True,
-        trust_remote_code: bool = True,
-        use_auth_token: bool = False,
-        config_overrides: Optional[Mapping] = None,
-        init_device: str = 'cpu',
-        additional_train_metrics: Optional[List] = None,
-        name: Optional[str] = None,
-    ):
-        from llmfoundry.utils.builders import build_metric
-
-        config_overrides = config_overrides or {}
-        additional_train_metrics = additional_train_metrics or []
+    def __init__(self, om_model_config: DictConfig,
+                 tokenizer: PreTrainedTokenizerBase):
+        warnings.warn(ExperimentalWarning(feature_name='ComposerHFT5'))
 
         config = AutoConfig.from_pretrained(
             pretrained_model_name_or_path,

@@ -81,15 +81,14 @@ Please summarize the goals in this text:
 
 Going outside has benefits include reducing stress and triggering the relaxation response, which can help us not only feel better mentally, but even heal faster from physical ailments.<|im_end|>
 <|im_start|>assistant
-You should go outside and touch grass.<|im_end|>""",
-    """<|im_start|>system
+You should go outside and touch grass.<|im_end|>""", """<|im_start|>system
 You are a honest and helpful AI language model. Tell the user the truth, the whole truth, and nothing but the truth.<|im_end|>
 <|im_start|>user
 Please summarize the goals in this text:
 
 Going outside has benefits include reducing stress and triggering the relaxation response, which can help us not only feel better mentally, but even heal faster from physical ailments.<|im_end|>
 <|im_start|>assistant
-You should go outside and touch grass.<|im_end|>""",
+You should go outside and touch grass.<|im_end|>"""
 ]
 
 MULTI_TURN_CHAT_STRING_SYSTEM_PROMPT = [
@@ -100,28 +99,27 @@ Please summarize the goals in this text:
 
 Going outside has benefits include reducing stress and triggering the relaxation response, which can help us not only feel better mentally, but even heal faster from physical ailments.<|im_end|>
 <|im_start|>assistant
-You should go outside and touch grass.<|im_end|>""",
-    """<|im_start|>system
+You should go outside and touch grass.<|im_end|>""", """<|im_start|>system
 You are a honest and helpful AI language model. Tell the user the truth, the whole truth, and nothing but the truth.<|im_end|>
 <|im_start|>user
 Please summarize the goals in this text:
 
 Going outside has benefits include reducing stress and triggering the relaxation response, which can help us not only feel better mentally, but even heal faster from physical ailments.<|im_end|>
 <|im_start|>assistant
-You should go outside and touch grass.<|im_end|>""",
+You should go outside and touch grass.<|im_end|>"""
 ]
 
 MULTI_TURN_GENERATE_CHAT_ML = [[{
     'content':
         'Please summarize the goals in this text:\n\nGoing outside has benefits include reducing stress and triggering the relaxation response, which can help us not only feel better mentally, but even heal faster from physical ailments.',
     'role':
-        'user',
+        'user'
 }, {
     'content': 'You should go outside and touch grass.',
-    'role': 'assistant',
+    'role': 'assistant'
 }, {
     'content': 'What else can I do?',
-    'role': 'user',
+    'role': 'user'
 }]]
 
 MULTI_TURN_GENERATE_STRING = [
@@ -136,7 +134,7 @@ You should go outside and touch grass.<|im_end|>
 <|im_start|>user
 What else can I do?<|im_end|>
 <|im_start|>assistant
-""",
+"""
 ]
 
 

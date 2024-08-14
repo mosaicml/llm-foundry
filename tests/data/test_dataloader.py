@@ -7,10 +7,9 @@ import random
 import shutil
 from contextlib import nullcontext as does_not_raise
 from pathlib import Path
-from typing import Any, Callable, ContextManager, Dict, Literal, Optional, Union
+from typing import ContextManager, Literal, Optional, Union
 from unittest.mock import MagicMock, patch
 
-import catalogue
 import numpy as np
 import pytest
 import torch
@@ -21,47 +20,23 @@ from omegaconf import OmegaConf as om
 from streaming import MDSWriter
 from streaming.base.util import clean_stale_shared_memory
 
-from llmfoundry.command_utils import convert_dataset_hf
-from llmfoundry.command_utils.data_prep.convert_finetuning_dataset import \
-    get_columns_and_format
-from llmfoundry.data import build_dataloader, build_finetuning_dataloader
-from llmfoundry.data.finetuning.collator import (
-    _HF_IGNORE_INDEX,
-    validate_target_settings,
-)
-from llmfoundry.data.finetuning.tasks import (
-    DOWNLOADED_FT_DATASETS_DIRPATH,
-    HUGGINGFACE_FOLDER_EXTENSIONS,
-    SUPPORTED_EXTENSIONS,
-    dataset_constructor,
-    is_valid_ift_example,
-    tokenize_formatted_example,
-)
-from llmfoundry.data.text_data import (
-    ConcatenatedSequenceCollatorWrapper,
-    build_text_dataloader,
-)
-from llmfoundry.data.utils import get_tokens_per_batch_func
+from llmfoundry import (build_finetuning_dataloader,
+                        build_text_denoising_dataloader)
+from llmfoundry.data import build_dataloader
+from llmfoundry.data.finetuning.collator import (_HF_IGNORE_INDEX,
+                                                 validate_target_settings)
+from llmfoundry.data.finetuning.tasks import (DOWNLOADED_FT_DATASETS_DIRPATH,
+                                              SUPPORTED_EXTENSIONS,
+                                              dataset_constructor,
+                                              is_valid_ift_example,
+                                              tokenize_formatted_example)
+from llmfoundry.data.text_data import (ConcatenatedSequenceCollatorWrapper,
+                                       build_text_dataloader,
+                                       get_tokens_per_batch_func)
 from llmfoundry.utils.builders import build_tokenizer
-from llmfoundry.utils.config_utils import to_dict_container
-# yapf: disable
-from llmfoundry.utils.exceptions import (
-    ConsecutiveRepeatedChatRolesError,
-    IncorrectMessageKeyQuantityError,
-    InvalidContentTypeError,
-    InvalidLastChatMessageRoleError,
-    InvalidPromptTypeError,
-    InvalidResponseTypeError,
-    InvalidRoleError,
-    MisconfiguredHfDatasetError,
-    NotEnoughDatasetSamplesError,
-    UnknownExampleTypeError,
-)
-from tests.data_utils import (
-    make_tiny_conversation_ft_dataset,
-    make_tiny_ft_dataset,
-)
-from tests.test_utils import generate_exclusive_test_params
+from scripts.data_prep.convert_dataset_hf import main as main_hf
+from scripts.data_prep.convert_finetuning_dataset import get_columns_and_format
+from tests.data_utils import make_tiny_ft_dataset
 
 
 def get_config(conf_path: str = 'yamls/mpt/125m.yaml'):
@@ -80,30 +55,29 @@ def get_abs_data_path(data_local: str):
 
 
 def build_mock_ft_streaming_dataset(
-    data_path: str,
-    split: str,
-    pretokenize: bool,
-    backwards_compatibility_mode: bool,
-    use_bytes: bool,
-    tokenizer: Optional[transformers.PreTrainedTokenizerBase] = None,
-):
+        data_path: str,
+        split: str,
+        pretokenize: bool,
+        backwards_compatibility_mode: bool,
+        use_bytes: bool,
+        tokenizer: Optional[transformers.PreTrainedTokenizerBase] = None):
 
     dataset = [{
         'prompt': 'This is just a test1',
         'response': 'Hello World1',
     }, {
         'prompt': 'This is just a test2',
-        'response': 'Hello world2',
+        'response': 'Hello world2'
     }, {
         'prompt': 'This is just a test3',
-        'response': 'Hello world3',
+        'response': 'Hello world3'
     }]
 
     output_path = os.path.join(data_path, split)
 
     if use_bytes and not backwards_compatibility_mode:
         raise ValueError(
-            'use_bytes should only be true when using backwards_compatibility_mode',
+            'use_bytes should only be true when using backwards_compatibility_mode'
         )
 
     # This is the old code-path, which we want to maintain test coverage of
@@ -114,52 +88,38 @@ def build_mock_ft_streaming_dataset(
                 columns = {'input_ids': 'bytes', 'labels': 'bytes'}
             else:
                 columns = {
-                    'input_ids': 'ndarray:int32',
-                    'labels': 'ndarray:int32',
+                    'input_ids': 'ndarray:uint32',
+                    'labels': 'ndarray:uint32'
                 }
         else:
             columns = {'prompt': 'str', 'response': 'str'}
 
-        with MDSWriter(
-            columns=columns,
-            out=output_path,
-            compression=None,
-        ) as output_writer:
+        with MDSWriter(columns=columns, out=output_path,
+                       compression=None) as output_writer:
             for sample in dataset:
                 if pretokenize:
-                    sample = tokenize_formatted_example(
-                        sample,
-                        tokenizer=tokenizer,
-                    )
+                    sample = tokenize_formatted_example(sample,
+                                                        tokenizer=tokenizer)
                     # Unpack the first turn to account for changes in `tokenize_formatted_example`
                     sample = sample['turns'][0]
                     sample_to_write = {}
                     for key in columns.keys():
                         if use_bytes:
                             sample_to_write[key] = np.asarray(
-                                sample[key],
-                            ).tobytes()
+                                sample[key]).tobytes()
                         else:
-                            sample_to_write[key] = np.asarray(
-                                sample[key],
-                                dtype=np.int32,
-                            )
+                            sample_to_write[key] = np.asarray(sample[key],
+                                                              dtype=np.uint32)
                     output_writer.write(sample_to_write)
                 else:
                     output_writer.write(sample)
         return
 
-    columns, data_format = get_columns_and_format(
-        dataset,
-        pretokenize,
-        lambda x: x,
-    )
+    columns, data_format = get_columns_and_format(dataset, pretokenize,
+                                                  lambda x: x)
 
-    with MDSWriter(
-        columns=columns,
-        out=output_path,
-        compression=None,
-    ) as output_writer:
+    with MDSWriter(columns=columns, out=output_path,
+                   compression=None) as output_writer:
         for sample in dataset:
             if pretokenize:
                 sample = tokenize_formatted_example(sample, tokenizer=tokenizer)
@@ -304,20 +264,104 @@ def test_sequence_id_wrapper(
         raise NotImplementedError()
 
 
-def test_invalid_jsonl_data():
-    max_seq_len = 2
-    decoder_only_format = True
-    packing_ratio = 'auto'
-    allow_pad_trimming = False
+@pytest.mark.parametrize('decoder_only_format', [True, False])
+@pytest.mark.parametrize('pretokenize', [True, False])
+@pytest.mark.parametrize('packing_ratio', [None, 5.5])
+def test_denoising_dataloader(decoder_only_format: bool, pretokenize: bool,
+                              packing_ratio: Optional[float]):
+    # Use the datasets just built in the last test
+    tokenizer_name = 'facebook/opt-125m'
+    data_local = get_data_local(tokenizer_name, pretokenize)
+    path = get_abs_data_path(data_local)
+    max_seq_len = 256 if decoder_only_format else 128
+
+    if (decoder_only_format is False) and (packing_ratio is not None):
+        pytest.xfail('packing_ratio only supported for decoder-only format.')
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cfg = {
+            'name': 'text_denoising',
+            'dataset': {
+                'local': tmpdir,
+                'remote': path,
+                'split': 'val_xsmall',
+                'shuffle': False,
+                'max_seq_len': max_seq_len,
+                'packing_ratio': packing_ratio,
+                'predownload': 1000,
+                'keep_zip': False,
+                'num_workers': None
+            },
+            'mixture_of_denoisers': {
+                'decoder_only_format': decoder_only_format,
+                'span_mean_lengths_and_ratios': [[3, .15], [8, .5]],
+                'sequence_mask_ratios': 0.25,
+            },
+            'drop_last': False,
+            'num_workers': 4,
+        }
+        cfg = om.create(cfg)
+        device_batch_size = 2
+
+        expected_keys = ['input_ids', 'attention_mask', 'labels']
+        if decoder_only_format:
+            expected_keys += ['bidirectional_mask']
+        else:
+            expected_keys += ['decoder_attention_mask', 'decoder_input_ids']
+
+        if packing_ratio is not None:
+            expected_keys += ['sequence_id']
+
+        tokenizer = build_tokenizer(
+            tokenizer_name=tokenizer_name,
+            tokenizer_kwargs={'model_max_length': max_seq_len})
+
+        loader = build_text_denoising_dataloader(cfg, tokenizer,
+                                                 device_batch_size).dataloader
+        batch_ix = 0
+        for batch in loader:
+            for k in expected_keys:
+                assert k in batch
+                t = batch[k]
+                assert t.shape[0] == device_batch_size
+                assert t.shape[1] <= max_seq_len
+            batch_ix += 1
+            if batch_ix >= 5:
+                break
+
+
+@pytest.mark.parametrize('use_chat_formatting', [True, False])
+@pytest.mark.parametrize('decoder_only_format', [True, False])
+@pytest.mark.parametrize('allow_pad_trimming', [True, False])
+@pytest.mark.parametrize('packing_ratio', [10.0, None, 'auto'])
+def test_finetuning_dataloader(use_chat_formatting: bool,
+                               decoder_only_format: bool,
+                               allow_pad_trimming: bool,
+                               packing_ratio: Optional[Union[float,
+                                                             Literal['auto']]]):
+    if (decoder_only_format is False) and (packing_ratio is not None):
+        pytest.xfail('packing_ratio only supported for decoder-only format.')
+
+    tokenizer_name = 'gpt2' if decoder_only_format else 't5-base'
+    max_seq_len = 2048 if decoder_only_format else 1024
+
     cfg = {
         'dataset': {
-            'hf_name': 'iamroot/chat_malformatted_examples',
-            'split': 'train',
-            'max_seq_len': max_seq_len,
-            'decoder_only_format': decoder_only_format,
-            'allow_pad_trimming': allow_pad_trimming,
-            'packing_ratio': packing_ratio,
-            'shuffle': True,
+            'hf_name':
+                'iamroot/chat_formatted_examples' if use_chat_formatting else
+                'HuggingFaceH4/databricks_dolly_15k',
+            'split':
+                'train',
+            'max_seq_len':
+                max_seq_len,
+            'decoder_only_format':
+                decoder_only_format,
+            'allow_pad_trimming':
+                allow_pad_trimming,
+            'packing_ratio':
+                packing_ratio,
+            'shuffle':
+                True,
         },
         'drop_last': False,
         'num_workers': 0,
@@ -624,15 +668,9 @@ def test_finetuning_dataloader_custom_split_remote(split: str):
     )
 
     # Mock get_file to avoid downloading the file
-    with patch(
-        'llmfoundry.data.finetuning.dataloader.get_file',
-        wraps=mock_get_file,
-    ) as f:
-        _ = build_finetuning_dataloader(
-            tokenizer=tokenizer,
-            device_batch_size=4,
-            **cfg,
-        )
+    with patch('llmfoundry.data.finetuning.dataloader.get_file',
+               wraps=mock_get_file) as f:
+        _ = build_finetuning_dataloader(cfg, tokenizer, 4)
         for call in f.call_args_list:
             path_arg = call.kwargs['path']
             dest_arg = call.kwargs['destination']
@@ -647,15 +685,11 @@ def test_finetuning_dataloader_custom_split_remote(split: str):
 @pytest.mark.parametrize('use_multiple_streams', [True, False])
 @pytest.mark.parametrize(('backwards_compatibility_mode', 'use_bytes'),
                          [[False, False], [True, False], [True, True]])
-def test_finetuning_dataloader_streaming(
-    pretokenize: bool,
-    use_multiple_streams: bool,
-    backwards_compatibility_mode: bool,
-    use_bytes: bool,
-    tmp_path: pathlib.Path,
-):
-    clean_stale_shared_memory()
-
+def test_finetuning_dataloader_streaming(pretokenize: bool,
+                                         use_multiple_streams: bool,
+                                         backwards_compatibility_mode: bool,
+                                         use_bytes: bool,
+                                         tmp_path: pathlib.Path):
     max_seq_len = 2048
 
     tokenizer = build_tokenizer(
@@ -674,15 +708,15 @@ def test_finetuning_dataloader_streaming(
             pretokenize,
             backwards_compatibility_mode=backwards_compatibility_mode,
             use_bytes=use_bytes,
-            tokenizer=tokenizer,
-        )
+            tokenizer=tokenizer)
         streams_config['streams'][f'stream_{i}'] = {
             'remote': remote_path,
             'local': local_path,
-            'split': 'train',
+            'split': 'train'
         }
 
     cfg = {
+        'name': 'finetuning',
         'dataset': {
             'max_seq_len': 2048,
             'decoder_only_format': True,
@@ -704,11 +738,7 @@ def test_finetuning_dataloader_streaming(
 
     cfg = om.create(cfg)
 
-    dataloader = build_finetuning_dataloader(
-        tokenizer=tokenizer,
-        device_batch_size=2,
-        **cfg,
-    ).dataloader
+    dataloader = build_finetuning_dataloader(cfg, tokenizer, 2).dataloader
 
     expected_keys = ['input_ids', 'labels']
     for batch in dataloader:
@@ -729,96 +759,64 @@ def test_finetuning_dataloader_is_valid_ift_example(
     if not decoder_only_format:
         if (target_prompts != 'none') or (target_responses != 'last'):
             pytest.xfail(
-                'Must use "none" and "last" for target prompts and responses if not using decoder_only_format',
+                'Must use "none" and "last" for target prompts and responses if not using decoder_only_format'
             )
     # This should pass
-    validate_target_settings(
-        target_prompts,
-        target_responses,
-        decoder_only_format,
-    )
+    validate_target_settings(target_prompts, target_responses,
+                             decoder_only_format)
 
     max_seq_len = 4
 
     valid_example = {'turns': [{'input_ids': [2, 3, 5], 'labels': [8, 9, 7]}]}
-    assert is_valid_ift_example(
-        max_seq_len,
-        target_prompts,
-        target_responses,
-        decoder_only_format,
-        valid_example,
-    )
+    assert is_valid_ift_example(max_seq_len, target_prompts, target_responses,
+                                decoder_only_format, valid_example)
 
     maybe_too_long_example = {
         'turns': [{
             'input_ids': [2, 3, 5],
-            'labels': [8, 9, 7],
-        }] * 3,
+            'labels': [8, 9, 7]
+        }] * 3
     }
     if any([
-        target_responses == 'all',
-        target_prompts in {'all', 'length>=2'},
-        decoder_only_format == False,
+            target_responses == 'all',
+            target_prompts in {'all', 'length>=2'},
+            decoder_only_format == False,
     ]):
-        assert is_valid_ift_example(
-            max_seq_len,
-            target_prompts,
-            target_responses,
-            decoder_only_format,
-            maybe_too_long_example,
-        )
+        assert is_valid_ift_example(max_seq_len, target_prompts,
+                                    target_responses, decoder_only_format,
+                                    maybe_too_long_example)
     else:
-        assert not is_valid_ift_example(
-            max_seq_len,
-            target_prompts,
-            target_responses,
-            decoder_only_format,
-            maybe_too_long_example,
-        )
+        assert not is_valid_ift_example(max_seq_len, target_prompts,
+                                        target_responses, decoder_only_format,
+                                        maybe_too_long_example)
 
     another_maybe_too_long_example = {
         'turns': [{
             'input_ids': [2, 3, 5, 6, 8],
-            'labels': [8, 9, 7],
-        }],
+            'labels': [8, 9, 7]
+        }]
     }
     if any([
-        target_prompts in {'all', 'length>=2'},
-        decoder_only_format == False,
+            target_prompts in {'all', 'length>=2'},
+            decoder_only_format == False,
     ]):
-        assert is_valid_ift_example(
-            max_seq_len,
-            target_prompts,
-            target_responses,
-            decoder_only_format,
-            another_maybe_too_long_example,
-        )
+        assert is_valid_ift_example(max_seq_len, target_prompts,
+                                    target_responses, decoder_only_format,
+                                    another_maybe_too_long_example)
     else:
-        assert not is_valid_ift_example(
-            max_seq_len,
-            target_prompts,
-            target_responses,
-            decoder_only_format,
-            another_maybe_too_long_example,
-        )
+        assert not is_valid_ift_example(max_seq_len, target_prompts,
+                                        target_responses, decoder_only_format,
+                                        another_maybe_too_long_example)
 
     empty_input_example = {'turns': [{'input_ids': [], 'labels': [8, 9, 7]}]}
-    assert not is_valid_ift_example(
-        max_seq_len,
-        target_prompts,
-        target_responses,
-        decoder_only_format,
-        empty_input_example,
-    )
+    assert not is_valid_ift_example(max_seq_len, target_prompts,
+                                    target_responses, decoder_only_format,
+                                    empty_input_example)
 
     empty_labels_example = {'turns': [{'input_ids': [1, 2], 'labels': []}]}
-    assert not is_valid_ift_example(
-        max_seq_len,
-        target_prompts,
-        target_responses,
-        decoder_only_format,
-        empty_labels_example,
-    )
+    assert not is_valid_ift_example(max_seq_len, target_prompts,
+                                    target_responses, decoder_only_format,
+                                    empty_labels_example)
 
 
 invalid_prompt_response_params = [
@@ -934,128 +932,19 @@ def test_malformed_data(
         assert actual_num_batches == expected_num_batches
 
 
-invalid_conversation_params = [
-    'add_invalid_last_chat_message',
-    'add_invalid_message_key_quantity',
-    'add_invalid_content_type',
-    'add_invalid_role',
-    'add_not_alternating_roles',
-]
-
-
-@pytest.mark.parametrize(
-    ','.join(invalid_conversation_params),
-    generate_exclusive_test_params(invalid_conversation_params),
-)
-def test_malformed_conversation_data(
-    tmp_path: pathlib.Path,
-    add_invalid_last_chat_message: bool,
-    add_invalid_message_key_quantity: bool,
-    add_invalid_content_type: bool,
-    add_invalid_role: bool,
-    add_not_alternating_roles: bool,
-):
-    tokenizer_name = 'mosaicml/mpt-7b'
-    max_seq_len = 2048
-    dataset_size = 5
-    device_batch_size = 5
-    tiny_dataset_folder_path = tmp_path
-    tiny_dataset_path = str(tiny_dataset_folder_path / 'train.jsonl')
-
-    tokenizer = build_tokenizer(
-        tokenizer_name=tokenizer_name,
-        tokenizer_kwargs={'model_max_length': max_seq_len},
-    )
-    tokenizer.add_special_tokens({
-        'pad_token': '<pad>',
-        'bos_token': '<bos>',
-        'eos_token': '<eos>',
-    })
-
-    if dist.get_global_rank() == 0:
-        make_tiny_conversation_ft_dataset(
-            path=tiny_dataset_path,
-            size=dataset_size,
-            add_invalid_last_chat_message=add_invalid_last_chat_message,
-            add_invalid_message_key_quantity=add_invalid_message_key_quantity,
-            add_invalid_content_type=add_invalid_content_type,
-            add_invalid_role=add_invalid_role,
-            add_not_alternating_roles=add_not_alternating_roles,
-        )
-
-    cfg = {
-        'dataset': {
-            'hf_name': str(tiny_dataset_folder_path),
-            'split': 'train',
-            'max_seq_len': max_seq_len,
-            'decoder_only_format': True,
-            'allow_pad_trimming': False,
-            'packing_ratio': None,
-            'shuffle': True,
-        },
-        'drop_last': False,
-        'num_workers': 0,
-        'prefetch_factor': None,
-        'pin_memory': False,
-        'persistent_workers': False,
-        'timeout': 0,
-    }
-
-    cfg = om.create(cfg)
-
-    expected_keys = ['input_ids', 'attention_mask', 'labels']
-    expected_keys += ['bidirectional_mask']
-
-    error_context = contextlib.nullcontext()
-    if add_invalid_last_chat_message:
-        error_context = pytest.raises(
-            InvalidLastChatMessageRoleError,
-            match='Invalid last message role:',
-        )
-    if add_invalid_message_key_quantity:
-        error_context = pytest.raises(
-            IncorrectMessageKeyQuantityError,
-            match='Expected 2 keys in message',
-        )
-    if add_invalid_content_type:
-        error_context = pytest.raises(
-            InvalidContentTypeError,
-            match='Expected content to be',
-        )
-    if add_invalid_role:
-        error_context = pytest.raises(
-            InvalidRoleError,
-            match='Expected role to be one of',
-        )
-
-    if add_not_alternating_roles:
-        error_context = pytest.raises(
-            ConsecutiveRepeatedChatRolesError,
-            match='Conversation roles must alternate',
-        )
-
-    with error_context:
-        build_finetuning_dataloader(
-            tokenizer=tokenizer,
-            device_batch_size=device_batch_size,
-            **cfg,
-        ).dataloader
-
-
 def test_finetune_dataloader_pure_pad_responses():
     """Test that dataloader can handle pure-pad responses."""
 
     @dataset_constructor.register('pad-response')
     def pad_preprocessing_function(  # type: ignore
-        inp: dict[str, str],
-    ) -> dict[str, str]:
+            inp: dict[str, str]) -> dict[str, str]:
         """Split out prompt/response from text."""
         try:
             prompt, response = inp['text'].split('### Response:')
             prompt += '### Response:'
         except Exception as e:
             raise ValueError(
-                f"Unable to extract prompt/response from 'text'={inp['text']}",
+                f"Unable to extract prompt/response from 'text'={inp['text']}"
             ) from e
         return {'prompt': prompt, 'response': '|PAD|' * len(response.split())}
 
@@ -1077,24 +966,21 @@ def test_finetune_dataloader_pure_pad_responses():
         'pin_memory': False,
         'prefetch_factor': None,
         'persistent_workers': False,
-        'timeout': 0,
+        'timeout': 0
     })
 
     tokenizer_name = 'EleutherAI/gpt-neox-20b'
     tokenizer_kwargs = {
         'model_max_length': cfg.dataset.max_seq_len,
-        'pad_token': '|PAD|',
+        'pad_token': '|PAD|'
     }
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
     assert tokenizer('|PAD|').input_ids[0] == tokenizer.pad_token_id
 
     device_batch_size = 1
-    dataloader = build_finetuning_dataloader(
-        tokenizer=tokenizer,
-        device_batch_size=device_batch_size,
-        **cfg,
-    ).dataloader
+    dataloader = build_finetuning_dataloader(cfg, tokenizer,
+                                             device_batch_size).dataloader
 
     # We should be able to iterate through this dataset without crashing
     for i, batch in enumerate(dataloader):

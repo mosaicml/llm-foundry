@@ -7,11 +7,8 @@ from composer.core.precision import get_precision_context
 from omegaconf import OmegaConf as om
 
 from llmfoundry.models.layers.attention import is_flash_v2_installed
-from llmfoundry.models.layers.layer_builders import build_attention_layer
-from llmfoundry.models.mpt.modeling_mpt import (
-    gen_flash_attn_padding_info,
-    gen_rotary_embedding,
-)
+from llmfoundry.models.mpt.modeling_mpt import (gen_flash_attn_padding_info,
+                                                gen_rotary_embedding)
 
 
 @pytest.mark.gpu
@@ -114,39 +111,25 @@ def test_rope_dail_vs_hf(attn_type: str, seq_len: int, device: str = 'cuda'):
             'seq_len': seq_len,
         }
 
-        y0, _, _ = attn0(
-            x0,
-            past_key_value=None,
-            attn_bias=None,
-            attention_mask=attention_mask,
-            rotary_emb_w_meta_info=dail_rope_w_meta_info,
-            is_causal=True,
-            flash_attn_padding_info=gen_flash_attn_padding_info(
-                batch_size,
-                seq_len,
-                0,
-                torch.device(device),
-                None,
-                attention_mask,
-            ),
-        )
+        y0, _, _ = attn0(x0,
+                         past_key_value=None,
+                         attn_bias=None,
+                         attention_mask=attention_mask,
+                         rotary_emb_w_meta_info=dail_rope_w_meta_info,
+                         is_causal=True,
+                         flash_attn_padding_info=gen_flash_attn_padding_info(
+                             batch_size, seq_len, 0, torch.device(device), None,
+                             attention_mask))
 
-        y1, _, _ = attn1(
-            x1,
-            past_key_value=None,
-            attn_bias=None,
-            attention_mask=attention_mask,
-            rotary_emb_w_meta_info=hf_rope_w_meta_info,
-            is_causal=True,
-            flash_attn_padding_info=gen_flash_attn_padding_info(
-                batch_size,
-                seq_len,
-                0,
-                torch.device(device),
-                None,
-                attention_mask,
-            ),
-        )
+        y1, _, _ = attn1(x1,
+                         past_key_value=None,
+                         attn_bias=None,
+                         attention_mask=attention_mask,
+                         rotary_emb_w_meta_info=hf_rope_w_meta_info,
+                         is_causal=True,
+                         flash_attn_padding_info=gen_flash_attn_padding_info(
+                             batch_size, seq_len, 0, torch.device(device), None,
+                             attention_mask))
 
         y0 *= attention_mask.unsqueeze(-1)
         y1 *= attention_mask.unsqueeze(-1)

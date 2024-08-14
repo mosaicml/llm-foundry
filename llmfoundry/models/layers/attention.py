@@ -234,6 +234,7 @@ def flash_attn_fn(
     dropout_p: float = 0.0,
     training: bool = False,
     needs_weights: bool = False,
+    multiquery: bool = False,
     should_repeat_kv_for_gqa: Optional[bool] = True,
     sliding_window_size: int = -1,
     alibi_slopes: Optional[torch.Tensor] = None,
@@ -266,32 +267,24 @@ def flash_attn_fn(
 
     batch_size, seqlen = query.shape[:2]
 
-    # In the following lines we move the tensors to the same devices as query, key, and value respectively. These operations should be no-ops during training.
-    # This is done to fix pipeline parallel generation using hf.generate. Please see this comment for details: https://github.com/mosaicml/llm-foundry/pull/1332#issue-2386827204
-    indices_q = flash_attn_padding_info['indices_q'].to(query.device)
-    indices_k = flash_attn_padding_info['indices_k'].to(key.device)
-    indices_v = flash_attn_padding_info['indices_v'].to(value.device)
-    cu_seqlens_q = flash_attn_padding_info['cu_seqlens_q'].to(query.device)
-    cu_seqlens_k = flash_attn_padding_info['cu_seqlens_k'].to(key.device)
+    indices_q = flash_attn_padding_info['indices_q']
+    indices_k = flash_attn_padding_info['indices_k']
+    indices_v = flash_attn_padding_info['indices_v']
+    cu_seqlens_q = flash_attn_padding_info['cu_seqlens_q']
+    cu_seqlens_k = flash_attn_padding_info['cu_seqlens_k']
     max_seqlen_q = flash_attn_padding_info['max_seqlen_q']
     max_seqlen_k = flash_attn_padding_info['max_seqlen_k']
 
     query_unpad = bert_padding.index_first_axis(
-        rearrange(query, 'b s ... -> (b s) ...'),
-        indices_q,
-    )
+        rearrange(query, 'b s ... -> (b s) ...'), indices_q)
     query_unpad = rearrange(query_unpad, 'nnz (h d) -> nnz h d', h=n_heads)
 
     key_unpad = bert_padding.index_first_axis(
-        rearrange(key, 'b s ... -> (b s) ...'),
-        indices_k,
-    )
+        rearrange(key, 'b s ... -> (b s) ...'), indices_k)
     key_unpad = rearrange(key_unpad, 'nnz (h d) -> nnz h d', h=kv_n_heads)
 
     value_unpad = bert_padding.index_first_axis(
-        rearrange(value, 'b s ... -> (b s) ...'),
-        indices_v,
-    )
+        rearrange(value, 'b s ... -> (b s) ...'), indices_v)
     value_unpad = rearrange(value_unpad, 'nnz (h d) -> nnz h d', h=kv_n_heads)
 
     if (kv_n_heads < n_heads) and (not is_flash_v2_installed()
@@ -383,11 +376,118 @@ def flash_attn_fn(
         )
 
     output = bert_padding.pad_input(
-        rearrange(output_unpad, 'nnz h d -> nnz (h d)'),
-        indices_q,
-        batch_size,
-        seqlen,
-    )
+        rearrange(output_unpad, 'nnz h d -> nnz (h d)'), indices_q, batch_size,
+        seqlen)
+    return output, None, past_key_value
+
+
+def triton_flash_attn_fn(
+    query: torch.Tensor,
+    key: torch.Tensor,
+    value: torch.Tensor,
+    n_heads: int,
+    kv_n_heads: int,
+    past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
+    softmax_scale: Optional[float] = None,
+    attn_bias: Optional[torch.Tensor] = None,
+    key_padding_mask: Optional[torch.Tensor] = None,
+    is_causal: bool = False,
+    dropout_p: float = 0.0,
+    training: bool = False,
+    needs_weights: bool = False,
+) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
+                                                                torch.Tensor]]]:
+    try:
+        from llmfoundry.models.layers.flash_attn_triton import flash_attn_func
+    except:
+        _installed = False
+        if version.parse(torch.__version__) < version.parse('2.0.0'):
+            _installed = True
+            # if torch1.13.1 revert to using triton flash attn from HazyResearch
+            # with flash-attn==1.0.9 and triton==2.0.0.dev20221202
+            try:
+                from flash_attn.flash_attn_triton import flash_attn_func
+            except:
+                _installed = False
+        if not _installed:
+            # installing triton-pre-mlir works for both torch1.13.1 and torch2.0+
+            # default recommendation is to install this variant
+            raise RuntimeError(
+                'Requirements for `attn_impl: triton` not installed. Either (1) have a CUDA-compatible GPU '
+                +
+                'and `pip install .[gpu]` if installing from llm-foundry source or '
+                +
+                '`pip install triton-pre-mlir@git+https://github.com/vchiley/triton.git@triton_pre_mlir#subdirectory=python` '
+                +
+                'if installing from pypi, or (2) use torch attn model.attn_config.attn_impl=torch (torch attn_impl will be slow). '
+                +
+                'Note: (1) requires you have CMake and PyTorch already installed.'
+            )
+
+    check_valid_inputs(query, key, value)
+
+    if past_key_value is not None:
+        if len(past_key_value) != 0:
+            key = torch.cat([past_key_value[0], key], dim=1)
+            value = torch.cat([past_key_value[1], value], dim=1)
+
+        past_key_value = (key, value)
+
+    if attn_bias is not None:
+        # clamp to 0 necessary for torch 2.0 compile()
+        _s_q = max(0, attn_bias.size(2) - query.size(1))
+        _s_k = max(0, attn_bias.size(3) - key.size(1))
+        attn_bias = attn_bias[:, :, _s_q:, _s_k:]
+
+    if dropout_p:
+        raise NotImplementedError(
+            f'Dropout not implemented for attn_impl: triton.')
+    dropout_p = dropout_p if training else 0.0
+
+    if needs_weights:
+        raise NotImplementedError(
+            f'attn_impl: triton cannot return attn weights.')
+
+    if key_padding_mask is not None:
+        warnings.warn(
+            'Propagating key_padding_mask to the attention module ' +\
+            'and applying it within the attention module can cause ' +\
+            'unnecessary computation/memory usage. Consider integrating ' +\
+            'into attn_bias once and passing that to each attention ' +\
+            'module instead.'
+        )
+        b_size, s_k = key_padding_mask.shape[:2]
+
+        if attn_bias is None:
+            attn_bias = query.new_zeros(b_size, 1, 1, s_k)
+
+        attn_bias = attn_bias.masked_fill(
+            ~key_padding_mask.view((b_size, 1, 1, s_k)),
+            torch.finfo(query.dtype).min)
+
+    query = rearrange(query, 'b s (h d) -> b s h d', h=n_heads)
+    key = rearrange(key, 'b s (h d) -> b s h d', h=kv_n_heads)
+    value = rearrange(value, 'b s (h d) -> b s h d', h=kv_n_heads)
+
+    # multi-query case
+    if kv_n_heads == 1:
+        # necessary to repeat instead of expand tensor because
+        # output contains NaN in edge cases such as with head dimension = 8
+        key = key.repeat(1, 1, n_heads, 1)
+        value = value.repeat(1, 1, n_heads, 1)
+    # grouped query case
+    elif kv_n_heads < n_heads:
+        # Each query belong to a group of kv heads of group size n_heads // kv_n_heads
+        # We repeat each kv head by the group size number to use the underlying MHA kernels
+        key = repeat_kv_for_gqa(key, n_heads // kv_n_heads)
+        value = repeat_kv_for_gqa(value, n_heads // kv_n_heads)
+
+    reset_is_causal = _reset_is_causal(query.size(1), key.size(1), is_causal)
+    attn_output = flash_attn_func(  # type: ignore
+        query, key, value, attn_bias, reset_is_causal, softmax_scale)
+
+    output = attn_output.view(*attn_output.shape[:2], -1)  # type: ignore
+
     return output, None, past_key_value
 
 
@@ -411,7 +511,6 @@ class GroupedQueryAttention(nn.Module):
         clip_qkv: Optional[float] = None,
         qk_ln: bool = False,
         qk_gn: bool = False,
-        fused_qkv: bool = True,
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
@@ -428,7 +527,6 @@ class GroupedQueryAttention(nn.Module):
         self.clip_qkv = clip_qkv
         self.qk_ln = qk_ln
         self.qk_gn = qk_gn
-        self.fused_qkv = fused_qkv
 
         self.d_model = d_model
         self.n_heads = n_heads
@@ -465,29 +563,36 @@ class GroupedQueryAttention(nn.Module):
             self.softmax_scale = 1 / math.sqrt(self.d_model / self.n_heads)
         self.attn_dropout_p = attn_pdrop
 
-        if self.reuse_kv_layer_idx is not None:
-            self.Wq = build_fc(
-                name=fc_type_name,
-                in_features=self.d_model,
-                out_features=self.d_model,
-                fc_kwargs=fc_type,
-            )
-            # for param init fn; enables shape based init of fused layers
-            fuse_splits = [i * self.head_dim for i in range(1, self.n_heads)]
-            self.Wq._fused = (0, fuse_splits)
-        elif self.fused_qkv:
-            self.Wqkv = build_fc(
-                name=fc_type_name,
-                in_features=self.d_model,
-                out_features=self.d_model + 2 * self.kv_n_heads * self.head_dim,
-                fc_kwargs=fc_type,
-            )
-            # for param init fn; enables shape based init of fused layers
-            fuse_splits = [
-                i * self.head_dim
-                for i in range(1, self.n_heads + 2 * self.kv_n_heads)
-            ]
-            self.Wqkv._fused = (0, fuse_splits)
+        fc_kwargs: dict[str, Any] = {
+            'bias': bias,
+        }
+        fc_kwargs['device'] = device
+        self.Wqkv = FC_CLASS_REGISTRY[fc_type](
+            self.d_model,
+            self.d_model + 2 * self.kv_n_heads * self.head_dim,
+            **fc_kwargs,
+        )
+        # for param init fn; enables shape based init of fused layers
+        fuse_splits = [
+            i * self.head_dim
+            for i in range(1, self.n_heads + 2 * self.kv_n_heads)
+        ]
+        self.Wqkv._fused = (0, fuse_splits)
+
+        if self.qk_ln or self.qk_gn:
+            norm_class = NORM_CLASS_REGISTRY[norm_type.lower()]
+            norm_size = self.head_dim if qk_gn else d_model
+            self.q_ln = norm_class(norm_size, device=device)
+            if qk_ln:
+                norm_size = self.head_dim * kv_n_heads
+            self.k_ln = norm_class(norm_size, device=device)
+
+        if self.attn_impl == 'flash':
+            self.attn_fn = flash_attn_fn
+        elif self.attn_impl == 'triton':
+            self.attn_fn = triton_flash_attn_fn
+        elif self.attn_impl == 'torch':
+            self.attn_fn = scaled_multihead_dot_product_attention
         else:
             self.Wq = build_fc(
                 name=fc_type_name,
@@ -555,14 +660,34 @@ class GroupedQueryAttention(nn.Module):
         needs_weights: bool = False,
         alibi_slopes: Optional[torch.Tensor] = None,
         flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
-        prev_layer_key_value: Optional[Tuple[torch.Tensor,
-                                             torch.Tensor]] = None,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
-        torch.Tensor, torch.Tensor]]]:
-        extra_kwargs = {}
-        if prev_layer_key_value is not None:
-            extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
-        query, key, value = self.get_qkv(x, **extra_kwargs)
+            torch.Tensor, torch.Tensor]]]:
+        qkv = self.Wqkv(x)
+
+        if self.clip_qkv:
+            qkv = qkv.clamp(min=-self.clip_qkv, max=self.clip_qkv)
+
+        query, key, value = qkv.split(
+            [
+                self.d_model,
+                self.kv_n_heads * self.head_dim,
+                self.kv_n_heads * self.head_dim,
+            ],
+            dim=2,
+        )
+
+        key_padding_mask = attention_mask
+
+        if self.qk_ln or self.qk_gn:
+            # Applying layernorm to qk
+            q_shape, k_shape = query.shape, key.shape
+            if self.qk_gn:
+                b, s = query.shape[:2]
+                query = query.view(b, s, self.n_heads, -1)
+                key = key.view(b, s, self.kv_n_heads, -1)
+            dtype = query.dtype
+            query = self.q_ln(query).to(dtype).view(q_shape)
+            key = self.k_ln(key).to(dtype).view(k_shape)
 
         if rotary_emb_w_meta_info is not None:
             query, key, value = self._apply_rotary_embeddings(
@@ -572,11 +697,61 @@ class GroupedQueryAttention(nn.Module):
                 value,
             )
 
-        extra_attn_kwargs = self.get_implementation_specific_args(
-            attention_mask,
-            alibi_slopes,
-            flash_attn_padding_info,
-        )
+            if rotary_emb_w_meta_info['impl'] == 'dail':
+                value = value.view(bsz, seqlen, -1, self.head_dim)
+
+                kv = torch.stack([key, value], dim=2)
+                query, kv = rotary_emb(query,
+                                       kv,
+                                       seqlen_offset=offset_info,
+                                       max_seqlen=seq_len)
+                [key, value] = torch.unbind(kv, dim=2)
+
+                value = value.view(bsz, seqlen, self.kv_n_heads * self.head_dim)
+            elif rotary_emb_w_meta_info['impl'] == 'hf':
+                if is_transformers_version_gte('4.38'):
+                    (cos, sin) = rotary_emb(x=value,
+                                            position_ids=offset_info,
+                                            seq_len=None)
+                else:
+                    (cos, sin) = rotary_emb(x=value, seq_len=seq_len)
+                if is_transformers_version_gte('4.38'):
+                    query, key = apply_rotary_pos_emb(q=query,
+                                                      k=key,
+                                                      cos=cos,
+                                                      sin=sin,
+                                                      position_ids=None,
+                                                      unsqueeze_dim=2)
+                elif is_transformers_version_gte('4.36'):
+                    query, key = apply_rotary_pos_emb(q=query,
+                                                      k=key,
+                                                      cos=cos,
+                                                      sin=sin,
+                                                      position_ids=offset_info,
+                                                      unsqueeze_dim=2)
+                else:
+                    query = query.transpose(1, 2)
+                    key = key.transpose(1, 2)
+                    query, key = apply_rotary_pos_emb(q=query,
+                                                      k=key,
+                                                      cos=cos,
+                                                      sin=sin,
+                                                      position_ids=offset_info)
+                    query = query.transpose(1, 2)
+                    key = key.transpose(1, 2)
+
+            query = query.view(bsz, seqlen, self.d_model)
+            key = key.view(bsz, seqlen, self.kv_n_heads * self.head_dim)
+
+        extra_attn_kwargs = {}
+        if self.attn_impl == 'flash':
+            key_padding_mask = None
+            extra_attn_kwargs = {
+                'should_repeat_kv_for_gqa': not is_flash_v2_installed(),
+                'sliding_window_size': self.sliding_window_size,
+                'alibi_slopes': alibi_slopes,
+                'flash_attn_padding_info': flash_attn_padding_info,
+            }
 
         context, attn_weights, past_key_value = self.attn_fn(
             query,
@@ -796,7 +971,6 @@ class MultiheadAttention(GroupedQueryAttention):
         clip_qkv: Optional[float] = None,
         qk_ln: bool = False,
         qk_gn: bool = False,
-        fused_qkv: bool = True,
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
@@ -815,7 +989,6 @@ class MultiheadAttention(GroupedQueryAttention):
             clip_qkv=clip_qkv,
             qk_ln=qk_ln,
             qk_gn=qk_gn,
-            fused_qkv=fused_qkv,
             softmax_scale=softmax_scale,
             attn_pdrop=attn_pdrop,
             norm_type=norm_type,
@@ -843,7 +1016,6 @@ class MultiQueryAttention(GroupedQueryAttention):
         clip_qkv: Optional[float] = None,
         qk_ln: bool = False,
         qk_gn: bool = False,
-        fused_qkv: bool = True,
         softmax_scale: Optional[float] = None,
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
@@ -862,7 +1034,6 @@ class MultiQueryAttention(GroupedQueryAttention):
             clip_qkv=clip_qkv,
             qk_ln=qk_ln,
             qk_gn=qk_gn,
-            fused_qkv=fused_qkv,
             softmax_scale=softmax_scale,
             attn_pdrop=attn_pdrop,
             norm_type=norm_type,

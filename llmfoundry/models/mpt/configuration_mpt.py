@@ -329,12 +329,9 @@ class MPTConfig(PretrainedConfig):
                 raise ImportError(
                     'If using the dail implementation of rope, the flash_attn library v2.0.1 or higher must be installed. Please check the instructions at https://github.com/mosaicml/llm-foundry/blob/main/TUTORIAL.md#what-kinds-of-positional-embeddings-does-llm-foundry-support',
                 )
-        if self.attn_config['sliding_window_size'] != -1 and not (
-            self.attn_config['attn_impl'] == 'flash' and
-            is_flash_v2_installed(v2_version='v2.3.0')
-        ):
+        if self.attn_config['sliding_window_size'] != -1 and self.attn_config['attn_impl'] == 'flash' and not is_flash_v2_installed(v2_version='v2.3.0'):
             raise NotImplementedError(
-                'sliding window only implemented with flash attention v2.3.0 or higher.',
+                'sliding window attention only implemented with for torch attention or flash attention (v2.3.0 or higher).',
             )
         if self.embedding_fraction > 1 or self.embedding_fraction <= 0:
             raise ValueError(

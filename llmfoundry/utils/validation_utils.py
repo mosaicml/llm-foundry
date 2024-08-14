@@ -497,31 +497,6 @@ def convert_text_to_mds(
             trust_remote_code,
         )
 
-    index_path = os.path.join(local_output_folder, 'index.json')
-    with open(index_path, 'r') as index_file:
-        if not json.load(index_file)['shards']:
-            raise DatasetTooSmallError()
-
-    # Write a done file with the args and object names
-    write_done_file(local_output_folder, args_str, object_names)
-
-    if is_remote_output:
-        # Upload the local output to the remote location
-        output_object_store = cast(
-            ObjectStore,
-            maybe_create_object_store_from_uri(output_folder),
-        )
-        _, _, output_folder_prefix = parse_uri(output_folder)
-        files_to_upload = os.listdir(local_output_folder)
-
-        for file in files_to_upload:
-            assert not os.path.isdir(file)
-            remote_path = os.path.join(output_folder_prefix, file)
-            output_object_store.upload_object(
-                remote_path,
-                os.path.join(local_output_folder, file),
-            )
-
     return total_tokens
 
 

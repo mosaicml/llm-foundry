@@ -61,7 +61,7 @@ from llmfoundry.utils.warnings import (
     experimental_class,
     experimental_function,
 )
-from llmfoundry.utils.validation_utils import (_args_str, check_HF_datasets,
+from llmfoundry.utils.validation_utils import (check_HF_datasets,
                                                convert_text_to_mds,
                                                create_om_cfg,
                                                dataframe_to_mds,
@@ -122,17 +122,13 @@ __all__ = [
     'ExperimentalWarning',
     'experimental_function',
     'experimental_class',
-    '_args_str',
     'check_HF_datasets',
     'convert_text_to_mds',
     'create_om_cfg',
-    'dataframe_to_mds',
     'integrity_check',
     'is_hf_dataset_path',
     'is_uc_delta_table',
-    'pandas_processing_fn',
     'parse_args',
-    'plot_hist',
     'token_counts',
     'token_counts_with_collate'
 ]

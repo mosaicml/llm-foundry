@@ -85,7 +85,7 @@ extra_deps['dev'] = [
     'pytest-cov>=4,<6',
     'pyright==1.1.256',
     'toml>=0.10.2,<0.11',
-    'packaging>=21,<23',
+    'packaging>=21,<25',
     'hf_transfer==0.1.3',
 ]
 

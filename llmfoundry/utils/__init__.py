@@ -55,21 +55,23 @@ from llmfoundry.utils.registry_utils import (
     import_file,
     save_registry,
 )
+from llmfoundry.utils.validation_utils import (
+    check_HF_datasets,
+    convert_text_to_mds,
+    create_om_cfg,
+    integrity_check,
+    is_hf_dataset_path,
+    is_uc_delta_table,
+    parse_args,
+    plot_hist,
+    token_counts_with_collate,
+)
 from llmfoundry.utils.warnings import (
     ExperimentalWarning,
     VersionedDeprecationWarning,
     experimental_class,
     experimental_function,
 )
-from llmfoundry.utils.validation_utils import (check_HF_datasets,
-                                               convert_text_to_mds,
-                                               create_om_cfg,
-                                               integrity_check,
-                                               is_hf_dataset_path,
-                                               is_uc_delta_table,
-                                               parse_args,
-                                               token_counts,
-                                               token_counts_with_collate)
 
 config_transforms.register(
     'update_batch_size_info',
@@ -127,6 +129,6 @@ __all__ = [
     'is_hf_dataset_path',
     'is_uc_delta_table',
     'parse_args',
-    'token_counts',
-    'token_counts_with_collate'
+    'token_counts_with_collate',
+    'plot_hist',
 ]

@@ -2,36 +2,48 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import json
+import logging
+import os
 import re
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, Callable, Mapping, cast
+import tempfile
+from argparse import Namespace
+from concurrent.futures import ProcessPoolExecutor
+from typing import Any, Mapping, Optional, Tuple, Union, cast
+
 import torch
-import datasets
-import numpy as np
+from composer.utils import (
+    ObjectStore,
+    maybe_create_object_store_from_uri,
+    parse_uri,
+)
 from datasets import get_dataset_split_names
 from huggingface_hub import dataset_info
 from omegaconf import OmegaConf as om
 from streaming.base.storage.download import download_file
 from streaming.base.storage.upload import CloudUploader
-
-from llmfoundry.utils import build_tokenizer
-from llmfoundry.command_utils.data_prep.convert_text_to_mds import ConcatTokensFromFilesDataset, get_object_names, get_task_args, is_remote_path, is_already_processed, _configure_logging, write_done_file
-
-
-import logging
-import math
-import os
-import tempfile
-from argparse import ArgumentParser, Namespace
-from concurrent.futures import ProcessPoolExecutor
-
-from composer.utils import (ObjectStore, maybe_create_object_store_from_uri,
-                            parse_uri)
 from transformers import AutoTokenizer
 
-from llmfoundry.utils.data_prep_utils import (DownloadingIterable,
-                                              merge_shard_groups)
+from llmfoundry.command_utils.data_prep.convert_text_to_mds import (
+    ConcatTokensFromFilesDataset,
+    get_object_names,
+    get_task_args,
+    is_already_processed,
+    is_remote_path,
+    write_done_file,
+)
+from llmfoundry.utils import build_tokenizer
+from llmfoundry.utils.data_prep_utils import (
+    DownloadingIterable,
+    merge_shard_groups,
+)
+from llmfoundry.utils.exceptions import (
+    DatasetTooSmallError,
+    InputFolderMissingDataError,
+    OutputFolderNotEmptyError,
+)
 
 log = logging.getLogger(__name__)
+
 
 def create_om_cfg(FT_API_args: Namespace):
     task_type = FT_API_args.task_type
@@ -41,8 +53,8 @@ def create_om_cfg(FT_API_args: Namespace):
 
     if is_hf_dataset_path(FT_API_args.train_data_path):
         train_data_path, split = '/'.join(
-            FT_API_args.train_data_path.split('/')
-            [:2]), FT_API_args.train_data_path.split('/')[-1]
+            FT_API_args.train_data_path.split('/')[:2],
+        ), FT_API_args.train_data_path.split('/')[-1]
 
     model = FT_API_args.model
     max_seq_len = FT_API_args.context_length
@@ -54,7 +66,7 @@ def create_om_cfg(FT_API_args: Namespace):
         'prefetch_factor': 2,
         'pin_memory': False,
         'persistent_workers': False,
-        'timeout': 0
+        'timeout': 0,
     }
     if task_type == 'INSTRUCTION_FINETUNE' or task_type == 'CHAT_COMPLETION':
         cfg = om.create({
@@ -66,7 +78,7 @@ def create_om_cfg(FT_API_args: Namespace):
                 'allow_pad_trimming': False,
                 'shuffle': True,
             },
-            **common_args
+            **common_args,
         })
 
     else:
@@ -82,7 +94,7 @@ def create_om_cfg(FT_API_args: Namespace):
                 'packing_ratio': None,
                 'shuffle': True,
             },
-            **common_args
+            **common_args,
         })
 
     tokenizer = build_tokenizer(
@@ -93,16 +105,17 @@ def create_om_cfg(FT_API_args: Namespace):
     return cfg, tokenizer
 
 
-def token_counts_with_collate(FT_API_args):
+def token_counts_with_collate(FT_API_args: Namespace):
+    from llmfoundry import registry
     from llmfoundry.data.finetuning import build_finetuning_dataloader
     from llmfoundry.utils.registry_utils import construct_from_registry
-    from llmfoundry import registry
 
     cfg, tokenizer = create_om_cfg(FT_API_args)
     dataloader = build_finetuning_dataloader(
-            **cfg,
-            tokenizer=tokenizer,
-            device_batch_size=1).dataloader
+        **cfg,
+        tokenizer=tokenizer,
+        device_batch_size=1,
+    ).dataloader
 
     detected_cpu_count = os.cpu_count() or 1
     num_cpus_to_use = max(1, detected_cpu_count)
@@ -118,7 +131,7 @@ def token_counts_with_collate(FT_API_args):
         'persistent_workers': cfg.persistent_workers,
         'timeout': cfg.timeout,
     }
-    collate_fn, dataloader_batch_size = construct_from_registry(
+    collate_fn, _ = construct_from_registry(
         name='finetuning_collator',
         registry=registry.collators,
         partial_function=False,
@@ -133,7 +146,7 @@ def token_counts_with_collate(FT_API_args):
         batch = collate_fn([example])
         return get_num_samples_in_batch(batch)
 
-    token_lens = dataloader.dataset.map(
+    token_lens = dataloader.dataset.map( # pyright: ignore
         mapper,
         batched=False,
         num_proc=num_cpus_to_use,
@@ -143,18 +156,19 @@ def token_counts_with_collate(FT_API_args):
     return token_lens
 
 
-def get_num_samples_in_batch(batch: dict) -> int:
+def get_num_samples_in_batch(batch: dict) -> dict[str, int]:
     decoder_only = True
 
-    if not isinstance(batch, Mapping) or ('attention_mask' not in batch and
-                                          'input_ids' not in batch):
+    if not isinstance(batch, Mapping) or (
+        'attention_mask' not in batch and 'input_ids' not in batch
+    ):
         raise ValueError(
-            'get_tokens_per_batch_func() requires a batch with an attention_mask key or an input_ids key'
+            'get_tokens_per_batch_func() requires a batch with an attention_mask key or an input_ids key',
         )
 
     if not decoder_only and 'decoder_attention_mask' not in batch:
         raise ValueError(
-            'get_tokens_per_batch_func() for encoder decoder requires a batch with a decoder_attention_mask key'
+            'get_tokens_per_batch_func() for encoder decoder requires a batch with a decoder_attention_mask key',
         )
 
     # Count number of non padding tokens in batch
@@ -167,27 +181,15 @@ def get_num_samples_in_batch(batch: dict) -> int:
     decoder_input_ids_tokens = 0
     if not decoder_only:
         decoder_input_ids_tokens = int(
-            torch.sum(batch['decoder_attention_mask']).item())
+            torch.sum(batch['decoder_attention_mask']).item(),
+        )
 
     response_tokens = len(batch['labels']) if 'labels' in batch else 0
 
     return {
-        'ntokens': input_ids_tokens + decoder_input_ids_tokens + response_tokens
+        'ntokens':
+            input_ids_tokens + decoder_input_ids_tokens + response_tokens,
     }
-
-
-def token_counts(FT_API_args):
-    from llmfoundry.data import build_dataloader
-
-    cfg, tokenizer = create_om_cfg(FT_API_args)
-    device_batch_size = 1
-    dataspec = build_dataloader(cfg, tokenizer, device_batch_size)
-    dataloader = dataspec.dataloader
-
-    token_lens = []
-    for b in dataloader:
-        token_lens.append(get_num_samples_in_batch(b)['ntokens'])
-    return token_lens
 
 
 def check_HF_datasets(dataset_names_with_splits: list):
@@ -231,7 +233,7 @@ def is_hf_dataset_path(path: str):
 
 
 def is_uc_delta_table(name: str):
-    """name is in the form of catalog.scheme.tablename.
+    """Name is in the form of catalog.scheme.tablename.
 
     Args:
         name (str): a string folder/file/table path
@@ -239,7 +241,8 @@ def is_uc_delta_table(name: str):
         (bool): True if name is valid UC delta table format
     """
     return '.' in name and '/' not in name and '\\' not in name and len(
-        name.split('.')) == 3
+        name.split('.'),
+    ) == 3
 
 
 def integrity_check(out: Union[str, Tuple[str, str]]):
@@ -263,9 +266,11 @@ def integrity_check(out: Union[str, Tuple[str, str]]):
 
     with tempfile.TemporaryDirectory() as temp_dir:
         if cu.remote:
-            download_file(os.path.join(cu.remote, 'index.json'),
-                          os.path.join(temp_dir, 'index.json'),
-                          timeout=60)
+            download_file(
+                os.path.join(cu.remote, 'index.json'),
+                os.path.join(temp_dir, 'index.json'),
+                timeout=60,
+            )
             actual_n_shard_files = count_shards(cu.remote)
             local_merged_index_path = os.path.join(temp_dir, 'index.json')
         else:
@@ -273,42 +278,51 @@ def integrity_check(out: Union[str, Tuple[str, str]]):
             actual_n_shard_files = count_shards(cu.local)
 
         merged_index = json.load(open(local_merged_index_path, 'r'))
-        n_shard_files = len(
-            {b['raw_data']['basename'] for b in merged_index['shards']})
+        n_shard_files = len({
+            b['raw_data']['basename'] for b in merged_index['shards']
+        })
         return n_shard_files == actual_n_shard_files
 
 
-def parse_args(tokenizer,
-               concat_tokens,
-               output_folder,
-               input_folder,
-               compression='zstd',
-               bos_text='',
-               eos_text='',
-               no_wrap=False,
-               processes=32,
-               reprocess=True) -> Namespace:
-    parsed = Namespace(tokenizer=tokenizer,
-                       concat_tokens=concat_tokens,
-                       output_folder=output_folder,
-                       input_folder=input_folder,
-                       eos_text=eos_text,
-                       bos_text=bos_text,
-                       no_wrap=no_wrap,
-                       compression=compression,
-                       processes=processes,
-                       reprocess=reprocess)
+def parse_args(
+    tokenizer: str,
+    concat_tokens: int,
+    output_folder: str,
+    input_folder: str,
+    compression: str = 'zstd',
+    bos_text: str = '',
+    eos_text: str = '',
+    no_wrap: bool = False,
+    processes: int = 32,
+    reprocess: bool = True,
+) -> Namespace:
+    parsed = Namespace(
+        tokenizer=tokenizer,
+        concat_tokens=concat_tokens,
+        output_folder=output_folder,
+        input_folder=input_folder,
+        eos_text=eos_text,
+        bos_text=bos_text,
+        no_wrap=no_wrap,
+        compression=compression,
+        processes=processes,
+        reprocess=reprocess,
+    )
     # Make sure we have needed concat options
-    if (parsed.concat_tokens is not None and
-            isinstance(parsed.concat_tokens, int) and parsed.tokenizer is None):
-        parser.error(
-            'When setting --concat_tokens, you must specify a --tokenizer')
+    if (
+        parsed.concat_tokens is not None and
+        isinstance(parsed.concat_tokens, int) and parsed.tokenizer is None
+    ):
+        raise ValueError(
+            'When setting --concat_tokens, you must specify a --tokenizer',
+        )
     # now that we have validated them, change BOS/EOS to strings
     if parsed.bos_text is None:
         parsed.bos_text = ''
     if parsed.eos_text is None:
         parsed.eos_text = ''
     return parsed
+
 
 def download_and_convert_starargs(args: Tuple):
     """Helper function to call download_and_convert with star args.
@@ -317,8 +331,9 @@ def download_and_convert_starargs(args: Tuple):
     """
     return download_and_convert(*args)
 
+
 def download_and_convert(
-    file_names: List[str],
+    file_names: list[str],
     output_folder: str,
     input_folder: str,
     tokenizer_name: str,
@@ -332,7 +347,7 @@ def download_and_convert(
     """Downloads and converts text files to MDS format.
 
     Args:
-        file_names (List[str]): Files to process
+        file_names (list[str]): Files to process
         output_folder (str): Folder to write MDS shards to
         input_folder (str): Folder of text files to process
         tokenizer_name (str): Name of tokenizer to use
@@ -373,9 +388,8 @@ def download_and_convert(
             no_wrap=no_wrap,
         )
 
-        num_samples = dataset.num_samples
+        num_samples = sum([1 for _ in dataset])  # pyright: ignore
     return num_samples
-
 
 
 def convert_text_to_mds(
@@ -510,3 +524,37 @@ def convert_text_to_mds(
 
     return total_tokens
 
+
+def plot_hist(data: Any, save_plot_path: Optional[bool] = None):
+    import matplotlib.pyplot as plt
+
+    # Figure and Axis Setup
+    plt.figure(figsize=(10, 6))
+    ax = plt.gca()
+
+    # Histogram Plotting
+    data.hist(bins=100, edgecolor='black', color='skyblue', alpha=0.7, ax=ax)
+
+    # Aesthetics
+    plt.title('Histogram of Token Counts')
+    plt.xlabel('Number of Tokens per Sample')
+    plt.ylabel('Count of Frequency')
+
+    # Grid and Layout
+    plt.grid(axis='y', alpha=0.75)
+    plt.tight_layout()
+
+    # Statistical Information (optional)
+    mean_val = data.mean()
+    median_val = data.median()
+    plt.axvline(mean_val, color='red', linestyle='dashed', linewidth=1)
+    plt.axvline(median_val, color='green', linestyle='dashed', linewidth=1)
+    _, max_ylim = plt.ylim()
+    plt.text(mean_val * 1.1, max_ylim * 0.9, f'Mean: {mean_val:.2f}')
+    plt.text(median_val * 1.1, max_ylim * 0.8, f'Median: {median_val:.2f}')
+
+    if save_plot_path is not None:
+        plt.savefig(save_plot_path)
+
+    # Show the Plot
+    plt.show()

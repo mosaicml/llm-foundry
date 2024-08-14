@@ -38,6 +38,7 @@ class HuggingFaceModelWithFSDP(HuggingFaceModel):
         metrics: Optional[list[Metric]] = None,
         eval_metrics: Optional[list[Metric]] = None,
         shift_labels: bool = False,
+        allow_embedding_resizing: bool = False,
         init_device: Optional[str] = None,
         peft_config: Optional['PeftConfig'] = None,
         should_save_peft_only: bool = True,
@@ -49,6 +50,7 @@ class HuggingFaceModelWithFSDP(HuggingFaceModel):
             metrics=metrics,
             eval_metrics=eval_metrics,
             shift_labels=shift_labels,
+            allow_embedding_resizing=allow_embedding_resizing,
             peft_config=peft_config,
             should_save_peft_only=should_save_peft_only,
         )

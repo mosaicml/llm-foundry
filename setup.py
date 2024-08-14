@@ -80,12 +80,12 @@ extra_deps = {}
 extra_deps['dev'] = [
     'coverage[toml]==7.6.1',
     'pre-commit>=3.4.0,<4',
-    'pytest>=7.2.1,<8',
+    'pytest>=7.2.1,<9',
     'pytest_codeblocks>=0.16.1,<0.18',
     'pytest-cov>=4,<6',
     'pyright==1.1.256',
     'toml>=0.10.2,<0.11',
-    'packaging>=21,<23',
+    'packaging>=21,<25',
     'hf_transfer==0.1.3',
 ]
 

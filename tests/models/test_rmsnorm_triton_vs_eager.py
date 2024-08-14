@@ -1,7 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import List, Union
+from typing import Union
 
 import pytest
 import torch
@@ -14,7 +14,7 @@ from llmfoundry.models.layers.layer_builders import build_norm
 @pytest.mark.gpu
 @pytest.mark.parametrize('normalized_shape', [32, 128, 4096])
 def test_rmsnorm_triton_vs_eager(
-    normalized_shape: Union[int, List[int]],
+    normalized_shape: Union[int, list[int]],
     device: str = 'cuda',
 ):
     # Compare Triton and PyTorch Eager implementations of RMSNorm

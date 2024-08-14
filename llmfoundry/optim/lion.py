@@ -3,7 +3,7 @@
 
 import logging
 import math
-from typing import Callable, Dict, Iterable, Optional, Tuple, Union
+from typing import Callable, Iterable, Optional, Union
 
 import torch
 from composer.utils import dist
@@ -36,7 +36,7 @@ class DecoupledLionW(Optimizer):
         self,
         params: Union[Iterable[torch.Tensor], Iterable[dict]],
         lr: float = 1e-4,
-        betas: Tuple[float, float] = (0.9, 0.99),
+        betas: tuple[float, float] = (0.9, 0.99),
         weight_decay: float = 0.0,
     ):
         if lr <= 0.:
@@ -111,7 +111,7 @@ class DecoupledLionW(Optimizer):
 
         return loss
 
-    def dist_reduce_metrics(self, optimizer_metrics: Dict[str, torch.Tensor]):
+    def dist_reduce_metrics(self, optimizer_metrics: dict[str, torch.Tensor]):
         local_keys = list(optimizer_metrics.keys())
         all_gathered_keys = dist.all_gather_object(local_keys)
         all_keys = set()
@@ -136,7 +136,7 @@ class DecoupledLionW(Optimizer):
 
         return optimizer_metrics
 
-    def pre_reduce_metrics(self, optimizer_metrics: Dict[str, torch.Tensor]):
+    def pre_reduce_metrics(self, optimizer_metrics: dict[str, torch.Tensor]):
         """Preprocess metrics to reduce across ranks correctly."""
         # Only L2 norm metric keys are present, can skip sorting at this stage
         for metric in optimizer_metrics:

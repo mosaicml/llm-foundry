@@ -5,7 +5,7 @@ import logging
 import os
 import time
 import warnings
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 import torch
 import torch.distributed
@@ -153,7 +153,7 @@ def validate_config(train_config: TrainConfig):
             )
 
 
-def _log_num_params(model: ComposerModel, logged_cfg: Dict[str, Any]):
+def _log_num_params(model: ComposerModel, logged_cfg: dict[str, Any]):
     # Log number of parameters
     if hasattr(model, 'n_total_params'):
         n_params = model.n_total_params
@@ -256,7 +256,7 @@ def train(cfg: DictConfig) -> Trainer:
     train_loader_config = train_cfg.train_loader
 
     # Optional fsdp data, fine-tuning, and eval configs
-    fsdp_config: Optional[Dict[str, Any]] = train_cfg.fsdp_config
+    fsdp_config: Optional[dict[str, Any]] = train_cfg.fsdp_config
 
     if fsdp_config is not None:
         if 'load_planner' in fsdp_config:
@@ -368,15 +368,15 @@ def train(cfg: DictConfig) -> Trainer:
     profiler: Optional[Profiler] = None
     profiler_cfg = train_cfg.profiler
     if profiler_cfg:
-        profiler_schedule_cfg: Dict = pop_config(
+        profiler_schedule_cfg: dict = pop_config(
             profiler_cfg,
             'schedule',
             must_exist=True,
         )
         profiler_schedule = cyclic_schedule(**profiler_schedule_cfg)
         # Only support json trace handler
-        profiler_trace_handlers: List[TraceHandler] = []
-        profiler_trace_cfg: Optional[Dict] = pop_config(
+        profiler_trace_handlers: list[TraceHandler] = []
+        profiler_trace_cfg: Optional[dict] = pop_config(
             profiler_cfg,
             'json_trace_handler',
             must_exist=False,
@@ -395,7 +395,7 @@ def train(cfg: DictConfig) -> Trainer:
     callback_configs = train_cfg.callbacks or {}
 
     # Callbacks
-    callbacks: List[Callback] = [
+    callbacks: list[Callback] = [
         build_callback(
             name=str(name),
             kwargs=callback_cfg,
@@ -591,7 +591,7 @@ def train(cfg: DictConfig) -> Trainer:
 
 def train_from_yaml(
     yaml_path: str,
-    args_list: Optional[List[str]] = None,
+    args_list: Optional[list[str]] = None,
 ) -> Trainer:
     """Run the training with optional overrides from CLI."""
     # Load yaml and CLI arguments.

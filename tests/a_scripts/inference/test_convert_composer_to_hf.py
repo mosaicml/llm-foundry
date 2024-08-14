@@ -8,7 +8,7 @@ import os
 import pathlib
 import shutil
 from argparse import Namespace
-from typing import Any, Callable, Dict, Optional, cast
+from typing import Any, Callable, Optional, cast
 from unittest.mock import ANY, MagicMock, patch
 
 import catalogue
@@ -314,7 +314,7 @@ class MockSpawnProcess:
     multiprocessing, so we need to patch SpawnProcess for tests.
     """
 
-    def __init__(self, target: Callable, kwargs: Dict[str, Any]):
+    def __init__(self, target: Callable, kwargs: dict[str, Any]):
         self.target = target
         self.kwargs = kwargs
 

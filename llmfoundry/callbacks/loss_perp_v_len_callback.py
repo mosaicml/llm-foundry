@@ -1,7 +1,7 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any, Dict, Mapping, Optional, Tuple
+from typing import Any, Mapping, Optional
 
 import torch
 from composer.core import Callback, State
@@ -150,7 +150,7 @@ class LossPerpVsContextLengthLogger(Callback):
         logits: torch.Tensor,
         seq_parallel_world_size: int,
         seq_parallel_rank: int,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         del sequence_id, seq_parallel_rank
         if seq_parallel_world_size > 1:
             raise ValueError(
@@ -315,7 +315,7 @@ class LossPerpVLen(Metric):
             self.sum_perplexity_seq_id += torch.sum(perplexity, dim=(0, 1))
             self.sum_length_seq_id += torch.sum(mask, dim=(0, 1))
 
-    def compute(self) -> Dict[str, torch.Tensor]:
+    def compute(self) -> dict[str, torch.Tensor]:
         """Aggregate the state over all processes to compute the metric.
 
         Returns:

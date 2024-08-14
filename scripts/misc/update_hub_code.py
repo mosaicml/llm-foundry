@@ -5,7 +5,6 @@ import argparse
 import os
 import tempfile
 from datetime import datetime
-from typing import List
 
 import torch
 import transformers
@@ -28,7 +27,7 @@ _ALL_MODELS = [
 ]
 
 
-def main(hf_repos_for_upload: List[str]):
+def main(hf_repos_for_upload: list[str]):
     if len(hf_repos_for_upload) == 1 and hf_repos_for_upload[0] == 'all':
         hf_repos_for_upload = _ALL_MODELS
 

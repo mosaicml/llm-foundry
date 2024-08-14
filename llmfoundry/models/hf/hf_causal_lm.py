@@ -9,10 +9,7 @@ import warnings
 from typing import (
     TYPE_CHECKING,
     Any,
-    Dict,
-    List,
     Optional,
-    Tuple,
     Union,
 )
 
@@ -85,11 +82,11 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         use_flash_attention_2: bool = False,
         load_in_8bit: bool = False,
         init_device: str = 'cpu',
-        config_overrides: Optional[Dict[str, Any]] = None,
-        peft_config: Optional[Dict[str, Any]] = None,
+        config_overrides: Optional[dict[str, Any]] = None,
+        peft_config: Optional[dict[str, Any]] = None,
         use_train_metrics: bool = True,
-        additional_train_metrics: Optional[List] = None,
-        additional_eval_metrics: Optional[List] = None,
+        additional_train_metrics: Optional[list] = None,
+        additional_eval_metrics: Optional[list] = None,
         should_save_peft_only: bool = True,
     ):
 
@@ -153,9 +150,9 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
     @staticmethod
     def build_metrics(
         use_train_metrics: bool,
-        additional_train_metrics: Optional[List[str]] = None,
-        additional_eval_metrics: Optional[List[str]] = None,
-    ) -> Tuple[List[Metric], List[Metric]]:
+        additional_train_metrics: Optional[list[str]] = None,
+        additional_eval_metrics: Optional[list[str]] = None,
+    ) -> tuple[list[Metric], list[Metric]]:
         """Builds the training and evaluation metrics for the model.
 
         Args:
@@ -191,7 +188,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         init_device: str,
         use_flash_attention_2: bool,
         use_auth_token: bool,
-        config_overrides: Dict[str, Any],
+        config_overrides: dict[str, Any],
         load_in_8bit: bool,
         pretrained: bool,
         model_cls: Union[_BaseAutoModelClass,
@@ -389,7 +386,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
 
         return model
 
-    def get_peft_config(self, peft_config_dict: Dict[str, Any]) -> 'PeftConfig':
+    def get_peft_config(self, peft_config_dict: dict[str, Any]) -> 'PeftConfig':
         if peft_installed:
             from peft import LoraConfig
             peft_type = peft_config_dict.get('peft_type', '')

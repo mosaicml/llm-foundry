@@ -5,7 +5,7 @@
 
 import copy
 import os
-from typing import Any, Dict, Mapping
+from typing import Any, Mapping
 
 import setuptools
 from setuptools import setup
@@ -19,7 +19,7 @@ _PACKAGE_REAL_PATH = os.path.join(_REPO_REAL_PATH, _PACKAGE_DIR)
 # We can't use `.__version__` from the library since it's not installed yet
 version_path = os.path.join(_PACKAGE_REAL_PATH, '_version.py')
 with open(version_path, encoding='utf-8') as f:
-    version_globals: Dict[str, Any] = {}
+    version_globals: dict[str, Any] = {}
     version_locals: Mapping[str, object] = {}
     content = f.read()
     exec(content, version_globals, version_locals)

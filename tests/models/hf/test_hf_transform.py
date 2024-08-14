@@ -1,7 +1,7 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import pytest
 from composer.models.huggingface import maybe_get_underlying_model
@@ -55,7 +55,7 @@ def test_hf_transform(peft_config: Optional[dict]):
 
         def get_peft_config(
             self,
-            peft_config_dict: Dict[str, Any],
+            peft_config_dict: dict[str, Any],
         ) -> PeftConfig:
             peft_config_dict['target_modules'] = ['o_proj']
             return super().get_peft_config(peft_config_dict)

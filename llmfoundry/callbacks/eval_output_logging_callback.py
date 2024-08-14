@@ -5,7 +5,7 @@
 
 import warnings
 from copy import deepcopy
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Optional, Sequence, Union
 
 import torch
 from composer.core import Callback, State
@@ -59,7 +59,7 @@ class EvalOutputLogging(Callback):
             self.log_output_text = has_output_text
 
     def eval_batch_end(self, state: State, logger: Logger) -> None:
-        if not isinstance(state.batch, Dict):
+        if not isinstance(state.batch, dict):
             warnings.warn(
                 f"""EvalOutputLogging only supports batches that are dictionary. \
                 Found batch for type {type(state.batch)}. \
@@ -69,8 +69,8 @@ class EvalOutputLogging(Callback):
 
         assert state.outputs is not None
         assert state.metric_outputs is not None
-        logging_dict: Dict[str,
-                           Union[List[Any], torch.Tensor,
+        logging_dict: dict[str,
+                           Union[list[Any], torch.Tensor,
                                  Sequence[torch.Tensor]],
                           ] = deepcopy(
                               state.metric_outputs,

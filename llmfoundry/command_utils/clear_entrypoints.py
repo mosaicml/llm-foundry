@@ -1,8 +1,15 @@
+# Copyright 2024 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 import importlib.metadata
 from typing import Optional
 
-def clear_entrypoints(entry_point_groups: Optional[list[str]]=None):
-    """Clears specified entry point registries. Clears all if none specified."""
+
+def clear_entrypoints(entry_point_groups: Optional[list[str]] = None):
+    """Clears specified entry point registries.
+
+    Clears all if none specified.
+    """
     entry_points = importlib.metadata.entry_points()
 
     if entry_point_groups is None:
@@ -12,10 +19,10 @@ def clear_entrypoints(entry_point_groups: Optional[list[str]]=None):
         if group in entry_points.groups:
             try:
                 del importlib.metadata.entry_points()[group]
-                print(f"Cleared entry point group: {group}")
+                print(f'Cleared entry point group: {group}')
             except KeyError:
-                print(f"Entry point group {group} not found.")
+                print(f'Entry point group {group} not found.')
         else:
-            print(f"Entry point group {group} not found in distribution.")
+            print(f'Entry point group {group} not found in distribution.')
 
-    print("Specified entry point registries have been cleared.")
+    print('Specified entry point registries have been cleared.')

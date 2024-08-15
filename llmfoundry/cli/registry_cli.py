@@ -85,10 +85,8 @@ def clear_entry_points(
     entrypoints: Annotated[
         Optional[list[str]],
         Argument(
-            None,
-            help='Specific entry points to clear. Clears all if none specified.'
-        ),
-    ] = None,
+            help='Specific entry points to clear. Clears all if none specified.',
+        )] = None,
 ):
     """Clear specified or all llmfoundry entry point registries."""
     clear_entrypoints(entrypoints)

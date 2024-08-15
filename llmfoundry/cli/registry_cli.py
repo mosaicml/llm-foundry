@@ -1,13 +1,14 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Optional
+from typing import Annotated, Optional
 
 from rich.console import Console
 from rich.table import Table
-from typer import Typer
+from typer import Argument, Typer
 
 from llmfoundry import registry
+from llmfoundry.command_utils import clear_entrypoints
 from llmfoundry.utils.registry_utils import TypedRegistry
 
 console = Console()
@@ -77,3 +78,17 @@ def find(group: str, name: str):
     )
 
     console.print(table)
+
+
+@app.command(name='clear_entry_points')
+def clear_entry_points(
+    entrypoints: Annotated[
+        Optional[list[str]],
+        Argument(
+            None,
+            help='Specific entry points to clear. Clears all if none specified.'
+        ),
+    ] = None,
+):
+    """Clear specified or all llmfoundry entry point registries."""
+    clear_entrypoints(entrypoints)

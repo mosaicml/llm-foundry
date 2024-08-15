@@ -13,6 +13,7 @@ import torch
 from composer.core import Callback, State
 from composer.loggers import Logger
 from composer.utils import dist
+
 from mcli import sdk
 
 __all__ = ['EnvironmentLoggingCallback']
@@ -28,6 +29,7 @@ _PACKAGES_TO_LOG = [
     'datasets',
     'peft',
 ]
+
 
 class EnvironmentLoggingCallback(Callback):
     """A callback for logging environment information during model training.
@@ -118,8 +120,10 @@ class EnvironmentLoggingCallback(Callback):
         if torch.cuda.is_available():
             nccl_version = torch.cuda.nccl.version()  # type: ignore
             return {
-                'cuda_version': torch.version.cuda,  # type: ignore[attr-defined]
-                'cudnn_version': str(torch.backends.cudnn.version()),  # type: ignore[attr-defined]
+                'cuda_version':
+                    torch.version.cuda,  # type: ignore[attr-defined]
+                'cudnn_version': str(torch.backends.cudnn.version()
+                                    ),  # type: ignore[attr-defined]
                 'nccl_version': '.'.join(map(str, nccl_version)),
             }
         return {'available': False}
@@ -144,7 +148,8 @@ class EnvironmentLoggingCallback(Callback):
         # Collect environment data
         if self.log_git:
             self.env_data['git_info'] = {
-                folder: self._get_git_info(os.path.join(self.workspace_dir, folder))
+                folder:
+                self._get_git_info(os.path.join(self.workspace_dir, folder))
                 for folder in os.listdir(self.workspace_dir)
                 if os.path.isdir(os.path.join(self.workspace_dir, folder))
             }

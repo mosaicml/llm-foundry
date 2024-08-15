@@ -8,7 +8,6 @@ import torch
 
 from llmfoundry.models.layers.attention import (
     attention_implementations,
-    flash_attn_fn,
     scaled_multihead_dot_product_attention,
 )
 from llmfoundry.models.layers.layer_builders import build_attention_layer

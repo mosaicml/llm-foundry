@@ -29,6 +29,7 @@ from llmfoundry.utils.data_prep_utils import (
     merge_shard_groups,
 )
 from llmfoundry.utils.exceptions import (
+    CannotUnicodeDecodeFile,
     DatasetTooSmallError,
     InputFolderMissingDataError,
     OutputFolderNotEmptyError,
@@ -71,31 +72,35 @@ class ConcatTokensFromFilesDataset(AbstractConcatTokensDataset):
                 buffer += self.bos_tokens
                 first_chunk = True
                 # Read the file in 1MB chunks to avoid memory issues
-                for chunk in iter(partial(f.read, 1000000), ''):
-                    # Tokenize the chunk
-                    encoded = self.tokenizer(
-                        chunk,
-                        truncation=False,
-                        padding=False,
-                    )
-                    iids = encoded['input_ids']
+                try:
+                    for chunk in iter(partial(f.read, 1000000), ''):
+                        # Tokenize the chunk
+                        encoded = self.tokenizer(
+                            chunk,
+                            truncation=False,
+                            padding=False,
+                        )
+                        iids = encoded['input_ids']
 
-                    # If this is not the first chunk, remove the BOS token
-                    if not first_chunk:
-                        if iids[0] == self.tokenizer.bos_token_id:
-                            iids = iids[1:]
+                        # If this is not the first chunk, remove the BOS token
+                        if not first_chunk:
+                            if iids[0] == self.tokenizer.bos_token_id:
+                                iids = iids[1:]
 
-                    # Add the tokens to the buffer
-                    buffer += iids
-                    while len(buffer) >= self.max_length:
-                        concat_sample = buffer[:self.max_length]
-                        buffer = buffer[self.
-                                        max_length:] if self.should_wrap else []
-                        yield {
-                            'tokens': np.asarray(concat_sample, dtype=np.int32),
-                        }
+                        # Add the tokens to the buffer
+                        buffer += iids
+                        while len(buffer) >= self.max_length:
+                            concat_sample = buffer[:self.max_length]
+                            buffer = buffer[self.max_length:
+                                           ] if self.should_wrap else []
+                            yield {
+                                'tokens':
+                                    np.asarray(concat_sample, dtype=np.int32),
+                            }
 
-                    first_chunk = False
+                        first_chunk = False
+                except UnicodeDecodeError:
+                    raise CannotUnicodeDecodeFile(text_file=file)
 
                 # Add the EOS token to the buffer to separate files.
                 buffer += self.eos_tokens

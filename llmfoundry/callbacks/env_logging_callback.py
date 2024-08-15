@@ -122,8 +122,9 @@ class EnvironmentLoggingCallback(Callback):
             return {
                 'cuda_version':
                     torch.version.cuda,  # type: ignore[attr-defined]
-                'cudnn_version': str(torch.backends.cudnn.version()
-                                    ),  # type: ignore[attr-defined]
+                'cudnn_version': str(
+                    torch.backends.cudnn.version(),
+                ),  # type: ignore[attr-defined]
                 'nccl_version': '.'.join(map(str, nccl_version)),
             }
         return {'available': False}

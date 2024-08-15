@@ -12,9 +12,24 @@ import psutil
 import torch
 from composer.core import Callback, State
 from composer.loggers import Logger
+from composer.utils import dist
+from mcli import sdk
 
+__all__ = ['EnvironmentLoggingCallback']
 
-class EnvironmentLoggerCallback(Callback):
+_PACKAGES_TO_LOG = [
+    'llm-foundry',
+    'mosaicml',
+    'megablocks',
+    'grouped-gemm',
+    'torch',
+    'flash_attn',
+    'transformers',
+    'datasets',
+    'peft',
+]
+
+class EnvironmentLoggingCallback(Callback):
     """A callback for logging environment information during model training.
 
     This callback collects various pieces of information about the training environment,
@@ -34,18 +49,6 @@ class EnvironmentLoggerCallback(Callback):
 
     The collected information is logged as hyperparameters at the start of model fitting.
     """
-
-    PACKAGES_TO_LOG = [
-        'llm-foundry',
-        'mosaicml',
-        'megablocks',
-        'grouped-gemm',
-        'torch',
-        'flash_attn',
-        'transformers',
-        'datasets',
-        'peft',
-    ]
 
     def __init__(
         self,
@@ -68,7 +71,7 @@ class EnvironmentLoggerCallback(Callback):
         self.log_gpu = log_gpu
         self.log_distributed = log_distributed
         self.env_data: dict[str, Any] = {}
-        self.packages_to_log = packages_to_log or self.PACKAGES_TO_LOG
+        self.packages_to_log = packages_to_log or _PACKAGES_TO_LOG
 
     def _get_git_info(self, repo_path: str) -> dict[str, str]:
         repo = git.Repo(repo_path)
@@ -115,28 +118,21 @@ class EnvironmentLoggerCallback(Callback):
         if torch.cuda.is_available():
             nccl_version = torch.cuda.nccl.version()  # type: ignore
             return {
-                'cuda_version':
-                    torch.version.cuda,  # type: ignore[attr-defined]
-                'cudnn_version': str(torch.backends.cudnn.version()
-                                    ),  # type: ignore[attr-defined]
-                'nccl_version': '.'.join(
-                    map(str, nccl_version),
-                ),
+                'cuda_version': torch.version.cuda,  # type: ignore[attr-defined]
+                'cudnn_version': str(torch.backends.cudnn.version()),  # type: ignore[attr-defined]
+                'nccl_version': '.'.join(map(str, nccl_version)),
             }
-
         return {'available': False}
 
     def _get_distributed_info(self) -> dict[str, Any]:
         return {
-            'world_size': int(os.environ.get('WORLD_SIZE', 1)),
-            'local_world_size': int(os.environ.get('LOCAL_WORLD_SIZE', 1)),
-            'rank': int(os.environ.get('RANK', 0)),
-            'local_rank': int(os.environ.get('LOCAL_RANK', 0)),
+            'world_size': dist.get_world_size(),
+            'local_world_size': dist.get_local_world_size(),
+            'rank': dist.get_global_rank(),
+            'local_rank': dist.get_local_rank(),
         }
 
     def _get_docker_info(self) -> dict[str, Any]:
-        from mcli import sdk
-
         run = sdk.get_run(os.environ['RUN_NAME'])
         image, tag = run.image.split(':')
         return {
@@ -148,8 +144,7 @@ class EnvironmentLoggerCallback(Callback):
         # Collect environment data
         if self.log_git:
             self.env_data['git_info'] = {
-                folder:
-                self._get_git_info(os.path.join(self.workspace_dir, folder))
+                folder: self._get_git_info(os.path.join(self.workspace_dir, folder))
                 for folder in os.listdir(self.workspace_dir)
                 if os.path.isdir(os.path.join(self.workspace_dir, folder))
             }

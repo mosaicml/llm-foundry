@@ -55,7 +55,7 @@ from llmfoundry.utils.registry_utils import (
     import_file,
     save_registry,
 )
-from llmfoundry.utils.validation_utils import (
+from llmfoundry.utils.validation_notebook_utils import (
     check_HF_datasets,
     convert_text_to_mds,
     create_om_cfg,

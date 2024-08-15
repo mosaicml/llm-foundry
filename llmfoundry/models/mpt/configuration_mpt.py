@@ -333,7 +333,7 @@ class MPTConfig(PretrainedConfig):
             'attn_impl'
         ] == 'flash' and not is_flash_v2_installed(v2_version='v2.3.0',):
             raise NotImplementedError(
-                'sliding window attention only implemented with for torch attention or flash attention (v2.3.0 or higher).',
+                'sliding window attention only implemented for torch attention and flash attention (v2.3.0 or higher).',
             )
         if self.embedding_fraction > 1 or self.embedding_fraction <= 0:
             raise ValueError(

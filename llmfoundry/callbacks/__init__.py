@@ -35,6 +35,7 @@ from llmfoundry.callbacks.resumption_callbacks import (
 from llmfoundry.callbacks.run_timeout_callback import RunTimeoutCallback
 from llmfoundry.callbacks.scheduled_gc_callback import ScheduledGarbageCollector
 from llmfoundry.registry import callbacks, callbacks_with_config
+from llmfoundry.callbacks.kill_loss_spike_callback import KillLossSpike
 
 callbacks.register('system_metrics_monitor', func=SystemMetricsMonitor)
 callbacks.register('lr_monitor', func=LRMonitor)
@@ -55,6 +56,7 @@ callbacks.register('oom_observer', func=OOMObserver)
 callbacks.register('eval_output_logging', func=EvalOutputLogging)
 callbacks.register('mbmoe_tok_per_expert', func=MegaBlocksMoE_TokPerExpert)
 callbacks.register('run_timeout', func=RunTimeoutCallback)
+callbacks.register('kill_loss_spike', func=KillLossSpike)
 
 callbacks.register('loss_perp_v_len', func=LossPerpVsContextLengthLogger)
 
@@ -73,4 +75,5 @@ __all__ = [
     'AsyncEval',
     'CurriculumLearning',
     'LossPerpVsContextLengthLogger',
+    'KillLossSpike',
 ]

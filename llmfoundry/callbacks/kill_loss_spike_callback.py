@@ -7,7 +7,7 @@ from __future__ import annotations
 import torch
 import numpy as np
 from composer.core import Callback, State
-from  utils.exceptions import UserError
+from llmfoundry.utils.exceptions import UserError
 
 __all__ = ['KillLossSpike']
 

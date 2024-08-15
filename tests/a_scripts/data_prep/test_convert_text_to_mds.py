@@ -6,7 +6,7 @@ import pathlib
 import shutil
 from concurrent.futures import ProcessPoolExecutor
 from glob import glob
-from typing import Callable, Iterable, List
+from typing import Callable, Iterable
 from unittest.mock import Mock, patch
 
 import pytest
@@ -22,6 +22,7 @@ from llmfoundry.command_utils.data_prep.convert_text_to_mds import (
     write_done_file,
 )
 from llmfoundry.utils.exceptions import (
+    DatasetTooSmallError,
     InputFolderMissingDataError,
     OutputFolderNotEmptyError,
 )
@@ -58,7 +59,7 @@ class MockObjectStore():
         ) as remote_file, open(filename, 'wb') as local_file:
             local_file.write(remote_file.read())
 
-    def list_objects(self, prefix: str) -> List[str]:
+    def list_objects(self, prefix: str) -> list[str]:
         return glob(os.path.join(self.remote_folder, '*.txt'))
 
     def upload_object(self, object_name: str, filename: str):
@@ -75,7 +76,7 @@ def _mock_map(func: Callable, args: Iterable) -> Iterable:
         yield func(arg)
 
 
-def _assert_files_exist(prefix: str, files: List[str]):
+def _assert_files_exist(prefix: str, files: list[str]):
     for file in files:
         assert os.path.exists(os.path.join(prefix, file))
 
@@ -256,6 +257,28 @@ def test_input_folder_not_exist(tmp_path: pathlib.Path):
             output_folder=str(tmp_path / 'output'),
             input_folder=str(tmp_path / 'input'),
             concat_tokens=1,
+            eos_text='',
+            bos_text='',
+            no_wrap=False,
+            compression='zstd',
+            processes=1,
+            args_str='Namespace()',
+            reprocess=False,
+            trust_remote_code=False,
+        )
+
+
+def test_dataset_too_small(tmp_path: pathlib.Path):
+    input_folder = tmp_path / 'input'
+    os.makedirs(input_folder, exist_ok=True)
+    with open(input_folder / 'test.txt', 'w') as f:
+        f.write('a')
+    with pytest.raises(DatasetTooSmallError):
+        convert_text_to_mds(
+            tokenizer_name='mosaicml/mpt-7b',
+            output_folder=str(tmp_path / 'output'),
+            input_folder=str(input_folder),
+            concat_tokens=2048,
             eos_text='',
             bos_text='',
             no_wrap=False,

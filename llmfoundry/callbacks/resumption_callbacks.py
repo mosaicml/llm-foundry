@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-from typing import List
 
 from composer.core import Callback, State
 from composer.loggers import Logger
@@ -69,7 +68,7 @@ class LayerFreezing(Callback):
         layer_names (float): Names of layers to freeze.
     """
 
-    def __init__(self, layer_names: List[str]):
+    def __init__(self, layer_names: list[str]):
         self.layer_names = set(layer_names)
 
     def fit_start(self, state: State, logger: Logger) -> None:

@@ -6,7 +6,7 @@
 import copy
 import math
 import warnings
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Optional
 
 import torch
 import transformers
@@ -555,7 +555,7 @@ class GroupedQueryAttention(nn.Module):
         needs_weights: bool = False,
         alibi_slopes: Optional[torch.Tensor] = None,
         flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
-        prev_layer_key_value: Optional[Tuple[torch.Tensor,
+        prev_layer_key_value: Optional[tuple[torch.Tensor,
                                              torch.Tensor]] = None,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
         torch.Tensor, torch.Tensor]]]:
@@ -599,13 +599,14 @@ class GroupedQueryAttention(nn.Module):
     def get_qkv(
         self,
         x: torch.Tensor,
-        prev_layer_key_value: Optional[Tuple[torch.Tensor,
+        prev_layer_key_value: Optional[tuple[torch.Tensor,
                                              torch.Tensor]] = None,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Computes and returns the query, key, and value tensors.
 
         Args:
             x (torch.Tensor): The input tensor.
+            prev_layer_key_value  (Optional[Tuple[torch.Tensor, torch.Tensor]]): The key value of the previous layer.
 
         Returns:
             query (torch.Tensor): The query tensor.
@@ -672,11 +673,11 @@ class GroupedQueryAttention(nn.Module):
 
     def _apply_rotary_embeddings(
         self,
-        rotary_emb_w_meta_info: Dict[str, Any],
+        rotary_emb_w_meta_info: dict[str, Any],
         query: torch.Tensor,
         key: torch.Tensor,
         value: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         if self.reuse_kv_layer_idx is not None:
             orig_key, orig_value = key, value
             key, value = torch.empty_like(key), torch.empty_like(value)

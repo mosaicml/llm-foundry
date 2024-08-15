@@ -8,7 +8,7 @@ import time
 import urllib.parse
 from collections import namedtuple
 from concurrent.futures import ProcessPoolExecutor
-from typing import TYPE_CHECKING, Iterable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Iterable, Optional, Union
 from uuid import uuid4
 
 import google.protobuf.any_pb2 as any_pb2
@@ -70,7 +70,7 @@ Result = namedtuple(
 
 def to_cf(self: 'SparkConnectClient',
           plan: 'pb2.Plan',
-          type: str = 'json') -> Tuple[List[Result], int, bool]:
+          type: str = 'json') -> tuple[list[Result], int, bool]:
     """Executes the query plans and return as presigned URLS for cloud fetch.
 
     It can handle the current output formats that are supported by the server.
@@ -78,15 +78,16 @@ def to_cf(self: 'SparkConnectClient',
     return the schema and drops all other responses.
 
     Args:
-       plan (pb2.Plan): The plan object to be executed by spark.
-       type (str): The output format of the result, supported formats are 'json', 'csv', and 'arrow'.
+        self (SparkConnectClient): The SparkConnectClient we are processing.
+        plan (pb2.Plan): The plan object to be executed by spark.
+        type (str): The output format of the result, supported formats are 'json', 'csv', and 'arrow'.
 
     Returns:
-       Tuple[List[Result], int, bool]: A tuple containing:
-           - A list of Result namedtuples, each containing a URL, row count, compressed size,
-             and uncompressed size of the part of the result.
-           - Total row count of all parts of the result.
-           - A boolean indicating whether the result has been truncated.
+        Tuple[List[Result], int, bool]: A tuple containing:
+            - A list of Result namedtuples, each containing a URL, row count, compressed size,
+                and uncompressed size of the part of the result.
+            - Total row count of all parts of the result.
+            - A boolean indicating whether the result has been truncated.
     """
     req = self._execute_plan_request_with_metadata()
     req.plan.CopyFrom(plan)
@@ -120,8 +121,9 @@ def to_cf(self: 'SparkConnectClient',
     )
 
     # Create the iterator
-    from pyspark.sql.connect.client.reattach import \
-        ExecutePlanResponseReattachableIterator
+    from pyspark.sql.connect.client.reattach import (
+        ExecutePlanResponseReattachableIterator,
+    )
     iterator = ExecutePlanResponseReattachableIterator(
         req,
         self._stub,
@@ -161,7 +163,7 @@ if spark_connect_client_installed:
 
 
 def collect_as_cf(self: 'DataFrame',
-                  type: str = 'json') -> Tuple[List[Result], int, bool]:
+                  type: str = 'json') -> tuple[list[Result], int, bool]:
     """Collects DataFrame execution plan as presigned URLs.
 
     This method is a wrapper around the `to_cf` method of SparkConnectClient. It takes the
@@ -169,6 +171,7 @@ def collect_as_cf(self: 'DataFrame',
     uses the `to_cf` method to execute the plan and fetch results as presigned URLs.
 
     Args:
+        self (pd.DataFrame): The dataframe we are processing.
         type (str): The output format of the result, supported formats are 'json', 'csv', and 'arrow'.
 
     Returns:
@@ -210,7 +213,7 @@ def run_query(
     cursor: Optional['Cursor'] = None,
     spark: Optional['SparkSession'] = None,
     collect: bool = True,
-) -> Optional[Union[List['Row'], 'DataFrame', 'SparkDataFrame']]:
+) -> Optional[Union[list['Row'], 'DataFrame', 'SparkDataFrame']]:
     """Run SQL query via databricks-connect or databricks-sql.
 
     Args:
@@ -237,7 +240,7 @@ def run_query(
         raise ValueError(f'Unrecognized method: {method}')
 
 
-def get_args(signed: List, json_output_folder: str, columns: List) -> Iterable:
+def get_args(signed: list, json_output_folder: str, columns: list) -> Iterable:
     for i, r in enumerate(signed):
         yield (i, r.url, json_output_folder, columns)
 
@@ -246,7 +249,7 @@ def download(
     ipart: int,
     url: str,
     json_output_folder: str,
-    columns: Optional[List] = None,
+    columns: Optional[list] = None,
     resp_format: str = 'arrow',
     compressed: bool = False,
 ) -> None:
@@ -296,7 +299,7 @@ def download(
         )
 
 
-def download_starargs(args: Tuple) -> None:
+def download_starargs(args: tuple) -> None:
     return download(*args)
 
 
@@ -693,8 +696,9 @@ def _check_imports():
         import pyspark.sql.connect.proto.cloud_pb2 as cloud_pb2
         from pyspark.sql import SparkSession
         from pyspark.sql.connect.client.core import SparkConnectClient
-        from pyspark.sql.connect.client.reattach import \
-            ExecutePlanResponseReattachableIterator
+        from pyspark.sql.connect.client.reattach import (
+            ExecutePlanResponseReattachableIterator,
+        )
         from pyspark.sql.connect.dataframe import DataFrame
         from pyspark.sql.dataframe import DataFrame as SparkDataFrame
         from pyspark.sql.types import Row

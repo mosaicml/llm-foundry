@@ -1,7 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, Optional
 from unittest.mock import Mock, patch
 
 import pytest
@@ -28,7 +28,7 @@ class MockMPTForCausalLM(MPTForCausalLM):
     def forward(
         self,
         input_ids: torch.LongTensor,
-        past_key_values: Optional[List[Tuple[torch.FloatTensor]]] = None,
+        past_key_values: Optional[list[tuple[torch.FloatTensor]]] = None,
         attention_mask: Optional[torch.ByteTensor] = None,
         sequence_id: Optional[torch.LongTensor] = None,
         labels: Optional[torch.LongTensor] = None,

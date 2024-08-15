@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pathlib
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import TYPE_CHECKING, Optional
 
 import pytest
 import transformers
@@ -147,8 +147,8 @@ def get_tokenizers_for_testing(
     use_default_system_prompt: bool = False,
     add_bos_token: bool = False,
     add_eos_token: bool = False,
-    additional_special_tokens: Optional[List[str]] = None,
-) -> Tuple[TiktokenTokenizerWrapper, TiktokenTokenizerWrapper, 'Encoding']:
+    additional_special_tokens: Optional[list[str]] = None,
+) -> tuple[TiktokenTokenizerWrapper, TiktokenTokenizerWrapper, 'Encoding']:
     tiktoken = pytest.importorskip('tiktoken')
 
     # Construction

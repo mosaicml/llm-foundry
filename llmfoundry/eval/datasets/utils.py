@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import logging
 import random
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Optional
 
 import torch
 import transformers
@@ -26,7 +26,7 @@ __all__ = [
 log = logging.getLogger(__name__)
 
 
-def strip_data(example: Dict) -> Dict:
+def strip_data(example: dict) -> dict:
     """Remove white space from the begging and end of string values in a.
 
     dictionary.
@@ -62,10 +62,10 @@ def tokenizer_needs_prefix_space(
 
 
 def trim_context(
-    context_enc: List,
-    continuation_enc: List,
+    context_enc: list,
+    continuation_enc: list,
     max_seq_len: int,
-) -> List:
+) -> list:
     """Trims a list of tokens down to `max_seq_len` if the length of the list.
 
     plus the continuation is more than `max_seq_len`. It will always trim tokens
@@ -94,8 +94,8 @@ def trim_context(
 
 
 def get_continuation_span(
-    context_enc: List,
-    continuation_enc: List,
+    context_enc: list,
+    continuation_enc: list,
 ) -> torch.Tensor:
     """Gets the list of indices of the continuation tokens for language.
 
@@ -117,8 +117,8 @@ def get_continuation_span(
 
 
 def make_padded_input(
-    context_enc: List,
-    continuation_enc: List,
+    context_enc: list,
+    continuation_enc: list,
     max_seq_len: int,
     pad_tok_id: int,
     padding_side: str = 'right',
@@ -130,7 +130,7 @@ def make_padded_input(
     Args:
         context_enc (List): The encoded input to the model
         continuation_enc (List): The encoded desired output for the example
-        max_seq_list (int): Maximum length sequences can be
+        max_seq_len (int): Maximum length sequences can be
         pad_tok_id (int): The token id we pad with
         padding_side (str): Which side to pad the context on. Can be 'right' or 'left
 
@@ -175,8 +175,8 @@ def make_padded_input(
     return inp
 
 
-def convert_tokens_to_tensors(batch: Dict,
-                              tokenize_labels: bool) -> Dict[str, Any]:
+def convert_tokens_to_tensors(batch: dict,
+                              tokenize_labels: bool) -> dict[str, Any]:
     """HF Datasets converts tensors into lists when we store them, and we don't.
 
     want to use `type='torch'` because some content in the dataset, like
@@ -207,7 +207,7 @@ def get_fewshot_sample_idxs(
     num_fewshot: int,
     example_idx: int,
     rng: random.Random,
-) -> Set[int]:
+) -> set[int]:
     """Samples indices without replacement. If num_fewshot exceeds the number.
 
     of unique examples in the dataset, then we will have fewer than num_fewshot examples in context.
@@ -274,7 +274,7 @@ class MultiTokenEOSCriteria(transformers.StoppingCriteria):
         self,
         input_ids: torch.LongTensor,
         scores: Optional[torch.FloatTensor] = None,
-        **kwargs: Dict[str, Any],
+        **kwargs: dict[str, Any],
     ) -> bool:
         # For efficiency, we compare the last n tokens where n is the number of tokens in the stop_sequence
         lookback_ids_batch = input_ids[:, :][:, -self.stop_sequence_id_len:]
@@ -294,7 +294,7 @@ class MultiTokenEOSCriteria(transformers.StoppingCriteria):
 
 def stop_sequences_criteria(
     tokenizer: transformers.PreTrainedTokenizerBase,
-    stop_sequences: List[str],
+    stop_sequences: list[str],
     batch_size: int,
 ) -> transformers.StoppingCriteriaList:
     return transformers.StoppingCriteriaList([

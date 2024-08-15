@@ -11,11 +11,9 @@ from types import ModuleType
 from typing import (
     Any,
     Callable,
-    Dict,
     Generic,
     Optional,
     Sequence,
-    Type,
     TypeVar,
     Union,
 )
@@ -31,7 +29,7 @@ __all__ = [
 ]
 
 T = TypeVar('T')
-TypeBoundT = TypeVar('TypeBoundT', bound=Type)
+TypeBoundT = TypeVar('TypeBoundT', bound=type)
 CallableBoundT = TypeVar('CallableBoundT', bound=Callable[..., Any])
 
 
@@ -68,13 +66,13 @@ class TypedRegistry(catalogue.Registry, Generic[T]):
     def get(self, name: str) -> T:
         return super().get(name)
 
-    def get_all(self) -> Dict[str, T]:
+    def get_all(self) -> dict[str, T]:
         return super().get_all()
 
     def get_entry_point(self, name: str, default: Optional[T] = None) -> T:
         return super().get_entry_point(name, default=default)
 
-    def get_entry_points(self) -> Dict[str, T]:
+    def get_entry_points(self) -> dict[str, T]:
         return super().get_entry_points()
 
 
@@ -83,7 +81,7 @@ S = TypeVar('S')
 
 def create_registry(
     *namespace: str,
-    generic_type: Type[S],
+    generic_type: type[S],
     entry_points: bool = False,
     description: str = '',
 ) -> 'TypedRegistry[S]':
@@ -115,7 +113,7 @@ def construct_from_registry(
     pre_validation_function: Optional[Union[Callable[[Any], None],
                                             type]] = None,
     post_validation_function: Optional[Callable[[Any], None]] = None,
-    kwargs: Optional[Dict[str, Any]] = None,
+    kwargs: Optional[dict[str, Any]] = None,
 ) -> Any:
     """Helper function to build an item from the registry.
 
@@ -127,6 +125,7 @@ def construct_from_registry(
             before constructing the item to return. This should throw an exception if validation fails. Defaults to None.
         post_validation_function (Optional[Callable[[Any], None]], optional): An optional validation function called after
             constructing the item to return. This should throw an exception if validation fails. Defaults to None.
+        kwargs (Optional[Dict[str, Any]]): Other relevant keyword arguments.
 
     Raises:
         ValueError: If the validation functions failed or the registered item is invalid
@@ -176,6 +175,7 @@ def import_file(loc: Union[str, Path]) -> ModuleType:
     """Import module from a file.
 
     Used to run arbitrary python code.
+
     Args:
         name (str): Name of module to load.
         loc (str / Path): Path to the file.

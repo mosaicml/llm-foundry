@@ -9,10 +9,7 @@ import warnings
 from typing import (
     TYPE_CHECKING,
     Any,
-    Dict,
-    List,
     Optional,
-    Tuple,
     Union,
 )
 
@@ -22,9 +19,11 @@ from torchmetrics import Metric
 from transformers import (
     AutoConfig,
     AutoModelForCausalLM,
+    GenerationConfig,
     PreTrainedModel,
     PreTrainedTokenizerBase,
 )
+from transformers.models.auto.auto_factory import _BaseAutoModelClass
 
 from llmfoundry.metrics import (
     DEFAULT_CAUSAL_LM_EVAL_METRICS,
@@ -83,11 +82,12 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         use_flash_attention_2: bool = False,
         load_in_8bit: bool = False,
         init_device: str = 'cpu',
-        config_overrides: Optional[Dict[str, Any]] = None,
-        peft_config: Optional[Dict[str, Any]] = None,
+        config_overrides: Optional[dict[str, Any]] = None,
+        peft_config: Optional[dict[str, Any]] = None,
         use_train_metrics: bool = True,
-        additional_train_metrics: Optional[List] = None,
-        additional_eval_metrics: Optional[List] = None,
+        allow_embedding_resizing: bool = False,
+        additional_train_metrics: Optional[list] = None,
+        additional_eval_metrics: Optional[list] = None,
         should_save_peft_only: bool = True,
     ):
 
@@ -132,6 +132,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             tokenizer=tokenizer,
             metrics=train_metrics,
             eval_metrics=eval_metrics,
+            allow_embedding_resizing=allow_embedding_resizing,
             init_device=init_device,
             peft_config=peft_config_object,
             should_save_peft_only=should_save_peft_only,
@@ -151,9 +152,9 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
     @staticmethod
     def build_metrics(
         use_train_metrics: bool,
-        additional_train_metrics: Optional[List[str]] = None,
-        additional_eval_metrics: Optional[List[str]] = None,
-    ) -> Tuple[List[Metric], List[Metric]]:
+        additional_train_metrics: Optional[list[str]] = None,
+        additional_eval_metrics: Optional[list[str]] = None,
+    ) -> tuple[list[Metric], list[Metric]]:
         """Builds the training and evaluation metrics for the model.
 
         Args:
@@ -189,9 +190,11 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         init_device: str,
         use_flash_attention_2: bool,
         use_auth_token: bool,
-        config_overrides: Dict[str, Any],
+        config_overrides: dict[str, Any],
         load_in_8bit: bool,
         pretrained: bool,
+        model_cls: Union[_BaseAutoModelClass,
+                         PreTrainedModel] = AutoModelForCausalLM,
         prepare_for_fsdp: bool = False,
     ) -> Union[PreTrainedModel, 'PeftModel']:
         """Builds the inner model for the ComposerHFCausalLM.
@@ -205,7 +208,9 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             use_auth_token (bool): Whether to use an authentication token.
             config_overrides (Dict[str, Any]): The configuration overrides.
             load_in_8bit (bool): Whether to load in 8-bit.
-            prepare_for_fsdp (bool, optional): Whether to prepare the model for FSDP wrapping. Default: False.
+            pretrained (bool): Whether the model is pretrained.
+            model_cls (Union[Type, Type[PreTrainedModel]]): HF class for models. Default: ``AutoModelForCausalLM``.
+            prepare_for_fsdp (bool, optional): Whether to prepare the model for FSDP wrapping. Default: ``False``.
 
         Returns:
             Union[PreTrainedModel, 'PeftModel']: The built inner model.
@@ -229,9 +234,17 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                 + 'Please `pip install llm-foundry[gpu]`.',
             )
 
+        if not (
+            hasattr(model_cls, 'from_pretrained') and
+            hasattr(model_cls, 'from_config')
+        ):
+            raise AttributeError(
+                f'{model_cls=} is missing `from_pretrained` and `from_config` support.',
+            )
+
         # Hugging Face copies the modules into the
         # transformers modules cache. On particular systems, this operation seems to cause contention between
-        # the different processes. To avoid this contention, we first create the config on local rank
+        # the different processes. To avoid this contention, we first create the config and generation config on local rank
         # zero. This will set up the transformers module cache and avoid the future contention.
         if dist.get_local_rank() == 0:
             AutoConfig.from_pretrained(
@@ -242,6 +255,13 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                 use_cache=
                 False,  # Necessary due to https://github.com/huggingface/transformers/issues/28056
             )
+            try:
+                GenerationConfig.from_pretrained(
+                    pretrained_model_name_or_path,
+                    use_auth_token=use_auth_token,
+                )
+            except OSError:
+                pass
 
         dist.barrier()
 
@@ -253,23 +273,6 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             attn_implementation=requested_attention_implementation,
             use_cache=
             False,  # Necessary due to https://github.com/huggingface/transformers/issues/28056
-        )
-
-        # This is not ideal, however Hugging Face's _autoset_attn_implementation function
-        # forces you to load the model in fp16/bf16 if you want to use flash attention. Rather than loading
-        # the model and then casting it back to fp32, we are monkeypatching their check.
-        # https://github.com/huggingface/transformers/issues/28052
-        def _autoset_attn_implementation_monkeypatch(
-            cls,  # type: ignore
-            config,  # type: ignore
-            *args,  # type: ignore
-            **kwargs,  # type: ignore
-        ):  # type: ignore
-            config._attn_implementation = requested_attention_implementation
-            return config
-
-        PreTrainedModel._autoset_attn_implementation = classmethod(
-            _autoset_attn_implementation_monkeypatch,
         )
 
         set_config_overrides(config, config_overrides)
@@ -288,17 +291,20 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                 with init_empty_weights(include_buffers=False):
                     with warnings.catch_warnings():
                         warnings.simplefilter('ignore', UserWarning)
-                        AutoModelForCausalLM.from_pretrained(
+                        model_cls.from_pretrained(
                             pretrained_model_name_or_path,
                             trust_remote_code=trust_remote_code,
                             use_auth_token=use_auth_token,
+                            attn_implementation=
+                            requested_attention_implementation,
                             config=config,
                         )
             else:
                 with init_empty_weights(include_buffers=False):
-                    AutoModelForCausalLM.from_config(
+                    model_cls.from_config(
                         config,
                         trust_remote_code=trust_remote_code,
+                        attn_implementation=requested_attention_implementation,
                     )
 
         dist.barrier()
@@ -306,17 +312,19 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
         # initialize the model on the correct device
         if resolved_init_device == 'cpu':
             if pretrained:
-                model = AutoModelForCausalLM.from_pretrained(
+                model = model_cls.from_pretrained(
                     pretrained_model_name_or_path,
                     trust_remote_code=trust_remote_code,
                     use_auth_token=use_auth_token,
                     load_in_8bit=load_in_8bit,
+                    attn_implementation=requested_attention_implementation,
                     config=config,
                 )
             else:
-                model = AutoModelForCausalLM.from_config(
+                model = model_cls.from_config(
                     config,
                     trust_remote_code=trust_remote_code,
+                    attn_implementation=requested_attention_implementation,
                 )
         elif resolved_init_device == 'meta':
             if pretrained:
@@ -324,9 +332,10 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
                     'Setting cfg.pretrained=True is not supported when init_device="meta".',
                 )
             with init_empty_weights(include_buffers=False):
-                model = AutoModelForCausalLM.from_config(
+                model = model_cls.from_config(
                     config,
                     trust_remote_code=trust_remote_code,
+                    attn_implementation=requested_attention_implementation,
                 )
         else:
             raise ValueError(
@@ -346,6 +355,17 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
 
         if dist.get_local_rank() == 0:
             os.remove(signal_file_path)
+
+        # Use the pretrained generation config for the model if it exists.
+        try:
+            model.generation_config = GenerationConfig.from_pretrained(
+                pretrained_model_name_or_path,
+                use_auth_token=use_auth_token,
+            )
+        except OSError:
+            log.warning(
+                f'No existing generation config found for the model with name or path {pretrained_model_name_or_path}. Using default generation config.',
+            )
 
         # Hugging Face's weight tying does not succeed if the model is inited on meta device
         # so we manually apply the weight tying here
@@ -368,7 +388,7 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
 
         return model
 
-    def get_peft_config(self, peft_config_dict: Dict[str, Any]) -> 'PeftConfig':
+    def get_peft_config(self, peft_config_dict: dict[str, Any]) -> 'PeftConfig':
         if peft_installed:
             from peft import LoraConfig
             peft_type = peft_config_dict.get('peft_type', '')

@@ -6,7 +6,7 @@ import warnings
 from collections.abc import Sequence
 from copy import deepcopy
 from functools import partial
-from typing import Any, Callable, Optional, Tuple, Union
+from typing import Any, Callable, Optional, Union
 
 import torch
 from torch import nn
@@ -193,7 +193,7 @@ def embedding_init(
     module: nn.Module,
     init_fn_: Callable,
     emb_init_std: Optional[float],
-    emb_init_uniform_lim: Optional[Union[Tuple[float, float], float]],
+    emb_init_uniform_lim: Optional[Union[tuple[float, float], float]],
     **kwargs: Any,
 ) -> bool:
     del kwargs  # unused, just to capture any extra args
@@ -408,7 +408,7 @@ def generic_param_init_fn_(
     d_model: Optional[int] = None,
     init_div_is_residual: Union[int, float, str, bool] = True,
     emb_init_std: Optional[float] = None,
-    emb_init_uniform_lim: Optional[Union[Tuple[float, float], float]] = None,
+    emb_init_uniform_lim: Optional[Union[tuple[float, float], float]] = None,
     **kwargs: Any,
 ) -> None:
     del kwargs  # unused, just to capture any extra args from the config
@@ -674,7 +674,7 @@ def _normal_param_init_fn_(
     d_model: Optional[int] = None,
     init_div_is_residual: Union[int, float, str, bool] = True,
     emb_init_std: Optional[float] = None,
-    emb_init_uniform_lim: Optional[Union[Tuple[float, float], float]] = None,
+    emb_init_uniform_lim: Optional[Union[tuple[float, float], float]] = None,
     **kwargs: Any,
 ) -> None:
     del kwargs  # unused, just to capture any extra args from the config
@@ -698,7 +698,7 @@ def baseline_param_init_fn_(
     d_model: Optional[int] = None,
     init_div_is_residual: Union[int, float, str, bool] = True,
     emb_init_std: Optional[float] = None,
-    emb_init_uniform_lim: Optional[Union[Tuple[float, float], float]] = None,
+    emb_init_uniform_lim: Optional[Union[tuple[float, float], float]] = None,
     **kwargs: Any,
 ) -> None:
     del kwargs  # unused, just to capture any extra args from the config
@@ -723,7 +723,7 @@ def small_param_init_fn_(
     d_model: int,
     init_div_is_residual: Union[int, float, str, bool] = True,
     emb_init_std: Optional[float] = None,
-    emb_init_uniform_lim: Optional[Union[Tuple[float, float], float]] = None,
+    emb_init_uniform_lim: Optional[Union[tuple[float, float], float]] = None,
     **kwargs: Any,
 ) -> None:
     del kwargs  # unused, just to capture any extra args from the config
@@ -746,7 +746,7 @@ def neox_param_init_fn_(
     n_layers: int,
     d_model: int,
     emb_init_std: Optional[float] = None,
-    emb_init_uniform_lim: Optional[Union[Tuple[float, float], float]] = None,
+    emb_init_uniform_lim: Optional[Union[tuple[float, float], float]] = None,
     **kwargs: Any,
 ) -> None:
     """From section 2.3.1 of GPT-NeoX-20B:
@@ -774,7 +774,7 @@ def kaiming_uniform_param_init_fn_(
     d_model: Optional[int] = None,
     init_div_is_residual: Union[int, float, str, bool] = True,
     emb_init_std: Optional[float] = None,
-    emb_init_uniform_lim: Optional[Union[Tuple[float, float], float]] = None,
+    emb_init_uniform_lim: Optional[Union[tuple[float, float], float]] = None,
     init_gain: float = 0,
     fan_mode: str = 'fan_in',
     init_nonlinearity: str = 'leaky_relu',
@@ -806,7 +806,7 @@ def kaiming_normal_param_init_fn_(
     d_model: Optional[int] = None,
     init_div_is_residual: Union[int, float, str, bool] = True,
     emb_init_std: Optional[float] = None,
-    emb_init_uniform_lim: Optional[Union[Tuple[float, float], float]] = None,
+    emb_init_uniform_lim: Optional[Union[tuple[float, float], float]] = None,
     init_gain: float = 0,
     fan_mode: str = 'fan_in',
     init_nonlinearity: str = 'leaky_relu',
@@ -838,7 +838,7 @@ def xavier_uniform_param_init_fn_(
     d_model: Optional[int] = None,
     init_div_is_residual: Union[int, float, str, bool] = True,
     emb_init_std: Optional[float] = None,
-    emb_init_uniform_lim: Optional[Union[Tuple[float, float], float]] = None,
+    emb_init_uniform_lim: Optional[Union[tuple[float, float], float]] = None,
     init_gain: float = 0,
     **kwargs: Any,
 ) -> None:
@@ -862,7 +862,7 @@ def xavier_normal_param_init_fn_(
     d_model: Optional[int] = None,
     init_div_is_residual: Union[int, float, str, bool] = True,
     emb_init_std: Optional[float] = None,
-    emb_init_uniform_lim: Optional[Union[Tuple[float, float], float]] = None,
+    emb_init_uniform_lim: Optional[Union[tuple[float, float], float]] = None,
     init_gain: float = 0,
     **kwargs: Any,
 ) -> None:

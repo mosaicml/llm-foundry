@@ -5,7 +5,7 @@ import contextlib
 import os
 import random
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 import pytest
 import torch
@@ -2447,8 +2447,8 @@ def test_hf_dataloading_lm_dataloader(
     tmp_path: Path,
     num_fewshot: int,
     prompt_string: str,
-    hf_loading_vars: Dict[str, str],
-    hf_parsing_map: Optional[Dict[str, List[str]]],
+    hf_loading_vars: dict[str, str],
+    hf_parsing_map: Optional[dict[str, list[str]]],
 ):
 
     tokenizer = tiny_gpt2_tokenizer
@@ -2526,8 +2526,8 @@ def test_hf_dataloading_custom_parsing(
     tmp_path: Path,
     num_fewshot: int,
     prompt_string: str,
-    hf_loading_vars: Dict[str, str],
-    hf_parsing_map: Dict[str, List[str]],
+    hf_loading_vars: dict[str, str],
+    hf_parsing_map: dict[str, list[str]],
 ):
 
     tokenizer = tiny_gpt2_tokenizer

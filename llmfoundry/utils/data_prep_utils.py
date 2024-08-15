@@ -4,7 +4,7 @@
 import json
 import os
 from glob import glob
-from typing import List, Optional
+from typing import Optional
 
 from composer.utils import ObjectStore
 from composer.utils.object_store import ObjectStoreTransientError
@@ -104,7 +104,7 @@ class DownloadingIterable:
 
     def __init__(
         self,
-        object_names: List[str],
+        object_names: list[str],
         output_folder: str,
         object_store: Optional[ObjectStore],
     ):

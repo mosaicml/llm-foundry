@@ -5,7 +5,7 @@ import json
 import os
 import platform
 import warnings
-from typing import Any, Callable, Dict, Iterable, Optional, Union
+from typing import Any, Callable, Iterable, Optional, Union
 
 import datasets as hf_datasets
 import psutil
@@ -63,7 +63,7 @@ def build_dataloader(
 def generate_samples(
     loader: DataLoader,
     truncate_num_samples: Optional[int] = None,
-) -> Iterable[Dict[str, bytes]]:
+) -> Iterable[dict[str, bytes]]:
     """Generator over samples of a dataloader.
 
     Args:

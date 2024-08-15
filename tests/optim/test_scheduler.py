@@ -1,8 +1,6 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import List
-
 import pytest
 import torch
 from composer.core import State, Time, TimeUnit
@@ -66,8 +64,8 @@ def dummy_schedulers_state(request: pytest.FixtureRequest):
 def test_scheduler_init(
     scheduler: ComposerScheduler,
     ssr: float,
-    test_times: List[str],
-    expected_lrs: List[float],
+    test_times: list[str],
+    expected_lrs: list[float],
     dummy_schedulers_state: State,
 ):
 

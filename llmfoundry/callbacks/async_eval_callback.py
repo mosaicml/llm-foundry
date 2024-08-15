@@ -11,7 +11,7 @@ import os
 import warnings
 from collections import Counter
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Optional, Union
 
 from composer.callbacks import CheckpointSaver
 from composer.core import Event, State, Time, Timestamp, TimeUnit
@@ -84,10 +84,10 @@ def get_run_name(training_run_name: str, current_interval: str) -> str:
 
 
 def get_eval_parameters(
-    parameters: Dict[str, Any],
+    parameters: dict[str, Any],
     checkpoint: str,
     training_run_name: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get the parameters needed for the eval run.
 
     Args:
@@ -164,8 +164,8 @@ def validate_interval(
 
 
 def validate_eval_run_config(
-    eval_run_config: Optional[Dict[str, Any]],
-) -> Dict[str, Any]:
+    eval_run_config: Optional[dict[str, Any]],
+) -> dict[str, Any]:
 
     if not eval_run_config:
         return {}
@@ -220,9 +220,9 @@ class AsyncEval(CallbackWithConfig):
 
     def __init__(
         self,
-        train_config: Dict[str, Any],
+        train_config: dict[str, Any],
         interval: Union[str, int, Time],
-        eval_run_config: Optional[Dict[str, Any]] = None,
+        eval_run_config: Optional[dict[str, Any]] = None,
     ):
 
         # Run these during init to fail fast in any of the error cases
@@ -263,7 +263,7 @@ class AsyncEval(CallbackWithConfig):
 
         # Keep track of checkpoints that have already been evaled
         # Format: {eval_timestamp: (checkpoint, run_name)}
-        self.checkpoints_evaled: Dict[Time, Tuple[str, str]] = {}
+        self.checkpoints_evaled: dict[Time, tuple[str, str]] = {}
 
         # Scheduling is based on the check interval, while _get_checkpoints_and_launch_runs
         # will only launch runs at the interval
@@ -279,7 +279,7 @@ class AsyncEval(CallbackWithConfig):
             f'interval {interval}, checking at {self.check_interval}',
         )
 
-    def state_dict(self) -> Dict[str, Any]:
+    def state_dict(self) -> dict[str, Any]:
         checkpoints_evaled = []
         for eval_ts, (checkpoint, run_name) in self.checkpoints_evaled.items():
             eval_ts_dict = {
@@ -292,7 +292,7 @@ class AsyncEval(CallbackWithConfig):
             'checkpoints_evaled': checkpoints_evaled,
         }
 
-    def load_state_dict(self, state_dict: Dict[str, Any]):
+    def load_state_dict(self, state_dict: dict[str, Any]):
         previous_checkpoints_evaled = state_dict.get('checkpoints_evaled', [])
         if previous_checkpoints_evaled:
             for (eval_ts, checkpoint, run_name) in previous_checkpoints_evaled:
@@ -305,9 +305,9 @@ class AsyncEval(CallbackWithConfig):
 
     @staticmethod
     def _get_ready_sharded_checkpoints(
-        checkpointer_checkpoints: Dict[str, Timestamp],
-        remote_files: List[str],
-    ) -> Dict[str, Timestamp]:
+        checkpointer_checkpoints: dict[str, Timestamp],
+        remote_files: list[str],
+    ) -> dict[str, Timestamp]:
         """Identify checkpoints ready to be evaled based on remote files.
 
         This has special logic for sharded checkpoints to consider checkpoints composed
@@ -349,9 +349,9 @@ class AsyncEval(CallbackWithConfig):
 
     @staticmethod
     def _get_ready_single_checkpoints(
-        checkpointer_checkpoints: Dict[str, Timestamp],
-        remote_checkpoints: List[str],
-    ) -> Dict[str, Timestamp]:
+        checkpointer_checkpoints: dict[str, Timestamp],
+        remote_checkpoints: list[str],
+    ) -> dict[str, Timestamp]:
         """Identify checkpoints ready to be evaled based on remote checkpoints.
 
         This is much simpler than the sharded case, because there is only one file
@@ -557,7 +557,8 @@ class AsyncEval(CallbackWithConfig):
                 installation_path = i['path']
 
         if not found_llm_foundry:
-            from llmfoundry import __version__ as latest_foundry_version
+            from llmfoundry._version import \
+                __version__ as latest_foundry_version
 
             # If github integration is not found, foundry is likely installed
             # through the run command. In this case, we'll add the integration

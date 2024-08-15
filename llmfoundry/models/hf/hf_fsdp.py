@@ -5,7 +5,7 @@
 # which is MIT licensed
 
 import functools
-from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Iterable, Optional, Union
 
 from composer.models.huggingface import maybe_get_underlying_model
 from transformers import PreTrainedModel
@@ -40,7 +40,7 @@ def rhasattr(obj: Any, attr: str) -> bool:
     return hasattr(_curr_obj, _nested_attrs[-1])
 
 
-def rgetattr(obj: Any, attr: str, *args: List[Any]) -> Any:
+def rgetattr(obj: Any, attr: str, *args: list[Any]) -> Any:
     """A chain-able attribute version of getattr.
 
     For example, to get the attribute `foo.bar.baz` from `obj`, you can use:

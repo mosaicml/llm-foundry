@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-from typing import Any, Callable, Dict, Iterable, Mapping, Tuple, Union
+from typing import Any, Callable, Iterable, Mapping, Union
 
 import torch
 import transformers
@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 
 
 def _validate_cfg(
-    dataset_cfg: Dict[str, Any],
+    dataset_cfg: dict[str, Any],
     tokenizer: PreTrainedTokenizerBase,
 ):
     eos_token_id = dataset_cfg.get('eos_token_id', None)
@@ -56,10 +56,10 @@ def _validate_cfg(
 
 
 def validate_ds_replication(
-    dataset_cfg: Dict[str, Any],
+    dataset_cfg: dict[str, Any],
     tokenizer: PreTrainedTokenizerBase,
     device_batch_size: Union[int, float],
-) -> Tuple[int, int]:
+) -> tuple[int, int]:
     _validate_cfg(dataset_cfg, tokenizer)
     if (dataset_cfg.get('seq_parallel_replication', 1) or 1) > 1:
         raise NotImplementedError('Sequence parallelism is not supported.')
@@ -70,7 +70,7 @@ def validate_ds_replication(
 
 def get_data_spec(
     dl: Union[Iterable, TorchDataloader],
-    dataset_cfg: Dict[str, Any],
+    dataset_cfg: dict[str, Any],
 ) -> DataSpec:
     del dataset_cfg
     token_counting_func = get_tokens_per_batch_func()
@@ -127,10 +127,10 @@ def get_tokens_per_batch_func(
 
 
 def get_text_collator(
-    dataloader_cfg: Dict[str, Any],
+    dataloader_cfg: dict[str, Any],
     tokenizer: PreTrainedTokenizerBase,
     dataset_batch_size: int,
-) -> Tuple[Union[transformers.DataCollatorForLanguageModeling,
+) -> tuple[Union[transformers.DataCollatorForLanguageModeling,
                  ConcatenatedSequenceCollatorWrapper], int]:
     dataset_cfg = dataloader_cfg.get('dataset')
     assert isinstance(dataset_cfg, dict)
@@ -155,8 +155,8 @@ def get_text_collator(
 
 
 def get_finetuning_collator(
-    dataloader_cfg: Dict[str, Any],
+    dataloader_cfg: dict[str, Any],
     tokenizer: PreTrainedTokenizerBase,
     dataset_batch_size: int,
-) -> Tuple[Union[Seq2SeqFinetuningCollator, BinPackCollator], int]:
+) -> tuple[Union[Seq2SeqFinetuningCollator, BinPackCollator], int]:
     return build_collate_fn(dataloader_cfg, tokenizer, dataset_batch_size)

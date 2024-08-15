@@ -1,6 +1,7 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import json
 import logging
 import math
 import os
@@ -8,7 +9,7 @@ import tempfile
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 from glob import glob
-from typing import Dict, Iterable, List, Optional, Tuple, cast
+from typing import Iterable, Optional, cast
 
 import numpy as np
 from composer.utils import (
@@ -28,6 +29,7 @@ from llmfoundry.utils.data_prep_utils import (
     merge_shard_groups,
 )
 from llmfoundry.utils.exceptions import (
+    DatasetTooSmallError,
     InputFolderMissingDataError,
     OutputFolderNotEmptyError,
 )
@@ -58,7 +60,7 @@ class ConcatTokensFromFilesDataset(AbstractConcatTokensDataset):
         super().__init__(tokenizer, max_length, bos_text, eos_text, no_wrap)
         log.info(f'Initialized ConcatTokensFromFilesDataset.')
 
-    def __iter__(self) -> Iterable[Dict[str, NDArray]]:
+    def __iter__(self) -> Iterable[dict[str, NDArray]]:
         log.info(
             'Starting iteration over files in ConcatTokensFromFilesDataset',
         )
@@ -109,7 +111,7 @@ class ConcatTokensFromFilesDataset(AbstractConcatTokensDataset):
         )
 
 
-def get_object_names(input_folder: str) -> List[str]:
+def get_object_names(input_folder: str) -> list[str]:
     """Get object names from a local or remote folder.
 
     Args:
@@ -136,7 +138,7 @@ def get_object_names(input_folder: str) -> List[str]:
 
 
 def get_task_args(
-    object_names: List[str],
+    object_names: list[str],
     output_root: str,
     input_folder: str,
     n_groups: int,
@@ -189,7 +191,7 @@ def get_task_args(
         )
 
 
-def download_and_convert_starargs(args: Tuple):
+def download_and_convert_starargs(args: tuple):
     """Helper function to call download_and_convert with star args.
 
     This helps us use download_and_convert with multiprocessing.
@@ -198,7 +200,7 @@ def download_and_convert_starargs(args: Tuple):
 
 
 def download_and_convert(
-    file_names: List[str],
+    file_names: list[str],
     output_folder: str,
     input_folder: str,
     tokenizer_name: str,
@@ -280,7 +282,7 @@ def is_remote_path(path: str) -> bool:
 def is_already_processed(
     output_root: str,
     args_str: str,
-    object_names: List[str],
+    object_names: list[str],
 ) -> bool:
     """Determines whether a group of text files has already been processed.
 
@@ -347,7 +349,7 @@ def is_already_processed(
     return True
 
 
-def write_done_file(folder: str, args_str: str, object_names: List[str]):
+def write_done_file(folder: str, args_str: str, object_names: list[str]):
     """Write a file to signify completion.
 
     This the done file includes the arguments to processing and
@@ -467,6 +469,11 @@ def convert_text_to_mds(
             compression,
             trust_remote_code,
         )
+
+    index_path = os.path.join(local_output_folder, 'index.json')
+    with open(index_path, 'r') as index_file:
+        if not json.load(index_file)['shards']:
+            raise DatasetTooSmallError()
 
     # Write a done file with the args and object names
     write_done_file(local_output_folder, args_str, object_names)

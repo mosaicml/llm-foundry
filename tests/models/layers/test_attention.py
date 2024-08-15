@@ -189,6 +189,22 @@ def test_sliding_window(sliding_window_size: int, attn_impl: str):
                           n_heads * d).to(dtype=dtype, device=device)
     value_1.requires_grad = True
 
+    attn_extra_kwargs = {}
+    if attn_impl == 'flash':
+        attn_extra_kwargs = {
+            'flash_attn_padding_info':
+                gen_flash_attn_padding_info(
+                    bsz,
+                    seqlen_1,
+                    0,
+                    query_1.device,
+                    None,
+                    None,
+                ),
+            'should_repeat_kv_for_gqa':
+                True,
+        }
+
     output_1, _, _ = attention_implementations.get(attn_impl)(
         query=query_1,
         key=key_1,
@@ -203,16 +219,8 @@ def test_sliding_window(sliding_window_size: int, attn_impl: str):
         dropout_p=0.0,
         training=False,
         needs_weights=False,
-        flash_attn_padding_info=gen_flash_attn_padding_info(
-            bsz,
-            seqlen_1,
-            0,
-            query_1.device,
-            None,
-            None,
-        ),
-        should_repeat_kv_for_gqa=True,
         sliding_window_size=sliding_window_size,
+        **attn_extra_kwargs,
     )
 
     output_1.sum().backward()

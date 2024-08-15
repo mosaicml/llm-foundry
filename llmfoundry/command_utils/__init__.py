@@ -1,6 +1,5 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-from llmfoundry.command_utils.clear_entrypoints import clear_entrypoints
 from llmfoundry.command_utils.data_prep.convert_dataset_hf import (
     convert_dataset_hf,
     convert_dataset_hf_from_args,
@@ -51,5 +50,4 @@ __all__ = [
     'convert_text_to_mds_from_args',
     'convert_delta_to_json_from_args',
     'fetch_DT',
-    'clear_entrypoints',
 ]

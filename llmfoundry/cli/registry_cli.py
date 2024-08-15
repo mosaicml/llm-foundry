@@ -8,7 +8,6 @@ from rich.table import Table
 from typer import Argument, Typer
 
 from llmfoundry import registry
-from llmfoundry.command_utils import clear_entrypoints
 from llmfoundry.utils.registry_utils import TypedRegistry
 
 console = Console()
@@ -32,6 +31,19 @@ def _get_registries(group: Optional[str] = None) -> list[TypedRegistry]:
         available_registries = [getattr(registry, group)]
 
     return available_registries
+
+
+def _clear_registry_entrypoint(registry: TypedRegistry, entrypoint: str):
+    """Remove a specific entry point from a given registry."""
+    if entrypoint in registry.get_all():
+        del registry.registry[entrypoint]
+        console.print(
+            f"Cleared entry point: {entrypoint} from group: {'.'.join(registry.namespace)}",
+        )
+    else:
+        console.print(
+            f"Entry point {entrypoint} not found in group: {'.'.join(registry.namespace)}",
+        )
 
 
 @app.command()
@@ -89,4 +101,17 @@ def clear_entry_points(
         )] = None,
 ):
     """Clear specified or all llmfoundry entry point registries."""
-    clear_entrypoints(entrypoints)
+    available_registries = _get_registries()
+
+    if not entrypoints:
+        # Clear all entry points if none are specified
+        for r in available_registries:
+            r.registry.clear()
+            console.print(
+                f"Cleared all entry points in group: {'.'.join(r.namespace)}",
+            )
+    else:
+        # Clear only the specified entry points
+        for r in available_registries:
+            for entry in entrypoints:
+                _clear_registry_entrypoint(r, entry)

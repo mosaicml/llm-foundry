@@ -1,10 +1,18 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import math
+
 import pytest
 import torch
 
+from llmfoundry.models.layers.attention import (
+    attention_implementations,
+    flash_attn_fn,
+    scaled_multihead_dot_product_attention,
+)
 from llmfoundry.models.layers.layer_builders import build_attention_layer
+from llmfoundry.models.mpt.modeling_mpt import gen_flash_attn_padding_info
 
 
 @pytest.mark.parametrize(
@@ -158,3 +166,101 @@ def test_unfused_wqkv(attn_name: str, dim: int):
     assert isinstance(attn_fused.Wqkv.weight.grad, torch.Tensor)
     assert isinstance(combined_grad, torch.Tensor)
     assert torch.allclose(attn_fused.Wqkv.weight.grad, combined_grad)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize('sliding_window_size', [1, 4, 8])
+@pytest.mark.parametrize('attn_impl', ['flash', 'torch'])
+def test_sliding_window(sliding_window_size: int, attn_impl: str):
+    # Test that sliding window attention works as expected.
+    dtype = torch.bfloat16
+    device = 'cuda'
+    d = 128
+    n_heads = 8
+    seqlen_1 = 8
+    bsz = 2
+
+    query_1 = torch.randn(bsz, seqlen_1,
+                          n_heads * d).to(dtype=dtype, device=device)
+    query_1.requires_grad = True
+    key_1 = torch.randn(bsz, seqlen_1,
+                        n_heads * d).to(dtype=dtype, device=device)
+    key_1.requires_grad = True
+    value_1 = torch.randn(bsz, seqlen_1,
+                          n_heads * d).to(dtype=dtype, device=device)
+    value_1.requires_grad = True
+
+    output_1, _, _ = attention_implementations.get(attn_impl)(
+        query=query_1,
+        key=key_1,
+        value=value_1,
+        n_heads=n_heads,
+        kv_n_heads=n_heads,
+        past_key_value=None,
+        softmax_scale=1 / math.sqrt(d),
+        attn_bias=None,
+        key_padding_mask=None,
+        is_causal=True,
+        dropout_p=0.0,
+        training=False,
+        needs_weights=False,
+        flash_attn_padding_info=gen_flash_attn_padding_info(
+            bsz,
+            seqlen_1,
+            0,
+            query_1.device,
+            None,
+            None,
+        ),
+        should_repeat_kv_for_gqa=True,
+        sliding_window_size=sliding_window_size,
+    )
+
+    output_1.sum().backward()
+
+    query_2 = query_1.detach().clone()
+    query_2.requires_grad = True
+    key_2 = key_1.detach().clone()
+    key_2.requires_grad = True
+    value_2 = value_1.detach().clone()
+    value_2.requires_grad = True
+
+    attn_bias_2 = torch.zeros(1, 1, seqlen_1,
+                              seqlen_1).to(dtype=dtype, device=device)
+
+    window_mask_2 = torch.tril(
+        torch.ones(seqlen_1, seqlen_1),
+        diagonal=-(sliding_window_size + 1),
+    ).to(dtype=dtype, device=device) * torch.finfo(attn_bias_2.dtype).min
+    attn_bias_2 = attn_bias_2 + window_mask_2
+    output_2, _, _ = scaled_multihead_dot_product_attention(
+        query=query_2,
+        key=key_2,
+        value=value_2,
+        n_heads=n_heads,
+        kv_n_heads=n_heads,
+        past_key_value=None,
+        softmax_scale=1 / math.sqrt(d),
+        attn_bias=attn_bias_2,
+        key_padding_mask=None,
+        is_causal=True,
+        dropout_p=0.0,
+        training=False,
+        needs_weights=False,
+    )
+
+    output_2.sum().backward()
+
+    print(torch.max(output_1 - output_2))
+
+    _assert_approx_equal(output_1, output_2)
+    assert (query_2.grad is not None) and (query_1.grad is not None)
+    _assert_approx_equal(query_1.grad, query_2.grad)
+    assert (key_2.grad is not None) and (key_1.grad is not None)
+    _assert_approx_equal(key_1.grad, key_2.grad)
+    assert (value_2.grad is not None) and (value_1.grad is not None)
+    _assert_approx_equal(value_1.grad, value_2.grad)
+
+
+def _assert_approx_equal(value1: torch.Tensor, value2: torch.Tensor):
+    assert torch.norm(value2 - value1) <= 1e-2 + 1e-2 * torch.norm(value2)

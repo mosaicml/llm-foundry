@@ -3,7 +3,6 @@
 
 """Script to profile example packing."""
 import os
-from typing import Dict
 
 from llmfoundry.data.packing import profile_packing
 
@@ -87,7 +86,7 @@ if __name__ == '__main__':
         raise ValueError('config must define tokenizer')
 
     resolved_tokenizer_cfg = om.to_container(cfg.tokenizer, resolve=True)
-    if not isinstance(resolved_tokenizer_cfg, Dict):
+    if not isinstance(resolved_tokenizer_cfg, dict):
         raise ValueError(
             'tokenizer config needs to be resolved by omegaconf into a Dict.',
         )

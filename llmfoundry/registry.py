@@ -1,6 +1,6 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-from typing import Any, Callable, Dict, Iterable, Tuple, Type, Union
+from typing import Any, Callable, Iterable, Union
 
 from composer.core import Algorithm, Callback, DataSpec
 from composer.loggers import LoggerDestination
@@ -43,7 +43,7 @@ _loggers_description = (
 loggers = create_registry(
     'llmfoundry',
     'loggers',
-    generic_type=Type[LoggerDestination],
+    generic_type=type[LoggerDestination],
     entry_points=True,
     description=_loggers_description,
 )
@@ -64,7 +64,7 @@ _callbacks_description = (
 callbacks = create_registry(
     'llmfoundry',
     'callbacks',
-    generic_type=Type[Callback],
+    generic_type=type[Callback],
     entry_points=True,
     description=_callbacks_description,
 )
@@ -86,7 +86,7 @@ _callbacks_with_config_description = (
 callbacks_with_config = create_registry(
     'llmfoundry',
     'callbacks_with_config',
-    generic_type=Type[CallbackWithConfig],
+    generic_type=type[CallbackWithConfig],
     entry_points=True,
     description=_callbacks_with_config_description,
 )
@@ -108,7 +108,7 @@ _optimizers_description = (
 optimizers = create_registry(
     'llmfoundry',
     'optimizers',
-    generic_type=Type[Optimizer],
+    generic_type=type[Optimizer],
     entry_points=True,
     description=_optimizers_description,
 )
@@ -129,7 +129,7 @@ _algorithms_description = (
 algorithms = create_registry(
     'llmfoundry',
     'algorithms',
-    generic_type=Type[Algorithm],
+    generic_type=type[Algorithm],
     entry_points=True,
     description=_algorithms_description,
 )
@@ -150,7 +150,7 @@ _schedulers_description = (
 schedulers = create_registry(
     'llmfoundry',
     'schedulers',
-    generic_type=Type[ComposerScheduler],
+    generic_type=type[ComposerScheduler],
     entry_points=True,
     description=_schedulers_description,
 )
@@ -163,7 +163,7 @@ _tokenizers_description = (
 tokenizers = create_registry(
     'llmfoundry',
     'tokenizers',
-    generic_type=Type[PreTrainedTokenizerBase],
+    generic_type=type[PreTrainedTokenizerBase],
     entry_points=True,
     description=_tokenizers_description,
 )
@@ -185,7 +185,7 @@ _models_description = (
 models = create_registry(
     'llmfoundry',
     'models',
-    generic_type=Type[ComposerModel],
+    generic_type=type[ComposerModel],
     entry_points=True,
     description=_models_description,
 )
@@ -234,8 +234,8 @@ dataset_replication_validators = create_registry(
     'llmfoundry',
     'dataset_replication_validators',
     generic_type=Callable[
-        [Dict[str, Any], PreTrainedTokenizerBase, Union[int, float]],
-        Tuple[int, int]],
+        [dict[str, Any], PreTrainedTokenizerBase, Union[int, float]],
+        tuple[int, int]],
     entry_points=True,
     description=_dataset_replication_validators_description,
 )
@@ -258,8 +258,8 @@ _collators_description = (
 collators = create_registry(
     'llmfoundry',
     'collators',
-    generic_type=Callable[[Dict[str, Any], PreTrainedTokenizerBase, int],
-                          Tuple[Any, int]],
+    generic_type=Callable[[dict[str, Any], PreTrainedTokenizerBase, int],
+                          tuple[Any, int]],
     entry_points=True,
     description=_collators_description,
 )
@@ -280,7 +280,7 @@ _data_specs_description = (
 data_specs = create_registry(
     'llmfoundry',
     'data_specs',
-    generic_type=Callable[[Union[Iterable, TorchDataloader], Dict[str, Any]],
+    generic_type=Callable[[Union[Iterable, TorchDataloader], dict[str, Any]],
                           DataSpec],
     entry_points=True,
     description=_data_specs_description,
@@ -302,7 +302,7 @@ _metrics_description = (
 metrics = create_registry(
     'llmfoundry',
     'metrics',
-    generic_type=Type[Metric],
+    generic_type=type[Metric],
     entry_points=True,
     description=_metrics_description,
 )
@@ -327,7 +327,7 @@ icl_datasets = create_registry(
     # llmfoundry.eval.InContextLearningDataset.
     # Using ICL dataset here introduces a circular import dependency between
     # the registry and eval packages right now, thus needs some refactoring.
-    generic_type=Type[Dataset],
+    generic_type=type[Dataset],
     entry_points=True,
     description=_icl_datasets_description,
 )
@@ -348,7 +348,7 @@ _config_transforms_description = (
 config_transforms = create_registry(
     'llmfoundry',
     'config_transforms',
-    generic_type=Callable[[Dict[str, Any]], Dict[str, Any]],
+    generic_type=Callable[[dict[str, Any]], dict[str, Any]],
     entry_points=True,
     description=_config_transforms_description,
 )
@@ -366,7 +366,7 @@ _load_planners_description = (
 load_planners = create_registry(
     'llmfoundry',
     'load_planners',
-    generic_type=Type[LoadPlanner],
+    generic_type=type[LoadPlanner],
     entry_points=True,
     description=_load_planners_description,
 )
@@ -384,7 +384,7 @@ _save_planners_description = (
 save_planners = create_registry(
     'llmfoundry',
     'save_planners',
-    generic_type=Type[SavePlanner],
+    generic_type=type[SavePlanner],
     entry_points=True,
     description=_save_planners_description,
 )

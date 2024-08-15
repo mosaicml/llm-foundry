@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from collections import UserDict
-from typing import TYPE_CHECKING, List, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Mapping, Optional, Union
 
 import transformers
 from composer.models.huggingface import HuggingFaceModel
@@ -35,8 +35,8 @@ class HuggingFaceModelWithFSDP(HuggingFaceModel):
         self,
         model: Union[transformers.PreTrainedModel, 'PeftModel'],
         tokenizer: Optional[PreTrainedTokenizerBase] = None,
-        metrics: Optional[List[Metric]] = None,
-        eval_metrics: Optional[List[Metric]] = None,
+        metrics: Optional[list[Metric]] = None,
+        eval_metrics: Optional[list[Metric]] = None,
         shift_labels: bool = False,
         allow_embedding_resizing: bool = False,
         init_device: Optional[str] = None,

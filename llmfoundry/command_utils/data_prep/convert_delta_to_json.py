@@ -8,7 +8,7 @@ import time
 import urllib.parse
 from collections import namedtuple
 from concurrent.futures import ProcessPoolExecutor
-from typing import TYPE_CHECKING, Iterable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Iterable, Optional, Union
 from uuid import uuid4
 
 import google.protobuf.any_pb2 as any_pb2
@@ -70,7 +70,7 @@ Result = namedtuple(
 
 def to_cf(self: 'SparkConnectClient',
           plan: 'pb2.Plan',
-          type: str = 'json') -> Tuple[List[Result], int, bool]:
+          type: str = 'json') -> tuple[list[Result], int, bool]:
     """Executes the query plans and return as presigned URLS for cloud fetch.
 
     It can handle the current output formats that are supported by the server.
@@ -163,7 +163,7 @@ if spark_connect_client_installed:
 
 
 def collect_as_cf(self: 'DataFrame',
-                  type: str = 'json') -> Tuple[List[Result], int, bool]:
+                  type: str = 'json') -> tuple[list[Result], int, bool]:
     """Collects DataFrame execution plan as presigned URLs.
 
     This method is a wrapper around the `to_cf` method of SparkConnectClient. It takes the
@@ -213,7 +213,7 @@ def run_query(
     cursor: Optional['Cursor'] = None,
     spark: Optional['SparkSession'] = None,
     collect: bool = True,
-) -> Optional[Union[List['Row'], 'DataFrame', 'SparkDataFrame']]:
+) -> Optional[Union[list['Row'], 'DataFrame', 'SparkDataFrame']]:
     """Run SQL query via databricks-connect or databricks-sql.
 
     Args:
@@ -240,7 +240,7 @@ def run_query(
         raise ValueError(f'Unrecognized method: {method}')
 
 
-def get_args(signed: List, json_output_folder: str, columns: List) -> Iterable:
+def get_args(signed: list, json_output_folder: str, columns: list) -> Iterable:
     for i, r in enumerate(signed):
         yield (i, r.url, json_output_folder, columns)
 
@@ -249,7 +249,7 @@ def download(
     ipart: int,
     url: str,
     json_output_folder: str,
-    columns: Optional[List] = None,
+    columns: Optional[list] = None,
     resp_format: str = 'arrow',
     compressed: bool = False,
 ) -> None:
@@ -299,7 +299,7 @@ def download(
         )
 
 
-def download_starargs(args: Tuple) -> None:
+def download_starargs(args: tuple) -> None:
     return download(*args)
 
 

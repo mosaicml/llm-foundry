@@ -3,7 +3,7 @@
 
 import logging
 import math
-from typing import Callable, Dict, Iterable, Optional, Tuple, Union
+from typing import Callable, Iterable, Optional, Union
 
 import torch
 from composer.utils import dist
@@ -59,7 +59,7 @@ class DecoupledAdaLRLion(Optimizer):
         self,
         params: Union[Iterable[torch.Tensor], Iterable[dict]],
         lr: float = 1e-4,
-        betas: Tuple[float, float] = (0.9, 0.99),
+        betas: tuple[float, float] = (0.9, 0.99),
         weight_decay: float = 0.0,
         outlier_threshold: float = 10.0,
         timeout: int = 100,
@@ -198,7 +198,7 @@ class DecoupledAdaLRLion(Optimizer):
 
         return loss
 
-    def dist_reduce_metrics(self, optimizer_metrics: Dict[str, torch.Tensor]):
+    def dist_reduce_metrics(self, optimizer_metrics: dict[str, torch.Tensor]):
         for metric in optimizer_metrics:
             if metric.startswith('l2_norm'):
                 reduced = optimizer_metrics[metric]
@@ -229,7 +229,7 @@ class DecoupledAdaLRLion(Optimizer):
 
         return optimizer_metrics
 
-    def pre_reduce_metrics(self, optimizer_metrics: Dict[str, torch.Tensor]):
+    def pre_reduce_metrics(self, optimizer_metrics: dict[str, torch.Tensor]):
         """Preprocess metrics to reduce across ranks correctly."""
         # Only L2 norm metric keys are present, can skip sorting at this stage
         for metric in optimizer_metrics:
@@ -310,7 +310,7 @@ class DecoupledClipLion(Optimizer):
         self,
         params: Union[Iterable[torch.Tensor], Iterable[dict]],
         lr: float = 1e-4,
-        betas: Tuple[float, float] = (0.9, 0.99),
+        betas: tuple[float, float] = (0.9, 0.99),
         weight_decay: float = 0.0,
         outlier_threshold: float = 5.0,
     ):
@@ -404,7 +404,7 @@ class DecoupledClipLion(Optimizer):
 
         return loss
 
-    def dist_reduce_metrics(self, optimizer_metrics: Dict[str, torch.Tensor]):
+    def dist_reduce_metrics(self, optimizer_metrics: dict[str, torch.Tensor]):
         local_keys = list(optimizer_metrics.keys())
         all_gathered_keys = dist.all_gather_object(local_keys)
         all_keys = set()
@@ -431,7 +431,7 @@ class DecoupledClipLion(Optimizer):
 
         return optimizer_metrics
 
-    def pre_reduce_metrics(self, optimizer_metrics: Dict[str, torch.Tensor]):
+    def pre_reduce_metrics(self, optimizer_metrics: dict[str, torch.Tensor]):
         """Preprocess metrics to reduce across ranks correctly."""
         # Sort L2 norms first so they are squared before other metrics, which depend on squared values
         metrics = optimizer_metrics.keys()

@@ -3,7 +3,7 @@
 import inspect
 import logging
 import os
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Optional, Union
 
 import torch
 from composer.core.data_spec import DataSpec
@@ -57,7 +57,7 @@ _ALLOWED_DATASET_KEYS = {
 def build_finetuning_dataloader(
     tokenizer: PreTrainedTokenizerBase,
     device_batch_size: Union[int, float],
-    dataset: Dict[str, Any],
+    dataset: dict[str, Any],
     num_workers: int,
     drop_last: bool = False,
     pin_memory: bool = True,
@@ -369,14 +369,14 @@ def _validate_config(
     hf_name: Optional[str] = None,
     local: Optional[str] = None,
     remote: Optional[str] = None,
-    hf_kwargs: Optional[Dict[str, Any]] = None,
+    hf_kwargs: Optional[dict[str, Any]] = None,
     preprocessing_fn: Optional[str] = None,
     safe_load: Optional[bool] = None,
-    streams: Optional[Dict[str, Any]] = None,
+    streams: Optional[dict[str, Any]] = None,
     target_prompts: Optional[str] = None,
     target_responses: Optional[str] = None,
     allowed_dataset_keys: set[str] = _ALLOWED_DATASET_KEYS,
-    **kwargs: Dict[str, Any],
+    **kwargs: dict[str, Any],
 ) -> None:
     """Validates the dataset configuration.
 
@@ -617,10 +617,10 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
 
 
 def build_collate_fn(
-    dataloader_cfg: Dict[str, Any],
+    dataloader_cfg: dict[str, Any],
     tokenizer: PreTrainedTokenizerBase,
     device_batch_size: int,
-) -> Tuple[Union[Seq2SeqFinetuningCollator, BinPackCollator], int]:
+) -> tuple[Union[Seq2SeqFinetuningCollator, BinPackCollator], int]:
     # These `.get` calls are safe because the dataset_cfg is validated for extra keys
     dataset_cfg = dataloader_cfg['dataset']
     target_responses = dataset_cfg.get(

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import copy
-from typing import Any, Dict, List
+from typing import Any
 
 import catalogue
 import pytest
@@ -16,7 +16,7 @@ from llmfoundry.utils.config_utils import (
 )
 
 
-def generate_exclusive_test_params(param_names: List[str]):
+def generate_exclusive_test_params(param_names: list[str]):
     """Generates pytest.param objects with one true parameter for testing.
 
     Creates pytest.param objects for each parameter name given. For each
@@ -53,7 +53,7 @@ def test_config_transforms():
         'variables': {},
     },)
 
-    def dummy_transform(config: Dict[str, Any]) -> Dict[str, Any]:
+    def dummy_transform(config: dict[str, Any]) -> dict[str, Any]:
         config['variables']['fake_key'] = 'fake_value'
         return config
 
@@ -66,7 +66,7 @@ def test_config_transforms():
         transforms='all',
     )
 
-    assert isinstance(parsed_config.variables, Dict)
+    assert isinstance(parsed_config.variables, dict)
     assert parsed_config.variables['fake_key'] == 'fake_value'
 
     del catalogue.REGISTRY[

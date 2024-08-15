@@ -64,7 +64,7 @@ install_requires = [
     'einops==0.8.0',
     'omegaconf>=2.2.3,<3',
     'slack-sdk<4',
-    'mosaicml-cli>=0.6.10,<1',
+    'mosaicml-cli>=0.6.39,<1',
     'onnx==1.16.2',
     'onnxruntime==1.18.1',
     'boto3>=1.21.45,<2',

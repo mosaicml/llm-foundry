@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from typing import List, Mapping, Optional
+from typing import Mapping, Optional
 
 from composer.utils import dist
 from transformers import (
@@ -54,7 +54,7 @@ class ComposerHFT5(HuggingFaceModelWithFSDP):
         use_auth_token: bool = False,
         config_overrides: Optional[Mapping] = None,
         init_device: str = 'cpu',
-        additional_train_metrics: Optional[List] = None,
+        additional_train_metrics: Optional[list] = None,
         name: Optional[str] = None,
     ):
         from llmfoundry.utils.builders import build_metric

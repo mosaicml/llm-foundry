@@ -4,7 +4,7 @@
 import os
 import unittest.mock as mock
 from http import HTTPStatus
-from typing import Any, Dict, List
+from typing import Any
 from unittest.mock import MagicMock
 from urllib.parse import urljoin
 
@@ -103,8 +103,8 @@ def test_download_from_hf_hub_weights_pref(
     mock_list_repo_files: MagicMock,
     mock_snapshot_download: MagicMock,
     prefer_safetensors: bool,
-    repo_files: List[str],
-    expected_ignore_patterns: List[str],
+    repo_files: list[str],
+    expected_ignore_patterns: list[str],
 ):
     test_repo_id = 'test_repo_id'
     save_dir = 'save_dir'
@@ -204,7 +204,7 @@ def test_download_from_http_fileserver(
 
     mock_open.return_value = MagicMock()
 
-    def _server_response(url: str, **kwargs: Dict[str, Any]):
+    def _server_response(url: str, **kwargs: dict[str, Any]):
         if url == model_url:
             return MagicMock(status_code=HTTPStatus.OK, content=ROOT_HTML)
         if url == urljoin(model_url, 'file1'):

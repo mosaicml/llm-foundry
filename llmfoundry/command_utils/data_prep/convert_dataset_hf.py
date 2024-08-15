@@ -7,7 +7,7 @@ import os
 import platform
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, Iterable, Optional, Union
+from typing import Any, Iterable, Optional, Union
 
 import datasets as hf_datasets
 import psutil
@@ -39,7 +39,7 @@ class DataSplitConstants:
 class DatasetConstants:
     chars_per_sample: int
     chars_per_token: int
-    splits: Dict[str, DataSplitConstants] = field(default_factory=dict)
+    splits: dict[str, DataSplitConstants] = field(default_factory=dict)
 
     def __iter__(self):
         for v in self.splits.values():
@@ -273,7 +273,7 @@ def build_dataloader(
 def generate_samples(
     loader: DataLoader,
     truncate_num_samples: Optional[int] = None,
-) -> Iterable[Union[Dict[str, bytes], Dict[str, NDArray]]]:
+) -> Iterable[Union[dict[str, bytes], dict[str, NDArray]]]:
     """Generator over samples of a dataloader.
 
     Args:

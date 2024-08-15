@@ -4,7 +4,7 @@
 """GPT Blocks used for the GPT Model."""
 
 import copy
-from typing import Any, Dict, Optional, Set, Tuple
+from typing import Any, Optional
 
 import torch
 import torch.nn as nn
@@ -38,8 +38,8 @@ class MPTBlock(nn.Module):
         d_model: int,
         n_heads: int,
         expansion_ratio: int,
-        attn_config: Optional[Dict] = None,
-        ffn_config: Optional[Dict] = None,
+        attn_config: Optional[dict] = None,
+        ffn_config: Optional[dict] = None,
         resid_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
         norm_eps: float = 1e-05,
@@ -154,17 +154,17 @@ class MPTBlock(nn.Module):
     def forward(
         self,
         x: torch.Tensor,
-        past_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
+        past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
         attn_bias: Optional[torch.Tensor] = None,
-        rotary_emb_w_meta_info: Optional[Dict] = None,
+        rotary_emb_w_meta_info: Optional[dict] = None,
         attention_mask: Optional[torch.ByteTensor] = None,
         is_causal: bool = True,
         output_attentions: bool = False,
         alibi_slopes: Optional[torch.Tensor] = None,
         flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
-        prev_layer_key_value: Optional[Tuple[torch.Tensor,
+        prev_layer_key_value: Optional[tuple[torch.Tensor,
                                              torch.Tensor]] = None,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[
+    ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
         torch.Tensor, torch.Tensor]]]:
         extra_kwargs = {}
         if prev_layer_key_value is not None:
@@ -258,8 +258,8 @@ class FusedNormAttentionNorm(nn.Module):
         self,
         d_model: int,
         n_heads: int,
-        args_to_exclude_in_attn_class: Set[str],
-        attn_config: Optional[Dict] = None,
+        args_to_exclude_in_attn_class: set[str],
+        attn_config: Optional[dict] = None,
         ffn_has_norm: bool = False,
         fc_type: Optional[dict[str, Any]] = None,
         resid_pdrop: float = 0.0,
@@ -316,18 +316,18 @@ class FusedNormAttentionNorm(nn.Module):
     def forward(
         self,
         x: torch.Tensor,
-        past_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
+        past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
         attn_bias: Optional[torch.Tensor] = None,
-        rotary_emb_w_meta_info: Optional[Dict] = None,
+        rotary_emb_w_meta_info: Optional[dict] = None,
         attention_mask: Optional[torch.ByteTensor] = None,
         is_causal: bool = True,
         output_attentions: bool = False,
         alibi_slopes: Optional[torch.Tensor] = None,
         flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
-        prev_layer_key_value: Optional[Tuple[torch.Tensor,
+        prev_layer_key_value: Optional[tuple[torch.Tensor,
                                              torch.Tensor]] = None,
-    ) -> Tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor],
-               Optional[Tuple[torch.Tensor, torch.Tensor]]]:
+    ) -> tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor],
+               Optional[tuple[torch.Tensor, torch.Tensor]]]:
         a = self.norm_1(x)
         extra_kwargs = {}
         if prev_layer_key_value is not None:

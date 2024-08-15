@@ -7,7 +7,7 @@ from argparse import ArgumentParser, Namespace
 from collections import OrderedDict
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Optional, Union
 
 import torch
 from composer.utils import (
@@ -33,9 +33,9 @@ v004_to_llmfoundry_key_conversion = OrderedDict([
 
 
 def convert_examples_ckpt_state_dict(
-    state_dict: Dict[str, Any],
-    conversion_dict: Dict[str, str],
-) -> Dict[str, Any]:
+    state_dict: dict[str, Any],
+    conversion_dict: dict[str, str],
+) -> dict[str, Any]:
     # map old keys to new keys
     key_mappings = OrderedDict()
     for k in state_dict.keys():
@@ -59,7 +59,7 @@ def convert_examples_ckpt_state_dict(
 def convert_examples_ckpt(
     checkpoint_path: Union[Path, str],
     output_path: Union[Path, str],
-    conversion_dict: Dict[str, str],
+    conversion_dict: dict[str, str],
     local_ckpt_path: Optional[Union[Path, str]] = None,
 ) -> None:
     """Convert a ckpt created in examples repo to an llmfoundry compat ckpt.

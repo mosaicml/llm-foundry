@@ -4,7 +4,7 @@
 import os
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict, Mapping
+from typing import Any, Mapping
 from unittest.mock import Mock, patch
 
 import pytest
@@ -45,7 +45,7 @@ def test_remote_code_false_mpt(
     test_cfg.device = device
     test_cfg.precision = 'fp16'
 
-    tokenizer_cfg: Dict[str, Any] = om.to_container(
+    tokenizer_cfg: dict[str, Any] = om.to_container(
         test_cfg.tokenizer,
         resolve=True,
     )  # type: ignore
@@ -136,13 +136,13 @@ def test_tie_weights(tie_word_embeddings: bool):
     new=Mock(return_value=True),
 )
 def test_hf_config_override(
-    model_cfg_overrides: Dict[str, Any],
+    model_cfg_overrides: dict[str, Any],
     conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml',
 ):
     with open(conf_path) as f:
         test_cfg = om.load(f)
 
-    tokenizer_cfg: Dict[str, Any] = om.to_container(
+    tokenizer_cfg: dict[str, Any] = om.to_container(
         test_cfg.tokenizer,
         resolve=True,
     )  # type: ignore

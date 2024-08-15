@@ -3,7 +3,7 @@
 
 import logging
 import warnings
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 import torch
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
@@ -17,10 +17,10 @@ __all__ = [
 # HuggingFace hardcodes the ignore index to -100
 _HF_IGNORE_INDEX = -100
 
-TokenizedExample = Dict[str, List[Dict[str, List[int]]]]
+TokenizedExample = dict[str, list[dict[str, list[int]]]]
 
 
-def ensure_list(x: Union[List, torch.Tensor]) -> List:
+def ensure_list(x: Union[list, torch.Tensor]) -> list:
     if isinstance(x, torch.Tensor):
         x = list(x.flatten())
     assert isinstance(x, list)
@@ -238,7 +238,7 @@ class Seq2SeqFinetuningCollator:
         target_responses: str = 'last',
         target_prompts: str = 'none',
         allow_pad_trimming: bool = False,
-        batch_metadata: Optional[Dict[str, Any]] = None,
+        batch_metadata: Optional[dict[str, Any]] = None,
         pad_to_longest: bool = False,
     ):
         self.tokenizer = tokenizer
@@ -300,7 +300,7 @@ class Seq2SeqFinetuningCollator:
         self._warned_target = False
 
     def __call__(self,
-                 examples: List[TokenizedExample]) -> Dict[str, torch.Tensor]:
+                 examples: list[TokenizedExample]) -> dict[str, torch.Tensor]:
         for check_key in ['input_ids', 'labels']:
             if check_key not in examples[0]['turns'][0]:
                 raise KeyError(
@@ -323,8 +323,8 @@ class Seq2SeqFinetuningCollator:
 
     def _process_and_batch_decoder_only(
         self,
-        examples: List[TokenizedExample],
-    ) -> Dict[str, torch.Tensor]:
+        examples: list[TokenizedExample],
+    ) -> dict[str, torch.Tensor]:
         # Steps explained in comments
         processed_examples = []
         input_ids_and_labels = [
@@ -422,8 +422,8 @@ class Seq2SeqFinetuningCollator:
 
     def _process_and_batch_encoder_decoder(
         self,
-        examples: List[TokenizedExample],
-    ) -> Dict[str, torch.Tensor]:
+        examples: list[TokenizedExample],
+    ) -> dict[str, torch.Tensor]:
         # The encoder-decoder case is has some gotchas.
         # Steps are explained in comments.
         processed_examples = []

@@ -22,6 +22,7 @@ from llmfoundry.command_utils.data_prep.convert_text_to_mds import (
     write_done_file,
 )
 from llmfoundry.utils.exceptions import (
+    CannotUnicodeDecodeFile,
     DatasetTooSmallError,
     InputFolderMissingDataError,
     OutputFolderNotEmptyError,
@@ -279,6 +280,28 @@ def test_dataset_too_small(tmp_path: pathlib.Path):
             output_folder=str(tmp_path / 'output'),
             input_folder=str(input_folder),
             concat_tokens=2048,
+            eos_text='',
+            bos_text='',
+            no_wrap=False,
+            compression='zstd',
+            processes=1,
+            args_str='Namespace()',
+            reprocess=False,
+            trust_remote_code=False,
+        )
+
+
+def test_decode_invalid_unicode(tmp_path: pathlib.Path):
+    input_folder = tmp_path / 'input'
+    os.makedirs(input_folder, exist_ok=True)
+    with open(input_folder / 'test.txt', 'w', encoding='utf-16') as f:
+        f.write('HELLO WORLD')
+    with pytest.raises(CannotUnicodeDecodeFile):
+        convert_text_to_mds(
+            tokenizer_name='mosaicml/mpt-7b',
+            output_folder=str(tmp_path / 'output'),
+            input_folder=str(input_folder),
+            concat_tokens=1,
             eos_text='',
             bos_text='',
             no_wrap=False,

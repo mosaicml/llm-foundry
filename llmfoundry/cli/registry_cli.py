@@ -33,19 +33,6 @@ def _get_registries(group: Optional[str] = None) -> list[TypedRegistry]:
     return available_registries
 
 
-def _clear_registry_entrypoint(registry: TypedRegistry, entrypoint: str):
-    """Remove a specific entry point from a given registry."""
-    if entrypoint in registry.get_all():
-        del registry.registry[entrypoint]
-        console.print(
-            f"Cleared entry point: {entrypoint} from group: {'.'.join(registry.namespace)}",
-        )
-    else:
-        console.print(
-            f"Entry point {entrypoint} not found in group: {'.'.join(registry.namespace)}",
-        )
-
-
 @app.command()
 def get(group: Optional[str] = None):
     """Get the available registries.

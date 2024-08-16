@@ -74,6 +74,27 @@ class TypedRegistry(catalogue.Registry, Generic[T]):
 
     def get_entry_points(self) -> dict[str, T]:
         return super().get_entry_points()
+    
+    def unregister(self, name: str):
+        """Unregister an entry from the registry."""
+        print(f"Attempting to unregister entry: {name}")
+        try:
+            # Debug: Print the namespace to ensure it's correct
+            print(f"Registry namespace: {self.namespace}")
+            
+            # Create the namespace tuple for the entry
+            namespace_tuple = tuple(list(self.namespace) + [name])
+            print(f"Namespace tuple: {namespace_tuple}")
+
+            # Call the _remove function from the catalogue module
+            catalogue._remove(namespace_tuple)
+            print(f"Successfully unregistered entry: {name}")
+        except KeyError as e:
+            print(f"Entry {name} not found in registry {'.'.join(self.namespace)}.")
+            raise e
+        except catalogue.RegistryError as e:
+            print(f"Error during unregistering: {e}")
+            raise e
 
 
 S = TypeVar('S')

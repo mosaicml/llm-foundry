@@ -3,13 +3,11 @@
 
 """Defaults for MPT model component configs."""
 
-from typing import Dict
-
-ffn_config_defaults: Dict = {
+ffn_config_defaults: dict = {
     'ffn_type': 'mptmlp',
 }
 
-attn_config_defaults: Dict = {
+attn_config_defaults: dict = {
     'attn_type': 'multihead_attention',
     'attn_pdrop': 0.0,
     'attn_impl': 'flash',
@@ -36,7 +34,7 @@ attn_config_defaults: Dict = {
     },
 }
 
-init_config_defaults: Dict = {
+init_config_defaults: dict = {
     'name': 'kaiming_normal_',
     'fan_mode': 'fan_in',
     'init_nonlinearity': 'relu',
@@ -47,6 +45,6 @@ init_config_defaults: Dict = {
     'init_gain': 0.0,
 }
 
-fc_type_defaults: Dict = {
+fc_type_defaults: dict = {
     'name': 'torch',
 }

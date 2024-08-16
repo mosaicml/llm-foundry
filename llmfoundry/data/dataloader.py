@@ -3,7 +3,7 @@
 
 """Dataloader builder utilities."""
 
-from typing import Any, Dict, Union
+from typing import Any, Union
 
 from composer import DataSpec
 from transformers import PreTrainedTokenizerBase
@@ -17,7 +17,7 @@ __all__ = [
 
 
 def build_dataloader(
-    cfg: Dict[str, Any],
+    cfg: dict[str, Any],
     tokenizer: PreTrainedTokenizerBase,
     device_batch_size: Union[int, float],
 ) -> DataSpec:
@@ -30,7 +30,7 @@ def build_dataloader(
             that the dataloader will produce.
     """
     name = cfg.pop('name')
-    kwargs: Dict[str, Any] = {
+    kwargs: dict[str, Any] = {
         **cfg,
         'tokenizer': tokenizer,
         'device_batch_size': device_batch_size,

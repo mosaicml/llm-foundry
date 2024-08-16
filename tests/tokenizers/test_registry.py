@@ -1,7 +1,7 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from transformers import PreTrainedTokenizer
 
@@ -15,7 +15,7 @@ class DummyTokenizer(PreTrainedTokenizer):
     def __init__(
         self,
         model_name: Optional[str] = 'dummy',
-        **kwargs: Optional[Dict[str, Any]],
+        **kwargs: Optional[dict[str, Any]],
     ):
         """Dummy constructor that has no real purpose."""
         super().__init__(
@@ -25,7 +25,7 @@ class DummyTokenizer(PreTrainedTokenizer):
             **kwargs,
         )
 
-    def get_vocab(self) -> Dict[str, int]:
+    def get_vocab(self) -> dict[str, int]:
         return {}
 
 

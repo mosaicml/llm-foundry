@@ -6,7 +6,7 @@ import pathlib
 import shutil
 from concurrent.futures import ProcessPoolExecutor
 from glob import glob
-from typing import Callable, Iterable, List
+from typing import Callable, Iterable
 from unittest.mock import Mock, patch
 
 import pytest
@@ -59,7 +59,7 @@ class MockObjectStore():
         ) as remote_file, open(filename, 'wb') as local_file:
             local_file.write(remote_file.read())
 
-    def list_objects(self, prefix: str) -> List[str]:
+    def list_objects(self, prefix: str) -> list[str]:
         return glob(os.path.join(self.remote_folder, '*.txt'))
 
     def upload_object(self, object_name: str, filename: str):
@@ -76,7 +76,7 @@ def _mock_map(func: Callable, args: Iterable) -> Iterable:
         yield func(arg)
 
 
-def _assert_files_exist(prefix: str, files: List[str]):
+def _assert_files_exist(prefix: str, files: list[str]):
     for file in files:
         assert os.path.exists(os.path.join(prefix, file))
 

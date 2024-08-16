@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Custom exceptions for the LLMFoundry."""
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Literal, Optional, Union
 
 __all__ = [
     'ALLOWED_RESPONSE_KEYS',
@@ -161,6 +161,22 @@ class NotEnoughDatasetSamplesError(UserError):
 
 
 ## Tasks exceptions
+class InvalidExampleTypeError(UserError):
+    """Error thrown when a message type is not a `Mapping`."""
+
+    def __init__(self, example_type: str) -> None:
+        message = f'Expected example to be a `Mapping`, but found type {example_type}'
+        super().__init__(message, example_type=example_type)
+
+
+class InvalidMessageTypeError(UserError):
+    """Error thrown when a message type is not an `Iterable`."""
+
+    def __init__(self, message_type: str) -> None:
+        message = f'Expected message to be an `Iterable`, but found type {message_type}'
+        super().__init__(message, message_type=message_type)
+
+
 class UnknownExampleTypeError(UserError):
     """Error thrown when an unknown example type is used in a task."""
 
@@ -196,7 +212,7 @@ class ChatTemplateError(UserError):
     def __init__(
         self,
         template: str,
-        sample: List[Dict[str, Any]],
+        sample: list[dict[str, Any]],
         inner_message: str,
     ) -> None:
         message = f'Failed to process sample {sample} with template {template}. {inner_message}'
@@ -223,7 +239,7 @@ class InvalidLastChatMessageRoleError(UserError):
 class IncorrectMessageKeyQuantityError(UserError):
     """Error thrown when a message has an incorrect number of keys."""
 
-    def __init__(self, keys: List[str]) -> None:
+    def __init__(self, keys: list[str]) -> None:
         message = f'Expected 2 keys in message, but found {len(keys)}'
         super().__init__(message, keys=keys)
 
@@ -263,7 +279,7 @@ class InvalidResponseTypeError(UserError):
 class InvalidPromptResponseKeysError(UserError):
     """Error thrown when missing expected prompt and response keys."""
 
-    def __init__(self, mapping: Dict[str, str], example: Dict[str, Any]):
+    def __init__(self, mapping: dict[str, str], example: dict[str, Any]):
         message = f'Expected {mapping=} to have keys "prompt" and "response".'
         super().__init__(message, mapping=mapping, example=example)
 
@@ -271,7 +287,7 @@ class InvalidPromptResponseKeysError(UserError):
 class InvalidFileExtensionError(UserError):
     """Error thrown when a file extension is not a safe extension."""
 
-    def __init__(self, dataset_name: str, valid_extensions: List[str]) -> None:
+    def __init__(self, dataset_name: str, valid_extensions: list[str]) -> None:
         message = (
             f'safe_load is set to True. No data files with safe extensions {valid_extensions} '
             + f'found for dataset at local path {dataset_name}.'
@@ -288,7 +304,7 @@ class UnableToProcessPromptResponseError(
 ):
     """Error thrown when a prompt and response cannot be processed."""
 
-    def __init__(self, input: Dict) -> None:
+    def __init__(self, input: dict) -> None:
         message = f'Unable to extract prompt/response from {input}'
         super().__init__(message, input=input)
 

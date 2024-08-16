@@ -5,7 +5,7 @@
 
 import copy
 import os
-from typing import Any, Dict, Mapping
+from typing import Any, Mapping
 
 import setuptools
 from setuptools import setup
@@ -19,7 +19,7 @@ _PACKAGE_REAL_PATH = os.path.join(_REPO_REAL_PATH, _PACKAGE_DIR)
 # We can't use `.__version__` from the library since it's not installed yet
 version_path = os.path.join(_PACKAGE_REAL_PATH, '_version.py')
 with open(version_path, encoding='utf-8') as f:
-    version_globals: Dict[str, Any] = {}
+    version_globals: dict[str, Any] = {}
     version_locals: Mapping[str, object] = {}
     content = f.read()
     exec(content, version_globals, version_locals)
@@ -53,7 +53,7 @@ classifiers = [
 
 install_requires = [
     'mosaicml[libcloud,wandb,oci,gcs,mlflow]>=0.23.4,<0.24',
-    'mlflow>=2.14.1,<2.15',
+    'mlflow>=2.14.1,<2.16',
     'accelerate>=0.25,<0.34',  # for HF inference `device_map`
     'transformers>=4.43.2,<4.44',
     'mosaicml-streaming>=0.8.0,<0.9',
@@ -78,14 +78,14 @@ install_requires = [
 extra_deps = {}
 
 extra_deps['dev'] = [
-    'coverage[toml]==7.4.4',
+    'coverage[toml]==7.6.1',
     'pre-commit>=3.4.0,<4',
-    'pytest>=7.2.1,<8',
-    'pytest_codeblocks>=0.16.1,<0.17',
+    'pytest>=7.2.1,<9',
+    'pytest_codeblocks>=0.16.1,<0.18',
     'pytest-cov>=4,<6',
     'pyright==1.1.256',
     'toml>=0.10.2,<0.11',
-    'packaging>=21,<23',
+    'packaging>=21,<25',
     'hf_transfer==0.1.3',
 ]
 

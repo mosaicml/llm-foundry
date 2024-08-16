@@ -7,7 +7,7 @@ import random
 import shutil
 from contextlib import nullcontext as does_not_raise
 from pathlib import Path
-from typing import Any, Callable, ContextManager, Dict, Literal, Optional, Union
+from typing import Any, Callable, ContextManager, Literal, Optional, Union
 from unittest.mock import MagicMock, patch
 
 import catalogue
@@ -1231,7 +1231,7 @@ def test_token_counting_func_dataloader_setting(
         target_prompts: str = 'last',
         target_responses: str = 'none',
         decoder_only_format: bool = True,
-        hf_kwargs: Optional[Dict[str, Any]] = None,
+        hf_kwargs: Optional[dict[str, Any]] = None,
     ):
         return []
 

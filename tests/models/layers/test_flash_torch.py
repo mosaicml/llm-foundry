@@ -77,6 +77,7 @@ def allclose_helper(
 )
 @pytest.mark.parametrize('attn_uses_sequence_id', [True, False])
 @pytest.mark.parametrize('pad_attention_mask', [True, False])
+@pytest.mark.parametrize('sliding_window_size', [-1, 2])
 def test_attn_impl(
     attn_impl_0: str,
     attn_impl_1: str,
@@ -87,6 +88,7 @@ def test_attn_impl(
     attn_type: str,
     attn_uses_sequence_id: bool,
     pad_attention_mask: bool,
+    sliding_window_size: int,
     device: str = 'cuda',
 ):
     """Compare all attn impl with each other.
@@ -122,6 +124,7 @@ def test_attn_impl(
         'clip_qkv': clip_qkv,
         'qk_ln': qk_ln,
         'qk_gn': qk_gn,
+        'sliding_window_size': sliding_window_size,
     })
 
     n, s, f = 2, 4, cfg.d_model

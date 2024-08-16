@@ -6,7 +6,7 @@ import os
 import pathlib
 import warnings
 from functools import partial
-from typing import Any, Dict, List, Optional, Union, cast
+from typing import Any, Optional, Union, cast
 from unittest import mock
 
 import pytest
@@ -63,7 +63,7 @@ def get_config(
     return cast(DictConfig, test_cfg)
 
 
-def _load_tokenizer_cfg(cfg: Union[Dict[str, Any], DictConfig]) -> Dict:
+def _load_tokenizer_cfg(cfg: Union[dict[str, Any], DictConfig]) -> dict:
     if isinstance(cfg, DictConfig):
         config = to_dict_container(cfg)
     else:
@@ -75,7 +75,7 @@ def _load_tokenizer_cfg(cfg: Union[Dict[str, Any], DictConfig]) -> Dict:
 def _get_objs(
     request: pytest.FixtureRequest,
     conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml',
-    model_config_overrides: Optional[Dict] = None,
+    model_config_overrides: Optional[dict] = None,
     attn_impl: str = 'torch',
 ):
     warnings.filterwarnings(
@@ -114,7 +114,7 @@ def _get_objs(
     test_cfg.device_eval_batch_size = 2
     test_cfg.device_train_microbatch_size = 2
 
-    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
+    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
     tokenizer = build_tokenizer(
         test_cfg.tokenizer.name,
         tokenizer_cfg.get('kwargs', {}),
@@ -143,7 +143,7 @@ def _get_objs(
 def gen_random_batch(
     batch_size: int,
     test_cfg: Union[DictConfig, ListConfig],
-    inputs: Optional[List[str]] = None,
+    inputs: Optional[list[str]] = None,
 ):
     # inputs can be [], ['input_ids'], ['input_ids', 'inputs_embeds'], and ['inputs_embeds']
     # default to only input ids
@@ -260,7 +260,7 @@ def test_full_forward_and_backward_with_inputs_embeds(
 @pytest.mark.parametrize('inputs', [[], ['input_ids', 'inputs_embeds']])
 def test_invalid_inputs_embeds_input_ids_combinations(
     request: pytest.FixtureRequest,
-    inputs: List[str],
+    inputs: list[str],
 ):
     test_cfg, model, _ = _get_objs(
         request=request,
@@ -366,7 +366,7 @@ def test_full_forward_and_backward_gpt2_small(batch_size: int = 2):
     neo_cfg.max_seq_len = 256
     neo_cfg.model.name = 'hf_causal_lm'
 
-    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(neo_cfg.tokenizer)
+    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(neo_cfg.tokenizer)
     tokenizer = build_tokenizer(
         neo_cfg.tokenizer.name,
         tokenizer_cfg.get('kwargs', {}),
@@ -425,7 +425,7 @@ def test_full_forward_and_backward_t5_small(batch_size: int = 2):
     t5_cfg.device = device
     t5_cfg.max_seq_len = 16
 
-    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(t5_cfg.tokenizer)
+    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(t5_cfg.tokenizer)
     tokenizer = build_tokenizer(
         t5_cfg.tokenizer.name,
         tokenizer_cfg.get('kwargs', {}),
@@ -525,7 +525,7 @@ def test_determinism(
     test_cfg.model.init_device = 'cuda:0'
     test_cfg.device = 'cuda:0'
 
-    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
+    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
     tokenizer = build_tokenizer(
         test_cfg.tokenizer.name,
         tokenizer_cfg.get('kwargs', {}),
@@ -605,7 +605,7 @@ def test_loss_fn():
         'init_std': 0.02,
     }
 
-    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
+    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
     tokenizer = build_tokenizer(
         test_cfg.tokenizer.name,
         tokenizer_cfg.get('kwargs', {}),
@@ -709,7 +709,7 @@ def test_loss_reduction(loss_fn_config: str):
         'init_std': 0.02,
     }
 
-    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
+    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
     tokenizer = build_tokenizer(
         test_cfg.tokenizer.name,
         tokenizer_cfg.get('kwargs', {}),
@@ -822,7 +822,7 @@ def test_opt_wrapping(peft_config: Optional[dict[str, str]]):
     if peft_config is not None:
         conf['model']['peft_config'] = peft_config
 
-    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(conf['tokenizer'])
+    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(conf['tokenizer'])
     tokenizer = build_tokenizer(
         conf['tokenizer']['name'],
         tokenizer_cfg.get('kwargs', {}),
@@ -856,7 +856,7 @@ def test_lora_id():
 
     config = DictConfig(conf)
 
-    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(config.tokenizer)
+    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(config.tokenizer)
     tokenizer = build_tokenizer(
         config.tokenizer.name,
         tokenizer_cfg.get('kwargs', {}),
@@ -2199,7 +2199,7 @@ def test_generate_with_past_kv(
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
 def test_generation_kwargs_dont_crash(
     attn_impl: str,
-    generation_kwargs: Dict[str, Any],
+    generation_kwargs: dict[str, Any],
     pos_emb_config: dict,
     tie_word_embeddings: bool,
 ):
@@ -2539,7 +2539,7 @@ def test_hf_init(
             trust_remote_code=True,
         )
 
-    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
+    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
     tokenizer = build_tokenizer(
         test_cfg.tokenizer.name,
         tokenizer_cfg.get('kwargs', {}),
@@ -2601,7 +2601,7 @@ def test_head_dim_8_flash_mqa_attn(batch_size: int = 2):
     )
     test_cfg.device = torch.cuda.current_device()
 
-    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
+    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
     tokenizer = build_tokenizer(
         test_cfg.tokenizer.name,
         tokenizer_cfg.get('kwargs', {}),

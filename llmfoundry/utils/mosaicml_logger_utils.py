@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import json
 import os
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 from composer.loggers import MosaicMLLogger
 from composer.loggers.logger_destination import LoggerDestination
@@ -38,7 +38,7 @@ def maybe_create_mosaicml_logger() -> Optional[MosaicMLLogger]:
 
 
 def find_mosaicml_logger(
-    loggers: List[LoggerDestination],
+    loggers: list[LoggerDestination],
 ) -> Optional[MosaicMLLogger]:
     """Returns the first MosaicMLLogger from a list, and None otherwise."""
     return next(
@@ -49,12 +49,12 @@ def find_mosaicml_logger(
 
 def log_eval_analytics(
     mosaicml_logger: MosaicMLLogger,
-    model_configs: List[Dict[str, Any]],
-    icl_tasks: Union[str, List[Dict[str, Any]]],
-    eval_gauntlet_config: Optional[Union[str, Dict[str, Any]]],
+    model_configs: list[dict[str, Any]],
+    icl_tasks: Union[str, list[dict[str, Any]]],
+    eval_gauntlet_config: Optional[Union[str, dict[str, Any]]],
 ):
     """Logs analytics for runs using the `eval.py` script."""
-    metrics: Dict[str, Any] = {
+    metrics: dict[str, Any] = {
         'llmfoundry/script': 'eval',
     }
 
@@ -83,18 +83,18 @@ def log_eval_analytics(
 
 def log_train_analytics(
     mosaicml_logger: MosaicMLLogger,
-    model_config: Dict[str, Any],
-    train_loader_config: Dict[str, Any],
-    eval_loader_config: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]],
-    callback_configs: Optional[Dict[str, Any]],
+    model_config: dict[str, Any],
+    train_loader_config: dict[str, Any],
+    eval_loader_config: Optional[Union[dict[str, Any], list[dict[str, Any]]]],
+    callback_configs: Optional[dict[str, Any]],
     tokenizer_name: str,
     load_path: Optional[str],
-    icl_tasks_config: Optional[Union[List[Dict[str, Any]], str]],
-    eval_gauntlet: Optional[Union[Dict[str, Any], str]],
+    icl_tasks_config: Optional[Union[list[dict[str, Any]], str]],
+    eval_gauntlet: Optional[Union[dict[str, Any], str]],
 ):
     """Logs analytics for runs using the `train.py` script."""
     train_loader_dataset = train_loader_config.get('dataset', {})
-    metrics: Dict[str, Any] = {
+    metrics: dict[str, Any] = {
         'llmfoundry/tokenizer_name': tokenizer_name,
         'llmfoundry/script': 'train',
         'llmfoundry/train_loader_name': train_loader_config.get('name'),

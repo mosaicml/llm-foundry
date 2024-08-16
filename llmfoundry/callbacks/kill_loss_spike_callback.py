@@ -7,6 +7,7 @@ from __future__ import annotations
 import torch
 import numpy as np
 from composer.core import Callback, State
+from composer.loggers import Logger
 from llmfoundry.utils.exceptions import UserError
 
 __all__ = ['KillLossSpike']
@@ -21,7 +22,7 @@ class KillLossSpike(Callback):
             self.early_stop = False
             self.loss_window = []
 
-    def batch_end(self, state: State):
+    def batch_end(self, state: State, _: Logger) -> None:
         if not isinstance(state.loss, torch.Tensor):
             raise NotImplementedError('Multiple losses not supported yet')
         train_loss = state.loss.item()

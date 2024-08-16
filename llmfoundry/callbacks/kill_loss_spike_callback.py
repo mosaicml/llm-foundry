@@ -5,16 +5,18 @@
 from __future__ import annotations
 
 import torch
+import logging
 import numpy as np
 from composer.core import Callback, State
 from composer.loggers import Logger
 from llmfoundry.utils.exceptions import UserError
+log = logging.getLogger(__name__)
 
 __all__ = ['KillLossSpike']
 
 class KillLossSpike(Callback):
 	
-    def __init__(self, patience:int=10, outlier_multiplier:int=2, window_size:int=100):
+    def __init__(self, patience:int=3, outlier_multiplier:int=2, window_size:int=100):
             self.patience = patience
             self.outlier_multiplier = outlier_multiplier
             self.window_size = window_size
@@ -23,7 +25,7 @@ class KillLossSpike(Callback):
             self.early_stop = False
             self.loss_window = []
 
-    def batch_end(self, state: State, _: Logger) -> None:
+    def batch_end(self, state: State, logger: Logger) -> None:
         if not isinstance(state.loss, torch.Tensor):
             raise NotImplementedError('Multiple losses not supported yet')
         train_loss = state.loss.item()
@@ -34,13 +36,16 @@ class KillLossSpike(Callback):
         # Only start early stopping once a full window of loss data
         if len(self.loss_window) == self.window_size:
             self.running_loss_avg = np.mean(self.loss_window)
+            log.info(f'Running loss average: {self.running_loss_avg}')
 
         # If train loss exceeds the running average 
         if train_loss > self.running_loss_avg * self.outlier_multiplier:
             self.iterations += 1
+            log.info(f'Potential loss spike detected. Iteration: {self.iterations}')
             if self.iterations > self.patience:
                 self.early_stop = True
                 # Some kind of user error message
                 raise UserError('Training stopped due to loss spike. Please try submitting the run again with a lower learning rate.')
             else:
+                log.info(f'Not a persistent loss spike.')
                 self.iterations = 0

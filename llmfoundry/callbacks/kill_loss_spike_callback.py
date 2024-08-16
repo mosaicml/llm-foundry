@@ -19,6 +19,7 @@ class KillLossSpike(Callback):
             self.outlier_multiplier = outlier_multiplier
             self.window_size = window_size
             self.iterations = 0
+            self.running_loss_avg = 0
             self.early_stop = False
             self.loss_window = []
 
@@ -32,10 +33,10 @@ class KillLossSpike(Callback):
             self.loss_window.pop(0)
         # Only start early stopping once a full window of loss data
         if len(self.loss_window) == self.window_size:
-            running_loss_avg = np.mean(self.loss_window)
+            self.running_loss_avg = np.mean(self.loss_window)
 
         # If train loss exceeds the running average 
-        if train_loss > running_loss_avg * self.outlier_threshold:
+        if train_loss > self.running_loss_avg * self.outlier_multiplier:
             self.iterations += 1
             if self.iterations > self.patience:
                 self.early_stop = True

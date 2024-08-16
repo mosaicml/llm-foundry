@@ -16,7 +16,7 @@ __all__ = ['KillLossSpike']
 
 class KillLossSpike(Callback):
 	
-    def __init__(self, patience:int=3, outlier_multiplier:int=2, window_size:int=100):
+    def __init__(self, patience:int=2, outlier_multiplier:int=2, window_size:int=100):
             self.patience = patience
             self.outlier_multiplier = outlier_multiplier
             self.window_size = window_size
@@ -38,14 +38,14 @@ class KillLossSpike(Callback):
             self.running_loss_avg = np.mean(self.loss_window)
             log.info(f'Running loss average: {self.running_loss_avg}')
 
-        # If train loss exceeds the running average 
-        if train_loss > self.running_loss_avg * self.outlier_multiplier:
-            self.iterations += 1
-            log.info(f'Potential loss spike detected. Iteration: {self.iterations}')
-            if self.iterations > self.patience:
-                self.early_stop = True
-                # Some kind of user error message
-                raise UserError('Training stopped due to loss spike. Please try submitting the run again with a lower learning rate.')
-            else:
-                log.info(f'Not a persistent loss spike.')
-                self.iterations = 0
+            # If train loss exceeds the running average 
+            if train_loss > self.running_loss_avg * self.outlier_multiplier:
+                self.iterations += 1
+                log.info(f'Potential loss spike detected. Iteration: {self.iterations}')
+                if self.iterations > self.patience:
+                    self.early_stop = True
+                    # Some kind of user error message
+                    raise UserError('Training stopped due to loss spike. Please try submitting the run again with a lower learning rate.')
+                else:
+                    log.info(f'Not a persistent loss spike.')
+                    self.iterations = 0

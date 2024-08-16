@@ -30,7 +30,7 @@ jobs:
           ci_repo_gpu_test_ref: v0.1.0
     steps:
     - name: Run PR GPU Tests
-      uses: mosaicml/ci-testing/.github/actions/pytest-gpu@v0.1.0
+      uses: mosaicml/ci-testing/.github/actions/pytest-gpu@v0.1.2
       with:
         container: ${{ matrix.container }}
         git_repo: mosaicml/llm-foundry
@@ -59,7 +59,7 @@ jobs:
           ci_repo_gpu_test_ref: v0.1.0
     steps:
     - name: Run PR GPU Tests
-      uses: mosaicml/ci-testing/.github/actions/pytest-gpu@v0.1.0
+      uses: mosaicml/ci-testing/.github/actions/pytest-gpu@v0.1.2
       with:
         container: ${{ matrix.container }}
         git_repo: mosaicml/llm-foundry
@@ -88,7 +88,7 @@ jobs:
           ci_repo_gpu_test_ref: v0.1.0
     steps:
     - name: Run PR GPU Tests
-      uses: mosaicml/ci-testing/.github/actions/pytest-gpu@v0.1.0
+      uses: mosaicml/ci-testing/.github/actions/pytest-gpu@v0.1.2
       with:
         container: ${{ matrix.container }}
         git_repo: mosaicml/llm-foundry

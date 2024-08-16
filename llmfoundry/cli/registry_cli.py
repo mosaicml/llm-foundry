@@ -79,7 +79,7 @@ def find(group: str, name: str):
     console.print(table)
 
 
-@app.command(name='clear_entry_points')
+@app.command()
 def clear_entry_points(
     entrypoints: Annotated[
         Optional[list[str]],
@@ -90,6 +90,9 @@ def clear_entry_points(
     """Clear specified or all llmfoundry entry point registries."""
     available_registries = _get_registries()
 
+    for r in available_registries:
+        print(f"Available registry: {r}, Namespace: {r.namespace}")
+    
     if not entrypoints:
         # Clear all entry points if none are specified
         for r in available_registries:
@@ -98,7 +101,16 @@ def clear_entry_points(
                 f"Cleared all entry points in group: {'.'.join(r.namespace)}",
             )
     else:
-        # Clear only the specified entry points
         for r in available_registries:
             for entry in entrypoints:
-                _clear_registry_entrypoint(r, entry)
+                print(f"Processing registry: {r.namespace} for entry: {entry}")
+                
+                # Debug: Check the current entries in the registry
+                current_entries = r.get_all()
+                print(f"Current entries in {'.'.join(r.namespace)}: {current_entries.keys()}")
+
+                if entry in current_entries:
+                    r.unregister(entry)
+                    console.print(f"Cleared entry point: {entry} from group: {'.'.join(r.namespace)}")
+                else:
+                    console.print(f"Entry point {entry} not found in group: {'.'.join(r.namespace)}")

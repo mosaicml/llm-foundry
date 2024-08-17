@@ -572,7 +572,7 @@ def process_init_device(model_cfg: dict[str, Any], fsdp_config: Optional[dict]):
     return init_context
 
 
-def log_config(logger: Logger, cfg: Dict[str, Any]) -> None:
+def log_config(logger: Logger, cfg: dict[str, Any]) -> None:
     """Logs the current config and updates the wandb and mlflow configs.
 
     This function can be called multiple times to update the wandb and MLflow

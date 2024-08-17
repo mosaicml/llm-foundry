@@ -348,6 +348,14 @@ class InputFolderMissingDataError(UserError):
         super().__init__(message, input_folder=input_folder)
 
 
+class CannotUnicodeDecodeFile(UserError):
+    """Error thrown when the input folder is missing data."""
+
+    def __init__(self, text_file: str) -> None:
+        message = f'Text file {text_file} contains chars that cannot be utf-8 decoded. Please remove or replace these chars.'
+        super().__init__(message, text_file=text_file)
+
+
 class OutputFolderNotEmptyError(UserError):
     """Error thrown when the output folder is not empty."""
 

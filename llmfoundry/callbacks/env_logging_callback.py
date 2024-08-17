@@ -76,7 +76,7 @@ class EnvironmentLoggingCallback(Callback):
         self.packages_to_log = packages_to_log or _PACKAGES_TO_LOG
 
     def _get_git_info(self, repo_path: str) -> Optional[dict[str, str]]:
-        if not os.path.isdir(os.path.join(self.workspace_dir, folder)):
+        if not os.path.isdir(repo_path):
             return None
         try:
             repo = git.Repo(repo_path)

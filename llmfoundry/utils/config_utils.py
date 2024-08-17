@@ -19,6 +19,7 @@ from typing import (
 )
 
 import mlflow
+from composer.loggers import Logger
 from composer.utils import dist, parse_uri
 from omegaconf import MISSING, DictConfig, ListConfig, MissingMandatoryValue
 from omegaconf import OmegaConf as om
@@ -571,21 +572,14 @@ def process_init_device(model_cfg: dict[str, Any], fsdp_config: Optional[dict]):
     return init_context
 
 
-def log_config(cfg: dict[str, Any]) -> None:
+def log_config(logger: Logger, cfg: dict[str, Any]) -> None:
     """Logs the current config and updates the wandb and mlflow configs.
 
     This function can be called multiple times to update the wandb and MLflow
     config with different variables.
     """
     print(om.to_yaml(cfg))
-    loggers = cfg.get('loggers', None) or {}
-    if 'wandb' in loggers:
-        import wandb
-        if wandb.run:
-            wandb.config.update(cfg)
-
-    if 'mlflow' in loggers and mlflow.active_run():
-        mlflow.log_params(params=cfg)
+    logger.log_hyperparameters(cfg)
 
 
 def _parse_source_dataset(cfg: dict[str, Any]) -> list[tuple[str, str, str]]:

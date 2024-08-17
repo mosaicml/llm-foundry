@@ -16,23 +16,21 @@ __all__ = ['KillLossSpike']
 
 class KillLossSpike(Callback):
 	
-    def __init__(self, patience:int=2, outlier_multiplier:int=2, window_size:int=100):
-            self.patience = patience
-            self.outlier_multiplier = outlier_multiplier
-            self.window_size = window_size
-            self.iterations = 0
-            self.running_loss_avg = 0
-            self.early_stop = False
-            self.loss_window = []
+    def __init__(self, patience:int=3, outlier_multiplier:int=2, window_size:int=100):
+        self.patience = patience
+        self.outlier_multiplier = outlier_multiplier
+        self.window_size = window_size
+        self.iterations = 0
+        self.running_loss_avg = 0
+        self.early_stop = False
+        self.prev_step_spike = False
+        self.loss_window = []
 
     def batch_end(self, state: State, logger: Logger) -> None:
         if not isinstance(state.loss, torch.Tensor):
             raise NotImplementedError('Multiple losses not supported yet')
         train_loss = state.loss.item()
 
-        self.loss_window.append(train_loss)
-        if len(self.loss_window) > self.window_size:
-            self.loss_window.pop(0)
         # Only start early stopping once a full window of loss data
         if len(self.loss_window) == self.window_size:
             self.running_loss_avg = np.mean(self.loss_window)
@@ -40,12 +38,21 @@ class KillLossSpike(Callback):
 
             # If train loss exceeds the running average 
             if train_loss > self.running_loss_avg * self.outlier_multiplier:
-                self.iterations += 1
                 log.info(f'Potential loss spike detected. Iteration: {self.iterations}')
+                
+                if self.prev_was_spike:
+                    self.iterations += 1
                 if self.iterations > self.patience:
                     self.early_stop = True
                     # Some kind of user error message
                     raise UserError('Training stopped due to loss spike. Please try submitting the run again with a lower learning rate.')
-                else:
-                    log.info(f'Not a persistent loss spike.')
-                    self.iterations = 0
+                
+                self.prev_step_spike = True
+            
+            elif self.prev_step_spike:
+                log.info(f'Not a persistent loss spike.')
+                self.iterations = 0
+                self.prev_step_spike = False
+
+            self.loss_window.append(train_loss)
+            self.loss_window.pop(0)

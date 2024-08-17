@@ -102,7 +102,7 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
                 break
             except RateLimitError as e:
                 if 'You exceeded your current quota' in str(
-                    e._message,
+                    e.message,
                 ):  # pyright: ignore
                     raise e
                 delay *= 2 * (1 + random.random())

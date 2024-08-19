@@ -825,6 +825,8 @@ class DatasetConstructor:
             max_seq_len (int): The maximum length of sequences
                 in the batch. See :class:`Seq2SeqFinetuningCollator` docstring
                 for details.
+            mapping_fn (Callable): The mapping function to use for mapping the data
+                examples.
             preprocessing_fn (Callable, optional): The preprocessing function to use for
                 formatting the data examples.
             tokenizer (PreTrainedTokenizerBase): The tokenizer to be used for tokenizing

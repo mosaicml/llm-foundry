@@ -50,9 +50,6 @@ class KillLossSpike(Callback):
             elif self.outlier_counter > 0:
                 log.info(f'Not a persistent loss spike. Resetting outlier counter.')
                 self.outlier_counter = 0
-            
-            else:
-                log.info(f'No loss spike detected. Average of recent losses: {running_loss_avg}.')
 
         else:
             log.info(f'Full loss window size not reached ({len(self.loss_window)} < {self.window_size}). Collecting loss data...')

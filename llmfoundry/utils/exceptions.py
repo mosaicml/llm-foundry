@@ -379,3 +379,11 @@ class RunTimeoutError(InternalError):
     def __init__(self, timeout: int) -> None:
         message = f'Run timed out after {timeout} seconds.'
         super().__init__(message, timeout=timeout)
+
+class LossSpikeError(UserError):
+    """Error thrown a severe loss spike occurs."""
+
+    def __init__(self, outlier_counter: int) -> None:
+        message = f'Training stopped due to a loss spike over {outlier_counter} consecutive training steps. \
+                    Please try submitting the run again with a lower learning rate.'
+        super().__init__(message)

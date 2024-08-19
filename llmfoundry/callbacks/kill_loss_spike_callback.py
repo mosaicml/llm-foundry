@@ -9,7 +9,7 @@ import logging
 import numpy as np
 from composer.core import Callback, State
 from composer.loggers import Logger
-from llmfoundry.utils.exceptions import UserError
+from llmfoundry.utils.exceptions import LossSpikeError
 log = logging.getLogger(__name__)
 
 __all__ = ['KillLossSpike']
@@ -44,16 +44,15 @@ class KillLossSpike(Callback):
                 log.info(f'Potential loss spike detected. Iteration: {self.outlier_counter}')
                 if self.outlier_counter > self.patience:
                     # Some kind of user error message
-                    raise UserError(f'Training stopped due to a loss spike over {self.outlier_counter} consecutive training steps. \
-                                    Please try submitting the run again with a lower learning rate.')
+                    raise LossSpikeError(self.outlier_counter)
 
             # Previous step loss was an outlier, current step loss is not. Reset outlier counter.
             elif self.outlier_counter > 0:
-                log.info(f'Not a persistent loss spike.')
+                log.info(f'Not a persistent loss spike. Resetting outlier counter.')
                 self.outlier_counter = 0
             
             else:
-                log.info('No loss spike detected.')
+                log.info('No loss spike detected. Average of recent losses: {running_loss_avg}.')
 
         else:
             log.info(f'Full loss window size not reached ({len(self.loss_window)} < {self.window_size}). Collecting loss data...')

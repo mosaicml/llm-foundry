@@ -44,7 +44,7 @@ class KillLossSpike(Callback):
                 log.info(f'Potential loss spike detected. Iteration: {self.outlier_counter}')
                 if self.outlier_counter > self.patience:
                     # Some kind of user error message
-                    raise LossSpikeError(self.outlier_counter)
+                    raise LossSpikeError(self.outlier_multiplier, round(running_loss_avg), self.outlier_counter)
 
             # Previous step loss was an outlier, current step loss is not. Reset outlier counter.
             elif self.outlier_counter > 0:
@@ -52,7 +52,7 @@ class KillLossSpike(Callback):
                 self.outlier_counter = 0
             
             else:
-                log.info('No loss spike detected. Average of recent losses: {running_loss_avg}.')
+                log.info(f'No loss spike detected. Average of recent losses: {running_loss_avg}.')
 
         else:
             log.info(f'Full loss window size not reached ({len(self.loss_window)} < {self.window_size}). Collecting loss data...')

@@ -383,7 +383,8 @@ class RunTimeoutError(InternalError):
 class LossSpikeError(UserError):
     """Error thrown a severe loss spike occurs."""
 
-    def __init__(self, outlier_counter: int) -> None:
-        message = f'Training stopped due to a loss spike over {outlier_counter} consecutive training steps. \
+    def __init__(self, outlier_multiplier: int, running_loss_avg: int, outlier_counter: int) -> None:
+        message = f'Training stopped due to a loss spike. The training loss was {outlier_multiplier} times greater than the \
+                    running average loss (approx. {running_loss_avg}) over {outlier_counter} consecutive training steps. \
                     Please try submitting the run again with a lower learning rate.'
-        super().__init__(message)
+        super().__init__(message, outlier_multiplier=outlier_multiplier, running_loss_avg=running_loss_avg, outlier_counter=outlier_counter)

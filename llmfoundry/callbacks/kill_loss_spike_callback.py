@@ -16,7 +16,7 @@ __all__ = ['KillLossSpike']
 
 class KillLossSpike(Callback):
 	
-    def __init__(self, patience:int=3, outlier_multiplier:int=2, window_size:int=100):
+    def __init__(self, patience:int=2, outlier_multiplier:int=1.2, window_size:int=50):
         self.patience = patience
         self.outlier_multiplier = outlier_multiplier
         self.window_size = window_size
@@ -36,7 +36,7 @@ class KillLossSpike(Callback):
             running_loss_avg = np.mean(self.loss_window)
             log.info(f'Running loss average: {running_loss_avg}')
 
-            # If train loss exceeds the running average 
+            # If train loss is an outlier
             if train_loss > running_loss_avg * self.outlier_multiplier:
                 self.outlier_counter += 1
                 log.info(f'Potential loss spike detected. Iteration: {self.outlier_counter}')

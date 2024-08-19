@@ -8,6 +8,7 @@ __all__ = [
     'ALLOWED_RESPONSE_KEYS',
     'ALLOWED_PROMPT_KEYS',
     'ALLOWED_MESSAGES_KEYS',
+    'ALLOWED_CONTENT_KEYS',
     'MissingHuggingFaceURLSplitError',
     'NotEnoughDatasetSamplesError',
     'UnknownExampleTypeError',
@@ -35,6 +36,7 @@ __all__ = [
 ALLOWED_RESPONSE_KEYS = {'response', 'completion'}
 ALLOWED_PROMPT_KEYS = {'prompt'}
 ALLOWED_MESSAGES_KEYS = {'messages'}
+ALLOWED_CONTENT_KEYS = {'content'}
 
 FailureLocation = Union[Literal['TrainDataloader'], Literal['EvalDataloader']]
 FailureAttribution = Union[Literal['UserError'], Literal['InternalError'],

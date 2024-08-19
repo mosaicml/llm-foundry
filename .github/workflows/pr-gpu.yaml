@@ -27,7 +27,7 @@ jobs:
           markers: "gpu"
           pip_deps: "[all]"
           pytest_command: "coverage run -m pytest"
-          ci_repo_gpu_test_ref: v0.1.2
+          ci_repo_gpu_test_ref: foundry-test
     steps:
     - name: Run PR GPU Tests
       uses: mosaicml/ci-testing/.github/actions/pytest-gpu@v0.1.2
@@ -56,7 +56,7 @@ jobs:
           markers: "gpu"
           pip_deps: "[all]"
           pytest_command: "coverage run -m pytest"
-          ci_repo_gpu_test_ref: v0.1.2
+          ci_repo_gpu_test_ref: foundry-test
     steps:
     - name: Run PR GPU Tests
       uses: mosaicml/ci-testing/.github/actions/pytest-gpu@v0.1.2
@@ -85,7 +85,7 @@ jobs:
           markers: "gpu"
           pip_deps: "[all]"
           pytest_command: "coverage run -m pytest"
-          ci_repo_gpu_test_ref: v0.1.2
+          ci_repo_gpu_test_ref: foundry-test
     steps:
     - name: Run PR GPU Tests
       uses: mosaicml/ci-testing/.github/actions/pytest-gpu@v0.1.2

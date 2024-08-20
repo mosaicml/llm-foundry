@@ -48,7 +48,7 @@ class HuggingFaceModelWithFSDP(HuggingFaceModel):
         warnings.warn(
             VersionedDeprecationWarning(
                 '`HuggingFaceModelWithFSDP` is deprecated. In the future please use `BaseHuggingFaceModel`.',
-                remove_version='0.12.0',
+                remove_version='0.13.0',
             ),
         )
         super().__init__(

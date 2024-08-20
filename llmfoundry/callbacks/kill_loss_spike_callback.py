@@ -26,7 +26,7 @@ class KillLossSpike(Callback):
 
     def batch_end(self, state: State, logger: Logger) -> None:
         
-        # train_time = logger.get_metric('time/train')
+        train_time = state.timestamp.total_wct.total_seconds()
 
         if not isinstance(state.loss, torch.Tensor):
             raise NotImplementedError('Multiple losses not supported yet')
@@ -42,12 +42,13 @@ class KillLossSpike(Callback):
                 self.outlier_counter += 1
                 log.info(f'Potential loss spike detected. Iteration: {self.outlier_counter}')
                 if self.outlier_counter > self.patience:
-                    # if train_time > 0.1:
-                    #     log.info(f'Loss spike detected for {self.outlier_counter} steps. Try lowering the learning rate.')
+                    # TODO: Make this a full hour after testint
+                    if train_time > 360:
+                        log.info(f'Loss spike detected for {self.outlier_counter} steps. Try lowering the learning rate.')
                         for destination in logger.destinations:
                             if isinstance(destination, MosaicMLLogger):
                                 destination.log_metadata('Loss Spike', f'Loss spike detected for {self.outlier_counter} consecutive steps. Try lowering the learning rate.')
-                    # else:
+                    else:
                         raise LossSpikeError(self.outlier_multiplier, round(running_loss_avg), self.outlier_counter)
 
             # Previous step loss was an outlier, current step loss is not. Reset outlier counter.
@@ -57,13 +58,13 @@ class KillLossSpike(Callback):
 
             # Half of the running losses are greater than our "high loss" threshold
             elif sum(1 for loss in self.loss_window if loss > self.loss_cap) >= self.window_size / 2:
-                # if train_time > 1:
-                #     log.info(f'High losses >{self.loss_cap} detected.')
+                if train_time > 360:
+                    log.info(f'High losses >{self.loss_cap} detected.')
                     for destination in logger.destinations:
                         if isinstance(destination, MosaicMLLogger):
                             destination.log_metadata('High Loss', f'Persistently high losses >{self.loss_cap} detected. Try lowering the learning rate.')
-                # else:
-                #     raise LossSpikeError()
+                else:
+                    raise LossSpikeError()
 
         else:
             log.info(f'Full loss window size not reached ({len(self.loss_window)} < {self.window_size}). Collecting loss data...')

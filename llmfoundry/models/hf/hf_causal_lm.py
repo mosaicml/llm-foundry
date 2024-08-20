@@ -4,22 +4,14 @@
 """Implements a Hugging Causal LM wrapped inside a :class:`.ComposerModel`."""
 
 import logging
-import os
-import warnings
 from typing import (
-    TYPE_CHECKING,
     Any,
     Optional,
     Union,
 )
 
-from composer.models.huggingface import peft_installed
-from composer.utils import dist
-from torchmetrics import Metric
 from transformers import (
-    AutoConfig,
     AutoModelForCausalLM,
-    GenerationConfig,
     PreTrainedModel,
     PreTrainedTokenizerBase,
 )
@@ -29,21 +21,14 @@ from llmfoundry.metrics import (
     DEFAULT_CAUSAL_LM_EVAL_METRICS,
     DEFAULT_CAUSAL_LM_TRAIN_METRICS,
 )
-from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
-from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithFSDP
-from llmfoundry.models.layers.attention import is_flash_v2_installed
-from llmfoundry.models.utils import init_empty_weights
-from llmfoundry.utils.config_utils import set_config_overrides
-
-if TYPE_CHECKING:
-    from peft import PeftConfig, PeftModel
+from llmfoundry.models.hf.hf_base import BaseHuggingFaceModel
 
 __all__ = ['ComposerHFCausalLM']
 
 log = logging.getLogger(__name__)
 
 
-class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
+class ComposerHFCausalLM(BaseHuggingFaceModel):
     """Configures a :class:`.HuggingFaceModel` around a Causal LM.
 
     Args:
@@ -106,7 +91,6 @@ class ComposerHFCausalLM(HuggingFaceModelWithFSDP):
             load_in_8bit=load_in_8bit,
             init_device=init_device,
             config_overrides=config_overrides,
-            use_logits=True,
             shift_labels=True,
             peft_config=peft_config,
             allow_embedding_resizing=allow_embedding_resizing,

@@ -193,15 +193,13 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         """
         from llmfoundry.utils.builders import build_metric
 
-        train_metric_names = list(cls.default_train_metrics) + (
-            additional_train_metrics or []
-        )
+        train_metric_names = list(cls.default_train_metrics
+                                 ) + (additional_train_metrics or [])
         train_metrics = [
             build_metric(metric, {}) for metric in train_metric_names
         ] if use_train_metrics else []
-        eval_metric_names = list(cls.default_eval_metrics) + (
-            additional_eval_metrics or []
-        )
+        eval_metric_names = list(cls.default_eval_metrics
+                                ) + (additional_eval_metrics or [])
         eval_metrics = [
             build_metric(metric, {}) for metric in eval_metric_names
         ]
@@ -220,8 +218,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         config_overrides: dict[str, Any],
         load_in_8bit: bool,
         pretrained: bool,
-        model_cls: Optional[Union[_BaseAutoModelClass,
-                         PreTrainedModel]] = None,
+        model_cls: Optional[Union[_BaseAutoModelClass, PreTrainedModel]] = None,
         prepare_for_fsdp: bool = False,
     ) -> Union[PreTrainedModel, 'PeftModel']:
         """Builds the inner model for the ComposerHFCausalLM.

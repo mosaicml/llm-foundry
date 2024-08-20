@@ -100,6 +100,15 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             additional_eval_metrics=additional_eval_metrics,
         )
 
+        if peft_config is not None and not peft_installed:
+            raise ValueError(
+                'PEFT is not installed, but peft_config was passed. Please install LLM Foundry with the peft extra to use peft_config.',
+            )
+
+        peft_config_object = None
+        if peft_config is not None:
+            peft_config_object = self.get_peft_config(peft_config)
+
         super().__init__(
             model=model,
             tokenizer=tokenizer,
@@ -108,7 +117,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             eval_metrics=eval_metrics,
             shift_labels=shift_labels,
             allow_embedding_resizing=allow_embedding_resizing,
-            peft_config=peft_config,
+            peft_config=peft_config_object,
             should_save_peft_only=should_save_peft_only,
         )
 
@@ -150,7 +159,6 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         use_auth_token: bool,
         attn_implementation: str,
         config_overrides: dict[str, Any],
-        **kwargs: Any,
     ) -> PretrainedConfig:
         config = AutoConfig.from_pretrained(
             pretrained_model_name_or_path,

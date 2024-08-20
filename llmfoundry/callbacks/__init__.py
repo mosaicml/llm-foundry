@@ -58,7 +58,7 @@ callbacks.register('eval_output_logging', func=EvalOutputLogging)
 callbacks.register('mbmoe_tok_per_expert', func=MegaBlocksMoE_TokPerExpert)
 callbacks.register('run_timeout', func=RunTimeoutCallback)
 callbacks.register('loss_perp_v_len', func=LossPerpVsContextLengthLogger)
-callbacks.register('env_logger', func=EnvironmentLoggingCallback)
+callbacks.register('env_logging', func=EnvironmentLoggingCallback)
 callbacks.register('nan_monitor', func=NaNMonitor)
 
 callbacks_with_config.register('async_eval', func=AsyncEval)

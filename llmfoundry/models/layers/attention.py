@@ -6,7 +6,7 @@
 import copy
 import math
 import warnings
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Optional
 
 import torch
 import transformers
@@ -112,6 +112,7 @@ def scaled_multihead_dot_product_attention(
     dropout_p: float = 0.0,
     training: bool = False,
     needs_weights: bool = False,
+    sliding_window_size: int = -1,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
 
@@ -177,7 +178,7 @@ def scaled_multihead_dot_product_attention(
             min_val,
         )
 
-    if is_causal and (not q.size(2) == 1):
+    if is_causal and (not s_q == 1):
         s = max(s_q, s_k)
         causal_mask = attn_weight.new_ones(s, s, dtype=torch.float32)
         causal_mask = causal_mask.tril()
@@ -186,6 +187,31 @@ def scaled_multihead_dot_product_attention(
         causal_mask = causal_mask[-s_q:, -s_k:]
         attn_weight = attn_weight.masked_fill(
             causal_mask.view(1, 1, s_q, s_k),
+            min_val,
+        )
+
+    if sliding_window_size != -1:
+        window_mask = torch.ones((s_q, s_k),
+                                 dtype=torch.bool,
+                                 device=attn_weight.device)
+        if (not s_q == 1):
+            if s_q != s_k:
+                raise ValueError(
+                    'Number of queries should be equal to the number of keys.',
+                )
+            window_mask = torch.tril(
+                window_mask,
+                diagonal=sliding_window_size,
+            )
+            window_mask = torch.triu(
+                window_mask,
+                diagonal=-sliding_window_size,
+            )
+        else:
+            window_mask[:, :-(sliding_window_size + 1)] = False
+        window_mask = ~window_mask
+        attn_weight = attn_weight.masked_fill(
+            window_mask.view(1, 1, s_q, s_k),
             min_val,
         )
 
@@ -555,7 +581,7 @@ class GroupedQueryAttention(nn.Module):
         needs_weights: bool = False,
         alibi_slopes: Optional[torch.Tensor] = None,
         flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
-        prev_layer_key_value: Optional[Tuple[torch.Tensor,
+        prev_layer_key_value: Optional[tuple[torch.Tensor,
                                              torch.Tensor]] = None,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
         torch.Tensor, torch.Tensor]]]:
@@ -591,6 +617,7 @@ class GroupedQueryAttention(nn.Module):
             dropout_p=self.attn_dropout_p,
             training=self.training,
             needs_weights=needs_weights,
+            sliding_window_size=self.sliding_window_size,
             **extra_attn_kwargs,
         )
 
@@ -599,9 +626,9 @@ class GroupedQueryAttention(nn.Module):
     def get_qkv(
         self,
         x: torch.Tensor,
-        prev_layer_key_value: Optional[Tuple[torch.Tensor,
+        prev_layer_key_value: Optional[tuple[torch.Tensor,
                                              torch.Tensor]] = None,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Computes and returns the query, key, and value tensors.
 
         Args:
@@ -673,11 +700,11 @@ class GroupedQueryAttention(nn.Module):
 
     def _apply_rotary_embeddings(
         self,
-        rotary_emb_w_meta_info: Dict[str, Any],
+        rotary_emb_w_meta_info: dict[str, Any],
         query: torch.Tensor,
         key: torch.Tensor,
         value: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         if self.reuse_kv_layer_idx is not None:
             orig_key, orig_value = key, value
             key, value = torch.empty_like(key), torch.empty_like(value)
@@ -771,7 +798,6 @@ class GroupedQueryAttention(nn.Module):
         if self.attn_impl == 'flash':
             extra_attn_kwargs = {
                 'should_repeat_kv_for_gqa': not is_flash_v2_installed(),
-                'sliding_window_size': self.sliding_window_size,
                 'alibi_slopes': alibi_slopes,
                 'flash_attn_padding_info': flash_attn_padding_info,
                 'key_padding_mask': None,

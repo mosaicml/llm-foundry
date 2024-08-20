@@ -3,7 +3,7 @@
 
 import logging
 import tempfile
-from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Tuple
+from typing import Any, Callable, Iterable, Literal, Optional
 
 import numpy as np
 import torch
@@ -68,7 +68,7 @@ class BinPackCollator:
         self.n_total_tokens = 0
         self.n_packed_examples = 0
 
-        self._leftover_bins: List[Tuple[int, Dict[str, torch.Tensor]]] = []
+        self._leftover_bins: list[tuple[int, dict[str, torch.Tensor]]] = []
 
         self._is_profiling = is_profiling
 
@@ -84,12 +84,12 @@ class BinPackCollator:
 
     def __call__(
         self,
-        examples: List[Dict[str, torch.Tensor]],
-    ) -> Dict[str, torch.Tensor]:
+        examples: list[dict[str, torch.Tensor]],
+    ) -> dict[str, torch.Tensor]:
         batch = self.base_collator(examples)
         return self.pack(batch)
 
-    def pack(self, batch: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+    def pack(self, batch: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         if self._is_profiling:
             raise ValueError('Cannot pack in profiling mode.')
 
@@ -111,9 +111,9 @@ class BinPackCollator:
 
     def _pack_trimmed_examples(
         self,
-        trimmed_examples: List[Dict[str, torch.Tensor]],
-        sizes: List[int],
-    ) -> Optional[Dict[str, torch.Tensor]]:
+        trimmed_examples: list[dict[str, torch.Tensor]],
+        sizes: list[int],
+    ) -> Optional[dict[str, torch.Tensor]]:
         """Packs trimmed examples into fixed-size bins and repads them.
 
         Args:
@@ -147,8 +147,8 @@ class BinPackCollator:
 
     def _convert_to_batch(
         self,
-        packed_examples: List[Dict[str, torch.Tensor]],
-    ) -> Dict[str, torch.Tensor]:
+        packed_examples: list[dict[str, torch.Tensor]],
+    ) -> dict[str, torch.Tensor]:
 
         pad_vals = {
             'input_ids': self.pad_token_id,
@@ -171,16 +171,16 @@ class BinPackCollator:
 
     def _first_fit_bin_packing(
         self,
-        sizes: List[int],
-        examples: List[Dict[str, torch.Tensor]],
+        sizes: list[int],
+        examples: list[dict[str, torch.Tensor]],
         num_bins: int,
         max_bin_size: int,
-        existing_bins: List[Tuple[int, Dict[str, torch.Tensor]]],
-    ) -> Tuple[List[Dict[str, torch.Tensor]], int, int, List[Tuple[int, Dict[
+        existing_bins: list[tuple[int, dict[str, torch.Tensor]]],
+    ) -> tuple[list[dict[str, torch.Tensor]], int, int, list[tuple[int, dict[
         str, torch.Tensor]]]]:
 
         # Will contain tuples (bin_size_size, packed_example)
-        bins: List[Tuple[int, Dict[str, torch.Tensor]]] = existing_bins
+        bins: list[tuple[int, dict[str, torch.Tensor]]] = existing_bins
 
         starting_total_bin_sizes = sum([bin_size for bin_size, _ in bins])
 
@@ -279,8 +279,8 @@ class BinPackCollator:
 
 
 def _trim_batch(
-    batch: Dict[str, torch.Tensor],
-) -> Tuple[List[int], List[Dict[str, torch.Tensor]]]:
+    batch: dict[str, torch.Tensor],
+) -> tuple[list[int], list[dict[str, torch.Tensor]]]:
     """Trims padding off all examples in batch.
 
     Args:
@@ -298,8 +298,8 @@ def _trim_batch(
     return sizes, trimmed_examples
 
 
-def _extract_trim_batch_idx(batch: Dict[str, torch.Tensor],
-                            idx: int) -> Tuple[int, Dict[str, torch.Tensor]]:
+def _extract_trim_batch_idx(batch: dict[str, torch.Tensor],
+                            idx: int) -> tuple[int, dict[str, torch.Tensor]]:
     example = {k: v[idx] for k, v in batch.items()}
 
     keep = example['attention_mask'] == 1
@@ -311,9 +311,9 @@ def _extract_trim_batch_idx(batch: Dict[str, torch.Tensor],
 
 
 def _combine_in_place(
-    example: Dict[str, torch.Tensor],
-    add_on: Dict[str, torch.Tensor],
-) -> Dict[str, torch.Tensor]:
+    example: dict[str, torch.Tensor],
+    add_on: dict[str, torch.Tensor],
+) -> dict[str, torch.Tensor]:
     if 'labels' in add_on:
         # Prevents the last token in example from being trained to
         # predict the first token in add_on, which would make no sense.
@@ -352,7 +352,7 @@ def _pad_tensor(
 
 
 def auto_packing_ratio(
-    dataloader_cfg: Dict[str, Any],
+    dataloader_cfg: dict[str, Any],
     tokenizer: PreTrainedTokenizerBase,
     device_batch_size: int,
     num_packing_ratios: int = 20,
@@ -427,13 +427,13 @@ def auto_packing_ratio(
 
 
 def profile_packing(
-    dataloader_cfg: Dict[str, Any],
+    dataloader_cfg: dict[str, Any],
     tokenizer: PreTrainedTokenizerBase,
     min_ratio: float,
     max_ratio: float,
     num_packing_ratios: int,
     device_batch_size: int,
-) -> Iterable[Tuple[float, Optional[float], Optional[float]]]:
+) -> Iterable[tuple[float, Optional[float], Optional[float]]]:
     """Generator function that profiles example packing across packing ratios.
 
     Args:
@@ -514,7 +514,7 @@ def profile_packing(
     # Cut everything down to size
     sizes, trimmed_examples = _trim_batch(big_batch)
 
-    def profile(raw_batch_size: int) -> Tuple[Optional[float], Optional[float]]:
+    def profile(raw_batch_size: int) -> tuple[Optional[float], Optional[float]]:
         # Copy trimmed examples so that the dicts are not shared between profiling runs.
         trimmed_examples_copy = [te.copy() for te in trimmed_examples]
 

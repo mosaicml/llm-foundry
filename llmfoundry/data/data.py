@@ -5,7 +5,7 @@
 import os
 import warnings
 from abc import ABC, abstractmethod
-from typing import Dict, Iterable, Optional, Union
+from typing import Iterable, Optional, Union
 
 import datasets as hf_datasets
 import numpy as np
@@ -45,7 +45,7 @@ class NoConcatDataset(IterableDataset):
     ):
         self.hf_dataset = hf_dataset
 
-    def __iter__(self) -> Iterable[Dict[str, bytes]]:
+    def __iter__(self) -> Iterable[dict[str, bytes]]:
         for sample in self.hf_dataset:
             # convert to bytes to store in MDS binary format
             yield {'text': sample['text'].encode('utf-8')}
@@ -112,7 +112,7 @@ class AbstractConcatTokensDataset(ABC, IterableDataset):
             )
 
     @abstractmethod
-    def __iter__(self) -> Iterable[Union[Dict[str, bytes], Dict[str, NDArray]]]:
+    def __iter__(self) -> Iterable[Union[dict[str, bytes], dict[str, NDArray]]]:
         pass
 
 
@@ -151,7 +151,7 @@ class ConcatTokensDataset(AbstractConcatTokensDataset):
         self.hf_dataset = hf_dataset
         super().__init__(tokenizer, max_length, bos_text, eos_text, no_wrap)
 
-    def __iter__(self) -> Iterable[Dict[str, NDArray]]:
+    def __iter__(self) -> Iterable[dict[str, NDArray]]:
         buffer = []
         for sample in self.hf_dataset:
             encoded = self.tokenizer(

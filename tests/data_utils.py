@@ -5,7 +5,7 @@ import json
 import os
 import shutil
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
@@ -199,7 +199,7 @@ def make_tiny_conversation_ft_dataset(
             }],
         })
 
-    def messages_to_conversation(sample: Dict):
+    def messages_to_conversation(sample: dict):
         assert 'messages' in sample
         messages = sample['messages']
 
@@ -207,7 +207,7 @@ def make_tiny_conversation_ft_dataset(
             'user': 'human',
             'assistant': 'gpt',
         }
-        conversations: List[Dict[str, str]] = []
+        conversations: list[dict[str, str]] = []
         for message in messages:
             role: str = role_map.get(message['role'], message['role'])
             content: str = message['content']

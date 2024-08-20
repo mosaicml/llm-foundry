@@ -9,7 +9,7 @@ import tempfile
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 from glob import glob
-from typing import Dict, Iterable, List, Optional, Tuple, cast
+from typing import Iterable, Optional, cast
 
 import numpy as np
 from composer.utils import (
@@ -29,6 +29,7 @@ from llmfoundry.utils.data_prep_utils import (
     merge_shard_groups,
 )
 from llmfoundry.utils.exceptions import (
+    CannotUnicodeDecodeFile,
     DatasetTooSmallError,
     InputFolderMissingDataError,
     OutputFolderNotEmptyError,
@@ -60,7 +61,7 @@ class ConcatTokensFromFilesDataset(AbstractConcatTokensDataset):
         super().__init__(tokenizer, max_length, bos_text, eos_text, no_wrap)
         log.info(f'Initialized ConcatTokensFromFilesDataset.')
 
-    def __iter__(self) -> Iterable[Dict[str, NDArray]]:
+    def __iter__(self) -> Iterable[dict[str, NDArray]]:
         log.info(
             'Starting iteration over files in ConcatTokensFromFilesDataset',
         )
@@ -71,31 +72,35 @@ class ConcatTokensFromFilesDataset(AbstractConcatTokensDataset):
                 buffer += self.bos_tokens
                 first_chunk = True
                 # Read the file in 1MB chunks to avoid memory issues
-                for chunk in iter(partial(f.read, 1000000), ''):
-                    # Tokenize the chunk
-                    encoded = self.tokenizer(
-                        chunk,
-                        truncation=False,
-                        padding=False,
-                    )
-                    iids = encoded['input_ids']
+                try:
+                    for chunk in iter(partial(f.read, 1000000), ''):
+                        # Tokenize the chunk
+                        encoded = self.tokenizer(
+                            chunk,
+                            truncation=False,
+                            padding=False,
+                        )
+                        iids = encoded['input_ids']
 
-                    # If this is not the first chunk, remove the BOS token
-                    if not first_chunk:
-                        if iids[0] == self.tokenizer.bos_token_id:
-                            iids = iids[1:]
+                        # If this is not the first chunk, remove the BOS token
+                        if not first_chunk:
+                            if iids[0] == self.tokenizer.bos_token_id:
+                                iids = iids[1:]
 
-                    # Add the tokens to the buffer
-                    buffer += iids
-                    while len(buffer) >= self.max_length:
-                        concat_sample = buffer[:self.max_length]
-                        buffer = buffer[self.
-                                        max_length:] if self.should_wrap else []
-                        yield {
-                            'tokens': np.asarray(concat_sample, dtype=np.int32),
-                        }
+                        # Add the tokens to the buffer
+                        buffer += iids
+                        while len(buffer) >= self.max_length:
+                            concat_sample = buffer[:self.max_length]
+                            buffer = buffer[self.max_length:
+                                           ] if self.should_wrap else []
+                            yield {
+                                'tokens':
+                                    np.asarray(concat_sample, dtype=np.int32),
+                            }
 
-                    first_chunk = False
+                        first_chunk = False
+                except UnicodeDecodeError:
+                    raise CannotUnicodeDecodeFile(text_file=file)
 
                 # Add the EOS token to the buffer to separate files.
                 buffer += self.eos_tokens
@@ -111,7 +116,7 @@ class ConcatTokensFromFilesDataset(AbstractConcatTokensDataset):
         )
 
 
-def get_object_names(input_folder: str) -> List[str]:
+def get_object_names(input_folder: str) -> list[str]:
     """Get object names from a local or remote folder.
 
     Args:
@@ -138,7 +143,7 @@ def get_object_names(input_folder: str) -> List[str]:
 
 
 def get_task_args(
-    object_names: List[str],
+    object_names: list[str],
     output_root: str,
     input_folder: str,
     n_groups: int,
@@ -191,7 +196,7 @@ def get_task_args(
         )
 
 
-def download_and_convert_starargs(args: Tuple):
+def download_and_convert_starargs(args: tuple):
     """Helper function to call download_and_convert with star args.
 
     This helps us use download_and_convert with multiprocessing.
@@ -200,7 +205,7 @@ def download_and_convert_starargs(args: Tuple):
 
 
 def download_and_convert(
-    file_names: List[str],
+    file_names: list[str],
     output_folder: str,
     input_folder: str,
     tokenizer_name: str,
@@ -282,7 +287,7 @@ def is_remote_path(path: str) -> bool:
 def is_already_processed(
     output_root: str,
     args_str: str,
-    object_names: List[str],
+    object_names: list[str],
 ) -> bool:
     """Determines whether a group of text files has already been processed.
 
@@ -349,7 +354,7 @@ def is_already_processed(
     return True
 
 
-def write_done_file(folder: str, args_str: str, object_names: List[str]):
+def write_done_file(folder: str, args_str: str, object_names: list[str]):
     """Write a file to signify completion.
 
     This the done file includes the arguments to processing and

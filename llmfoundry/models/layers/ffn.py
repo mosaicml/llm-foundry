@@ -6,7 +6,7 @@
 import logging
 from copy import deepcopy
 from functools import partial
-from typing import Any, Callable, List, Optional, Union
+from typing import Any, Callable, Optional, Union
 
 import torch
 import torch.nn as nn
@@ -126,7 +126,7 @@ def resolve_ffn_hidden_size(
 def dtensorify_param(
     param: nn.Parameter,
     mesh: DeviceMesh,
-    placements: List[Placement],
+    placements: list[Placement],
 ):
     """Construct a DTensor from an already sharded local parameter."""
     param_dtensor = DTensor.from_local(
@@ -437,7 +437,7 @@ def set_ffn_device_mesh(
     """
     if moe_world_size > 1:
         expert_mesh = device_mesh['expert_parallel']
-        expert_placements: List[Placement] = [Shard(0)]
+        expert_placements: list[Placement] = [Shard(0)]
         # Register in two loops as you cannot overwrite parameters while iterating over named_parameters()
         dtensorified_params = [(
             name,

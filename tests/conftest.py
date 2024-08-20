@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from typing import List, Optional
+from typing import Optional
 
 import pytest
 from composer.utils import reproducibility
@@ -28,7 +28,7 @@ def _add_option(
     parser: pytest.Parser,
     name: str,
     help: str,
-    choices: Optional[List[str]] = None,
+    choices: Optional[list[str]] = None,
 ):
     parser.addoption(
         f'--{name}',
@@ -63,7 +63,7 @@ def _get_world_size(item: pytest.Item):
 
 def pytest_collection_modifyitems(
     config: pytest.Config,
-    items: List[pytest.Item],
+    items: list[pytest.Item],
 ) -> None:
     """Filter tests by world_size (for multi-GPU tests)"""
     world_size = int(os.environ.get('WORLD_SIZE', '1'))

@@ -12,7 +12,7 @@ import tempfile
 import time
 from multiprocessing.context import SpawnProcess
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -249,7 +249,7 @@ class HuggingFaceCheckpointer(Callback):
         self.last_checkpoint_batch: Optional[Time] = None
         self.mlflow_loggers = []
 
-        self.child_processes: List[SpawnProcess] = []
+        self.child_processes: list[SpawnProcess] = []
         # Temporary save directory used by child_processes.
         self.temp_save_dir = None
 
@@ -349,7 +349,7 @@ class HuggingFaceCheckpointer(Callback):
         self,
         model: PreTrainedModel,
         tokenizer: PreTrainedTokenizerBase,
-    ) -> Tuple[PreTrainedModel, PreTrainedTokenizerBase]:
+    ) -> tuple[PreTrainedModel, PreTrainedTokenizerBase]:
         """Transform the model and tokenizer before saving.
 
         This allows a subclass to modify the model and tokenizer before saving. The base class implementation will
@@ -457,10 +457,10 @@ class HuggingFaceCheckpointer(Callback):
         # Add hook to move tensors to cpu to avoid CUDA OOM
         def tensor_hook(
             module: nn.Module,
-            state_dict: Dict[str, Any],
+            state_dict: dict[str, Any],
             prefix: str,
             *args: Any,
-        ) -> Dict[str, Any]:
+        ) -> dict[str, Any]:
             dtensor_fqns = []
             for fqn in state_dict.keys():
                 tensor = state_dict[fqn]
@@ -612,7 +612,7 @@ class HuggingFaceCheckpointer(Callback):
                     # TODO: Remove after mlflow fixes the bug that makes this necessary
                     import mlflow
                     mlflow.store._unity_catalog.registry.rest_store.get_feature_dependencies = lambda *args, **kwargs: ''
-                    model_saving_kwargs: Dict[str, Any] = {
+                    model_saving_kwargs: dict[str, Any] = {
                         'path': local_save_path,
                     }
                     if self.using_peft:

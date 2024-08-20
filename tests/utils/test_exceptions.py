@@ -4,7 +4,7 @@
 import contextlib
 import inspect
 import pickle
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Optional
 
 import pytest
 
@@ -12,7 +12,7 @@ import llmfoundry.utils.exceptions as foundry_exceptions
 
 
 def create_exception_object(
-    exception_class: Type[foundry_exceptions.BaseContextualError],
+    exception_class: type[foundry_exceptions.BaseContextualError],
 ):
     # get required arg types of exception class by inspecting its __init__ method
 
@@ -27,9 +27,9 @@ def create_exception_object(
     required_args.pop('kwargs', None)
 
     def get_default_value(arg_type: Optional[type] = None):
-        if arg_type == Dict[str,
-                            str] or arg_type == Dict[str,
-                                                     Any] or arg_type == Dict:
+        if arg_type == dict[str,
+                            str] or arg_type == dict[str,
+                                                     Any] or arg_type == dict:
             return {'key': 'value'}
         elif arg_type == str:
             return 'string'
@@ -37,13 +37,13 @@ def create_exception_object(
             return 1
         elif arg_type == set[str]:
             return {'set'}
-        elif arg_type == List[str]:
+        elif arg_type == list[str]:
             return ['list']
         elif arg_type == None:
             return None
         elif arg_type == type:
             return bool
-        elif arg_type == List[Dict[str, Any]]:
+        elif arg_type == list[dict[str, Any]]:
             return [{'key': 'value'}]
         raise ValueError(f'Unsupported arg type: {arg_type}')
 
@@ -56,7 +56,7 @@ def create_exception_object(
     return exception_class(**kwargs)  # type: ignore
 
 
-def filter_exceptions(possible_exceptions: List[str]):
+def filter_exceptions(possible_exceptions: list[str]):
     attrs = [
         getattr(foundry_exceptions, exception)
         for exception in possible_exceptions
@@ -74,7 +74,7 @@ def filter_exceptions(possible_exceptions: List[str]):
     filter_exceptions(dir(foundry_exceptions)),
 )
 def test_exception_serialization(
-    exception_class: Type[foundry_exceptions.BaseContextualError],
+    exception_class: type[foundry_exceptions.BaseContextualError],
 ):
     excluded_base_classes = [
         foundry_exceptions.InternalError,

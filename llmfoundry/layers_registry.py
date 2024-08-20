@@ -1,7 +1,7 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Callable, Type
+from typing import Callable
 
 import torch
 
@@ -23,7 +23,7 @@ _norms_description = (
 norms = create_registry(
     'llmfoundry',
     'norms',
-    generic_type=Type[torch.nn.Module],
+    generic_type=type[torch.nn.Module],
     entry_points=True,
     description=_norms_description,
 )
@@ -45,7 +45,7 @@ _fcs_description = (
 fcs = create_registry(
     'llmfoundry',
     'fcs',
-    generic_type=Type[torch.nn.Module],
+    generic_type=type[torch.nn.Module],
     entry_points=True,
     description=_fcs_description,
 )
@@ -138,7 +138,7 @@ _attention_classes_description = (
 attention_classes = create_registry(
     'llmfoundry',
     'attention_classes',
-    generic_type=Type[torch.nn.Module],
+    generic_type=type[torch.nn.Module],
     entry_points=True,
     description=_attention_classes_description,
 )

@@ -4,7 +4,7 @@
 import copy
 from contextlib import nullcontext
 from functools import partial
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import pytest
 import torch
@@ -33,7 +33,7 @@ except ModuleNotFoundError:
 
 
 def _get_all_inputs(
-    input_shape: List[int],
+    input_shape: list[int],
     dtype: Optional[torch.dtype],
 ):
     world_size: int = dist.get_world_size()
@@ -144,7 +144,7 @@ def test_dmoe(
 
     if moe_world_size > 1:
         assert device_mesh is not None
-        two_d_placements: List[Placement] = [Replicate(), Shard(0)]
+        two_d_placements: list[Placement] = [Replicate(), Shard(0)]
         dtensorified_params = [(
             name,
             dtensorify_param(

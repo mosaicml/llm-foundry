@@ -1,7 +1,7 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 import torch
 
@@ -25,7 +25,7 @@ __all__ = [
 
 def build_norm(
     name: str,
-    normalized_shape: Union[int, List[int], torch.Size],
+    normalized_shape: Union[int, list[int], torch.Size],
     eps: Optional[float] = 1e-5,
     device: Optional[str] = None,
 ):
@@ -49,7 +49,7 @@ def build_ffn(
     expansion_ratio: float,
     device: Optional[str],
     bias: bool,
-    ffn_kwargs: Dict[str, Any],
+    ffn_kwargs: dict[str, Any],
 ):
 
     registry_to_use = ffns
@@ -90,7 +90,7 @@ def build_ffn(
 
 def build_attention_layer(
     name: str,
-    attn_kwargs: Dict[str, Any],
+    attn_kwargs: dict[str, Any],
 ):
     return construct_from_registry(
         name=name,
@@ -104,7 +104,7 @@ def build_fc(
     name: str,
     in_features: int,
     out_features: int,
-    fc_kwargs: Dict[str, Any],
+    fc_kwargs: dict[str, Any],
 ):
     kwargs = {
         'in_features': in_features,

@@ -5,7 +5,7 @@ import importlib.metadata
 import os
 import pathlib
 from importlib.metadata import EntryPoint
-from typing import Any, Callable, Type, Union
+from typing import Any, Callable, Union
 
 import catalogue
 import pytest
@@ -171,7 +171,7 @@ def test_registry_builder(monkeypatch: pytest.MonkeyPatch):
         'llmfoundry',
         'test_registry',
         entry_points=False,
-        generic_type=Union[Type[LoggerDestination],
+        generic_type=Union[type[LoggerDestination],
                            Callable[..., LoggerDestination]],
     )
 

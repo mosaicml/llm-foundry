@@ -259,14 +259,16 @@ class BaseHuggingFaceModel(HuggingFaceModel):
                 + 'Please `pip install llm-foundry[gpu]`.',
             )
 
-        model_cls = cls.model_cls if model_cls is None else model_cls
+        auto_model_cls: Union[
+            _BaseAutoModelClass,
+            PreTrainedModel] = cls.model_cls if model_cls is None else model_cls
 
         if not (
-            hasattr(model_cls, 'from_pretrained') and
-            hasattr(model_cls, 'from_config')
+            hasattr(auto_model_cls, 'from_pretrained') and
+            hasattr(auto_model_cls, 'from_config')
         ):
             raise AttributeError(
-                f'{model_cls=} is missing `from_pretrained` and `from_config` support.',
+                f'{auto_model_cls=} is missing `from_pretrained` and `from_config` support.',
             )
 
         # Hugging Face copies the modules into the
@@ -315,7 +317,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
                 with init_empty_weights(include_buffers=False):
                     with warnings.catch_warnings():
                         warnings.simplefilter('ignore', UserWarning)
-                        model_cls.from_pretrained(
+                        auto_model_cls.from_pretrained(
                             pretrained_model_name_or_path,
                             trust_remote_code=trust_remote_code,
                             use_auth_token=use_auth_token,
@@ -325,7 +327,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
                         )
             else:
                 with init_empty_weights(include_buffers=False):
-                    model_cls.from_config(
+                    auto_model_cls.from_config(
                         config,
                         trust_remote_code=trust_remote_code,
                         attn_implementation=requested_attention_implementation,
@@ -336,7 +338,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         # initialize the model on the correct device
         if resolved_init_device == 'cpu':
             if pretrained:
-                model = model_cls.from_pretrained(
+                model = auto_model_cls.from_pretrained(
                     pretrained_model_name_or_path,
                     trust_remote_code=trust_remote_code,
                     use_auth_token=use_auth_token,
@@ -345,7 +347,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
                     config=config,
                 )
             else:
-                model = model_cls.from_config(
+                model = auto_model_cls.from_config(
                     config,
                     trust_remote_code=trust_remote_code,
                     attn_implementation=requested_attention_implementation,
@@ -356,7 +358,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
                     'Setting cfg.pretrained=True is not supported when init_device="meta".',
                 )
             with init_empty_weights(include_buffers=False):
-                model = model_cls.from_config(
+                model = auto_model_cls.from_config(
                     config,
                     trust_remote_code=trust_remote_code,
                     attn_implementation=requested_attention_implementation,

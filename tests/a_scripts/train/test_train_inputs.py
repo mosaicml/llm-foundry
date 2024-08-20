@@ -76,7 +76,6 @@ class TestTrainingYAMLInputs:
             'optimizer',
             'scheduler',
             'max_duration',
-            'eval_interval',
             'max_seq_len',
         ]
         for param in mandatory_params:

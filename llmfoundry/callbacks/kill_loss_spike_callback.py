@@ -8,7 +8,7 @@ import torch
 import logging
 import numpy as np
 from composer.core import Callback, State
-from composer.loggers import Logger
+from composer.loggers import Logger, MosaicMLLogger
 from llmfoundry.utils.exceptions import LossSpikeError
 log = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ __all__ = ['KillLossSpike']
 
 class KillLossSpike(Callback):
 	
-    def __init__(self, patience:int=3, outlier_multiplier:int=2, window_size:int=100, loss_cap:int=10):
+    def __init__(self, patience:int=3, outlier_multiplier:int=2, window_size:int=20, loss_cap:int=10):
         self.patience = patience
         self.outlier_multiplier = outlier_multiplier
         self.window_size = window_size
@@ -25,7 +25,8 @@ class KillLossSpike(Callback):
         self.loss_window = []
 
     def batch_end(self, state: State, logger: Logger) -> None:
-        del logger
+        
+        train_time = logger.get_metric('time/train')
 
         if not isinstance(state.loss, torch.Tensor):
             raise NotImplementedError('Multiple losses not supported yet')
@@ -44,8 +45,13 @@ class KillLossSpike(Callback):
                 self.outlier_counter += 1
                 log.info(f'Potential loss spike detected. Iteration: {self.outlier_counter}')
                 if self.outlier_counter > self.patience:
-                    # raise LossSpikeError(self.outlier_multiplier, round(running_loss_avg), self.outlier_counter)
-                    log.info(f'RUN STOPPED. Loss spike >{self.outlier_multiplier}*{running_loss_avg} detected for {self.outlier_counter} steps.')
+                    if train_time > 0.1:
+                        log.info(f'Loss spike detected for {self.outlier_counter} steps. Try lowering the learning rate.')
+                        for destination in logger.destinations:
+                            if isinstance(destination, MosaicMLLogger):
+                                destination.log_metadata('LossSpike', f'Loss spike detected for {self.outlier_counter} steps. Try lowering the learning rate.')
+                    else:
+                        raise LossSpikeError(self.outlier_multiplier, round(running_loss_avg), self.outlier_counter)
 
             # Previous step loss was an outlier, current step loss is not. Reset outlier counter.
             elif self.outlier_counter > 0:
@@ -54,8 +60,13 @@ class KillLossSpike(Callback):
 
             # Half of the running losses are greater than our "high loss" threshold
             elif sum(1 for loss in self.loss_window if loss > self.loss_cap) >= self.window_size / 2:
-                # raise LossSpikeError()
-                log.info(f'RUN STOPPED. High losses >{self.loss_cap} detected.')
+                if train_time > 1:
+                    log.info(f'High losses >{self.loss_cap} detected.')
+                    for destination in logger.destinations:
+                        if isinstance(destination, MosaicMLLogger):
+                            destination.log_metadata('PersistentHighLoss', f'High losses >{self.loss_cap} detected.')
+                else:
+                    raise LossSpikeError()
 
         else:
             log.info(f'Full loss window size not reached ({len(self.loss_window)} < {self.window_size}). Collecting loss data...')

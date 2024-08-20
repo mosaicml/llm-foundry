@@ -58,8 +58,8 @@ class ComposerHFCausalLM(BaseHuggingFaceModel):
 
     model_cls: Union[_BaseAutoModelClass,
                      PreTrainedModel] = AutoModelForCausalLM
-    default_train_metrics: tuple = DEFAULT_CAUSAL_LM_TRAIN_METRICS
-    default_eval_metrics: tuple = DEFAULT_CAUSAL_LM_EVAL_METRICS
+    default_train_metrics: tuple = tuple(DEFAULT_CAUSAL_LM_TRAIN_METRICS)
+    default_eval_metrics: tuple = tuple(DEFAULT_CAUSAL_LM_EVAL_METRICS)
 
     def __init__(
         self,

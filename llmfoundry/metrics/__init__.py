@@ -36,13 +36,13 @@ metrics.register('language_cross_entropy', func=LanguageCrossEntropy)
 metrics.register('language_perplexity', func=LanguagePerplexity)
 metrics.register('masked_accuracy', func=MaskedAccuracy)
 
-DEFAULT_CAUSAL_LM_TRAIN_METRICS = (
+DEFAULT_CAUSAL_LM_TRAIN_METRICS = [
     'language_cross_entropy',
     'language_perplexity',
     'token_accuracy',
-)
+]
 
-DEFAULT_CAUSAL_LM_EVAL_METRICS = (
+DEFAULT_CAUSAL_LM_EVAL_METRICS = [
     'language_cross_entropy',
     'language_perplexity',
     'token_accuracy',
@@ -51,12 +51,12 @@ DEFAULT_CAUSAL_LM_EVAL_METRICS = (
     'mc_expected_calibration_error',
     'mc_accuracy',
     'qa_accuracy',
-)
+]
 
-DEFAULT_ENC_DEC_METRICS = (
+DEFAULT_ENC_DEC_METRICS = [
     'language_cross_entropy',
     'masked_accuracy',
-)
+]
 
 __all__ = [
     'TokenAccuracy',

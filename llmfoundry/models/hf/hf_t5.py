@@ -47,8 +47,8 @@ class ComposerHFT5(BaseHuggingFaceModel):
 
     model_cls: Union[_BaseAutoModelClass,
                      PreTrainedModel] = AutoModelForSeq2SeqLM
-    default_train_metrics: tuple = DEFAULT_ENC_DEC_METRICS
-    default_eval_metrics: tuple = []
+    default_train_metrics: tuple = tuple(DEFAULT_ENC_DEC_METRICS)
+    default_eval_metrics: tuple = ()
 
     def __init__(
         self,

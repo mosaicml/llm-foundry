@@ -193,13 +193,15 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         """
         from llmfoundry.utils.builders import build_metric
 
-        train_metric_names = list(cls.default_train_metrics
-                                 ) + (additional_train_metrics or [])
+        train_metric_names = list(
+            cls.default_train_metrics,
+        ) + (additional_train_metrics or [])
         train_metrics = [
             build_metric(metric, {}) for metric in train_metric_names
         ] if use_train_metrics else []
-        eval_metric_names = list(cls.default_eval_metrics
-                                ) + (additional_eval_metrics or [])
+        eval_metric_names = list(
+            cls.default_eval_metrics,
+        ) + (additional_eval_metrics or [])
         eval_metrics = [
             build_metric(metric, {}) for metric in eval_metric_names
         ]

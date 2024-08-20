@@ -31,9 +31,6 @@ class KillLossSpike(Callback):
         if not isinstance(state.loss, torch.Tensor):
             raise NotImplementedError('Multiple losses not supported yet')
         train_loss = state.loss.item()
-        self.loss_window.append(train_loss)
-        if len(self.loss_window) > self.window_size:
-            self.loss_window.pop(0)
 
         # Only start early stopping once a full window of loss data
         if len(self.loss_window) == self.window_size:
@@ -51,7 +48,7 @@ class KillLossSpike(Callback):
                             if isinstance(destination, MosaicMLLogger):
                                 destination.log_metadata('Loss Spike', f'Loss spike detected for {self.outlier_counter} consecutive steps. Try lowering the learning rate.')
                     # else:
-                    #     raise LossSpikeError(self.outlier_multiplier, round(running_loss_avg), self.outlier_counter)
+                        raise LossSpikeError(self.outlier_multiplier, round(running_loss_avg), self.outlier_counter)
 
             # Previous step loss was an outlier, current step loss is not. Reset outlier counter.
             elif self.outlier_counter > 0:
@@ -70,3 +67,7 @@ class KillLossSpike(Callback):
 
         else:
             log.info(f'Full loss window size not reached ({len(self.loss_window)} < {self.window_size}). Collecting loss data...')
+
+        self.loss_window.append(train_loss)
+        if len(self.loss_window) > self.window_size:
+            self.loss_window.pop(0)

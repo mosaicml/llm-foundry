@@ -5,13 +5,13 @@
 
 from __future__ import annotations
 
-from typing import Mapping, Optional, Union, Any
+from typing import Any, Mapping, Optional, Union
 
 from transformers import (
     AutoConfig,
     AutoModelForSeq2SeqLM,
-    PreTrainedModel,
     PretrainedConfig,
+    PreTrainedModel,
     PreTrainedTokenizerBase,
 )
 from transformers.models.auto.auto_factory import _BaseAutoModelClass

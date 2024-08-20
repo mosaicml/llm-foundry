@@ -5,9 +5,9 @@
 
 from __future__ import annotations
 
+import warnings
 from collections import UserDict
 from typing import TYPE_CHECKING, Mapping, Optional, Union
-import warnings
 
 import transformers
 from composer.models.huggingface import HuggingFaceModel
@@ -47,8 +47,8 @@ class HuggingFaceModelWithFSDP(HuggingFaceModel):
     ):
         warnings.warn(
             VersionedDeprecationWarning(
-                "`HuggingFaceModelWithFSDP` is deprecated. In the future please use `BaseHuggingFaceModel`.",
-                remove_version="0.12.0",
+                '`HuggingFaceModelWithFSDP` is deprecated. In the future please use `BaseHuggingFaceModel`.',
+                remove_version='0.12.0',
             ),
         )
         super().__init__(

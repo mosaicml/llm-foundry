@@ -9,7 +9,7 @@ import logging
 import os
 import warnings
 from collections import UserDict
-from typing import TYPE_CHECKING, Mapping, Optional, Union, Any
+from typing import TYPE_CHECKING, Any, Mapping, Optional, Union
 
 import transformers
 from composer.models.huggingface import HuggingFaceModel, peft_installed
@@ -19,20 +19,20 @@ from transformers import (
     AutoConfig,
     AutoModelForCausalLM,
     GenerationConfig,
+    PretrainedConfig,
     PreTrainedModel,
     PreTrainedTokenizerBase,
-    PretrainedConfig,
 )
-from transformers.utils.generic import ModelOutput
 from transformers.models.auto.auto_factory import _BaseAutoModelClass
+from transformers.utils.generic import ModelOutput
 
 from llmfoundry.models.hf.hf_fsdp import (
-    prepare_hf_model_for_fsdp,
     hf_get_init_device,
+    prepare_hf_model_for_fsdp,
 )
-from llmfoundry.utils.config_utils import set_config_overrides
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.utils import init_empty_weights
+from llmfoundry.utils.config_utils import set_config_overrides
 
 if TYPE_CHECKING:
     from peft import PeftConfig, PeftModel
@@ -44,12 +44,13 @@ _HF_IGNORE_INDEX = -100
 
 log = logging.getLogger(__name__)
 
+
 class BaseHuggingFaceModel(HuggingFaceModel):
     """Wrapper around HuggingFaceModel.
 
     Base class for HuggingFace based models.
     """
-    
+
     model_cls: Union[_BaseAutoModelClass,
                      PreTrainedModel] = AutoModelForCausalLM
     default_train_metrics: list = []
@@ -91,7 +92,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         )
 
         model = self.transform_model(model)
-    
+
         self.prepare_inner_model(model, init_device)
 
         metrics, eval_metrics = self.build_metrics(

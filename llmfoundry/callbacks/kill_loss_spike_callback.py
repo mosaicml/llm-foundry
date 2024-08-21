@@ -16,7 +16,7 @@ __all__ = ['KillLossSpike']
 
 class KillLossSpike(Callback):
 	
-    def __init__(self, patience:int=4, outlier_multiplier:int=2, window_size:int=100, loss_cap:int=5):
+    def __init__(self, patience:int=4, outlier_multiplier:int=2, window_size:int=100, loss_cap:int=10):
         self.patience = patience
         self.outlier_multiplier = outlier_multiplier
         self.window_size = window_size

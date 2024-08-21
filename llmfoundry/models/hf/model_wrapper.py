@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import warnings
 from collections import UserDict
 from typing import TYPE_CHECKING, Mapping, Optional, Union
 
@@ -15,6 +16,7 @@ from transformers import PreTrainedTokenizerBase
 from transformers.utils.generic import ModelOutput
 
 from llmfoundry.models.hf.hf_fsdp import prepare_hf_model_for_fsdp
+from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
 if TYPE_CHECKING:
     from peft import PeftConfig, PeftModel
@@ -43,6 +45,12 @@ class HuggingFaceModelWithFSDP(HuggingFaceModel):
         peft_config: Optional['PeftConfig'] = None,
         should_save_peft_only: bool = True,
     ):
+        warnings.warn(
+            VersionedDeprecationWarning(
+                '`HuggingFaceModelWithFSDP` is deprecated. In the future please use `BaseHuggingFaceModel`.',
+                remove_version='0.13.0',
+            ),
+        )
         super().__init__(
             model,
             tokenizer,

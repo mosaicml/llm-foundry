@@ -19,6 +19,7 @@ from typing import (
 )
 
 import mlflow
+from composer.loggers import Logger
 from composer.utils import dist, parse_uri
 from omegaconf import MISSING, DictConfig, ListConfig, MissingMandatoryValue
 from omegaconf import OmegaConf as om
@@ -100,7 +101,6 @@ class TrainConfig:
     device_train_batch_size: Union[int, float] = MISSING
     device_eval_batch_size: Union[int, float] = MISSING
     max_duration: Union[int, str] = MISSING
-    eval_interval: Union[int, str] = MISSING
     max_seq_len: int = MISSING
 
     # Seed
@@ -122,6 +122,7 @@ class TrainConfig:
     fsdp_config: Optional[dict[str, Any]] = None
 
     # Evaluation parameters
+    eval_interval: Union[int, str] = 1
     eval_loader: Optional[dict[str, Any]] = None
     eval_loaders: Optional[list[dict[str, Any]]
                           ] = None  # should not be set by the user
@@ -161,6 +162,7 @@ class TrainConfig:
     only_composer_checkpoint: bool = False
 
     # Dataloader
+    train_subset_num_batches: int = -1
     device_train_microbatch_size: Union[str, int, float] = 'auto'
     global_train_batch_size: Optional[int] = None
     spin_dataloaders: bool = True
@@ -571,21 +573,14 @@ def process_init_device(model_cfg: dict[str, Any], fsdp_config: Optional[dict]):
     return init_context
 
 
-def log_config(cfg: dict[str, Any]) -> None:
+def log_config(logger: Logger, cfg: dict[str, Any]) -> None:
     """Logs the current config and updates the wandb and mlflow configs.
 
     This function can be called multiple times to update the wandb and MLflow
     config with different variables.
     """
     print(om.to_yaml(cfg))
-    loggers = cfg.get('loggers', None) or {}
-    if 'wandb' in loggers:
-        import wandb
-        if wandb.run:
-            wandb.config.update(cfg)
-
-    if 'mlflow' in loggers and mlflow.active_run():
-        mlflow.log_params(params=cfg)
+    logger.log_hyperparameters(cfg)
 
 
 def _parse_source_dataset(cfg: dict[str, Any]) -> list[tuple[str, str, str]]:

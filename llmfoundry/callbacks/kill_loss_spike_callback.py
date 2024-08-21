@@ -41,6 +41,8 @@ class KillLossSpike(Callback):
                 log.info(f'Potential loss spike detected. Iteration: {self.outlier_counter}')
                 if self.outlier_counter > self.patience:
                     log.info(f'Loss spike detected for {self.outlier_counter} steps. Try lowering the learning rate.')
+                    # NOTE: Adding this info the TRAIN_UPDATED event is temporary to 1) collect data on spiky runs and 2) give users information about their run. 
+                    # This will be replaced with the hard error LossSpikeError.
                     for destination in logger.destinations:
                         if isinstance(destination, MosaicMLLogger):
                             destination.log_metadata({'loss_spike': f'Training loss spike detected for {self.outlier_counter} consecutive steps. Try lowering the learning rate.'})

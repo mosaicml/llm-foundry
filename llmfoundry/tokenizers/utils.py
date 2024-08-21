@@ -7,6 +7,7 @@ __all__ = [
     'get_date_string',
 ]
 
+
 def get_date_string() -> str:
     """Get the current date string."""
     return datetime.datetime.now().strftime('%d %b %Y')

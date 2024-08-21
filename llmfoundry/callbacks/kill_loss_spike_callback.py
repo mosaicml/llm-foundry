@@ -54,7 +54,7 @@ class KillLossSpike(Callback):
                 self.outlier_counter = 0
 
             # Half of the running losses are greater than our "high loss" threshold, after the first window
-            elif state.timestamp.batch >= 200 and (sum(1 for loss in self.loss_window if loss > self.loss_cap) >= self.window_size / 2):
+            elif (state.timestamp.batch >= self.window_size * 2) and (sum(1 for loss in self.loss_window if loss > self.loss_cap) >= self.window_size / 2):
                 log.info(f'High losses >{self.loss_cap} detected.')
                 for destination in logger.destinations:
                     if isinstance(destination, MosaicMLLogger):

@@ -512,6 +512,7 @@ def train(cfg: DictConfig) -> Trainer:
         seed=seed,
         model=model,
         train_dataloader=train_loader,
+        train_subset_num_batches=train_cfg.train_subset_num_batches,
         eval_dataloader=evaluators,
         optimizers=optimizer,
         schedulers=scheduler,

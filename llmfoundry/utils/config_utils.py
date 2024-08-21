@@ -162,6 +162,7 @@ class TrainConfig:
     only_composer_checkpoint: bool = False
 
     # Dataloader
+    train_subset_num_batches: int = -1
     device_train_microbatch_size: Union[str, int, float] = 'auto'
     global_train_batch_size: Optional[int] = None
     spin_dataloaders: bool = True

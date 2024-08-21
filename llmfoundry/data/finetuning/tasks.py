@@ -65,6 +65,7 @@ from llmfoundry.data.finetuning.collator import (
     stitch_turns_decoder_only,
     stitch_turns_encoder_decoder,
 )
+from llmfoundry.tokenizers import get_date_string
 # yapf: disable
 from llmfoundry.utils.exceptions import (
     ALLOWED_MESSAGES_KEYS,
@@ -249,11 +250,13 @@ def _slice_chat_formatted_example(
             full_conversation = tokenizer.apply_chat_template(
                 messages_through_current_turn,
                 tokenize=False,
+                date_string=get_date_string(),
             )
             prompt_with_history = tokenizer.apply_chat_template(
                 messages_through_current_turn[:-1],
                 tokenize=False,
                 add_generation_prompt=True,
+                date_string=get_date_string(),
             )
         except Exception as e:
             raise ChatTemplateError(

@@ -11,6 +11,7 @@ from llmfoundry.data.finetuning.tasks import (
     dataset_constructor,
     tokenize_formatted_example,
 )
+from llmfoundry.tokenizers import get_date_string
 from llmfoundry.utils.builders import build_tokenizer
 from llmfoundry.utils.exceptions import (
     ALLOWED_PROMPT_KEYS,
@@ -281,7 +282,11 @@ def test_multi_turn_chat_slicing(tokenizer_name: str, messages_format: bool):
     for prompt, response in templated_prompt_response_turns:
         reconstructed_chat += prompt + response
 
-    full_chat = tok.apply_chat_template(convo, tokenize=False)
+    full_chat = tok.apply_chat_template(
+        convo,
+        tokenize=False,
+        date_string=get_date_string(),
+    )
     assert reconstructed_chat == full_chat
 
 

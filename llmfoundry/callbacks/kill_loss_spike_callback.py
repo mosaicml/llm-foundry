@@ -30,12 +30,6 @@ class KillLossSpike(Callback):
             raise NotImplementedError('Multiple losses not supported yet')
         train_loss = state.loss.item()
 
-        for destination in logger.destinations:
-            if isinstance(destination, MosaicMLLogger):
-                destination.log_metadata({'loss_spike': f'Training loss spike detected for {self.outlier_counter} consecutive steps. Try lowering the learning rate.',
-                                          'high_loss': f'Persistently high (>{self.loss_cap}) training losses detected. Try lowering the learning rate.'})
-                log.info(f'Logging metadata for loss spike and high loss.')
-
         # Only start early stopping once a full window of loss data
         if len(self.loss_window) == self.window_size:
             running_loss_avg = np.mean(self.loss_window)

@@ -8,7 +8,6 @@ from __future__ import annotations
 import logging
 import os
 import warnings
-from collections import UserDict
 from typing import TYPE_CHECKING, Any, Mapping, Optional, Union
 
 import transformers

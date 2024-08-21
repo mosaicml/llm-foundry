@@ -45,7 +45,7 @@ class KillLossSpike(Callback):
                     # This will be replaced with the hard error LossSpikeError.
                     for destination in logger.destinations:
                         if isinstance(destination, MosaicMLLogger):
-                            destination.log_metadata({'loss_spike': f'Training loss spike detected for {self.outlier_counter} consecutive steps. Try lowering the learning rate.'})
+                            destination.log_metadata({'loss_spike': f'Training loss spike detected for {self.outlier_counter} consecutive steps.'})
                     # raise LossSpikeError(self.outlier_multiplier, round(running_loss_avg), self.outlier_counter)
 
             # Previous step loss was an outlier, current step loss is not. Reset outlier counter.
@@ -58,7 +58,7 @@ class KillLossSpike(Callback):
                 log.info(f'High losses >{self.loss_cap} detected.')
                 for destination in logger.destinations:
                     if isinstance(destination, MosaicMLLogger):
-                        destination.log_metadata({'high_loss': f'Persistently high (>{self.loss_cap}) training losses detected. Try lowering the learning rate.'})
+                        destination.log_metadata({'high_loss': f'Persistently high (>{self.loss_cap}) training losses detected.'})
                 # raise LossSpikeError()
 
         else:

@@ -225,8 +225,8 @@ def test_multi_turn_chat_slicing(
     messages_format: bool,
     use_date_string: bool,
 ):
-    # if 'meta-llama' in tokenizer_name:
-    #     pytest.skip('Model is gated. Skipping test.')
+    if 'meta-llama' in tokenizer_name:
+        pytest.skip('Model is gated. Skipping test.')
     is_llama_3_1_instruct = 'Meta-Llama-3.1' in tokenizer_name and 'Instruct' in tokenizer_name
     if is_llama_3_1_instruct and use_date_string:
         pytest.skip(

@@ -96,15 +96,15 @@ def test_load_tokenizer():
         'meta-llama/Meta-Llama-3.1-405B-Instruct',
     ],
 )
-@pytest.mark.parametrize('spoof_chat_template', [True, False])
-def test_tokenizer_date_string(tokenizer_name: str, spoof_chat_template: bool):
+@pytest.mark.parametrize('use_date_string', [True, False])
+def test_tokenizer_date_string(tokenizer_name: str, use_date_string: bool):
     if 'meta-llama' in tokenizer_name:
         pytest.skip('Model is gated. Skipping test.')
 
     is_llama_3_1_instruct = 'Meta-Llama-3.1' in tokenizer_name and 'Instruct' in tokenizer_name
-    if is_llama_3_1_instruct and spoof_chat_template:
+    if is_llama_3_1_instruct and use_date_string:
         pytest.skip(
-            'Llama 3.1 Instruct models use date_string in chat template, so no need to spoof. Skipping test.',
+            'Llama 3.1 Instruct models use date_string in chat template already. Skipping test.',
         )
 
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
@@ -112,7 +112,7 @@ def test_tokenizer_date_string(tokenizer_name: str, spoof_chat_template: bool):
     date_string = get_date_string()
 
     # Manually set a chat template to test if the date_string is being used.
-    if spoof_chat_template:
+    if use_date_string:
         tokenizer.chat_template = "{%- if not date_string is defined %}\n    {%- set date_string = \"26 Jul 2024\" %}\n{%- endif %}\n{{- \"Today Date: \" + date_string }}\n"
 
     token_ids = tokenizer.apply_chat_template(
@@ -126,7 +126,7 @@ def test_tokenizer_date_string(tokenizer_name: str, spoof_chat_template: bool):
     decoded_text = tokenizer.decode(token_ids.flatten())
 
     # Only Llama 3.1 instruct family models should use the current date in their chat templates.
-    if is_llama_3_1_instruct or spoof_chat_template:
+    if is_llama_3_1_instruct or use_date_string:
         assert date_string in decoded_text
     else:
         assert date_string not in decoded_text

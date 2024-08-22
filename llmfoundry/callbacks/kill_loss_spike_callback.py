@@ -87,6 +87,6 @@ class KillLossSpike(Callback):
                         if isinstance(destination, MosaicMLLogger):
                             destination.log_metadata({'high_loss': f'Persistently high (>{self.loss_cap}) training losses detected.'})
                 else:
-                    raise LossSpikeError()
+                    raise LossSpikeError(self.loss_cap, self.window_size)
 
         self.loss_window.append(train_loss)

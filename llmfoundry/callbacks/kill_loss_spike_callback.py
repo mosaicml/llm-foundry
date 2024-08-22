@@ -13,12 +13,14 @@ from composer.core import Callback, State
 from composer.loggers import Logger, MosaicMLLogger
 
 from llmfoundry.utils.exceptions import HighLossError, LossSpikeError
+from llmfoundry.utils.warnings import experimental_class
 
 log = logging.getLogger(__name__)
 
 __all__ = ['KillLossSpike']
 
 
+@experimental_class('KillLossSpike')
 class KillLossSpike(Callback):
     """Detects and handles loss spikes or high losses during training.
 

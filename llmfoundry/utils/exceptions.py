@@ -390,7 +390,7 @@ class RunTimeoutError(InternalError):
 
 
 class LossSpikeError(UserError):
-    """Error thrown a severe loss spike occurs."""
+    """Error thrown if a severe loss spike occurs."""
 
     def __init__(
         self,
@@ -398,13 +398,10 @@ class LossSpikeError(UserError):
         running_loss_avg: int,
         outlier_counter: int,
     ) -> None:
-        if outlier_multiplier and running_loss_avg and outlier_counter:
-            message = f'Training stopped due to a loss spike. The training loss was more than {outlier_multiplier} times greater than \
-                        the running average loss (approx. {running_loss_avg}) over {outlier_counter} consecutive training steps. \
-                        Please try submitting the run again with a lower learning rate.'
+        message = f'Training stopped due to a loss spike. The training loss was more than {outlier_multiplier} times greater than \
+                    the running average loss (approx. {running_loss_avg}) over {outlier_counter} consecutive training steps. \
+                    Please try submitting the run again with a lower learning rate.'
 
-        else:
-            message = 'Training stopped due to a loss spike. Please try submitting the run again with a lower learning rate.'
         super().__init__(
             message,
             outlier_multiplier=outlier_multiplier,
@@ -414,19 +411,16 @@ class LossSpikeError(UserError):
 
 
 class HighLossError(UserError):
-    """Error thrown training loss plateaus or is unstable at a high level."""
+    """Error thrown if training loss plateaus or is unstable at a high level."""
 
     def __init__(
         self,
         loss_cap: float,
         window_size: int,
     ) -> None:
-        if loss_cap and window_size:
-            message = f'Training stopped due to consistently high losses. The training loss exceeded the threshold of {loss_cap} \
+        message = f'Training stopped due to consistently high losses. The training loss exceeded the threshold of {loss_cap} \
                         for more than half of the {window_size} most recent training steps. Please try submitting the run again with a lower learning rate.'
 
-        else:
-            message = 'Training stopped due to consistently high losses. Please try submitting the run again with a lower learning rate.'
         super().__init__(
             message,
             loss_cap=loss_cap,

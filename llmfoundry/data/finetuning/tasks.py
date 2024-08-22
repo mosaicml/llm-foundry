@@ -323,7 +323,8 @@ def _tokenize_with_bos_removal(
     # an add_bos_token attr that we can check explicitly, so instead we rely on checking if both the
     # text and the text_target start with bos_token_id to determine whether to strip bos.
     has_bos_token = hasattr(
-        tokenizer, 'bos_token_id'
+        tokenizer,
+        'bos_token_id',
     ) and tokenizer.bos_token_id is not None
     input_ids_starts_with_bos = False
     labels_starts_with_bos = False

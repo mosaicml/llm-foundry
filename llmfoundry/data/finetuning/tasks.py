@@ -659,6 +659,9 @@ class StreamingFinetuningDataset(StreamingDataset):
         self.max_seq_len = max_seq_len
         self.packing_ratio = packing_ratio
 
+    def tokenize_example(self, example: Example) -> TokenizedExample:
+        return tokenize_formatted_example(example, self.tokenizer)
+
     # How to process a sample
     def __getitem__(self, idx: int) -> dict[str, Any]:
         sample = super().__getitem__(idx)
@@ -687,7 +690,7 @@ class StreamingFinetuningDataset(StreamingDataset):
                 )
             # Convert to latest format by wrapping sample as a "turn"
             return {'turns': [sample]}
-        return tokenize_formatted_example(sample, tokenizer=self.tokenizer)
+        return self.tokenize_example(sample)
 
     def state_dict(self, num_samples: int,
                    from_beginning: bool) -> dict[str, Any]:

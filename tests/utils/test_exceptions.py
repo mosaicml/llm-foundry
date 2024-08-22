@@ -45,6 +45,8 @@ def create_exception_object(
             return bool
         elif arg_type == list[dict[str, Any]]:
             return [{'key': 'value'}]
+        elif arg_type == Optional[int]:
+            return 1
         raise ValueError(f'Unsupported arg type: {arg_type}')
 
     required_args.pop('self', None)

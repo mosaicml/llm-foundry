@@ -12,7 +12,7 @@ import torch
 from composer.core import Callback, State
 from composer.loggers import Logger, MosaicMLLogger
 
-from llmfoundry.utils.exceptions import LossSpikeError
+from llmfoundry.utils.exceptions import HighLossError, LossSpikeError
 
 log = logging.getLogger(__name__)
 
@@ -48,9 +48,9 @@ class KillLossSpike(Callback):
         self,
         log_only: bool = True,
         patience: int = 4,
-        outlier_multiplier: int = 2,
+        outlier_multiplier: float = 2,
         window_size: int = 100,
-        loss_cap: int = 10,
+        loss_cap: float = 10,
     ):
         self.log_only = log_only
         self.patience = patience
@@ -123,7 +123,7 @@ class KillLossSpike(Callback):
                                 f'Persistently high (>{self.loss_cap}) training losses detected.',
                         })
                 if not self.log_only:
-                    raise LossSpikeError(
+                    raise HighLossError(
                         loss_cap=self.loss_cap,
                         window_size=self.window_size,
                     )

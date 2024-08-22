@@ -20,7 +20,7 @@ __all__ = ['KillLossSpike']
 
 
 class KillLossSpike(Callback):
-    """Detects and handles loss spikes or persistently high training losses during model training.
+    """Detects and handles loss spikes or high losses during training.
 
     Monitors the training loss at the end of each batch and maintains a rolling window of recent losses.
     If recent training losses exceed a specified cap or if a significant spike in loss is detected, the callback can either

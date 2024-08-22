@@ -50,6 +50,28 @@ class KillLossSpike(Callback):
         self.outlier_counter = 0
         self.loss_window = deque(maxlen=self.window_size)
 
+    def detect_loss_spike(self, train_loss: float, running_loss_avg: float):
+        # Train loss is an outlier
+        if train_loss > running_loss_avg * self.outlier_multiplier:
+            self.outlier_counter += 1
+            log.info(f'Potential loss spike detected. Iteration: {self.outlier_counter}')
+            if self.outlier_counter > self.patience:
+                log.info(f'Loss spike detected for {self.outlier_counter} steps. Try lowering the learning rate.')
+                return True
+        # Previous step loss was an outlier, current step loss is not. Reset outlier counter.
+        elif self.outlier_counter > 0:
+            log.info(f'Not a persistent loss spike. Resetting outlier counter.')
+            self.outlier_counter = 0
+        return False
+    
+    def detect_high_losses(self, current_step: int):
+        # Half of the running losses are greater than our "high loss" threshold, after an initial buffer period
+        if (current_step >= self.window_size * 2) and (sum(1 for loss in self.loss_window if loss > self.loss_cap) >= self.window_size / 2):
+            log.info(f'High losses (train loss consistently greater than {self.loss_cap}) detected.')
+            return True
+        return False
+
+
     def batch_end(self, state: State, logger: Logger) -> None:
 
         if not isinstance(state.loss, torch.Tensor):
@@ -61,27 +83,15 @@ class KillLossSpike(Callback):
             running_loss_avg = np.mean(self.loss_window)
             log.info(f'Running loss average: {running_loss_avg}')
 
-            # If train loss is an outlier
-            if train_loss > running_loss_avg * self.outlier_multiplier:
-                self.outlier_counter += 1
-                log.info(f'Potential loss spike detected. Iteration: {self.outlier_counter}')
-                if self.outlier_counter > self.patience:
-                    log.info(f'Loss spike detected for {self.outlier_counter} steps. Try lowering the learning rate.')
-                    if self.log_only:
-                        for destination in logger.destinations:
-                            if isinstance(destination, MosaicMLLogger):
-                                destination.log_metadata({'loss_spike': f'Training loss spike detected for {self.outlier_counter} consecutive steps.'})
-                    else:
-                        raise LossSpikeError(self.outlier_multiplier, round(running_loss_avg), self.outlier_counter)
+            if self.detect_loss_spike(train_loss, running_loss_avg):
+                if self.log_only:
+                    for destination in logger.destinations:
+                        if isinstance(destination, MosaicMLLogger):
+                            destination.log_metadata({'loss_spike': f'Training loss spike detected for {self.outlier_counter} consecutive steps.'})
+                else:
+                    raise LossSpikeError(self.outlier_multiplier, round(running_loss_avg), self.outlier_counter)
 
-            # Previous step loss was an outlier, current step loss is not. Reset outlier counter.
-            elif self.outlier_counter > 0:
-                log.info(f'Not a persistent loss spike. Resetting outlier counter.')
-                self.outlier_counter = 0
-
-            # Half of the running losses are greater than our "high loss" threshold, after the first window
-            elif (state.timestamp.batch >= self.window_size * 2) and (sum(1 for loss in self.loss_window if loss > self.loss_cap) >= self.window_size / 2):
-                log.info(f'High losses >{self.loss_cap} detected.')
+            elif self.detect_high_losses(state.timestamp.batch):
                 if self.log_only:
                     for destination in logger.destinations:
                         if isinstance(destination, MosaicMLLogger):

@@ -79,10 +79,10 @@ class KillLossSpike(Callback):
 
         # Only start early stopping once a full window of loss data
         if len(self.loss_window) == self.window_size:
-            running_loss_avg = np.mean(self.loss_window)
+            running_loss_avg = float(np.mean(self.loss_window))
             log.info(f'Running loss average: {running_loss_avg}')
 
-            if self.detect_loss_spike(train_loss, running_loss_avg):
+            if self.detect_loss_spike(self, train_loss, running_loss_avg):
                 if self.log_only:
                     for destination in logger.destinations:
                         if isinstance(destination, MosaicMLLogger):
@@ -90,7 +90,7 @@ class KillLossSpike(Callback):
                 else:
                     raise LossSpikeError(self.outlier_multiplier, round(running_loss_avg), self.outlier_counter)
 
-            elif self.detect_high_losses(state.timestamp.batch):
+            elif self.detect_high_losses(self, int(state.timestamp.batch)):
                 if self.log_only:
                     for destination in logger.destinations:
                         if isinstance(destination, MosaicMLLogger):

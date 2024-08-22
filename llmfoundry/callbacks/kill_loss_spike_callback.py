@@ -52,7 +52,7 @@ class KillLossSpike(Callback):
 
     def detect_loss_spike(self, train_loss: float, running_loss_avg: float):
         # Train loss is an outlier
-        if train_loss > running_loss_avg * self.outlier_multiplier:
+        if train_loss >= running_loss_avg * self.outlier_multiplier:
             self.outlier_counter += 1
             log.info(f'Potential loss spike detected. Iteration: {self.outlier_counter}')
             if self.outlier_counter > self.patience:
@@ -70,7 +70,6 @@ class KillLossSpike(Callback):
             log.info(f'High losses (train loss consistently greater than {self.loss_cap}) detected.')
             return True
         return False
-
 
     def batch_end(self, state: State, logger: Logger) -> None:
 

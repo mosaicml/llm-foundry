@@ -20,7 +20,7 @@ class TestKillLossSpike(unittest.TestCase):
     @patch('llmfoundry.callbacks.kill_loss_spike_callback.log')
     def test_detect_loss_spike_with_spike(self, _):
         self.callback.outlier_counter = 4  # Simulating previous spikes
-        train_loss = 5
+        train_loss = 4
         running_loss_avg = 2
         result = self.callback.detect_loss_spike(train_loss, running_loss_avg)
         self.assertTrue(result)
@@ -34,7 +34,7 @@ class TestKillLossSpike(unittest.TestCase):
 
     @patch('llmfoundry.callbacks.kill_loss_spike_callback.log')
     def test_detect_high_losses_with_high_losses(self, _):
-        self.callback.loss_window = deque([11] * 10, maxlen=10)  # Simulate high losses in loss window
+        self.callback.loss_window = deque([9, 8, 7, 6, 5, 11, 12, 13, 14, 15], maxlen=10)  # Simulate mix of losses in loss window
         current_step = 21
         result = self.callback.detect_high_losses(current_step)
         self.assertTrue(result)

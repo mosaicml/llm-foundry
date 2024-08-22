@@ -51,7 +51,3 @@ class TestKillLossSpike(unittest.TestCase):
         current_step = 21
         result = self.callback.detect_high_losses(current_step)
         self.assertTrue(result)
-
-
-if __name__ == '__main__':
-    unittest.main()

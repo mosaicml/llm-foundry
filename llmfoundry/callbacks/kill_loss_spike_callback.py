@@ -102,14 +102,13 @@ class KillLossSpike(Callback):
             log.info(f'Running loss average: {running_loss_avg}')
 
             if self.detect_loss_spike(train_loss, running_loss_avg):
-                if self.log_only:
-                    for destination in logger.destinations:
-                        if isinstance(destination, MosaicMLLogger):
-                            destination.log_metadata({
-                                'loss_spike':
-                                    f'Training loss spike detected for {self.outlier_counter} consecutive steps.',
-                            })
-                else:
+                for destination in logger.destinations:
+                    if isinstance(destination, MosaicMLLogger):
+                        destination.log_metadata({
+                            'loss_spike':
+                                f'Training loss spike detected for {self.outlier_counter} consecutive steps.',
+                        })
+                if not self.log_only:
                     raise LossSpikeError(
                         outlier_multiplier=self.outlier_multiplier,
                         running_loss_avg=round(running_loss_avg),
@@ -117,14 +116,13 @@ class KillLossSpike(Callback):
                     )
 
             elif self.detect_high_losses(int(state.timestamp.batch)):
-                if self.log_only:
-                    for destination in logger.destinations:
-                        if isinstance(destination, MosaicMLLogger):
-                            destination.log_metadata({
-                                'high_loss':
-                                    f'Persistently high (>{self.loss_cap}) training losses detected.',
-                            })
-                else:
+                for destination in logger.destinations:
+                    if isinstance(destination, MosaicMLLogger):
+                        destination.log_metadata({
+                            'high_loss':
+                                f'Persistently high (>{self.loss_cap}) training losses detected.',
+                        })
+                if not self.log_only:
                     raise LossSpikeError(
                         loss_cap=self.loss_cap,
                         window_size=self.window_size,

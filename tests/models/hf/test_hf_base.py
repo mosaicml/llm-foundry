@@ -1,5 +1,6 @@
 from llmfoundry.models.hf.hf_base import BaseHuggingFaceModel
 
+
 def test_build_inner_model_fsdp():
     model = BaseHuggingFaceModel.build_inner_model(
         pretrained_model_name_or_path='codellama/CodeLlama-7b-hf',

@@ -82,20 +82,20 @@ class KillLossSpike(Callback):
             running_loss_avg = float(np.mean(self.loss_window))
             log.info(f'Running loss average: {running_loss_avg}')
 
-            if self.detect_loss_spike(self, train_loss, running_loss_avg):
+            if self.detect_loss_spike(train_loss, running_loss_avg):
                 if self.log_only:
                     for destination in logger.destinations:
                         if isinstance(destination, MosaicMLLogger):
                             destination.log_metadata({'loss_spike': f'Training loss spike detected for {self.outlier_counter} consecutive steps.'})
                 else:
-                    raise LossSpikeError(self.outlier_multiplier, round(running_loss_avg), self.outlier_counter)
+                    raise LossSpikeError(outlier_multiplier=self.outlier_multiplier, running_loss_avg=round(running_loss_avg), outlier_counter=self.outlier_counter)
 
-            elif self.detect_high_losses(self, int(state.timestamp.batch)):
+            elif self.detect_high_losses(int(state.timestamp.batch)):
                 if self.log_only:
                     for destination in logger.destinations:
                         if isinstance(destination, MosaicMLLogger):
                             destination.log_metadata({'high_loss': f'Persistently high (>{self.loss_cap}) training losses detected.'})
                 else:
-                    raise LossSpikeError(self.loss_cap, self.window_size)
+                    raise LossSpikeError(loss_cap=self.loss_cap, window_size=self.window_size)
 
         self.loss_window.append(train_loss)

@@ -6,7 +6,7 @@ from llmfoundry.callbacks.kill_loss_spike_callback import KillLossSpike
 from collections import deque
 
 class TestKillLossSpike(unittest.TestCase):
-    def __init__(self, *args:tuple, **kwargs:dict):
+    def __init__(self, *args:str, **kwargs:dict):
         super(TestKillLossSpike, self).__init__(*args, **kwargs)
         self.callback = KillLossSpike(log_only=True, patience=4, outlier_multiplier=2, window_size=10, loss_cap=10)
 

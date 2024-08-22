@@ -393,8 +393,8 @@ class LossSpikeError(UserError):
 
     def __init__(self, outlier_multiplier: Optional[int] = None, running_loss_avg: Optional[int] = None, outlier_counter: Optional[int] = None, loss_cap: Optional[int] = None, window_size: Optional[int] = None) -> None:
         if outlier_multiplier and running_loss_avg and outlier_counter:
-            message = f'Training stopped due to a loss spike. The training loss was {outlier_multiplier} times greater than the \
-                        running average loss (approx. {running_loss_avg}) over {outlier_counter} consecutive training steps. \
+            message = f'Training stopped due to a loss spike. The training loss was more than {outlier_multiplier} times greater than \
+                        the running average loss (approx. {running_loss_avg}) over {outlier_counter} consecutive training steps. \
                         Please try submitting the run again with a lower learning rate.'
         elif loss_cap and window_size:
             message = f'Training stopped due to consistently high losses. The training loss exceeded the threshold of {loss_cap} \

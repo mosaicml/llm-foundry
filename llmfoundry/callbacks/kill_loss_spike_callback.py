@@ -29,7 +29,7 @@ class KillLossSpike(Callback):
     Args:
         log_only (bool): If True, the callback will only log warnings without interrupting training. If False, a
                          LossSpikeError will be raised to stop training upon detecting a loss spike or persistently
-                         high loss.
+                         high loss. Default is True.
         patience (int): The number of consecutive outlier losses tolerated before considering the training loss to be
                         persistently high. Default is 4 (so 5 consecutive outlier losses will trigger an error).
         outlier_multiplier (int): The multiplier used to determine if a loss is an outlier. A loss is considered an
@@ -46,7 +46,7 @@ class KillLossSpike(Callback):
 
     def __init__(
         self,
-        log_only: bool,
+        log_only: bool = True,
         patience: int = 4,
         outlier_multiplier: int = 2,
         window_size: int = 100,

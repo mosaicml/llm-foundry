@@ -9,7 +9,7 @@ from collections import deque
 
 import numpy as np
 import torch
-from composer.core import Callback, State
+from composer.core import Callback, State, TimeUnit
 from composer.loggers import Logger, MosaicMLLogger
 from composer.utils import dist
 
@@ -19,6 +19,8 @@ from llmfoundry.utils.warnings import experimental_class
 log = logging.getLogger(__name__)
 
 __all__ = ['KillLossSpike']
+
+MIN_WINDOW_SIZE = 100
 
 
 @experimental_class('KillLossSpike')
@@ -52,13 +54,12 @@ class KillLossSpike(Callback):
         log_only: bool = True,
         patience: int = 4,
         outlier_multiplier: float = 2,
-        window_size: int = 100,
     ):
         self._enabled = (dist.get_global_rank() == 0)
         self.log_only = log_only
         self.patience = patience
         self.outlier_multiplier = outlier_multiplier
-        self.window_size = window_size
+        self.window_size = None
         self.loss_cap = None
         self.outlier_counter = 0
         self.loss_window = deque(maxlen=self.window_size)
@@ -92,6 +93,16 @@ class KillLossSpike(Callback):
             )
             return True
         return False
+    
+    def init(self, state: State, logger: Logger) -> None:
+        """Set the window to a fraction of the total number of training batches. At least 100 steps.
+        The unit of window size is number of batches."""
+        if state.max_duration.unit == TimeUnit.EPOCH:
+            self.window_size = max(MIN_WINDOW_SIZE, (state.dataloader_len * state.max_duration.value / 20))
+        elif state.max_duration.unit == TimeUnit.BATCH:
+            self.window_size = max(MIN_WINDOW_SIZE, state.max_duration.value / 20)
+        elif state.max_duration.unit == TimeUnit.TOKEN:
+            self.window_size = max(MIN_WINDOW_SIZE, state.max_duration.value / 20)
 
     def batch_end(self, state: State, logger: Logger) -> None:
 
@@ -101,8 +112,14 @@ class KillLossSpike(Callback):
 
         # Only start early stopping once a full window of loss data
         if len(self.loss_window) == self.window_size:
-
+            
             current_step = int(state.timestamp.batch)
+            # Only applies to if max_duration is set in tokens. If current batch is less than MIN_WINDOW_SIZE
+            # as set by tokens, we should raise the window size to the MIN_WINDOW_SIZE and continue.
+            if current_step < MIN_WINDOW_SIZE:
+                self.window_size = MIN_WINDOW_SIZE
+                return
+
             # Set the loss cap to the maximum loss from the first loss window
             if current_step == self.window_size:
                 self.loss_cap = max(self.loss_window)

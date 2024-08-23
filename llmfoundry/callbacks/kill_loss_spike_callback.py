@@ -93,16 +93,24 @@ class KillLossSpike(Callback):
             )
             return True
         return False
-    
+
     def init(self, state: State, logger: Logger) -> None:
-        """Set the window to a fraction of the total number of training batches. At least 100 steps.
-        The unit of window size is number of batches."""
+        #Set the window to a fraction of the total number of training batches, minimum 100.
         if state.max_duration.unit == TimeUnit.EPOCH:
-            self.window_size = max(MIN_WINDOW_SIZE, (state.dataloader_len * state.max_duration.value / 20))
+            self.window_size = max(
+                MIN_WINDOW_SIZE,
+                (state.dataloader_len * state.max_duration.value / 20),
+            )
         elif state.max_duration.unit == TimeUnit.BATCH:
-            self.window_size = max(MIN_WINDOW_SIZE, state.max_duration.value / 20)
+            self.window_size = max(
+                MIN_WINDOW_SIZE,
+                state.max_duration.value / 20,
+            )
         elif state.max_duration.unit == TimeUnit.TOKEN:
-            self.window_size = max(MIN_WINDOW_SIZE, state.max_duration.value / 20)
+            self.window_size = max(
+                MIN_WINDOW_SIZE,
+                state.max_duration.value / 20,
+            )
 
     def batch_end(self, state: State, logger: Logger) -> None:
 
@@ -112,7 +120,7 @@ class KillLossSpike(Callback):
 
         # Only start early stopping once a full window of loss data
         if len(self.loss_window) == self.window_size:
-            
+
             current_step = int(state.timestamp.batch)
             # Only applies to if max_duration is set in tokens. If current batch is less than MIN_WINDOW_SIZE
             # as set by tokens, we should raise the window size to the MIN_WINDOW_SIZE and continue.

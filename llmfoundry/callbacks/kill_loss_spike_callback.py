@@ -109,7 +109,7 @@ class KillLossSpike(Callback):
                         destination.log_metadata({
                             'loss_spike':
                                 f'Training loss spike detected for {self.outlier_counter} consecutive steps. Consider stopping this run and resubmitting with a lower learning rate.',
-                            "loss_window":
+                            'loss_window':
                                 list(self.loss_window),
                         })
                 if not self.log_only:
@@ -125,7 +125,7 @@ class KillLossSpike(Callback):
                         destination.log_metadata({
                             'high_loss':
                                 f'Persistently high (>{self.loss_cap}) training losses detected. Consider stopping this run and resubmitting with a lower learning rate.',
-                            "loss_window":
+                            'loss_window':
                                 list(self.loss_window),
                         })
                 if not self.log_only:

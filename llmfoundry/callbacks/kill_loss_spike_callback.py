@@ -108,7 +108,7 @@ class KillLossSpike(Callback):
                     if isinstance(destination, MosaicMLLogger):
                         destination.log_metadata({
                             'loss_spike':
-                                f'Training loss spike detected for {self.outlier_counter} consecutive steps.',
+                                f'Training loss spike detected for {self.outlier_counter} consecutive steps. Consider stopping this run and resubmitting with a lower learning rate.',
                         })
                 if not self.log_only:
                     raise LossSpikeError(
@@ -122,7 +122,7 @@ class KillLossSpike(Callback):
                     if isinstance(destination, MosaicMLLogger):
                         destination.log_metadata({
                             'high_loss':
-                                f'Persistently high (>{self.loss_cap}) training losses detected.',
+                                f'Persistently high (>{self.loss_cap}) training losses detected. Consider stopping this run and resubmitting with a lower learning rate.',
                         })
                 if not self.log_only:
                     raise HighLossError(

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import logging
 from collections import deque
+from typing import Optional
 
 import numpy as np
 import torch
@@ -54,12 +55,13 @@ class KillLossSpike(Callback):
         log_only: bool = True,
         patience: int = 4,
         outlier_multiplier: float = 2,
+        window_size: Optional[int] = None,
     ):
         self._enabled = (dist.get_global_rank() == 0)
         self.log_only = log_only
         self.patience = patience
         self.outlier_multiplier = outlier_multiplier
-        self.window_size = None
+        self.window_size = window_size
         self.loss_cap = None
         self.outlier_counter = 0
         self.loss_window = deque(maxlen=self.window_size)
@@ -96,21 +98,22 @@ class KillLossSpike(Callback):
 
     def init(self, state: State, logger: Logger) -> None:
         #Set the window to a fraction of the total number of training batches, minimum 100.
-        if state.max_duration.unit == TimeUnit.EPOCH:
-            self.window_size = max(
-                MIN_WINDOW_SIZE,
-                (state.dataloader_len * state.max_duration.value / 20),
-            )
-        elif state.max_duration.unit == TimeUnit.BATCH:
-            self.window_size = max(
-                MIN_WINDOW_SIZE,
-                state.max_duration.value / 20,
-            )
-        elif state.max_duration.unit == TimeUnit.TOKEN:
-            self.window_size = max(
-                MIN_WINDOW_SIZE,
-                state.max_duration.value / 20,
-            )
+        if not self.window_size:
+            if state.max_duration.unit == TimeUnit.EPOCH:
+                self.window_size = max(
+                    MIN_WINDOW_SIZE,
+                    (state.dataloader_len * state.max_duration.value / 20),
+                )
+            elif state.max_duration.unit == TimeUnit.BATCH:
+                self.window_size = max(
+                    MIN_WINDOW_SIZE,
+                    state.max_duration.value / 20,
+                )
+            elif state.max_duration.unit == TimeUnit.TOKEN:
+                self.window_size = max(
+                    MIN_WINDOW_SIZE,
+                    state.max_duration.value / 20,
+                )
 
     def batch_end(self, state: State, logger: Logger) -> None:
 

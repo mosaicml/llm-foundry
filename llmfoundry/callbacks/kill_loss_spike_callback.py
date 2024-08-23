@@ -11,6 +11,7 @@ import numpy as np
 import torch
 from composer.core import Callback, State
 from composer.loggers import Logger, MosaicMLLogger
+from composer.utils import dist
 
 from llmfoundry.utils.exceptions import HighLossError, LossSpikeError
 from llmfoundry.utils.warnings import experimental_class
@@ -52,13 +53,13 @@ class KillLossSpike(Callback):
         patience: int = 4,
         outlier_multiplier: float = 2,
         window_size: int = 100,
-        loss_cap: float = 10,
     ):
+        self._enabled = (dist.get_global_rank() == 0)
         self.log_only = log_only
         self.patience = patience
         self.outlier_multiplier = outlier_multiplier
         self.window_size = window_size
-        self.loss_cap = loss_cap
+        self.loss_cap = None
         self.outlier_counter = 0
         self.loss_window = deque(maxlen=self.window_size)
 
@@ -100,6 +101,12 @@ class KillLossSpike(Callback):
 
         # Only start early stopping once a full window of loss data
         if len(self.loss_window) == self.window_size:
+
+            current_step = int(state.timestamp.batch)
+            # Set the loss cap to the maximum loss from the first loss window
+            if current_step == self.window_size:
+                self.loss_cap = max(self.loss_window)
+
             running_loss_avg = float(np.mean(self.loss_window))
             log.info(f'Running loss average: {running_loss_avg}')
 
@@ -119,7 +126,7 @@ class KillLossSpike(Callback):
                         outlier_counter=self.outlier_counter,
                     )
 
-            elif self.detect_high_losses(int(state.timestamp.batch)):
+            elif self.detect_high_losses(current_step):
                 for destination in logger.destinations:
                     if isinstance(destination, MosaicMLLogger):
                         destination.log_metadata({

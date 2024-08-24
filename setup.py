@@ -56,7 +56,7 @@ install_requires = [
     'mlflow>=2.14.1,<2.16',
     'accelerate>=0.25,<0.34',  # for HF inference `device_map`
     'transformers>=4.43.2,<4.44',
-    'mosaicml-streaming>=0.8.0,<0.9',
+    'mosaicml-streaming>=0.8.1,<0.9',
     'torch>=2.3.0,<2.4',
     'datasets>=2.19,<2.20',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data

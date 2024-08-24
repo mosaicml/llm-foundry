@@ -96,7 +96,7 @@ class KillLossSpike(Callback):
             return True
         return False
 
-    def init(self, state: State, logger: Logger) -> None:
+    def fit_start(self, state: State, logger: Logger) -> None:
         #Set the window to a fraction of the total number of training batches, minimum 100.
         if not self.window_size:
             if state.max_duration.unit == TimeUnit.EPOCH:

@@ -121,6 +121,8 @@ class KillLossSpike(Callback):
             raise NotImplementedError('Multiple losses not supported yet')
         train_loss = state.loss.item()
 
+        log.info(f'Window size: {self.window_size}')
+
         # Only start early stopping once a full window of loss data
         if len(self.loss_window) == self.window_size:
 
@@ -129,6 +131,7 @@ class KillLossSpike(Callback):
             # as set by tokens, we should raise the window size to the MIN_WINDOW_SIZE and continue.
             if current_step < MIN_WINDOW_SIZE:
                 self.window_size = MIN_WINDOW_SIZE
+                self.loss_window.append(train_loss)
                 return
 
             # Set the loss cap to the maximum loss from the first loss window

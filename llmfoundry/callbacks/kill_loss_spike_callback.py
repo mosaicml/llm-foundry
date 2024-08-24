@@ -55,14 +55,15 @@ class KillLossSpike(Callback):
         log_only: bool = True,
         patience: int = 4,
         outlier_multiplier: float = 2,
-        window_size: Optional[int] = None,
+        window_size: int = None,
+        loss_cap: float = None,
     ):
         self._enabled = (dist.get_global_rank() == 0)
         self.log_only = log_only
         self.patience = patience
         self.outlier_multiplier = outlier_multiplier
         self.window_size = window_size
-        self.loss_cap = None
+        self.loss_cap = loss_cap
         self.outlier_counter = 0
         self.loss_window = deque(maxlen=self.window_size)
 

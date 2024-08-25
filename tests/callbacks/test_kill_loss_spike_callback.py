@@ -21,9 +21,9 @@ class TestKillLossSpike(unittest.TestCase):
             log_only=True,
             patience=4,
             outlier_multiplier=2,
-            window_size=10,
-            loss_cap=10,
         )
+        self.callback.window_size = 10
+        self.callback.loss_cap = 10
 
     @patch('llmfoundry.callbacks.kill_loss_spike_callback.log')
     def test_detect_loss_spike_no_spike(self, _):

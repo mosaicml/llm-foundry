@@ -11,7 +11,6 @@ import numpy as np
 import torch
 from composer.core import Callback, State, TimeUnit
 from composer.loggers import Logger, MosaicMLLogger
-from composer.utils import dist
 
 from llmfoundry.utils.exceptions import HighLossError, LossSpikeError
 from llmfoundry.utils.warnings import experimental_class
@@ -60,6 +59,9 @@ class KillLossSpike(Callback):
         self.patience = patience
         self.outlier_multiplier = outlier_multiplier
         self.outlier_counter = 0
+        self.window_size = None
+        self.loss_window = None
+        self.loss_cap = None
 
     def detect_loss_spike(self, train_loss: float, running_loss_avg: float):
         # Train loss is an outlier
@@ -96,15 +98,14 @@ class KillLossSpike(Callback):
         if state.max_duration.unit == TimeUnit.EPOCH:
             self.window_size = max(
                 MIN_WINDOW_SIZE,
-                round(state.dataloader_len * state.max_duration.value / 20),
+                round(float(state.dataloader_len * state.max_duration.value / 20)),
             )
         elif state.max_duration.unit == TimeUnit.BATCH or state.max_duration.unit == TimeUnit.TOKEN:
             self.window_size = max(
                 MIN_WINDOW_SIZE,
-                round(state.max_duration.value / 20),
+                round(float(state.max_duration.value / 20)),
             )
-        self.loss_window = deque(maxlen=self.window_size)    
-            
+        self.loss_window = deque(maxlen=self.window_size)
 
     def batch_end(self, state: State, logger: Logger) -> None:
 

@@ -102,17 +102,17 @@ class KillLossSpike(Callback):
             if state.max_duration.unit == TimeUnit.EPOCH:
                 self.window_size = max(
                     MIN_WINDOW_SIZE,
-                    (state.dataloader_len * state.max_duration.value / 20),
+                    round(state.dataloader_len * state.max_duration.value / 20),
                 )
             elif state.max_duration.unit == TimeUnit.BATCH:
                 self.window_size = max(
                     MIN_WINDOW_SIZE,
-                    state.max_duration.value / 20,
+                    round(state.max_duration.value / 20),
                 )
             elif state.max_duration.unit == TimeUnit.TOKEN:
                 self.window_size = max(
                     MIN_WINDOW_SIZE,
-                    state.max_duration.value / 20,
+                    round(state.max_duration.value / 20),
                 )
 
     def batch_end(self, state: State, logger: Logger) -> None:

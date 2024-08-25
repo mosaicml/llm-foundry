@@ -40,9 +40,9 @@ class KillLossSpike(Callback):
         outlier_multiplier (int): The multiplier used to determine if a loss is an outlier. A loss is considered an
                                   outlier if it is outlier_multiplier times greater than the mean of losses in
                                   the current window. Default is 2.
-        window_size (int): The size of the rolling window used to track recent losses. Default is 100.
+        window_size (int): The size of the rolling window used to track recent losses. This is set to 1/20 of the total training batches by default, with a minimum of 100 steps.
         loss_cap (int): The maximum allowable loss. If the training loss consistently exceeds this value,
-                        it is considered a diverging or unstable run. Default is 10.
+                        it is considered a diverging or unstable run. This is set to the maximum loss from the first window of losses by default.
 
     Raises:
         LossSpikeError: If log_only is False and a loss spike or persistently high loss is detected, this error is

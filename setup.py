@@ -87,7 +87,7 @@ extra_deps['dev'] = [
     'pyright==1.1.256',
     'toml>=0.10.2,<0.11',
     'packaging>=21,<25',
-    'hf_transfer==0.1.3',
+    'hf_transfer==0.1.8',
 ]
 
 extra_deps['databricks'] = [

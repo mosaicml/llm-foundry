@@ -30,7 +30,7 @@ class TestKillLossSpike(unittest.TestCase):
         self.callback.outlier_counter = 0
         train_loss = 4
         running_loss_avg = 2
-        result = self.callback.detect_loss_spike(train_loss, running_loss_avg)
+        result = self.callback._detect_loss_spike(train_loss, running_loss_avg)
         self.assertFalse(result)
 
     @patch('llmfoundry.callbacks.kill_loss_spike_callback.log')
@@ -38,7 +38,7 @@ class TestKillLossSpike(unittest.TestCase):
         self.callback.outlier_counter = 4  # Simulating previous spikes
         train_loss = 4
         running_loss_avg = 2
-        result = self.callback.detect_loss_spike(train_loss, running_loss_avg)
+        result = self.callback._detect_loss_spike(train_loss, running_loss_avg)
         self.assertTrue(result)
 
     @patch('llmfoundry.callbacks.kill_loss_spike_callback.log')
@@ -59,7 +59,7 @@ class TestKillLossSpike(unittest.TestCase):
         self.callback.outlier_counter = 4
         self.callback.loss_window = deque([2] * 10, maxlen=10)
 
-        result = self.callback.detect_loss_spike(state.loss.item(), 2)
+        result = self.callback._detect_loss_spike(state.loss.item(), 2)
         self.assertTrue(result)
 
         # batch_end should not raise an error due to log_only=True
@@ -87,7 +87,7 @@ class TestKillLossSpike(unittest.TestCase):
         self.callback.loss_window = deque([2] * 10, maxlen=10)
         self.callback.log_only = False
 
-        result = self.callback.detect_loss_spike(state.loss.item(), 2)
+        result = self.callback._detect_loss_spike(state.loss.item(), 2)
         self.assertTrue(result)
 
         # batch_end should raise an error due to log_only=False
@@ -98,7 +98,7 @@ class TestKillLossSpike(unittest.TestCase):
     def test_detect_high_losses_no_high_losses(self, _):
         self.callback.loss_window = deque([2] * 10, maxlen=10)
         current_step = 21
-        result = self.callback.detect_high_losses(current_step)
+        result = self.callback._detect_high_losses(current_step)
         self.assertFalse(result)
 
     @patch('llmfoundry.callbacks.kill_loss_spike_callback.log')
@@ -108,5 +108,5 @@ class TestKillLossSpike(unittest.TestCase):
             maxlen=10,
         )  # Simulate mix of losses in loss window
         current_step = 21
-        result = self.callback.detect_high_losses(current_step)
+        result = self.callback._detect_high_losses(current_step)
         self.assertTrue(result)

@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import logging
 from collections import deque
-from typing import Optional
 
 import numpy as np
 import torch
@@ -57,19 +56,19 @@ class KillLossSpike(Callback):
         log_only: bool = True,
         patience: int = 4,
         outlier_multiplier: float = 2,
-        user_window_size: Optional[int] = None,
-        user_loss_cap: Optional[float] = None,
+        window_size: int = _MIN_WINDOW_SIZE,
+        loss_cap: float = _MAX_LOSS_CAP,
     ):
         self._enabled = (dist.get_global_rank() == 0)
         self.log_only = log_only
         self.patience = patience
         self.outlier_multiplier = outlier_multiplier
         self.outlier_counter = 0
-        self.user_defined_window_size = user_window_size is not None
-        self.window_size = user_window_size or _MIN_WINDOW_SIZE
+        self.user_defined_window_size = (window_size != _MIN_WINDOW_SIZE)
+        self.window_size = window_size
         self.loss_window = deque(maxlen=self.window_size)
-        self.user_defined_loss_cap = user_loss_cap is not None
-        self.loss_cap = user_loss_cap or _MAX_LOSS_CAP
+        self.user_defined_loss_cap = (loss_cap != _MAX_LOSS_CAP)
+        self.loss_cap = loss_cap
 
     def _detect_loss_spike(
         self,
@@ -148,13 +147,14 @@ class KillLossSpike(Callback):
             if state.max_duration is not None:
                 if state.max_duration.unit == TimeUnit.EPOCH and state.dataloader_len is not None:
                     total_training_steps = state.dataloader_len * state.max_duration.value
-                elif state.max_duration.unit == TimeUnit.BATCH or state.max_duration.unit == TimeUnit.TOKEN:
+                elif state.max_duration.unit == TimeUnit.BATCH:
                     total_training_steps = state.max_duration.value
                 self.window_size = max(
                     self.window_size,
                     round(float(total_training_steps * _WINDOW_FRACTION)),
                 )
         self.loss_window = deque(maxlen=self.window_size)
+        log.info(f'Window size set to: {self.window_size}')
 
     def batch_end(self, state: State, logger: Logger) -> None:
 
@@ -162,21 +162,10 @@ class KillLossSpike(Callback):
             raise NotImplementedError('Multiple losses not supported yet')
         train_loss = state.loss.item()
 
-        log.info(f'Window size: {self.window_size}')
-
         # Only start early stopping once a full window of loss data
         if len(self.loss_window) == self.window_size:
 
             current_step = int(state.timestamp.batch)
-            # Only applies if max_duration is set in tokens and user does not provide window size. If current batch is less than MIN_WINDOW_SIZE as set by tokens, we should raise the window size to the MIN_WINDOW_SIZE and continue.
-            if not self.user_defined_window_size and current_step < _MIN_WINDOW_SIZE:
-                self.window_size = _MIN_WINDOW_SIZE
-                self.loss_window = deque(
-                    self.loss_window, maxlen=self.window_size
-                )
-                self.loss_window.append(train_loss)
-                return
-
             # If user does not provide a loss cap, set loss cap to the maximum loss from the first loss window. Hard cap at loss=10.
             if not self.user_defined_loss_cap and current_step == self.window_size:
                 self.loss_cap = min(max(self.loss_window), self.loss_cap)
@@ -186,7 +175,6 @@ class KillLossSpike(Callback):
 
             if self._detect_loss_spike(train_loss, running_loss_avg):
                 self._handle_loss_spike(logger, running_loss_avg)
-
             elif self._detect_high_losses(current_step):
                 self._handle_high_losses(logger)
 

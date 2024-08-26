@@ -20,9 +20,9 @@ log = logging.getLogger(__name__)
 
 __all__ = ['KillLossSpike']
 
-MIN_WINDOW_SIZE = 100
-MAX_LOSS_CAP = 10
-WINDOW_FRACTION = 0.05
+_MIN_WINDOW_SIZE = 100
+_MAX_LOSS_CAP = 10
+_WINDOW_FRACTION = 0.05
 
 
 @experimental_class('KillLossSpike')
@@ -62,9 +62,9 @@ class KillLossSpike(Callback):
         self.patience = patience
         self.outlier_multiplier = outlier_multiplier
         self.outlier_counter = 0
-        self.window_size = MIN_WINDOW_SIZE
+        self.window_size = _MIN_WINDOW_SIZE
         self.loss_window = deque(maxlen=self.window_size)
-        self.loss_cap = MAX_LOSS_CAP
+        self.loss_cap = _MAX_LOSS_CAP
 
     def _detect_loss_spike(
         self,
@@ -146,7 +146,7 @@ class KillLossSpike(Callback):
                 total_training_steps = state.max_duration.value
             self.window_size = max(
                 self.window_size,
-                round(float(total_training_steps * WINDOW_FRACTION)),
+                round(float(total_training_steps * _WINDOW_FRACTION)),
             )
         self.loss_window = deque(maxlen=self.window_size)
 
@@ -163,9 +163,9 @@ class KillLossSpike(Callback):
 
             current_step = int(state.timestamp.batch)
             # Only applies to if max_duration is set in tokens. If current batch is less than MIN_WINDOW_SIZE
-            # as set by tokens, we should raise the window size to the MIN_WINDOW_SIZE and continue.
-            if current_step < MIN_WINDOW_SIZE:
-                self.window_size = MIN_WINDOW_SIZE
+            # as set by tokens, we should raise the window size to the MINWINDOW_SIZE and continue.
+            if current_step < _MIN_WINDOW_SIZE:
+                self.window_size = _MIN_WINDOW_SIZE
                 self.loss_window.append(train_loss)
                 return
 

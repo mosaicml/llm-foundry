@@ -21,6 +21,7 @@ __all__ = ['KillLossSpike']
 
 MIN_WINDOW_SIZE = 100
 MAX_LOSS_CAP = 10
+WINDOW_FRACTION = 20
 
 
 @experimental_class('KillLossSpike')
@@ -93,7 +94,7 @@ class KillLossSpike(Callback):
             )
             return True
         return False
-    
+
     def _log_metadata(self, logger: Logger, key: str, message: str) -> None:
         for destination in logger.destinations:
             if isinstance(destination, MosaicMLLogger):
@@ -103,7 +104,9 @@ class KillLossSpike(Callback):
                 })
 
     def _handle_loss_spike(
-        self, logger: Logger, running_loss_avg: float
+        self,
+        logger: Logger,
+        running_loss_avg: float,
     ) -> None:
         message = f'Training loss spike detected for {self.outlier_counter} consecutive steps. Consider stopping this run and resubmitting with a lower learning rate.'
         self._log_metadata(logger, 'loss_spike', message)
@@ -131,8 +134,9 @@ class KillLossSpike(Callback):
                     self.window_size,
                     round(
                         float(
-                            state.dataloader_len * state.max_duration.value / 20
-                        )
+                            state.dataloader_len * state.max_duration.value /
+                            20,
+                        ),
                     ),
                 )
             elif state.max_duration.unit == TimeUnit.BATCH or state.max_duration.unit == TimeUnit.TOKEN:
@@ -168,10 +172,10 @@ class KillLossSpike(Callback):
             running_loss_avg = float(np.mean(self.loss_window))
             log.info(f'Running loss average: {running_loss_avg}')
 
-            if self.detect_loss_spike(train_loss, running_loss_avg):
-                self.handle_loss_spike(logger, running_loss_avg)
+            if self._detect_loss_spike(train_loss, running_loss_avg):
+                self._handle_loss_spike(logger, running_loss_avg)
 
-            elif self.detect_high_losses(current_step):
-                self.handle_high_losses(logger)
+            elif self._detect_high_losses(current_step):
+                self._handle_high_losses(logger)
 
         self.loss_window.append(train_loss)

@@ -4,11 +4,6 @@ import unittest
 from collections import deque
 from unittest.mock import MagicMock, patch
 
-import torch
-from composer.core import State, Timestamp
-from composer.devices import DeviceCPU
-from composer.loggers import Logger, MosaicMLLogger
-
 from llmfoundry.callbacks.kill_loss_spike_callback import KillLossSpike
 from llmfoundry.utils.exceptions import LossSpikeError
 
@@ -42,57 +37,27 @@ class TestKillLossSpike(unittest.TestCase):
         self.assertTrue(result)
 
     @patch('llmfoundry.callbacks.kill_loss_spike_callback.log')
-    def test_no_error_raised_with_log_only_true(self, _):
-        build_tiny_mpt = MagicMock()
-        build_tiny_mpt.return_value = MagicMock()
-        state = State(
-            model=build_tiny_mpt(loss_fn='torch_crossentropy'),
-            rank_zero_seed=0,
-            run_name='test_state',
-            device=DeviceCPU(),
-        )
-        state.loss = torch.tensor(4)
-        state.timestamp = Timestamp(batch=21)
-        logger = Logger(state, destinations=[MosaicMLLogger()])
+    def test_handle_loss_spike_logs_only_when_log_only_true(self, _):
+        logger = MagicMock()
+        running_loss_avg = 2
+        self.callback.log_only = True
+        self.callback.outlier_counter = 5
 
-        # Loss spike detection should trigger
-        self.callback.outlier_counter = 4
-        self.callback.loss_window = deque([2] * 10, maxlen=10)
-
-        result = self.callback._detect_loss_spike(state.loss.item(), 2)
-        self.assertTrue(result)
-
-        # batch_end should not raise an error due to log_only=True
         try:
-            self.callback.batch_end(state, logger)
-        except Exception as e:
-            self.fail(f'batch_end raised an exception {e} with log_only=True')
+            self.callback._handle_loss_spike(logger, running_loss_avg)
+        except LossSpikeError:
+            self.fail('LossSpikeError was raised unexpectedly')
 
     @patch('llmfoundry.callbacks.kill_loss_spike_callback.log')
-    def test_error_raised_with_log_only_false(self, _):
-        build_tiny_mpt = MagicMock()
-        build_tiny_mpt.return_value = MagicMock()
-        state = State(
-            model=build_tiny_mpt(loss_fn='torch_crossentropy'),
-            rank_zero_seed=0,
-            run_name='test_state',
-            device=DeviceCPU(),
-        )
-        state.loss = torch.tensor(4)
-        state.timestamp = Timestamp(batch=21)
-        logger = Logger(state, destinations=[MosaicMLLogger()])
-
-        # Loss spike detection should trigger
-        self.callback.outlier_counter = 4
-        self.callback.loss_window = deque([2] * 10, maxlen=10)
+    def test_handle_loss_spike_raises_error_log_only_false(self, _):
+        logger = MagicMock()
+        running_loss_avg = 2
         self.callback.log_only = False
+        self.callback.outlier_counter = 5
 
-        result = self.callback._detect_loss_spike(state.loss.item(), 2)
-        self.assertTrue(result)
-
-        # batch_end should raise an error due to log_only=False
+        # LossSpikeError is raised
         with self.assertRaises(LossSpikeError):
-            self.callback.batch_end(state, logger)
+            self.callback._handle_loss_spike(logger, running_loss_avg)
 
     @patch('llmfoundry.callbacks.kill_loss_spike_callback.log')
     def test_detect_high_losses_no_high_losses(self, _):

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import logging
 from collections import deque
+from typing import Optional
 
 import numpy as np
 import torch
@@ -56,15 +57,19 @@ class KillLossSpike(Callback):
         log_only: bool = True,
         patience: int = 4,
         outlier_multiplier: float = 2,
+        user_window_size: Optional[int] = None,
+        user_loss_cap: Optional[float] = None,
     ):
         self._enabled = (dist.get_global_rank() == 0)
         self.log_only = log_only
         self.patience = patience
         self.outlier_multiplier = outlier_multiplier
         self.outlier_counter = 0
-        self.window_size = _MIN_WINDOW_SIZE
+        self.user_defined_window_size = user_window_size is not None
+        self.window_size = user_window_size or _MIN_WINDOW_SIZE
         self.loss_window = deque(maxlen=self.window_size)
-        self.loss_cap = _MAX_LOSS_CAP
+        self.user_defined_loss_cap = user_loss_cap is not None
+        self.loss_cap = user_loss_cap or _MAX_LOSS_CAP
 
     def _detect_loss_spike(
         self,
@@ -137,17 +142,18 @@ class KillLossSpike(Callback):
             )
 
     def fit_start(self, state: State, logger: Logger) -> None:
-        # Set the window size to a fraction of the total number of training batches for the run, minimum 100 batches.
-        total_training_steps = 0
-        if state.max_duration is not None:
-            if state.max_duration.unit == TimeUnit.EPOCH and state.dataloader_len is not None:
-                total_training_steps = state.dataloader_len * state.max_duration.value
-            elif state.max_duration.unit == TimeUnit.BATCH or state.max_duration.unit == TimeUnit.TOKEN:
-                total_training_steps = state.max_duration.value
-            self.window_size = max(
-                self.window_size,
-                round(float(total_training_steps * _WINDOW_FRACTION)),
-            )
+        # If user does not provide a window size, set window size to a fraction of the total number of training batches for the run, minimum 100 batches.
+        if not self.user_defined_window_size:
+            total_training_steps = 0
+            if state.max_duration is not None:
+                if state.max_duration.unit == TimeUnit.EPOCH and state.dataloader_len is not None:
+                    total_training_steps = state.dataloader_len * state.max_duration.value
+                elif state.max_duration.unit == TimeUnit.BATCH or state.max_duration.unit == TimeUnit.TOKEN:
+                    total_training_steps = state.max_duration.value
+                self.window_size = max(
+                    self.window_size,
+                    round(float(total_training_steps * _WINDOW_FRACTION)),
+                )
         self.loss_window = deque(maxlen=self.window_size)
 
     def batch_end(self, state: State, logger: Logger) -> None:
@@ -162,16 +168,18 @@ class KillLossSpike(Callback):
         if len(self.loss_window) == self.window_size:
 
             current_step = int(state.timestamp.batch)
-            # Only applies to if max_duration is set in tokens. If current batch is less than MIN_WINDOW_SIZE
-            # as set by tokens, we should raise the window size to the MINWINDOW_SIZE and continue.
-            if current_step < _MIN_WINDOW_SIZE:
+            # Only applies if max_duration is set in tokens and user does not provide window size. If current batch is less than MIN_WINDOW_SIZE as set by tokens, we should raise the window size to the MIN_WINDOW_SIZE and continue.
+            if not self.user_defined_window_size and current_step < _MIN_WINDOW_SIZE:
                 self.window_size = _MIN_WINDOW_SIZE
+                self.loss_window = deque(
+                    self.loss_window, maxlen=self.window_size
+                )
                 self.loss_window.append(train_loss)
                 return
 
-            # Set the loss cap to the maximum loss from the first loss window
-            if current_step == self.window_size:
-                self.loss_cap = max(max(self.loss_window), self.loss_cap)
+            # If user does not provide a loss cap, set loss cap to the maximum loss from the first loss window. Hard cap at loss=10.
+            if not self.user_defined_loss_cap and current_step == self.window_size:
+                self.loss_cap = min(max(self.loss_window), self.loss_cap)
 
             running_loss_avg = float(np.mean(self.loss_window))
             log.info(f'Running loss average: {running_loss_avg}')

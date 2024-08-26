@@ -57,7 +57,7 @@ class KillLossSpike(Callback):
         patience: int = 4,
         outlier_multiplier: float = 2,
     ):
-        self._enabled = True
+        self._enabled = (dist.get_global_rank() == 0)
         self.log_only = log_only
         self.patience = patience
         self.outlier_multiplier = outlier_multiplier
@@ -138,6 +138,7 @@ class KillLossSpike(Callback):
 
     def fit_start(self, state: State, logger: Logger) -> None:
         # Set the window size to a fraction of the total number of training batches for the run, minimum 100 batches.
+        total_training_steps = 0
         if state.max_duration is not None:
             if state.max_duration.unit == TimeUnit.EPOCH and state.dataloader_len is not None:
                 total_training_steps = state.dataloader_len * state.max_duration.value
@@ -148,7 +149,6 @@ class KillLossSpike(Callback):
                 round(float(total_training_steps * WINDOW_FRACTION)),
             )
         self.loss_window = deque(maxlen=self.window_size)
-        self._enabled = (dist.get_global_rank() == 0)
 
     def batch_end(self, state: State, logger: Logger) -> None:
 

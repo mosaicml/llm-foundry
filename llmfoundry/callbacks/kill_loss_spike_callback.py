@@ -64,11 +64,11 @@ class KillLossSpike(Callback):
         self.patience = patience
         self.outlier_multiplier = outlier_multiplier
         self.outlier_counter = 0
-        self.window_size_set = (window_size != _MIN_WINDOW_SIZE)
         self.window_size = window_size
         self.loss_window = deque()
-        self.user_defined_loss_cap = (loss_cap != _MAX_LOSS_CAP)
         self.loss_cap = loss_cap
+        self.window_size_set = (window_size != _MIN_WINDOW_SIZE)
+        self.loss_cap_set = (loss_cap != _MAX_LOSS_CAP)
 
     def _detect_loss_spike(
         self,
@@ -100,7 +100,7 @@ class KillLossSpike(Callback):
         high_loss_count = sum(
             1 for loss in self.loss_window if loss > self.loss_cap
         )
-        is_high_loss = high_loss_count >= self.window_size / 2
+        is_high_loss = (high_loss_count >= self.window_size / 2)
 
         if is_high_loss:
             log.info(
@@ -183,8 +183,9 @@ class KillLossSpike(Callback):
                     return
 
             # If user does not provide a loss cap, set loss cap to the maximum loss from the first loss window. Hard cap at loss=10.
-            if not self.user_defined_loss_cap and current_step == self.window_size:
+            if not self.loss_cap_set and current_step == self.window_size:
                 self.loss_cap = min(max(self.loss_window), self.loss_cap)
+                self.loss_cap_set = True
 
             running_loss_avg = float(np.mean(self.loss_window))
             log.info(f'Running loss average: {running_loss_avg}')

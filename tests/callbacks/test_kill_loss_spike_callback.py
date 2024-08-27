@@ -4,6 +4,8 @@ import unittest
 from collections import deque
 from unittest.mock import MagicMock, patch
 
+from composer.core.time import TimeUnit
+
 from llmfoundry.callbacks.kill_loss_spike_callback import KillLossSpike
 from llmfoundry.utils.exceptions import LossSpikeError
 
@@ -75,3 +77,29 @@ class TestKillLossSpike(unittest.TestCase):
         current_step = 21
         result = self.callback._detect_high_losses(current_step)
         self.assertTrue(result)
+
+    @patch('llmfoundry.callbacks.kill_loss_spike_callback.log')
+    def test_set_window_size_from_token(self, _):
+        state = MagicMock()
+        state.max_duration.unit = TimeUnit.TOKEN
+        state.max_duration.value = 100000
+        state.timestamp.batch = 100
+        state.timestamp.token = 4000
+
+        self.callback._set_window_size(state)
+
+        self.assertEqual(self.callback.window_size, 125)
+        self.assertTrue(self.callback.window_size_set)
+
+    @patch('llmfoundry.callbacks.kill_loss_spike_callback.log')
+    def test_set_window_size_from_epoch(self, _):
+        state = MagicMock()
+        state.max_duration.unit = TimeUnit.EPOCH
+        state.dataloader_len = 1000
+        state.max_duration.value = 3
+        state.timestamp.batch = 100
+
+        self.callback._set_window_size(state)
+
+        self.assertEqual(self.callback.window_size, 150)
+        self.assertTrue(self.callback.window_size_set)

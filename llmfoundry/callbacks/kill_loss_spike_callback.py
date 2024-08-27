@@ -159,7 +159,7 @@ class KillLossSpike(Callback):
                 self.window_size,
                 round(float(total_training_steps * _WINDOW_FRACTION)),
             )
-        self.loss_window = deque(maxlen=self.window_size)
+        self.loss_window = deque(self.loss_window, maxlen=self.window_size)
         log.info(f'Window size set to: {self.window_size}')
         self.window_size_set = True
 

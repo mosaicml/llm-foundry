@@ -4,10 +4,11 @@
 from unittest.mock import patch
 
 import pytest
-from composer.utils import dist
 
-from llmfoundry.utils.config_utils import (process_init_device,
-                                           update_config_with_batch_size_info,)
+from llmfoundry.utils.config_utils import (
+    process_init_device,
+    update_config_with_batch_size_info,
+)
 
 
 def test_update_config_with_batch_size_info():

@@ -188,7 +188,6 @@ class KillLossSpike(Callback):
                 self.loss_cap_set = True
 
             running_loss_avg = float(np.mean(self.loss_window))
-            log.info(f'Running loss average: {running_loss_avg}')
 
             if self._detect_loss_spike(train_loss, running_loss_avg):
                 self._handle_loss_spike(logger, running_loss_avg)

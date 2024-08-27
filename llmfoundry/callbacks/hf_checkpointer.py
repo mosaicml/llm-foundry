@@ -654,9 +654,9 @@ class HuggingFaceCheckpointer(Callback):
 
                     # Save the monitor process to be restored after registering the model.
                     if hasattr(mlflow_logger, 'monitor_process'):
-                        monitor_process = mlflow_logger.monitor_process
-                        mlflow_logger.monitor_process = None
-                    else: 
+                        monitor_process = mlflow_logger.monitor_process  # type: ignore
+                        mlflow_logger.monitor_process = None  # type: ignore
+                    else:
                         monitor_process = None
 
                     # Spawn a new process to register the model.
@@ -679,7 +679,7 @@ class HuggingFaceCheckpointer(Callback):
 
                     # Restore the monitor process.
                     if monitor_process is not None:
-                        mlflow_logger.monitor_process = monitor_process
+                        mlflow_logger.monitor_process = monitor_process  # type: ignore
                     self.child_processes.append(process)
 
                     # Save the temporary directory to be cleaned up later.

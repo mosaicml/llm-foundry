@@ -533,18 +533,30 @@ def process_init_device(model_cfg: dict[str, Any], fsdp_config: Optional[dict]):
             # Set defaults for mixed initialization
             fsdp_config.setdefault('load_monolith_rank0_only', True)
 
-    # Set ffn_config.device_mesh to fsdp_config.device_mesh
-    if fsdp_config is not None and 'device_mesh' in fsdp_config and 'ffn_config' in model_cfg and model_cfg[
+    # Set ffn_config.device_mesh using fsdp_config
+    if fsdp_config is not None and 'ffn_config' in model_cfg and model_cfg[
         'ffn_config'].get('ffn_type', None) in ffns_with_megablocks:
-        # Raise ValueError if not using device mesh with MoE expert parallelism
-        if fsdp_config['device_mesh'] is None and model_cfg['ffn_config'].get(
-            'moe_world_size',
-            1,
-        ) > 1:
-            raise ValueError(
-                'device_mesh must be specified in fsdp_config when using MoE with moe_world_size > 1.',
-            )
-        model_cfg['ffn_config']['device_mesh'] = fsdp_config['device_mesh']
+        shard_degree = fsdp_config.get('data_parallel_shard_degree', None)
+        replicate_degree = fsdp_config.get(
+            'data_parallel_replicate_degree',
+            None,
+        )
+
+        if shard_degree is None and replicate_degree is None:
+            # Default to sharding over all gpus.
+            shard_degree = dist.get_world_size()
+            replicate_degree = 1
+        elif shard_degree is None:
+            # Shard degree is not specified, so calculate it from replicate degree
+            assert isinstance(replicate_degree, int)
+            shard_degree = dist.get_world_size() // replicate_degree
+        elif replicate_degree is None:
+            # Replicate degree is not specified, so calculate it from shard degree
+            assert isinstance(shard_degree, int)
+            replicate_degree = dist.get_world_size() // shard_degree
+
+        device_mesh_cfg = [replicate_degree, shard_degree]
+        model_cfg['ffn_config']['device_mesh'] = device_mesh_cfg
 
     # No mixed precision needed for weights when they're already 16 bits
     master_dtype = model_cfg.get('master_weights_dtype')

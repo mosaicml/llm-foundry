@@ -545,17 +545,22 @@ def process_init_device(model_cfg: dict[str, Any], fsdp_config: Optional[dict]):
         if shard_degree is None and replicate_degree is None:
             # Default to sharding over all gpus.
             shard_degree = dist.get_world_size()
-            replicate_degree = 1
-        elif shard_degree is None:
-            # Shard degree is not specified, so calculate it from replicate degree
-            assert isinstance(replicate_degree, int)
-            shard_degree = dist.get_world_size() // replicate_degree
-        elif replicate_degree is None:
-            # Replicate degree is not specified, so calculate it from shard degree
-            assert isinstance(shard_degree, int)
-            replicate_degree = dist.get_world_size() // shard_degree
+            device_mesh_cfg = [shard_degree]
+        else:
+            if shard_degree is None:
+                # Shard degree is not specified, so calculate it from replicate degree
+                assert isinstance(replicate_degree, int)
+                shard_degree = dist.get_world_size() // replicate_degree
+            elif replicate_degree is None:
+                # Replicate degree is not specified, so calculate it from shard degree
+                assert isinstance(shard_degree, int)
+                replicate_degree = dist.get_world_size() // shard_degree
 
-        device_mesh_cfg = [replicate_degree, shard_degree]
+            if replicate_degree == 1:
+                device_mesh_cfg = [shard_degree]
+            else:
+                device_mesh_cfg = [replicate_degree, shard_degree]
+
         model_cfg['ffn_config']['device_mesh'] = device_mesh_cfg
 
     # No mixed precision needed for weights when they're already 16 bits

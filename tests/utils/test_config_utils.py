@@ -10,7 +10,6 @@ from llmfoundry.utils.config_utils import (
     update_config_with_batch_size_info,
 )
 
-
 def test_update_config_with_batch_size_info():
     config = {}
     config = update_config_with_batch_size_info(config, 1, 2, 3)
@@ -35,7 +34,7 @@ def test_moe_fsdp_config_ffn_config(
         'lbl_process_group': 'not_real',
         'fc_type': 'torch',
         'ffn_config': {
-            'ffn_type': 'mb_moe',
+            'ffn_type': 'torch_moe',
         },
     }
     fsdp_config = {}
@@ -58,7 +57,7 @@ def test_moe_fsdp_config_ffn_config(
             fsdp_config['data_parallel_replicate_degree'] = 2
 
     # Ensure the ffn_config's device_mesh is set correctly using the fsdp_config
-    with patch('composer.utils.dist.get_world_size', return_value=8):
+    with patch('composer.utils.dist.get_world_size', return_value=8), patch('catalogue.Registry.__contains__', True):
         _ = process_init_device(model_cfg, fsdp_config)
 
         if should_shard_only or (

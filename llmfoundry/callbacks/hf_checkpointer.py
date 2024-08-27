@@ -656,6 +656,8 @@ class HuggingFaceCheckpointer(Callback):
                     if hasattr(mlflow_logger, 'monitor_process'):
                         monitor_process = mlflow_logger.monitor_process
                         mlflow_logger.monitor_process = None
+                    else: 
+                        monitor_process = None
 
                     # Spawn a new process to register the model.
                     process = SpawnProcess(
@@ -676,7 +678,8 @@ class HuggingFaceCheckpointer(Callback):
                     process.start()
 
                     # Restore the monitor process.
-                    mlflow_logger.monitor_process = monitor_process
+                    if monitor_process is not None:
+                        mlflow_logger.monitor_process = monitor_process
                     self.child_processes.append(process)
 
                     # Save the temporary directory to be cleaned up later.

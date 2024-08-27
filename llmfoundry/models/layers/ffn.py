@@ -214,7 +214,9 @@ class MPTGLU(MPTMLP):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.down_proj(self.act(self.gate_proj(x)) * self.up_proj(x))
+        return self.down_proj(
+            self.act(self.gate_proj(x)).to(device=x.device) * self.up_proj(x),
+        )
 
 
 def build_mptglu(

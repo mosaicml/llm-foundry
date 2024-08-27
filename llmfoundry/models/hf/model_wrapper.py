@@ -5,8 +5,9 @@
 
 from __future__ import annotations
 
+import warnings
 from collections import UserDict
-from typing import TYPE_CHECKING, List, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Mapping, Optional, Union
 
 import transformers
 from composer.models.huggingface import HuggingFaceModel
@@ -15,6 +16,7 @@ from transformers import PreTrainedTokenizerBase
 from transformers.utils.generic import ModelOutput
 
 from llmfoundry.models.hf.hf_fsdp import prepare_hf_model_for_fsdp
+from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
 if TYPE_CHECKING:
     from peft import PeftConfig, PeftModel
@@ -35,13 +37,20 @@ class HuggingFaceModelWithFSDP(HuggingFaceModel):
         self,
         model: Union[transformers.PreTrainedModel, 'PeftModel'],
         tokenizer: Optional[PreTrainedTokenizerBase] = None,
-        metrics: Optional[List[Metric]] = None,
-        eval_metrics: Optional[List[Metric]] = None,
+        metrics: Optional[list[Metric]] = None,
+        eval_metrics: Optional[list[Metric]] = None,
         shift_labels: bool = False,
+        allow_embedding_resizing: bool = False,
         init_device: Optional[str] = None,
         peft_config: Optional['PeftConfig'] = None,
         should_save_peft_only: bool = True,
     ):
+        warnings.warn(
+            VersionedDeprecationWarning(
+                '`HuggingFaceModelWithFSDP` is deprecated. In the future please use `BaseHuggingFaceModel`.',
+                remove_version='0.13.0',
+            ),
+        )
         super().__init__(
             model,
             tokenizer,
@@ -49,6 +58,7 @@ class HuggingFaceModelWithFSDP(HuggingFaceModel):
             metrics=metrics,
             eval_metrics=eval_metrics,
             shift_labels=shift_labels,
+            allow_embedding_resizing=allow_embedding_resizing,
             peft_config=peft_config,
             should_save_peft_only=should_save_peft_only,
         )

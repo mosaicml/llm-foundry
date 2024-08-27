@@ -4,7 +4,7 @@
 import logging
 import os
 import time
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Optional, Union
 
 import pandas as pd
 import torch
@@ -41,27 +41,27 @@ log = logging.getLogger(__name__)
 
 
 def evaluate_model(
-    tokenizer: Dict[str, Any],
+    tokenizer: dict[str, Any],
     model_name: str,
-    model: Dict[str, Any],
+    model: dict[str, Any],
     dist_timeout: Union[float, int],
     run_name: str,
     seed: int,
-    icl_tasks: Union[str, list[Dict[str, Any]]],
+    icl_tasks: Union[str, list[dict[str, Any]]],
     max_seq_len: int,
     device_eval_batch_size: Union[int, float],
-    eval_gauntlet_config: Optional[Union[str, Dict[str, Any]]],
-    eval_loader_config: Optional[Union[Dict[str, Any], list[Dict[str, Any]]]],
-    fsdp_config: Optional[Dict[str, Any]],
+    eval_gauntlet_config: Optional[Union[str, dict[str, Any]]],
+    eval_loader_config: Optional[Union[dict[str, Any], list[dict[str, Any]]]],
+    fsdp_config: Optional[dict[str, Any]],
     loggers: list[LoggerDestination],
     python_log_level: Optional[str],
     precision: str,
     eval_gauntlet_df: Optional[pd.DataFrame],
     eval_subset_num_batches: int,
     icl_subset_num_batches: Optional[int],
-    callback_configs: Optional[Dict[str, Any]],
-    metadata: Optional[Dict[str, str]],
-    logged_config: Dict[str, Any],
+    callback_configs: Optional[dict[str, Any]],
+    metadata: Optional[dict[str, str]],
+    logged_config: dict[str, Any],
     should_log_config: bool = True,
     load_path: Optional[str] = None,
 ):
@@ -157,7 +157,7 @@ def evaluate_model(
 
     if should_log_config:
         log.info('Evaluation config:')
-        log_config(logged_config)
+        log_config(trainer.logger, logged_config)
 
     log.info(f'Starting eval for {model_name}...')
     if torch.cuda.is_available():
@@ -175,7 +175,7 @@ def evaluate_model(
     return (trainer, logger_keys, eval_gauntlet_callback, eval_gauntlet_df)
 
 
-def allow_toplevel_keys(cfg: Dict[str, Any]) -> Dict[str, Any]:
+def allow_toplevel_keys(cfg: dict[str, Any]) -> dict[str, Any]:
     """Transform the config to allow top-level keys for model configuration.
 
     This function allows users to use the 'train.py' syntax in 'eval.py'.
@@ -223,7 +223,7 @@ def allow_toplevel_keys(cfg: Dict[str, Any]) -> Dict[str, Any]:
     return cfg
 
 
-def evaluate(cfg: DictConfig) -> Tuple[list[Trainer], pd.DataFrame]:
+def evaluate(cfg: DictConfig) -> tuple[list[Trainer], pd.DataFrame]:
     # Run user provided code if specified
     for code_path in cfg.get('code_paths', []):
         import_file(code_path)
@@ -388,7 +388,7 @@ def evaluate(cfg: DictConfig) -> Tuple[list[Trainer], pd.DataFrame]:
 def calculate_markdown_results(
     logger_keys: list[str],
     trainer: Trainer,
-    benchmark_to_taxonomy: Dict[str, str],
+    benchmark_to_taxonomy: dict[str, str],
     model_name: str,
 ):
     results = {}
@@ -483,7 +483,7 @@ def calculate_markdown_results(
 def eval_from_yaml(
     yaml_path: str,
     args_list: Optional[list[str]],
-) -> Tuple[list[Trainer], pd.DataFrame]:
+) -> tuple[list[Trainer], pd.DataFrame]:
     """Run the evaluation with optional overrides from CLI."""
     # Load yaml and CLI arguments.
     om.clear_resolver('oc.env')

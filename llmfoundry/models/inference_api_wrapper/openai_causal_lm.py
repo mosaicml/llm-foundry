@@ -7,7 +7,7 @@ import logging
 import os
 import random
 from time import sleep
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 import torch
 from composer.core.types import Batch
@@ -102,7 +102,7 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
                 break
             except RateLimitError as e:
                 if 'You exceeded your current quota' in str(
-                    e._message,
+                    e.message,
                 ):  # pyright: ignore
                     raise e
                 delay *= 2 * (1 + random.random())
@@ -143,7 +143,7 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
             temperature=0.0,
         )
 
-    def retokenize(self, tokens: List[int], cont_idxs: List[int]):
+    def retokenize(self, tokens: list[int], cont_idxs: list[int]):
         """Chat API will never respond with a word-initial space.
 
         If the continuation tokens begin with a word initial space, we need to
@@ -186,7 +186,7 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
         Model responses will never begin with spaces even if the continuation is
         expected to, so we need to retokenize the input to account for that.
         """
-        new_batch: Dict[str, Union[List[torch.Tensor], torch.Tensor]] = {
+        new_batch: dict[str, Union[list[torch.Tensor], torch.Tensor]] = {
             'input_ids': [],
             'continuation_indices': [],
             'labels': [],

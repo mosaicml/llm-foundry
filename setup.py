@@ -5,7 +5,7 @@
 
 import copy
 import os
-from typing import Any, Dict, Mapping
+from typing import Any, Mapping
 
 import setuptools
 from setuptools import setup
@@ -19,7 +19,7 @@ _PACKAGE_REAL_PATH = os.path.join(_REPO_REAL_PATH, _PACKAGE_DIR)
 # We can't use `.__version__` from the library since it's not installed yet
 version_path = os.path.join(_PACKAGE_REAL_PATH, '_version.py')
 with open(version_path, encoding='utf-8') as f:
-    version_globals: Dict[str, Any] = {}
+    version_globals: dict[str, Any] = {}
     version_locals: Mapping[str, object] = {}
     content = f.read()
     exec(content, version_globals, version_locals)
@@ -53,10 +53,10 @@ classifiers = [
 
 install_requires = [
     'mosaicml[libcloud,wandb,oci,gcs,mlflow]>=0.23.4,<0.24',
-    'mlflow>=2.14.1,<2.15',
+    'mlflow>=2.14.1,<2.16',
     'accelerate>=0.25,<0.34',  # for HF inference `device_map`
     'transformers>=4.43.2,<4.44',
-    'mosaicml-streaming>=0.8.0,<0.9',
+    'mosaicml-streaming>=0.8.1,<0.9',
     'torch>=2.3.0,<2.4',
     'datasets>=2.19,<2.20',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
@@ -66,27 +66,28 @@ install_requires = [
     'slack-sdk<4',
     'mosaicml-cli>=0.6.10,<1',
     'onnx==1.16.2',
-    'onnxruntime==1.18.1',
+    'onnxruntime==1.19.0',
     'boto3>=1.21.45,<2',
     'huggingface-hub>=0.19.0,<0.25',
     'beautifulsoup4>=4.12.2,<5',  # required for model download utils
-    'tenacity>=8.2.3,<9',
+    'tenacity>=8.2.3,<10',
     'catalogue>=2,<3',
     'typer<1',
+    'GitPython==3.1.43',
 ]
 
 extra_deps = {}
 
 extra_deps['dev'] = [
-    'coverage[toml]==7.4.4',
+    'coverage[toml]==7.6.1',
     'pre-commit>=3.4.0,<4',
-    'pytest>=7.2.1,<8',
-    'pytest_codeblocks>=0.16.1,<0.17',
+    'pytest>=7.2.1,<9',
+    'pytest_codeblocks>=0.16.1,<0.18',
     'pytest-cov>=4,<6',
     'pyright==1.1.256',
     'toml>=0.10.2,<0.11',
-    'packaging>=21,<23',
-    'hf_transfer==0.1.3',
+    'packaging>=21,<25',
+    'hf_transfer==0.1.8',
 ]
 
 extra_deps['databricks'] = [

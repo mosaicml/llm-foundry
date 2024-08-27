@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from typing import Dict, List, Optional
+from typing import Optional
 
 import omegaconf as om
 import pytest
@@ -29,7 +29,7 @@ def set_correct_cwd():
 
 class MockState(State):
 
-    def __init__(self, logger_keys: List[str], accuracy: float = 0.25) -> None:
+    def __init__(self, logger_keys: list[str], accuracy: float = 0.25) -> None:
         self.eval_metrics = {}
         self.timestamp = 0
         for key in logger_keys:
@@ -49,7 +49,7 @@ class MockLogger(Logger):
         self.inmemorylogger = InMemoryLogger()
         self.inmemorylogger.state = state
 
-    def log_metrics(self, metrics: Dict[str, float]) -> None:
+    def log_metrics(self, metrics: dict[str, float]) -> None:
         self.inmemorylogger.log_metrics(metrics)
 
 
@@ -74,7 +74,7 @@ def test_gauntlet_callback(averages: Optional[dict]):
               icl_task_type: language_modeling
             """,
     )
-    icl_task_config_list: List[om.DictConfig
+    icl_task_config_list: list[om.DictConfig
                               ] = list(icl_task_config)  # type: ignore
     assert all(isinstance(c, om.DictConfig) for c in icl_task_config_list)
 

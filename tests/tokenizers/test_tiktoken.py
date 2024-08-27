@@ -2,11 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pathlib
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import TYPE_CHECKING, Optional
 
 import pytest
 import transformers
 
+from llmfoundry.tokenizers import get_date_string
 from llmfoundry.tokenizers.tiktoken import (
     TiktokenTokenizerWrapper,
     bytes_to_unicode,
@@ -147,8 +148,8 @@ def get_tokenizers_for_testing(
     use_default_system_prompt: bool = False,
     add_bos_token: bool = False,
     add_eos_token: bool = False,
-    additional_special_tokens: Optional[List[str]] = None,
-) -> Tuple[TiktokenTokenizerWrapper, TiktokenTokenizerWrapper, 'Encoding']:
+    additional_special_tokens: Optional[list[str]] = None,
+) -> tuple[TiktokenTokenizerWrapper, TiktokenTokenizerWrapper, 'Encoding']:
     tiktoken = pytest.importorskip('tiktoken')
 
     # Construction
@@ -516,6 +517,7 @@ def test_chat_formatting(
             dict_chats,
             tokenize=False,
             add_generation_prompt=False,
+            date_string=get_date_string(),
         )
         assert chat_str == MULTI_TURN_CHAT_STRING_NO_SYSTEM_PROMPT[i]
     # Using default system prompt.
@@ -533,6 +535,7 @@ def test_chat_formatting(
             dict_chats,
             tokenize=False,
             add_generation_prompt=False,
+            date_string=get_date_string(),
         )
         assert chat_str == MULTI_TURN_CHAT_STRING_SYSTEM_PROMPT[i]
     for i, dict_chats in enumerate(MULTI_TURN_GENERATE_CHAT_ML):
@@ -540,6 +543,7 @@ def test_chat_formatting(
             dict_chats,
             tokenize=False,
             add_generation_prompt=True,
+            date_string=get_date_string(),
         )
         assert chat_str == MULTI_TURN_GENERATE_STRING[i]
 

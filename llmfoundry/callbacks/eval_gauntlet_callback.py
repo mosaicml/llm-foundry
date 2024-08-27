@@ -6,7 +6,7 @@
 import logging
 import math
 from enum import Enum
-from typing import Dict, Optional
+from typing import Optional
 
 from composer.core import Callback, State
 from composer.loggers import Logger
@@ -23,8 +23,8 @@ class Weighting(Enum):
 
 
 def calculate_named_averages(
-    average_names: Dict[str, list],
-    category_scores: Dict[str, float],
+    average_names: dict[str, list],
+    category_scores: dict[str, float],
 ):
     """Calculates the named averages based off the raw category scores.
 
@@ -144,7 +144,7 @@ class EvalGauntlet(Callback):
                     f'Found average name `{avg_name}` used as category name. Average names and category names must be non-overlapping.',
                 )
 
-    def extract_metrics_from_state(self, state: State) -> Dict[str, float]:
+    def extract_metrics_from_state(self, state: State) -> dict[str, float]:
         results = {}
 
         for key in self.logger_keys:
@@ -169,7 +169,7 @@ class EvalGauntlet(Callback):
 
         return {k: sum(v) / len(v) for k, v in results.items()}
 
-    def eval_after_all(self, state: State, logger: Logger) -> Dict[str, float]:
+    def eval_after_all(self, state: State, logger: Logger) -> dict[str, float]:
         computed_metrics = self.extract_metrics_from_state(state)
         if len(computed_metrics) == 0:
             return {}

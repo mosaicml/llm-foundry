@@ -14,13 +14,9 @@ import warnings
 from functools import cached_property
 from typing import (
     Any,
-    Dict,
-    List,
     Mapping,
     MutableMapping,
     Optional,
-    Tuple,
-    Type,
     Union,
 )
 
@@ -348,7 +344,7 @@ class LlamaRotaryEmbeddingFoundry(LlamaRotaryEmbedding):
         self,
         x: torch.Tensor,
         position_ids: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         # In this subclass, we move `inv_freq` to same device as position_ids. This operation should be a no-op during training.
         # This is done to fix pipeline parallel generation using hf.generate. Please see this comment for details: https://github.com/mosaicml/llm-foundry/pull/1334#issue-2387337525
         self.inv_freq = self.inv_freq.to(position_ids.device)
@@ -480,7 +476,7 @@ class MPTModel(MPTPreTrainedModel):
         log.debug(f'Using {self.config.init_config["name"]} initialization.')
 
     @property
-    def block_class(self) -> Type[MPTBlock]:
+    def block_class(self) -> type[MPTBlock]:
         return MPTBlock
 
     def construct_blocks(self, config: MPTConfig) -> nn.ModuleList:
@@ -517,8 +513,8 @@ class MPTModel(MPTPreTrainedModel):
     def _get_override_block_args_list(
         self,
         config: MPTConfig,
-        block_args: Dict[str, Any],
-    ) -> List[Dict[str, Any]]:
+        block_args: dict[str, Any],
+    ) -> list[dict[str, Any]]:
         if config.block_overrides is None:
             raise ValueError(
                 'config.block_overrides should not be None when calling _get_override_block_args_list.',
@@ -581,11 +577,11 @@ class MPTModel(MPTPreTrainedModel):
 
     @staticmethod
     def _resolve_reuse_kv_layer_idx(
-        overrides_definition: Dict[str, Any],
-        model_modules_order_expanded: List[str],
+        overrides_definition: dict[str, Any],
+        model_modules_order_expanded: list[str],
         b_idx: int,
-        override_config: Dict[str, Any],
-        reuse_kv_layer_idx_dict: Dict[int, int],
+        override_config: dict[str, Any],
+        reuse_kv_layer_idx_dict: dict[int, int],
     ) -> int:
         override_attn_config = override_config['attn_config']
         if override_attn_config['reuse_kv_layer_idx'] >= 0:
@@ -621,7 +617,7 @@ class MPTModel(MPTPreTrainedModel):
         return reuse_kv_layer_idx
 
     @staticmethod
-    def _get_modules_order_expanded(order: List[Dict[str, Any]]) -> List[str]:
+    def _get_modules_order_expanded(order: list[dict[str, Any]]) -> list[str]:
         model_modules_order_expanded = []
         for item in order:
             repeat = item['repeat'] if 'repeat' in item else 1
@@ -642,10 +638,10 @@ class MPTModel(MPTPreTrainedModel):
 
     @staticmethod
     def _override_block_args(
-        block_args: Dict[str, Any],
-        override_config: Dict[str, Any],
-        allowed_block_overrides: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        block_args: dict[str, Any],
+        override_config: dict[str, Any],
+        allowed_block_overrides: dict[str, Any],
+    ) -> dict[str, Any]:
         unpermitted_keys = override_config.keys(
         ) - allowed_block_overrides.keys()
         if len(unpermitted_keys):
@@ -668,7 +664,7 @@ class MPTModel(MPTPreTrainedModel):
                 new_block_args[k] = override_config[k]
         return new_block_args
 
-    def extract_block_args(self, block_args: Dict[str, Any]) -> Dict[str, Any]:
+    def extract_block_args(self, block_args: dict[str, Any]) -> dict[str, Any]:
         """Sets the block args."""
         if block_args['ffn_config']['ffn_type'] in ffns_with_megablocks:
             block_args['ffn_config'] = config_moe_args(
@@ -696,7 +692,7 @@ class MPTModel(MPTPreTrainedModel):
         dtype: torch.dtype,
         attention_mask: Optional[torch.ByteTensor] = None,
         sequence_id: Optional[torch.LongTensor] = None,
-    ) -> Tuple[Optional[torch.Tensor], Optional[torch.ByteTensor]]:
+    ) -> tuple[Optional[torch.Tensor], Optional[torch.ByteTensor]]:
         if not self._attn_bias_initialized:
             if self.attn_bias_shape:
                 self.attn_bias = torch.zeros(
@@ -759,7 +755,7 @@ class MPTModel(MPTPreTrainedModel):
     def forward(
         self,
         input_ids: Optional[torch.LongTensor] = None,
-        past_key_values: Optional[List[Tuple[torch.FloatTensor]]] = None,
+        past_key_values: Optional[list[tuple[torch.FloatTensor]]] = None,
         attention_mask: Optional[torch.ByteTensor] = None,
         sequence_id: Optional[torch.LongTensor] = None,
         return_dict: Optional[bool] = None,
@@ -1075,7 +1071,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
         self.final_logit_softcapping = config.final_logit_softcapping
 
     @property
-    def backbone_model_class(self) -> Type[MPTModel]:
+    def backbone_model_class(self) -> type[MPTModel]:
         return MPTModel
 
     def get_input_embeddings(self) -> Union[SharedEmbedding, nn.Embedding]:
@@ -1127,7 +1123,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
     def forward(
         self,
         input_ids: Optional[torch.LongTensor] = None,
-        past_key_values: Optional[List[Tuple[torch.FloatTensor]]] = None,
+        past_key_values: Optional[list[tuple[torch.FloatTensor]]] = None,
         attention_mask: Optional[torch.ByteTensor] = None,
         sequence_id: Optional[torch.LongTensor] = None,
         labels: Optional[torch.LongTensor] = None,
@@ -1273,11 +1269,11 @@ class MPTForCausalLM(MPTPreTrainedModel):
     def prepare_inputs_for_generation(
         self,
         input_ids: torch.Tensor,
-        past_key_values: Optional[List[Tuple[torch.Tensor,
+        past_key_values: Optional[list[tuple[torch.Tensor,
                                              torch.Tensor]]] = None,
         inputs_embeds: Optional[torch.Tensor] = None,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         attention_mask = kwargs['attention_mask'].bool()
         if attention_mask[:, -1].sum() != attention_mask.shape[0]:
             raise NotImplementedError(
@@ -1309,9 +1305,9 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
     @staticmethod
     def _reorder_cache(
-        past_key_values: List[Tuple[torch.Tensor, torch.Tensor]],
+        past_key_values: list[tuple[torch.Tensor, torch.Tensor]],
         beam_idx: torch.LongTensor,
-    ) -> List[Tuple[torch.Tensor, ...]]:
+    ) -> list[tuple[torch.Tensor, ...]]:
         """Used by HuggingFace generate when using beam search with kv-caching.
 
         See https://github.com/huggingface/transformers/blob/3ec7a47664ebe40c40f4b722f6bb1cd30c3821ec/src/transformers/models/gpt2/modeling_gpt2.py#L1122-L1133
@@ -1368,9 +1364,9 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         self,
         tokenizer: Optional[PreTrainedTokenizerBase] = None,
         use_train_metrics: Optional[bool] = True,
-        additional_train_metrics: Optional[List] = None,
-        loss_fn: Optional[Union[str, Dict]] = 'fused_crossentropy',
-        **kwargs: Dict[str, Any],
+        additional_train_metrics: Optional[list] = None,
+        loss_fn: Optional[Union[str, dict]] = 'fused_crossentropy',
+        **kwargs: dict[str, Any],
     ):
         from llmfoundry.metrics import (
             DEFAULT_CAUSAL_LM_EVAL_METRICS,
@@ -1431,11 +1427,11 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             )
 
     @property
-    def model_class(self) -> Type[MPTForCausalLM]:
+    def model_class(self) -> type[MPTForCausalLM]:
         return MPTForCausalLM
 
     @property
-    def config_class(self) -> Type[MPTConfig]:
+    def config_class(self) -> type[MPTConfig]:
         return MPTConfig
 
     def get_targets(self, batch: Mapping) -> torch.Tensor:

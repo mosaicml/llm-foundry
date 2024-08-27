@@ -41,12 +41,9 @@ from pathlib import Path
 from typing import (
     Any,
     Callable,
-    Dict,
-    List,
     Literal,
     Optional,
     Sequence,
-    Tuple,
     Union,
     cast,
 )
@@ -68,6 +65,7 @@ from llmfoundry.data.finetuning.collator import (
     stitch_turns_decoder_only,
     stitch_turns_encoder_decoder,
 )
+from llmfoundry.tokenizers import get_date_string
 # yapf: disable
 from llmfoundry.utils.exceptions import (
     ALLOWED_MESSAGES_KEYS,
@@ -77,8 +75,10 @@ from llmfoundry.utils.exceptions import (
     ConsecutiveRepeatedChatRolesError,
     IncorrectMessageKeyQuantityError,
     InvalidContentTypeError,
+    InvalidExampleTypeError,
     InvalidFileExtensionError,
     InvalidLastChatMessageRoleError,
+    InvalidMessageTypeError,
     InvalidPromptResponseKeysError,
     InvalidPromptTypeError,
     InvalidResponseTypeError,
@@ -115,12 +115,14 @@ DOWNLOADED_FT_DATASETS_DIRPATH = os.path.abspath(
 )
 SUPPORTED_EXTENSIONS = ['.csv', '.json', '.jsonl', '.parquet']
 HUGGINGFACE_FOLDER_EXTENSIONS = ['.lock', '.metadata']
+DEFAULT_TARGET_RESPONSES = 'last'
+DEFAULT_TARGET_PROMPTS = 'none'
 
 PromptResponseDict = Mapping[str, str]
-ChatFormattedDict = Mapping[str, List[Dict[str, str]]]
+ChatFormattedDict = Mapping[str, list[dict[str, str]]]
 Example = Union[PromptResponseDict, ChatFormattedDict]
 ExampleType = Literal['prompt_response', 'chat']
-TokenizedExample = Dict[str, List[Dict[str, List[int]]]]
+TokenizedExample = dict[str, list[dict[str, list[int]]]]
 
 
 def _get_example_type(example: Example) -> ExampleType:
@@ -136,9 +138,7 @@ def _get_example_type(example: Example) -> ExampleType:
         KeyError: If the example type is unknown.
     """
     if not isinstance(example, Mapping):
-        raise TypeError(
-            f'Expected example to be a Mapping, but found {type(example)}',
-        )
+        raise InvalidExampleTypeError(str(type(example)))
     if (
         len(example.keys()) == 1 and any(
             allowed_message_key in example
@@ -153,7 +153,8 @@ def _get_example_type(example: Example) -> ExampleType:
     ):
         return 'prompt_response'
     else:
-        raise UnknownExampleTypeError(str(example.keys()))
+        keys = str(set(example.keys()))
+        raise UnknownExampleTypeError(keys)
 
 
 def _is_empty_or_nonexistent(dirpath: str) -> bool:
@@ -170,23 +171,17 @@ def _is_empty_or_nonexistent(dirpath: str) -> bool:
 
 def _get_key(dictionary: Mapping[str, Any], allowed_keys: set[str]):
     if not isinstance(dictionary, Mapping):
-        raise TypeError(
-            f'Expected dictionary to be a mapping, but found {type(dictionary)}',
-        )
+        raise InvalidExampleTypeError(str(type(dictionary)))
     desired_keys = allowed_keys.intersection(dictionary.keys())
     return list(desired_keys)[0]
 
 
 def _validate_chat_formatted_example(example: ChatFormattedDict):
     if not isinstance(example, Mapping):
-        raise TypeError(
-            f'Expected example to be a mapping, but found {type(example)}',
-        )
+        raise InvalidExampleTypeError(str(type(example)))
     messages = example[_get_key(example, ALLOWED_MESSAGES_KEYS)]
-    if not isinstance(messages, List):
-        raise TypeError(
-            f'Expected messages to be an iterable, but found {type(messages)}',
-        )
+    if not isinstance(messages, list):
+        raise InvalidMessageTypeError(str(type(messages)))
     if len(messages) <= 1:
         raise NotEnoughChatDataError()
 
@@ -220,7 +215,7 @@ def _validate_chat_formatted_example(example: ChatFormattedDict):
 def _slice_chat_formatted_example(
     example: ChatFormattedDict,
     tokenizer: PreTrainedTokenizerBase,
-) -> List[Tuple[str, str]]:
+) -> list[tuple[str, str]]:
     """Slices chat example into a list of templated prompt, response turns.
 
     Note: Assistant messages mark the end of chat turns. So there are as many turns as there are
@@ -248,18 +243,20 @@ def _slice_chat_formatted_example(
         )
 
     def slice_out_last_turn(
-        messages_through_current_turn: List[Dict[str, str]],
+        messages_through_current_turn: list[dict[str, str]],
         conversation_through_previous_turn: str,
-    ) -> Tuple[str, str]:
+    ) -> tuple[str, str]:
         try:
             full_conversation = tokenizer.apply_chat_template(
                 messages_through_current_turn,
                 tokenize=False,
+                date_string=get_date_string(),
             )
             prompt_with_history = tokenizer.apply_chat_template(
                 messages_through_current_turn[:-1],
                 tokenize=False,
                 add_generation_prompt=True,
+                date_string=get_date_string(),
             )
         except Exception as e:
             raise ChatTemplateError(
@@ -287,7 +284,7 @@ def _slice_chat_formatted_example(
         response = full_conversation[len(prompt_with_history):]
         return prompt, response
 
-    templated_prompt_response_turns: List[Tuple[str, str]] = []
+    templated_prompt_response_turns: list[tuple[str, str]] = []
     conversation_through_previous_turn = ''
     for idx, message in enumerate(messages):
         if message['role'] == 'assistant':
@@ -306,7 +303,7 @@ def _tokenize_with_bos_removal(
     tokenizer: PreTrainedTokenizerBase,
     text: str,
     text_target: str,
-) -> Dict[str, List[int]]:
+) -> dict[str, list[int]]:
     """Tokenizes the prompt and response using the provided tokenizer.
 
     Args:
@@ -325,10 +322,24 @@ def _tokenize_with_bos_removal(
     )
 
     # Remove the BOS token from the start of the labels if it was automatically added
-    if hasattr(tokenizer, 'add_bos_token') and tokenizer.add_bos_token:
-        if tokenizer.bos_token_id is not None and tokenized_sample['labels'][
-            0] == tokenizer.bos_token_id:
-            tokenized_sample['labels'] = tokenized_sample['labels'][1:]
+    # Unfortunately if the tokenizer is PretrainedTokenizerFast, as llama3 is, it does not provide
+    # an add_bos_token attr that we can check explicitly, so instead we rely on checking if both the
+    # text and the text_target start with bos_token_id to determine whether to strip bos.
+    has_bos_token = hasattr(
+        tokenizer,
+        'bos_token_id',
+    ) and tokenizer.bos_token_id is not None
+    input_ids_starts_with_bos = False
+    labels_starts_with_bos = False
+    if has_bos_token and len(
+        tokenized_sample['input_ids'],
+    ) > 0 and len(tokenized_sample['labels']) > 0:
+        input_ids_starts_with_bos = tokenized_sample['input_ids'][
+            0] == tokenizer.bos_token_id
+        labels_starts_with_bos = tokenized_sample['labels'][
+            0] == tokenizer.bos_token_id
+    if input_ids_starts_with_bos and labels_starts_with_bos:
+        tokenized_sample['labels'] = tokenized_sample['labels'][1:]
 
     return tokenized_sample
 
@@ -648,8 +659,11 @@ class StreamingFinetuningDataset(StreamingDataset):
         self.max_seq_len = max_seq_len
         self.packing_ratio = packing_ratio
 
+    def tokenize_example(self, example: Example) -> TokenizedExample:
+        return tokenize_formatted_example(example, self.tokenizer)
+
     # How to process a sample
-    def __getitem__(self, idx: int) -> Dict[str, Any]:
+    def __getitem__(self, idx: int) -> dict[str, Any]:
         sample = super().__getitem__(idx)
         if 'turns' in sample:
             # Already tokenized in latest format
@@ -676,10 +690,10 @@ class StreamingFinetuningDataset(StreamingDataset):
                 )
             # Convert to latest format by wrapping sample as a "turn"
             return {'turns': [sample]}
-        return tokenize_formatted_example(sample, tokenizer=self.tokenizer)
+        return self.tokenize_example(sample)
 
     def state_dict(self, num_samples: int,
-                   from_beginning: bool) -> Dict[str, Any]:
+                   from_beginning: bool) -> dict[str, Any]:
         if self.packing_ratio is not None:
             num_samples = int(self.packing_ratio * num_samples)
 
@@ -692,7 +706,7 @@ class StreamingFinetuningDataset(StreamingDataset):
 class DatasetConstructor:
 
     def __init__(self):
-        self._task_preprocessing_registry: Dict[str, Callable] = {}
+        self._task_preprocessing_registry: dict[str, Callable] = {}
 
     def register(self, *names: str) -> Callable[[Callable], Callable]:
         """Decorator for registering preprocessing functions."""
@@ -718,8 +732,8 @@ class DatasetConstructor:
 
     def get_preprocessing_fn_from_dict(
         self,
-        mapping: Dict[str, str],
-    ) -> Callable[[Dict[str, Any]], Example]:
+        mapping: dict[str, str],
+    ) -> Callable[[dict[str, Any]], Example]:
         """Get a preprocessing function from a dictionary.
 
         The dictionary maps column names in the dataset to "prompt" and "response".
@@ -741,7 +755,7 @@ class DatasetConstructor:
             ValueError: If the mapping does not have keys "prompt" and "response".
         """
 
-        def _preprocessor(example: Dict[str, Any]) -> Dict[str, str]:
+        def _preprocessor(example: dict[str, Any]) -> dict[str, str]:
             if list(mapping.keys()) != ['prompt', 'response']:
                 raise InvalidPromptResponseKeysError(mapping, example)
             return {
@@ -755,7 +769,7 @@ class DatasetConstructor:
         self,
         preprocessor: Optional[str],
         dataset_name: Optional[str] = None,
-    ) -> Optional[Callable[[Dict[str, Any]], Example]]:
+    ) -> Optional[Callable[[dict[str, Any]], Example]]:
         """Get a preprocessing function from a string.
 
         String can be either a registered function or an import path.
@@ -805,14 +819,15 @@ class DatasetConstructor:
         self,
         dataset_name: str,
         split: str,
-        safe_load: bool,
-        max_seq_len: int,
-        preprocessing_fn: Optional[Callable[[dict[str, Any]], Example]],
-        tokenizer: PreTrainedTokenizerBase,
-        target_prompts: str,
-        target_responses: str,
-        decoder_only_format: bool,
-        hf_kwargs: Dict[str, Any],
+        safe_load: bool = False,
+        max_seq_len: int = 2048,
+        mapping_fn: Callable = tokenize_formatted_example,
+        preprocessing_fn: Optional[Callable[[dict[str, Any]], Example]] = None,
+        tokenizer: Optional[PreTrainedTokenizerBase] = None,
+        target_prompts: str = DEFAULT_TARGET_PROMPTS,
+        target_responses: str = DEFAULT_TARGET_RESPONSES,
+        decoder_only_format: bool = True,
+        hf_kwargs: Optional[dict[str, Any]] = None,
     ) -> Union[hf_datasets.DatasetDict, hf_datasets.Dataset,
                hf_datasets.IterableDatasetDict, hf_datasets.IterableDataset]:
         """Load a HuggingFace Datasets, preprocess, and tokenize.
@@ -830,6 +845,8 @@ class DatasetConstructor:
             max_seq_len (int): The maximum length of sequences
                 in the batch. See :class:`Seq2SeqFinetuningCollator` docstring
                 for details.
+            mapping_fn (Callable): The mapping function to use for mapping the data
+                examples.
             preprocessing_fn (Callable, optional): The preprocessing function to use for
                 formatting the data examples.
             tokenizer (PreTrainedTokenizerBase): The tokenizer to be used for tokenizing
@@ -851,6 +868,14 @@ class DatasetConstructor:
         Returns:
             Dataset: The tokenized dataset.
         """
+        if hf_kwargs is None:
+            hf_kwargs = {}
+
+        # None is checked in the function, because argument defaults were added after the function was written and we want
+        # to preserve the ordering of the arguments for backwards compatibility.
+        if tokenizer is None:
+            raise ValueError('A tokenizer must be provided.')
+
         signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_data_prep_completed'
 
         # Non local rank 0 ranks will wait here for local rank 0 to finish the data processing.
@@ -926,13 +951,13 @@ class DatasetConstructor:
                 **hf_kwargs,
             )
 
-            def dataset_mapper(example: Dict):
+            def dataset_mapper(example: dict):
                 if preprocessing_fn is not None:
-                    return tokenize_formatted_example(
+                    return mapping_fn(
                         preprocessing_fn(example),
                         tokenizer,
                     )
-                return tokenize_formatted_example(example, tokenizer)
+                return mapping_fn(example, tokenizer)
 
             detected_cpu_count = os.cpu_count() or 1
             detected_cpus_with_margin = detected_cpu_count - 8
@@ -999,19 +1024,23 @@ class DatasetConstructor:
         assert filtered_dataset is not None
         return filtered_dataset
 
+    @property
+    def streaming_dataset_class(self) -> type[StreamingFinetuningDataset]:
+        return StreamingFinetuningDataset
+
     def build_from_streaming(
         self,
         *args: Any,
         **kwargs: Any,
     ) -> StreamingFinetuningDataset:
-        return StreamingFinetuningDataset(*args, **kwargs)
+        return self.streaming_dataset_class(*args, **kwargs)
 
 
 dataset_constructor = DatasetConstructor()
 
 
 @dataset_constructor.register('tatsu-lab/alpaca')
-def alpaca_preprocessing_function(inp: Dict) -> PromptResponseDict:
+def alpaca_preprocessing_function(inp: dict) -> PromptResponseDict:
     """Split out prompt/response from text."""
     try:
         prompt, response = inp['text'].split('### Response:')
@@ -1023,7 +1052,7 @@ def alpaca_preprocessing_function(inp: Dict) -> PromptResponseDict:
 
 
 @dataset_constructor.register('HuggingFaceH4/databricks_dolly_15k')
-def dolly_preprocessing_function(inp: Dict) -> PromptResponseDict:
+def dolly_preprocessing_function(inp: dict) -> PromptResponseDict:
     """Format the text string."""
     PROMPT_FORMAT = 'Below is an instruction that describes a task. Write a response that appropriately completes the request.\n\n### Instruction:\n{instruction}\n\n### Response:\n'
     try:
@@ -1039,7 +1068,7 @@ def dolly_preprocessing_function(inp: Dict) -> PromptResponseDict:
 
 
 @dataset_constructor.register('bigscience/P3')
-def p3_preprocessing_function(inp: Dict) -> PromptResponseDict:
+def p3_preprocessing_function(inp: dict) -> PromptResponseDict:
     """Format the already-split example."""
     return {
         'prompt': inp['inputs'] + ':',
@@ -1049,7 +1078,7 @@ def p3_preprocessing_function(inp: Dict) -> PromptResponseDict:
 
 # Muennighoff's P3 and flan datasets share a similar convention
 @dataset_constructor.register('Muennighoff/P3', 'Muennighoff/flan')
-def muennighoff_tokenize_function(inp: Dict) -> PromptResponseDict:
+def muennighoff_tokenize_function(inp: dict) -> PromptResponseDict:
     """Format the already-split example."""
     try:
         prompt: str = inp['inputs']
@@ -1066,7 +1095,7 @@ def muennighoff_tokenize_function(inp: Dict) -> PromptResponseDict:
 
 
 @dataset_constructor.register('teknium/OpenHermes-2.5')
-def shareGPT_format_preprocessor(inp: Dict) -> ChatFormattedDict:
+def shareGPT_format_preprocessor(inp: dict) -> ChatFormattedDict:
     """Convert from ShareGPT format to our chat format."""
     role_map = {
         'human': 'user',
@@ -1074,7 +1103,7 @@ def shareGPT_format_preprocessor(inp: Dict) -> ChatFormattedDict:
     }
     try:
         conversation = inp['conversations']
-        messages: List[Dict[str, str]] = []
+        messages: list[dict[str, str]] = []
         for message in conversation:
             role: str = role_map.get(message['from'], message['from'])
             content: str = message['value']

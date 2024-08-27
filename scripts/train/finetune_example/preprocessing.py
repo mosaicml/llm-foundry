@@ -31,15 +31,15 @@ format. We'll structure prompts and responses like this:
 }
 """
 
-from typing import Dict, List, Union
+from typing import Union
 
 
 def multiple_choice(
-    inp: Dict[str, Union[str, List[str], int]],
-) -> Dict[str, str]:
+    inp: dict[str, Union[str, list[str], int]],
+) -> dict[str, str]:
     PROMPT_FORMAT = '{query}\nOptions:{options}\nAnswer: '
     options = ''
-    assert isinstance(inp['choices'], List)
+    assert isinstance(inp['choices'], list)
     for option in inp['choices']:
         options += f'\n - {option}'
     query = inp['query']

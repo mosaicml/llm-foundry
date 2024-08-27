@@ -11,11 +11,14 @@ from llmfoundry.data.finetuning.tasks import (
     dataset_constructor,
     tokenize_formatted_example,
 )
+from llmfoundry.tokenizers import get_date_string
 from llmfoundry.utils.builders import build_tokenizer
 from llmfoundry.utils.exceptions import (
     ALLOWED_PROMPT_KEYS,
     ALLOWED_RESPONSE_KEYS,
     ChatTemplateError,
+    InvalidExampleTypeError,
+    InvalidMessageTypeError,
 )
 
 
@@ -48,13 +51,13 @@ def test_tokenize_chat_example_malformed():
             'content': 'user message not followed by an assistant label',
         }],
     }
-    wrong_type = {'messages': 'this is not a list of messages'}
+    wrong_example_type = ['this is not a dictionary']
+    wrong_messages_type = {'messages': 'this is not a list of messages'}
     malformed_chat_examples = [
         too_few_messages,
         no_content,
         ends_with_user_role,
         no_assistant_message,
-        wrong_type,
     ]
     my_tokenizer = build_tokenizer('mosaicml/mpt-7b-8k-chat', {})
     for example in malformed_chat_examples:
@@ -63,6 +66,18 @@ def test_tokenize_chat_example_malformed():
                 example,
                 my_tokenizer,
             )  # type: ignore (the typing here is supposed to be malformed)
+    with pytest.raises(InvalidExampleTypeError):
+        # Ignore the type here because it's the mistyping that we're
+        # trying to test.
+        tokenize_formatted_example( # type: ignore
+            wrong_example_type, # type: ignore
+            my_tokenizer, # type: ignore
+        )
+    with pytest.raises(InvalidMessageTypeError):
+        tokenize_formatted_example(
+            wrong_messages_type,
+            my_tokenizer,
+        )
 
 
 def test_tokenize_chat_example_well_formed():
@@ -196,10 +211,27 @@ def test_tokenize_instruct_example_well_formed():
 
 @pytest.mark.parametrize(
     'tokenizer_name',
-    ['EleutherAI/gpt-neox-20b', 'HuggingFaceH4/zephyr-7b-beta', 't5-base'],
+    [
+        'EleutherAI/gpt-neox-20b',
+        'HuggingFaceH4/zephyr-7b-beta',
+        't5-base',
+        'meta-llama/Meta-Llama-3.1-8B-Instruct',
+    ],
 )
 @pytest.mark.parametrize('messages_format', [True, False])
-def test_multi_turn_chat_slicing(tokenizer_name: str, messages_format: bool):
+@pytest.mark.parametrize('use_date_string', [True, False])
+def test_multi_turn_chat_slicing(
+    tokenizer_name: str,
+    messages_format: bool,
+    use_date_string: bool,
+):
+    if 'meta-llama' in tokenizer_name:
+        pytest.skip('Model is gated. Skipping test.')
+    is_llama_3_1_instruct = 'Meta-Llama-3.1' in tokenizer_name and 'Instruct' in tokenizer_name
+    if is_llama_3_1_instruct and use_date_string:
+        pytest.skip(
+            'Llama 3.1 Instruct models use date_string in chat template already. Skipping test.',
+        )
     if messages_format:
         convo = [
             {
@@ -258,6 +290,10 @@ def test_multi_turn_chat_slicing(tokenizer_name: str, messages_format: bool):
 
     tok = transformers.AutoTokenizer.from_pretrained(tokenizer_name)
 
+    # Manually set a chat template to test if the date_string is being used.
+    if use_date_string:
+        tok.chat_template = "{%- if not date_string is defined %}\n    {%- set date_string = \"26 Jul 2024\" %}\n{%- endif %}\n{{- \"Today Date: \" + date_string }}\n"
+
     templated_prompt_response_turns = _slice_chat_formatted_example(
         example,
         tok,
@@ -267,8 +303,18 @@ def test_multi_turn_chat_slicing(tokenizer_name: str, messages_format: bool):
     for prompt, response in templated_prompt_response_turns:
         reconstructed_chat += prompt + response
 
-    full_chat = tok.apply_chat_template(convo, tokenize=False)
+    date_string = get_date_string()
+    full_chat = tok.apply_chat_template(
+        convo,
+        tokenize=False,
+        date_string=date_string,
+    )
     assert reconstructed_chat == full_chat
+
+    if is_llama_3_1_instruct or use_date_string:
+        assert date_string in full_chat
+    else:
+        assert date_string not in full_chat
 
 
 def test_fail_chat_template():

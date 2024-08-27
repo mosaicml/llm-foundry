@@ -3,7 +3,7 @@
 
 import logging
 import warnings
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 import torch
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
@@ -17,10 +17,10 @@ __all__ = [
 # HuggingFace hardcodes the ignore index to -100
 _HF_IGNORE_INDEX = -100
 
-TokenizedExample = Dict[str, List[Dict[str, List[int]]]]
+TokenizedExample = dict[str, list[dict[str, list[int]]]]
 
 
-def ensure_list(x: Union[List, torch.Tensor]) -> List:
+def ensure_list(x: Union[list, torch.Tensor]) -> list:
     if isinstance(x, torch.Tensor):
         x = list(x.flatten())
     assert isinstance(x, list)
@@ -224,6 +224,10 @@ class Seq2SeqFinetuningCollator:
             sizes. Default: ``False`` ensures that all sequences are max_seq_len.
         batch_metadata (dict, optional): A dictionary of metadata which will be added
             to the batch.
+        pad_to_longest (bool, optional): Whether to pad to the longest sequence,
+            which may result in smaller but inconsistent batch sizes. This is
+            primarily used to profile packing.
+            Default: ``False`` ensures that all sequences are max_seq_len.
     """
 
     def __init__(
@@ -234,7 +238,8 @@ class Seq2SeqFinetuningCollator:
         target_responses: str = 'last',
         target_prompts: str = 'none',
         allow_pad_trimming: bool = False,
-        batch_metadata: Optional[Dict[str, Any]] = None,
+        batch_metadata: Optional[dict[str, Any]] = None,
+        pad_to_longest: bool = False,
     ):
         self.tokenizer = tokenizer
         self.max_seq_len = max_seq_len
@@ -246,6 +251,8 @@ class Seq2SeqFinetuningCollator:
         # Trimming will always be skipped on at least the first __call__
         self._allow_pad_trimming = allow_pad_trimming
         self._seen_first_batch = False
+
+        self._pad_to_longest = pad_to_longest
 
         illegal_keys = [
             'input_ids',
@@ -293,7 +300,7 @@ class Seq2SeqFinetuningCollator:
         self._warned_target = False
 
     def __call__(self,
-                 examples: List[TokenizedExample]) -> Dict[str, torch.Tensor]:
+                 examples: list[TokenizedExample]) -> dict[str, torch.Tensor]:
         for check_key in ['input_ids', 'labels']:
             if check_key not in examples[0]['turns'][0]:
                 raise KeyError(
@@ -316,28 +323,38 @@ class Seq2SeqFinetuningCollator:
 
     def _process_and_batch_decoder_only(
         self,
-        examples: List[TokenizedExample],
-    ) -> Dict[str, torch.Tensor]:
+        examples: list[TokenizedExample],
+    ) -> dict[str, torch.Tensor]:
         # Steps explained in comments
         processed_examples = []
-        for example in examples:
-            input_ids, labels = stitch_turns_decoder_only(
+        input_ids_and_labels = [
+            stitch_turns_decoder_only(
                 example_turns=example['turns'],
                 target_prompts=self.target_prompts,
                 target_responses=self.target_responses,
                 eos_token_id=self.tokenizer.eos_token_id,
-            )
+            ) for example in examples
+        ]
 
+        if self._pad_to_longest:
+            max_seq_len = max([
+                len(input_ids) for input_ids, _ in input_ids_and_labels
+            ])
+            max_seq_len = min(max_seq_len, self.max_seq_len)
+        else:
+            max_seq_len = self.max_seq_len
+
+        for input_ids, labels in input_ids_and_labels:
             orig_size = len(input_ids)
             # We may need to truncate the input_ids / labels in order to maintain max_seq_len
-            if orig_size > self.max_seq_len:
-                input_ids = input_ids[:self.max_seq_len]
-                labels = labels[:self.max_seq_len]
+            if orig_size > max_seq_len:
+                input_ids = input_ids[:max_seq_len]
+                labels = labels[:max_seq_len]
 
                 # Check to make sure there are still loss-generating tokens. Error if not.
                 if len([l for l in labels if l != _HF_IGNORE_INDEX]) == 0:
                     raise ValueError(
-                        f'Truncating to max_seq_len={self.max_seq_len} has removed all loss-generating tokens. ' +\
+                        f'Truncating to max_seq_len={max_seq_len} has removed all loss-generating tokens. ' +\
                         f'Pre-truncation sequence length was {orig_size}. ' +\
                         'This sample should have been filtered out before reaching the collator. If using ' +\
                         'pre-tokenized streaming data, this may have resulted from using different ' +\
@@ -348,7 +365,7 @@ class Seq2SeqFinetuningCollator:
                 # Still issue a warning when truncating
                 if not self._warned_truncated:
                     warnings.warn(
-                        f'Truncating sequence of length={orig_size} to fit max_seq_len={self.max_seq_len}. ' +\
+                        f'Truncating sequence of length={orig_size} to fit max_seq_len={max_seq_len}. ' +\
                         f'If truncation is a problem, consider increasing max_seq_len.',
                     )
                     self._warned_truncated = True
@@ -358,7 +375,7 @@ class Seq2SeqFinetuningCollator:
             # Annoyingly, we need to pad everything but input_ids
             # and attention_mask ourselves
             n_total = len(input_ids)
-            i_pad = [_HF_IGNORE_INDEX] * (self.max_seq_len - n_total)
+            i_pad = [_HF_IGNORE_INDEX] * (max_seq_len - n_total)
             if self.tokenizer.padding_side == 'left':
                 labels = i_pad + labels
             else:
@@ -376,7 +393,7 @@ class Seq2SeqFinetuningCollator:
         batch = self.tokenizer.pad(
             processed_examples,
             padding='max_length',
-            max_length=self.max_seq_len,
+            max_length=max_seq_len,
             return_tensors='pt',
         )
 
@@ -405,40 +422,49 @@ class Seq2SeqFinetuningCollator:
 
     def _process_and_batch_encoder_decoder(
         self,
-        examples: List[TokenizedExample],
-    ) -> Dict[str, torch.Tensor]:
+        examples: list[TokenizedExample],
+    ) -> dict[str, torch.Tensor]:
         # The encoder-decoder case is has some gotchas.
         # Steps are explained in comments.
         processed_examples = []
-        for example in examples:
-            context, target = stitch_turns_encoder_decoder(
+        contexts_and_targets = [
+            stitch_turns_encoder_decoder(
                 example_turns=example['turns'],
                 eos_token_id=self.tokenizer.eos_token_id,
-            )
+            ) for example in examples
+        ]
 
+        if self._pad_to_longest:
+            max_seq_len = 0
+            for context, target in contexts_and_targets:
+                max_seq_len = max(max_seq_len, len(context), len(target))
+        else:
+            max_seq_len = self.max_seq_len
+
+        for context, target in contexts_and_targets:
             # We need to pad labels ourselves. Because HF.
-            if len(target) < self.max_seq_len:
-                i_pad = [_HF_IGNORE_INDEX] * (self.max_seq_len - len(target))
+            if len(target) < max_seq_len:
+                i_pad = [_HF_IGNORE_INDEX] * (max_seq_len - len(target))
                 target = target + i_pad
             else:
                 if not self._warned_target:
                     warnings.warn(
                         f'Truncating TARGET sequence of length={len(target)} ' +\
-                        f'to max_seq_len={self.max_seq_len}. If truncation is ' +\
+                        f'to max_seq_len={max_seq_len}. If truncation is ' +\
                         f'a problem, consider increasing max_seq_len.')
                     self._warned_target = True
-                target = target[:self.max_seq_len -
+                target = target[:max_seq_len -
                                 1] + [self.tokenizer.eos_token_id]
 
             # We might need to truncate the context. Preserve the beginning.
-            if len(context) > self.max_seq_len:
+            if len(context) > max_seq_len:
                 if not self._warned_context:
                     warnings.warn(
                         f'Truncating CONTEXT sequence of length={len(context)} ' +\
-                        f'to max_seq_len={self.max_seq_len}. If truncation is ' +\
+                        f'to max_seq_len={max_seq_len}. If truncation is ' +\
                         f'a problem, consider increasing max_seq_len.')
                     self._warned_context = True
-                context = context[:self.max_seq_len -
+                context = context[:max_seq_len -
                                   1] + [self.tokenizer.eos_token_id]
 
             # Back into the example
@@ -454,7 +480,7 @@ class Seq2SeqFinetuningCollator:
         batch = self.tokenizer.pad(
             processed_examples,
             padding='max_length',
-            max_length=self.max_seq_len,
+            max_length=max_seq_len,
             return_tensors='pt',
         )
         # We're still missing decoder_input_ids and decoder_attention_mask

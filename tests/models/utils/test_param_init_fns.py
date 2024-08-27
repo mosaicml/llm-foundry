@@ -4,7 +4,7 @@ import math
 from collections import OrderedDict
 from collections.abc import Sequence
 from functools import partial
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Optional, Union
 
 import pytest
 import torch
@@ -146,8 +146,8 @@ def test_all_params_init(module: torch.nn.Module):
         ('emb_init_uniform_lim', [1, 1]),
     ],
 )
-def test_emb_init(emb_init_cfg: Optional[Tuple[str, Union[int, List[int]]]]):
-    cfg: Dict[str, Union[int, List[int]]] = {
+def test_emb_init(emb_init_cfg: Optional[tuple[str, Union[int, list[int]]]]):
+    cfg: dict[str, Union[int, list[int]]] = {
         'vocab_size': 64,
         'in_features': 16,
         'out_features': 32,

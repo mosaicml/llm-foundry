@@ -1,7 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import torch
 
@@ -35,7 +35,7 @@ class LPLayerNorm(torch.nn.LayerNorm):
 
     def __init__(
         self,
-        normalized_shape: Union[int, List[int], torch.Size],
+        normalized_shape: Union[int, list[int], torch.Size],
         eps: float = 1e-05,
         elementwise_affine: bool = True,
         device: Optional[torch.device] = None,
@@ -84,7 +84,7 @@ class RMSNorm(torch.nn.Module):
 
     def __init__(
         self,
-        normalized_shape: Union[int, List[int], torch.Size],
+        normalized_shape: Union[int, list[int], torch.Size],
         eps: float = 1e-5,
         weight: bool = True,
         dtype: Optional[torch.dtype] = None,
@@ -108,7 +108,7 @@ class LPRMSNorm(RMSNorm):
 
     def __init__(
         self,
-        normalized_shape: Union[int, List[int], torch.Size],
+        normalized_shape: Union[int, list[int], torch.Size],
         eps: float = 1e-5,
         weight: bool = True,
         dtype: Optional[torch.dtype] = None,
@@ -137,7 +137,7 @@ class TritonRMSNorm(torch.nn.Module):
 
     def __init__(
         self,
-        normalized_shape: Union[int, List[int], torch.Size],
+        normalized_shape: Union[int, list[int], torch.Size],
         eps: float = 1e-5,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,

@@ -4,7 +4,7 @@
 import re
 import unittest.mock as mock
 from copy import deepcopy
-from typing import Any, Dict, Union
+from typing import Any, Union
 from unittest.mock import MagicMock
 
 import pytest
@@ -240,8 +240,8 @@ class _DummyModule(nn.Module):
 )
 def test_build_optimizer(
     name: str,
-    optimizer_config: Dict[str, Any],
-    opt_additional_config: Dict[str, Any],
+    optimizer_config: dict[str, Any],
+    opt_additional_config: dict[str, Any],
 ):
     model = _DummyModule()
     optimizer_config = deepcopy(optimizer_config)

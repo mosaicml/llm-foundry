@@ -8,7 +8,6 @@ from itertools import islice
 from typing import (
     Any,
     Callable,
-    Dict,
     Mapping,
     Optional,
     Sequence,
@@ -194,7 +193,7 @@ class StreamingTextDataset(StreamingDataset):
         self.max_seq_len = max_seq_len
 
     # How to tokenize a text sample to a token sample
-    def _tokenize(self, text_sample: Mapping) -> Dict[str, list[int]]:
+    def _tokenize(self, text_sample: Mapping) -> dict[str, list[int]]:
         if self.tokenizer._pad_token is None:
             # Some tokenizers (e.g. GPT2 tokenizer) have no padding token which causes bugs
             raise RuntimeError(
@@ -210,7 +209,7 @@ class StreamingTextDataset(StreamingDataset):
 
     def _read_binary_tokenized_sample(
         self,
-        sample: Dict[str, Any],
+        sample: dict[str, Any],
     ) -> torch.Tensor:
         # Modeling code still expects int64 tensors.
         if isinstance(sample['tokens'], np.ndarray):
@@ -227,7 +226,7 @@ class StreamingTextDataset(StreamingDataset):
 
     # How to process a sample
     def __getitem__(self,
-                    idx: int) -> Union[Dict[str, list[int]], torch.Tensor]:
+                    idx: int) -> Union[dict[str, list[int]], torch.Tensor]:
         sample = super().__getitem__(idx)
         if 'text' in sample:
             token_sample = self._tokenize(sample)
@@ -268,14 +267,14 @@ class ConcatenatedSequenceCollatorWrapper:
             self.split_token_id = eos_token_id
             self.bos_mode = False
 
-    def __call__(self, examples: list[Any]) -> Dict[str, torch.Tensor]:
+    def __call__(self, examples: list[Any]) -> dict[str, torch.Tensor]:
         batch = self.base_collator(examples)
         batch['sequence_id'] = self.get_sequence_id_from_batch(batch)
         return batch
 
     def get_sequence_id_from_batch(
         self,
-        batch: Dict[str, torch.Tensor],
+        batch: dict[str, torch.Tensor],
     ) -> torch.Tensor:
         is_separator = torch.eq(batch['input_ids'], self.split_token_id)
         cumulative_sep = torch.cumsum(is_separator,
@@ -289,7 +288,7 @@ class ConcatenatedSequenceCollatorWrapper:
         return torch.cat([left_zeros, cumulative_sep[:, :-1]], dim=1)
 
 
-def build_streams(streams: Optional[Dict[str, Any]] = None,):
+def build_streams(streams: Optional[dict[str, Any]] = None,):
     streams_dict = streams
     # build streams
     streams_ret = []
@@ -301,7 +300,7 @@ def build_streams(streams: Optional[Dict[str, Any]] = None,):
 def build_text_dataloader(
     tokenizer: PreTrainedTokenizerBase,
     device_batch_size: Union[int, float],
-    dataset: Dict[str, Any],
+    dataset: dict[str, Any],
     drop_last: bool,
     num_workers: int,
     pin_memory: bool = True,

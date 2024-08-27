@@ -5,7 +5,7 @@ import time
 import warnings
 from argparse import ArgumentParser, ArgumentTypeError, Namespace
 from contextlib import nullcontext
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 import torch
 from transformers import (
@@ -19,6 +19,7 @@ from transformers import (
     TextStreamer,
 )
 
+from llmfoundry.tokenizers import get_date_string
 from llmfoundry.utils.exceptions import ChatTemplateError
 
 DEFAULT_SYSTEM_PROMPT = 'You are a friendly chatbot who aims to be helpful and honest.'
@@ -35,7 +36,7 @@ class ChatMessage:
         self.role = role
         self.content = content
 
-    def to_dict(self,) -> Dict[str, str]:
+    def to_dict(self,) -> dict[str, str]:
         return {'role': self.role, 'content': self.content}
 
     def __repr__(self) -> str:
@@ -67,9 +68,9 @@ class Conversation:
         self,
         model: PreTrainedModel,
         tokenizer: PreTrainedTokenizerBase,
-        generate_kwargs: Dict[str, Any],
+        generate_kwargs: dict[str, Any],
         system_prompt: str,
-        stop_tokens: Optional[List[str]] = None,
+        stop_tokens: Optional[list[str]] = None,
     ) -> None:
         if stop_tokens is None:
             stop_tokens = ['<|endoftext|>', '<|im_end|>']
@@ -121,7 +122,7 @@ class Conversation:
             "- Type 'history_fmt' to see the conversation\n- Type 'quit' to end\n- Type 'system' to change the system prompt\n"
         )
 
-    def _history_to_chat_conversation(self) -> List[Dict[str, str]]:
+    def _history_to_chat_conversation(self) -> list[dict[str, str]]:
         msg_history = [chat_msg.to_dict() for chat_msg in self.history]
         return msg_history
 
@@ -132,6 +133,7 @@ class Conversation:
                 chat_conversation,
                 tokenize=False,
                 add_generation_prompt=False,
+                date_string=get_date_string(),
             )
         except Exception as e:
             raise ChatTemplateError(
@@ -149,6 +151,7 @@ class Conversation:
                 tokenize=True,
                 add_generation_prompt=True,
                 return_tensors='pt',
+                date_string=get_date_string(),
             )
         except Exception as e:
             raise ChatTemplateError(

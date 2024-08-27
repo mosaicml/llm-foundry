@@ -3,7 +3,7 @@
 import argparse
 import math
 import os
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Optional, Union
 
 import requests
 import yaml
@@ -243,7 +243,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def get_max_seq_lens(pows: Optional[List[int]] = None):
+def get_max_seq_lens(pows: Optional[list[int]] = None):
     if pows is None:
         pows = [9, 14]
     return [2**n for n in range(pows[0], pows[1] + 1)]
@@ -251,8 +251,8 @@ def get_max_seq_lens(pows: Optional[List[int]] = None):
 
 def get_global_train_batch_sizes(
     max_seq_len: int,
-    pows: List[int],
-    batch_sizes: Optional[List[int]] = None,
+    pows: list[int],
+    batch_sizes: Optional[list[int]] = None,
 ):
     if batch_sizes is None:
         batch_sizes = []
@@ -284,7 +284,7 @@ def get_cluster_gpu_types(cluster: str):
     return [gpu_info[0] for gpu_info in CLUSTER_INFO[cluster]]
 
 
-def get_gpu_types(clusters: List[str]):
+def get_gpu_types(clusters: list[str]):
     gpu_types = set()
     for c in clusters:
         for g in get_cluster_gpu_types(c):
@@ -292,7 +292,7 @@ def get_gpu_types(clusters: List[str]):
     return gpu_types
 
 
-def get_gpu_nums(clusters: List[str], gpu_types: List[str]):
+def get_gpu_nums(clusters: list[str], gpu_types: list[str]):
     max_gpus_per_run = 1
     for c in clusters:
         for gpu_info in CLUSTER_INFO[c]:
@@ -314,7 +314,7 @@ def get_valid_gpu_lim(cluster: str, gpu_type: str):
 
 
 def mod_parameters(
-    parameters: Dict[str, Any],
+    parameters: dict[str, Any],
     max_seq_len: int,
     global_train_batch_size: int,
     precision: str,
@@ -449,7 +449,7 @@ def get_integrations(
 
 
 def run_config(
-    config: Tuple[str, int, int, str, str, int, str],
+    config: tuple[str, int, int, str, str, int, str],
     args: argparse.Namespace,
 ):
     model_yaml, max_seq_len, global_train_batch_size, cluster, gpu_type, gpu_num, precision = config
@@ -625,7 +625,7 @@ if __name__ == '__main__':
                                     )
 
                                 if run:
-                                    config: Tuple[str, int, int, str, str, int,
+                                    config: tuple[str, int, int, str, str, int,
                                                   str] = (
                                                       model_yaml,
                                                       max_seq_len,

@@ -6,7 +6,7 @@ import time
 import warnings
 from argparse import ArgumentParser, ArgumentTypeError, Namespace
 from contextlib import nullcontext
-from typing import Dict, Union
+from typing import Union
 
 import numpy as np
 import torch
@@ -280,7 +280,7 @@ def main(args: Namespace) -> None:
         print(f'\nGenerate kwargs:\n{generate_kwargs}')
 
         # Generate function with correct context managers
-        def _generate(encoded_inp: Dict[str, torch.Tensor]):
+        def _generate(encoded_inp: dict[str, torch.Tensor]):
             with torch.no_grad():
                 with autocast_context:
                     return model.generate(

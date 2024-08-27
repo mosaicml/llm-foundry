@@ -58,8 +58,10 @@ def test_moe_fsdp_config_ffn_config(
             fsdp_config['data_parallel_replicate_degree'] = 2
 
     # Ensure the ffn_config's device_mesh is set correctly using the fsdp_config
-    with patch('composer.utils.dist.get_world_size', return_value=8
-              ), patch('catalogue.Registry.__contains__', return_value=True):
+    with patch(
+        'composer.utils.dist.get_world_size',
+        return_value=8,
+    ), patch('catalogue.Registry.__contains__', return_value=True):
         _ = process_init_device(model_cfg, fsdp_config)
 
         if should_shard_only or (

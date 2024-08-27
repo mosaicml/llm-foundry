@@ -50,7 +50,7 @@ class MPTConfig(PretrainedConfig):
         fc_type: Union[str, dict] = 'torch',
         tie_word_embeddings: bool = True,
         use_pad_tok_in_ffn: bool = True,
-        block_overrides: Optional[Dict[str, Any]] = None,
+        block_overrides: Optional[dict[str, Any]] = None,
         final_logit_softcapping: Optional[float] = None,
         **kwargs: Any,
     ):

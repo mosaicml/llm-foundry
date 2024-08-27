@@ -161,10 +161,7 @@ def gen_rotary_embedding(
             hidden_size=d_model,
             num_attention_heads=n_heads,
         )
-        if rope_hf_config['type'] == 'no_scaling':
-            return LlamaRotaryEmbeddingFoundry(config=partial_llama_config)
-        elif rope_hf_config['type'] in {'llama3', 'linear', 'dynamic'}:
-            return LlamaRotaryEmbedding(config=partial_llama_config)
+        return LlamaRotaryEmbeddingFoundry(config=partial_llama_config)
     raise ValueError('rope_impl needs to be either dail or hf')
 
 

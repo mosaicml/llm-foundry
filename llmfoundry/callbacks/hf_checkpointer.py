@@ -500,7 +500,12 @@ class HuggingFaceCheckpointer(Callback):
 
         if dist.get_global_rank() == 0:
             log.debug('Saving Hugging Face checkpoint in global rank 0')
-
+            
+            if hasattr(original_model.config, 'use_cache'):
+                original_model.config.use_cache = True
+            if hasattr(original_model.generation_config, 'use_cache'):
+                original_model.generation_config.use_cache = True
+            
             # Transform HF config before building 2nd model copy
             new_config = self.transform_config(
                 original_config=original_model.config,

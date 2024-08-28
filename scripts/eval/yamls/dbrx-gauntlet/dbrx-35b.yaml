@@ -55,8 +55,7 @@ models:
 precision: amp_bf16
 fsdp_config:
   verbose: false
-  device_mesh:
-  - 8
+  data_parallel_shard_degree: 8
   mixed_precision: PURE
   state_dict_type: sharded
   use_orig_params: true

@@ -135,7 +135,7 @@ class KillLossSpike(Callback):
         else:
             raise LossSpikeError(
                 outlier_multiplier=self.outlier_multiplier,
-                running_loss_avg=round(running_loss_avg),
+                running_loss_avg=running_loss_avg,
                 outlier_counter=self.outlier_counter,
                 loss_window=list(self.loss_window),
             )

@@ -405,7 +405,7 @@ _tp_strategy_description = (
 tp_strategy = create_registry(
     'llmfoundry',
     'tp_strategy',
-    generic_type=Callable[ComposerModel, tuple[Union[ParallelStyle, Dict[str, ParallelStyle]], ComposerModel]],
+    generic_type=Callable[ComposerModel, Union[ParallelStyle, Dict[str, ParallelStyle]]],
     entry_points=True,
     description=_tp_strategy_description,
 )

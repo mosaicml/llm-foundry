@@ -477,7 +477,7 @@ def train(cfg: DictConfig) -> Trainer:
         name=name,
         tokenizer=tokenizer,
         init_context=init_context,
-        master_weights_dtype=model_config.get('master_weights_dtype', None),
+        master_weights_dtype=model_config.pop('master_weights_dtype', None),
         cfg=model_config,
     )
 

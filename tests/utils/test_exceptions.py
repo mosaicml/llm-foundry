@@ -35,6 +35,8 @@ def create_exception_object(
             return 'string'
         elif arg_type == int:
             return 1
+        elif arg_type == float:
+            return 1.0
         elif arg_type == set[str]:
             return {'set'}
         elif arg_type == list[str]:

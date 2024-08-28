@@ -124,11 +124,13 @@ class KillLossSpike(Callback):
     ) -> None:
         if self.log_only:
             self._log_metadata(
-                logger, 'loss_spike', {
+                logger,
+                'loss_spike',
+                {
                     'outlier_multiplier': self.outlier_multiplier,
                     'running_loss_avg': running_loss_avg,
-                    'outlier_counter': self.outlier_counter
-                }
+                    'outlier_counter': self.outlier_counter,
+                },
             )
         else:
             raise LossSpikeError(
@@ -141,10 +143,12 @@ class KillLossSpike(Callback):
     def _handle_high_losses(self, logger: Logger) -> None:
         if self.log_only:
             self._log_metadata(
-                logger, 'high_loss', {
+                logger,
+                'high_loss',
+                {
                     'loss_cap': self.loss_cap,
-                    'window_size': self.window_size
-                }
+                    'window_size': self.window_size,
+                },
             )
         else:
             raise HighLossError(

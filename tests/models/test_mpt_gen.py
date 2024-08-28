@@ -30,7 +30,6 @@ class MockMPTForCausalLM(MPTForCausalLM):
         input_ids: torch.LongTensor,
         past_key_values: Optional[list[tuple[torch.FloatTensor]]] = None,
         attention_mask: Optional[torch.ByteTensor] = None,
-        position_ids: Optional[torch.LongTensor] = None,
         sequence_id: Optional[torch.LongTensor] = None,
         labels: Optional[torch.LongTensor] = None,
         return_dict: Optional[bool] = None,
@@ -38,6 +37,7 @@ class MockMPTForCausalLM(MPTForCausalLM):
         output_hidden_states: Optional[bool] = None,
         use_cache: Optional[bool] = None,
         inputs_embeds: Optional[torch.FloatTensor] = None,
+        position_ids: Optional[torch.LongTensor] = None,
     ):
         result = super().forward(
             input_ids,

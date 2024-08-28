@@ -23,6 +23,12 @@ jobs:
         - name: "2.3.1_cu121_aws"
           base_image: mosaicml/pytorch:2.3.1_cu121-python3.11-ubuntu20.04-aws
           dep_groups: "[all]"
+        - name: "2.4.0_cu124"
+          base_image: mosaicml/pytorch:2.4.0_cu124-python3.11-ubuntu20.04
+          dep_groups: "[all]"
+        - name: "2.4.0_cu124_aws"
+          base_image: mosaicml/pytorch:2.4.0_cu124-python3.11-ubuntu20.04-aws
+          dep_groups: "[all]"
     steps:
 
     - name: Checkout

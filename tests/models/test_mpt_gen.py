@@ -43,7 +43,6 @@ class MockMPTForCausalLM(MPTForCausalLM):
             input_ids,
             past_key_values,
             attention_mask,
-            position_ids,
             sequence_id,
             labels,
             return_dict,
@@ -51,6 +50,7 @@ class MockMPTForCausalLM(MPTForCausalLM):
             output_hidden_states,
             use_cache,
             inputs_embeds,
+            position_ids,
         )
         # Modify the logits to select the next token.
         if dist.get_global_rank() == 0:

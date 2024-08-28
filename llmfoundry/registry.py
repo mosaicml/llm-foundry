@@ -1,12 +1,13 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-from typing import Any, Callable, Iterable, Union
+from typing import Any, Callable, Iterable, Union, Dict
 
 from composer.core import Algorithm, Callback, DataSpec
 from composer.loggers import LoggerDestination
 from composer.models import ComposerModel
 from composer.optim import ComposerScheduler
 from torch.distributed.checkpoint import LoadPlanner, SavePlanner
+from torch.distributed.tensor.parallel.style import ParallelStyle
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader as TorchDataloader
 from torch.utils.data import Dataset
@@ -387,6 +388,16 @@ save_planners = create_registry(
     generic_type=type[SavePlanner],
     entry_points=True,
     description=_save_planners_description,
+)
+
+_tp_strategy_description: str = 'NA'
+
+tp_strategy = create_registry(
+    'llmfoundry',
+    'tp_strategy',
+    generic_type=Callable[ComposerModel, Union[ParallelStyle, Dict[str, ParallelStyle]]],
+    entry_points=True,
+    description=_tp_strategy_description,
 )
 
 __all__ = [

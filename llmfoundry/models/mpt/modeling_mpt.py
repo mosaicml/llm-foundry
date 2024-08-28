@@ -754,6 +754,7 @@ class MPTModel(MPTPreTrainedModel):
         input_ids: Optional[torch.LongTensor] = None,
         past_key_values: Optional[list[tuple[torch.FloatTensor]]] = None,
         attention_mask: Optional[torch.ByteTensor] = None,
+        position_ids: Optional[torch.LongTensor] = None,
         sequence_id: Optional[torch.LongTensor] = None,
         return_dict: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
@@ -856,12 +857,16 @@ class MPTModel(MPTPreTrainedModel):
                 )
 
             if self.learned_pos_emb or (self.rope and self.rope_impl == 'hf'):
-                pos = torch.arange(
-                    past_position,
-                    S + past_position,
-                    dtype=torch.long,
-                    device=input_device,
-                ).unsqueeze(0)
+                if position_ids is None:
+                    pos = torch.arange(
+                        past_position,
+                        S + past_position,
+                        dtype=torch.long,
+                        device=input_device,
+                    ).unsqueeze(0)
+                else:
+                    pos = position_ids
+
                 if attention_mask is not None:
                     # adjust the position indices to account for padding tokens
                     pos = torch.clamp(
@@ -1121,6 +1126,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
         input_ids: Optional[torch.LongTensor] = None,
         past_key_values: Optional[list[tuple[torch.FloatTensor]]] = None,
         attention_mask: Optional[torch.ByteTensor] = None,
+        position_ids: Optional[torch.LongTensor] = None,
         sequence_id: Optional[torch.LongTensor] = None,
         labels: Optional[torch.LongTensor] = None,
         return_dict: Optional[bool] = None,
@@ -1140,6 +1146,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
             input_ids=input_ids,
             past_key_values=past_key_values,
             attention_mask=attention_mask,
+            position_ids=position_ids,
             sequence_id=sequence_id,
             return_dict=return_dict,
             output_attentions=output_attentions,
@@ -1441,6 +1448,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         return self.model(
             input_ids=batch.get('input_ids', None),
             attention_mask=batch.get('attention_mask', None),
+            position_ids=batch.get('position_ids', None),
             sequence_id=batch.get('sequence_id', None),
             inputs_embeds=batch.get('inputs_embeds', None),
         )

@@ -95,6 +95,7 @@ class MPTConfig(PretrainedConfig):
                     type (str): Can be one of 'no_scaling', 'linear', or 'dynamic'. 'no_scaling' uses the default implementation for rotary embeddings, 'linear' uses linear scaling as proposed by the Reddit user /u/kaiokendev, and 'dynamic' uses Dynamic NTK scaling as proposed by the Reddit users /u/bloc97 and /u/emozilla.
                     factor (float): Scaling factor to use if using 'linear' or 'dynamic' as rope_scaling.type.
                 kv_n_heads (Optional[int]): For grouped_query_attention only, allow user to specify number of kv heads.
+                kv_dim (Optional[int]): For cross-attention only, allow user to specify different input dimensions for kv projections.
             ffn_config (Dict): A dictionary used to configure the model's ffn module:
                 ffn_type (str): type of ffn to use. Options: mptmlp, mptglu, te_ln_mlp
             init_device (str): The device to use for parameter initialization.

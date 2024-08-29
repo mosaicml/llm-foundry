@@ -424,8 +424,9 @@ class GroupedQueryAttention(nn.Module):
     and Multi-query attention (MQA).
 
     This allows the user to set a variable of number of kv_n_heads, rather than
-    just n_heads or 1, as in MHA and MQA. Using torch attention
-    implementation enables user to also use additive bias.
+    just n_heads or 1, as in MHA and MQA. Using torch attention implementation
+    enables user to also use additive bias. This class also supports
+    cross-attention with different `in_features` for key and value fc projections.
     """
 
     def __init__(
@@ -447,6 +448,7 @@ class GroupedQueryAttention(nn.Module):
         bias: bool = True,
         sliding_window_size: int = -1,
         reuse_kv_layer_idx: Optional[int] = None,
+        kv_dim: Optional[int] = None,
     ):
         super().__init__()
 
@@ -461,6 +463,12 @@ class GroupedQueryAttention(nn.Module):
         self.kv_n_heads = kv_n_heads
         self.sliding_window_size = sliding_window_size
         self.reuse_kv_layer_idx = reuse_kv_layer_idx
+
+        if kv_dim is not None:
+            self.kv_dim = kv_dim
+            assert fused_qkv is False, 'Cannot use separate kv_dim from d_model for fused_qkv'
+        else:
+            self.kv_dim = self.d_model
 
         self.head_dim = d_model // n_heads
 
@@ -523,13 +531,13 @@ class GroupedQueryAttention(nn.Module):
             )
             self.Wk = build_fc(
                 name=fc_type_name,
-                in_features=self.d_model,
+                in_features=self.kv_dim,
                 out_features=self.kv_n_heads * self.head_dim,
                 fc_kwargs=fc_type,
             )
             self.Wv = build_fc(
                 name=fc_type_name,
-                in_features=self.d_model,
+                in_features=self.kv_dim,
                 out_features=self.kv_n_heads * self.head_dim,
                 fc_kwargs=fc_type,
             )
@@ -572,8 +580,7 @@ class GroupedQueryAttention(nn.Module):
 
     def forward(
         self,
-        hidden_states: torch.Tensor,
-        key_value_states: Optional[torch.Tensor] = None,
+        x: torch.Tensor,
         past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
         attn_bias: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
@@ -584,14 +591,15 @@ class GroupedQueryAttention(nn.Module):
         flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
         prev_layer_key_value: Optional[tuple[torch.Tensor,
                                              torch.Tensor]] = None,
+        key_value_states: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
         torch.Tensor, torch.Tensor]]]:
         extra_kwargs = {}
         if prev_layer_key_value is not None:
             extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
         query, key, value = self.get_qkv(
-            hidden_states,
-            key_value_states,
+            x=x,
+            key_value_states=key_value_states,
             **extra_kwargs,
         )
 
@@ -630,17 +638,17 @@ class GroupedQueryAttention(nn.Module):
 
     def get_qkv(
         self,
-        hidden_states: torch.Tensor,
-        key_value_states: Optional[torch.Tensor] = None,
+        x: torch.Tensor,
         prev_layer_key_value: Optional[tuple[torch.Tensor,
                                              torch.Tensor]] = None,
+        key_value_states: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Computes and returns the query, key, and value tensors.
 
         Args:
-            hidden_states (torch.Tensor): The input query tensor.
-            key_value_states (Optional[torch.Tensor]): The input tensor for keys and values.
+            x (torch.Tensor): The input query tensor.
             prev_layer_key_value  (Optional[Tuple[torch.Tensor, torch.Tensor]]): The key value of the previous layer.
+            key_value_states (Optional[torch.Tensor]): The input tensor for keys and values.
 
         Returns:
             query (torch.Tensor): The query tensor.
@@ -654,7 +662,7 @@ class GroupedQueryAttention(nn.Module):
                 )
             key, value = prev_layer_key_value
 
-            query = self.Wq(hidden_states)
+            query = self.Wq(x)
             if self.clip_qkv:
                 query = query.clamp(min=-self.clip_qkv, max=self.clip_qkv)
 
@@ -670,7 +678,7 @@ class GroupedQueryAttention(nn.Module):
 
         if self.fused_qkv:
             assert key_value_states is None, 'Cannot use separate hidden and key_value states for fused_qkv'
-            qkv = self.Wqkv(hidden_states)
+            qkv = self.Wqkv(x)
 
             if self.clip_qkv:
                 qkv = qkv.clamp(min=-self.clip_qkv, max=self.clip_qkv)
@@ -684,13 +692,13 @@ class GroupedQueryAttention(nn.Module):
                 dim=2,
             )
         else:
-            query = self.Wq(hidden_states)
+            query = self.Wq(x)
             if key_value_states is not None:
                 key = self.Wk(key_value_states)
                 value = self.Wv(key_value_states)
             else:
-                key = self.Wk(hidden_states)
-                value = self.Wv(hidden_states)
+                key = self.Wk(x)
+                value = self.Wv(x)
 
             if self.clip_qkv:
                 query = query.clamp(min=-self.clip_qkv, max=self.clip_qkv)
@@ -844,6 +852,7 @@ class MultiheadAttention(GroupedQueryAttention):
         bias: bool = True,
         sliding_window_size: int = -1,
         reuse_kv_layer_idx: Optional[int] = None,
+        kv_dim: Optional[int] = None,
     ):
         super().__init__(
             d_model=d_model,
@@ -863,6 +872,7 @@ class MultiheadAttention(GroupedQueryAttention):
             bias=bias,
             sliding_window_size=sliding_window_size,
             reuse_kv_layer_idx=reuse_kv_layer_idx,
+            kv_dim=kv_dim,
         )
 
 
@@ -891,6 +901,7 @@ class MultiQueryAttention(GroupedQueryAttention):
         bias: bool = True,
         sliding_window_size: int = -1,
         reuse_kv_layer_idx: Optional[int] = None,
+        kv_dim: Optional[int] = None,
     ):
         super().__init__(
             d_model=d_model,
@@ -910,6 +921,7 @@ class MultiQueryAttention(GroupedQueryAttention):
             bias=bias,
             sliding_window_size=sliding_window_size,
             reuse_kv_layer_idx=reuse_kv_layer_idx,
+            kv_dim=kv_dim,
         )
 
 

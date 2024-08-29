@@ -464,12 +464,7 @@ class GroupedQueryAttention(nn.Module):
         self.sliding_window_size = sliding_window_size
         self.reuse_kv_layer_idx = reuse_kv_layer_idx
 
-        if kv_dim is not None:
-            self.kv_dim = kv_dim
-            assert fused_qkv is False, 'Cannot use separate kv_dim from d_model for fused_qkv'
-        else:
-            self.kv_dim = self.d_model
-
+        self.kv_dim = kv_dim if kv_dim is not None else self.d_model
         self.head_dim = d_model // n_heads
 
         # Usually, fc_type dict should be passed in through MPTBlock's __init__ function.

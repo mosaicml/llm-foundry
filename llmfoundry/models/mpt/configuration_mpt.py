@@ -336,6 +336,11 @@ class MPTConfig(PretrainedConfig):
             raise NotImplementedError(
                 'sliding window attention only implemented for torch attention and flash attention (v2.3.0 or higher).',
             )
+        if self.attn_config['kv_dim'] is not None and self.attn_config[
+            'fused_qkv']:
+            raise ValueError(
+                'fused_qkv should be False when "kv_dim" is specified.',
+            )
         if self.embedding_fraction > 1 or self.embedding_fraction <= 0:
             raise ValueError(
                 'model.embedding_fraction must be between 0 (exclusive) and 1 (inclusive)!',

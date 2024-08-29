@@ -308,17 +308,10 @@ def test_cross_attn_as_self_attn(attn_name: str, dim: int):
     else:
         raise ValueError(f'Unknown attention name: {attn_name}')
 
-    attn_config_fused = generic_attn_kwargs.copy()
-    attn_config_fused['fused_qkv'] = True
-
     attn_config_unfused = generic_attn_kwargs.copy()
     attn_config_unfused['fused_qkv'] = False
 
-    attn_fused = build_attention_layer(
-        name=attn_name,
-        attn_kwargs=attn_config_fused,
-    )
-    attn_unfused = build_attention_layer(
+    attn_layer = build_attention_layer(
         name=attn_name,
         attn_kwargs=attn_config_unfused,
     )
@@ -326,15 +319,7 @@ def test_cross_attn_as_self_attn(attn_name: str, dim: int):
     x1 = torch.randn(1, 1, dim)
     x2 = x1.detach().clone()
 
-    out_fused, _, _ = attn_fused(x1)
-    out_unfused, _, _ = attn_unfused(x1, x2)
-
-    # Dummy loss function is simply the sum.
-    loss_fused = out_fused.sum()
-    loss_fused.backward()
-
-    loss_unfused = out_unfused.sum()
-    loss_unfused.backward()
+    out_fused, _, _ = attn_layer(hidden_states=x1)
+    out_unfused, _, _ = attn_layer(hidden_states=x1, key_value_states=x2)
 
     assert torch.allclose(out_fused, out_unfused)
-    assert torch.allclose(loss_fused, loss_unfused)

@@ -177,11 +177,6 @@ class MPTConfig(PretrainedConfig):
             init_config_defaults,
         )
 
-        if 'reuse_kv_layer_idx' in self.attn_config and self.attn_config[
-            'attn_impl'] == 'torch':
-            raise NotImplementedError(
-                'reusing kv cache from a previous layer is not implemented for torch attention.',
-            )
         if block_overrides is not None:
             self._validate_block_overrides(block_overrides)
         self.block_overrides = block_overrides
@@ -218,14 +213,8 @@ class MPTConfig(PretrainedConfig):
             raise ValueError(
                 '`overrides` should be defined in block_overrides',
             )
-        for name, override in block_overrides['overrides'].items():
-            if name == 'default':
-                raise ValueError('block overrides cannot be named "default".',)
-            if 'attn_config' in override and 'reuse_kv_layer_idx' in override[
-                'attn_config'] and self.attn_config['attn_impl'] == 'torch':
-                raise NotImplementedError(
-                    'reusing kv cache from a previous layer is not implemented for torch attention.',
-                )
+        if 'default' in block_overrides['overrides'].keys():
+            raise ValueError('block overrides cannot be named "default".',)
 
     def _set_config_defaults(
         self,

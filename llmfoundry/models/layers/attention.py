@@ -572,7 +572,8 @@ class GroupedQueryAttention(nn.Module):
 
     def forward(
         self,
-        x: torch.Tensor,
+        hidden_states: torch.Tensor,
+        key_value_states: Optional[torch.Tensor] = None,
         past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
         attn_bias: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
@@ -588,7 +589,11 @@ class GroupedQueryAttention(nn.Module):
         extra_kwargs = {}
         if prev_layer_key_value is not None:
             extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
-        query, key, value = self.get_qkv(x, **extra_kwargs)
+        query, key, value = self.get_qkv(
+            hidden_states,
+            key_value_states,
+            **extra_kwargs,
+        )
 
         if rotary_emb_w_meta_info is not None:
             query, key, value = self._apply_rotary_embeddings(
@@ -625,14 +630,16 @@ class GroupedQueryAttention(nn.Module):
 
     def get_qkv(
         self,
-        x: torch.Tensor,
+        hidden_states: torch.Tensor,
+        key_value_states: Optional[torch.Tensor] = None,
         prev_layer_key_value: Optional[tuple[torch.Tensor,
                                              torch.Tensor]] = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Computes and returns the query, key, and value tensors.
 
         Args:
-            x (torch.Tensor): The input tensor.
+            hidden_states (torch.Tensor): The input query tensor.
+            key_value_states (Optional[torch.Tensor]): The input tensor for keys and values.
             prev_layer_key_value  (Optional[Tuple[torch.Tensor, torch.Tensor]]): The key value of the previous layer.
 
         Returns:
@@ -647,7 +654,7 @@ class GroupedQueryAttention(nn.Module):
                 )
             key, value = prev_layer_key_value
 
-            query = self.Wq(x)
+            query = self.Wq(hidden_states)
             if self.clip_qkv:
                 query = query.clamp(min=-self.clip_qkv, max=self.clip_qkv)
 
@@ -662,7 +669,8 @@ class GroupedQueryAttention(nn.Module):
             return query, key, value
 
         if self.fused_qkv:
-            qkv = self.Wqkv(x)
+            assert key_value_states is None, 'Cannot use separate hidden and key_value states for fused_qkv'
+            qkv = self.Wqkv(hidden_states)
 
             if self.clip_qkv:
                 qkv = qkv.clamp(min=-self.clip_qkv, max=self.clip_qkv)
@@ -676,9 +684,13 @@ class GroupedQueryAttention(nn.Module):
                 dim=2,
             )
         else:
-            query = self.Wq(x)
-            key = self.Wk(x)
-            value = self.Wv(x)
+            query = self.Wq(hidden_states)
+            if key_value_states is not None:
+                key = self.Wk(key_value_states)
+                value = self.Wv(key_value_states)
+            else:
+                key = self.Wk(hidden_states)
+                value = self.Wv(hidden_states)
 
             if self.clip_qkv:
                 query = query.clamp(min=-self.clip_qkv, max=self.clip_qkv)

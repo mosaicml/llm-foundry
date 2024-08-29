@@ -271,3 +271,70 @@ def test_sliding_window(sliding_window_size: int, attn_impl: str):
 
 def _assert_approx_equal(value1: torch.Tensor, value2: torch.Tensor):
     assert torch.norm(value2 - value1) <= 1e-2 + 1e-2 * torch.norm(value2)
+
+
+@pytest.mark.parametrize(
+    'attn_name',
+    ['multihead_attention', 'grouped_query_attention', 'multiquery_attention'],
+)
+@pytest.mark.parametrize('dim', [1024])
+def test_cross_attn_as_self_attn(attn_name: str, dim: int):
+    d_head = 128
+    n_heads = dim // d_head
+
+    generic_attn_kwargs = {
+        'd_model': dim,
+        'n_heads': n_heads,
+        'fc_type': {
+            'name': 'torch',
+        },
+        'device': 'cpu',
+        'attn_pdrop': 0.0,
+        'attn_impl': 'torch',
+        'qk_ln': False,
+        'qk_gn': False,
+        'clip_qkv': None,
+        'softmax_scale': None,
+        'sliding_window_size': -1,
+    }
+
+    if attn_name == 'grouped_query_attention':
+        kv_n_heads = 2
+        generic_attn_kwargs['kv_n_heads'] = kv_n_heads
+    elif attn_name == 'multiquery_attention':
+        kv_n_heads = 1
+    elif attn_name == 'multihead_attention':
+        kv_n_heads = n_heads
+    else:
+        raise ValueError(f'Unknown attention name: {attn_name}')
+
+    attn_config_fused = generic_attn_kwargs.copy()
+    attn_config_fused['fused_qkv'] = True
+
+    attn_config_unfused = generic_attn_kwargs.copy()
+    attn_config_unfused['fused_qkv'] = False
+
+    attn_fused = build_attention_layer(
+        name=attn_name,
+        attn_kwargs=attn_config_fused,
+    )
+    attn_unfused = build_attention_layer(
+        name=attn_name,
+        attn_kwargs=attn_config_unfused,
+    )
+
+    x1 = torch.randn(1, 1, dim)
+    x2 = x1.detach().clone()
+
+    out_fused, _, _ = attn_fused(x1)
+    out_unfused, _, _ = attn_unfused(x1, x2)
+
+    # Dummy loss function is simply the sum.
+    loss_fused = out_fused.sum()
+    loss_fused.backward()
+
+    loss_unfused = out_unfused.sum()
+    loss_unfused.backward()
+
+    assert torch.allclose(out_fused, out_unfused)
+    assert torch.allclose(loss_fused, loss_unfused)

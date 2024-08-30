@@ -57,7 +57,7 @@ install_requires = [
     'accelerate>=0.25,<0.34',  # for HF inference `device_map`
     'transformers>=4.43.2,<4.44',
     'mosaicml-streaming>=0.8.1,<0.9',
-    'torch>=2.3.0,<2.4.1',
+    'torch>=2.4.0,<2.4.1',
     'datasets>=2.19,<2.20',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
     'sentencepiece==0.2.0',
@@ -118,12 +118,12 @@ extra_deps['openai'] = [
 ]
 
 extra_deps['megablocks'] = [
-    'megablocks==0.5.1',
-    'grouped-gemm==0.1.4',
+    'megablocks==0.5.1',  #### TODO: UPDATE TO 0.6.0
+    'grouped-gemm==0.1.6',
 ]
 
 extra_deps['te'] = [
-    'transformer-engine==1.9.0',
+    'transformer-engine[pytorch]==1.9.0.post1',
 ]
 
 extra_deps['databricks-serverless'] = {

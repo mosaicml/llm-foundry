@@ -158,7 +158,7 @@ def export_to_onnx(
         ort_session = ort.InferenceSession(str(output_file))
 
         for key, value in sample_input.items():
-            sample_input[key] = value.cpu().numpy()
+            sample_input[key] = value.cpu().numpy()  # pyright: ignore
 
         loaded_model_out = ort_session.run(None, sample_input)
 

@@ -20,11 +20,11 @@ jobs:
         - name: "2.3.1_cu121"
           base_image: mosaicml/pytorch:2.3.1_cu121-python3.11-ubuntu20.04
           dep_groups: "[all]"
-          te_commit: 901e5d2
+          te_commit: b5a7c9f
         - name: "2.3.1_cu121_aws"
           base_image: mosaicml/pytorch:2.3.1_cu121-python3.11-ubuntu20.04-aws
           dep_groups: "[all]"
-          te_commit: 901e5d2
+          te_commit: b5a7c9f
         - name: "2.4.0_cu124"
           base_image: mosaicml/pytorch:2.4.0_cu124-python3.11-ubuntu20.04
           dep_groups: "[all]"

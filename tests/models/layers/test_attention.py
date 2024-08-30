@@ -5,6 +5,7 @@ import math
 
 import pytest
 import torch
+from composer.utils import reproducibility
 
 from llmfoundry.models.layers.attention import (
     attention_implementations,
@@ -271,3 +272,119 @@ def test_sliding_window(sliding_window_size: int, attn_impl: str):
 
 def _assert_approx_equal(value1: torch.Tensor, value2: torch.Tensor):
     assert torch.norm(value2 - value1) <= 1e-2 + 1e-2 * torch.norm(value2)
+
+
+@pytest.mark.parametrize(
+    'attn_name',
+    ['multihead_attention', 'grouped_query_attention', 'multiquery_attention'],
+)
+@pytest.mark.parametrize('dim', [1024])
+def test_cross_attn_as_self_attn(attn_name: str, dim: int):
+    d_head = 128
+    n_heads = dim // d_head
+
+    generic_attn_kwargs = {
+        'd_model': dim,
+        'n_heads': n_heads,
+        'fc_type': {
+            'name': 'torch',
+        },
+        'device': 'cpu',
+        'attn_pdrop': 0.0,
+        'attn_impl': 'torch',
+        'qk_ln': False,
+        'qk_gn': False,
+        'clip_qkv': None,
+        'softmax_scale': None,
+        'sliding_window_size': -1,
+    }
+
+    if attn_name == 'grouped_query_attention':
+        kv_n_heads = 2
+        generic_attn_kwargs['kv_n_heads'] = kv_n_heads
+    elif attn_name == 'multiquery_attention':
+        kv_n_heads = 1
+    elif attn_name == 'multihead_attention':
+        kv_n_heads = n_heads
+    else:
+        raise ValueError(f'Unknown attention name: {attn_name}')
+
+    attn_config = generic_attn_kwargs.copy()
+    attn_config['fused_qkv'] = False
+
+    attn_layer = build_attention_layer(
+        name=attn_name,
+        attn_kwargs=attn_config,
+    )
+
+    x1 = torch.randn(1, 1, dim)
+    x2 = x1.detach().clone()
+
+    out_fused, _, _ = attn_layer(x1)
+    out_unfused, _, _ = attn_layer(x1, key_value_states=x2)
+
+    assert torch.allclose(out_fused, out_unfused)
+
+
+@pytest.mark.parametrize(
+    'attn_name',
+    ['multihead_attention', 'grouped_query_attention', 'multiquery_attention'],
+)
+@pytest.mark.parametrize('dim', [1024])
+def test_cross_attn_kv_dim(attn_name: str, dim: int):
+    d_head = 128
+    n_heads = dim // d_head
+
+    generic_attn_kwargs = {
+        'd_model': dim,
+        'n_heads': n_heads,
+        'fc_type': {
+            'name': 'torch',
+        },
+        'device': 'cpu',
+        'attn_pdrop': 0.0,
+        'attn_impl': 'torch',
+        'qk_ln': False,
+        'qk_gn': False,
+        'clip_qkv': None,
+        'softmax_scale': None,
+        'sliding_window_size': -1,
+    }
+
+    if attn_name == 'grouped_query_attention':
+        kv_n_heads = 2
+        generic_attn_kwargs['kv_n_heads'] = kv_n_heads
+    elif attn_name == 'multiquery_attention':
+        kv_n_heads = 1
+    elif attn_name == 'multihead_attention':
+        kv_n_heads = n_heads
+    else:
+        raise ValueError(f'Unknown attention name: {attn_name}')
+
+    # layer with only dim passed in
+    attn_config = generic_attn_kwargs.copy()
+    attn_config['fused_qkv'] = False
+
+    reproducibility.seed_all(42)
+    attn_layer_no_kv = build_attention_layer(
+        name=attn_name,
+        attn_kwargs=attn_config,
+    )
+
+    # layer with kv_dim = dim passed in
+    attn_config = generic_attn_kwargs.copy()
+    attn_config['fused_qkv'] = False
+    attn_config['kv_dim'] = dim
+
+    reproducibility.seed_all(42)
+    attn_layer_kv = build_attention_layer(
+        name=attn_name,
+        attn_kwargs=attn_config,
+    )
+
+    x1 = torch.randn(1, 1, dim)
+
+    out_fused, _, _ = attn_layer_no_kv(x1)
+    out_unfused, _, _ = attn_layer_kv(x1)
+
+    assert torch.allclose(out_fused, out_unfused)

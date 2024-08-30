@@ -17,6 +17,7 @@ jobs:
   pytest-cpu:
     name: ${{ matrix.name }}
     runs-on: ubuntu-latest
+    container: ${{ matrix.container }}
     strategy:
       matrix:
         include:
@@ -30,7 +31,6 @@ jobs:
       uses: mosaicml/ci-testing/.github/actions/pytest-cpu@debug-2
       with:
         name: ${{ matrix.name }}
-        container: ${{ matrix.container }}
         pip_deps: ${{ matrix.pip_deps }}
         pytest_command: ${{ matrix.pytest_command }}
         pytest_markers: ${{ matrix.markers }}

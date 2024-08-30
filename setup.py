@@ -128,12 +128,12 @@ extra_deps['te'] = [
 
 extra_deps['databricks-serverless'] = {
     dep for key, deps in extra_deps.items() for dep in deps
-    if 'gpu' not in key and 'megablocks' not in key and
+    if 'gpu' not in key and 'megablocks' not in key and 'te' not in key and
     'databricks-connect' not in dep
 }
 extra_deps['all-cpu'] = {
     dep for key, deps in extra_deps.items() for dep in deps
-    if 'gpu' not in key and 'megablocks' not in key
+    if 'gpu' not in key and 'megablocks' not in key and 'te' not in key
 }
 extra_deps['all'] = {
     dep for key, deps in extra_deps.items() for dep in deps

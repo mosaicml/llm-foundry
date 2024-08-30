@@ -27,10 +27,10 @@ jobs:
           markers: "gpu"
           pip_deps: "[all]"
           pytest_command: "coverage run -m pytest"
-          ci_repo_gpu_test_ref: 092b69a73b21caa0f6bb3b5e0f5adaa81f707afb
+          ci_repo_gpu_test_ref: 410bff33347cd6483a1a65179fa368c2d6a70a18
     steps:
     - name: Run PR GPU Tests
-      uses: mosaicml/ci-testing/.github/actions/pytest-gpu@092b69a73b21caa0f6bb3b5e0f5adaa81f707afb
+      uses: mosaicml/ci-testing/.github/actions/pytest-gpu@410bff33347cd6483a1a65179fa368c2d6a70a18
       with:
         container: ${{ matrix.container }}
         git_repo: mosaicml/llm-foundry
@@ -56,10 +56,10 @@ jobs:
           markers: "gpu"
           pip_deps: "[all]"
           pytest_command: "coverage run -m pytest"
-          ci_repo_gpu_test_ref: 092b69a73b21caa0f6bb3b5e0f5adaa81f707afb
+          ci_repo_gpu_test_ref: 410bff33347cd6483a1a65179fa368c2d6a70a18
     steps:
     - name: Run PR GPU Tests
-      uses: mosaicml/ci-testing/.github/actions/pytest-gpu@092b69a73b21caa0f6bb3b5e0f5adaa81f707afb
+      uses: mosaicml/ci-testing/.github/actions/pytest-gpu@410bff33347cd6483a1a65179fa368c2d6a70a18
       with:
         container: ${{ matrix.container }}
         git_repo: mosaicml/llm-foundry
@@ -85,10 +85,10 @@ jobs:
           markers: "gpu"
           pip_deps: "[all]"
           pytest_command: "coverage run -m pytest"
-          ci_repo_gpu_test_ref: 092b69a73b21caa0f6bb3b5e0f5adaa81f707afb
+          ci_repo_gpu_test_ref: 410bff33347cd6483a1a65179fa368c2d6a70a18
     steps:
     - name: Run PR GPU Tests
-      uses: mosaicml/ci-testing/.github/actions/pytest-gpu@092b69a73b21caa0f6bb3b5e0f5adaa81f707afb
+      uses: mosaicml/ci-testing/.github/actions/pytest-gpu@410bff33347cd6483a1a65179fa368c2d6a70a18
       with:
         container: ${{ matrix.container }}
         git_repo: mosaicml/llm-foundry

@@ -672,7 +672,10 @@ class GroupedQueryAttention(nn.Module):
             return query, key, value
 
         if self.fused_qkv:
-            assert key_value_states is None, 'Cannot use separate hidden and key_value states for fused_qkv'
+            if key_value_states is not None:
+                raise ValueError(
+                    'Cannot use separate hidden and key_value states when fused_qkv = True.',
+                )
             qkv = self.Wqkv(x)
 
             if self.clip_qkv:

@@ -119,7 +119,7 @@ extra_deps['openai'] = [
 
 extra_deps['megablocks'] = [
     'megablocks==0.5.1',  #### TODO: UPDATE TO 0.6.0
-    'grouped-gemm==0.1.6',
+    'grouped-gemm==0.1.4',  #### TODO: UPDATE TO 0.1.6
 ]
 
 extra_deps['te'] = [

@@ -29,7 +29,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
     - name: Run PR CPU Tests
-      uses: mosaicml/ci-testing/.github/actions/pytest-cpu@7674598f81f3ed31ce03071ddfc8252aa84fc18e
+      uses: mosaicml/ci-testing/.github/actions/pytest-cpu@3b49b71c5fb7b9d906a4427f4f4c9c20e6c57749
       with:
         name: ${{ matrix.name }}
         container: ${{ matrix.container }}

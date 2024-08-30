@@ -32,7 +32,7 @@ jobs:
       uses: actions/checkout@v3
       with:
         repository: mosaicml/ci-testing
-        ref: v0.0.9
+        ref: 32368d606ed598795e3f0e8171cdbf5062fa97de
         path: ./ci-testing
     - uses: ./ci-testing/.github/actions/smoketest
       with:

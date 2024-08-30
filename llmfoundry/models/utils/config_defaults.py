@@ -33,6 +33,7 @@ attn_config_defaults: dict = {
         'type': 'no_scaling',
         'factor': 1.0,
     },
+    'kv_dim': None,
 }
 
 init_config_defaults: dict = {

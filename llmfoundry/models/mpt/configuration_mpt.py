@@ -96,6 +96,7 @@ class MPTConfig(PretrainedConfig):
                     type (str): Can be one of 'no_scaling', 'linear', or 'dynamic'. 'no_scaling' uses the default implementation for rotary embeddings, 'linear' uses linear scaling as proposed by the Reddit user /u/kaiokendev, and 'dynamic' uses Dynamic NTK scaling as proposed by the Reddit users /u/bloc97 and /u/emozilla.
                     factor (float): Scaling factor to use if using 'linear' or 'dynamic' as rope_scaling.type.
                 kv_n_heads (Optional[int]): For grouped_query_attention only, allow user to specify number of kv heads.
+                kv_dim (Optional[int]): For cross-attention only, allow user to specify different input dimensions for kv projections.
             ffn_config (Dict): A dictionary used to configure the model's ffn module:
                 ffn_type (str): type of ffn to use. Options: mptmlp, mptglu, te_ln_mlp
             init_device (str): The device to use for parameter initialization.
@@ -179,11 +180,6 @@ class MPTConfig(PretrainedConfig):
             init_config_defaults,
         )
 
-        if 'reuse_kv_layer_idx' in self.attn_config and self.attn_config[
-            'attn_impl'] == 'torch':
-            raise NotImplementedError(
-                'reusing kv cache from a previous layer is not implemented for torch attention.',
-            )
         if block_overrides is not None:
             self._validate_block_overrides(block_overrides)
         self.block_overrides = block_overrides
@@ -221,14 +217,8 @@ class MPTConfig(PretrainedConfig):
             raise ValueError(
                 '`overrides` should be defined in block_overrides',
             )
-        for name, override in block_overrides['overrides'].items():
-            if name == 'default':
-                raise ValueError('block overrides cannot be named "default".',)
-            if 'attn_config' in override and 'reuse_kv_layer_idx' in override[
-                'attn_config'] and self.attn_config['attn_impl'] == 'torch':
-                raise NotImplementedError(
-                    'reusing kv cache from a previous layer is not implemented for torch attention.',
-                )
+        if 'default' in block_overrides['overrides'].keys():
+            raise ValueError('block overrides cannot be named "default".',)
 
     def _set_config_defaults(
         self,
@@ -349,6 +339,11 @@ class MPTConfig(PretrainedConfig):
                 raise NotImplementedError(
                     'Attention attn_logit_softcapping is only implemented with torch attention or flash attention v2.6.2 (or higher).',
                 )
+        if self.attn_config['kv_dim'] is not None and self.attn_config[
+            'fused_qkv']:
+            raise ValueError(
+                'fused_qkv should be False when "kv_dim" is specified.',
+            )
         if self.embedding_fraction > 1 or self.embedding_fraction <= 0:
             raise ValueError(
                 'model.embedding_fraction must be between 0 (exclusive) and 1 (inclusive)!',

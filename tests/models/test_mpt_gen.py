@@ -37,6 +37,7 @@ class MockMPTForCausalLM(MPTForCausalLM):
         output_hidden_states: Optional[bool] = None,
         use_cache: Optional[bool] = None,
         inputs_embeds: Optional[torch.FloatTensor] = None,
+        position_ids: Optional[torch.LongTensor] = None,
     ):
         result = super().forward(
             input_ids,
@@ -49,6 +50,7 @@ class MockMPTForCausalLM(MPTForCausalLM):
             output_hidden_states,
             use_cache,
             inputs_embeds,
+            position_ids,
         )
         # Modify the logits to select the next token.
         if dist.get_global_rank() == 0:

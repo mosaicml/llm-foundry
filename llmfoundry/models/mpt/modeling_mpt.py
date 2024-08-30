@@ -760,6 +760,7 @@ class MPTModel(MPTPreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         use_cache: Optional[bool] = None,
         inputs_embeds: Optional[torch.Tensor] = None,
+        position_ids: Optional[torch.LongTensor] = None,
     ) -> BaseModelOutputWithPast:
         return_dict = (
             return_dict if return_dict is not None else self.config.return_dict
@@ -856,12 +857,16 @@ class MPTModel(MPTPreTrainedModel):
                 )
 
             if self.learned_pos_emb or (self.rope and self.rope_impl == 'hf'):
-                pos = torch.arange(
-                    past_position,
-                    S + past_position,
-                    dtype=torch.long,
-                    device=input_device,
-                ).unsqueeze(0)
+                if position_ids is None:
+                    pos = torch.arange(
+                        past_position,
+                        S + past_position,
+                        dtype=torch.long,
+                        device=input_device,
+                    ).unsqueeze(0)
+                else:
+                    pos = position_ids
+
                 if attention_mask is not None:
                     # adjust the position indices to account for padding tokens
                     pos = torch.clamp(
@@ -1129,6 +1134,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         use_cache: Optional[bool] = None,
         inputs_embeds: Optional[torch.FloatTensor] = None,
+        position_ids: Optional[torch.LongTensor] = None,
     ) -> CausalLMOutputWithPast:
         return_dict = (
             return_dict if return_dict is not None else self.config.return_dict
@@ -1147,6 +1153,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
             output_hidden_states=output_hidden_states,
             use_cache=use_cache,
             inputs_embeds=inputs_embeds,
+            position_ids=position_ids,
         )
 
         if self.lm_head is not None:
@@ -1449,6 +1456,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             attention_mask=batch.get('attention_mask', None),
             sequence_id=batch.get('sequence_id', None),
             inputs_embeds=batch.get('inputs_embeds', None),
+            position_ids=batch.get('position_ids', None),
         )
 
     def loss(self, outputs: CausalLMOutputWithPast,

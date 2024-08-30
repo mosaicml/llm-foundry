@@ -165,7 +165,6 @@ def convert_finetuning_dataset(
         decoder_only_format=not encoder_decoder,
     )
 
-    tokenizer = None
     tokenizer_kwargs = tokenizer_kwargs
     tokenizer_kwargs.update({'model_max_length': max_seq_len})
     if tokenizer:

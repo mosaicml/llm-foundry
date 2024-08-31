@@ -17,6 +17,7 @@ jobs:
   pytest-cpu:
     name: ${{ matrix.name }}
     runs-on: ubuntu-latest
+    container: ${{ matrix.container }}
     strategy:
       matrix:
         include:

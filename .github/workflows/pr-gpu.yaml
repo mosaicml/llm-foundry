@@ -18,6 +18,7 @@ jobs:
     name: ${{ matrix.name }}
     if: github.repository_owner == 'mosaicml'
     runs-on: linux-ubuntu-latest
+    container: ${{ matrix.container }}
     strategy:
       fail-fast: false
       matrix:

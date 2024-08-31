@@ -62,13 +62,6 @@ def megablocks_n_total_params(mpt_model) -> int:  # type: ignore
 
     moe_world_size = mpt_model.config.ffn_config.get('moe_world_size')
 
-    if mpt_model.config.ffn_config.get('moe_weight_parallelism', False):
-        # If MegaBlocks shards experts, the total sharding world size
-        # must be increased by the degree to which MegaBlocks shards the
-        # experts.
-        mb_args = mpt_model.model.transformer.mb_args
-        moe_world_size *= mb_args.weight_parallel_group.size()
-
     n_total_params = 0
     for module in mpt_model.modules():
         if isinstance(
@@ -109,9 +102,6 @@ def megablocks_n_active_params(mpt_model) -> int:  # type: ignore
     moe_world_size = mpt_model.config.ffn_config.get('moe_world_size')
 
     local_experts = moe_num_experts / moe_world_size  # if local_experts is < 1, then the expert is sharded
-    if mpt_model.config.ffn_config.get('moe_weight_parallelism', False):
-        mb_args = mpt_model.model.transformer.mb_args
-        local_experts /= mb_args.weight_parallel_group.size()
 
     moe_top_k = mpt_model.config.ffn_config.get('moe_top_k', 1)
     n_active_params = 0

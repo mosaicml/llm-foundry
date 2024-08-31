@@ -190,7 +190,6 @@ def test_gen_mpt_moe(
             'moe_num_experts': 4,
             'moe_top_k': 2,
             'moe_world_size': 1,
-            'moe_weight_parallelism': False,
             'uniform_expert_assignment': False,
         },
     )

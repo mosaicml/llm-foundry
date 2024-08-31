@@ -397,7 +397,6 @@ def attach_ffn_mb_args(
     """
     ffn.experts.mlp.hidden_size = args.ffn_hidden_size
     ffn.experts.mlp.expert_parallel_group = expert_parallel_group
-    ffn.experts.mlp.weight_parallel_group = args.weight_parallel_group
 
 
 def get_fsdp_submesh_2d(device_mesh: DeviceMesh):

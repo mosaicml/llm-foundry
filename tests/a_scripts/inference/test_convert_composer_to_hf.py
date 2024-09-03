@@ -519,7 +519,6 @@ def _get_model_and_tokenizer(
                 'moe_num_experts': 4,
                 'moe_top_k': 2,
                 'moe_world_size': 1,
-                'moe_weight_parallelism': False,
                 'uniform_expert_assignment': False,
             },
             'max_seq_len': max_seq_len,
@@ -1251,8 +1250,6 @@ def test_mptmoe_huggingface_conversion_callback(
                 2,
             'moe_world_size':
                 2,
-            'moe_weight_parallelism':
-                False,
             'uniform_expert_assignment':
                 True,
             'mlp_impl':

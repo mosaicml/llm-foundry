@@ -27,8 +27,6 @@ jobs:
           markers: "not gpu"
           pytest_command: "coverage run -m pytest"
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
     - name: Run PR CPU Tests
       uses: mosaicml/ci-testing/.github/actions/pytest-cpu@v0.2.2
       with:

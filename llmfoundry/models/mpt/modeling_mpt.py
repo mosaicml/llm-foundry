@@ -366,7 +366,7 @@ def _fsdp_wrap_fn(
 
 class MPTModel(MPTPreTrainedModel):
 
-    def __init__(self, config: MPTConfig):
+    def __init__(self, config: MPTConfig, verbose: Optional[bool] = True):
         config._validate_config()
         super().__init__(config)
 
@@ -438,9 +438,6 @@ class MPTModel(MPTPreTrainedModel):
             )
 
         if config.init_device != 'meta':
-            log.info(
-                f'We recommend using config.init_device="meta" with Composer + FSDP for faster initialization.',
-            )
             self.apply(self.param_init_fn)
 
         self.is_causal = True
@@ -469,8 +466,11 @@ class MPTModel(MPTPreTrainedModel):
                     log.debug(f'Setting use_bias=False for {module=}.')
                     module.use_bias = False
 
-        log.debug(self)
-        log.debug(f'Using {self.config.init_config["name"]} initialization.')
+        if verbose:
+            log.debug(self)
+            log.debug(
+                f'Using {self.config.init_config["name"]} initialization.'
+            )
 
     @property
     def block_class(self) -> type[MPTBlock]:
@@ -1035,11 +1035,11 @@ class MPTModel(MPTPreTrainedModel):
 
 class MPTForCausalLM(MPTPreTrainedModel):
 
-    def __init__(self, config: MPTConfig):
+    def __init__(self, config: MPTConfig, verbose: Optional[bool] = True):
         super().__init__(config)
         log.info(f'Instantiating an MPTForCausalLM model from {__file__}')
 
-        self.transformer: MPTModel = self.backbone_model_class(config)
+        self.transformer: MPTModel = self.backbone_model_class(config, verbose)
 
         self.lm_head = None
         if not config.tie_word_embeddings:

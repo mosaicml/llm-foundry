@@ -366,7 +366,7 @@ def _fsdp_wrap_fn(
 
 class MPTModel(MPTPreTrainedModel):
 
-    def __init__(self, config: MPTConfig, verbose: Optional[bool] = True):
+    def __init__(self, config: MPTConfig, verbose: bool = True):
         config._validate_config()
         super().__init__(config)
 
@@ -469,7 +469,7 @@ class MPTModel(MPTPreTrainedModel):
         if verbose:
             log.debug(self)
             log.debug(
-                f'Using {self.config.init_config["name"]} initialization.'
+                f'Using {self.config.init_config["name"]} initialization.',
             )
 
     @property
@@ -1035,7 +1035,7 @@ class MPTModel(MPTPreTrainedModel):
 
 class MPTForCausalLM(MPTPreTrainedModel):
 
-    def __init__(self, config: MPTConfig, verbose: Optional[bool] = True):
+    def __init__(self, config: MPTConfig, verbose: bool = True):
         super().__init__(config)
         log.info(f'Instantiating an MPTForCausalLM model from {__file__}')
 
@@ -1070,6 +1070,9 @@ class MPTForCausalLM(MPTPreTrainedModel):
                         f"{logit_scale=} is not recognized as an option; use numeric value or 'inv_sqrt_d_model'.",
                     )
             self.logit_scale = logit_scale
+
+        if verbose:
+            log.debug(self)
 
     @property
     def backbone_model_class(self) -> type[MPTModel]:

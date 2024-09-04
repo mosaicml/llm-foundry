@@ -412,7 +412,8 @@ class MPTModel(MPTPreTrainedModel):
             causal=self.is_causal,
             use_sequence_id=self.attn_uses_sequence_id,
         )
-
+        log.info('Config Chuck')
+        log.info(config)
         if config.no_bias:
             for module in self.modules():
                 if hasattr(module,

@@ -548,6 +548,15 @@ def train(cfg: DictConfig) -> Trainer:
         spin_dataloaders=train_cfg.spin_dataloaders,
     )
 
+    from composer.callbacks.checkpoint_saver import CheckpointSaver
+
+    print('before', trainer.state.callbacks)
+
+
+    trainer.state.callbacks = sorted(trainer.state.callbacks, key=lambda c: 0 if isinstance(c, CheckpointSaver) else 1 if isinstance(c, HuggingFaceCheckpointer) else 2)
+
+    print('after', trainer.state.callbacks)
+
     # Optionally just save an HF checkpoint
     if train_cfg.only_hf_checkpoint:
         hf_checkpointer_callbacks = [

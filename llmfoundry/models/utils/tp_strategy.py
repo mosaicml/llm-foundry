@@ -23,6 +23,3 @@ def ffn_tp_strategy(model: ComposerModel) -> Union[ParallelStyle, Dict[str, Para
             layer_plan[name] = RowwiseParallel(input_layouts=Shard(-1), output_layouts=Shard(0))
 
     return layer_plan
-
-
-tp_strategy.register('ffn', func=ffn_tp_strategy)

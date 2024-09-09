@@ -15,7 +15,8 @@ from llmfoundry.models.mpt import (
     MPTModel,
     MPTPreTrainedModel,
 )
-from llmfoundry.registry import models
+from llmfoundry.models.utils.tp_strategy import ffn_tp_strategy
+from llmfoundry.registry import models, tp_strategy
 
 models.register('mpt_causal_lm', func=ComposerMPTCausalLM)
 models.register('hf_causal_lm', func=ComposerHFCausalLM)
@@ -24,6 +25,7 @@ models.register('openai_causal_lm', func=OpenAICausalLMEvalWrapper)
 models.register('fmapi_causal_lm', func=FMAPICasualLMEvalWrapper)
 models.register('openai_chat', func=OpenAIChatAPIEvalWrapper)
 models.register('fmapi_chat', func=FMAPIChatAPIEvalWrapper)
+tp_strategy.register('ffn', func=ffn_tp_strategy)
 
 __all__ = [
     'ComposerHFCausalLM',
@@ -37,4 +39,5 @@ __all__ = [
     'FMAPICasualLMEvalWrapper',
     'OpenAIChatAPIEvalWrapper',
     'FMAPIChatAPIEvalWrapper',
+    'ffn_tp_strategy',
 ]

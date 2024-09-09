@@ -14,6 +14,7 @@ from typing import (
     Iterable,
     Optional,
     Union,
+    Dict,
 )
 
 import torch
@@ -25,6 +26,7 @@ from composer.utils import dist
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from torch.distributed.checkpoint import LoadPlanner, SavePlanner
+from torch.distributed.tensor.parallel.style import ParallelStyle
 from torch.optim.optimizer import Optimizer
 from torchmetrics import Metric
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
@@ -52,6 +54,7 @@ __all__ = [
     'build_tokenizer',
     'build_composer_model',
     'build_metric',
+    'build_tp_strategy',
 ]
 
 
@@ -701,3 +704,13 @@ def build_icl_evaluators(
                 )
 
     return evaluators, logger_keys
+
+
+def build_tp_strategy(
+    name: str,
+) -> Union[ParallelStyle, Dict[str, ParallelStyle]]:
+    return construct_from_registry(
+        name=name,
+        registry=registry.tp_strategy,
+        partial_function=True,
+    )

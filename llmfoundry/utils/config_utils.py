@@ -120,6 +120,7 @@ class TrainConfig:
     # Distributed training parameters
     dist_timeout: Union[int, float] = 600.0
     fsdp_config: Optional[dict[str, Any]] = None
+    tp_config: Optional[dict[str, Any]] = None
 
     # Evaluation parameters
     eval_interval: Union[int, str] = 1

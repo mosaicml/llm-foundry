@@ -10,7 +10,7 @@ def ffn_tp_strategy(model: ComposerModel) -> Union[ParallelStyle, Dict[str, Para
     TP_LAYERS = set(['up_proj', 'down_proj'])
 
     # validate that all TP_LAYERS are in model
-    tp_layers_in_model = set([name for name, _ in model.named_modules() if name in TP_LAYERS])
+    tp_layers_in_model = set([layer for layer in TP_LAYERS for name, _ in model.named_modules() if layer in name])
     assert tp_layers_in_model == TP_LAYERS, f'This tensor parallelism strategy requires `model` to have layers {TP_LAYERS}. But `model` is missing layers {TP_LAYERS - tp_layers_in_model}.'
 
     # generate layer plan

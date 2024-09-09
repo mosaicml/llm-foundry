@@ -196,7 +196,7 @@ def _sort_callbacks(trainer: Trainer):
     """
 
     def _sort_key(c: Callback) -> int:
-        # CheckpointSaver goes first because the blocking time is shortest while upload is async.
+        # CheckpointSaver goes before HuggingFaceCheckpointer because the blocking time is shortest while upload is async.
         if isinstance(c, CheckpointSaver):
             return 1
         if isinstance(c, HuggingFaceCheckpointer):

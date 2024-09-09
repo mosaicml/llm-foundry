@@ -1,6 +1,6 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-from typing import Any, Callable, Iterable, Union, Dict
+from typing import Any, Callable, Iterable, Union
 
 from composer.core import Algorithm, Callback, DataSpec
 from composer.loggers import LoggerDestination
@@ -405,7 +405,7 @@ _tp_strategy_description = (
 tp_strategy = create_registry(
     'llmfoundry',
     'tp_strategy',
-    generic_type=Callable[ComposerModel, Union[ParallelStyle, Dict[str, ParallelStyle]]],
+    generic_type=Callable[ComposerModel, Union[ParallelStyle, dict[str, ParallelStyle]]],
     entry_points=True,
     description=_tp_strategy_description,
 )

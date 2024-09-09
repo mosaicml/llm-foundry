@@ -499,11 +499,12 @@ def train(cfg: DictConfig) -> Trainer:
         if 'layer_plan' not in tp_config:
             tp_config['layer_plan'] = {}
         if 'strategy' in tp_config:
-            strategy = tp_config['strategy']
+            strategy = tp_config.pop('strategy')
             strategy_layer_plan = build_tp_strategy(strategy, model)
-            from icecream import ic
-            ic(strategy_layer_plan)
             tp_config['layer_plan'] |= strategy_layer_plan
+
+    # Parallelism config
+    parallelism_config: ParallelismConfig = {'fsdp': fsdp_config, 'tp': tp_config}
 
     # Optimizer
     optimizer_name: str = train_cfg.optimizer.pop('name')

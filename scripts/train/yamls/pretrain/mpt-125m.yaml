@@ -96,6 +96,10 @@ fsdp_config:
   activation_cpu_offload: false
   limit_all_gathers: true
 
+# TP
+tp_config:
+  strategy: ffn
+
 # Logging
 progress_bar: false
 log_to_console: true

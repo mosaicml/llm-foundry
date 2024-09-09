@@ -9,7 +9,7 @@ integrations:
 command: |
   cd llm-foundry/scripts
   composer train/train.py /mnt/config/parameters.yaml
-image: mosaicml/llm-foundry:2.4.0_cu124-latest
+image: mosaicml/llm-foundry:2.3.1_cu121-latest
 name: llama2-finetune
 
 compute:

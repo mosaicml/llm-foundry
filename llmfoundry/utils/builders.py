@@ -14,7 +14,7 @@ from typing import (
     Iterable,
     Optional,
     Union,
-    Dict,
+    Callable
 )
 
 import torch
@@ -708,9 +708,9 @@ def build_icl_evaluators(
 
 def build_tp_strategy(
     name: str,
-) -> Union[ParallelStyle, Dict[str, ParallelStyle]]:
+) -> Callable[ComposerModel, Union[ParallelStyle, dict[str, ParallelStyle]]]:
     return construct_from_registry(
         name=name,
         registry=registry.tp_strategy,
-        partial_function=True,
+        partial_function=False,
     )

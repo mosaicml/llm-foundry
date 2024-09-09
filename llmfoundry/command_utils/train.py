@@ -256,8 +256,6 @@ def train(cfg: DictConfig) -> Trainer:
     model_config = train_cfg.model
     train_loader_config = train_cfg.train_loader
 
-    parallelism_config: Optional[Union[Dict[str, Any], ParallelismConfig]] = None
-
     # Optional fsdp data, fine-tuning, and eval configs
     fsdp_config: Optional[dict[str, Any]] = train_cfg.fsdp_config
 
@@ -321,16 +319,23 @@ def train(cfg: DictConfig) -> Trainer:
                 changing autoresume default to True...',
         )
 
-    # Warn if fsdp is enabled but user only has 1 GPU
-    if dist.get_world_size() == 1 and fsdp_config is not None:
+    # Warn if fsdp or tp is enabled but user only has 1 GPU
+    if dist.get_world_size() == 1 and (fsdp_config is not None or tp_config is not None):
+        parallelism = ''
+        if fsdp_config is not None:
+            parallelism += 'FSDP'
+        if tp_config is not None:
+            parallelism += '+TP' if fsdp_config is not None else 'TP'
         warnings.warn(
-            'FSDP is not applicable for single-GPU training. Reverting to DDP.',
+            f'{parallelism} is not applicable for single-GPU training. Reverting to DDP.',
         )
         fsdp_config = None
+        tp_config = None
 
     # Initialize context
     init_context = process_init_device(model_config, fsdp_config)
     logged_cfg.update({'fsdp_config': fsdp_config}, merge=True)
+    logged_cfg.update({'tp_config': tp_config}, merge=True)
 
     # Build tokenizer
     log.info('Building tokenizer...')

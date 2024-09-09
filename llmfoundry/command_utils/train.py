@@ -288,7 +288,8 @@ def train(cfg: DictConfig) -> Trainer:
     tp_config: Optional[dict[str, Any]] = train_cfg.tp_config
     if tp_config is not None:
         if 'strategy' in tp_config:
-            strategy_layer_plan = build_tp_strategy(tp_config['strategy'])
+            tp_strategy = build_tp_strategy(tp_config['strategy'])
+            strategy_layer_plan = tp_strategy(ComposerModel)
             tp_config['layer_plan'] |= strategy_layer_plan
 
 

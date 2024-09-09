@@ -5,9 +5,8 @@ from torch.distributed.tensor.parallel import ColwiseParallel, RowwiseParallel
 from torch.distributed.tensor.parallel.style import ParallelStyle
 from torch.distributed._tensor import Replicate, Shard
 
-from llmfoundry.registry import tp_strategy
 
-def ffn_tp_strategy() -> Union[ParallelStyle, Dict[str, ParallelStyle]]:
+def ffn_tp_strategy(model: ComposerModel) -> Union[ParallelStyle, Dict[str, ParallelStyle]]:
     TP_LAYERS = set(['up_proj', 'down_proj'])
 
     # validate that all TP_LAYERS are in model

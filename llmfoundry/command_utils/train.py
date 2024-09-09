@@ -284,15 +284,6 @@ def train(cfg: DictConfig) -> Trainer:
                 **save_planner_config,
             )
 
-    # Optional tp config
-    tp_config: Optional[dict[str, Any]] = train_cfg.tp_config
-    if tp_config is not None:
-        if 'strategy' in tp_config:
-            tp_strategy = build_tp_strategy(tp_config['strategy'])
-            strategy_layer_plan = tp_strategy()
-            tp_config['layer_plan'] |= strategy_layer_plan
-
-
     eval_loader_config = train_cfg.eval_loader if train_cfg.eval_loader is not None else train_cfg.eval_loaders
     icl_tasks_config = train_cfg.icl_tasks or train_cfg.icl_tasks_str
     eval_gauntlet_config = train_cfg.eval_gauntlet or train_cfg.eval_gauntlet_str
@@ -320,7 +311,10 @@ def train(cfg: DictConfig) -> Trainer:
                 changing autoresume default to True...',
         )
 
-    # Warn if fsdp or tp is enabled but user only has 1 GPU
+    # Optional tp config
+    tp_config: Optional[dict[str, Any]] = train_cfg.tp_config
+
+    # Warn if FSDP or TP is enabled but user only has 1 GPU
     if dist.get_world_size() == 1 and (fsdp_config is not None or tp_config is not None):
         parallelism = ''
         if fsdp_config is not None:
@@ -499,6 +493,17 @@ def train(cfg: DictConfig) -> Trainer:
     )
 
     _log_num_params(model, logged_cfg)
+
+    # TP config
+    if tp_config is not None:
+        if 'layer_plan' not in tp_config:
+            tp_config['layer_plan'] = {}
+        if 'strategy' in tp_config:
+            strategy = tp_config['strategy']
+            strategy_layer_plan = build_tp_strategy(strategy, model)
+            from icecream import ic
+            ic(strategy_layer_plan)
+            tp_config['layer_plan'] |= strategy_layer_plan
 
     # Optimizer
     optimizer_name: str = train_cfg.optimizer.pop('name')

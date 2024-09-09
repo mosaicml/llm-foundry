@@ -289,7 +289,7 @@ def train(cfg: DictConfig) -> Trainer:
     if tp_config is not None:
         if 'strategy' in tp_config:
             tp_strategy = build_tp_strategy(tp_config['strategy'])
-            strategy_layer_plan = tp_strategy(ComposerModel)
+            strategy_layer_plan = tp_strategy()
             tp_config['layer_plan'] |= strategy_layer_plan
 
 

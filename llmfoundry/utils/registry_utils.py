@@ -136,7 +136,6 @@ def construct_from_registry(
     if kwargs is None:
         kwargs = {}
 
-    ic(type(registry), name)
     registered_constructor = registry.get(name)
 
     if pre_validation_function is not None:

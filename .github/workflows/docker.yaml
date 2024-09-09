@@ -17,12 +17,14 @@ jobs:
     strategy:
       matrix:
         include:
-        - name: "2.3.1_cu121"
-          base_image: mosaicml/pytorch:2.3.1_cu121-python3.11-ubuntu20.04
+        - name: "2.4.0_cu124"
+          base_image: mosaicml/pytorch:2.4.0_cu124-python3.11-ubuntu20.04
           dep_groups: "[all]"
-        - name: "2.3.1_cu121_aws"
-          base_image: mosaicml/pytorch:2.3.1_cu121-python3.11-ubuntu20.04-aws
+          te_commit: 901e5d2
+        - name: "2.4.0_cu124_aws"
+          base_image: mosaicml/pytorch:2.4.0_cu124-python3.11-ubuntu20.04-aws
           dep_groups: "[all]"
+          te_commit: 901e5d2
     steps:
 
     - name: Checkout
@@ -89,3 +91,4 @@ jobs:
           BRANCH_NAME=${{ github.head_ref || github.ref_name }}
           BASE_IMAGE=${{ matrix.base_image }}
           DEP_GROUPS=${{ matrix.dep_groups }}
+          TE_COMMIT=${{ matrix.te_commit }}

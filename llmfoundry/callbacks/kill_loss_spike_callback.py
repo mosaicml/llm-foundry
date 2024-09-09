@@ -109,11 +109,11 @@ class KillLossSpike(Callback):
 
         return is_high_loss
 
-    def _log_metadata(self, logger: Logger, key: str, message: str) -> None:
+    def _log_metadata(self, logger: Logger, key: str, value: dict) -> None:
         for destination in logger.destinations:
             if isinstance(destination, MosaicMLLogger):
                 destination.log_metadata({
-                    key: message,
+                    key: value,
                     'loss_window': list(self.loss_window),
                 })
 
@@ -122,22 +122,39 @@ class KillLossSpike(Callback):
         logger: Logger,
         running_loss_avg: float,
     ) -> None:
-        message = f'Training loss spike detected for {self.outlier_counter} consecutive steps. Consider stopping this run and resubmitting with a lower learning rate.'
-        self._log_metadata(logger, 'loss_spike', message)
-        if not self.log_only:
+        if self.log_only:
+            self._log_metadata(
+                logger,
+                'loss_spike',
+                {
+                    'outlier_multiplier': self.outlier_multiplier,
+                    'running_loss_avg': running_loss_avg,
+                    'outlier_counter': self.outlier_counter,
+                },
+            )
+        else:
             raise LossSpikeError(
                 outlier_multiplier=self.outlier_multiplier,
-                running_loss_avg=round(running_loss_avg),
+                running_loss_avg=running_loss_avg,
                 outlier_counter=self.outlier_counter,
+                loss_window=list(self.loss_window),
             )
 
     def _handle_high_losses(self, logger: Logger) -> None:
-        message = f'Persistently high (>{self.loss_cap}) training losses detected. Consider stopping this run and resubmitting with a lower learning rate.'
-        self._log_metadata(logger, 'high_loss', message)
-        if not self.log_only:
+        if self.log_only:
+            self._log_metadata(
+                logger,
+                'high_loss',
+                {
+                    'loss_cap': self.loss_cap,
+                    'window_size': self.window_size,
+                },
+            )
+        else:
             raise HighLossError(
                 loss_cap=self.loss_cap,
                 window_size=self.window_size,
+                loss_window=list(self.loss_window),
             )
 
     def _set_window_size(self, state: State) -> None:

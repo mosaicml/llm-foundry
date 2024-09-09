@@ -395,18 +395,18 @@ class LossSpikeError(UserError):
     def __init__(
         self,
         outlier_multiplier: float,
-        running_loss_avg: int,
+        running_loss_avg: float,
         outlier_counter: int,
+        loss_window: list[float],
     ) -> None:
-        message = f'Training stopped due to a loss spike. The training loss was more than {outlier_multiplier} times greater than \
-                    the running average loss (approx. {running_loss_avg}) over {outlier_counter} consecutive training steps. \
-                    Please try submitting the run again with a lower learning rate.'
+        message = f'Training stopped due to a loss spike. The training loss was more than {outlier_multiplier} times greater than the running average loss (approx. {running_loss_avg}) over {outlier_counter} consecutive training steps. Please try submitting the run again with a lower learning rate.'
 
         super().__init__(
             message,
             outlier_multiplier=outlier_multiplier,
             running_loss_avg=running_loss_avg,
             outlier_counter=outlier_counter,
+            loss_window=loss_window,
         )
 
 
@@ -417,12 +417,13 @@ class HighLossError(UserError):
         self,
         loss_cap: float,
         window_size: int,
+        loss_window: list[float],
     ) -> None:
-        message = f'Training stopped due to consistently high losses. The training loss exceeded the threshold of {loss_cap} \
-                        for more than half of the {window_size} most recent training steps. Please try submitting the run again with a lower learning rate.'
+        message = f'Training stopped due to consistently high losses. The training loss exceeded the threshold of {loss_cap} for more than half of the {window_size} most recent training steps. Please try submitting the run again with a lower learning rate.'
 
         super().__init__(
             message,
             loss_cap=loss_cap,
             window_size=window_size,
+            loss_window=loss_window,
         )

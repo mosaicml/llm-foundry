@@ -53,11 +53,11 @@ classifiers = [
 
 install_requires = [
     'mosaicml[libcloud,wandb,oci,gcs,mlflow]>=0.24.1,<0.25',
-    'mlflow>=2.14.1,<2.16',
+    'mlflow>=2.14.1,<2.17',
     'accelerate>=0.25,<0.34',  # for HF inference `device_map`
     'transformers>=4.43.2,<4.44',
     'mosaicml-streaming>=0.8.1,<0.9',
-    'torch>=2.3.0,<2.4',
+    'torch>=2.4.0,<2.4.1',
     'datasets>=2.19,<2.20',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
     'sentencepiece==0.2.0',
@@ -92,6 +92,7 @@ extra_deps['dev'] = [
 
 extra_deps['databricks'] = [
     'mosaicml[databricks]>=0.24.1,<0.25',
+    'numpy<2',
     'databricks-sql-connector>=3,<4',
     'databricks-connect==14.1.0',
     'lz4>=4,<5',
@@ -118,8 +119,8 @@ extra_deps['openai'] = [
 ]
 
 extra_deps['megablocks'] = [
-    'megablocks==0.5.1',
-    'grouped-gemm==0.1.4',
+    'megablocks==0.6.1',
+    'grouped-gemm==0.1.6',
 ]
 
 extra_deps['databricks-serverless'] = {

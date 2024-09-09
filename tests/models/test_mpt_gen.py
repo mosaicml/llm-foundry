@@ -37,6 +37,7 @@ class MockMPTForCausalLM(MPTForCausalLM):
         output_hidden_states: Optional[bool] = None,
         use_cache: Optional[bool] = None,
         inputs_embeds: Optional[torch.FloatTensor] = None,
+        position_ids: Optional[torch.LongTensor] = None,
     ):
         result = super().forward(
             input_ids,
@@ -49,6 +50,7 @@ class MockMPTForCausalLM(MPTForCausalLM):
             output_hidden_states,
             use_cache,
             inputs_embeds,
+            position_ids,
         )
         # Modify the logits to select the next token.
         if dist.get_global_rank() == 0:
@@ -188,7 +190,6 @@ def test_gen_mpt_moe(
             'moe_num_experts': 4,
             'moe_top_k': 2,
             'moe_world_size': 1,
-            'moe_weight_parallelism': False,
             'uniform_expert_assignment': False,
         },
     )

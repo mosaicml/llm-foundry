@@ -5,7 +5,7 @@ import logging
 import os
 import time
 import warnings
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, Dict
 
 import torch
 import torch.distributed
@@ -17,7 +17,7 @@ from composer.profiler import (
     TraceHandler,
     cyclic_schedule,
 )
-from composer.utils import dist, get_device, reproducibility
+from composer.utils import dist, get_device, reproducibility, ParallelismConfig, TPConfig
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
@@ -42,6 +42,7 @@ from llmfoundry.utils.builders import (
     build_save_planner,
     build_scheduler,
     build_tokenizer,
+    build_tp_strategy,
 )
 from llmfoundry.utils.config_utils import (
     TRAIN_CONFIG_KEYS,
@@ -255,6 +256,8 @@ def train(cfg: DictConfig) -> Trainer:
     model_config = train_cfg.model
     train_loader_config = train_cfg.train_loader
 
+    parallelism_config: Optional[Union[Dict[str, Any], ParallelismConfig]] = None
+
     # Optional fsdp data, fine-tuning, and eval configs
     fsdp_config: Optional[dict[str, Any]] = train_cfg.fsdp_config
 
@@ -282,6 +285,14 @@ def train(cfg: DictConfig) -> Trainer:
                 save_planner_name,
                 **save_planner_config,
             )
+
+    # Optional tp config
+    tp_config: Optional[dict[str, Any]] = train_cfg.tp_config
+    if tp_config is not None:
+        if 'strategy' in tp_config:
+            strategy_layer_plan = build_tp_strategy(tp_config['strategy'])
+            tp_config['layer_plan'] |= strategy_layer_plan
+
 
     eval_loader_config = train_cfg.eval_loader if train_cfg.eval_loader is not None else train_cfg.eval_loaders
     icl_tasks_config = train_cfg.icl_tasks or train_cfg.icl_tasks_str
@@ -527,7 +538,7 @@ def train(cfg: DictConfig) -> Trainer:
         precision=train_cfg.precision,
         algorithms=algorithms,
         device_train_microbatch_size=train_cfg.device_train_microbatch_size,
-        parallelism_config={'fsdp': fsdp_config},
+        parallelism_config=parallelism_config,
         save_folder=train_cfg.save_folder,
         save_filename=save_filename,
         save_latest_filename=save_latest_filename,

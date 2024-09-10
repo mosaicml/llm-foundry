@@ -702,7 +702,73 @@ class StreamingFinetuningDataset(StreamingDataset):
             num_samples=num_samples,
             from_beginning=from_beginning,
         )
+    
+def download_hf_dataset_if_needed(
+    dataset_name: str,
+    hf_kwargs: Optional[dict[str, Any]] = None
+) -> str:
+    """
+    Download a HuggingFace dataset locally if it does not already exist.
 
+    Args:
+        dataset_name (str): The name of the HuggingFace dataset to use. Can be a remote http(s) 
+        directory or object store bucket containing the file {split}.jsonl.
+        safe_load (bool): Whether to enforce safe loading of the dataset.
+        hf_kwargs (dict, optional): Additional kwargs to pass to `datasets.load_dataset`.
+
+    Returns:
+        str: The local path to the dataset.
+    """
+    if hf_kwargs is None:
+        hf_kwargs = {}
+
+    if not os.path.isdir(dataset_name):
+        local_dataset_dir = os.path.join(
+            DOWNLOADED_FT_DATASETS_DIRPATH,
+            dataset_name,
+        )
+
+        if _is_empty_or_nonexistent(dirpath=local_dataset_dir):
+            # Safely load the dataset from HF Hub with restricted file types.
+            hf_hub.snapshot_download(
+                dataset_name,
+                repo_type='dataset',
+                allow_patterns=[
+                    '*' + ext for ext in SUPPORTED_EXTENSIONS
+                ],
+                token=hf_kwargs.get('token', None),
+                revision=hf_kwargs.get('revision', None),
+                local_dir_use_symlinks=False,
+                local_dir=local_dataset_dir,
+            )
+            if _is_empty_or_nonexistent(dirpath=dataset_name):
+                log.error("Failed to safely load the dataset from HF Hub.")
+                raise InvalidFileExtensionError(
+                    dataset_name,
+                    SUPPORTED_EXTENSIONS,
+                )
+        # Set dataset_name to the downloaded location.
+        dataset_name = local_dataset_dir
+
+    # Ensure dataset_name is a local directory path (using abspath to avoid confusion).
+    dataset_name = os.path.abspath(dataset_name)
+
+    # Check that the directory contains only allowed file types.
+    dataset_files = [
+        f for _, _, files in os.walk(dataset_name) for f in files
+    ]
+    if not all(
+        Path(f).suffix in SUPPORTED_EXTENSIONS +
+        HUGGINGFACE_FOLDER_EXTENSIONS or f == '.gitignore'
+        for f in dataset_files
+    ):
+        log.error(f"Invalid file extension found in dataset during safe load.")
+        raise InvalidFileExtensionError(
+            dataset_name,
+            SUPPORTED_EXTENSIONS,
+        )
+
+    return dataset_name
 
 class DatasetConstructor:
 
@@ -901,50 +967,11 @@ class DatasetConstructor:
         filtered_dataset = None
         try:
             if safe_load:
-                if not os.path.isdir(dataset_name):
-                    # dataset_name is not a local dir path, download if needed.
-                    local_dataset_dir = os.path.join(
-                        DOWNLOADED_FT_DATASETS_DIRPATH,
-                        dataset_name,
-                    )
-
-                    if _is_empty_or_nonexistent(dirpath=local_dataset_dir):
-                        # Safely load a dataset from HF Hub with restricted file types.
-                        hf_hub.snapshot_download(
-                            dataset_name,
-                            repo_type='dataset',
-                            allow_patterns=[
-                                '*' + ext for ext in SUPPORTED_EXTENSIONS
-                            ],
-                            token=hf_kwargs.get('token', None),
-                            revision=hf_kwargs.get('revision', None),
-                            local_dir_use_symlinks=False,
-                            local_dir=local_dataset_dir,
-                        )
-                        if _is_empty_or_nonexistent(dirpath=local_dataset_dir):
-                            raise InvalidFileExtensionError(
-                                dataset_name,
-                                SUPPORTED_EXTENSIONS,
-                            )
-                    # Set dataset_name to the downloaded location.
-                    dataset_name = local_dataset_dir
-
-                # dataset_name is a local dir path. Use the abspath to prevent confusion.
-                dataset_name = os.path.abspath(dataset_name)
-
-                # Ensure that the local dir contains only allowed file types.
-                dataset_files = [
-                    f for _, _, files in os.walk(dataset_name) for f in files
-                ]
-                if not all(
-                    Path(f).suffix in SUPPORTED_EXTENSIONS +
-                    HUGGINGFACE_FOLDER_EXTENSIONS or f == '.gitignore'
-                    for f in dataset_files
-                ):
-                    raise InvalidFileExtensionError(
-                        dataset_name,
-                        SUPPORTED_EXTENSIONS,
-                    )
+                dataset_name = download_hf_dataset_if_needed(
+                    dataset_name,
+                    safe_load,
+                    hf_kwargs,
+                )
 
             dataset = hf_datasets.load_dataset(
                 dataset_name,

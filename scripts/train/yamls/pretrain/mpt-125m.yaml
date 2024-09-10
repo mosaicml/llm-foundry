@@ -21,7 +21,8 @@ model:
   max_seq_len: ${variables.max_seq_len}
   vocab_size: 50368
   attn_config:
-    attn_impl: flash
+    attn_impl: torch
+  loss_fn: torch_crossentropy
 
 # Tokenizer
 tokenizer:

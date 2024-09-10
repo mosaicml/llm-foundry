@@ -709,7 +709,7 @@ def build_icl_evaluators(
 def build_tp_strategy(
     name: str,
     model: ComposerModel,
-) -> Union[ParallelStyle, dict[str, ParallelStyle]]:
+) -> dict[str, ParallelStyle]:
     return construct_from_registry(
         name=name,
         registry=registry.tp_strategy,

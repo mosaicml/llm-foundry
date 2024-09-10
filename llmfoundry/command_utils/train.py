@@ -5,7 +5,8 @@ import logging
 import os
 import time
 import warnings
-from typing import Any, Optional, Union, Dict
+from copy import deepcopy
+from typing import Any, Optional, Union
 
 import torch
 import torch.distributed
@@ -330,7 +331,7 @@ def train(cfg: DictConfig) -> Trainer:
     # Initialize context
     init_context = process_init_device(model_config, fsdp_config)
     logged_cfg.update({'fsdp_config': fsdp_config}, merge=True)
-    logged_cfg.update({'tp_config': tp_config}, merge=True)
+    logged_cfg.update({'tp_config': deepcopy(tp_config)}, merge=True)
 
     # Build tokenizer
     log.info('Building tokenizer...')

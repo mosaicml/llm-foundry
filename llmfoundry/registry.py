@@ -397,7 +397,7 @@ _tp_strategy_description = (
         model (ComposerModel): The model.
 
     Returns:
-        layer_plan (Union[ParallelStyle, Dict[str, ParallelStyle]]): The plan used to parallelize the model.
+        layer_plan (Dict[str, ParallelStyle]): The plan used to parallelize the model.
         model (ComposerModel): The model.
     """
 )
@@ -405,7 +405,7 @@ _tp_strategy_description = (
 tp_strategy = create_registry(
     'llmfoundry',
     'tp_strategy',
-    generic_type=Callable[[ComposerModel], Union[ParallelStyle, dict[str, ParallelStyle]]],
+    generic_type=Callable[[ComposerModel], dict[str, ParallelStyle]],
     entry_points=True,
     description=_tp_strategy_description,
 )

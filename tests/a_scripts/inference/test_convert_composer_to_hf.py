@@ -922,7 +922,8 @@ def test_huggingface_conversion_callback(
         model=original_model,
         device='gpu',
         precision=trainer_precision,
-        parallelism_config={'fsdp': fsdp_config} if fsdp_state_dict_type is not None else None,
+        parallelism_config={'fsdp': fsdp_config}
+        if fsdp_state_dict_type is not None else None,
         train_dataloader=train_dataloader,
         save_folder=os.path.join(tmp_path, 'checkpoints'),
         save_interval=save_interval,

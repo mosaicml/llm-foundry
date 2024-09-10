@@ -99,7 +99,9 @@ def evaluate_model(
             mosaicml_logger.log_metrics(metadata)
             mosaicml_logger._flush_metadata(force_flush=True)
 
-    fsdp_config = parallelism_config.get('fsdp_config', None) if parallelism_config else None
+    fsdp_config = parallelism_config.get(
+        'fsdp_config', None
+    ) if parallelism_config else None
     if fsdp_config and model.get('load_in_8bit', False):
         raise ValueError(
             'The FSDP config block is not supported when loading ' +

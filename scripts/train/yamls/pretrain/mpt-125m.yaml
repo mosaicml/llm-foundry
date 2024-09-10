@@ -15,7 +15,7 @@ model:
   name: mpt_causal_lm
   init_device: meta
   d_model: 768
-  n_heads: 12
+  n_heads: 1
   n_layers: 1
   expansion_ratio: 4
   max_seq_len: ${variables.max_seq_len}

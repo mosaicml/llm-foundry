@@ -329,7 +329,7 @@ def train(cfg: DictConfig) -> Trainer:
         tp_config = None
 
     # Initialize context
-    init_context = process_init_device(model_config, fsdp_config)
+    init_context = process_init_device(model_config, fsdp_config, tp_config)
     logged_cfg.update({'fsdp_config': fsdp_config}, merge=True)
     logged_cfg.update({'tp_config': deepcopy(tp_config)}, merge=True)
 

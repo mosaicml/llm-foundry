@@ -113,6 +113,11 @@ callbacks:
   memory_monitor: {}
   runtime_estimator: {}
 
+loggers:
+  mlflow:
+    experiment_name: tp
+    # model_registry_prefix: datasets.eitanturok.${run_name}
+
 # loggers:
 #   wandb: {}
 

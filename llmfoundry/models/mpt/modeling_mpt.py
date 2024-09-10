@@ -1337,14 +1337,9 @@ def compute_loss_from_logits(
 ) -> torch.Tensor:
     targets = get_targets(labels) if shift_labels else labels
 
-    outputs = outputs.logits.view(-1, outputs.logits.size(-1))
-    targets =targets.view(-1)
-
-    ic(targets.shape, outputs.shape, labels.shape)
-
     losses = loss_fn(
-        outputs,
-        targets,
+        outputs.logits.view(-1, outputs.logits.size(-1)),
+        targets.view(-1),
     )
 
     if torch.all(targets == loss_fn.ignore_index):

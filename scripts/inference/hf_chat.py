@@ -19,6 +19,7 @@ from transformers import (
     TextStreamer,
 )
 
+from llmfoundry.tokenizers import get_date_string
 from llmfoundry.utils.exceptions import ChatTemplateError
 
 DEFAULT_SYSTEM_PROMPT = 'You are a friendly chatbot who aims to be helpful and honest.'
@@ -132,6 +133,7 @@ class Conversation:
                 chat_conversation,
                 tokenize=False,
                 add_generation_prompt=False,
+                date_string=get_date_string(),
             )
         except Exception as e:
             raise ChatTemplateError(
@@ -149,6 +151,7 @@ class Conversation:
                 tokenize=True,
                 add_generation_prompt=True,
                 return_tensors='pt',
+                date_string=get_date_string(),
             )
         except Exception as e:
             raise ChatTemplateError(

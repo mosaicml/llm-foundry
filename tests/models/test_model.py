@@ -2941,3 +2941,37 @@ def test_hf_rotary_child_class_builds():
 
     assert torch.all(cos == cos_mp)
     assert torch.all(sin == sin_mp)
+
+
+@pytest.mark.parametrize(
+    'conf_path',
+    [
+        'scripts/train/yamls/pretrain/testing.yaml',
+    ],
+)
+def test_position_ids_fwd_pass(
+    request: pytest.FixtureRequest,
+    conf_path: str,
+    batch_size: int = 2,
+):
+    test_cfg, model, _ = _get_objs(request=request, conf_path=conf_path)
+    model.eval()
+
+    # run a forward where we do not pass the position_ids
+    batch = gen_random_batch(batch_size, test_cfg)
+    outputs = model(batch)
+    loss_no_ids = model.loss(outputs, batch)
+    assert isinstance(loss_no_ids, torch.Tensor)
+
+    # run a forward where we explicitly pass the position_ids
+    input_ids = batch['input_ids']
+    _, S = input_ids.size()
+    pos = torch.arange(0, S, dtype=torch.long,
+                       device=input_ids.device).unsqueeze(0)
+    batch['position_ids'] = pos
+
+    outputs = model(batch)
+    loss_ids = model.loss(outputs, batch)
+    assert isinstance(loss_ids, torch.Tensor)
+
+    assert torch.eq(loss_no_ids, loss_ids)

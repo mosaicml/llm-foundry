@@ -23,7 +23,6 @@ model:
     moe_num_experts: 4
     moe_top_k: 2
     moe_world_size: 1
-    moe_weight_parallelism: false
     uniform_expert_assignment: false
   n_heads: 2
   n_layers: 2

@@ -101,7 +101,6 @@ class TrainConfig:
     device_train_batch_size: Union[int, float] = MISSING
     device_eval_batch_size: Union[int, float] = MISSING
     max_duration: Union[int, str] = MISSING
-    eval_interval: Union[int, str] = MISSING
     max_seq_len: int = MISSING
 
     # Seed
@@ -123,6 +122,7 @@ class TrainConfig:
     fsdp_config: Optional[dict[str, Any]] = None
 
     # Evaluation parameters
+    eval_interval: Union[int, str] = 1
     eval_loader: Optional[dict[str, Any]] = None
     eval_loaders: Optional[list[dict[str, Any]]
                           ] = None  # should not be set by the user
@@ -162,6 +162,7 @@ class TrainConfig:
     only_composer_checkpoint: bool = False
 
     # Dataloader
+    train_subset_num_batches: int = -1
     device_train_microbatch_size: Union[str, int, float] = 'auto'
     global_train_batch_size: Optional[int] = None
     spin_dataloaders: bool = True
@@ -532,18 +533,35 @@ def process_init_device(model_cfg: dict[str, Any], fsdp_config: Optional[dict]):
             # Set defaults for mixed initialization
             fsdp_config.setdefault('load_monolith_rank0_only', True)
 
-    # Set ffn_config.device_mesh to fsdp_config.device_mesh
-    if fsdp_config is not None and 'device_mesh' in fsdp_config and 'ffn_config' in model_cfg and model_cfg[
+    # Set ffn_config.device_mesh using fsdp_config
+    if fsdp_config is not None and 'ffn_config' in model_cfg and model_cfg[
         'ffn_config'].get('ffn_type', None) in ffns_with_megablocks:
-        # Raise ValueError if not using device mesh with MoE expert parallelism
-        if fsdp_config['device_mesh'] is None and model_cfg['ffn_config'].get(
-            'moe_world_size',
-            1,
-        ) > 1:
-            raise ValueError(
-                'device_mesh must be specified in fsdp_config when using MoE with moe_world_size > 1.',
-            )
-        model_cfg['ffn_config']['device_mesh'] = fsdp_config['device_mesh']
+        shard_degree = fsdp_config.get('data_parallel_shard_degree', None)
+        replicate_degree = fsdp_config.get(
+            'data_parallel_replicate_degree',
+            None,
+        )
+
+        if shard_degree is None and replicate_degree is None:
+            # Default to sharding over all gpus.
+            shard_degree = dist.get_world_size()
+            device_mesh_cfg = [shard_degree]
+        else:
+            if shard_degree is None:
+                # Shard degree is not specified, so calculate it from replicate degree
+                assert isinstance(replicate_degree, int)
+                shard_degree = dist.get_world_size() // replicate_degree
+            elif replicate_degree is None:
+                # Replicate degree is not specified, so calculate it from shard degree
+                assert isinstance(shard_degree, int)
+                replicate_degree = dist.get_world_size() // shard_degree
+
+            if replicate_degree == 1:
+                device_mesh_cfg = [shard_degree]
+            else:
+                device_mesh_cfg = [replicate_degree, shard_degree]
+
+        model_cfg['ffn_config']['device_mesh'] = device_mesh_cfg
 
     # No mixed precision needed for weights when they're already 16 bits
     master_dtype = model_cfg.get('master_weights_dtype')

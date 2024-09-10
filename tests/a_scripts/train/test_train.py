@@ -5,14 +5,18 @@ import copy
 import os
 import pathlib
 from typing import Optional
+from unittest.mock import Mock
 
 import pytest
+from composer.callbacks import CheckpointSaver
 from composer.loggers import InMemoryLogger
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 
+from llmfoundry.callbacks import HuggingFaceCheckpointer, RunTimeoutCallback
 from llmfoundry.command_utils import TrainConfig  # noqa: E402
 from llmfoundry.command_utils import TRAIN_CONFIG_KEYS, train, validate_config
+from llmfoundry.command_utils.train import _sort_callbacks
 from llmfoundry.utils.config_utils import (
     make_dataclass_and_log_config,
     update_batch_size_info,
@@ -108,6 +112,20 @@ def test_train_gauntlet(averages: Optional[dict], tmp_path: pathlib.Path):
 
     assert inmemorylogger.data[f'icl/metrics/eval_gauntlet/{category_name}'][
         -1][-1] == 0
+
+
+def test_sort_callbacks():
+    trainer_mock = Mock()
+    trainer_mock.state.callbacks = [
+        CheckpointSaver(),
+        HuggingFaceCheckpointer('save-folder', '1ba'),
+        RunTimeoutCallback(),
+    ]
+    _sort_callbacks(trainer_mock)
+
+    assert isinstance(trainer_mock.state.callbacks[0], RunTimeoutCallback)
+    assert isinstance(trainer_mock.state.callbacks[1], CheckpointSaver)
+    assert isinstance(trainer_mock.state.callbacks[2], HuggingFaceCheckpointer)
 
 
 def test_train_multi_eval(tmp_path: pathlib.Path):

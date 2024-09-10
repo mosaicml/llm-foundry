@@ -65,6 +65,7 @@ from llmfoundry.data.finetuning.collator import (
     stitch_turns_decoder_only,
     stitch_turns_encoder_decoder,
 )
+from llmfoundry.tokenizers import get_date_string
 # yapf: disable
 from llmfoundry.utils.exceptions import (
     ALLOWED_MESSAGES_KEYS,
@@ -249,11 +250,13 @@ def _slice_chat_formatted_example(
             full_conversation = tokenizer.apply_chat_template(
                 messages_through_current_turn,
                 tokenize=False,
+                date_string=get_date_string(),
             )
             prompt_with_history = tokenizer.apply_chat_template(
                 messages_through_current_turn[:-1],
                 tokenize=False,
                 add_generation_prompt=True,
+                date_string=get_date_string(),
             )
         except Exception as e:
             raise ChatTemplateError(
@@ -319,10 +322,24 @@ def _tokenize_with_bos_removal(
     )
 
     # Remove the BOS token from the start of the labels if it was automatically added
-    if hasattr(tokenizer, 'add_bos_token') and tokenizer.add_bos_token:
-        if tokenizer.bos_token_id is not None and tokenized_sample['labels'][
-            0] == tokenizer.bos_token_id:
-            tokenized_sample['labels'] = tokenized_sample['labels'][1:]
+    # Unfortunately if the tokenizer is PretrainedTokenizerFast, as llama3 is, it does not provide
+    # an add_bos_token attr that we can check explicitly, so instead we rely on checking if both the
+    # text and the text_target start with bos_token_id to determine whether to strip bos.
+    has_bos_token = hasattr(
+        tokenizer,
+        'bos_token_id',
+    ) and tokenizer.bos_token_id is not None
+    input_ids_starts_with_bos = False
+    labels_starts_with_bos = False
+    if has_bos_token and len(
+        tokenized_sample['input_ids'],
+    ) > 0 and len(tokenized_sample['labels']) > 0:
+        input_ids_starts_with_bos = tokenized_sample['input_ids'][
+            0] == tokenizer.bos_token_id
+        labels_starts_with_bos = tokenized_sample['labels'][
+            0] == tokenizer.bos_token_id
+    if input_ids_starts_with_bos and labels_starts_with_bos:
+        tokenized_sample['labels'] = tokenized_sample['labels'][1:]
 
     return tokenized_sample
 
@@ -642,6 +659,9 @@ class StreamingFinetuningDataset(StreamingDataset):
         self.max_seq_len = max_seq_len
         self.packing_ratio = packing_ratio
 
+    def tokenize_example(self, example: Example) -> TokenizedExample:
+        return tokenize_formatted_example(example, self.tokenizer)
+
     # How to process a sample
     def __getitem__(self, idx: int) -> dict[str, Any]:
         sample = super().__getitem__(idx)
@@ -670,7 +690,7 @@ class StreamingFinetuningDataset(StreamingDataset):
                 )
             # Convert to latest format by wrapping sample as a "turn"
             return {'turns': [sample]}
-        return tokenize_formatted_example(sample, tokenizer=self.tokenizer)
+        return self.tokenize_example(sample)
 
     def state_dict(self, num_samples: int,
                    from_beginning: bool) -> dict[str, Any]:
@@ -801,6 +821,7 @@ class DatasetConstructor:
         split: str,
         safe_load: bool = False,
         max_seq_len: int = 2048,
+        mapping_fn: Callable = tokenize_formatted_example,
         preprocessing_fn: Optional[Callable[[dict[str, Any]], Example]] = None,
         tokenizer: Optional[PreTrainedTokenizerBase] = None,
         target_prompts: str = DEFAULT_TARGET_PROMPTS,
@@ -824,6 +845,8 @@ class DatasetConstructor:
             max_seq_len (int): The maximum length of sequences
                 in the batch. See :class:`Seq2SeqFinetuningCollator` docstring
                 for details.
+            mapping_fn (Callable): The mapping function to use for mapping the data
+                examples.
             preprocessing_fn (Callable, optional): The preprocessing function to use for
                 formatting the data examples.
             tokenizer (PreTrainedTokenizerBase): The tokenizer to be used for tokenizing
@@ -930,11 +953,11 @@ class DatasetConstructor:
 
             def dataset_mapper(example: dict):
                 if preprocessing_fn is not None:
-                    return tokenize_formatted_example(
+                    return mapping_fn(
                         preprocessing_fn(example),
                         tokenizer,
                     )
-                return tokenize_formatted_example(example, tokenizer)
+                return mapping_fn(example, tokenizer)
 
             detected_cpu_count = os.cpu_count() or 1
             detected_cpus_with_margin = detected_cpu_count - 8

@@ -268,7 +268,10 @@ class HuggingFaceCheckpointer(Callback):
             self._save_checkpoint(
                 state,
                 logger,
-                register_to_mflow=is_last_batch,
+                register_to_mflow=(
+                    self.mlflow_registered_model_name is not None and
+                    is_last_batch
+                ),
                 upload_to_save_folder=not (
                     self.final_register_only and is_last_batch
                 ),

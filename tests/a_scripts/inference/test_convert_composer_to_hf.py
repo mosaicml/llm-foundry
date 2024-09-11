@@ -317,6 +317,7 @@ class MockSpawnProcess:
     def __init__(self, target: Callable, kwargs: dict[str, Any]):
         self.target = target
         self.kwargs = kwargs
+        self.exitcode = 0
 
     def start(self):
         self.target(**self.kwargs)

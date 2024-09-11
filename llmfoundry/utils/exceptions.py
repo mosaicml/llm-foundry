@@ -378,7 +378,7 @@ class DatasetTooSmallError(UserError):
 
     def __init__(self, reason: str) -> None:
         message = f'Your dataset is too small and produced no complete samples or too few samples. Please provide more data. {reason}'
-        super().__init__(message)
+        super().__init__(message, reason=reason)
 
 
 class RunTimeoutError(InternalError):

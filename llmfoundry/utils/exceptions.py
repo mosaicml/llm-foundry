@@ -376,8 +376,8 @@ class MisconfiguredHfDatasetError(UserError):
 class DatasetTooSmallError(UserError):
     """Error thrown when the dataset is too small to be processed."""
 
-    def __init__(self) -> None:
-        message = f'Your dataset is too small and produced no complete samples during preprocessing. Please provide more data.'
+    def __init__(self, reason: str) -> None:
+        message = f'Your dataset is too small and produced no complete samples or too few samples. Please provide more data. {reason}'
         super().__init__(message)
 
 

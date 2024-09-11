@@ -73,6 +73,7 @@ from llmfoundry.utils.exceptions import (
     ALLOWED_RESPONSE_KEYS,
     ChatTemplateError,
     ConsecutiveRepeatedChatRolesError,
+    DatasetTooSmallError,
     IncorrectMessageKeyQuantityError,
     InvalidContentTypeError,
     InvalidExampleTypeError,
@@ -1033,7 +1034,16 @@ class DatasetConstructor:
         *args: Any,
         **kwargs: Any,
     ) -> StreamingFinetuningDataset:
-        return self.streaming_dataset_class(*args, **kwargs)
+        dataset = self.streaming_dataset_class(*args, **kwargs)
+        num_canonical_nodes = dataset.num_canonical_nodes
+        num_samples = dataset.num_samples
+        if num_canonical_nodes is not None and num_canonical_nodes < num_samples:
+            raise DatasetTooSmallError(
+                f'{num_canonical_nodes=} is less than {num_samples=}. ' +
+                'Please check your index.json file and ensure that your dataset has been written out correctly.'
+                + 'If this was intended, reduce num_canonical_nodes.',
+            )
+        return dataset
 
 
 dataset_constructor = DatasetConstructor()

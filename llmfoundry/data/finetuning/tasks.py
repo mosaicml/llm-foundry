@@ -1014,7 +1014,7 @@ class DatasetConstructor:
             raise MisconfiguredHfDatasetError(
                 dataset_name=dataset_name,
                 split=split,
-            )
+            ) from error
         if error is not None:
             log.error('Error during data prep')
             raise error

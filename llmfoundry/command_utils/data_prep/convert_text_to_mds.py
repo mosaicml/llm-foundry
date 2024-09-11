@@ -479,7 +479,7 @@ def convert_text_to_mds(
     with open(index_path, 'r') as index_file:
         if not json.load(index_file)['shards']:
             raise DatasetTooSmallError(
-                reason='No shards were created when convering text to mds.',
+                reason='No shards were created when convering text to MDS.',
             )
 
     # Write a done file with the args and object names

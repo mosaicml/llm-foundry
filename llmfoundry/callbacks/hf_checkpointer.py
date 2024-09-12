@@ -218,6 +218,7 @@ class HuggingFaceCheckpointer(Callback):
 
         self.mlflow_logging_config = mlflow_logging_config
         if 'metadata' in self.mlflow_logging_config:
+            print("METADATA WAS IN MLFLOW LOGGING CONFIG")
             self.pretrained_model_name = self.mlflow_logging_config[
                 'metadata'].get(
                     'pretrained_model_name',
@@ -225,6 +226,7 @@ class HuggingFaceCheckpointer(Callback):
                 )
         else:
             self.pretrained_model_name = None
+        print("PRETRAINED MODEL NAME: ", self.pretrained_model_name)
 
         self.huggingface_folder_name_fstr = os.path.join(
             'huggingface',
@@ -539,7 +541,9 @@ class HuggingFaceCheckpointer(Callback):
 
             # Ensure that the pretrained model name is correctly set on the saved HF checkpoint.
             if self.pretrained_model_name is not None:
+                print("SETTING PRETRAINED MODEL NAME")
                 new_model_instance.name_or_path = self.pretrained_model_name
+                print("NEW MODEL INSTANCE NAME OR PATH: ", new_model_instance.name_or_path)
                 if self.using_peft:
                     new_model_instance.base_model.name_or_path = self.pretrained_model_name
                     for k in new_model_instance.peft_config.keys():
@@ -592,9 +596,13 @@ class HuggingFaceCheckpointer(Callback):
         if dist.get_global_rank() == 0:
             if self.mlflow_registered_model_name and self._is_last_batch(state):
 
+                print("MLFLOW, NEW MODEL INSTANCE NAME OR PATH BEFORE: ", new_model_instance.name_or_path)
+
                 new_model_instance = self.transform_model_pre_registration(
                     new_model_instance,
                 )
+
+                print("MLFLOW, NEW MODEL INSTANCE NAME OR PATH AFTER: ", new_model_instance.name_or_path)
 
                 components = {'model': new_model_instance}
                 if original_tokenizer is not None:

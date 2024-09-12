@@ -36,6 +36,7 @@ def test_peft_wraps():
             if has_parameters or has_buffers:
                 assert m._fsdp_wrap
 
+
 def test_causal_lm_peft_wraps():
     model = ComposerHFCausalLM(
         tokenizer=None,
@@ -43,7 +44,10 @@ def test_causal_lm_peft_wraps():
         pretrained=False,
         trust_remote_code=True,
         config_overrides={'n_layers': 2},
-        peft_config={'peft_type': 'LORA', 'task_type': 'CAUSAL_LM'},
+        peft_config={
+            'peft_type': 'LORA',
+            'task_type': 'CAUSAL_LM',
+        },
     )
 
     for n, m in model.named_modules():
@@ -52,6 +56,7 @@ def test_causal_lm_peft_wraps():
             has_buffers = any(True for _ in m.buffers())
             if has_parameters or has_buffers:
                 assert m._fsdp_wrap
+
 
 @pytest.mark.world_size(2)
 @pytest.mark.gpu

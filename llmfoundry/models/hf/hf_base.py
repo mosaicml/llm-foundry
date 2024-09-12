@@ -121,7 +121,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
 
         # Prepare for FSDP needs to happen after the super init, so that any model
         # architecture changes are completed
-        self.prepare_inner_model(model, init_device)
+        self.prepare_inner_model(self.model, init_device)
 
     def loss(self, outputs: ModelOutput, batch: Mapping):
         if self.config.use_return_dict:

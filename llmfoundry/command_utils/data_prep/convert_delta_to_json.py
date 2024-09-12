@@ -22,6 +22,7 @@ from llmfoundry.utils.exceptions import (
     ClusterDoesNotExistError,
     FailedToConnectToDatabricksError,
     FailedToCreateSQLConnectionError,
+    InsufficientPermissionsError,
 )
 
 if TYPE_CHECKING:
@@ -454,6 +455,12 @@ def fetch(
             sparkSession,
         )
     except Exception as e:
+        from pyspark.errors import AnalysisException
+        if isinstance(e, AnalysisException):
+            if 'INSUFFICIENT_PERMISSIONS' in e.message:  # pyright: ignore
+                raise InsufficientPermissionsError(
+                    action=f'reading from {tablename}',
+                ) from e
         raise RuntimeError(
             f'Error in get rows from {tablename}. Restart sparkSession and try again',
         ) from e

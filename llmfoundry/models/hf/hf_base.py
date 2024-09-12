@@ -92,8 +92,6 @@ class BaseHuggingFaceModel(HuggingFaceModel):
 
         model = self.transform_model(model)
 
-        self.prepare_inner_model(model, init_device)
-
         metrics, eval_metrics = self.build_metrics(
             use_train_metrics=use_train_metrics,
             additional_train_metrics=additional_train_metrics,
@@ -120,6 +118,10 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             peft_config=peft_config_object,
             should_save_peft_only=should_save_peft_only,
         )
+
+        # Prepare for FSDP needs to happen after the super init, so that any model
+        # architecture changes are completed
+        self.prepare_inner_model(model, init_device)
 
     def loss(self, outputs: ModelOutput, batch: Mapping):
         if self.config.use_return_dict:

@@ -18,6 +18,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from composer.core import Callback, Event, Precision, State, Time, TimeUnit
+from composer.devices import Device
 from composer.loggers import Logger, MLFlowLogger
 from composer.models import HuggingFaceModel
 from composer.utils import (
@@ -323,7 +324,8 @@ class HuggingFaceCheckpointer(Callback):
             # Wait for all child processes spawned by the callback to finish.
             timeout = 3600
             wait_start = time.time()
-            while not self._all_register_processes_done():
+            state.device
+            while not self._all_register_processes_done(state.device):
                 wait_time = time.time() - wait_start
                 if wait_time > timeout:
                     raise TimeoutError(
@@ -332,6 +334,7 @@ class HuggingFaceCheckpointer(Callback):
                 time.sleep(2)
 
             if self._any_register_processes_error(
+                state.device,
             ) and self.final_register_only:
                 log.error(
                     'An error occurred in one or more registration processes. Fallback to saving the HuggingFace checkpoint.',
@@ -374,20 +377,20 @@ class HuggingFaceCheckpointer(Callback):
 
         return False
 
-    def _all_register_processes_done(self) -> bool:
+    def _all_register_processes_done(self, device: Device) -> bool:
         not_done = any(
             process.is_alive() for process in self.register_processes
         )
-        x = torch.tensor(1 if not_done else 0).to(device='cuda')
+        x = device.tensor_to_device(torch.tensor(1 if not_done else 0))
         dist.all_reduce(x, reduce_operation='MAX')
         return x.item() == 0
 
-    def _any_register_processes_error(self) -> bool:
+    def _any_register_processes_error(self, device: Device) -> bool:
         has_errors = any(
             process.exitcode is not None and process.exitcode != 0
             for process in self.register_processes
         )
-        x = torch.tensor(1 if has_errors else 0).to(device='cuda')
+        x = device.tensor_to_device(torch.tensor(1 if has_errors else 0))
         dist.all_reduce(x, reduce_operation='MAX')
         return x.item() == 1
 

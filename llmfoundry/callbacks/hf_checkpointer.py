@@ -193,14 +193,16 @@ class HuggingFaceCheckpointer(Callback):
 
         self.final_register_only = final_register_only
 
-        # mlflow config setup
         self.mlflow_registered_model_name = mlflow_registered_model_name
         if self.final_register_only and self.mlflow_registered_model_name is None:
+            self.final_register_only = False
             warnings.warn(
-                'final_register_only is True, but mlflow_registered_model_name is not set. '
+                'final_register_only is set to True, but mlflow_registered_model_name is not set. '
                 +
-                f'Falling back to saving the HuggingFace checkpoint to {save_folder=}.',
+                f'Defaulting to final_register_only=False and saving the HuggingFace checkpoint to {save_folder=}.',
             )
+
+        # mlflow config setup
         if mlflow_logging_config is None:
             mlflow_logging_config = {}
         if self.mlflow_registered_model_name is not None:
@@ -281,9 +283,8 @@ class HuggingFaceCheckpointer(Callback):
                     self.mlflow_registered_model_name is not None and
                     is_last_batch
                 ),
-                upload_to_save_folder=not (
-                    self.final_register_only and is_last_batch
-                ),
+                upload_to_save_folder=not self.final_register_only or
+                not is_last_batch,
             )
         elif event == Event.INIT:
             if not isinstance(state.model, HuggingFaceModel):

@@ -357,6 +357,10 @@ def _create_optimizer(original_model: torch.nn.Module) -> torch.optim.Optimizer:
 
 @pytest.mark.gpu
 @pytest.mark.parametrize('mlflow_registry_error', [True, False])
+@pytest.mark.parametrize(
+    'mlflow_registered_model_name',
+    [None, 'dummy-registered-name'],
+)
 @patch('os.cpu_count', MagicMock(return_value=1))
 @patch(
     'llmfoundry.callbacks.hf_checkpointer.SpawnProcess',
@@ -364,10 +368,16 @@ def _create_optimizer(original_model: torch.nn.Module) -> torch.optim.Optimizer:
 )
 def test_final_register_only(
     mlflow_registry_error: bool,
+    mlflow_registered_model_name: Optional[str],
     tiny_ft_dataloader: DataLoader,
     tmp_path: pathlib.Path,
     build_tiny_mpt: Callable,
 ):
+    if mlflow_registry_error and mlflow_registered_model_name is None:
+        pytest.skip(
+            'Cannot test mlflow_registry_error without mlflow_registered_model_name',
+        )
+
     delete_transformers_cache()
 
     dist.initialize_dist(get_device('gpu'))
@@ -378,7 +388,7 @@ def test_final_register_only(
         save_folder=os.path.join(tmp_path, 'checkpoints'),
         save_interval='1dur',
         precision=precision_str,
-        mlflow_registered_model_name='dummy-registered-name',
+        mlflow_registered_model_name=mlflow_registered_model_name,
         final_register_only=True,
     )
 
@@ -413,27 +423,39 @@ def test_final_register_only(
     ):
         trainer.fit()
 
-    assert mlflow_logger_mock.register_model_with_run_id.call_count == 1
-
-    if mlflow_registry_error:
-        assert checkpointer_callback._save_checkpoint.call_count == 2
-        assert checkpointer_callback._save_checkpoint.call_args_list[
-            0].kwargs == {
-                'register_to_mlflow': True,
-                'upload_to_save_folder': False,
-            }
-        assert checkpointer_callback._save_checkpoint.call_args_list[
-            1].kwargs == {
-                'register_to_mlflow': False,
-                'upload_to_save_folder': True,
-            }
-
+    if mlflow_registered_model_name is not None:
+        # We should always attempt to register the model once
+        assert mlflow_logger_mock.register_model_with_run_id.call_count == 1
+        if mlflow_registry_error:
+            # If the registry fails, we should still save the model
+            assert mlflow_logger_mock.register_model_with_run_id.call_count == 1
+            assert checkpointer_callback._save_checkpoint.call_count == 2
+            assert checkpointer_callback._save_checkpoint.call_args_list[
+                0].kwargs == {
+                    'register_to_mlflow': True,
+                    'upload_to_save_folder': False,
+                }
+            assert checkpointer_callback._save_checkpoint.call_args_list[
+                1].kwargs == {
+                    'register_to_mlflow': False,
+                    'upload_to_save_folder': True,
+                }
+        else:
+            # No mlflow_registry_error, so we should only register the model
+            assert checkpointer_callback._save_checkpoint.call_count == 1
+            assert checkpointer_callback._save_checkpoint.call_args_list[
+                0].kwargs == {
+                    'register_to_mlflow': True,
+                    'upload_to_save_folder': False,
+                }
     else:
+        # No mlflow_registered_model_name, so we should only save the checkpoint
+        assert mlflow_logger_mock.register_model_with_run_id.call_count == 0
         assert checkpointer_callback._save_checkpoint.call_count == 1
         assert checkpointer_callback._save_checkpoint.call_args_list[
             0].kwargs == {
-                'register_to_mlflow': True,
-                'upload_to_save_folder': False,
+                'register_to_mlflow': False,
+                'upload_to_save_folder': True,
             }
 
 

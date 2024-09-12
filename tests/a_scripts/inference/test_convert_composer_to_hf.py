@@ -326,6 +326,28 @@ class MockSpawnProcess:
         return False
 
 
+
+@pytest.mark.parametrize('final_register_only', [True, False])
+@pytest.mark.parametrize('mlflow_registry_error', [True, False])
+def test_final_register_only(final_register_only: bool, mlflow_registry_error: bool):
+    with patch(
+        'llmfoundry.callbacks.hf_checkpointer.MLFlowLogger.register_model_with_run_id',
+        side_effect=RuntimeError('Error registering model'),
+    ) if mlflow_registry_error else contextlib.nullcontext():
+        checkpointer_callback = HuggingFaceCheckpointer(
+            save_folder='test',
+            save_interval='1ba',
+            mlflow_registered_model_name='test_model_name',
+            final_register_only=final_register_only,
+        )
+
+        if mlflow_registry_error:
+            with pytest.raises(RuntimeError):
+                checkpointer_callback._save_checkpoint
+        else:
+            checkpointer_callback.finalize_model_registration('run_id')
+
+
 @pytest.mark.gpu
 @pytest.mark.parametrize('log_to_mlflow', [True, False])
 @pytest.mark.parametrize(

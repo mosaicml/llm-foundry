@@ -1037,9 +1037,17 @@ class DatasetConstructor:
         dataset = self.streaming_dataset_class(*args, **kwargs)
         num_canonical_nodes = dataset.num_canonical_nodes
         num_samples = dataset.num_samples
+        if num_canonical_nodes is None:
+            num_physical_nodes = dist.get_world_size(
+            ) // dist.get_local_world_size()
+            if num_samples < num_physical_nodes:
+                raise DatasetTooSmallError(
+                    f'{num_samples=} is less than {dist.get_world_size() // dist.get_local_world_size()}, the number of physical nodes. ',
+                )
+
         if num_canonical_nodes is not None and num_samples < num_canonical_nodes:
             raise DatasetTooSmallError(
-                f'{num_canonical_nodes=} is less than {num_samples=}. ' +
+                f'{num_samples=} is less than {num_canonical_nodes=}. ' +
                 'Please check your index.json file and ensure that your dataset has been written out correctly.'
                 + 'If this was intended, reduce num_canonical_nodes.',
             )

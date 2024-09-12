@@ -10,6 +10,7 @@ import re
 import shutil
 import tempfile
 import time
+import warnings
 from multiprocessing.context import SpawnProcess
 from pathlib import Path
 from typing import Any, Optional, Sequence, Union
@@ -195,10 +196,10 @@ class HuggingFaceCheckpointer(Callback):
         # mlflow config setup
         self.mlflow_registered_model_name = mlflow_registered_model_name
         if self.final_register_only and self.mlflow_registered_model_name is None:
-            raise ValueError(
+            warnings.warn(
                 'final_register_only is True, but mlflow_registered_model_name is not set. '
                 +
-                'Please set mlflow_registered_model_name to a valid model name.',
+                f'Falling back to saving the HuggingFace checkpoint to {save_folder=}.',
             )
         if mlflow_logging_config is None:
             mlflow_logging_config = {}

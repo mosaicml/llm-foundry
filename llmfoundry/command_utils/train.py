@@ -588,7 +588,7 @@ def train(cfg: DictConfig) -> Trainer:
             trainer.state,
             trainer.logger,
             upload_to_save_folder=True,
-            register_to_mflow=False,
+            register_to_mlflow=False,
         )
         return trainer
 

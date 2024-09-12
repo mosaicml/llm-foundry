@@ -268,7 +268,7 @@ class HuggingFaceCheckpointer(Callback):
             self._save_checkpoint(
                 state,
                 logger,
-                register_to_mflow=(
+                register_to_mlflow=(
                     self.mlflow_registered_model_name is not None and
                     is_last_batch
                 ),
@@ -333,7 +333,7 @@ class HuggingFaceCheckpointer(Callback):
                     state,
                     logger,
                     upload_to_save_folder=True,
-                    register_to_mflow=False,
+                    register_to_mlflow=False,
                 )
 
             # Clean up temporary save directory; all processes are done with it.
@@ -456,7 +456,7 @@ class HuggingFaceCheckpointer(Callback):
         state: State,
         logger: Logger,
         upload_to_save_folder: bool,
-        register_to_mflow: bool,
+        register_to_mlflow: bool,
     ):
         del logger  # unused
 
@@ -639,7 +639,7 @@ class HuggingFaceCheckpointer(Callback):
         dist.barrier()
 
         if dist.get_global_rank() == 0:
-            if register_to_mflow:
+            if register_to_mlflow:
                 new_model_instance = self.transform_model_pre_registration(
                     new_model_instance,
                 )

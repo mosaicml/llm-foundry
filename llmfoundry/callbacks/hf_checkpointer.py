@@ -327,7 +327,6 @@ class HuggingFaceCheckpointer(Callback):
             # Wait for all child processes spawned by the callback to finish.
             timeout = 3600
             wait_start = time.time()
-            state.device
             while not self._all_register_processes_done(state.device):
                 wait_time = time.time() - wait_start
                 if wait_time > timeout:

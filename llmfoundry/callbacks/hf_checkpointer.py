@@ -188,10 +188,17 @@ class HuggingFaceCheckpointer(Callback):
         }[precision]
         self.flatten_imports = flatten_imports
         self.using_peft = False
+
         self.final_register_only = final_register_only
 
         # mlflow config setup
         self.mlflow_registered_model_name = mlflow_registered_model_name
+        if self.final_register_only and self.mlflow_registered_model_name is None:
+            raise ValueError(
+                'final_register_only is True, but mlflow_registered_model_name is not set. '
+                +
+                'Please set mlflow_registered_model_name to a valid model name.',
+            )
         if mlflow_logging_config is None:
             mlflow_logging_config = {}
         if self.mlflow_registered_model_name is not None:

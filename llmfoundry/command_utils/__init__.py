@@ -20,6 +20,7 @@ from llmfoundry.command_utils.data_prep.convert_text_to_mds import (
     convert_text_to_mds,
     convert_text_to_mds_from_args,
 )
+from llmfoundry.command_utils.data_prep.split_eval_set import split_eval_set_from_args
 from llmfoundry.command_utils.eval import (
     eval_from_yaml,
     evaluate,
@@ -33,21 +34,22 @@ from llmfoundry.command_utils.train import (
 )
 
 __all__ = [
-    'train',
-    'train_from_yaml',
-    'TrainConfig',
-    'TRAIN_CONFIG_KEYS',
-    'validate_config',
-    'evaluate',
-    'eval_from_yaml',
-    'convert_dataset_hf',
-    'convert_dataset_hf_from_args',
-    'convert_dataset_json',
-    'convert_dataset_json_from_args',
-    'convert_finetuning_dataset_from_args',
-    'convert_finetuning_dataset',
-    'convert_text_to_mds',
-    'convert_text_to_mds_from_args',
-    'convert_delta_to_json_from_args',
-    'fetch_DT',
+    "train",
+    "train_from_yaml",
+    "TrainConfig",
+    "TRAIN_CONFIG_KEYS",
+    "validate_config",
+    "evaluate",
+    "eval_from_yaml",
+    "convert_dataset_hf",
+    "convert_dataset_hf_from_args",
+    "convert_dataset_json",
+    "convert_dataset_json_from_args",
+    "convert_finetuning_dataset_from_args",
+    "convert_finetuning_dataset",
+    "convert_text_to_mds",
+    "convert_text_to_mds_from_args",
+    "convert_delta_to_json_from_args",
+    "fetch_DT",
+    "split_eval_set_from_args",
 ]

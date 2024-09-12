@@ -1037,7 +1037,7 @@ class DatasetConstructor:
         dataset = self.streaming_dataset_class(*args, **kwargs)
         num_canonical_nodes = dataset.num_canonical_nodes
         num_samples = dataset.num_samples
-        if num_canonical_nodes is not None and num_canonical_nodes < num_samples:
+        if num_canonical_nodes is not None and num_samples < num_canonical_nodes:
             raise DatasetTooSmallError(
                 f'{num_canonical_nodes=} is less than {num_samples=}. ' +
                 'Please check your index.json file and ensure that your dataset has been written out correctly.'

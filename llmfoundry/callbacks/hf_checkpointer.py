@@ -165,7 +165,8 @@ class HuggingFaceCheckpointer(Callback):
             be flattened when editing MPT files.
         final_register_only (bool): If true, only register the model in the MLFlow
             registry on the last batch and do not save the HuggingFace checkpoint. If
-            registration fails, then we will fallback to saving the HuggingFace checkpoint.
+            registration fails or mlflow_registered_model_name is not set, then we will
+            fallback to saving the HuggingFace checkpoint.
     """
 
     def __init__(
@@ -470,6 +471,14 @@ class HuggingFaceCheckpointer(Callback):
         upload_to_save_folder: bool,
         register_to_mlflow: bool,
     ):
+        """Save a HuggingFace formatted checkpoint.
+
+        Args:
+            state (State): The training state.
+            logger (Logger): The logger.
+            upload_to_save_folder (bool): Whether to upload the HF checkpoint to the save folder.
+            register_to_mlflow (bool): Whether to register the model to MLFlow
+        """
         del logger  # unused
 
         self.last_checkpoint_batch = state.timestamp.batch

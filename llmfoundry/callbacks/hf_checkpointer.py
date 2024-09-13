@@ -467,8 +467,8 @@ class HuggingFaceCheckpointer(Callback):
         self,
         state: State,
         logger: Logger,
-        upload_to_save_folder: bool,
-        register_to_mlflow: bool,
+        upload_to_save_folder: bool = True,
+        register_to_mlflow: bool = True,
     ):
         """Save a HuggingFace formatted checkpoint.
 

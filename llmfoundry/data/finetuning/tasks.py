@@ -630,7 +630,12 @@ class StreamingFinetuningDataset(StreamingDataset):
                     split,
                 )
 
-        print(f'I am here 1 {kwargs=}')
+        print(f'DeltaStream Testing: Temporarily add {kwargs=}')
+        kwargs = {
+                'warehouse_id': "89cf2c9b9f9cb3bc",
+                'catalog': 'main',
+                'schema': 'streaming',
+        }
 
         super().__init__(
             streams=streams,

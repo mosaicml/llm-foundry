@@ -51,7 +51,9 @@ _ALLOWED_DATASET_KEYS = {
     'auto_packing_replication',
     'max_leftover_bins_to_keep',
     'pad_to_longest',
-    'delta_kwargs',
+    'warehouse_id',
+    'catalog',
+    'schema',
 }
 
 

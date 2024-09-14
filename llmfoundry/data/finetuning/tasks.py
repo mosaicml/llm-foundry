@@ -630,6 +630,8 @@ class StreamingFinetuningDataset(StreamingDataset):
                     split,
                 )
 
+        print(f'I am here 1 {kwargs=}')
+
         super().__init__(
             streams=streams,
             local=local,

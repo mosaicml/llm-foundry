@@ -633,8 +633,8 @@ class StreamingFinetuningDataset(StreamingDataset):
         print(f'DeltaStream Testing: Temporarily add {kwargs=}')
         kwargs = {
                 'warehouse_id': "89cf2c9b9f9cb3bc",
-                'catalog': 'main',
-                'schema': 'streaming',
+                'catalog': 'datasets',
+                'schema': 'finetuning',
         }
 
         super().__init__(

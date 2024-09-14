@@ -657,6 +657,7 @@ class StreamingFinetuningDataset(StreamingDataset):
             batching_method=batching_method,
             allow_unsafe_types=allow_unsafe_types,
             replication=replication,
+            **kwargs,
         )
 
         self.tokenizer = tokenizer

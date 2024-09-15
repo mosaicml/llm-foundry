@@ -706,7 +706,7 @@ class StreamingFinetuningDataset(StreamingDataset):
             from_beginning=from_beginning,
         )
     
-def download_hf_dataset_if_needed(
+def maybe_safe_download_hf_data(
     dataset_name: str,
     hf_kwargs: Optional[dict[str, Any]] = None
 ) -> str:
@@ -716,7 +716,6 @@ def download_hf_dataset_if_needed(
     Args:
         dataset_name (str): The name of the HuggingFace dataset to use. Can be a remote http(s) 
         directory or object store bucket containing the file {split}.jsonl.
-        safe_load (bool): Whether to enforce safe loading of the dataset.
         hf_kwargs (dict, optional): Additional kwargs to pass to `datasets.load_dataset`.
 
     Returns:
@@ -970,9 +969,8 @@ class DatasetConstructor:
         filtered_dataset = None
         try:
             if safe_load:
-                dataset_name = download_hf_dataset_if_needed(
+                dataset_name = maybe_download_hf_data(
                     dataset_name,
-                    safe_load,
                     hf_kwargs,
                 )
 

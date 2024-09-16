@@ -290,6 +290,30 @@ def test_dataset_too_small(tmp_path: pathlib.Path):
         )
 
 
+def test_decode_invalid_unicode(tmp_path: pathlib.Path):
+    input_folder = tmp_path / 'input'
+    os.makedirs(input_folder, exist_ok=True)
+    with open(input_folder / 'test.txt', 'w', encoding='utf-16') as f:
+        f.write('HELLO WORLD')
+    try:
+        convert_text_to_mds(
+            tokenizer_name='mosaicml/mpt-7b',
+            output_folder=str(tmp_path / 'output'),
+            input_folder=str(input_folder),
+            concat_tokens=1,
+            eos_text='',
+            bos_text='',
+            no_wrap=False,
+            compression='zstd',
+            processes=1,
+            args_str='Namespace()',
+            reprocess=False,
+            trust_remote_code=False,
+        )
+    except UnicodeDecodeError:
+        pytest.fail('UnicodeDecodeError raised')
+
+
 def test_is_already_processed(tmp_path: pathlib.Path):
     tmp_path_str = str(tmp_path)
     args_str = 'Namespace(x = 5)'

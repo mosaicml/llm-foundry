@@ -12,7 +12,7 @@ import torch
 from composer.core import Callback
 from composer.loggers.logger_destination import LoggerDestination
 from composer.trainer import Trainer
-from composer.utils import dist, get_device, reproducibility, parallelism
+from composer.utils import dist, get_device, parallelism, reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
@@ -70,7 +70,9 @@ def evaluate_model(
 ):
     throw_deprecation_warning = False
     if parallelism_config:
-        deprecated_fsdp_args = list(parallelism.FSDPConfig.__annotations__.keys())
+        deprecated_fsdp_args = list(
+            parallelism.FSDPConfig.__annotations__.keys()
+        )
         for deprecated_arg in deprecated_fsdp_args:
             if deprecated_arg in parallelism_config:
                 throw_deprecation_warning = True

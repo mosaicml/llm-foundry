@@ -89,11 +89,10 @@ class ConcatTokensFromFilesDataset(AbstractConcatTokensDataset):
                     buffer += iids
                     while len(buffer) >= self.max_length:
                         concat_sample = buffer[:self.max_length]
-                        buffer = buffer[self.max_length:
-                                        ] if self.should_wrap else []
+                        buffer = buffer[self.
+                                        max_length:] if self.should_wrap else []
                         yield {
-                            'tokens':
-                                np.asarray(concat_sample, dtype=np.int32),
+                            'tokens': np.asarray(concat_sample, dtype=np.int32),
                         }
 
                         first_chunk = False

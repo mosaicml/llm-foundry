@@ -4,6 +4,7 @@
 import logging
 import os
 import time
+import warnings
 from typing import Any, Optional, Union
 
 import pandas as pd
@@ -14,6 +15,7 @@ from composer.trainer import Trainer
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
+from utils.warnings import VersionedDeprecationWarning
 
 from llmfoundry.utils import (
     find_mosaicml_logger,
@@ -52,6 +54,7 @@ def evaluate_model(
     device_eval_batch_size: Union[int, float],
     eval_gauntlet_config: Optional[Union[str, dict[str, Any]]],
     eval_loader_config: Optional[Union[dict[str, Any], list[dict[str, Any]]]],
+    fsdp_config: Optional[dict[str, Any]],
     parallelism_config: Optional[dict[str, Any]],
     loggers: list[LoggerDestination],
     python_log_level: Optional[str],
@@ -65,6 +68,17 @@ def evaluate_model(
     should_log_config: bool = True,
     load_path: Optional[str] = None,
 ):
+    if fsdp_config:
+        warnings.warn(
+            VersionedDeprecationWarning(
+                'The argument fsdp_config is deprecated. Please use parallelism_config instead.',
+                remove_version='0.12.0',
+            ),
+        )
+    if fsdp_config and parallelism_config:
+        raise ValueError(
+            'Both fsdp_config and parallelism_config cannot be provided at the same time. Please use parallelism_config.',
+        )
     log.info(f'Evaluating model: {model_name}')
     # Build tokenizer and model
     tokenizer_cfg = tokenizer

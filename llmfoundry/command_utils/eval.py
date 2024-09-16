@@ -100,7 +100,8 @@ def evaluate_model(
             mosaicml_logger._flush_metadata(force_flush=True)
 
     fsdp_config = parallelism_config.get(
-        'fsdp_config', None
+        'fsdp_config',
+        None,
     ) if parallelism_config else None
     if fsdp_config and model.get('load_in_8bit', False):
         raise ValueError(

@@ -373,15 +373,6 @@ class MisconfiguredHfDatasetError(UserError):
         super().__init__(message, dataset_name=dataset_name, split=split)
 
 
-class MalformedDatasetError(UserError):
-    """Error thrown when a HuggingFace dataset is misconfigured."""
-
-    def __init__(self, dataset_name: str, split: str) -> None:
-        message = f'Your dataset (name={dataset_name}, split={split}) is malformed. ' + \
-            'Please check your dataset columns and types to make sure they are present and consistent.'
-        super().__init__(message, dataset_name=dataset_name, split=split)
-
-
 class DatasetTooSmallError(UserError):
     """Error thrown when the dataset is too small to be processed."""
 

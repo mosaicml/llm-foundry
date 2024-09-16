@@ -584,7 +584,12 @@ def train(cfg: DictConfig) -> Trainer:
             )
 
         hf_checkpointer_callback = hf_checkpointer_callbacks[0]
-        hf_checkpointer_callback._save_checkpoint(trainer.state, trainer.logger)
+        hf_checkpointer_callback._save_checkpoint(
+            trainer.state,
+            trainer.logger,
+            upload_to_save_folder=True,
+            register_to_mlflow=True,
+        )
         return trainer
 
     if train_cfg.only_composer_checkpoint:

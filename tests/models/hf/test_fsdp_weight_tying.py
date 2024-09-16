@@ -91,7 +91,7 @@ def test_fsdp_weight_tying(
     trainer = Trainer(
         model=original_model,
         device='gpu',
-        fsdp_config=fsdp_config,
+        parallelism_config={'fsdp': fsdp_config},
         train_dataloader=[],
         device_train_microbatch_size=1,
     )

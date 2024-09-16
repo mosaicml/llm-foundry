@@ -52,7 +52,7 @@ def evaluate_model(
     device_eval_batch_size: Union[int, float],
     eval_gauntlet_config: Optional[Union[str, dict[str, Any]]],
     eval_loader_config: Optional[Union[dict[str, Any], list[dict[str, Any]]]],
-    fsdp_config: Optional[dict[str, Any]],
+    parallelism_config: Optional[dict[str, Any]],
     loggers: list[LoggerDestination],
     python_log_level: Optional[str],
     precision: str,
@@ -99,6 +99,10 @@ def evaluate_model(
             mosaicml_logger.log_metrics(metadata)
             mosaicml_logger._flush_metadata(force_flush=True)
 
+    fsdp_config = parallelism_config.get(
+        'fsdp_config',
+        None,
+    ) if parallelism_config else None
     if fsdp_config and model.get('load_in_8bit', False):
         raise ValueError(
             'The FSDP config block is not supported when loading ' +
@@ -316,7 +320,7 @@ def evaluate(cfg: DictConfig) -> tuple[list[Trainer], pd.DataFrame]:
              device_eval_batch_size=eval_config.device_eval_batch_size,
              eval_gauntlet_config=eval_gauntlet_config,
              eval_loader_config=eval_loader_config,
-             fsdp_config=fsdp_config,
+             parallelism_config={'fsdp': fsdp_config},
              loggers=loggers,
              python_log_level=eval_config.python_log_level,
              precision=eval_config.precision,

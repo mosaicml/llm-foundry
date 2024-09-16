@@ -84,6 +84,7 @@ from llmfoundry.utils.exceptions import (
     InvalidPromptTypeError,
     InvalidResponseTypeError,
     InvalidRoleError,
+    MalformedDatasetError,
     MisconfiguredHfDatasetError,
     NotEnoughChatDataError,
     UnableToProcessPromptResponseError,
@@ -967,13 +968,20 @@ class DatasetConstructor:
                 num_cpus_to_use = 1
 
             columns_to_remove = list(dataset[0].keys())
-            tokenized_dataset = dataset.map(
-                dataset_mapper,
-                batched=False,
-                remove_columns=columns_to_remove,
-                num_proc=num_cpus_to_use,
-                desc='Tokenizing dataset',
-            )
+
+            try:
+                tokenized_dataset = dataset.map(
+                    dataset_mapper,
+                    batched=False,
+                    remove_columns=columns_to_remove,
+                    num_proc=num_cpus_to_use,
+                    desc='Tokenizing dataset',
+                )
+            except ValueError:
+                raise MalformedDatasetError(
+                    dataset_name=dataset_name,
+                    split=split,
+                )
 
             filtered_dataset = tokenized_dataset.filter(
                 partial(

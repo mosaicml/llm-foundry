@@ -71,7 +71,7 @@ def evaluate_model(
     throw_deprecation_warning = False
     if parallelism_config:
         deprecated_fsdp_args = list(
-            parallelism.FSDPConfig.__annotations__.keys()
+            parallelism.FSDPConfig.__annotations__.keys(),
         )
         for deprecated_arg in deprecated_fsdp_args:
             if deprecated_arg in parallelism_config:

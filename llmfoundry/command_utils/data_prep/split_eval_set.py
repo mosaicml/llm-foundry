@@ -10,7 +10,7 @@ import datasets as hf_datasets
 import numpy as np
 from typing import Optional
 
-from composer.utils import get_file
+import composer.utils as utils
 from llmfoundry.data.finetuning.tasks import maybe_safe_download_hf_data
 
 
@@ -23,11 +23,6 @@ HF_REGEX = re.compile(r"^[/a-zA-Z0-9 ()_\-.]+$")
 TEMP_DIR = "tmp-split"
 
 log = logging.getLogger(__name__)
-
-import sys
-
-log.setLevel(logging.DEBUG)
-log.addHandler(logging.StreamHandler(sys.stdout))
 
 
 def maybe_download_data_as_json(data_path_folder: str, data_path_split: str) -> str:
@@ -51,22 +46,16 @@ def maybe_download_data_as_json(data_path_folder: str, data_path_split: str) -> 
     os.makedirs(TEMP_DIR, exist_ok=True)
 
     if DELTA_JSONL_REGEX.match(data_path_folder):
+        log.info(f"Dataset is converted from Delta table. Using local file {data_path_folder}")
         data_path = os.path.join(data_path_folder, f"{data_path_split}-00000-of-00001.jsonl")
-        if not os.path.exists(data_path):
-            # TODO: error handling
-            raise FileNotFoundError(f"File {data_path} does not exist.")
 
-    if REMOTE_OBJECT_STORE_FILE_REGEX.match(data_path_folder):
+    elif REMOTE_OBJECT_STORE_FILE_REGEX.match(data_path_folder):
         log.info(
             f"Downloading dataset from remote object store: {data_path_folder}{data_path_split}.jsonl"
         )
         remote_path = f"{data_path_folder}/{data_path_split}.jsonl"
         data_path = os.path.join(TEMP_DIR, f"{data_path_split}.jsonl")
-        try:
-            get_file(remote_path, data_path, overwrite=True)
-        except FileNotFoundError as e:
-            # TODO: error handling
-            raise e
+        utils.get_file(remote_path, data_path, overwrite=True)
 
     elif HF_REGEX.match(data_path_folder):
         log.info(
@@ -85,20 +74,21 @@ def maybe_download_data_as_json(data_path_folder: str, data_path_split: str) -> 
                 f.write(json.dumps(example) + "\n")
 
     else:
-        # TODO: error handling
         raise ValueError(
-            f"Unrecognized data_path_folder: {data_path_folder}. Must be a Delta table, remote object store file, or Hugging Face dataset."
+            f"Encountered unknown data path format when splitting dataset: {data_path_folder} with split {data_path_split}"
         )
 
     if not os.path.exists(data_path):
-        # TODO: error handling
-        raise FileNotFoundError(f"File {data_path} does not exist.")
+        raise FileNotFoundError(
+            f"Expected dataset file at {data_path} for splitting, but it does not exist."
+        )
 
     return data_path
 
 
 @contextlib.contextmanager
 def temp_seed(seed: int):
+    log.info(f"Setting random seed to {seed}")
     state = np.random.get_state()
     np.random.seed(seed)
     try:
@@ -107,11 +97,11 @@ def temp_seed(seed: int):
         np.random.set_state(state)
 
 
-def _split_examples(
+def split_examples(
     data_path: str,
     output_path: str,
     eval_split_ratio: float,
-    max_eval_samples: Optional[int],
+    max_eval_samples: Optional[int] = None,
     seed: Optional[int] = None,
 ) -> None:
     """
@@ -119,10 +109,13 @@ def _split_examples(
 
     Args:
         data_path (str): Path to the training dataset (local jsonl file)
+        output_path (str): Directory to save the split dataset
         eval_split_ratio (float): Ratio of the dataset to use for evaluation. The remainder will be used for training
         max_eval_samples (int): Maximum number of samples to include in the eval set. If None, all eval_split_ratio * train_dataset_size samples will be used
         seed (int): Random seed for splitting the dataset
     """
+    os.makedirs(output_path, exist_ok=True)
+
     # first pass: count total number of lines and determine sample size
     total_lines = 0
     with open(data_path, "r") as infile:
@@ -170,6 +163,5 @@ def split_eval_set_from_args(
         max_eval_samples (int): Maximum number of samples to include in the eval set. If None, all eval_split_ratio * train_dataset_size samples will be used
         seed (int): Random seed for splitting the dataset
     """
-    os.makedirs(output_path, exist_ok=True)
     data_path = maybe_download_data_as_json(data_path_folder, data_path_split)
-    _split_examples(data_path, output_path, eval_split_ratio, max_eval_samples, seed)
+    split_examples(data_path, output_path, eval_split_ratio, max_eval_samples, seed)

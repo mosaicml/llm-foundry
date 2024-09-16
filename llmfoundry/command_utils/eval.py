@@ -15,7 +15,6 @@ from composer.trainer import Trainer
 from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
-from utils.warnings import VersionedDeprecationWarning
 
 from llmfoundry.utils import (
     find_mosaicml_logger,
@@ -38,6 +37,7 @@ from llmfoundry.utils.config_utils import (
     process_init_device,
 )
 from llmfoundry.utils.registry_utils import import_file
+from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
 log = logging.getLogger(__name__)
 

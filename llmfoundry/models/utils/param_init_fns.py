@@ -224,6 +224,9 @@ def embedding_init(
             emb_init_fn_ = init_fn_
 
         emb_init_fn_(module.weight)
+        if module.padding_idx is not None:
+            with torch.no_grad():
+                module.weight[module.padding_idx].fill_(0)
 
         return True
 

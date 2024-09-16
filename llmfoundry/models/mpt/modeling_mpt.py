@@ -396,6 +396,7 @@ class MPTModel(MPTPreTrainedModel):
         self.wte = SharedEmbedding(
             config.vocab_size,
             config.d_model,
+            padding_idx=config.pad_token_id,
             device=config.init_device,
         )
         if self.learned_pos_emb:

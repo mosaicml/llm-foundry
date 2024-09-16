@@ -202,21 +202,17 @@ def test_emb_init(emb_init_cfg: Optional[tuple[str, Union[int, list[int]]]]):
 
 
 @pytest.mark.parametrize(
-    'emb_init_cfg',
-    [
-        ('emb_init_std', 5),
-    ],
+    'padding_idx',
+    [0, 2],
 )
-def test_emb_padding_init(
-    emb_init_cfg: Optional[tuple[str, Union[int, list[int]]]],
-):
+def test_emb_padding_init(padding_idx: int,):
     cfg: dict[str, Union[int, list[int]]] = {
         'vocab_size': 64,
         'in_features': 16,
-        'padding_idx': 0,
+        'n_layers': 2,
+        'padding_idx': padding_idx,
+        'emb_init_std': 5,
     }
-    if emb_init_cfg is not None:
-        cfg[emb_init_cfg[0]] = emb_init_cfg[1]
     dict_cfg = om.create(cfg)
 
     model = nn.Embedding(
@@ -229,4 +225,4 @@ def test_emb_padding_init(
     assert isinstance(model, torch.nn.Embedding)
 
     if dict_cfg.get('emb_init_std') is not None:
-        assert (model.weight[0] == 0).all()
+        assert (model.weight[padding_idx] == 0).all()

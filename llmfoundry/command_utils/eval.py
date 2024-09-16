@@ -54,7 +54,6 @@ def evaluate_model(
     device_eval_batch_size: Union[int, float],
     eval_gauntlet_config: Optional[Union[str, dict[str, Any]]],
     eval_loader_config: Optional[Union[dict[str, Any], list[dict[str, Any]]]],
-    fsdp_config: Optional[dict[str, Any]],
     parallelism_config: Optional[dict[str, Any]],
     loggers: list[LoggerDestination],
     python_log_level: Optional[str],
@@ -65,6 +64,7 @@ def evaluate_model(
     callback_configs: Optional[dict[str, Any]],
     metadata: Optional[dict[str, str]],
     logged_config: dict[str, Any],
+    fsdp_config: Optional[dict[str, Any]] = None,
     should_log_config: bool = True,
     load_path: Optional[str] = None,
 ):
@@ -72,7 +72,7 @@ def evaluate_model(
         warnings.warn(
             VersionedDeprecationWarning(
                 'The argument fsdp_config is deprecated. Please use parallelism_config instead.',
-                remove_version='0.12.0',
+                remove_version='0.13.0',
             ),
         )
     if fsdp_config and parallelism_config:

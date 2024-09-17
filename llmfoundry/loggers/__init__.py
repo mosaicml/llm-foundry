@@ -6,6 +6,7 @@ from composer.loggers import (
     MLFlowLogger,
     TensorboardLogger,
     WandBLogger,
+    FileLogger,
 )
 
 from llmfoundry.registry import loggers
@@ -18,3 +19,4 @@ loggers.register(
     func=InMemoryLogger,
 )  # for backwards compatibility
 loggers.register('mlflow', func=MLFlowLogger)
+loggers.register('filelogger', func=FileLogger)

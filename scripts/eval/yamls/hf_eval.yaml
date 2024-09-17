@@ -48,3 +48,8 @@ fsdp_config:
 
 icl_tasks: "eval/yamls/tasks_v0.3.yaml"
 eval_gauntlet: "eval/yamls/eval_gauntlet_v0.3.yaml"
+
+# add logger for saving log texts
+loggers:
+  filelogger:
+    filename: ~/logging_eval_gauntlet.txt

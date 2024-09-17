@@ -1,6 +1,6 @@
 variables:
   # If you are using one model, put it here:
-  model_name_or_path: EleutherAI/gpt-neo-125m
+  model_name_or_path: /home/user/workspace/platform/model_evals/mount_dir/gpt_ckpts_0/gpt2-trained-model/
   # otherwise, write a block for each model you want to test in the `models` section
 
   precision: fp32
@@ -14,7 +14,7 @@ models:
   model_name: ${variables.model_name_or_path}
   model:
     name: hf_causal_lm
-    pretrained_model_name_or_path: ${variables.model_name_or_path}
+    pretrained_model_name_or_path: /home/user/workspace/platform/model_evals/mount_dir/gpt_ckpts_0/gpt2-trained-model/
     init_device: mixed
     pretrained: true
   tokenizer:
@@ -26,7 +26,7 @@ models:
 #   model_name: mosaicml/mpt-7b
 #   model:
 #     name: hf_causal_lm
-#     pretrained_model_name_or_path: mosaicml/mpt-7b
+#     pretrained_model_name_or_path: /home/user/workspace/platform/model_evals/mount_dir/gpt_ckpts_0/gpt2-trained-model/
 #     init_device: cpu
 #     pretrained: true
 #     config_overrides:
@@ -37,7 +37,7 @@ models:
 #       model_max_length: ${variables.max_seq_len}
 
 
-device_eval_batch_size: 4
+device_eval_batch_size: 64
 
 # FSDP config for model sharding
 fsdp_config:
@@ -52,4 +52,4 @@ eval_gauntlet: "eval/yamls/eval_gauntlet_v0.3.yaml"
 # add logger for saving log texts
 loggers:
   filelogger:
-    filename: ~/logging_eval_gauntlet.txt
+    filename: ../../../../logging_eval_gauntlet.txt

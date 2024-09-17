@@ -585,6 +585,7 @@ class HuggingFaceCheckpointer(Callback):
                         new_base_model_instance,
                         original_model.peft_config[active_adapter],
                     )
+                    del new_base_model_instance
                 else:
                     new_model_instance = type(original_model)(new_config)
                     new_model_instance.generation_config.update(

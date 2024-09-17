@@ -10,11 +10,8 @@ from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
 class TestEvaluateModelDeprecation(unittest.TestCase):
 
-    def __init__(self):
-        self.common_args = {}
-
     def setUp(self):
-        self.common_args = {
+        self.common_args = { # type: ignore
             'tokenizer': {
                 'name': 'test_tokenizer',
             },

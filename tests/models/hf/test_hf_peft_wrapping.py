@@ -125,7 +125,7 @@ def test_lora_mixed_init(
     trainer = Trainer(
         model=original_model,
         device='gpu',
-        parallelism_config={'fsdp': fsdp_config},
+        fsdp_config=fsdp_config,
         train_dataloader=[],
         device_train_microbatch_size=1,
     )

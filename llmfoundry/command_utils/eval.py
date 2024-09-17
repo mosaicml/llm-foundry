@@ -68,16 +68,17 @@ def evaluate_model(
     should_log_config: bool = True,
     load_path: Optional[str] = None,
 ):
-    throw_deprecation_warning = False
     if parallelism_config:
         deprecated_fsdp_args = list(
             parallelism.FSDPConfig.__annotations__.keys(),
         )
         for deprecated_arg in deprecated_fsdp_args:
             if deprecated_arg in parallelism_config:
-                throw_deprecation_warning = True
+                raise ValueError(
+                    'parallelism_config cannot contain deprecated fsdp_config arguments.',
+                )
 
-    if fsdp_config or throw_deprecation_warning:
+    if fsdp_config:
         warnings.warn(
             VersionedDeprecationWarning(
                 'The argument fsdp_config is deprecated. Please use parallelism_config instead.',

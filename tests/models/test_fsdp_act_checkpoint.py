@@ -59,7 +59,7 @@ def test_fsdp_act_checkpoint(
     trainer = Trainer(
         model=model,
         device='gpu',
-        fsdp_config=fsdp_config,
+        parallelism_config={'fsdp': fsdp_config},
     )
 
     assert trainer.state.fsdp_enabled

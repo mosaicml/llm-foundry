@@ -31,6 +31,7 @@ from llmfoundry.utils.data_prep_utils import (
 from llmfoundry.utils.exceptions import (
     CannotUnicodeDecodeFile,
     DatasetTooSmallError,
+    InputFileNotFound,
     InputFolderMissingDataError,
     OutputFolderNotEmptyError,
 )
@@ -125,11 +126,15 @@ def get_object_names(input_folder: str) -> list[str]:
     object_store = maybe_create_object_store_from_uri(input_folder)
     if object_store is not None:
         _, _, folder_prefix = parse_uri(input_folder)
-        names = [
-            name for name in object_store.list_objects(folder_prefix)
-            if name.endswith('.txt')
-        ]
-        log.info(f'Found {len(names)} text files in remote storage')
+        try:
+            names = [
+                name for name in object_store.list_objects(folder_prefix)
+                if name.endswith('.txt')
+            ]
+            log.info(f'Found {len(names)} text files in remote storage')
+        except FileNotFoundError:
+            raise InputFileNotFound(folder_prefix)
+
     else:
         # input_folder is a local folder
         names = [

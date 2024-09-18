@@ -348,6 +348,17 @@ class InputFolderMissingDataError(UserError):
         super().__init__(message, input_folder=input_folder)
 
 
+class InputFileNotFound(UserError):
+    """Error thrown when the a file is not found."""
+
+    def __init__(self, file_that_was_not_found: str) -> None:
+        message = f'{file_that_was_not_found} not found.'
+        super().__init__(
+            message,
+            file_that_was_not_found=file_that_was_not_found,
+        )
+
+
 class CannotUnicodeDecodeFile(UserError):
     """Error thrown when the input folder is missing data."""
 

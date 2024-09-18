@@ -52,4 +52,4 @@ eval_gauntlet: "eval/yamls/eval_gauntlet_v0.3.yaml"
 # add logger for saving log texts
 loggers:
   filelogger:
-    filename: ../../../../logging_eval_gauntlet.txt
+    filename: ../../../logging_eval_gauntlet.txt

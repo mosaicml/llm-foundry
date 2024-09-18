@@ -163,6 +163,13 @@ class StreamingTextDataset(StreamingDataset):
         if isinstance(shuffle_block_size, float):
             shuffle_block_size = int(shuffle_block_size)
 
+        print(f'DeltaStream Testing: Temporarily add {kwargs=}')
+        kwargs = {
+                'warehouse_id': "89cf2c9b9f9cb3bc",
+                'catalog': 'main',
+                'schema': 'seanowen',
+        }
+
         # Build Dataset
         super().__init__(
             streams=streams,
@@ -188,6 +195,7 @@ class StreamingTextDataset(StreamingDataset):
             batching_method=batching_method,
             allow_unsafe_types=allow_unsafe_types,
             replication=replication,
+            **kwargs,
         )
         self.tokenizer = tokenizer
         self.max_seq_len = max_seq_len

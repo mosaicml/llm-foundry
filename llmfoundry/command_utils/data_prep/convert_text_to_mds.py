@@ -31,8 +31,8 @@ from llmfoundry.utils.data_prep_utils import (
 from llmfoundry.utils.exceptions import (
     CannotUnicodeDecodeFile,
     DatasetTooSmallError,
-    InputFileNotFound,
     InputFolderMissingDataError,
+    InputFolderNotFound,
     OutputFolderNotEmptyError,
 )
 
@@ -133,7 +133,7 @@ def get_object_names(input_folder: str) -> list[str]:
             ]
             log.info(f'Found {len(names)} text files in remote storage')
         except FileNotFoundError:
-            raise InputFileNotFound(folder_prefix)
+            raise InputFolderNotFound(folder_prefix)
 
     else:
         # input_folder is a local folder

@@ -4,6 +4,7 @@
 import logging
 import os
 import time
+import warnings
 from typing import Any, Optional, Union
 
 import pandas as pd
@@ -11,7 +12,7 @@ import torch
 from composer.core import Callback
 from composer.loggers.logger_destination import LoggerDestination
 from composer.trainer import Trainer
-from composer.utils import dist, get_device, reproducibility
+from composer.utils import dist, get_device, parallelism, reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
@@ -36,6 +37,7 @@ from llmfoundry.utils.config_utils import (
     process_init_device,
 )
 from llmfoundry.utils.registry_utils import import_file
+from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
 log = logging.getLogger(__name__)
 
@@ -52,7 +54,6 @@ def evaluate_model(
     device_eval_batch_size: Union[int, float],
     eval_gauntlet_config: Optional[Union[str, dict[str, Any]]],
     eval_loader_config: Optional[Union[dict[str, Any], list[dict[str, Any]]]],
-    parallelism_config: Optional[dict[str, Any]],
     loggers: list[LoggerDestination],
     python_log_level: Optional[str],
     precision: str,
@@ -62,9 +63,33 @@ def evaluate_model(
     callback_configs: Optional[dict[str, Any]],
     metadata: Optional[dict[str, str]],
     logged_config: dict[str, Any],
+    fsdp_config: Optional[dict[str, Any]] = None,
+    parallelism_config: Optional[dict[str, Any]] = None,
     should_log_config: bool = True,
     load_path: Optional[str] = None,
 ):
+    if parallelism_config:
+        deprecated_fsdp_args = list(
+            parallelism.FSDPConfig.__annotations__.keys(),
+        )
+        for deprecated_arg in deprecated_fsdp_args:
+            if deprecated_arg in parallelism_config:
+                raise ValueError(
+                    'parallelism_config cannot contain deprecated fsdp_config arguments.',
+                )
+
+    if fsdp_config:
+        warnings.warn(
+            VersionedDeprecationWarning(
+                'The argument fsdp_config is deprecated. Please use parallelism_config instead.',
+                remove_version='0.13.0',
+            ),
+        )
+    if fsdp_config and parallelism_config:
+        raise ValueError(
+            'Both fsdp_config and parallelism_config cannot be provided at the same time. Please use parallelism_config.',
+        )
+
     log.info(f'Evaluating model: {model_name}')
     # Build tokenizer and model
     tokenizer_cfg = tokenizer
@@ -102,7 +127,7 @@ def evaluate_model(
     fsdp_config = parallelism_config.get(
         'fsdp_config',
         None,
-    ) if parallelism_config else None
+    ) if parallelism_config else fsdp_config
     if fsdp_config and model.get('load_in_8bit', False):
         raise ValueError(
             'The FSDP config block is not supported when loading ' +
@@ -150,7 +175,7 @@ def evaluate_model(
         callbacks=callbacks,
         loggers=loggers,
         precision=precision,
-        fsdp_config=fsdp_config,
+        parallelism_config={'fsdp': fsdp_config},
         load_path=load_path,
         load_weights_only=True,
         progress_bar=False,
@@ -320,7 +345,7 @@ def evaluate(cfg: DictConfig) -> tuple[list[Trainer], pd.DataFrame]:
              device_eval_batch_size=eval_config.device_eval_batch_size,
              eval_gauntlet_config=eval_gauntlet_config,
              eval_loader_config=eval_loader_config,
-             parallelism_config={'fsdp': fsdp_config},
+             fsdp_config=fsdp_config,
              loggers=loggers,
              python_log_level=eval_config.python_log_level,
              precision=eval_config.precision,

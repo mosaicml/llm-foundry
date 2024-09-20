@@ -10,6 +10,7 @@ from typing import Any, Optional, Union
 import torch
 import torch.distributed
 from composer import ComposerModel, Trainer
+from composer.callbacks.checkpoint_saver import CheckpointSaver
 from composer.core.callback import Callback
 from composer.profiler import (
     JSONTraceHandler,
@@ -185,6 +186,24 @@ def _initialize_dist_with_barrier(dist_timeout: Union[int, float]):
     log.debug('Testing barrier with device...')
     dist.barrier()
     log.debug('Barrier test passed with device.')
+
+
+def _sort_callbacks(trainer: Trainer):
+    """Sort callback so that checkpoint saving callbacks go first.
+
+    Args:
+        trainer (Trainer): Trainer object
+    """
+
+    def _sort_key(c: Callback) -> int:
+        # CheckpointSaver goes before HuggingFaceCheckpointer because the blocking time is shortest while upload is async.
+        if isinstance(c, CheckpointSaver):
+            return 1
+        if isinstance(c, HuggingFaceCheckpointer):
+            return 2
+        return 0
+
+    trainer.state.callbacks = sorted(trainer.state.callbacks, key=_sort_key)
 
 
 def train(cfg: DictConfig) -> Trainer:
@@ -548,6 +567,8 @@ def train(cfg: DictConfig) -> Trainer:
         spin_dataloaders=train_cfg.spin_dataloaders,
     )
 
+    _sort_callbacks(trainer)
+
     # Optionally just save an HF checkpoint
     if train_cfg.only_hf_checkpoint:
         hf_checkpointer_callbacks = [
@@ -563,7 +584,12 @@ def train(cfg: DictConfig) -> Trainer:
             )
 
         hf_checkpointer_callback = hf_checkpointer_callbacks[0]
-        hf_checkpointer_callback._save_checkpoint(trainer.state, trainer.logger)
+        hf_checkpointer_callback._save_checkpoint(
+            trainer.state,
+            trainer.logger,
+            upload_to_save_folder=True,
+            register_to_mlflow=True,
+        )
         return trainer
 
     if train_cfg.only_composer_checkpoint:

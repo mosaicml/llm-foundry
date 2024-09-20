@@ -9,6 +9,7 @@ import pathlib
 import shutil
 from argparse import Namespace
 from typing import Any, Callable, Optional, cast
+from unittest import mock
 from unittest.mock import ANY, MagicMock, patch
 
 import catalogue
@@ -314,15 +315,148 @@ class MockSpawnProcess:
     multiprocessing, so we need to patch SpawnProcess for tests.
     """
 
-    def __init__(self, target: Callable, kwargs: dict[str, Any]):
+    def __init__(
+        self,
+        target: Callable,
+        kwargs: dict[str, Any],
+        exitcode: int = 0,
+    ):
         self.target = target
         self.kwargs = kwargs
+        self.exitcode = exitcode
 
     def start(self):
         self.target(**self.kwargs)
 
     def is_alive(self) -> bool:
         return False
+
+
+def _create_mlflow_logger_mock() -> MagicMock:
+    mlflow_logger_mock = MagicMock(spec=MLFlowLogger)
+    mlflow_logger_mock.state_dict = lambda *args, **kwargs: {}
+    mlflow_logger_mock.save_model = MagicMock(wraps=_save_model_mock)
+    mlflow_logger_mock.register_model_with_run_id = MagicMock()
+    mlflow_logger_mock.model_registry_prefix = ''
+    mlflow_logger_mock._experiment_id = 'mlflow-experiment-id'
+    mlflow_logger_mock._run_id = 'mlflow-run-id'
+    mlflow_logger_mock._enabled = True
+    mlflow_logger_mock.run_url = 'fake-url'
+    return mlflow_logger_mock
+
+
+def _create_optimizer(original_model: torch.nn.Module) -> torch.optim.Optimizer:
+    optimizer_config = _OPTIMIZER_CFG()
+    optimizer_name = optimizer_config.pop('name')
+    return build_optimizer(
+        original_model,
+        optimizer_name,
+        optimizer_config,
+    )
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize('mlflow_registry_error', [True, False])
+@pytest.mark.parametrize(
+    'mlflow_registered_model_name',
+    [None, 'dummy-registered-name'],
+)
+@patch('os.cpu_count', MagicMock(return_value=1))
+@patch(
+    'llmfoundry.callbacks.hf_checkpointer.SpawnProcess',
+    new=MockSpawnProcess,
+)
+def test_final_register_only(
+    mlflow_registry_error: bool,
+    mlflow_registered_model_name: Optional[str],
+    tiny_ft_dataloader: DataLoader,
+    tmp_path: pathlib.Path,
+    build_tiny_mpt: Callable,
+):
+    if mlflow_registry_error and mlflow_registered_model_name is None:
+        pytest.skip(
+            'Cannot test mlflow_registry_error without mlflow_registered_model_name',
+        )
+
+    delete_transformers_cache()
+
+    dist.initialize_dist(get_device('gpu'))
+
+    precision_str = 'bfloat16'
+
+    checkpointer_callback = HuggingFaceCheckpointer(
+        save_folder=os.path.join(tmp_path, 'checkpoints'),
+        save_interval='1dur',
+        precision=precision_str,
+        mlflow_registered_model_name=mlflow_registered_model_name,
+        final_register_only=True,
+    )
+
+    original_model = build_tiny_mpt()
+
+    optimizer = _create_optimizer(original_model)
+
+    mlflow_logger_mock = _create_mlflow_logger_mock()
+
+    checkpointer_callback._save_checkpoint = MagicMock(
+        wraps=checkpointer_callback._save_checkpoint,
+    )
+    trainer = Trainer(
+        model=original_model,
+        device='gpu',
+        train_dataloader=tiny_ft_dataloader,
+        max_duration='1ba',
+        callbacks=[checkpointer_callback],
+        loggers=[mlflow_logger_mock],
+        optimizers=optimizer,
+        save_latest_filename=None,
+    )
+
+    with mock.patch(
+        'llmfoundry.callbacks.hf_checkpointer.SpawnProcess',
+        new=lambda target,
+        kwargs: MockSpawnProcess(
+            target,
+            kwargs,
+            exitcode=1 if mlflow_registry_error else 0,
+        ),
+    ):
+        trainer.fit()
+
+    if mlflow_registered_model_name is not None:
+        # We should always attempt to register the model once
+        assert mlflow_logger_mock.register_model_with_run_id.call_count == 1
+        if mlflow_registry_error:
+            # If the registry fails, we should still save the model
+            assert mlflow_logger_mock.register_model_with_run_id.call_count == 1
+            assert checkpointer_callback._save_checkpoint.call_count == 2
+            assert checkpointer_callback._save_checkpoint.call_args_list[
+                0].kwargs == {
+                    'register_to_mlflow': True,
+                    'upload_to_save_folder': False,
+                }
+            assert checkpointer_callback._save_checkpoint.call_args_list[
+                1].kwargs == {
+                    'register_to_mlflow': False,
+                    'upload_to_save_folder': True,
+                }
+        else:
+            # No mlflow_registry_error, so we should only register the model
+            assert checkpointer_callback._save_checkpoint.call_count == 1
+            assert checkpointer_callback._save_checkpoint.call_args_list[
+                0].kwargs == {
+                    'register_to_mlflow': True,
+                    'upload_to_save_folder': False,
+                }
+    else:
+        # No mlflow_registered_model_name, so we should only save the checkpoint
+        assert mlflow_logger_mock.register_model_with_run_id.call_count == 0
+        assert checkpointer_callback._save_checkpoint.call_count == 1
+        assert checkpointer_callback._save_checkpoint.call_args_list[
+            0].kwargs == {
+                'register_to_mlflow': False,
+                'upload_to_save_folder': True,
+            }
 
 
 @pytest.mark.gpu
@@ -368,23 +502,9 @@ def test_huggingface_conversion_callback_interval(
 
     original_model = build_tiny_mpt()
 
-    optimizer_config = _OPTIMIZER_CFG()
-    optimizer_name = optimizer_config.pop('name')
-    optimizer = build_optimizer(
-        original_model,
-        optimizer_name,
-        optimizer_config,
-    )
+    optimizer = _create_optimizer(original_model)
 
-    mlflow_logger_mock = MagicMock(spec=MLFlowLogger)
-    mlflow_logger_mock.state_dict = lambda *args, **kwargs: {}
-    mlflow_logger_mock.save_model = MagicMock(wraps=_save_model_mock)
-    mlflow_logger_mock.register_model_with_run_id = MagicMock()
-    mlflow_logger_mock.model_registry_prefix = ''
-    mlflow_logger_mock._experiment_id = 'mlflow-experiment-id'
-    mlflow_logger_mock._run_id = 'mlflow-run-id'
-    mlflow_logger_mock._enabled = True
-    mlflow_logger_mock.run_url = 'fake-url'
+    mlflow_logger_mock = _create_mlflow_logger_mock()
     checkpointer_callback.transform_model_pre_registration = MagicMock(
         wraps=checkpointer_callback.transform_model_pre_registration,
     )
@@ -519,7 +639,6 @@ def _get_model_and_tokenizer(
                 'moe_num_experts': 4,
                 'moe_top_k': 2,
                 'moe_world_size': 1,
-                'moe_weight_parallelism': False,
                 'uniform_expert_assignment': False,
             },
             'max_seq_len': max_seq_len,
@@ -923,7 +1042,8 @@ def test_huggingface_conversion_callback(
         model=original_model,
         device='gpu',
         precision=trainer_precision,
-        fsdp_config=fsdp_config if fsdp_state_dict_type is not None else None,
+        parallelism_config={'fsdp': fsdp_config}
+        if fsdp_state_dict_type is not None else None,
         train_dataloader=train_dataloader,
         save_folder=os.path.join(tmp_path, 'checkpoints'),
         save_interval=save_interval,
@@ -1251,8 +1371,6 @@ def test_mptmoe_huggingface_conversion_callback(
                 2,
             'moe_world_size':
                 2,
-            'moe_weight_parallelism':
-                False,
             'uniform_expert_assignment':
                 True,
             'mlp_impl':
@@ -1352,7 +1470,7 @@ def test_mptmoe_huggingface_conversion_callback(
     trainer = Trainer(
         model=original_model,
         device='gpu',
-        fsdp_config=fsdp_config,
+        parallelism_config={'fsdp': fsdp_config},
         train_dataloader=train_dataloader,
         save_folder=os.path.join(tmp_path, 'checkpoints'),
         save_interval=save_interval,

@@ -34,7 +34,7 @@ __all__ = [
 
 ALLOWED_RESPONSE_KEYS = {'response', 'completion'}
 ALLOWED_PROMPT_KEYS = {'prompt'}
-ALLOWED_MESSAGES_KEYS = {'messages'}
+ALLOWED_MESSAGES_KEYS = {'messages', 'dataset', 'id'}
 
 FailureLocation = Union[Literal['TrainDataloader'], Literal['EvalDataloader']]
 FailureAttribution = Union[Literal['UserError'], Literal['InternalError'],

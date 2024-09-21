@@ -141,18 +141,13 @@ def _get_example_type(example: Example) -> ExampleType:
     if not isinstance(example, Mapping):
         raise InvalidExampleTypeError(str(type(example)))
     if (
-        len(example.keys()) == 1 and any(
-            allowed_message_key in example
-            for allowed_message_key in ALLOWED_MESSAGES_KEYS
-        )
-    ):
-        return 'chat'
-    elif (
         len(example.keys()) == 2 and
         any(p in example for p in ALLOWED_PROMPT_KEYS) and
         any(r in example for r in ALLOWED_RESPONSE_KEYS)
     ):
         return 'prompt_response'
+    elif (all(key in ALLOWED_MESSAGES_KEYS for key in example.keys())):
+        return 'chat'
     else:
         keys = str(set(example.keys()))
         raise UnknownExampleTypeError(keys)

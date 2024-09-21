@@ -188,7 +188,7 @@ def test_attn_impl(
                 alibi=alibi,
                 alibi_bias_max=8,
             )
-        if attn_impl != 'flash' and attn_uses_sequence_id and sequence_id is not None:
+        if attn_impl == 'torch' and attn_uses_sequence_id and sequence_id is not None:
             assert isinstance(attn_bias, torch.Tensor)  # pyright
             attn_bias = apply_sequence_id(
                 attn_bias,
@@ -631,6 +631,13 @@ def test_reuse_prev_layer_kv_cache(
                 causal=causal,
                 alibi=alibi,
                 alibi_bias_max=8,
+            )
+        if attn_impl == 'torch':
+            assert isinstance(attn_bias, torch.Tensor)  # pyright
+            attn_bias = apply_sequence_id(
+                attn_bias,
+                sequence_id,  # type: ignore
+                s,
             )
 
         return attn_bias

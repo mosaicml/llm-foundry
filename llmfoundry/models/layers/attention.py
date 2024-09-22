@@ -670,6 +670,9 @@ class GroupedQueryAttention(nn.Module):
                     'prev_layer_key_value is None, cannot reuse_prev_layer_kv.',
                 )
             key, value = prev_layer_key_value
+            if self.attn_impl == 'torch':
+                key = rearrange(key, 'b h d s -> b s (h d)')
+                value = rearrange(value, 'b h s d -> b s (h d)')
 
             query = self.Wq(x)
             if self.clip_qkv:

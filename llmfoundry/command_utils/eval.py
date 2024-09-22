@@ -262,7 +262,7 @@ def evaluate(cfg: DictConfig) -> tuple[list[Trainer], pd.DataFrame]:
         EvalConfig,
         EVAL_CONFIG_KEYS,
         transforms=[allow_toplevel_keys],
-        icl_tasks_required=True,
+        icl_tasks_required=False,
     )
 
     model_configs = eval_config.models

@@ -4,9 +4,9 @@
 from composer.loggers import (
     InMemoryLogger,
     MLFlowLogger,
+    MosaicMLLogger,
     TensorboardLogger,
     WandBLogger,
-    MosaicMLLogger,
 )
 
 from llmfoundry.registry import loggers

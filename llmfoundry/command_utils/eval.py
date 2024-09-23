@@ -262,7 +262,7 @@ def evaluate(cfg: DictConfig) -> tuple[list[Trainer], pd.DataFrame]:
         EvalConfig,
         EVAL_CONFIG_KEYS,
         transforms=[allow_toplevel_keys],
-        icl_tasks_required=True,
+        icl_tasks_required=False,
     )
 
     model_configs = eval_config.models
@@ -273,7 +273,7 @@ def evaluate(cfg: DictConfig) -> tuple[list[Trainer], pd.DataFrame]:
     # Mandatory Evaluation Parameters
     icl_tasks = eval_config.icl_tasks or eval_config.icl_tasks_str
     if icl_tasks is None:
-        raise ValueError('icl_tasks must be specified in the config')
+        icl_tasks = []
 
     # Optional Evaluation Parameters with default values
     eval_loader_config = eval_config.eval_loader or eval_config.eval_loaders

@@ -588,7 +588,7 @@ class HuggingFaceCheckpointer(Callback):
                     del new_base_model_instance
                 else:
                     new_model_instance = type(original_model)(new_config)
-                    if new_model_instance:
+                    if new_model_instance.generation_config:
                         new_model_instance.generation_config.update(
                             **original_model.generation_config.to_dict(),
                         )

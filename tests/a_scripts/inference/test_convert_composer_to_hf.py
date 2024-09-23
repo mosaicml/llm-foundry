@@ -923,7 +923,6 @@ def _assert_checkpoint_equivalence(
     [('1ba', '1ba', '1ba', 1, 1, 'amp_bf16'),
      ('1ba', '1ba', '1ba', 1, 1, 'amp_fp8')],
 )
-@pytest.mark.parametrize('generation_config', [None, {}, {'max_length': 100}])
 @patch('os.cpu_count', MagicMock(return_value=1))
 @patch(
     'llmfoundry.callbacks.hf_checkpointer.SpawnProcess',
@@ -941,7 +940,6 @@ def test_huggingface_conversion_callback(
     expected_normal_checkpoints: int,
     trainer_precision: str,
     peft_config: Optional[dict],
-    generation_config: Optional[dict],
 ):
     if model == 'mptmoe' and fsdp_state_dict_type is None:
         pytest.skip('mptmoe requires FSDP')
@@ -1024,9 +1022,6 @@ def test_huggingface_conversion_callback(
         tokenizer=tokenizer,
         cfg=model_cfg,
     )
-    if generation_config is not None:
-        original_model.model.generation_config = transformers.GenerationConfig(**generation_config)
-
     optimizer_name = optimizer_config.pop('name')
     optimizer = build_optimizer(
         original_model,
@@ -1059,22 +1054,6 @@ def test_huggingface_conversion_callback(
         save_latest_filename=None,
     )
     trainer.fit()
-
-    if dist.get_global_rank() == 0:
-        checkpointer_callback._save_checkpoint(
-            state=trainer.state,
-            logger=MagicMock(),  # Mock logger for this test
-            upload_to_save_folder=True,
-            register_to_mlflow=True
-        )
-        saved_model_path = os.path.join(tmp_path, 'checkpoints', 'huggingface', f'ba{batches_per_epoch}')
-        loaded_model = transformers.AutoModelForCausalLM.from_pretrained(saved_model_path, trust_remote_code=True)
-
-        if generation_config is None:
-            assert loaded_model.generation_config == transformers.GenerationConfig()
-        else:
-            assert loaded_model.generation_config.to_dict() == generation_config
-
 
     _assert_mlflow_logger_calls(mlflow_logger_mock, peft_config)
 

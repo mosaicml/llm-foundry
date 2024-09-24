@@ -4,6 +4,7 @@
 from composer.loggers import (
     InMemoryLogger,
     MLFlowLogger,
+    MosaicMLLogger,
     TensorboardLogger,
     WandBLogger,
 )
@@ -18,3 +19,4 @@ loggers.register(
     func=InMemoryLogger,
 )  # for backwards compatibility
 loggers.register('mlflow', func=MLFlowLogger)
+loggers.register('mosaicml', func=MosaicMLLogger)

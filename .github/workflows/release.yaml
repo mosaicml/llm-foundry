@@ -58,6 +58,9 @@ jobs:
     - code-quality
     runs-on: mosaic-8wide
     steps:
+    - name: Checkout source
+      uses: actions/checkout@v3
+
     - name: Define Docker tags
       id: define-tags
       run: |

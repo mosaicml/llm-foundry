@@ -50,3 +50,45 @@ jobs:
         user: __token__
         password: ${{ secrets.TEST_PYPI_API_TOKEN }}
         repository_url: https://test.pypi.org/legacy/
+
+  build-docker:
+    - name: Define Docker tags
+      id: define-tags
+      run: |
+        # Replace / with _ in github.ref_name
+        BRANCH_NAME="${{ github.ref_name }}"
+        TAG_NAME=$(echo "${BRANCH_NAME}" | sed 's/\//_/g')
+
+        echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_ENV
+        echo "DOCKER_TAG=mosaicml/llm-foundry:release_${TAG_NAME}" >> $GITHUB_ENV
+        echo "AWS_DOCKER_TAG=mosaicml/llm-foundry:release_${TAG_NAME}_aws" >> $GITHUB_ENV
+        echo "LATEST_TAG=mosaicml/llm-foundry:release-latest" >> $GITHUB_ENV
+        echo "AWS_LATEST_TAG=mosaicml/llm-foundry:release_aws-latest" >> $GITHUB_ENV
+
+    - name: Build and push AWS Docker image
+      uses: docker/build-push-action@v3
+      with:
+        context: .
+        file: release.Dockerfile
+        push: true
+        tags: |
+          ${{ env.AWS_DOCKER_TAG }}
+          ${{ env.AWS_LATEST_TAG }}
+        build-args: |
+          BASE_IMAGE=mosaicml/pytorch:2.4.0_cu124-python3.11-ubuntu20.04-aws
+          BRANCH_NAME=${{ env.BRANCH_NAME }}
+          TE_COMMIT=901e5d2
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v3
+      with:
+        context: .
+        file: release.Dockerfile
+        push: true
+        tags: |
+          ${{ env.DOCKER_TAG }}
+          ${{ env.LATEST_TAG }}
+        build-args: |
+          BASE_IMAGE=mosaicml/pytorch:2.4.0_cu124-python3.11-ubuntu20.04
+          BRANCH_NAME=${{ env.BRANCH_NAME }}
+          TE_COMMIT=901e5d2

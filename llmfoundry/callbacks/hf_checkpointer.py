@@ -135,6 +135,43 @@ def _register_model_multiprocess(
     )
 
 
+def _log_model_multiprocess(
+    mlflow_logger: MLFlowLogger,
+    composer_logging_level: int,
+    input_example: dict[str, Any],
+    task: str,
+    name: str,
+    model_name: str,
+    await_creation_for: int,
+):
+    """
+    Call MLFlowLogger.log_model.
+    
+    Used mainly to log from a child process.
+    """
+    # Setup logging for child process. This ensures that any logs from composer are surfaced.
+    if composer_logging_level > 0:
+        # If logging_level is 0, then the composer logger was unset.
+        logging.basicConfig(
+            format=
+            f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s',
+        )
+        logging.getLogger('composer').setLevel(composer_logging_level)
+    mlflow_logger.log_model(
+        flavor='transformers',
+        artifact_path="model",
+        input_example=input_example,
+        task=task,
+        metadata={
+            "task": task,
+            "databricks_model_source": "genai-fine-tuning",
+            "pretrained_model_name": model_name,
+        },  # This metadata is currently needed for optimized serving
+        registered_model_name=name,
+        await_creation_for=await_creation_for
+    )
+
+
 class HuggingFaceCheckpointer(Callback):
     """Save a huggingface formatted checkpoint during training.
 
@@ -729,6 +766,30 @@ class HuggingFaceCheckpointer(Callback):
                         monitor_process = None
 
                     # Spawn a new process to register the model.
+                    # Slower method to register the model via log_model.
+                    # TODO: design this with some extra param in the model saving config to invoke this
+                    if True:
+                        process = SpawnProcess(
+                            target=_log_model_multiprocess,
+                            kwargs={
+                                'mlflow_logger':
+                                    mlflow_logger,
+                                'composer_logging_level':
+                                    logging.getLogger('composer').level,
+                                'model_uri':
+                                    local_save_path,
+                                'name':
+                                    self.mlflow_registered_model_name,
+                                'model_name':
+                                    self.pretrained_model_name,
+                                'input_example':
+                                    self.mlflow_logging_config['input_example'],
+                                'await_creation_for':
+                                    3600,
+                            },
+                        )
+                        process.start()
+                    # Faster method to register model in parallel.
                     process = SpawnProcess(
                         target=_register_model_multiprocess,
                         kwargs={

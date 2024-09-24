@@ -107,7 +107,7 @@ def _maybe_get_license_filename(
         return None
 
 
-def _register_model_multiprocess(
+def _register_model_with_run_id_multiprocess(
     mlflow_logger: MLFlowLogger,
     composer_logging_level: int,
     model_uri: str,
@@ -128,7 +128,7 @@ def _register_model_multiprocess(
         logging.getLogger('composer').setLevel(composer_logging_level)
 
     # Register model.
-    mlflow_logger.register_model(
+    mlflow_logger.register_model_with_run_id(
         model_uri=model_uri,
         name=name,
         await_creation_for=await_creation_for,
@@ -793,7 +793,7 @@ class HuggingFaceCheckpointer(Callback):
                         process.start()
                     # Faster method to register model in parallel.
                     process = SpawnProcess(
-                        target=_register_model_multiprocess,
+                        target=_register_model_with_run_id_multiprocess,
                         kwargs={
                             'mlflow_logger':
                                 mlflow_logger,

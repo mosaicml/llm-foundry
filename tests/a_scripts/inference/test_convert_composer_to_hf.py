@@ -1675,12 +1675,9 @@ def test_generation_config_variants(
         save_interval='1ba',
     )
 
-    try:
-        checkpointer._save_checkpoint(
-            state=state,
-            logger=logger,
-            upload_to_save_folder=False,
-            register_to_mlflow=False,
-        )
-    except Exception as e:
-        print(f'Test failed: {e} when generation_config is {generation_config}')
+    checkpointer._save_checkpoint(
+        state=state,
+        logger=logger,
+        upload_to_save_folder=False,
+        register_to_mlflow=False,
+    )

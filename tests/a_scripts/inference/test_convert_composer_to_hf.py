@@ -8,7 +8,7 @@ import os
 import pathlib
 import shutil
 from argparse import Namespace
-from typing import Any, Callable, Optional, cast
+from typing import Any, Callable, Optional, Union, cast
 from unittest import mock
 from unittest.mock import ANY, MagicMock, patch
 
@@ -26,6 +26,7 @@ from torch.distributed._tensor.api import DTensor
 from torch.utils.data import DataLoader
 from transformers import (
     AutoConfig,
+    GenerationConfig,
     PretrainedConfig,
     PreTrainedModel,
     PreTrainedTokenizerBase,
@@ -1647,7 +1648,7 @@ def test_license_file_finder(
 
 @pytest.mark.parametrize('generation_config', [None, {}, {'max_length': 200}])
 def test_generation_config_variants(
-    generation_config: Optional[dict[str, Any]],
+    generation_config: Optional[Union[dict[str, Any], GenerationConfig]],
 ):
 
     class MockModel(nn.Module):
@@ -1655,9 +1656,18 @@ def test_generation_config_variants(
         def __init__(self, config: PretrainedConfig):
             super().__init__()
             self.config = config
-            self.generation_config = getattr(config, 'generation_config', None)
+            # Ensure generation_config is always a GenerationConfig object
+            if isinstance(config.generation_config, dict):
+                self.generation_config = GenerationConfig(
+                    **config.generation_config,
+                )
+            else:
+                self.generation_config = config.generation_config
 
     config = AutoConfig.from_pretrained('gpt2')
+    # Convert dict to GenerationConfig if needed
+    if isinstance(generation_config, dict):
+        generation_config = GenerationConfig(**generation_config)
     config.generation_config = generation_config
 
     mock_model = MockModel(config)

@@ -52,6 +52,11 @@ jobs:
         repository_url: https://test.pypi.org/legacy/
 
   build-docker:
+    name: Build llm-foundry Release Docker Image
+    needs:
+    - code-quality
+    runs-on: mosaic-8wide
+    steps:
     - name: Define Docker tags
       id: define-tags
       run: |

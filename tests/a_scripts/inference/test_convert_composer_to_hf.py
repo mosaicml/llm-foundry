@@ -1656,7 +1656,6 @@ def test_generation_config_variants(
             super().__init__()
             self.config = config
 
-    # Mock a configuration and model with varying generation_config values
     config = AutoConfig.from_pretrained('gpt2')
     if generation_config is not None:
         config.generation_config = generation_config

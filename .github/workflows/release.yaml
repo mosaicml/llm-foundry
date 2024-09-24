@@ -65,15 +65,14 @@ jobs:
         TAG_NAME=$(echo "${BRANCH_NAME}" | sed 's/\//_/g')
         echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_ENV
 
-        # Official release (tag)
         if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == refs/tags/v* ]]; then
+          # Official release (tag)
           echo "DOCKER_TAG=mosaicml/llm-foundry:release_${TAG_NAME}" >> $GITHUB_ENV
           echo "AWS_DOCKER_TAG=mosaicml/llm-foundry:release_${TAG_NAME}_aws" >> $GITHUB_ENV
           echo "LATEST_TAG=mosaicml/llm-foundry:release-latest" >> $GITHUB_ENV
           echo "AWS_LATEST_TAG=mosaicml/llm-foundry:release_aws-latest" >> $GITHUB_ENV
-        # Testing release (manual)
         else
-          # Test release (branch & manual run)
+          # Testing release (manual)
           echo "DOCKER_TAG=mosaicml/llm-foundry:test_release_${TAG_NAME}" >> $GITHUB_ENV
           echo "AWS_DOCKER_TAG=mosaicml/llm-foundry:test_release_${TAG_NAME}_aws" >> $GITHUB_ENV
         fi

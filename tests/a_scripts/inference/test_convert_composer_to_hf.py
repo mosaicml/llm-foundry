@@ -1655,12 +1655,10 @@ def test_generation_config_variants(
         def __init__(self, config: PretrainedConfig):
             super().__init__()
             self.config = config
+            self.generation_config = getattr(config, 'generation_config', None)
 
     config = AutoConfig.from_pretrained('gpt2')
-    if generation_config is not None:
-        config.generation_config = generation_config
-    else:
-        config.generation_config = None
+    config.generation_config = generation_config
 
     mock_model = MockModel(config)
     logger = MagicMock()

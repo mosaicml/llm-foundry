@@ -20,4 +20,3 @@ RUN NVTE_FRAMEWORK=pytorch CMAKE_BUILD_PARALLEL_LEVEL=4 MAX_JOBS=4 pip install g
 # Install and uninstall foundry to cache foundry requirements
 RUN git clone -b $BRANCH_NAME https://github.com/mosaicml/llm-foundry.git
 RUN pip install --no-cache-dir "./llm-foundry[all]"
-RUN pip uninstall -y llm-foundry

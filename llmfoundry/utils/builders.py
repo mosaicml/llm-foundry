@@ -14,7 +14,6 @@ from typing import (
     Iterable,
     Optional,
     Union,
-    Callable
 )
 
 import torch

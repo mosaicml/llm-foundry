@@ -4,7 +4,6 @@ import sys
 
 from llmfoundry.command_utils import train_from_yaml
 
-
 if __name__ == '__main__':
     yaml_path, args_list = sys.argv[1], sys.argv[2:]
     train_from_yaml(yaml_path, args_list)

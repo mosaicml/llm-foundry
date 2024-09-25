@@ -19,7 +19,8 @@ from composer.profiler import (
     TraceHandler,
     cyclic_schedule,
 )
-from composer.utils import dist, get_device, reproducibility, ParallelismConfig, TPConfig, FSDPConfig
+from composer.utils import (FSDPConfig, ParallelismConfig, TPConfig, dist,
+                            get_device, reproducibility,)
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
@@ -335,7 +336,8 @@ def train(cfg: DictConfig) -> Trainer:
     tp_config: Optional[dict[str, Any]] = train_cfg.tp_config
 
     # Warn if FSDP or TP is enabled but user only has 1 GPU
-    if dist.get_world_size() == 1 and (fsdp_config is not None or tp_config is not None):
+    if dist.get_world_size(
+    ) == 1 and (fsdp_config is not None or tp_config is not None):
         parallelism = ''
         if fsdp_config is not None:
             parallelism += 'FSDP'
@@ -524,7 +526,7 @@ def train(cfg: DictConfig) -> Trainer:
             tp_config['layer_plan'] |= strategy_layer_plan
 
     # Parallelism config
-    parallelism_config = dict(fsdp=fsdp_config, tp=tp_config)
+    parallelism_config = {'fsdp': fsdp_config, 'tp': tp_config}
 
     # Optimizer
     optimizer_name: str = train_cfg.optimizer.pop('name')

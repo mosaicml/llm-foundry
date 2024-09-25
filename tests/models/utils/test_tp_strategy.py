@@ -13,7 +13,8 @@ from llmfoundry.utils.builders import build_tp_strategy
 
 
 def test_ffn_tp_strategy_layer_plan():
-    # Actual layer plan
+
+    # Actual layer plan from tp_strategy=fnn
     tp_config = {
         'strategy': 'ffn',
     }

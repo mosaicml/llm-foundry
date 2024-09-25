@@ -20,6 +20,7 @@ from packaging import version
 
 from llmfoundry.utils.exceptions import (
     ClusterDoesNotExistError,
+    ClusterInvalidAccessMode,
     FailedToConnectToDatabricksError,
     FailedToCreateSQLConnectionError,
     InsufficientPermissionsError,
@@ -567,6 +568,17 @@ def validate_and_get_cluster_info(
         res = w.clusters.get(cluster_id=cluster_id)
         if res is None:
             raise ClusterDoesNotExistError(cluster_id)
+
+        data_security_mode = str(
+            res.data_security_mode,
+        ).upper()[len('DATASECURITYMODE.'):]
+
+        # NONE stands for No Isolation Shared
+        if data_security_mode == 'NONE':
+            raise ClusterInvalidAccessMode(
+                cluster_id=cluster_id,
+                access_mode=data_security_mode,
+            )
 
         assert res.spark_version is not None
         stripped_runtime = re.sub(

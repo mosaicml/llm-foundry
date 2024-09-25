@@ -547,7 +547,7 @@ def validate_and_get_cluster_info(
         if res is None:
             raise ClusterDoesNotExistError(cluster_id)
 
-        data_security_mode = str(res.data_security_mode).upper()
+        data_security_mode = str(res.data_security_mode).upper()[len('DATASECURITYMODE.'):]
         # None stands for Shared Access Mode
         if data_security_mode not in ('NONE', 'SINGLE_USER'):
             raise ClusterInvalidAccessMode(

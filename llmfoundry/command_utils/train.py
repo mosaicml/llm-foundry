@@ -20,7 +20,6 @@ from composer.profiler import (
     cyclic_schedule,
 )
 from composer.utils import dist, get_device, reproducibility, ParallelismConfig, TPConfig, FSDPConfig
-from icecream import install, ic
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 

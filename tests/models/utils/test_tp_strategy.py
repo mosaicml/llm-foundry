@@ -1,17 +1,9 @@
-import pytest
-
-from composer.trainer.trainer import Trainer
-from composer.utils import dist
 from torch.distributed.tensor.parallel import ColwiseParallel, RowwiseParallel, PrepareModuleInput
 from torch.distributed._tensor import Replicate, Shard
-from torch.utils.data import DataLoader
 
 from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
 from llmfoundry.utils.builders import build_tp_strategy
 
-
-from icecream import install
-install()
 
 def test_ffn_tp_strategy_layer_plan():
 

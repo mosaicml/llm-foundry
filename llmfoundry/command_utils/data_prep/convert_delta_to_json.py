@@ -554,12 +554,6 @@ def validate_and_get_cluster_info(
 
         print('perms: ', perms)
 
-        # None stands for Shared Access Mode
-        if data_security_mode not in ('NONE', 'SINGLE_USER'):
-            raise ClusterInvalidAccessMode(
-                cluster_id=cluster_id, access_mode=data_security_mode
-            )
-
         assert res.spark_version is not None
         stripped_runtime = re.sub(
             r'[a-zA-Z]',

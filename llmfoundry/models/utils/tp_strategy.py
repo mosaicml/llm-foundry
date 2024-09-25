@@ -17,7 +17,6 @@ def ffn_tp_strategy(model: ComposerModel) -> dict[str, ParallelStyle]:
     # generate layer plan
     layer_plan: dict[str, ParallelStyle] = {}
     for name, _ in model.named_modules():
-        ic(name)
         if name.split('.')[-2:] == ['ffn', 'up_proj']:
             layer_plan[name] = ColwiseParallel(
                 input_layouts = Replicate(),

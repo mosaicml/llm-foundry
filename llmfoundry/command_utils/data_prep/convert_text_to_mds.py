@@ -32,6 +32,7 @@ from llmfoundry.utils.exceptions import (
     CannotUnicodeDecodeFile,
     DatasetTooSmallError,
     InputFolderMissingDataError,
+    InputFolderNotFound,
     OutputFolderNotEmptyError,
 )
 
@@ -125,11 +126,15 @@ def get_object_names(input_folder: str) -> list[str]:
     object_store = maybe_create_object_store_from_uri(input_folder)
     if object_store is not None:
         _, _, folder_prefix = parse_uri(input_folder)
-        names = [
-            name for name in object_store.list_objects(folder_prefix)
-            if name.endswith('.txt')
-        ]
-        log.info(f'Found {len(names)} text files in remote storage')
+        try:
+            names = [
+                name for name in object_store.list_objects(folder_prefix)
+                if name.endswith('.txt')
+            ]
+            log.info(f'Found {len(names)} text files in remote storage')
+        except FileNotFoundError:
+            raise InputFolderNotFound(folder_prefix)
+
     else:
         # input_folder is a local folder
         names = [
@@ -478,7 +483,9 @@ def convert_text_to_mds(
     index_path = os.path.join(local_output_folder, 'index.json')
     with open(index_path, 'r') as index_file:
         if not json.load(index_file)['shards']:
-            raise DatasetTooSmallError()
+            raise DatasetTooSmallError(
+                reason='No shards were created when converting text to MDS.',
+            )
 
     # Write a done file with the args and object names
     write_done_file(local_output_folder, args_str, object_names)

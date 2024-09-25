@@ -552,7 +552,7 @@ def validate_and_get_cluster_info(
         ).upper()[len('DATASECURITYMODE.'):]
 
         # NONE stands for No Isolation Shared
-        if data_security_mode in ('NONE'):
+        if data_security_mode == 'NONE':
             raise ClusterInvalidAccessMode(
                 cluster_id=cluster_id,
                 access_mode=data_security_mode,

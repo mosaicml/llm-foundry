@@ -547,12 +547,12 @@ def validate_and_get_cluster_info(
         if res is None:
             raise ClusterDoesNotExistError(cluster_id)
 
-        data_security_mode = str(res.data_security_mode).upper()[len('DATASECURITYMODE.'):]
-        spark_conf = res.spark_conf
-        if spark_conf:
-            print('spark_conf: ', spark_conf)
-        else:
-            print('spark_conf: ', 'CANT BE FOUND')
+        perms = w.permissions.get(
+            request_object_type='clusters',
+            request_object_id=cluster_id,
+        )
+
+        print('perms: ', perms)
 
         # None stands for Shared Access Mode
         if data_security_mode not in ('NONE', 'SINGLE_USER'):

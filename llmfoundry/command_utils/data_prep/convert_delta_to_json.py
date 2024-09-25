@@ -547,12 +547,10 @@ def validate_and_get_cluster_info(
         if res is None:
             raise ClusterDoesNotExistError(cluster_id)
 
-        perms = w.permissions.get(
-            request_object_type='clusters',
-            request_object_id=cluster_id,
-        )
-
-        print('perms: ', perms)
+        policy_id = res.policy_id
+        assert policy_id is not None
+        print(res.policy_id)
+        print(w.cluster_policies.get(policy_id=policy_id))
 
         assert res.spark_version is not None
         stripped_runtime = re.sub(

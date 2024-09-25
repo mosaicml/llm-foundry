@@ -546,6 +546,15 @@ def validate_and_get_cluster_info(
         if res is None:
             raise ClusterDoesNotExistError(cluster_id)
 
+        compute_mode = res.spark_conf.get(
+            'spark.databricks.cluster.computeMode', ''
+        ).lower() if res.spark_conf else None
+        if compute_mode and compute_mode not in ('shared', 'singleuser'):
+            raise ValueError(
+                f'Cluster {cluster_id} must be in Shared or Single User compute mode, '
+                f'but got computeMode: {compute_mode}.',
+            )
+
         assert res.spark_version is not None
         stripped_runtime = re.sub(
             r'[a-zA-Z]',

@@ -530,9 +530,7 @@ def train(cfg: DictConfig) -> Trainer:
             tp_config['layer_plan'] |= strategy_layer_plan
 
     # Parallelism config
-    tp = TPConfig(**tp_config)
-    fsdp = FSDPConfig(**fsdp_config)
-    parallelism_config = ParallelismConfig(fsdp=fsdp, tp=tp)
+    parallelism_config = dict(fsdp=fsdp_config, tp=tp_config)
 
     # Optimizer
     optimizer_name: str = train_cfg.optimizer.pop('name')

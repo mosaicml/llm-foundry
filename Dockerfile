@@ -7,6 +7,7 @@ FROM $BASE_IMAGE
 ARG BRANCH_NAME
 ARG DEP_GROUPS
 ARG TE_COMMIT
+ARG KEEP_FOUNDRY=false
 
 ENV TORCH_CUDA_ARCH_LIST="8.0 8.6 8.7 8.9 9.0"
 
@@ -21,5 +22,9 @@ RUN NVTE_FRAMEWORK=pytorch CMAKE_BUILD_PARALLEL_LEVEL=4 MAX_JOBS=4 pip install g
 # Install and uninstall foundry to cache foundry requirements
 RUN git clone -b $BRANCH_NAME https://github.com/mosaicml/llm-foundry.git
 RUN pip install --no-cache-dir "./llm-foundry${DEP_GROUPS}"
-RUN pip uninstall -y llm-foundry
-RUN rm -rf llm-foundry
+
+# Conditionally uninstall llm-foundry and remove its directory
+RUN if [ "$KEEP_FOUNDRY" != "true" ]; then \
+      pip uninstall -y llm-foundry && \
+      rm -rf llm-foundry; \
+    fi

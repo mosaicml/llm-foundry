@@ -1,12 +1,14 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import sys
 import unittest
 from argparse import Namespace
 from typing import Any
 from unittest.mock import MagicMock, mock_open, patch
 
 from llmfoundry.command_utils.data_prep.convert_delta_to_json import (
+    InsufficientPermissionsError,
     download,
     fetch_DT,
     format_tablename,
@@ -16,6 +18,39 @@ from llmfoundry.command_utils.data_prep.convert_delta_to_json import (
 
 
 class TestConvertDeltaToJsonl(unittest.TestCase):
+
+    def test_run_query_dbconnect_insufficient_permissions(self):
+        error_message = (
+            '[INSUFFICIENT_PERMISSIONS] Insufficient privileges: User does not have USE SCHEMA '
+            "on Schema 'main.oogabooga'. SQLSTATE: 42501"
+        )
+
+        class MockAnalysisException(Exception):
+
+            def __init__(self, message: str):
+                self.message = message
+
+        with patch.dict('sys.modules', {'pyspark.errors': MagicMock()}):
+            sys.modules[
+                'pyspark.errors'
+            ].AnalysisException = MockAnalysisException  # pyright: ignore
+
+            mock_spark = MagicMock()
+            mock_spark.sql.side_effect = MockAnalysisException(error_message)
+
+            with self.assertRaises(InsufficientPermissionsError) as context:
+                run_query(
+                    'SELECT * FROM table',
+                    method='dbconnect',
+                    cursor=None,
+                    spark=mock_spark,
+                )
+
+            self.assertIn(
+                'using the schema main.oogabooga',
+                str(context.exception),
+            )
+            mock_spark.sql.assert_called_once_with('SELECT * FROM table')
 
     @patch(
         'databricks.sql.connect',

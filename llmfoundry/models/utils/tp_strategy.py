@@ -3,7 +3,7 @@ from typing import Optional
 from composer.models import ComposerModel
 from torch.distributed.tensor.parallel import ColwiseParallel, RowwiseParallel, PrepareModuleInput
 from torch.distributed.tensor.parallel.style import ParallelStyle
-from torch.distributed._tensor import Replicate, Shard, Placement
+from torch.distributed._tensor import Replicate, Shard
 
 
 def ffn_tp_strategy(model: ComposerModel) -> dict[str, ParallelStyle]:

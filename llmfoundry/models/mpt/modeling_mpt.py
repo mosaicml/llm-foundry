@@ -965,6 +965,8 @@ class MPTModel(MPTPreTrainedModel):
             extra_kwargs = {}
             if prev_layer_key_value is not None:
                 extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
+
+            ic(type(x), type(past_key_value), type(attn_bias), type(attention_mask))
             x, attn_weights, present = block(
                 x,
                 past_key_value=past_key_value,
@@ -1142,6 +1144,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
             use_cache if use_cache is not None else self.config.use_cache
         )
 
+        ic(type(input_ids))
         outputs = self.transformer(
             input_ids=input_ids,
             past_key_values=past_key_values,
@@ -1154,6 +1157,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
             inputs_embeds=inputs_embeds,
             position_ids=position_ids,
         )
+        ic(outputs)
 
         if self.lm_head is not None:
             logits = self.lm_head(outputs.last_hidden_state)

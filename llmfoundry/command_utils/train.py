@@ -20,7 +20,7 @@ from composer.profiler import (
     cyclic_schedule,
 )
 from composer.utils import dist, get_device, reproducibility, ParallelismConfig, TPConfig, FSDPConfig
-from icecream import install
+from icecream import install, ic
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
@@ -65,6 +65,8 @@ from llmfoundry.utils.registry_utils import import_file
 
 log = logging.getLogger(__name__)
 
+
+ic.configureOutput(includeContext=True)
 install()
 
 def validate_config(train_config: TrainConfig):

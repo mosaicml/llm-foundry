@@ -35,7 +35,7 @@ train_loader:
   dataset:
     local: ${variables.data_local}
     remote: ${variables.data_remote}
-    split: train
+    split: train_small
     shuffle: true
     max_seq_len: ${variables.max_seq_len}
     shuffle_seed: ${variables.global_seed}
@@ -47,10 +47,11 @@ eval_loader:
   dataset:
     local: ${variables.data_local}
     remote: ${variables.data_remote}
-    split: val
+    split: val_small
     shuffle: false
     max_seq_len: ${variables.max_seq_len}
     shuffle_seed: ${variables.global_seed}
+    replication: 2
   drop_last: false
   num_workers: 8
 
@@ -74,10 +75,10 @@ algorithms:
     clipping_type: norm
     clipping_threshold: 1.0
 
-max_duration: 4800ba  # ~ 2.5B tokens
+max_duration: 100ba
 eval_interval: 500ba
 eval_first: false
-eval_subset_num_batches: -1
+eval_subset_num_batches: 0
 global_train_batch_size: 256
 
 # System
@@ -96,6 +97,11 @@ fsdp_config:
   activation_cpu_offload: false
   limit_all_gathers: true
 
+# TP
+tp_config:
+  strategy: ffn
+  tensor_parallel_degree: 2
+
 # Logging
 progress_bar: false
 log_to_console: true
@@ -107,6 +113,11 @@ callbacks:
   lr_monitor: {}
   memory_monitor: {}
   runtime_estimator: {}
+
+loggers:
+  mlflow:
+    experiment_name: tp
+    # model_registry_prefix: datasets.eitanturok.${run_name}
 
 # loggers:
 #   wandb: {}

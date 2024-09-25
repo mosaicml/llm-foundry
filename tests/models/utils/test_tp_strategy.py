@@ -43,17 +43,22 @@ def test_tp_strategy():
             )
     }
     expected_layer_plan = {f'model.transformer.blocks.{layer_idx}.{name}': layer_plan for name, layer_plan in _expected_layer_plan.items() for layer_idx in range(model_cfg['n_layers'])}
-    ic(expected_layer_plan)
 
     model = ComposerMPTCausalLM(**model_cfg)
-    strategy_layer_plan = build_tp_strategy(tp_config['strategy'], model)
-    ic(strategy_layer_plan)
+    layer_plan = build_tp_strategy(tp_config['strategy'], model)
 
-    for (n1, lp1), (n2, lp2) in zip(expected_layer_plan.items(), strategy_layer_plan.items()):
-        ic(n1, n2)
-        ic(lp1, lp2)
+    # Compare expected and actual layer plan
+    for (n1, lp1), (n2, lp2) in zip(sorted(expected_layer_plan.items()), sorted(layer_plan.items())):
         assert n1 == n2
-        assert lp1 == lp2
+        assert type(lp1) == type(lp2)
+        if isinstance(lp1, PrepareModuleInput):
+            assert lp1.input_layouts == lp2.input_layouts
+            assert lp1.desired_input_layouts == lp2.desired_input_layouts
+            assert lp1.use_local_output == lp2.use_local_output
+        elif isinstance(lp1, ColwiseParallel) or isinstance(lp1, RowwiseParallel):
+            assert lp1.input_layouts == lp2.input_layouts
+            assert lp1.output_layouts == lp2.output_layouts
+            assert lp1.use_local_output == lp2.use_local_output
 
 if __name__ == '__main__':
     test_tp_strategy()

@@ -20,6 +20,7 @@ from packaging import version
 
 from llmfoundry.utils.exceptions import (
     ClusterDoesNotExistError,
+    ClusterInvalidAccessMode,
     FailedToConnectToDatabricksError,
     FailedToCreateSQLConnectionError,
     InsufficientPermissionsError,
@@ -546,13 +547,11 @@ def validate_and_get_cluster_info(
         if res is None:
             raise ClusterDoesNotExistError(cluster_id)
 
-        compute_mode = res.spark_conf.get(
-            'spark.databricks.cluster.computeMode', ''
-        ).lower() if res.spark_conf else None
-        if compute_mode and compute_mode not in ('shared', 'singleuser'):
-            raise ValueError(
-                f'Cluster {cluster_id} must be in Shared or Single User compute mode, '
-                f'but got computeMode: {compute_mode}.',
+        data_security_mode = str(res.data_security_mode).upper()
+        # None stands for Shared Access Mode
+        if data_security_mode not in ('NONE', 'SINGLE_USER'):
+            raise ClusterInvalidAccessMode(
+                cluster_id=cluster_id, access_mode=data_security_mode
             )
 
         assert res.spark_version is not None

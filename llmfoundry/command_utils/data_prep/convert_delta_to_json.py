@@ -481,6 +481,8 @@ def fetch(
                 raise InsufficientPermissionsError(
                     action=f'reading from {tablename}',
                 ) from e
+        if isinstance(e, InsufficientPermissionsError):
+            raise e
         raise RuntimeError(
             f'Error in get rows from {tablename}. Restart sparkSession and try again',
         ) from e

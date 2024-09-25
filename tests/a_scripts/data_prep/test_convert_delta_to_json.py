@@ -229,7 +229,10 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         DATABRICKS_TOKEN = 'token'
         use_serverless = False
 
-        mock_cluster_response = Namespace(spark_version='14.1.0-scala2.12')
+        mock_cluster_response = Namespace(
+            spark_version='14.1.0-scala2.12',
+            data_security_mode='SINGLE_USER',
+        )
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
         mock_remote = MagicMock()
@@ -286,7 +289,10 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         DATABRICKS_TOKEN = 'token'
         use_serverless = False
 
-        mock_cluster_response = Namespace(spark_version='13.0.0-scala2.12')
+        mock_cluster_response = Namespace(
+            spark_version='13.0.0-scala2.12',
+            data_security_mode='SINGLE_USER',
+        )
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
         fetch_DT(
@@ -338,7 +344,10 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         DATABRICKS_TOKEN = 'token'
         use_serverless = False
 
-        mock_cluster_response = Namespace(spark_version='14.2.0-scala2.12')
+        mock_cluster_response = Namespace(
+            spark_version='14.2.0-scala2.12',
+            data_security_mode='SINGLE_USER',
+        )
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
         fetch_DT(
@@ -390,7 +399,10 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         DATABRICKS_TOKEN = 'token'
         use_serverless = False
 
-        mock_cluster_response = Namespace(spark_version='14.2.0-scala2.12')
+        mock_cluster_response = Namespace(
+            spark_version='14.2.0-scala2.12',
+            data_security_mode='SINGLE_USER',
+        )
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
         fetch_DT(

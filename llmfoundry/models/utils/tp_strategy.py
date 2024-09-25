@@ -26,7 +26,8 @@ def ffn_tp_strategy(model: ComposerModel) -> dict[str, ParallelStyle]:
         elif name.split('.')[-2:] == ['ffn', 'down_proj']:
             layer_plan[name] = RowwiseParallel(
                 input_layouts = Shard(-1),
-                output_layouts = Replicate(),
+                # output_layouts = Replicate(),
+                output_layouts = Shard(0),
             )
         elif name.split('.')[-1] == 'ffn':
             layer_plan[name] = PrepareModuleInput(

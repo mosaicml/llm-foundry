@@ -69,6 +69,8 @@ log = logging.getLogger(__name__)
 ic.configureOutput(includeContext=True)
 install()
 
+ic.disable()
+
 def validate_config(train_config: TrainConfig):
     """Validates compatible model and dataloader selection."""
     # Validate the rest of the config

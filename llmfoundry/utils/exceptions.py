@@ -325,7 +325,9 @@ class ClusterInvalidAccessMode(NetworkError):
         message = f'Cluster with id {cluster_id} has access mode {access_mode}. ' + \
         'please make sure the cluster used has access mode Shared or Single User!'
         super().__init__(
-            message, cluster_id=cluster_id, access_mode=access_mode
+            message,
+            cluster_id=cluster_id,
+            access_mode=access_mode,
         )
 
 

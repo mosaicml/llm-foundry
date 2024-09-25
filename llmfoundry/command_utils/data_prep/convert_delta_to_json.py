@@ -547,8 +547,13 @@ def validate_and_get_cluster_info(
         if res is None:
             raise ClusterDoesNotExistError(cluster_id)
 
-        print(res)
-        time.sleep(10)
+        data_security_mode = str(res.data_security_mode).upper()[len('DATASECURITYMODE.'):]
+
+        # USER_ISOLATION stands for Shared Access Mode
+        if data_security_mode not in ('USER_ISOLATION', 'SINGLE_USER'):
+            raise ClusterInvalidAccessMode(
+                cluster_id=cluster_id, access_mode=data_security_mode
+            )
 
         assert res.spark_version is not None
         stripped_runtime = re.sub(

@@ -965,7 +965,6 @@ class MPTModel(MPTPreTrainedModel):
             extra_kwargs = {}
             if prev_layer_key_value is not None:
                 extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
-
             x, attn_weights, present = block(
                 x,
                 past_key_value=past_key_value,

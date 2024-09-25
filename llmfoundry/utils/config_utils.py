@@ -504,8 +504,8 @@ def update_batch_size_info(cfg: dict[str, Any]) -> dict[str, Any]:
 
 def process_init_device(
     model_cfg: dict[str, Any],
-    fsdp_config: Optional[dict],
-    tp_config: Optional[dict],
+    fsdp_config: Optional[dict] = None,
+    tp_config: Optional[dict] = None,
 ):
     # Restrict model init_device to 'meta' and 'cpu',
     # using 'cuda' vs. 'cuda:id' is tricky and can lead to common user errors

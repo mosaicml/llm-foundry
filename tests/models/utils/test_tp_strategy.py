@@ -65,12 +65,22 @@ def test_ffn_tp_strategy_layer_plan():
     ):
         assert n1 == n2
         assert type(lp1) == type(lp2)
-        if isinstance(lp1, PrepareModuleInput):
+        if isinstance(
+            lp1,
+            PrepareModuleInput,
+        ) and isinstance(lp2, PrepareModuleInput):
             assert lp1.input_layouts == lp2.input_layouts
             assert lp1.desired_input_layouts == lp2.desired_input_layouts
             assert lp1.use_local_output == lp2.use_local_output
-        elif isinstance(lp1,
-                        ColwiseParallel) or isinstance(lp1, RowwiseParallel):
+        elif (
+            isinstance(lp1, ColwiseParallel) and
+            isinstance(lp2, ColwiseParallel)
+        ) or (
+            isinstance(lp1, RowwiseParallel) and
+            isinstance(lp2, RowwiseParallel)
+        ):
             assert lp1.input_layouts == lp2.input_layouts
             assert lp1.output_layouts == lp2.output_layouts
             assert lp1.use_local_output == lp2.use_local_output
+        else:
+            raise ValueError(f'Layer plan of wrong type: {type(layer_plan)}')

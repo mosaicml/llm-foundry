@@ -19,7 +19,8 @@ from composer.profiler import (
     TraceHandler,
     cyclic_schedule,
 )
-from composer.utils import dist, get_device, reproducibility, ParallelismConfig, TPConfig
+from composer.utils import dist, get_device, reproducibility, ParallelismConfig, TPConfig, FSDPConfig
+from icecream import install
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
@@ -64,6 +65,7 @@ from llmfoundry.utils.registry_utils import import_file
 
 log = logging.getLogger(__name__)
 
+install()
 
 def validate_config(train_config: TrainConfig):
     """Validates compatible model and dataloader selection."""
@@ -524,7 +526,9 @@ def train(cfg: DictConfig) -> Trainer:
             tp_config['layer_plan'] |= strategy_layer_plan
 
     # Parallelism config
-    parallelism_config: ParallelismConfig = {'fsdp': fsdp_config, 'tp': tp_config}
+    tp = TPConfig(**tp_config)
+    fsdp = FSDPConfig(**fsdp_config)
+    parallelism_config = ParallelismConfig(fsdp=fsdp, tp=tp)
 
     # Optimizer
     optimizer_name: str = train_cfg.optimizer.pop('name')

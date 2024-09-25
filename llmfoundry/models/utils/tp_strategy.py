@@ -1,7 +1,9 @@
+from typing import Optional
+
 from composer.models import ComposerModel
-from torch.distributed.tensor.parallel import ColwiseParallel, RowwiseParallel
+from torch.distributed.tensor.parallel import ColwiseParallel, RowwiseParallel, PrepareModuleInput
 from torch.distributed.tensor.parallel.style import ParallelStyle
-from torch.distributed._tensor import Replicate, Shard
+from torch.distributed._tensor import Replicate, Shard, Placement
 
 
 def ffn_tp_strategy(model: ComposerModel) -> dict[str, ParallelStyle]:
@@ -15,15 +17,24 @@ def ffn_tp_strategy(model: ComposerModel) -> dict[str, ParallelStyle]:
     # generate layer plan
     layer_plan: dict[str, ParallelStyle] = {}
     for name, _ in model.named_modules():
-        if 'up_proj' in name:
+        ic(name)
+        if name.split('.')[-2:] == ['ffn', 'up_proj']:
             layer_plan[name] = ColwiseParallel(
                 input_layouts = Replicate(),
                 output_layouts = Shard(-1),
             )
-        elif 'down_proj' in name:
+        elif name.split('.')[-2:] == ['ffn', 'down_proj']:
             layer_plan[name] = RowwiseParallel(
                 input_layouts = Shard(-1),
                 output_layouts = Replicate(),
             )
+        elif name.split('.')[-1] == 'ffn':
+            layer_plan[name] = PrepareModuleInput(
+                input_layouts = Shard(0),
+                desired_input_layouts = Replicate(),
+                use_local_output = True,
+            )
 
     return layer_plan
+
+

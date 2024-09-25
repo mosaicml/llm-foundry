@@ -27,6 +27,7 @@ models.register('openai_chat', func=OpenAIChatAPIEvalWrapper)
 models.register('fmapi_chat', func=FMAPIChatAPIEvalWrapper)
 tp_strategy.register('ffn', func=ffn_tp_strategy)
 
+
 __all__ = [
     'ComposerHFCausalLM',
     'ComposerHFT5',

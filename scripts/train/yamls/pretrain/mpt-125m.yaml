@@ -75,10 +75,10 @@ algorithms:
     clipping_type: norm
     clipping_threshold: 1.0
 
-max_duration: 4800ba  # ~ 2.5B tokens
+max_duration: 100ba
 eval_interval: 500ba
 eval_first: false
-eval_subset_num_batches: -1
+eval_subset_num_batches: 0
 global_train_batch_size: 256
 
 # System
@@ -99,7 +99,7 @@ fsdp_config:
 
 # TP
 tp_config:
-  strategy: megatron
+  strategy: ffn
   tensor_parallel_degree: 2
 
 # Logging

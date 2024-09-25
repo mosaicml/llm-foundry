@@ -26,9 +26,6 @@ def test_ffn_tp_strategy_layer_plan():
         'expansion_ratio': 1,
         'max_seq_len': 16,
         'vocab_size': 50368,
-        'attn_config': {
-            'attn_impl': 'flash',
-        },
     }
     model = ComposerMPTCausalLM(**model_cfg)
     layer_plan = build_tp_strategy(tp_config['strategy'], model)

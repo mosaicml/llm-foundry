@@ -82,7 +82,7 @@ def evaluate_model(
         warnings.warn(
             VersionedDeprecationWarning(
                 'The argument fsdp_config is deprecated. Please use parallelism_config instead.',
-                remove_version='0.14.0',
+                remove_version='0.13.0',
             ),
         )
     if fsdp_config and parallelism_config:

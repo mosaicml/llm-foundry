@@ -2,9 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from torch.distributed._tensor import Replicate, Shard
-from torch.distributed.tensor.parallel import (ColwiseParallel,
-                                               PrepareModuleInput,
-                                               RowwiseParallel,)
+from torch.distributed.tensor.parallel import (
+    ColwiseParallel,
+    PrepareModuleInput,
+    RowwiseParallel,
+)
 
 from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
 from llmfoundry.utils.builders import build_tp_strategy
@@ -58,7 +60,8 @@ def test_ffn_tp_strategy_layer_plan():
 
     # Compare expected and actual layer plans
     for (n1, lp1), (n2, lp2) in zip(
-        sorted(expected_layer_plan.items()), sorted(layer_plan.items())
+        sorted(expected_layer_plan.items()),
+        sorted(layer_plan.items()),
     ):
         assert n1 == n2
         assert type(lp1) == type(lp2)

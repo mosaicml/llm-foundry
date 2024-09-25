@@ -1,12 +1,13 @@
-
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
 from composer.models import ComposerModel
 from torch.distributed._tensor import Replicate, Shard
-from torch.distributed.tensor.parallel import (ColwiseParallel,
-                                               PrepareModuleInput,
-                                               RowwiseParallel,)
+from torch.distributed.tensor.parallel import (
+    ColwiseParallel,
+    PrepareModuleInput,
+    RowwiseParallel,
+)
 from torch.distributed.tensor.parallel.style import ParallelStyle
 
 
@@ -14,10 +15,10 @@ def ffn_tp_strategy(model: ComposerModel) -> dict[str, ParallelStyle]:
     TP_LAYERS = {'up_proj', 'down_proj'}
 
     # validate that all TP_LAYERS are in model
-    tp_layers_in_model = set([
+    tp_layers_in_model = {
         layer for layer in TP_LAYERS for name, _ in model.named_modules()
         if layer in name
-    ])
+    }
     assert tp_layers_in_model == TP_LAYERS, f'The FFN tensor parallelism strategy requires `model` to have layers {TP_LAYERS}. But `model` is missing layers {TP_LAYERS - tp_layers_in_model}.'
 
     # generate layer plan

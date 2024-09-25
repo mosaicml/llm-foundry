@@ -550,10 +550,9 @@ def validate_and_get_cluster_info(
         data_security_mode = str(res.data_security_mode).upper()[len('DATASECURITYMODE.'):]
         spark_conf = res.spark_conf
         if spark_conf:
-            compute_mode = spark_conf.get('spark.databricks.cluster.computeMode')
-            print('compute_mode: ', compute_mode)
+            print('spark_conf: ', spark_conf)
         else:
-            print('compute_mode: ', 'CANT BE FOUND')
+            print('spark_conf: ', 'CANT BE FOUND')
 
         # None stands for Shared Access Mode
         if data_security_mode not in ('NONE', 'SINGLE_USER'):

@@ -335,7 +335,7 @@ def convert_dataset_hf(
         dataset_constants = CONSTS[dataset]
     except KeyError:
         raise ValueError(
-            f'Constants for dataset "{dataset}" not found. Currently only "the_pile" and "c4" are supported.',
+            f'Constants for dataset "{dataset}" not found. Currently only "the_pile" and "allenai/c4" are supported.',
         )
 
     if concat_tokens is not None and tokenizer is not None:

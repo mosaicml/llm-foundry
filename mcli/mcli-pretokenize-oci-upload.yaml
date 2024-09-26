@@ -1,5 +1,5 @@
 name: c4-2k-pre-tokenized
-image: mosaicml/llm-foundry:2.3.1_cu121-latest
+image: mosaicml/llm-foundry:2.4.0_cu124-latest
 compute:
   gpus: 8  # Number of GPUs to use
 
@@ -14,7 +14,7 @@ integrations:
   - oci-cli==3.23.2
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: v0.11.0
+  git_branch: v0.12.0
   # git_commit: # OR use your commit hash
   pip_install: .
   ssh_clone: false  # Should be true if using a private repo
@@ -24,7 +24,7 @@ command: |
 
   # Run the dataset conversion
   python convert_dataset_hf.py \
-    --dataset c4 --data_subset en \
+    --dataset allenai/c4 --data_subset en \
     --out_root ./my-copy-c4 \
     --splits val_small val train_small train \
     --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'

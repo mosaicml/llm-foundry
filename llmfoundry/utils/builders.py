@@ -38,6 +38,7 @@ from llmfoundry.eval.datasets.in_context_learning_evaluation import (
 )
 from llmfoundry.utils.config_utils import to_dict_container, to_list_container
 from llmfoundry.utils.registry_utils import construct_from_registry
+from llmfoundry.utils.warnings import experimental_function
 
 log = logging.getLogger(__name__)
 
@@ -705,6 +706,7 @@ def build_icl_evaluators(
     return evaluators, logger_keys
 
 
+@experimental_function('tp_strategy')
 def build_tp_strategy(
     name: str,
     model: ComposerModel,

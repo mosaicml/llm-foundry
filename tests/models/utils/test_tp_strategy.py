@@ -21,6 +21,9 @@ from tests.data_utils import create_c4_dataset_xxsmall, gpt_tiny_cfg
 
 
 @pytest.mark.gpu
+@pytest.mark.filterwarnings(
+    'ignore:tp_strategy is experimental and may change with future versions.'
+)
 def test_ffn_tp_strategy_layer_plan():
     # Actual layer plan from tp_strategy=fnn
     tp_config = {
@@ -128,3 +131,7 @@ def test_no_tp_with_moes():
         match='Tensor Parallelism is not currently supported for MoE models.',
     ):
         process_init_device(model_cfg, fsdp_cfg, tp_cfg)
+
+
+# if __name__ == '__main__':
+#     test_ffn_tp_strategy_layer_plan()

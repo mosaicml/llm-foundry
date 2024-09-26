@@ -43,7 +43,7 @@ def build_hf_dataset(
         no_wrap (bool): if concatenating, whether to wrap text across `max_length` boundaries
         tokenizer (PreTrainedTokenizerBase): if mode is CONCAT_TOKENS, the tokenizer to use
         data_subset (str): Referred to as "name" in HuggingFace datasets.load_dataset.
-            Typically "all" (The Pile) or "en" (c4).
+            Typically "all" (The Pile) or "en" (allenai/c4).
 
     Returns:
         An IterableDataset.

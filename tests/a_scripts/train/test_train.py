@@ -154,16 +154,17 @@ def test_train_multi_eval(tmp_path: pathlib.Path):
     assert isinstance(inmemorylogger, InMemoryLogger)
 
     # Checks for first eval dataloader
-    assert 'metrics/eval/c4/LanguageCrossEntropy' in inmemorylogger.data.keys()
+    assert 'metrics/eval/allenai/c4/LanguageCrossEntropy' in inmemorylogger.data.keys(
+    )
     assert isinstance(
-        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'],
+        inmemorylogger.data['metrics/eval/allenai/c4/LanguageCrossEntropy'],
         list,
     )
     assert len(
-        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1],
+        inmemorylogger.data['metrics/eval/allenai/c4/LanguageCrossEntropy'][-1],
     ) > 0
     assert isinstance(
-        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1],
+        inmemorylogger.data['metrics/eval/allenai/c4/LanguageCrossEntropy'][-1],
         tuple,
     )
 
@@ -226,15 +227,16 @@ def test_eval_metrics_with_no_train_metrics(tmp_path: pathlib.Path):
         0]  # pyright: ignore [reportGeneralTypeIssues]
     assert isinstance(inmemorylogger, InMemoryLogger)
 
-    assert 'metrics/eval/c4/LanguageCrossEntropy' in inmemorylogger.data.keys()
+    assert 'metrics/eval/allenai/c4/LanguageCrossEntropy' in inmemorylogger.data.keys(
+    )
     assert isinstance(
-        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'],
+        inmemorylogger.data['metrics/eval/allenai/c4/LanguageCrossEntropy'],
         list,
     )
     assert len(
-        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1],
+        inmemorylogger.data['metrics/eval/allenai/c4/LanguageCrossEntropy'][-1],
     ) > 0
     assert isinstance(
-        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1],
+        inmemorylogger.data['metrics/eval/allenai/c4/LanguageCrossEntropy'][-1],
         tuple,
     )

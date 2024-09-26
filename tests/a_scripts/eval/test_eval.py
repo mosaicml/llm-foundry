@@ -157,16 +157,17 @@ def test_loader_eval(
     print(inmemorylogger.data.keys())
 
     # Checks for first eval dataloader
-    assert 'metrics/eval/c4/LanguageCrossEntropy' in inmemorylogger.data.keys()
+    assert 'metrics/eval/allenai/c4/LanguageCrossEntropy' in inmemorylogger.data.keys(
+    )
     assert isinstance(
-        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'],
+        inmemorylogger.data['metrics/eval/allenai/c4/LanguageCrossEntropy'],
         list,
     )
     assert len(
-        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1],
+        inmemorylogger.data['metrics/eval/allenai/c4/LanguageCrossEntropy'][-1],
     ) > 0
     assert isinstance(
-        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1],
+        inmemorylogger.data['metrics/eval/allenai/c4/LanguageCrossEntropy'][-1],
         tuple,
     )
 

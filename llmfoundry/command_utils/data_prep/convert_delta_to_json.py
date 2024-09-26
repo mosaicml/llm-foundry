@@ -228,7 +228,22 @@ def run_query(
     if method == 'dbsql':
         if cursor is None:
             raise ValueError(f'cursor cannot be None if using method dbsql')
-        cursor.execute(query)
+        try:
+            cursor.execute(query)
+        except Exception as e:
+            from databricks.sql.exc import ServerOperationError
+            if isinstance(e, ServerOperationError):
+                if 'INSUFFICIENT_PERMISSIONS' in e.message:  # pyright: ignore
+                    match = re.search(
+                        r"'([^']+)'",
+                        e.message,  # pyright: ignore
+                    )
+                    if match:
+                        table_name = match.group(1)
+                        action = f'accessing table {table_name}'
+                    else:
+                        action = 'accessing table'
+                    raise InsufficientPermissionsError(action=action,) from e
         if collect:
             return cursor.fetchall()
     elif method == 'dbconnect':

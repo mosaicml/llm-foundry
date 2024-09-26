@@ -14,7 +14,7 @@ from torch.distributed.tensor.parallel.style import ParallelStyle
 def ffn_tp_strategy(model: ComposerModel) -> dict[str, ParallelStyle]:
     TP_LAYERS = {'up_proj', 'down_proj'}
 
-    # validate that all TP_LAYERS are in model
+    # Validate that all TP_LAYERS are in model
     tp_layers_in_model = {
         layer for layer in TP_LAYERS for name, _ in model.named_modules()
         if layer in name

@@ -701,7 +701,7 @@ def build_icl_evaluators(
     return evaluators, logger_keys
 
 
-@experimental_function('tp_strategies')
+@experimental_function('Tensor Parallelism')
 def build_tp_strategies(
     name: str,
     model: ComposerModel,

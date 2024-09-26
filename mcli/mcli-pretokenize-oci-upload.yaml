@@ -24,7 +24,7 @@ command: |
 
   # Run the dataset conversion
   python convert_dataset_hf.py \
-    --dataset c4 --data_subset en \
+    --dataset allenai/c4 --data_subset en \
     --out_root ./my-copy-c4 \
     --splits val_small val train_small train \
     --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'

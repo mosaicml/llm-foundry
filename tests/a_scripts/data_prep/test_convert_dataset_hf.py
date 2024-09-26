@@ -11,7 +11,7 @@ def test_download_script_from_api(tmp_path: Path):
     # test calling it directly
     path = os.path.join(tmp_path, 'my-copy-c4-1')
     convert_dataset_hf(
-        dataset='c4',
+        dataset='allenai/c4',
         data_subset='en',
         splits=['val_xsmall'],
         out_root=path,

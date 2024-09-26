@@ -204,7 +204,7 @@ def test_correct_padding(
     shutil.rmtree(path, ignore_errors=True)
     if pretokenize:
         convert_dataset_hf(
-            dataset='c4',
+            dataset='allenai/c4',
             data_subset='en',
             splits=[split],
             out_root=path,
@@ -219,7 +219,7 @@ def test_correct_padding(
         )
     else:
         convert_dataset_hf(
-            dataset='c4',
+            dataset='allenai/c4',
             data_subset='en',
             splits=[split],
             out_root=path,
@@ -233,7 +233,7 @@ def test_correct_padding(
             num_workers=None,
         )
     if not os.path.isdir(path):
-        raise RuntimeError(f'c4 dataset at {path} not set up as expected')
+        raise RuntimeError(f'allenai/c4 dataset at {path} not set up as expected')
 
     test_cfg = get_config(
         conf_path='scripts/train/yamls/pretrain/mpt-125m.yaml',

@@ -231,7 +231,7 @@ def create_c4_dataset_xxsmall(path: Path) -> str:
 
     # Hyperparameters from https://github.com/mosaicml/llm-foundry/blob/340a56658560ebceb2a3aa69d6e37813e415acd0/README.md#L188
     convert_dataset_hf(
-        dataset='c4',
+        dataset='allenai/c4',
         data_subset='en',
         splits=[downloaded_split],
         out_root=c4_dir,

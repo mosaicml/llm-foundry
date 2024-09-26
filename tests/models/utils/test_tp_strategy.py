@@ -16,6 +16,7 @@ from torch.distributed.tensor.parallel import (
 from llmfoundry.command_utils.train import train
 from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
 from llmfoundry.utils.builders import build_tp_strategy
+from llmfoundry.utils.config_utils import process_init_device
 from tests.data_utils import create_c4_dataset_xxsmall, gpt_tiny_cfg
 
 
@@ -94,7 +95,7 @@ def test_ffn_tp_strategy_layer_plan():
 @pytest.mark.gpu
 def test_no_tp_with_one_gpu():
     with TemporaryDirectory() as tmp_path:
-        # train_cfg with ffn tensor parallelism
+        # Make `train_cfg`` with a tensor parallelism strategy
         train_cfg_path: str = 'scripts/train/yamls/pretrain/mpt-125m.yaml'
         with open(train_cfg_path, 'r', encoding='utf-8') as f:
             train_cfg = om.load(f)
@@ -102,10 +103,28 @@ def test_no_tp_with_one_gpu():
         train_cfg = gpt_tiny_cfg(dataset_name, 'gpu')
         train_cfg.tp_config = {'strategy': 'ffn'}
 
-        # Expect a warning that we use DDP and not FSDP-TP when we have one GPU.
+        # Expect a warning to use DDP and not FSDP-TP when we have one GPU.
         with pytest.warns(
             UserWarning,
             match=
             r'FSDP\+TP is not applicable for single-GPU training. Reverting to DDP.',
         ):
             train(train_cfg)
+
+
+@pytest.mark.gpu  # use gpu because `megablocks` only installed with `gpu` dependencies
+def test_no_tp_with_moes():
+    # Make `cfg` for MoE model, fsdp, and tp (tensor parallelism)
+    train_cfg_path: str = 'scripts/train/yamls/pretrain/testing-moe.yaml'
+    with open(train_cfg_path, 'r', encoding='utf-8') as f:
+        train_cfg = om.load(f)
+    model_cfg = train_cfg.model
+    fsdp_cfg = train_cfg.fsdp_config
+    tp_cfg = {'strategy': 'ffn'}
+
+    # Expect an error for using tensor parallelism with MoEs
+    with pytest.raises(
+        ValueError,
+        match='Tensor Parallelism is not currently supported for MoE models.',
+    ):
+        process_init_device(model_cfg, fsdp_cfg, tp_cfg)

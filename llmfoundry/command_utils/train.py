@@ -521,12 +521,9 @@ def train(cfg: DictConfig) -> Trainer:
 
     # TP config
     if tp_config is not None:
-        if 'layer_plan' not in tp_config:
-            tp_config['layer_plan'] = {}
-        if 'strategy' in tp_config:
-            strategy = tp_config.pop('strategy')
-            strategy_layer_plan = build_tp_strategy(strategy, model)
-            tp_config['layer_plan'] = strategy_layer_plan
+        strategy = tp_config.pop('strategy', None)
+        assert isinstance(strategy, str), "`strategy` must be in `tp_config`."
+        tp_config['layer_plan'] = build_tp_strategy(strategy, model)
 
     # Parallelism config
     parallelism_config = {'fsdp': fsdp_config, 'tp': tp_config}

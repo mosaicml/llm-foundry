@@ -12,7 +12,7 @@ from torch.distributed.tensor.parallel.style import ParallelStyle
 
 
 def ffn_tp_strategies(model: ComposerModel) -> dict[str, ParallelStyle]:
-    TP_LAYERS = {'up_proj', 'down_proj'}
+    TP_LAYERS = {'ffn', 'ffn.up_proj', 'ffn.down_proj'}
 
     # Validate that all TP_LAYERS are in model
     tp_layers_in_model = {

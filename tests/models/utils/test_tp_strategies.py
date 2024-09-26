@@ -25,7 +25,7 @@ from tests.data_utils import create_c4_dataset_xxsmall, gpt_tiny_cfg
     'ignore:tp_strategies is experimental and may change with future versions.',
 )
 def test_ffn_tp_strategies_layer_plan():
-    # Actual layer plan from tp_strategies=fnn
+    # Create layer plan from fnn tp_strategy
     tp_config = {
         'strategy': 'ffn',
     }

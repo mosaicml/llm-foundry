@@ -24,7 +24,7 @@ from tests.data_utils import create_c4_dataset_xxsmall, gpt_tiny_cfg
 @pytest.mark.filterwarnings(
     'ignore:tp_strategies is experimental and may change with future versions.',
 )
-def test_ffn_tp_strategies_layer_plan():
+def test_ffn_tp_strategy():
     # Create layer plan from fnn tp_strategy
     tp_config = {
         'strategy': 'ffn',
@@ -133,7 +133,3 @@ def test_no_tp_with_moes():
         match='Tensor Parallelism is not currently supported for MoE models.',
     ):
         process_init_device(model_cfg, fsdp_cfg, tp_cfg)
-
-
-# if __name__ == '__main__':
-#     test_ffn_tp_strategies_layer_plan()

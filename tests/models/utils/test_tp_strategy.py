@@ -11,11 +11,12 @@ from torch.distributed.tensor.parallel import (
 from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
 from llmfoundry.utils.builders import build_tp_strategy
 
+
 @pytest.mark.gpu
 def test_ffn_tp_strategy_layer_plan():
     # Actual layer plan from tp_strategy=fnn
     tp_config = {
-        'strategy': 'ffn'
+        'strategy': 'ffn',
     }
 
     model_cfg = {

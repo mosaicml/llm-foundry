@@ -54,7 +54,7 @@ __all__ = [
     'build_tokenizer',
     'build_composer_model',
     'build_metric',
-    'build_tp_strategy',
+    'build_tp_strategies',
 ]
 
 
@@ -706,14 +706,14 @@ def build_icl_evaluators(
     return evaluators, logger_keys
 
 
-@experimental_function('tp_strategy')
-def build_tp_strategy(
+@experimental_function('tp_strategies')
+def build_tp_strategies(
     name: str,
     model: ComposerModel,
 ) -> dict[str, ParallelStyle]:
     return construct_from_registry(
         name=name,
-        registry=registry.tp_strategy,
+        registry=registry.tp_strategies,
         partial_function=False,
         kwargs={'model': model},
     )

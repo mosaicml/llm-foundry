@@ -390,8 +390,8 @@ save_planners = create_registry(
     description=_save_planners_description,
 )
 
-_tp_strategy_description = (
-    """The tp_strategy registry is used to register strategies for tensor parallelism.
+_tp_strategies_description = (
+    """The tp_strategies registry is used to register strategies for tensor parallelism.
 
     Args:
         model (ComposerModel): The model.
@@ -402,12 +402,12 @@ _tp_strategy_description = (
     """
 )
 
-tp_strategy = create_registry(
+tp_strategies = create_registry(
     'llmfoundry',
-    'tp_strategy',
+    'tp_strategies',
     generic_type=Callable[[ComposerModel], dict[str, ParallelStyle]],
     entry_points=True,
-    description=_tp_strategy_description,
+    description=_tp_strategies_description,
 )
 
 __all__ = [
@@ -437,5 +437,5 @@ __all__ = [
     'config_transforms',
     'load_planners',
     'save_planners',
-    'tp_strategy',
+    'tp_strategies',
 ]

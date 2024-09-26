@@ -15,17 +15,17 @@ from torch.distributed.tensor.parallel import (
 
 from llmfoundry.command_utils.train import train
 from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
-from llmfoundry.utils.builders import build_tp_strategy
+from llmfoundry.utils.builders import build_tp_strategies
 from llmfoundry.utils.config_utils import process_init_device
 from tests.data_utils import create_c4_dataset_xxsmall, gpt_tiny_cfg
 
 
 @pytest.mark.gpu
 @pytest.mark.filterwarnings(
-    'ignore:tp_strategy is experimental and may change with future versions.'
+    'ignore:tp_strategies is experimental and may change with future versions.',
 )
-def test_ffn_tp_strategy_layer_plan():
-    # Actual layer plan from tp_strategy=fnn
+def test_ffn_tp_strategies_layer_plan():
+    # Actual layer plan from tp_strategies=fnn
     tp_config = {
         'strategy': 'ffn',
     }
@@ -40,7 +40,7 @@ def test_ffn_tp_strategy_layer_plan():
         'vocab_size': 50368,
     }
     model = ComposerMPTCausalLM(**model_cfg)
-    layer_plan = build_tp_strategy(tp_config['strategy'], model)
+    layer_plan = build_tp_strategies(tp_config['strategy'], model)
 
     # Expected layer plan
     _expected_layer_plan = {
@@ -97,6 +97,7 @@ def test_ffn_tp_strategy_layer_plan():
 
 @pytest.mark.gpu
 def test_no_tp_with_one_gpu():
+    """When we have one GPU, make a warning to use DDP and not FSDP-TP."""
     with TemporaryDirectory() as tmp_path:
         # Make `train_cfg`` with a tensor parallelism strategy
         train_cfg_path: str = 'scripts/train/yamls/pretrain/mpt-125m.yaml'
@@ -106,7 +107,7 @@ def test_no_tp_with_one_gpu():
         train_cfg = gpt_tiny_cfg(dataset_name, 'gpu')
         train_cfg.tp_config = {'strategy': 'ffn'}
 
-        # Expect a warning to use DDP and not FSDP-TP when we have one GPU.
+        # Expect a warning
         with pytest.warns(
             UserWarning,
             match=
@@ -117,6 +118,7 @@ def test_no_tp_with_one_gpu():
 
 @pytest.mark.gpu  # use gpu because `megablocks` only installed with `gpu` dependencies
 def test_no_tp_with_moes():
+    """Test that tensor parallelism is not compatible with MoEs."""
     # Make `cfg` for MoE model, fsdp, and tp (tensor parallelism)
     train_cfg_path: str = 'scripts/train/yamls/pretrain/testing-moe.yaml'
     with open(train_cfg_path, 'r', encoding='utf-8') as f:
@@ -134,4 +136,4 @@ def test_no_tp_with_moes():
 
 
 # if __name__ == '__main__':
-#     test_ffn_tp_strategy_layer_plan()
+#     test_ffn_tp_strategies_layer_plan()

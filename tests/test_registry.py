@@ -47,7 +47,7 @@ def test_expected_registries_exist():
         'config_transforms',
         'load_planners',
         'save_planners',
-        'tp_strategy',
+        'tp_strategies',
     }
 
     assert existing_registries == expected_registry_names

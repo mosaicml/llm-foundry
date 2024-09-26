@@ -48,7 +48,7 @@ from llmfoundry.utils.builders import (
     build_save_planner,
     build_scheduler,
     build_tokenizer,
-    build_tp_strategy,
+    build_tp_strategies,
 )
 from llmfoundry.utils.config_utils import (
     TRAIN_CONFIG_KEYS,
@@ -522,8 +522,8 @@ def train(cfg: DictConfig) -> Trainer:
     # TP config
     if tp_config is not None:
         strategy = tp_config.pop('strategy', None)
-        assert isinstance(strategy, str), "`strategy` must be in `tp_config`."
-        tp_config['layer_plan'] = build_tp_strategy(strategy, model)
+        assert isinstance(strategy, str), '`strategy` must be in `tp_config`.'
+        tp_config['layer_plan'] = build_tp_strategies(strategy, model)
 
     # Parallelism config
     parallelism_config = {'fsdp': fsdp_config, 'tp': tp_config}

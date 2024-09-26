@@ -7,14 +7,9 @@ import functools
 import logging
 import os
 import re
+import warnings
 from collections import OrderedDict
-from typing import (
-    Any,
-    ContextManager,
-    Iterable,
-    Optional,
-    Union,
-)
+from typing import Any, ContextManager, Iterable, Optional, Union
 
 import torch
 from composer.core import Algorithm, Callback, Evaluator
@@ -711,6 +706,10 @@ def build_tp_strategies(
     name: str,
     model: ComposerModel,
 ) -> dict[str, ParallelStyle]:
+
+    warnings.warn(
+        'Checkpointing is not currently supported for tensor parallelism due to this pytorch bug: https://github.com/pytorch/pytorch/issues/134095#issuecomment-2345018244'
+    )
     return construct_from_registry(
         name=name,
         registry=registry.tp_strategies,

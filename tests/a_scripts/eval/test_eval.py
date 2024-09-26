@@ -121,7 +121,7 @@ def test_loader_eval(
 
     # Set up multiple eval dataloaders
     first_eval_loader = test_cfg.eval_loader
-    first_eval_loader.label = 'c4'
+    first_eval_loader.label = 'allenai/c4'
     # Create second eval dataloader using the arxiv dataset.
     second_eval_loader = copy.deepcopy(first_eval_loader)
     second_eval_loader.label = 'arxiv'

@@ -134,7 +134,7 @@ def test_train_multi_eval(tmp_path: pathlib.Path):
     test_cfg = gpt_tiny_cfg(c4_dataset_name, 'cpu')
     # Set up multiple eval dataloaders
     first_eval_loader = test_cfg.eval_loader
-    first_eval_loader.label = 'c4'
+    first_eval_loader.label = 'allenai/c4'
     # Create second eval dataloader using the arxiv dataset.
     second_eval_loader = copy.deepcopy(first_eval_loader)
     second_eval_loader.label = 'arxiv'
@@ -212,7 +212,7 @@ def test_eval_metrics_with_no_train_metrics(tmp_path: pathlib.Path):
     c4_dataset_name = create_c4_dataset_xxsmall(tmp_path)
     test_cfg = gpt_tiny_cfg(c4_dataset_name, 'cpu')
     first_eval_loader = test_cfg.eval_loader
-    first_eval_loader.label = 'c4'
+    first_eval_loader.label = 'allenai/c4'
     test_cfg.eval_loader = om.create([first_eval_loader])
     test_cfg.eval_subset_num_batches = 1  # -1 to evaluate on all batches
     test_cfg.max_duration = '1ba'

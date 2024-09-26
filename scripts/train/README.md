@@ -27,7 +27,7 @@ If you haven't already, make sure to [install the requirements](../../README.md#
 
 To run pretraining, you'll need to make yourself a copy of a pretraining dataset and format it for efficient streaming. Check out the [`llm-foundry/data_prep`](../data_prep) folder for detailed instructions on how to convert your dataset to the MosaicML [StreamingDataset](https://github.com/mosaicml/streaming) format.
 
-As a quickstart, we elaborate on how to prepare the [C4 (Colossal, Cleaned, Common Crawl)](https://huggingface.co/datasets/c4) dataset here.
+As a quickstart, we elaborate on how to prepare the [C4 (Colossal, Cleaned, Common Crawl)](https://huggingface.co/datasets/allenai/c4) dataset here.
 
 We first convert the dataset from its native format (a collection of zipped JSONs)
 to MosaicML's StreamingDataset format, which is a collection of binary `.mds` files.
@@ -44,13 +44,13 @@ This will take 20-60 seconds depending on your internet bandwidth.
 You should see two folders once completed: `./my-copy-c4/train_small` and `./my-copy-c4/val_small` that are ~1.0GB total. Note that we are using the `--concat_tokens` option to pre tokenize our samples to be of the max sequence length without padding
 <!--pytest.mark.skip-->
 ```bash
-python ../data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
+python ../data_prep/convert_dataset_hf.py --dataset allenai/c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
 ```
 
 Alternatively, you can download the full `train` and `val` splits if you really want to train the model (i.e. not just profile the model). This will take 1-to-many hours depending on bandwidth, number of CPUs, etc. The final folder `./my-copy-c4/train` will be ~800GB so make sure you have space!
 <!--pytest.mark.skip-->
 ```bash
-python ../data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train val --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
+python ../data_prep/convert_dataset_hf.py --dataset allenai/c4 --data_subset en --out_root ./my-copy-c4 --splits train val --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
 ```
 
 For any of the above commands, you can also choose to compress the `.mds` files.

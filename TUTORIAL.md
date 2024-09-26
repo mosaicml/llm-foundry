@@ -216,7 +216,7 @@ Output the processed data to `./my-adaptation-data`. Note that we use smaller su
 <!--pytest.mark.skip-->
 ```bash
 python scripts/data_prep/convert_dataset_hf.py \
-  --dataset c4 --data_subset en \
+  --dataset allenai/c4 --data_subset en \
   --out_root my-adaptation-data --splits train_small val_small \
   --concat_tokens 4096 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>' \
   --compression zstd
@@ -248,7 +248,7 @@ The first step to training from scratch is to get your pretraining data prepared
 <!--pytest.mark.skip-->
 ```bash
 python scripts/data_prep/convert_dataset_hf.py \
-  --dataset c4 --data_subset en \
+  --dataset allenai/c4 --data_subset en \
   --out_root my-copy-c4 --splits train_small val_small \
   --concat_tokens 2048 --tokenizer gpt2 \
   --eos_text '<|endoftext|>' \

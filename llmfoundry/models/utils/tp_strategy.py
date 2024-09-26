@@ -24,7 +24,7 @@ def ffn_tp_strategy(model: ComposerModel) -> dict[str, ParallelStyle]:
             f'The FFN tensor parallelism strategy requires `model` to have layers {TP_LAYERS}. But `model` is missing layers {TP_LAYERS - tp_layers_in_model}.'
         )
 
-    # generate layer plan
+    # Generate layer plan
     layer_plan: dict[str, ParallelStyle] = {}
     for name, _ in model.named_modules():
         if name.split('.')[-2:] == ['ffn', 'up_proj']:

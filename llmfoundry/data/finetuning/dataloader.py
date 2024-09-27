@@ -286,6 +286,7 @@ def build_finetuning_dataloader(
 
         # Get the preprocessing function.
         proto_preprocessing_fn = dataset_cfg.get('preprocessing_fn')
+        assert proto_preprocessing_fn is not None
         if isinstance(proto_preprocessing_fn, (dict, DictConfig)):
             preprocessing_fn = dataset_constructor.get_preprocessing_fn_from_dict(
                 dict(proto_preprocessing_fn),

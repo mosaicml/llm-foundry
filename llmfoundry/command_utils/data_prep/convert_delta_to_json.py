@@ -216,7 +216,14 @@ def run_query(
     spark: Optional['SparkSession'] = None,
     collect: bool = True,
 ) -> Optional[Union[list['Row'], 'DataFrame', 'SparkDataFrame']]:
-    """Run SQL query via databricks-connect or databricks-sql."""
+    """Run SQL query via databricks-connect or databricks-sql.
+    Args:
+        query (str): sql query
+        method (str): select from dbsql and dbconnect
+        cursor (Optional[Cursor]): connection.cursor
+        spark (Optional[SparkSession]): spark session
+        collect (bool): whether to get the underlying data from spark dataframe
+    """
     if method == 'dbsql':
         if cursor is None:
             raise ValueError(f'cursor cannot be None if using method dbsql')

@@ -4,7 +4,7 @@
 import contextlib
 import inspect
 import pickle
-from typing import Any, Optional
+from typing import Any, Optional, get_type_hints
 
 import pytest
 
@@ -16,10 +16,11 @@ def create_exception_object(
 ):
 
     def get_init_annotations(cls: type):
-        if hasattr(inspect, 'get_annotations'):
-            return inspect.get_annotations(cls.__init__)
-        else:
-            return getattr(cls.__init__, '__annotations__', {})
+        try:
+            return get_type_hints(cls.__init__)
+        except (AttributeError, TypeError):
+            # Handle cases where __init__ does not exist or has no annotations
+            return {}
 
     # First, try to get annotations from the class itself
     required_args = get_init_annotations(exception_class)

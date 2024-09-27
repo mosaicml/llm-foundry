@@ -234,27 +234,7 @@ def run_query(
     elif method == 'dbconnect':
         if spark == None:
             raise ValueError(f'sparkSession is required for dbconnect')
-
-        try:
-            df = spark.sql(query)
-        except Exception as e:
-            from pyspark.errors import AnalysisException
-            if isinstance(e, AnalysisException):
-                if 'INSUFFICIENT_PERMISSIONS' in e.message:  # pyright: ignore
-                    match = re.search(
-                        r"Schema\s+'([^']+)'",
-                        e.message,  # pyright: ignore
-                    )
-                    if match:
-                        schema_name = match.group(1)
-                        action = f'using the schema {schema_name}'
-                    else:
-                        action = 'using the schema'
-                    raise InsufficientPermissionsError(action=action,) from e
-            raise RuntimeError(
-                f'Error in querying into schema. Restart sparkSession and try again',
-            ) from e
-
+        df = spark.sql(query)
         if collect:
             return df.collect()
         return df

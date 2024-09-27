@@ -14,16 +14,29 @@ import llmfoundry.utils.exceptions as foundry_exceptions
 def create_exception_object(
     exception_class: type[foundry_exceptions.BaseContextualError],
 ):
-    # get required arg types of exception class by inspecting its __init__ method
 
-    if hasattr(inspect, 'get_annotations'):
-        required_args = inspect.get_annotations( # type: ignore
-            exception_class.__init__,
-        )  # type: ignore
-    else:
-        required_args = exception_class.__init__.__annotations__  # python 3.9 and below
+    def get_init_annotations(cls: type):
+        if hasattr(inspect, 'get_annotations'):
+            return inspect.get_annotations(cls.__init__)
+        else:
+            return getattr(cls.__init__, '__annotations__', {})
 
-    # create a dictionary of required args with default values
+    # First, try to get annotations from the class itself
+    required_args = get_init_annotations(exception_class)
+
+    # If the annotations are empty, look at parent classes
+    if not required_args:
+        for parent in exception_class.__bases__:
+            if parent == object:
+                break
+            parent_args = get_init_annotations(parent)
+            if parent_args:
+                required_args = parent_args
+                break
+
+    # Remove self, return, and kwargs
+    required_args.pop('self', None)
+    required_args.pop('return', None)
     required_args.pop('kwargs', None)
 
     def get_default_value(arg_type: Optional[type] = None):
@@ -51,8 +64,6 @@ def create_exception_object(
             return [{'key': 'value'}]
         raise ValueError(f'Unsupported arg type: {arg_type}')
 
-    required_args.pop('self', None)
-    required_args.pop('return', None)
     kwargs = {
         arg: get_default_value(arg_type)
         for arg, arg_type in required_args.items()
@@ -80,6 +91,7 @@ def filter_exceptions(possible_exceptions: list[str]):
 def test_exception_serialization(
     exception_class: type[foundry_exceptions.BaseContextualError],
 ):
+    print(f'Testing serialization for {exception_class.__name__}')
     excluded_base_classes = [
         foundry_exceptions.InternalError,
         foundry_exceptions.UserError,
@@ -88,6 +100,7 @@ def test_exception_serialization(
     ]
 
     exception = create_exception_object(exception_class)
+    print(f'Created exception object: {exception}')
 
     expect_reduce_error = exception.__class__ in excluded_base_classes
     error_context = pytest.raises(
@@ -95,6 +108,7 @@ def test_exception_serialization(
     ) if expect_reduce_error else contextlib.nullcontext()
 
     exc_str = str(exception)
+    print(f'Exception string: {exc_str}')
     with error_context:
         pkl = pickle.dumps(exception)
         unpickled_exc = pickle.loads(pkl)

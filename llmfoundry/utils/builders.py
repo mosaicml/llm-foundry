@@ -708,7 +708,7 @@ def build_tp_strategies(
 ) -> dict[str, ParallelStyle]:
 
     warnings.warn(
-        'Checkpointing is not currently supported for tensor parallelism due to this pytorch bug: https://github.com/pytorch/pytorch/issues/134095#issuecomment-2345018244'
+        'Checkpointing is not currently supported for tensor parallelism due to this pytorch bug: https://github.com/pytorch/pytorch/issues/134095#issuecomment-2345018244',
     )
     return construct_from_registry(
         name=name,

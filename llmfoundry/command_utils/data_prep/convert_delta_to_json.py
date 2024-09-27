@@ -451,10 +451,15 @@ def fetch(
     try:
         # Get total rows
         nrows = get_total_rows(tablename, method, cursor, sparkSession)
-        
+
         # Get columns info
-        columns, order_by, columns_str = get_columns_info(tablename, method, cursor, sparkSession)
-        
+        columns, order_by, columns_str = get_columns_info(
+            tablename,
+            method,
+            cursor,
+            sparkSession,
+        )
+
         if method == 'dbconnect' and sparkSession is not None:
             log.info(f'{processes=}')
             df = sparkSession.table(tablename)
@@ -488,18 +493,18 @@ def fetch(
                 )
 
     except Exception as e:
-        from pyspark.errors import AnalysisException
         from databricks.sql.exc import ServerOperationError
+        from pyspark.errors import AnalysisException
 
         if isinstance(e, (AnalysisException, ServerOperationError)):
             if 'INSUFFICIENT_PERMISSIONS' in str(e):
                 raise InsufficientPermissionsError(str(e)) from e
-        
+
         if isinstance(e, InsufficientPermissionsError):
             raise
 
         # For any other exception, raise a general error
-        raise RuntimeError(f"Error processing {tablename}: {str(e)}") from e
+        raise RuntimeError(f'Error processing {tablename}: {str(e)}') from e
 
     finally:
         if cursor is not None:

@@ -493,13 +493,7 @@ def fetch(
 
         if isinstance(e, (AnalysisException, ServerOperationError)):
             if 'INSUFFICIENT_PERMISSIONS' in str(e):
-                match = re.search(r"(?:Table|Schema)\s+'([^']+)'", str(e))
-                if match:
-                    object_name = match.group(1)
-                    action = f'accessing {object_name}'
-                else:
-                    action = f'accessing {tablename}'
-                raise InsufficientPermissionsError(action=action) from e
+                raise InsufficientPermissionsError(str(e)) from e
         
         if isinstance(e, InsufficientPermissionsError):
             raise

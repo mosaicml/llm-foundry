@@ -456,6 +456,5 @@ class HighLossError(UserError):
 class InsufficientPermissionsError(UserError):
     """Error thrown when the user does not have sufficient permissions."""
 
-    def __init__(self, action: str) -> None:
-        message = f'Insufficient permissions when {action}. Please check your permissions.'
-        super().__init__(message, action=action)
+    def __init__(self, message: str) -> None:
+        super().__init__(message)

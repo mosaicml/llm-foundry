@@ -491,14 +491,22 @@ def fetch(
             sparkSession,
         )
     except Exception as e:
+        from databricks.sql.exc import ServerOperationError
         from pyspark.errors import AnalysisException
-        if isinstance(e, AnalysisException):
-            if 'INSUFFICIENT_PERMISSIONS' in e.message:  # pyright: ignore
-                raise InsufficientPermissionsError(
-                    action=f'reading from {tablename}',
-                ) from e
+
+        if isinstance(e, (AnalysisException, ServerOperationError)):
+            if 'INSUFFICIENT_PERMISSIONS' in str(e):
+                if isinstance(
+                    e,
+                    AnalysisException,
+                ) or isinstance(e, ServerOperationError):
+                    raise InsufficientPermissionsError(
+                        action=f'reading from {tablename}',
+                    ) from e
+
         if isinstance(e, InsufficientPermissionsError):
-            raise e
+            raise
+
         raise RuntimeError(
             f'Error in get rows from {tablename}. Restart sparkSession and try again',
         ) from e

@@ -216,63 +216,47 @@ def run_query(
     spark: Optional['SparkSession'] = None,
     collect: bool = True,
 ) -> Optional[Union[list['Row'], 'DataFrame', 'SparkDataFrame']]:
-    """Run SQL query via databricks-connect or databricks-sql.
-
-    Args:
-        query (str): sql query
-        method (str): select from dbsql and dbconnect
-        cursor (Optional[Cursor]): connection.cursor
-        spark (Optional[SparkSession]): spark session
-        collect (bool): whether to get the underlying data from spark dataframe
-    """
+    """Run SQL query via databricks-connect or databricks-sql."""
     if method == 'dbsql':
         if cursor is None:
             raise ValueError(f'cursor cannot be None if using method dbsql')
         try:
             cursor.execute(query)
+            if collect:
+                return cursor.fetchall()
         except Exception as e:
             from databricks.sql.exc import ServerOperationError
             if isinstance(e, ServerOperationError):
-                if 'INSUFFICIENT_PERMISSIONS' in e.message:  # pyright: ignore
-                    match = re.search(
-                        r"'([^']+)'",
-                        e.message,  # pyright: ignore
-                    )
+                if 'INSUFFICIENT_PERMISSIONS' in str(e):
+                    match = re.search(r"'([^']+)'", str(e))
                     if match:
                         table_name = match.group(1)
                         action = f'accessing table {table_name}'
                     else:
                         action = 'accessing table'
-                    raise InsufficientPermissionsError(action=action,) from e
-        if collect:
-            return cursor.fetchall()
+                    raise InsufficientPermissionsError(action=action) from e
+            raise
     elif method == 'dbconnect':
         if spark == None:
             raise ValueError(f'sparkSession is required for dbconnect')
 
         try:
             df = spark.sql(query)
+            if collect:
+                return df.collect()
+            return df
         except Exception as e:
             from pyspark.errors import AnalysisException
             if isinstance(e, AnalysisException):
-                if 'INSUFFICIENT_PERMISSIONS' in e.message:  # pyright: ignore
-                    match = re.search(
-                        r"Schema\s+'([^']+)'",
-                        e.message,  # pyright: ignore
-                    )
+                if 'INSUFFICIENT_PERMISSIONS' in str(e):
+                    match = re.search(r"Table '([^']+)'", str(e))
                     if match:
-                        schema_name = match.group(1)
-                        action = f'using the schema {schema_name}'
+                        table_name = match.group(1)
+                        action = f'accessing table {table_name}'
                     else:
-                        action = 'using the schema'
-                    raise InsufficientPermissionsError(action=action,) from e
-            raise RuntimeError(
-                f'Error in querying into schema. Restart sparkSession and try again',
-            ) from e
-
-        if collect:
-            return df.collect()
-        return df
+                        action = 'accessing table'
+                    raise InsufficientPermissionsError(action=action) from e
+            raise
     else:
         raise ValueError(f'Unrecognized method: {method}')
 

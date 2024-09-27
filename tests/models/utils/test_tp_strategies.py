@@ -25,6 +25,7 @@ from tests.data_utils import create_c4_dataset_xxsmall, gpt_tiny_cfg
     'ignore:tp_strategies is experimental and may change with future versions.',
 )
 def test_ffn_tp_strategy():
+    """Test the FFN tensor parallelism strategy is correct."""
     # Create layer plan from fnn tp_strategy
     tp_config = {
         'strategy': 'ffn',
@@ -97,12 +98,9 @@ def test_ffn_tp_strategy():
 
 @pytest.mark.gpu
 def test_no_tp_with_one_gpu():
-    """When we have one GPU, make a warning to use DDP and not FSDP-TP."""
+    """Test that when we have one GPU, we use DDP and not FSDP-TP."""
     with TemporaryDirectory() as tmp_path:
         # Make `train_cfg`` with a tensor parallelism strategy
-        train_cfg_path: str = 'scripts/train/yamls/pretrain/mpt-125m.yaml'
-        with open(train_cfg_path, 'r', encoding='utf-8') as f:
-            train_cfg = om.load(f)
         dataset_name = create_c4_dataset_xxsmall(Path(tmp_path))
         train_cfg = gpt_tiny_cfg(dataset_name, 'gpu')
         train_cfg.tp_config = {'strategy': 'ffn'}
@@ -119,7 +117,7 @@ def test_no_tp_with_one_gpu():
 @pytest.mark.gpu  # use gpu because `megablocks` only installed with `gpu` dependencies
 def test_no_tp_with_moes():
     """Test that tensor parallelism is not compatible with MoEs."""
-    # Make `cfg` for MoE model, fsdp, and tp (tensor parallelism)
+    # Make `cfg` for MoE model, fsdp, and tp
     train_cfg_path: str = 'scripts/train/yamls/pretrain/testing-moe.yaml'
     with open(train_cfg_path, 'r', encoding='utf-8') as f:
         train_cfg = om.load(f)
@@ -127,7 +125,7 @@ def test_no_tp_with_moes():
     fsdp_cfg = train_cfg.fsdp_config
     tp_cfg = {'strategy': 'ffn'}
 
-    # Expect an error for using tensor parallelism with MoEs
+    # Expect an error
     with pytest.raises(
         ValueError,
         match='Tensor Parallelism is not currently supported for MoE models.',

@@ -7,6 +7,7 @@ from composer.loggers import LoggerDestination
 from composer.models import ComposerModel
 from composer.optim import ComposerScheduler
 from torch.distributed.checkpoint import LoadPlanner, SavePlanner
+from torch.distributed.tensor.parallel.style import ParallelStyle
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader as TorchDataloader
 from torch.utils.data import Dataset
@@ -389,6 +390,26 @@ save_planners = create_registry(
     description=_save_planners_description,
 )
 
+_tp_strategies_description = (
+    """The tp_strategies registry is used to register strategies for tensor parallelism.
+
+    Args:
+        model (ComposerModel): The model.
+
+    Returns:
+        layer_plan (Dict[str, ParallelStyle]): The plan used to parallelize the model.
+        model (ComposerModel): The model.
+    """
+)
+
+tp_strategies = create_registry(
+    'llmfoundry',
+    'tp_strategies',
+    generic_type=Callable[[ComposerModel], dict[str, ParallelStyle]],
+    entry_points=True,
+    description=_tp_strategies_description,
+)
+
 __all__ = [
     'loggers',
     'callbacks',
@@ -416,4 +437,5 @@ __all__ = [
     'config_transforms',
     'load_planners',
     'save_planners',
+    'tp_strategies',
 ]

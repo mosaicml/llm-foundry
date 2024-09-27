@@ -5,6 +5,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import pytest
+from icecream import install
 from omegaconf import OmegaConf as om
 from torch.distributed._tensor import Replicate, Shard
 from torch.distributed.tensor.parallel import (
@@ -18,6 +19,8 @@ from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
 from llmfoundry.utils.builders import build_tp_strategies
 from llmfoundry.utils.config_utils import process_init_device
 from tests.data_utils import create_c4_dataset_xxsmall, gpt_tiny_cfg
+
+install()
 
 
 @pytest.mark.gpu
@@ -97,8 +100,26 @@ def test_ffn_tp_strategy():
 
 
 @pytest.mark.gpu
-def test_no_tp_with_one_gpu():
-    """Test that when we have one GPU, we use DDP and not FSDP-TP."""
+@pytest.mark.world_size(4)
+@pytest.mark.parametrize('tp_strategy', ['ffn'])
+def test_tp_train(tp_strategy: str):
+    """Test that we can train with FSDP-TP."""
+    with TemporaryDirectory() as tmp_path:
+        # Make `train_cfg`` with a tensor parallelism strategy
+        dataset_name = create_c4_dataset_xxsmall(Path(tmp_path))
+        train_cfg = gpt_tiny_cfg(dataset_name, 'gpu')
+        train_cfg.tp_config = {
+            'strategy': tp_strategy,
+            'tensor_parallel_degree': 2,
+        }
+
+        # Train
+        train(train_cfg)
+
+
+@pytest.mark.gpu
+def test_tp_train_with_one_gpu():
+    """Test that when we have one GPU, we train DDP and not FSDP-TP."""
     with TemporaryDirectory() as tmp_path:
         # Make `train_cfg`` with a tensor parallelism strategy
         dataset_name = create_c4_dataset_xxsmall(Path(tmp_path))
@@ -115,7 +136,7 @@ def test_no_tp_with_one_gpu():
 
 
 @pytest.mark.gpu  # use gpu because `megablocks` only installed with `gpu` dependencies
-def test_no_tp_with_moes():
+def test_tp_train_with_moes():
     """Test that tensor parallelism is not compatible with MoEs."""
     # Make `cfg` for MoE model, fsdp, and tp
     train_cfg_path: str = 'scripts/train/yamls/pretrain/testing-moe.yaml'

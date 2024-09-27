@@ -5,7 +5,6 @@ import logging
 import os
 import time
 import warnings
-from copy import deepcopy
 from typing import Any, Optional, Union
 
 import torch
@@ -351,7 +350,7 @@ def train(cfg: DictConfig) -> Trainer:
     # Initialize context
     init_context = process_init_device(model_config, fsdp_config, tp_config)
     logged_cfg.update({'fsdp_config': fsdp_config}, merge=True)
-    logged_cfg.update({'tp_config': deepcopy(tp_config)}, merge=True)
+    logged_cfg.update({'tp_config': tp_config}, merge=True)
 
     # Build tokenizer
     log.info('Building tokenizer...')
@@ -517,6 +516,7 @@ def train(cfg: DictConfig) -> Trainer:
 
     # TP config
     if tp_config is not None:
+
         strategy = tp_config.pop('strategy', None)
         assert isinstance(strategy, str), '`strategy` must be in `tp_config`.'
         tp_config['layer_plan'] = build_tp_strategies(strategy, model)

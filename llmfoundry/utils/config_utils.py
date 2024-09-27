@@ -538,6 +538,21 @@ def process_init_device(
             # Set defaults for mixed initialization
             fsdp_config.setdefault('load_monolith_rank0_only', True)
 
+    if tp_config is not None:
+        # Check tp_config has required fields
+        if 'strategy' not in tp_config or 'tensor_parallel_degree' not in tp_config:
+            raise ValueError(
+                "`tp_config` requires 'strategy' and 'tensor_parallel_degree' values. "
+            )
+
+        # Check we are not using tensor parallelism with MoEs
+        if 'ffn_config' in model_cfg and model_cfg['ffn_config'].get(
+            'ffn_type', None
+        ) in ffns_with_megablocks:
+            raise ValueError(
+                'Tensor Parallelism is not currently supported for MoE models.',
+            )
+
     # Check we are not using tensor parallelism with MoEs
     if tp_config is not None and 'ffn_config' in model_cfg and model_cfg[
         'ffn_config'].get('ffn_type', None) in ffns_with_megablocks:

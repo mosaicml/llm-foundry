@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING, Iterable, Optional, Union
 from uuid import uuid4
 
 import google.protobuf.any_pb2 as any_pb2
-import grpc
 import pandas as pd
 import pyarrow as pa
 import requests
@@ -662,6 +661,7 @@ def fetch_DT(
     )
 
     formatted_delta_table_name = format_tablename(delta_table_name)
+    import grpc
     try:
         fetch(
             method,
@@ -677,7 +677,8 @@ def fetch_DT(
         ) == grpc.StatusCode.INTERNAL and 'Job aborted due to stage failure' in e.details(
         ):
             raise InternalError(
-                message=f'Possible Hardware Failure: {e.details()}',
+                message=
+                f'Possible Hardware Failure, try swapping data prep cluster: {e.details()}',
             ) from e
         raise e
 

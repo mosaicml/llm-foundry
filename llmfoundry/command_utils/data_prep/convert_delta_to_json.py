@@ -23,8 +23,8 @@ from llmfoundry.utils.exceptions import (
     ClusterInvalidAccessMode,
     FailedToConnectToDatabricksError,
     FailedToCreateSQLConnectionError,
+    FaultyDataPrepCluster,
     InsufficientPermissionsError,
-    InternalError,
 )
 
 if TYPE_CHECKING:
@@ -676,9 +676,9 @@ def fetch_DT(
         if e.code(
         ) == grpc.StatusCode.INTERNAL and 'Job aborted due to stage failure' in e.details(
         ):
-            raise InternalError(
+            raise FaultyDataPrepCluster(
                 message=
-                f'Possible Hardware Failure, try swapping data prep cluster: {e.details()}',
+                f'Faulty data prep cluster, please try swapping data prep cluster: {e.details()}',
             ) from e
         raise e
 

@@ -10,8 +10,8 @@ from unittest.mock import MagicMock, mock_open, patch
 import grpc
 
 from llmfoundry.command_utils.data_prep.convert_delta_to_json import (
+    FaultyDataPrepCluster,
     InsufficientPermissionsError,
-    InternalError,
     download,
     fetch,
     fetch_DT,
@@ -559,7 +559,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         DATABRICKS_TOKEN = 'test-token'
 
         # Act & Assert
-        with self.assertRaises(InternalError) as context:
+        with self.assertRaises(FaultyDataPrepCluster) as context:
             fetch_DT(
                 delta_table_name=delta_table_name,
                 json_output_folder=json_output_folder,
@@ -570,8 +570,11 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
                 DATABRICKS_TOKEN=DATABRICKS_TOKEN,
             )
 
-        # Verify that the InternalError contains the expected message
-        self.assertIn('Possible Hardware Failure', str(context.exception))
+        # Verify that the FaultyDataPrepCluster contains the expected message
+        self.assertIn(
+            'Faulty data prep cluster, please try swapping data prep cluster: ',
+            str(context.exception),
+        )
         self.assertIn(
             'Job aborted due to stage failure',
             str(context.exception),

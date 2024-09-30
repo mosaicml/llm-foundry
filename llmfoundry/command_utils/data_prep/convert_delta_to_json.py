@@ -23,6 +23,7 @@ from llmfoundry.utils.exceptions import (
     ClusterInvalidAccessMode,
     FailedToConnectToDatabricksError,
     FailedToCreateSQLConnectionError,
+    FaultyDataPrepCluster,
     InsufficientPermissionsError,
 )
 
@@ -660,16 +661,26 @@ def fetch_DT(
     )
 
     formatted_delta_table_name = format_tablename(delta_table_name)
-
-    fetch(
-        method,
-        formatted_delta_table_name,
-        json_output_folder,
-        batch_size,
-        processes,
-        sparkSession,
-        dbsql,
-    )
+    import grpc
+    try:
+        fetch(
+            method,
+            formatted_delta_table_name,
+            json_output_folder,
+            batch_size,
+            processes,
+            sparkSession,
+            dbsql,
+        )
+    except grpc.RpcError as e:
+        if e.code(
+        ) == grpc.StatusCode.INTERNAL and 'Job aborted due to stage failure' in e.details(
+        ):
+            raise FaultyDataPrepCluster(
+                message=
+                f'Faulty data prep cluster, please try swapping data prep cluster: {e.details()}',
+            ) from e
+        raise e
 
     if dbsql is not None:
         dbsql.close()

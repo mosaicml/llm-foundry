@@ -77,10 +77,10 @@ jobs:
         TAG_NAME=$(echo "${BRANCH_NAME}" | sed 's/\//_/g')
         echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_ENV
 
-        echo "DOCKER_TAG=mosaicml/llm-foundry:release_${TAG_NAME}" >> $GITHUB_ENV
-        echo "AWS_DOCKER_TAG=mosaicml/llm-foundry:release_${TAG_NAME}_aws" >> $GITHUB_ENV
-        echo "LATEST_TAG=mosaicml/llm-foundry:release-latest" >> $GITHUB_ENV
-        echo "AWS_LATEST_TAG=mosaicml/llm-foundry:release_aws-latest" >> $GITHUB_ENV
+        echo "DOCKER_TAG=mosaicml/llm-foundry:test_release_${TAG_NAME}" >> $GITHUB_ENV
+        echo "AWS_DOCKER_TAG=mosaicml/llm-foundry:test_release_${TAG_NAME}_aws" >> $GITHUB_ENV
+        # echo "LATEST_TAG=mosaicml/llm-foundry:release-latest" >> $GITHUB_ENV
+        # echo "AWS_LATEST_TAG=mosaicml/llm-foundry:release_aws-latest" >> $GITHUB_ENV
 
 
     - name: Build and push AWS Docker image
@@ -96,7 +96,7 @@ jobs:
           BASE_IMAGE=mosaicml/pytorch:2.4.0_cu124-python3.11-ubuntu20.04-aws
           BRANCH_NAME=${{ env.BRANCH_NAME }}
           TE_COMMIT=901e5d2
-          DEPS_GROUPS="[all]"
+          DEP_GROUPS="[all]"
           KEEP_FOUNDRY=true
 
     - name: Build and push Docker image
@@ -112,5 +112,5 @@ jobs:
           BASE_IMAGE=mosaicml/pytorch:2.4.0_cu124-python3.11-ubuntu20.04
           BRANCH_NAME=${{ env.BRANCH_NAME }}
           TE_COMMIT=901e5d2
-          DEPS_GROUPS="[all]"
+          DEP_GROUPS="[all]"
           KEEP_FOUNDRY=true

@@ -8,7 +8,6 @@ from tempfile import TemporaryDirectory
 
 import pytest
 from composer.utils import dist
-from icecream import install
 from omegaconf import OmegaConf as om
 from torch.distributed._tensor import Replicate, Shard
 from torch.distributed.tensor.parallel import (
@@ -22,8 +21,6 @@ from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
 from llmfoundry.utils.builders import build_tp_strategies
 from llmfoundry.utils.config_utils import process_init_device
 from tests.data_utils import create_c4_dataset_xxsmall, gpt_tiny_cfg
-
-install()
 
 
 @pytest.mark.gpu

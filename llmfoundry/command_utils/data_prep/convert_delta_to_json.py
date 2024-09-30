@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Iterable, Optional, Union
 from uuid import uuid4
 
 import google.protobuf.any_pb2 as any_pb2
+import grpc
 import pandas as pd
 import pyarrow as pa
 import requests
@@ -24,6 +25,7 @@ from llmfoundry.utils.exceptions import (
     FailedToConnectToDatabricksError,
     FailedToCreateSQLConnectionError,
     InsufficientPermissionsError,
+    InternalError,
 )
 
 if TYPE_CHECKING:
@@ -660,16 +662,24 @@ def fetch_DT(
     )
 
     formatted_delta_table_name = format_tablename(delta_table_name)
-
-    fetch(
-        method,
-        formatted_delta_table_name,
-        json_output_folder,
-        batch_size,
-        processes,
-        sparkSession,
-        dbsql,
-    )
+    try:
+        fetch(
+            method,
+            formatted_delta_table_name,
+            json_output_folder,
+            batch_size,
+            processes,
+            sparkSession,
+            dbsql,
+        )
+    except grpc.RpcError as e:
+        if e.code(
+        ) == grpc.StatusCode.INTERNAL and 'Job aborted due to stage failure' in e.details(
+        ):
+            raise InternalError(
+                message=f'Possible Hardware Failure: {e.details()}'
+            ) from e
+        raise e
 
     if dbsql is not None:
         dbsql.close()

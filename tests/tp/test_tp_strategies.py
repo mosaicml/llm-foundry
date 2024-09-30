@@ -163,7 +163,3 @@ def test_tp_train_with_moes():
         match='Tensor Parallelism is not currently supported for MoE models.',
     ):
         process_init_device(model_cfg, fsdp_cfg, tp_cfg)
-
-
-if __name__ == '__main__':
-    test_tp_train('ffn')

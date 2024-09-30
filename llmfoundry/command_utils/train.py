@@ -520,7 +520,7 @@ def train(cfg: DictConfig) -> Trainer:
         layer_plan = build_tp_strategies(strategy, model)
         tp_config = {
             'layer_plan': layer_plan,
-            'tensor_parallel_degree': tp_config['tensor_parallel_degree']
+            'tensor_parallel_degree': tp_config['tensor_parallel_degree'],
         }
 
     # Parallelism config

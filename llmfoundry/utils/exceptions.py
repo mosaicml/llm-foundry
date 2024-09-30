@@ -318,6 +318,19 @@ class ClusterDoesNotExistError(NetworkError):
         super().__init__(message, cluster_id=cluster_id)
 
 
+class ClusterInvalidAccessMode(NetworkError):
+    """Error thrown when the cluster does not exist."""
+
+    def __init__(self, cluster_id: str, access_mode: str) -> None:
+        message = f'Cluster with id {cluster_id} has access mode {access_mode}. ' + \
+        'please make sure the cluster used has access mode Shared or Single User!'
+        super().__init__(
+            message,
+            cluster_id=cluster_id,
+            access_mode=access_mode,
+        )
+
+
 class FailedToCreateSQLConnectionError(
     NetworkError,
 ):
@@ -346,6 +359,17 @@ class InputFolderMissingDataError(UserError):
     def __init__(self, input_folder: str) -> None:
         message = f'No text files were found at {input_folder}.'
         super().__init__(message, input_folder=input_folder)
+
+
+class InputFolderNotFound(UserError):
+    """Error thrown when the a folder is not found."""
+
+    def __init__(self, folder_that_was_not_found: str) -> None:
+        message = f'{folder_that_was_not_found} not found.'
+        super().__init__(
+            message,
+            folder_that_was_not_found=folder_that_was_not_found,
+        )
 
 
 class CannotUnicodeDecodeFile(UserError):
@@ -432,6 +456,13 @@ class HighLossError(UserError):
 class InsufficientPermissionsError(UserError):
     """Error thrown when the user does not have sufficient permissions."""
 
-    def __init__(self, action: str) -> None:
-        message = f'Insufficient permissions when {action}. Please check your permissions.'
-        super().__init__(message, action=action)
+    def __init__(self, message: str) -> None:
+        self.message = message
+        super().__init__(message)
+
+    def __reduce__(self):
+        # Return a tuple of class, a tuple of arguments, and optionally state
+        return (InsufficientPermissionsError, (self.message,))
+
+    def __str__(self):
+        return self.message

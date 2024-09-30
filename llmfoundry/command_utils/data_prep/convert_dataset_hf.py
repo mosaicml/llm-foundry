@@ -158,7 +158,7 @@ c4constants.splits['val_xxsmall'] = DataSplitConstants(
     truncated_samples=100,
 )
 
-CONSTS = {'c4': c4constants, 'the_pile': pileconstants}
+CONSTS = {'allenai/c4': c4constants, 'the_pile': pileconstants}
 
 
 def build_hf_dataset(
@@ -335,7 +335,7 @@ def convert_dataset_hf(
         dataset_constants = CONSTS[dataset]
     except KeyError:
         raise ValueError(
-            f'Constants for dataset "{dataset}" not found. Currently only "the_pile" and "c4" are supported.',
+            f'Constants for dataset "{dataset}" not found. Currently only "the_pile" and "allenai/c4" are supported.',
         )
 
     if concat_tokens is not None and tokenizer is not None:

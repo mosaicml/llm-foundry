@@ -82,7 +82,7 @@ def evaluate_model(
         warnings.warn(
             VersionedDeprecationWarning(
                 'The argument fsdp_config is deprecated. Please use parallelism_config instead.',
-                remove_version='0.13.0',
+                remove_version='0.14.0',
             ),
         )
     if fsdp_config and parallelism_config:
@@ -273,7 +273,7 @@ def evaluate(cfg: DictConfig) -> tuple[list[Trainer], pd.DataFrame]:
     # Mandatory Evaluation Parameters
     icl_tasks = eval_config.icl_tasks or eval_config.icl_tasks_str
     if icl_tasks is None:
-        raise ValueError('icl_tasks must be specified in the config')
+        icl_tasks = []
 
     # Optional Evaluation Parameters with default values
     eval_loader_config = eval_config.eval_loader or eval_config.eval_loaders

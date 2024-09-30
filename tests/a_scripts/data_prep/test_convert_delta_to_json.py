@@ -1,13 +1,16 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import sys
 import unittest
 from argparse import Namespace
 from typing import Any
 from unittest.mock import MagicMock, mock_open, patch
 
 from llmfoundry.command_utils.data_prep.convert_delta_to_json import (
+    InsufficientPermissionsError,
     download,
+    fetch,
     fetch_DT,
     format_tablename,
     iterative_combine_jsons,
@@ -16,6 +19,45 @@ from llmfoundry.command_utils.data_prep.convert_delta_to_json import (
 
 
 class TestConvertDeltaToJsonl(unittest.TestCase):
+
+    def test_run_query_dbconnect_insufficient_permissions(self):
+        error_message = (
+            '[INSUFFICIENT_PERMISSIONS] Insufficient privileges: User does not have USE SCHEMA '
+            "on Schema 'main.oogabooga'. SQLSTATE: 42501"
+        )
+
+        class MockAnalysisException(Exception):
+
+            def __init__(self, message: str):
+                self.message = message
+
+            def __str__(self):
+                return self.message
+
+        with patch.dict('sys.modules', {'pyspark.errors': MagicMock()}):
+            sys.modules[
+                'pyspark.errors'
+            ].AnalysisException = MockAnalysisException  # type: ignore
+
+            mock_spark = MagicMock()
+            mock_spark.sql.side_effect = MockAnalysisException(error_message)
+
+            with self.assertRaises(InsufficientPermissionsError) as context:
+                fetch(
+                    method='dbconnect',
+                    tablename='main.oogabooga',
+                    json_output_folder='/fake/path',
+                    batch_size=1,
+                    processes=1,
+                    sparkSession=mock_spark,
+                    dbsql=None,
+                )
+
+            self.assertEqual(
+                str(context.exception),
+                error_message,
+            )
+            mock_spark.sql.assert_called()
 
     @patch(
         'databricks.sql.connect',
@@ -229,7 +271,10 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         DATABRICKS_TOKEN = 'token'
         use_serverless = False
 
-        mock_cluster_response = Namespace(spark_version='14.1.0-scala2.12')
+        mock_cluster_response = Namespace(
+            spark_version='14.1.0-scala2.12',
+            data_security_mode='SINGLE_USER',
+        )
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
         mock_remote = MagicMock()
@@ -286,7 +331,10 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         DATABRICKS_TOKEN = 'token'
         use_serverless = False
 
-        mock_cluster_response = Namespace(spark_version='13.0.0-scala2.12')
+        mock_cluster_response = Namespace(
+            spark_version='13.0.0-scala2.12',
+            data_security_mode='SINGLE_USER',
+        )
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
         fetch_DT(
@@ -338,7 +386,10 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         DATABRICKS_TOKEN = 'token'
         use_serverless = False
 
-        mock_cluster_response = Namespace(spark_version='14.2.0-scala2.12')
+        mock_cluster_response = Namespace(
+            spark_version='14.2.0-scala2.12',
+            data_security_mode='SINGLE_USER',
+        )
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
         fetch_DT(
@@ -390,7 +441,10 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         DATABRICKS_TOKEN = 'token'
         use_serverless = False
 
-        mock_cluster_response = Namespace(spark_version='14.2.0-scala2.12')
+        mock_cluster_response = Namespace(
+            spark_version='14.2.0-scala2.12',
+            data_security_mode='SINGLE_USER',
+        )
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
         fetch_DT(

@@ -479,7 +479,7 @@ def run_config(
     if args.data_remote is None:
         command += f"""
             cd llm-foundry/scripts
-            python data_prep/convert_dataset_hf.py --dataset c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens {max_seq_len} --eos_text '<|endoftext|>'
+            python data_prep/convert_dataset_hf.py --dataset allenai/c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens {max_seq_len} --eos_text '<|endoftext|>'
             composer train/train.py /mnt/config/parameters.yaml
             """
     else:

@@ -18,6 +18,7 @@ attn_config_defaults: dict = {
     'softmax_scale': None,
     'attn_uses_sequence_id': False,
     'sliding_window_size': -1,
+    'attn_logit_softcapping': None,
     'alibi': False,
     'alibi_bias_max': 8,
     'rope': False,

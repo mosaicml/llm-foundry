@@ -9,6 +9,9 @@ ARG DEP_GROUPS
 ARG TE_COMMIT
 ARG KEEP_FOUNDRY=false
 
+RUN echo "KEEP_FOUNDRY is set to: '$KEEP_FOUNDRY'"
+ENV KEEP_FOUNDRY=${KEEP_FOUNDRY}
+
 ENV TORCH_CUDA_ARCH_LIST="8.0 8.6 8.7 8.9 9.0"
 
 # Check for changes in setup.py.

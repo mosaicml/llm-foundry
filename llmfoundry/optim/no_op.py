@@ -1,13 +1,25 @@
+# Copyright 2024 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
+from typing import Any, Callable, Iterable, Optional
+
 import torch
-from typing import Iterable, Any, Optional, Callable
+
 
 class NoOp(torch.optim.Optimizer):
+    """Optimizer that performs no optimization steps."""
+
     def __init__(
         self,
         params: Iterable[torch.Tensor],
     ):
+        """Initialize NoOp optimizer.
+
+        Args:
+            params (Iterable[torch.Tensor]): Model parameters for the optimizer.
+        """
         # LR schedulers expect param groups to have LR. Unused.
-        defaults = {"lr": 0.0}
+        defaults = {'lr': 0.0}
         super().__init__(params, defaults)
 
     def __setstate__(self, state: dict[str, dict[Any, Any]]) -> None:

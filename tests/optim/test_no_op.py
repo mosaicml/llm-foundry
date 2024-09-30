@@ -1,13 +1,15 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-import torch
-from typing import Callable
-from torch.utils.data import DataLoader
-from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
-from composer.trainer import Trainer
-from llmfoundry.utils.builders import build_optimizer
 import copy
+from typing import Callable
+
+import torch
+from composer.trainer import Trainer
+from torch.utils.data import DataLoader
+
+from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
+from llmfoundry.utils.builders import build_optimizer
 
 
 def test_no_op_does_nothing(
@@ -20,7 +22,7 @@ def test_no_op_does_nothing(
         loss_fn='torch_crossentropy',
         attn_config={
             'attn_impl': 'torch',
-        }
+        },
     )
 
     # Build NoOp optimizer
@@ -38,6 +40,9 @@ def test_no_op_does_nothing(
     trainer.fit()
 
     # Check that the model has not changed
-    for ((orig_name, orig_param), (new_name, new_param)) in zip(orig_model.named_parameters(), model.named_parameters()):
+    for (
+        (orig_name, orig_param),
+        (new_name, new_param),
+    ) in zip(orig_model.named_parameters(), model.named_parameters()):
         print(f'Checking {orig_name} and {new_name}')
         assert torch.equal(orig_param, new_param)

@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, mock_open, patch
 from llmfoundry.command_utils.data_prep.convert_delta_to_json import (
     InsufficientPermissionsError,
     download,
+    fetch,
     fetch_DT,
     format_tablename,
     iterative_combine_jsons,
@@ -30,27 +31,33 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
             def __init__(self, message: str):
                 self.message = message
 
+            def __str__(self):
+                return self.message
+
         with patch.dict('sys.modules', {'pyspark.errors': MagicMock()}):
             sys.modules[
                 'pyspark.errors'
-            ].AnalysisException = MockAnalysisException  # pyright: ignore
+            ].AnalysisException = MockAnalysisException  # type: ignore
 
             mock_spark = MagicMock()
             mock_spark.sql.side_effect = MockAnalysisException(error_message)
 
             with self.assertRaises(InsufficientPermissionsError) as context:
-                run_query(
-                    'SELECT * FROM table',
+                fetch(
                     method='dbconnect',
-                    cursor=None,
-                    spark=mock_spark,
+                    tablename='main.oogabooga',
+                    json_output_folder='/fake/path',
+                    batch_size=1,
+                    processes=1,
+                    sparkSession=mock_spark,
+                    dbsql=None,
                 )
 
-            self.assertIn(
-                'using the schema main.oogabooga',
+            self.assertEqual(
                 str(context.exception),
+                error_message,
             )
-            mock_spark.sql.assert_called_once_with('SELECT * FROM table')
+            mock_spark.sql.assert_called()
 
     @patch(
         'databricks.sql.connect',

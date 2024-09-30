@@ -516,10 +516,12 @@ def train(cfg: DictConfig) -> Trainer:
 
     # TP config
     if tp_config is not None:
-
         strategy = tp_config.pop('strategy', None)
-        assert isinstance(strategy, str), '`strategy` must be in `tp_config`.'
-        tp_config['layer_plan'] = build_tp_strategies(strategy, model)
+        layer_plan = build_tp_strategies(strategy, model)
+        tp_config = {
+            'layer_plan': layer_plan,
+            'tensor_parallel_degree': tp_config['tensor_parallel_degree']
+        }
 
     # Parallelism config
     parallelism_config = {'fsdp': fsdp_config, 'tp': tp_config}

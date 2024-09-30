@@ -877,7 +877,7 @@ class DatasetConstructor:
         if tokenizer is None:
             raise ValueError('A tokenizer must be provided.')
 
-        signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_data_prep_completed'
+        signal_file_path = dist.get_node_signal_file_name()
 
         # Non local rank 0 ranks will wait here for local rank 0 to finish the data processing.
         # Once local rank 0 is done, the datasets are all cached on disk, and all other ranks

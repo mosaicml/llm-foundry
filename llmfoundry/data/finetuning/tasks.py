@@ -170,10 +170,12 @@ def _is_empty_or_nonexistent(dirpath: str) -> bool:
     return not os.path.isdir(dirpath) or len(os.listdir(dirpath)) == 0
 
 
-def _get_key(dictionary: Mapping[str, Any], allowed_keys: set[str]):
+def _get_key(dictionary: Mapping[str, Any], allowed_keys: set[str], error_type):
     if not isinstance(dictionary, Mapping):
         raise InvalidExampleTypeError(str(type(dictionary)))
     desired_keys = allowed_keys.intersection(dictionary.keys())
+    if len(desired_keys) == 0:
+        raise UnknownExampleTypeError(str(set(dictionary.keys())))
     return list(desired_keys)[0]
 
 

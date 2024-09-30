@@ -530,10 +530,12 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
 
     @patch('llmfoundry.command_utils.data_prep.convert_delta_to_json.fetch')
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_json.validate_and_get_cluster_info'
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.validate_and_get_cluster_info',
     )
     def test_fetch_DT_grpc_error_handling(
-        self, mock_validate_cluster_info: MagicMock, mock_fetch: MagicMock
+        self,
+        mock_validate_cluster_info: MagicMock,
+        mock_fetch: MagicMock,
     ):
         # Arrange
         # Mock the validate_and_get_cluster_info to return test values
@@ -571,7 +573,8 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         # Verify that the InternalError contains the expected message
         self.assertIn('Possible Hardware Failure', str(context.exception))
         self.assertIn(
-            'Job aborted due to stage failure', str(context.exception)
+            'Job aborted due to stage failure',
+            str(context.exception),
         )
 
         # Verify that fetch was called

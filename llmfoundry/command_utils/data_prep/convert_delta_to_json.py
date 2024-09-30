@@ -677,7 +677,7 @@ def fetch_DT(
         ) == grpc.StatusCode.INTERNAL and 'Job aborted due to stage failure' in e.details(
         ):
             raise InternalError(
-                message=f'Possible Hardware Failure: {e.details()}'
+                message=f'Possible Hardware Failure: {e.details()}',
             ) from e
         raise e
 

@@ -466,3 +466,34 @@ class InsufficientPermissionsError(UserError):
 
     def __str__(self):
         return self.message
+
+
+class FaultyDataPrepCluster(UserError):
+    """Error thrown when the user uses faulty data prep cluster."""
+
+    def __init__(self, message: str) -> None:
+        self.message = message
+        super().__init__(message)
+
+    def __reduce__(self):
+        # Return a tuple of class, a tuple of arguments, and optionally state
+        return (FaultyDataPrepCluster, (self.message,))
+
+    def __str__(self):
+        return self.message
+
+
+class FinetuningFileNotFoundError(UserError):
+    """Error thrown when a file can't be found with any supported extension."""
+
+    def __init__(self, files_searched: list[str]) -> None:
+        from llmfoundry.data.finetuning.tasks import SUPPORTED_EXTENSIONS
+        message = (
+            f'Could not find a file with any of ' + \
+            f'the supported extensions: {SUPPORTED_EXTENSIONS}\n' + \
+            f'at {files_searched}'
+        )
+        super().__init__(
+            message,
+            files_searched=files_searched,
+        )

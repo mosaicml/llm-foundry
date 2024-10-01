@@ -318,6 +318,19 @@ class ClusterDoesNotExistError(NetworkError):
         super().__init__(message, cluster_id=cluster_id)
 
 
+class ClusterInvalidAccessMode(NetworkError):
+    """Error thrown when the cluster does not exist."""
+
+    def __init__(self, cluster_id: str, access_mode: str) -> None:
+        message = f'Cluster with id {cluster_id} has access mode {access_mode}. ' + \
+        'please make sure the cluster used has access mode Shared or Single User!'
+        super().__init__(
+            message,
+            cluster_id=cluster_id,
+            access_mode=access_mode,
+        )
+
+
 class FailedToCreateSQLConnectionError(
     NetworkError,
 ):
@@ -443,6 +456,28 @@ class HighLossError(UserError):
 class InsufficientPermissionsError(UserError):
     """Error thrown when the user does not have sufficient permissions."""
 
-    def __init__(self, action: str) -> None:
-        message = f'Insufficient permissions when {action}. Please check your permissions.'
-        super().__init__(message, action=action)
+    def __init__(self, message: str) -> None:
+        self.message = message
+        super().__init__(message)
+
+    def __reduce__(self):
+        # Return a tuple of class, a tuple of arguments, and optionally state
+        return (InsufficientPermissionsError, (self.message,))
+
+    def __str__(self):
+        return self.message
+
+
+class FaultyDataPrepCluster(UserError):
+    """Error thrown when the user uses faulty data prep cluster."""
+
+    def __init__(self, message: str) -> None:
+        self.message = message
+        super().__init__(message)
+
+    def __reduce__(self):
+        # Return a tuple of class, a tuple of arguments, and optionally state
+        return (FaultyDataPrepCluster, (self.message,))
+
+    def __str__(self):
+        return self.message

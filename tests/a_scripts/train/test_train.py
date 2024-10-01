@@ -134,7 +134,7 @@ def test_train_multi_eval(tmp_path: pathlib.Path):
     test_cfg = gpt_tiny_cfg(c4_dataset_name, 'cpu')
     # Set up multiple eval dataloaders
     first_eval_loader = test_cfg.eval_loader
-    first_eval_loader.label = 'c4'
+    first_eval_loader.label = 'allenai/c4'
     # Create second eval dataloader using the arxiv dataset.
     second_eval_loader = copy.deepcopy(first_eval_loader)
     second_eval_loader.label = 'arxiv'
@@ -154,16 +154,17 @@ def test_train_multi_eval(tmp_path: pathlib.Path):
     assert isinstance(inmemorylogger, InMemoryLogger)
 
     # Checks for first eval dataloader
-    assert 'metrics/eval/c4/LanguageCrossEntropy' in inmemorylogger.data.keys()
+    assert 'metrics/eval/allenai/c4/LanguageCrossEntropy' in inmemorylogger.data.keys(
+    )
     assert isinstance(
-        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'],
+        inmemorylogger.data['metrics/eval/allenai/c4/LanguageCrossEntropy'],
         list,
     )
     assert len(
-        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1],
+        inmemorylogger.data['metrics/eval/allenai/c4/LanguageCrossEntropy'][-1],
     ) > 0
     assert isinstance(
-        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1],
+        inmemorylogger.data['metrics/eval/allenai/c4/LanguageCrossEntropy'][-1],
         tuple,
     )
 
@@ -212,7 +213,7 @@ def test_eval_metrics_with_no_train_metrics(tmp_path: pathlib.Path):
     c4_dataset_name = create_c4_dataset_xxsmall(tmp_path)
     test_cfg = gpt_tiny_cfg(c4_dataset_name, 'cpu')
     first_eval_loader = test_cfg.eval_loader
-    first_eval_loader.label = 'c4'
+    first_eval_loader.label = 'allenai/c4'
     test_cfg.eval_loader = om.create([first_eval_loader])
     test_cfg.eval_subset_num_batches = 1  # -1 to evaluate on all batches
     test_cfg.max_duration = '1ba'
@@ -226,15 +227,16 @@ def test_eval_metrics_with_no_train_metrics(tmp_path: pathlib.Path):
         0]  # pyright: ignore [reportGeneralTypeIssues]
     assert isinstance(inmemorylogger, InMemoryLogger)
 
-    assert 'metrics/eval/c4/LanguageCrossEntropy' in inmemorylogger.data.keys()
+    assert 'metrics/eval/allenai/c4/LanguageCrossEntropy' in inmemorylogger.data.keys(
+    )
     assert isinstance(
-        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'],
+        inmemorylogger.data['metrics/eval/allenai/c4/LanguageCrossEntropy'],
         list,
     )
     assert len(
-        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1],
+        inmemorylogger.data['metrics/eval/allenai/c4/LanguageCrossEntropy'][-1],
     ) > 0
     assert isinstance(
-        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1],
+        inmemorylogger.data['metrics/eval/allenai/c4/LanguageCrossEntropy'][-1],
         tuple,
     )

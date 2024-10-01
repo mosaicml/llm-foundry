@@ -120,6 +120,7 @@ class TrainConfig:
     # Distributed training parameters
     dist_timeout: Union[int, float] = 600.0
     fsdp_config: Optional[dict[str, Any]] = None
+    tp_config: Optional[dict[str, Any]] = None
 
     # Evaluation parameters
     eval_interval: Union[int, str] = 1
@@ -501,7 +502,11 @@ def update_batch_size_info(cfg: dict[str, Any]) -> dict[str, Any]:
     return cfg
 
 
-def process_init_device(model_cfg: dict[str, Any], fsdp_config: Optional[dict]):
+def process_init_device(
+    model_cfg: dict[str, Any],
+    fsdp_config: Optional[dict] = None,
+    tp_config: Optional[dict] = None,
+):
     # Restrict model init_device to 'meta' and 'cpu',
     # using 'cuda' vs. 'cuda:id' is tricky and can lead to common user errors
     # when multiple GPUs are available.
@@ -532,6 +537,13 @@ def process_init_device(model_cfg: dict[str, Any], fsdp_config: Optional[dict]):
 
             # Set defaults for mixed initialization
             fsdp_config.setdefault('load_monolith_rank0_only', True)
+
+    # Check we are not using tensor parallelism with MoEs
+    if tp_config is not None and 'ffn_config' in model_cfg and model_cfg[
+        'ffn_config'].get('ffn_type', None) in ffns_with_megablocks:
+        raise ValueError(
+            'Tensor Parallelism is not currently supported for MoE models.',
+        )
 
     # Set ffn_config.device_mesh using fsdp_config
     if fsdp_config is not None and 'ffn_config' in model_cfg and model_cfg[

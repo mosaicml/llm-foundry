@@ -26,5 +26,5 @@ RUN pip install --no-cache-dir "/llm-foundry${DEP_GROUPS}"
 # Conditionally uninstall llm-foundry and remove its directory
 RUN if [ "$KEEP_FOUNDRY" != "true" ]; then \
       pip uninstall -y llm-foundry && \
-      rm -rf llm-foundry; \
+      rm -rf /llm-foundry; \
     fi

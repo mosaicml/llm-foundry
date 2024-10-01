@@ -67,7 +67,7 @@ def test_tokenize_chat_example_malformed():
         no_content,
         ends_with_user_role,
         no_assistant_message,
-        wrong_role
+        wrong_role,
     ]
     my_tokenizer = build_tokenizer('mosaicml/mpt-7b-8k-chat', {})
     for example in malformed_chat_examples:

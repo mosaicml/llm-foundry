@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pathlib
+import shutil
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Optional
@@ -18,6 +19,7 @@ from torch.distributed.tensor.parallel import (
     RowwiseParallel,
 )
 
+from composer.utils import dist
 from llmfoundry.command_utils.train import train
 from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
 from llmfoundry.utils.builders import build_tp_strategies
@@ -123,6 +125,11 @@ def get_cfg(
 
     return train_cfg
 
+def get_loss_array(trainer):
+    logger = trainer.logger.destinations[0]
+    loss_array = logger.get_timeseries('loss/train/total'
+                                      )['loss/train/total'],  # type: ignore
+    return loss_array
 
 @pytest.mark.gpu
 @pytest.mark.world_size(4)
@@ -131,30 +138,29 @@ def test_tp_train():
     tp_degree = 2
     tp_strategy = 'ffn'
 
-    # create c4 dataset
-    # my_dir = Path('/my-data-dir/')
+    # # create c4 dataset
+    # my_dir = Path('/my-data-dir-2')
     # if my_dir.is_dir():
     #     shutil.rmtree(my_dir)
     # my_dir.mkdir(parents=True)
-    # dataset_name = create_c4_dataset_xxsmall(my_dir)
+    # dataset_name_2 = create_c4_dataset_xxsmall(my_dir)
     dataset_name = '/my-data-dir/my-copy-c4'
+    dataset_name_2 = '/my-data-dir-2/my-copy-c4'
 
     # Get fsdp loss
-    fsdp_cfg = get_cfg(dataset_name)
+    fsdp_cfg = get_cfg(dataset_name_2)
     fsdp_trainer = train(fsdp_cfg)
-    fsdp_logger = fsdp_trainer.logger.destinations[0]
-    fsdp_loss = fsdp_logger.get_timeseries('loss/train/total'
-                                          )['loss/train/total'],  # type: ignore
-    ic(fsdp_loss)
-    #  fsdp_loss: (array([12.1361351 , 11.95866013, 11.91756916, 12.07012749]),)
+    fsdp_trainer.close()
+    fsdp_losses = get_loss_array(fsdp_trainer)
+    ic(fsdp_losses) #  fsdp_losses: (array([11.77620506, 11.76067352, 11.82744789, 11.71392155]),)
 
     # Get tp loss
     tp_cfg = get_cfg(dataset_name, tp_strategy, tp_degree)
     tp_trainer = train(tp_cfg)
-    tp_logger = tp_trainer.logger.destinations[0]
-    tp_loss = tp_logger.get_timeseries('loss/train/total'
-                                      )['loss/train/total'],  # type: ignore
-    ic(tp_loss)
+    tp_trainer.close()
+    tp_losses = get_loss_array(tp_trainer)
+    ic(tp_losses) #tp_losses: (array([12.1361351 , 11.95866013, 11.91756916, 12.07012749]),)
+
 
 
 @pytest.mark.gpu
@@ -194,5 +200,5 @@ def test_tp_train_with_moes():
         process_init_device(model_cfg, fsdp_cfg, tp_cfg)
 
 
-if __name__ == '__main__':
-    test_tp_train()
+# if __name__ == '__main__':
+#     test_tp_train()

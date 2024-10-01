@@ -76,6 +76,7 @@ from llmfoundry.utils.exceptions import (
     DatasetTooSmallError,
     IncorrectMessageKeyQuantityError,
     InvalidContentTypeError,
+    InvalidConversationError,
     InvalidExampleTypeError,
     InvalidFileExtensionError,
     InvalidLastChatMessageRoleError,
@@ -270,17 +271,17 @@ def _slice_chat_formatted_example(
         if conversation_through_previous_turn != full_conversation[:len(
             conversation_through_previous_turn,
         )]:
-            raise ValueError(
+            raise InvalidConversationError(
                 f'The full conversation must start with the conversation through the previous turn. {conversation_through_previous_turn=}, {full_conversation=}',
             )
         if conversation_through_previous_turn != prompt_with_history[:len(
             conversation_through_previous_turn,
         )]:
-            raise ValueError(
+            raise InvalidConversationError(
                 f'The prompt_with_history must start with the conversation through the previous turn. {conversation_through_previous_turn=}, {prompt_with_history=}',
             )
         if prompt_with_history != full_conversation[:len(prompt_with_history)]:
-            raise ValueError(
+            raise InvalidConversationError(
                 f'prompt_with_history must be the first part of the full conversation. {prompt_with_history=}, {full_conversation=}',
             )
         prompt = prompt_with_history[len(conversation_through_previous_turn):]

@@ -1,12 +1,15 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-import os
-import shutil
+import pathlib
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Optional
 
 import pytest
+from composer.callbacks import MemoryMonitor
+from icecream import ic, install
+from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from torch.distributed._tensor import Replicate, Shard
 from torch.distributed.tensor.parallel import (
@@ -20,6 +23,8 @@ from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
 from llmfoundry.utils.builders import build_tp_strategies
 from llmfoundry.utils.config_utils import process_init_device
 from tests.data_utils import create_c4_dataset_xxsmall, gpt_tiny_cfg
+
+install()
 
 
 @pytest.mark.gpu
@@ -98,30 +103,58 @@ def test_ffn_tp_strategy():
             raise ValueError(f'Layer plan of wrong type: {type(layer_plan)}')
 
 
-@pytest.mark.gpu
-@pytest.mark.world_size(4)
-@pytest.mark.parametrize('tp_strategy', ['ffn'])
-def test_tp_train(tp_strategy: str):
-    """Test that we can train with FSDP-TP."""
-    data_dir = '/my-data-dir/'
-    try:
-        # Make `train_cfg`` with a tensor parallelism strategy
-        dataset_name = create_c4_dataset_xxsmall(Path(data_dir))
-        train_cfg = gpt_tiny_cfg(dataset_name, 'gpu')
+def get_cfg(
+    dataset_name: pathlib.Path,
+    tp_strategy: Optional[str] = None,
+    tp_degree: Optional[int] = None
+):
+    train_cfg = gpt_tiny_cfg(dataset_name, 'gpu')
+    train_cfg.model.attn_cfg = {'fused_qkv': False}
+    train_cfg.loggers = DictConfig({'inmemory': DictConfig({})})
+
+    if tp_strategy and tp_degree:
         train_cfg.variables.run_name = 'tp-test'
         train_cfg.tp_config = {
             'strategy': tp_strategy,
-            'tensor_parallel_degree': 2,
+            'tensor_parallel_degree': tp_degree
         }
+        train_cfg.train_loader.dataset.replication = tp_degree
+        train_cfg.eval_loader.dataset.replication = tp_degree
 
-        # Train
-        train(train_cfg)
-    except Exception as e:
-        raise e
-    finally:
-        # always remove data directory
-        if os.path.isdir(data_dir):
-            shutil.rmtree(data_dir)
+    return train_cfg
+
+
+@pytest.mark.gpu
+@pytest.mark.world_size(4)
+def test_tp_train():
+    """Test that we can train with FSDP-TP."""
+    tp_degree = 2
+    tp_strategy = 'ffn'
+
+    # create c4 dataset
+    # my_dir = Path('/my-data-dir/')
+    # if my_dir.is_dir():
+    #     shutil.rmtree(my_dir)
+    # my_dir.mkdir(parents=True)
+    # dataset_name = create_c4_dataset_xxsmall(my_dir)
+    dataset_name = '/my-data-dir/my-copy-c4'
+
+    # Get fsdp loss
+    fsdp_cfg = get_cfg(dataset_name)
+    fsdp_trainer = train(fsdp_cfg)
+    fsdp_logger = fsdp_trainer.logger.destinations[0]
+    fsdp_loss = fsdp_logger.get_timeseries('loss/train/total'
+                                          )['loss/train/total'],  # type: ignore
+    ic(fsdp_loss)
+    #  fsdp_loss: (array([12.1361351 , 11.95866013, 11.91756916, 12.07012749]),)
+
+    # Get tp loss
+    tp_cfg = get_cfg(dataset_name, tp_strategy, tp_degree)
+    tp_trainer = train(tp_cfg)
+    tp_logger = tp_trainer.logger.destinations[0]
+    tp_loss = tp_logger.get_timeseries('loss/train/total'
+                                      )['loss/train/total'],  # type: ignore
+    ic(tp_loss)
 
 
 @pytest.mark.gpu
@@ -159,3 +192,7 @@ def test_tp_train_with_moes():
         match='Tensor Parallelism is not currently supported for MoE models.',
     ):
         process_init_device(model_cfg, fsdp_cfg, tp_cfg)
+
+
+if __name__ == '__main__':
+    test_tp_train()

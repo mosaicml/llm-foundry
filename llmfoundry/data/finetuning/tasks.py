@@ -174,6 +174,8 @@ def _get_key(dictionary: Mapping[str, Any], allowed_keys: set[str]):
     if not isinstance(dictionary, Mapping):
         raise InvalidExampleTypeError(str(type(dictionary)))
     desired_keys = allowed_keys.intersection(dictionary.keys())
+    if len(desired_keys) == 0:
+        raise UnknownExampleTypeError(str(set(dictionary.keys())))
     return list(desired_keys)[0]
 
 

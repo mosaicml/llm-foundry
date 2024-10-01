@@ -56,10 +56,10 @@ def test_tokenize_chat_example_malformed():
     wrong_role = {
         'messages': [{
             'role': 'user',
-            'content': 'Hello GPT!'
+            'content': 'Hello GPT!',
         }, {
             'role': 'misnamed_assistant',
-            'content': 'sup'
+            'content': 'user message not followed by an assistant label',
         }],
     }
     malformed_chat_examples = [

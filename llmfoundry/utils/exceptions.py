@@ -497,3 +497,18 @@ class FinetuningFileNotFoundError(UserError):
             message,
             files_searched=files_searched,
         )
+
+
+class InvalidConversationError(UserError):
+    """Error thrown when the conversation is invalid."""
+
+    def __init__(self, message: str) -> None:
+        self.message = message
+        super().__init__(message)
+
+    def __reduce__(self):
+        # Return a tuple of class, a tuple of arguments, and optionally state
+        return (InvalidConversationError, (self.message,))
+
+    def __str__(self):
+        return self.message

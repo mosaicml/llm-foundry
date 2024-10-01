@@ -113,6 +113,7 @@ def get_cfg(
     train_cfg = gpt_tiny_cfg(dataset_name, 'gpu')
     train_cfg.model.attn_cfg = {'fused_qkv': False}
     train_cfg.loggers = DictConfig({'inmemory': DictConfig({})})
+    train_cfg.variables.run_name = 'fsdp-test'
 
     if tp_strategy and tp_degree:
         train_cfg.variables.run_name = 'tp-test'
@@ -125,11 +126,26 @@ def get_cfg(
 
     return train_cfg
 
+
+def forward_pass(trainer):
+    # reproducibility.seed_all(trainer.state.seed)
+    batch = next(iter(trainer.state.train_dataloader))
+    output = trainer.state.model.forward(batch)
+    return output
+
+
 def get_loss_array(trainer):
     logger = trainer.logger.destinations[0]
     loss_array = logger.get_timeseries('loss/train/total'
                                       )['loss/train/total'],  # type: ignore
     return loss_array
+
+def create_c4_dataset(data_dir: pathlib.Path):
+    if data_dir.is_dir():
+        shutil.rmtree(data_dir)
+    data_dir.mkdir(parents=True, exist_ok=True)
+    dataset_path = create_c4_dataset_xxsmall(data_dir)
+    return dataset_path
 
 @pytest.mark.gpu
 @pytest.mark.world_size(4)
@@ -144,18 +160,20 @@ def test_tp_train():
     #     shutil.rmtree(my_dir)
     # my_dir.mkdir(parents=True)
     # dataset_name_2 = create_c4_dataset_xxsmall(my_dir)
-    dataset_name = '/my-data-dir/my-copy-c4'
-    dataset_name_2 = '/my-data-dir-2/my-copy-c4'
+    fsdp_dataset_name = '/my-data-dir/my-copy-c4'
+    tp_dataset_name = '/my-data-dir-2/my-copy-c4'
 
     # Get fsdp loss
-    fsdp_cfg = get_cfg(dataset_name_2)
+    # fsdp_dataset_name = create_c4_dataset(pathlib.Path('/my-fsdp-data-dir/'))
+    fsdp_cfg = get_cfg(fsdp_dataset_name)
     fsdp_trainer = train(fsdp_cfg)
     fsdp_trainer.close()
     fsdp_losses = get_loss_array(fsdp_trainer)
     ic(fsdp_losses) #  fsdp_losses: (array([11.77620506, 11.76067352, 11.82744789, 11.71392155]),)
 
     # Get tp loss
-    tp_cfg = get_cfg(dataset_name, tp_strategy, tp_degree)
+    # tp_dataset_name = create_c4_dataset(pathlib.Path('/my-tp-data-dir/'))
+    tp_cfg = get_cfg(tp_dataset_name, tp_strategy, tp_degree)
     tp_trainer = train(tp_cfg)
     tp_trainer.close()
     tp_losses = get_loss_array(tp_trainer)

@@ -10,46 +10,46 @@ jobs:
   code-quality:
     uses: ./.github/workflows/code-quality.yaml
 
-  # pypi-packaging:
-  #   name: Build and Publish llm-foundry PyPI Package
-  #   needs:
-  #   - code-quality
-  #   runs-on: linux-ubuntu-latest
-  #   steps:
-  #   - name: Checkout source
-  #     uses: actions/checkout@v3
+  pypi-packaging:
+    name: Build and Publish llm-foundry PyPI Package
+    needs:
+    - code-quality
+    runs-on: linux-ubuntu-latest
+    steps:
+    - name: Checkout source
+      uses: actions/checkout@v3
 
-  #   - name: Set up Python
-  #     uses: actions/setup-python@v3
-  #     with:
-  #       python-version: "3.9"
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: "3.9"
 
-  #   - name: Build source and wheel distributions
-  #     run: |
-  #       if [[ "${{ github.ref }}" =~ refs\/tags\/v ]]; then
-  #         PYPI_PACKAGE_NAME="llm-foundry"
-  #       else
-  #         PYPI_PACKAGE_NAME="llm-foundry-test-$(date +%Y%m%d%H%M%S)"
-  #       fi
+    - name: Build source and wheel distributions
+      run: |
+        if [[ "${{ github.ref }}" =~ refs\/tags\/v ]]; then
+          PYPI_PACKAGE_NAME="llm-foundry"
+        else
+          PYPI_PACKAGE_NAME="llm-foundry-test-$(date +%Y%m%d%H%M%S)"
+        fi
 
-  #       python -m pip install --upgrade build twine
-  #       python -m build
-  #       twine check --strict dist/*
+        python -m pip install --upgrade build twine
+        python -m build
+        twine check --strict dist/*
 
-  #   - name: Publish 📦 to PyPI
-  #     uses: pypa/gh-action-pypi-publish@release/v1
-  #     if: contains(github.ref, 'refs/tags/v')
-  #     with:
-  #       user: __token__
-  #       password: ${{ secrets.PROD_PYPI_API_TOKEN }}
+    - name: Publish 📦 to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      if: contains(github.ref, 'refs/tags/v')
+      with:
+        user: __token__
+        password: ${{ secrets.PROD_PYPI_API_TOKEN }}
 
-  #   - name: Publish distribution 📦 to Test PyPI
-  #     uses: pypa/gh-action-pypi-publish@release/v1
-  #     if: contains(github.ref, 'refs/heads/') || contains(github.ref, 'refs/pull/')
-  #     with:
-  #       user: __token__
-  #       password: ${{ secrets.TEST_PYPI_API_TOKEN }}
-  #       repository_url: https://test.pypi.org/legacy/
+    - name: Publish distribution 📦 to Test PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      if: contains(github.ref, 'refs/heads/') || contains(github.ref, 'refs/pull/')
+      with:
+        user: __token__
+        password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+        repository_url: https://test.pypi.org/legacy/
 
   build-docker:
     name: Build llm-foundry Release Docker Image
@@ -79,8 +79,8 @@ jobs:
 
         echo "DOCKER_TAG=mosaicml/llm-foundry:test_release_${TAG_NAME}" >> $GITHUB_ENV
         echo "AWS_DOCKER_TAG=mosaicml/llm-foundry:test_release_${TAG_NAME}_aws" >> $GITHUB_ENV
-        # echo "LATEST_TAG=mosaicml/llm-foundry:release-latest" >> $GITHUB_ENV
-        # echo "AWS_LATEST_TAG=mosaicml/llm-foundry:release_aws-latest" >> $GITHUB_ENV
+        echo "LATEST_TAG=mosaicml/llm-foundry:release-latest" >> $GITHUB_ENV
+        echo "AWS_LATEST_TAG=mosaicml/llm-foundry:release_aws-latest" >> $GITHUB_ENV
 
 
     - name: Build and push AWS Docker image

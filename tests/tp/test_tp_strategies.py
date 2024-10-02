@@ -9,7 +9,6 @@ from tempfile import TemporaryDirectory
 from typing import Optional
 
 import pytest
-from icecream import ic, install
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from torch.distributed._tensor import Replicate, Shard
@@ -112,7 +111,8 @@ def get_cfg(
     # Read cfg from `testing.yaml`
     from tests.fixtures.autouse import REPO_DIR
     cfg_path: str = os.path.join(
-        REPO_DIR, 'scripts/train/yamls/pretrain/testing.yaml'
+        REPO_DIR,
+        'scripts/train/yamls/pretrain/testing.yaml',
     )
     with open(cfg_path, 'r', encoding='utf-8') as f:
         train_cfg = om.load(f)
@@ -151,7 +151,8 @@ def get_cfg(
 
 def get_loss_array(trainer):
     logger = trainer.logger.destinations[0]
-    loss_array = logger.get_timeseries('loss/train/total')['loss/train/total']  # type: ignore
+    loss_array = logger.get_timeseries('loss/train/total')['loss/train/total'
+                                                          ]  # type: ignore
     return loss_array
 
 
@@ -161,7 +162,6 @@ def get_loss_array(trainer):
 @pytest.mark.parametrize('tp_strategy', ['ffn'])
 def test_tp_train(tp_degree: int, tp_strategy: str):
     """Test that we can train with FSDP-TP."""
-
     # create c4 dataset
     my_dir = Path('/my-data-dir-2')
     if os.path.isdir(my_dir):
@@ -177,7 +177,10 @@ def test_tp_train(tp_degree: int, tp_strategy: str):
 
     # Compare loss and expected loss for TP
     import numpy as np
-    expected_tp_loss = np.array([12.02126884, 11.96996498, 12.02957344, 11.97966957, 11.99677086, 11.96347618])
+    expected_tp_loss = np.array([
+        12.02126884, 11.96996498, 12.02957344, 11.97966957, 11.99677086,
+        11.96347618
+    ])
     np.testing.assert_allclose(tp_loss, expected_tp_loss)
 
 

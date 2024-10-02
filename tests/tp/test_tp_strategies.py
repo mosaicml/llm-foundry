@@ -9,6 +9,7 @@ from tempfile import TemporaryDirectory
 from typing import Optional
 
 import pytest
+from composer import Trainer
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from torch.distributed._tensor import Replicate, Shard
@@ -139,7 +140,7 @@ def get_cfg(
     return train_cfg
 
 
-def get_loss_array(trainer):
+def get_loss_array(trainer: Trainer):
     logger = trainer.logger.destinations[0]
     loss_array = logger.get_timeseries('loss/train/total')['loss/train/total'
                                                           ]  # type: ignore

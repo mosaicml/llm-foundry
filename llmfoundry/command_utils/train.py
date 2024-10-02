@@ -516,7 +516,7 @@ def train(cfg: DictConfig) -> Trainer:
 
     # TP config
     if tp_config is not None:
-        strategy = tp_config.pop('strategy', None)
+        strategy = tp_config.pop('strategy')
         layer_plan = build_tp_strategies(strategy, model)
         tp_config = TPConfig(**tp_config, layer_plan=layer_plan)
 

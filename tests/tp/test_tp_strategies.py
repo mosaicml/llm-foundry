@@ -153,11 +153,11 @@ def get_loss_array(trainer: Trainer):
 @pytest.mark.parametrize('tp_strategy', ['ffn'])
 def test_tp_train(tp_degree: int, tp_strategy: str):
     """Test that we can train with FSDP-TP."""
-    my_dir = Path('/my-data-dir-2')
+    my_dir = Path('/my-data-dir')
 
     try:
         # create c4 dataset
-        if os.path.isdir(my_dir):
+        if my_dir.is_dir() and my_dir.exists():
             shutil.rmtree(my_dir)
         my_dir.mkdir(parents=True)
         tp_dataset_name = create_c4_dataset_xxsmall(my_dir)

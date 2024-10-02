@@ -138,10 +138,11 @@ def _register_model_with_run_id_multiprocess(
 def _log_model_multiprocess(
     mlflow_logger: MLFlowLogger,
     composer_logging_level: int,
+    flavor: str,
     input_example: dict[str, Any],
+    log_model_metadata: dict[str, str],
     task: str,
-    name: str,
-    model_name: str,
+    registered_model_name: str,
     await_creation_for: int,
 ):
     """
@@ -158,16 +159,12 @@ def _log_model_multiprocess(
         )
         logging.getLogger('composer').setLevel(composer_logging_level)
     mlflow_logger.log_model(
-        flavor='transformers',
-        artifact_path="model",
+        flavor=flavor,
+        artifact_path="model", # TODO: where should we define this parent dir name?
         input_example=input_example,
+        metadata=log_model_metadata,  # This metadata is currently needed for optimized serving
         task=task,
-        metadata={
-            "task": task,
-            "databricks_model_source": "genai-fine-tuning",
-            "pretrained_model_name": model_name,
-        },  # This metadata is currently needed for optimized serving
-        registered_model_name=name,
+        registered_model_name=registered_model_name,
         await_creation_for=await_creation_for
     )
 
@@ -769,18 +766,25 @@ class HuggingFaceCheckpointer(Callback):
                         monitor_process = None
 
                     # Spawn a new process to register the model.
+                    # TODO: how do we fix intermediate checkpointing logic to use this too but not register
+                    # the model with that param
+                    # TODO: pass in model correctly
                     # Slower method to register the model via log_model.
                     if self.use_mlflow_log_model:
+                        print("----------------- REACHED MLFLOW LOG MODEL -----------------")
                         process = SpawnProcess(
                             target=_log_model_multiprocess,
                             kwargs={
                                 'mlflow_logger':
                                     mlflow_logger,
+                                'flavor':
+                                    'peft' if self.using_peft else 'transformers',
                                 'composer_logging_level':
                                     logging.getLogger('composer').level,
-                                'model_uri':
-                                    local_save_path,
-                                'name':
+                                'task':
+                                    self.mlflow_logging_config['metadata']['task'],
+                                'log_model_metadata': self.mlflow_logging_config['metadata'],
+                                'registered_model_name':
                                     self.mlflow_registered_model_name,
                                 'model_name':
                                     self.pretrained_model_name,

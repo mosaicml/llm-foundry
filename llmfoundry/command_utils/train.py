@@ -331,7 +331,7 @@ def train(cfg: DictConfig) -> Trainer:
         )
 
     # Optional tp config
-    tp_config: Optional[dict[str, Any]] = train_cfg.tp_config
+    tp_config: Optional[Union[TPConfig, dict[str, Any]]] = train_cfg.tp_config
 
     # Warn if FSDP or TP is enabled but user only has 1 GPU
     if dist.get_world_size(

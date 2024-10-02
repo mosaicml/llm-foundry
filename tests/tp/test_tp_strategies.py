@@ -9,7 +9,6 @@ from tempfile import TemporaryDirectory
 from typing import Optional
 
 import pytest
-from composer.callbacks import MemoryMonitor
 from icecream import ic, install
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
@@ -131,7 +130,7 @@ def get_cfg(
     train_cfg.max_duration = '1ep'
     train_cfg.eval_interval = '1ep'
 
-    # TP needs unfused qkv (and we unfuse for no TP for a fair comparison)
+    # TP needs unfused qkv (even without TP, we unfuse qkv for a fair comparison)
     train_cfg.model.attn_cfg = {'fused_qkv': False}
 
     # loggers
@@ -147,65 +146,39 @@ def get_cfg(
             'tensor_parallel_degree': tp_degree,
         }
 
-        # when we replicate the data tp_degree times, each device must see tp_degree times more samples
-        # because the samples are replicated
-        # train_cfg.train_loader.dataset.replication = tp_degree
-        # train_cfg.eval_loader.dataset.replication = tp_degree
-        # train_cfg.global_train_batch_size *= tp_degree
-        # # # # train_cfg.device_train_microbatch_size *= tp_degree
-        # # # # train_cfg.device_eval_batch_size *= tp_degree
-
     return train_cfg
-
 
 
 def get_loss_array(trainer):
     logger = trainer.logger.destinations[0]
-    loss_array = logger.get_timeseries(
-        'loss/train/total',
-    )['loss/train/total'],  # type: ignore
+    loss_array = logger.get_timeseries('loss/train/total')['loss/train/total']  # type: ignore
     return loss_array
-
-
-def create_c4_dataset(data_dir: pathlib.Path):
-    if data_dir.is_dir():
-        shutil.rmtree(data_dir)
-    data_dir.mkdir(parents=True, exist_ok=True)
-    dataset_path = create_c4_dataset_xxsmall(data_dir)
-    return dataset_path
 
 
 @pytest.mark.gpu
 @pytest.mark.world_size(4)
-def test_tp_train():
+@pytest.mark.parametrize('tp_degree', [2])
+@pytest.mark.parametrize('tp_strategy', ['ffn'])
+def test_tp_train(tp_degree: int, tp_strategy: str):
     """Test that we can train with FSDP-TP."""
-    tp_degree = 2
-    tp_strategy = 'ffn'
 
-    # # create c4 dataset
-    # my_dir = Path('/my-data-dir-2')
-    # if my_dir.is_dir():
-    #     shutil.rmtree(my_dir)
-    # my_dir.mkdir(parents=True)
-    # dataset_name_2 = create_c4_dataset_xxsmall(my_dir)
-    fsdp_dataset_name = '/my-data-dir/my-copy-c4'
-    tp_dataset_name = '/my-data-dir-2/my-copy-c4'
+    # create c4 dataset
+    my_dir = Path('/my-data-dir-2')
+    if os.path.isdir(my_dir):
+        shutil.rmtree(my_dir)
+    my_dir.mkdir(parents=True)
+    tp_dataset_name = create_c4_dataset_xxsmall(my_dir)
 
-    # Get fsdp loss
-    # fsdp_dataset_name = create_c4_dataset(pathlib.Path('/my-fsdp-data-dir/'))
-    fsdp_cfg = get_cfg(fsdp_dataset_name)
-    fsdp_trainer = train(fsdp_cfg)
-    fsdp_trainer.close()
-    fsdp_losses = get_loss_array(fsdp_trainer)
-    ic(fsdp_losses)
-
-    # Get tp loss
-    # tp_dataset_name = create_c4_dataset(pathlib.Path('/my-tp-data-dir/'))
-    tp_cfg = get_cfg(tp_dataset_name, tp_strategy, tp_degree)
+    # Train model with TP and get loss
+    tp_cfg = get_cfg(pathlib.Path(tp_dataset_name), tp_strategy, tp_degree)
     tp_trainer = train(tp_cfg)
     tp_trainer.close()
-    tp_losses = get_loss_array(tp_trainer)
-    ic(tp_losses)
+    tp_loss = get_loss_array(tp_trainer)
+
+    # Compare loss and expected loss for TP
+    import numpy as np
+    expected_tp_loss = np.array([12.02126884, 11.96996498, 12.02957344, 11.97966957, 11.99677086, 11.96347618])
+    np.testing.assert_allclose(tp_loss, expected_tp_loss)
 
 
 @pytest.mark.gpu
@@ -245,50 +218,5 @@ def test_tp_train_with_moes():
         process_init_device(model_cfg, fsdp_cfg, tp_cfg)
 
 
-# if __name__ == '__main__':
-#     test_tp_train()
-
-
-@pytest.mark.world_size(4)
-@pytest.mark.gpu
-def test_small_ex():
-
-    from copy import deepcopy
-    import torch
-    from torch import nn
-    from torch.distributed.tensor.parallel import parallelize_module, ColwiseParallel, RowwiseParallel
-    from torch.distributed.device_mesh import init_device_mesh
-
-
-    class SmallModel(nn.Module):
-        def __init__(self):
-            super(SmallModel, self).__init__()
-            self.w1 = nn.Linear(8, 16)
-
-        def forward(self, x):
-            return self.w1(x)
-
-    # Init model
-    model = SmallModel()
-    ic(model, model.w1.weight.shape)
-    ic([name for name, _ in model.named_modules()])
-
-    # Init TP mesh
-    tp_degree = 4
-    tp_mesh = init_device_mesh("cuda", (tp_degree,))
-
-    # Shard model
-    # sharded_model = parallelize_module(model, tp_mesh, {"w1": ColwiseParallel()})
-    sharded_model = parallelize_module(deepcopy(model), tp_mesh, {"w1": RowwiseParallel()})
-    ic(sharded_model, sharded_model.w1.weight.shape)
-    ic([name for name, _ in sharded_model.named_modules()])
-
-    # forward pass
-    x = torch.randn(1, 8)
-    y1 = model(x)
-    y2 = sharded_model(x) # why does this work, didn't I shard it?
-    ic(x, y1, y2)
-
-    # why is the dimension still equal?
-    # do I need to manually update this?
-    assert sharded_model.w1.weight.shape[0] // tp_degree == sharded_model.w1.weight.shape[0]
+if __name__ == '__main__':
+    test_tp_train()

@@ -24,8 +24,6 @@ from llmfoundry.utils.builders import build_tp_strategies
 from llmfoundry.utils.config_utils import process_init_device
 from tests.data_utils import create_c4_dataset_xxsmall, gpt_tiny_cfg
 
-install()
-
 
 @pytest.mark.gpu
 @pytest.mark.filterwarnings(
@@ -162,26 +160,38 @@ def get_loss_array(trainer):
 @pytest.mark.parametrize('tp_strategy', ['ffn'])
 def test_tp_train(tp_degree: int, tp_strategy: str):
     """Test that we can train with FSDP-TP."""
-    # create c4 dataset
     my_dir = Path('/my-data-dir-2')
-    if os.path.isdir(my_dir):
-        shutil.rmtree(my_dir)
-    my_dir.mkdir(parents=True)
-    tp_dataset_name = create_c4_dataset_xxsmall(my_dir)
 
-    # Train model with TP and get loss
-    tp_cfg = get_cfg(pathlib.Path(tp_dataset_name), tp_strategy, tp_degree)
-    tp_trainer = train(tp_cfg)
-    tp_trainer.close()
-    tp_loss = get_loss_array(tp_trainer)
+    try:
+        # create c4 dataset
+        if os.path.isdir(my_dir):
+            shutil.rmtree(my_dir)
+        my_dir.mkdir(parents=True)
+        tp_dataset_name = create_c4_dataset_xxsmall(my_dir)
 
-    # Compare loss and expected loss for TP
-    import numpy as np
-    expected_tp_loss = np.array([
-        12.02126884, 11.96996498, 12.02957344, 11.97966957, 11.99677086,
-        11.96347618
-    ])
-    np.testing.assert_allclose(tp_loss, expected_tp_loss)
+        # Train model with TP and get loss
+        tp_cfg = get_cfg(pathlib.Path(tp_dataset_name), tp_strategy, tp_degree)
+        tp_trainer = train(tp_cfg)
+        tp_trainer.close()
+        tp_loss = get_loss_array(tp_trainer)
+
+        # Compare loss and expected loss for TP
+        import numpy as np
+        expected_tp_loss = np.array([
+            12.02126884,
+            11.96996498,
+            12.02957344,
+            11.97966957,
+            11.99677086,
+            11.96347618,
+        ])
+        np.testing.assert_allclose(tp_loss, expected_tp_loss)
+    except Exception as e:
+        raise e
+    finally:
+        # always remove the directory
+        if os.path.isdir(my_dir):
+            shutil.rmtree(my_dir)
 
 
 @pytest.mark.gpu
@@ -219,7 +229,3 @@ def test_tp_train_with_moes():
         match='Tensor Parallelism is not currently supported for MoE models.',
     ):
         process_init_device(model_cfg, fsdp_cfg, tp_cfg)
-
-
-if __name__ == '__main__':
-    test_tp_train()

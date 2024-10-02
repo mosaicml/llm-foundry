@@ -128,8 +128,8 @@ def get_cfg(
     train_cfg.device_train_microbatch_size = 2
 
     # Set duration
-    train_cfg.max_duration = '16ba'
-    train_cfg.eval_interval = '16ba'
+    train_cfg.max_duration = '1ep'
+    train_cfg.eval_interval = '1ep'
 
     # TP needs unfused qkv (and we unfuse for no TP for a fair comparison)
     train_cfg.model.attn_cfg = {'fused_qkv': False}

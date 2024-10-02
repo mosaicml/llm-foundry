@@ -149,20 +149,14 @@ def get_cfg(
 
         # when we replicate the data tp_degree times, each device must see tp_degree times more samples
         # because the samples are replicated
-        train_cfg.train_loader.dataset.replication = tp_degree
-        train_cfg.eval_loader.dataset.replication = tp_degree
-        # train_cfg.device_train_microbatch_size *= tp_degree
-        # train_cfg.device_eval_batch_size *= tp_degree
-        train_cfg.global_train_batch_size *= tp_degree
+        # train_cfg.train_loader.dataset.replication = tp_degree
+        # train_cfg.eval_loader.dataset.replication = tp_degree
+        # train_cfg.global_train_batch_size *= tp_degree
+        # # # # train_cfg.device_train_microbatch_size *= tp_degree
+        # # # # train_cfg.device_eval_batch_size *= tp_degree
 
     return train_cfg
 
-
-def forward_pass(trainer):
-    # reproducibility.seed_all(trainer.state.seed)
-    batch = next(iter(trainer.state.train_dataloader))
-    output = trainer.state.model.forward(batch)
-    return output
 
 
 def get_loss_array(trainer):
@@ -203,9 +197,7 @@ def test_tp_train():
     fsdp_trainer = train(fsdp_cfg)
     fsdp_trainer.close()
     fsdp_losses = get_loss_array(fsdp_trainer)
-    ic(
-        fsdp_losses
-    )  #  fsdp_losses: (array([11.77620506, 11.76067352, 11.82744789, 11.71392155]),)
+    ic(fsdp_losses)
 
     # Get tp loss
     # tp_dataset_name = create_c4_dataset(pathlib.Path('/my-tp-data-dir/'))
@@ -213,9 +205,7 @@ def test_tp_train():
     tp_trainer = train(tp_cfg)
     tp_trainer.close()
     tp_losses = get_loss_array(tp_trainer)
-    ic(
-        tp_losses
-    )  #tp_losses: (array([12.1361351 , 11.95866013, 11.91756916, 12.07012749]),)
+    ic(tp_losses)
 
 
 @pytest.mark.gpu

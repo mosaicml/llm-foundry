@@ -1,6 +1,7 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 import pathlib
 import shutil
 from pathlib import Path
@@ -19,7 +20,6 @@ from torch.distributed.tensor.parallel import (
     RowwiseParallel,
 )
 
-from composer.utils import dist
 from llmfoundry.command_utils.train import train
 from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
 from llmfoundry.utils.builders import build_tp_strategies
@@ -108,21 +108,52 @@ def test_ffn_tp_strategy():
 def get_cfg(
     dataset_name: pathlib.Path,
     tp_strategy: Optional[str] = None,
-    tp_degree: Optional[int] = None
+    tp_degree: Optional[int] = None,
 ):
-    train_cfg = gpt_tiny_cfg(dataset_name, 'gpu')
+    # Read cfg from `testing.yaml`
+    from tests.fixtures.autouse import REPO_DIR
+    cfg_path: str = os.path.join(
+        REPO_DIR, 'scripts/train/yamls/pretrain/testing.yaml'
+    )
+    with open(cfg_path, 'r', encoding='utf-8') as f:
+        train_cfg = om.load(f)
+    assert isinstance(train_cfg, DictConfig)
+
+    # Set the dataset
+    train_cfg.variables.data_local = dataset_name
+
+    # Set batch size
+    train_cfg.global_train_batch_size = 16
+    train_cfg.device_eval_batch_size = 2
+    train_cfg.device_train_microbatch_size = 2
+
+    # Set duration
+    train_cfg.max_duration = '16ba'
+    train_cfg.eval_interval = '16ba'
+
+    # TP needs unfused qkv (and we unfuse for no TP for a fair comparison)
     train_cfg.model.attn_cfg = {'fused_qkv': False}
+
+    # loggers
     train_cfg.loggers = DictConfig({'inmemory': DictConfig({})})
+
+    # default name
     train_cfg.variables.run_name = 'fsdp-test'
 
     if tp_strategy and tp_degree:
         train_cfg.variables.run_name = 'tp-test'
         train_cfg.tp_config = {
             'strategy': tp_strategy,
-            'tensor_parallel_degree': tp_degree
+            'tensor_parallel_degree': tp_degree,
         }
+
+        # when we replicate the data tp_degree times, each device must see tp_degree times more samples
+        # because the samples are replicated
         train_cfg.train_loader.dataset.replication = tp_degree
         train_cfg.eval_loader.dataset.replication = tp_degree
+        # train_cfg.device_train_microbatch_size *= tp_degree
+        # train_cfg.device_eval_batch_size *= tp_degree
+        train_cfg.global_train_batch_size *= tp_degree
 
     return train_cfg
 
@@ -136,9 +167,11 @@ def forward_pass(trainer):
 
 def get_loss_array(trainer):
     logger = trainer.logger.destinations[0]
-    loss_array = logger.get_timeseries('loss/train/total'
-                                      )['loss/train/total'],  # type: ignore
+    loss_array = logger.get_timeseries(
+        'loss/train/total',
+    )['loss/train/total'],  # type: ignore
     return loss_array
+
 
 def create_c4_dataset(data_dir: pathlib.Path):
     if data_dir.is_dir():
@@ -146,6 +179,7 @@ def create_c4_dataset(data_dir: pathlib.Path):
     data_dir.mkdir(parents=True, exist_ok=True)
     dataset_path = create_c4_dataset_xxsmall(data_dir)
     return dataset_path
+
 
 @pytest.mark.gpu
 @pytest.mark.world_size(4)
@@ -169,7 +203,9 @@ def test_tp_train():
     fsdp_trainer = train(fsdp_cfg)
     fsdp_trainer.close()
     fsdp_losses = get_loss_array(fsdp_trainer)
-    ic(fsdp_losses) #  fsdp_losses: (array([11.77620506, 11.76067352, 11.82744789, 11.71392155]),)
+    ic(
+        fsdp_losses
+    )  #  fsdp_losses: (array([11.77620506, 11.76067352, 11.82744789, 11.71392155]),)
 
     # Get tp loss
     # tp_dataset_name = create_c4_dataset(pathlib.Path('/my-tp-data-dir/'))
@@ -177,8 +213,9 @@ def test_tp_train():
     tp_trainer = train(tp_cfg)
     tp_trainer.close()
     tp_losses = get_loss_array(tp_trainer)
-    ic(tp_losses) #tp_losses: (array([12.1361351 , 11.95866013, 11.91756916, 12.07012749]),)
-
+    ic(
+        tp_losses
+    )  #tp_losses: (array([12.1361351 , 11.95866013, 11.91756916, 12.07012749]),)
 
 
 @pytest.mark.gpu

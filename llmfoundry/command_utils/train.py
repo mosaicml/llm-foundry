@@ -511,6 +511,7 @@ def train(cfg: DictConfig) -> Trainer:
         master_weights_dtype=model_config.pop('master_weights_dtype', None),
         cfg=model_config,
     )
+    ic(model)
 
     _log_num_params(model, logged_cfg)
 

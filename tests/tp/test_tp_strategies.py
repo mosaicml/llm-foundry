@@ -105,37 +105,29 @@ def get_cfg(
     dataset_name: pathlib.Path,
     tp_strategy: Optional[str] = None,
     tp_degree: Optional[int] = None,
+    yaml_path: str = 'scripts/train/yamls/pretrain/testing.yaml',
 ):
     # Read cfg from `testing.yaml`
     from tests.fixtures.autouse import REPO_DIR
-    cfg_path: str = os.path.join(
-        REPO_DIR,
-        'scripts/train/yamls/pretrain/testing.yaml',
-    )
+    cfg_path: str = os.path.join(REPO_DIR, yaml_path)
     with open(cfg_path, 'r', encoding='utf-8') as f:
         train_cfg = om.load(f)
     assert isinstance(train_cfg, DictConfig)
 
-    # Set the dataset
+    # Set the name, dataset, loggers
+    train_cfg.variables.run_name = 'fsdp-test'
     train_cfg.variables.data_local = dataset_name
+    train_cfg.loggers = DictConfig({'inmemory': DictConfig({})})
 
-    # Set batch size
+    # Set batch size, duration
     train_cfg.global_train_batch_size = 16
     train_cfg.device_eval_batch_size = 2
     train_cfg.device_train_microbatch_size = 2
-
-    # Set duration
     train_cfg.max_duration = '1ep'
     train_cfg.eval_interval = '1ep'
 
     # TP needs unfused qkv (even without TP, we unfuse qkv for a fair comparison)
     train_cfg.model.attn_cfg = {'fused_qkv': False}
-
-    # loggers
-    train_cfg.loggers = DictConfig({'inmemory': DictConfig({})})
-
-    # default name
-    train_cfg.variables.run_name = 'fsdp-test'
 
     if tp_strategy and tp_degree:
         train_cfg.variables.run_name = 'tp-test'
@@ -213,19 +205,20 @@ def test_tp_train_with_one_gpu():
 
 
 @pytest.mark.gpu  # use gpu because `megablocks` only installed with `gpu` dependencies
-def test_tp_train_with_moes():
+@pytest.mark.parametrize('tp_degree', [2])
+@pytest.mark.parametrize('tp_strategy', ['ffn'])
+def test_tp_train_with_moes(tp_degree: int, tp_strategy: str):
     """Test that tensor parallelism is not compatible with MoEs."""
     # Make `cfg` for MoE model, fsdp, and tp
-    train_cfg_path: str = 'scripts/train/yamls/pretrain/testing-moe.yaml'
-    with open(train_cfg_path, 'r', encoding='utf-8') as f:
-        train_cfg = om.load(f)
-    model_cfg = train_cfg.model
-    fsdp_cfg = train_cfg.fsdp_config
-    tp_cfg = {'strategy': 'ffn'}
+    moe_yaml_path: str = 'scripts/train/yamls/pretrain/testing-moe.yaml'
+    dataset_name = Path('')
+    train_cfg = get_cfg(dataset_name, tp_strategy, tp_degree, moe_yaml_path)
 
     # Expect an error
     with pytest.raises(
         ValueError,
         match='Tensor Parallelism is not currently supported for MoE models.',
     ):
-        process_init_device(model_cfg, fsdp_cfg, tp_cfg)
+        process_init_device(
+            train_cfg.model, train_cfg.fsdp_config, train_cfg.tp_config
+        )

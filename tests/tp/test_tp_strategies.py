@@ -247,3 +247,48 @@ def test_tp_train_with_moes():
 
 # if __name__ == '__main__':
 #     test_tp_train()
+
+
+@pytest.mark.world_size(4)
+@pytest.mark.gpu
+def test_small_ex():
+
+    from copy import deepcopy
+    import torch
+    from torch import nn
+    from torch.distributed.tensor.parallel import parallelize_module, ColwiseParallel, RowwiseParallel
+    from torch.distributed.device_mesh import init_device_mesh
+
+
+    class SmallModel(nn.Module):
+        def __init__(self):
+            super(SmallModel, self).__init__()
+            self.w1 = nn.Linear(8, 16)
+
+        def forward(self, x):
+            return self.w1(x)
+
+    # Init model
+    model = SmallModel()
+    ic(model, model.w1.weight.shape)
+    ic([name for name, _ in model.named_modules()])
+
+    # Init TP mesh
+    tp_degree = 4
+    tp_mesh = init_device_mesh("cuda", (tp_degree,))
+
+    # Shard model
+    # sharded_model = parallelize_module(model, tp_mesh, {"w1": ColwiseParallel()})
+    sharded_model = parallelize_module(deepcopy(model), tp_mesh, {"w1": RowwiseParallel()})
+    ic(sharded_model, sharded_model.w1.weight.shape)
+    ic([name for name, _ in sharded_model.named_modules()])
+
+    # forward pass
+    x = torch.randn(1, 8)
+    y1 = model(x)
+    y2 = sharded_model(x) # why does this work, didn't I shard it?
+    ic(x, y1, y2)
+
+    # why is the dimension still equal?
+    # do I need to manually update this?
+    assert sharded_model.w1.weight.shape[0] // tp_degree == sharded_model.w1.weight.shape[0]

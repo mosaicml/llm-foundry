@@ -179,10 +179,10 @@ class MPTMLP(nn.Module):
             fc_kwargs=self.fc_type,
         )
         self.down_proj._is_residual = True
-        # ic(self.up_proj.weight.shape, self.down_proj.weight.shape)
+        ic(self.up_proj.weight.shape, self.down_proj.weight.shape)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # ic(self.up_proj.weight.shape, self.down_proj.weight.shape)
+        ic(self.up_proj.weight.shape, self.down_proj.weight.shape)
         return self.down_proj(self.act(self.up_proj(x)))
 
 

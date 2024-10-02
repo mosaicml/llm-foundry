@@ -212,7 +212,7 @@ def test_tp_train_with_moes(tp_degree: int, tp_strategy: str):
     """Test that tensor parallelism is not compatible with MoEs."""
     # Make `cfg` for MoE model, fsdp, and tp
     moe_yaml_path: str = 'scripts/train/yamls/pretrain/testing-moe.yaml'
-    dataset_name = Path('')
+    dataset_name = Path('') # dummy dataset path
     train_cfg = get_cfg(dataset_name, tp_strategy, tp_degree, moe_yaml_path)
 
     # Expect an error

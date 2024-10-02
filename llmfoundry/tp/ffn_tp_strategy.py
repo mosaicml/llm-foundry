@@ -27,7 +27,6 @@ def ffn_tp_strategy(model: ComposerModel) -> dict[str, ParallelStyle]:
     # Generate layer plan
     layer_plan: dict[str, ParallelStyle] = {}
     for name, _ in model.named_modules():
-        ic(name)
         # Before the ffn layer starts, distribute the input data for proper TP use
         # Inputs are currently sharded across the batch dimension (dim 0) as is done in standard DDP
         # Inputs will be replicated across hidden dimension (dim 1) via allgather

@@ -102,11 +102,9 @@ def init_on_device(device: torch.device, include_buffers: bool = False):
             else:
                 param_cls = type(parameter)
                 kwargs = parameter.__dict__
-                # requires grad is separate from the kwargs
-                requires_grad = parameter.requires_grad
                 self._parameters[name] = param_cls(
                     parameter.to(device),
-                    requires_grad=requires_grad,
+                    requires_grad=parameter.requires_grad,  # requires grad is separate from the kwargs
                     **kwargs,
                 )
 

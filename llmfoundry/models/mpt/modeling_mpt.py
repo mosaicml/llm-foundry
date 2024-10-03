@@ -1424,6 +1424,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             raise ValueError(
                 f'Specified loss_fn={self.loss_fn} not recognized. `loss_fn` must be one of [`fused_crossentropy`, `torch_crossentropy`].',
             )
+        print ("tokenizer is: ", tokenizer)
 
     @property
     def model_class(self) -> type[MPTForCausalLM]:
@@ -1437,6 +1438,13 @@ class ComposerMPTCausalLM(HuggingFaceModel):
         return get_targets(batch['labels'])
 
     def forward(self, batch: MutableMapping) -> CausalLMOutputWithPast:
+        temp = self.tokenizer.batch_encode_plus(
+            batch_text_or_text_pairs=["I think this breaks checkpointing"],
+            padding='longest',
+            truncation=True,
+            return_attention_mask=True
+        )
+        print (temp)
         if self.config.ffn_config['ffn_type'] in ffns_with_megablocks:
             # Clear MegaBlocks MoE load balancing loss cache
             try:  # Add try/catch to avoid transformers complaining and raising errors

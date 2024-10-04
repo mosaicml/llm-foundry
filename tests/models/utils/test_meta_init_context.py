@@ -26,10 +26,10 @@ class ModelWithIntParameter(nn.Module):
 
 def test_init_empty_weights(build_tiny_mpt: Callable,):
     # Initialize a model on CPU for comparison
-    cpu_model = build_tiny_mpt()
+    cpu_model = build_tiny_mpt(loss_fn='torch_crossentropy')
 
     with init_empty_weights():
-        meta_model = build_tiny_mpt()
+        meta_model = build_tiny_mpt(loss_fn='torch_crossentropy')
 
     for (cpu_name, cpu_param), (meta_name, meta_param) in zip(
         cpu_model.named_parameters(),

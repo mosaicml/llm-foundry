@@ -35,6 +35,18 @@ __all__ = [
     'ConcatenatedSequenceCollatorWrapper',
 ]
 
+_ALLOWED_DATASET_KEYS = {
+    'shuffle',
+    'packing_ratio',
+    'allow_pad_trimming',
+    'seq_parallel_replication',
+    'auto_packing_replication',
+    'max_leftover_bins_to_keep',
+    'pad_to_longest',
+    'warehouse_id',
+    'catalog',
+    'schema',
+}
 
 class StreamingTextDataset(StreamingDataset):
     """Generic text dataset using MosaicML's StreamingDataset.
@@ -336,9 +348,9 @@ def build_text_dataloader(
         if 'streams' in dataset_cfg else None,
     )
 
-    valid_streaming_text_dataset_parameters = inspect.signature(
+    valid_streaming_text_dataset_parameters = set(inspect.signature(
         StreamingTextDataset,
-    ).parameters
+    ).parameters.keys()).union(_ALLOWED_DATASET_KEYS)
 
     dataset_config_subset_for_streaming_text_dataset = {
         k: v

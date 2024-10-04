@@ -138,10 +138,10 @@ class StreamingTextDataset(StreamingDataset):
         **kwargs: Any,
     ):
 
-        if len(kwargs) > 0:
-            raise ValueError(
-                f'StreamingTextDataset() got an unexpected keyword argument: {kwargs}',
-            )
+        # if len(kwargs) > 0:
+        #     raise ValueError(
+        #         f'StreamingTextDataset() got an unexpected keyword argument: {kwargs}',
+        #     )
 
         if token_encoding_type not in SUPPORTED_MDS_ENCODING_TYPES:
             raise ValueError(
@@ -164,11 +164,11 @@ class StreamingTextDataset(StreamingDataset):
             shuffle_block_size = int(shuffle_block_size)
 
         print(f'DeltaStream Testing: Temporarily add {kwargs=}')
-        kwargs = {
-                'warehouse_id': "89cf2c9b9f9cb3bc",
-                'catalog': 'main',
-                'schema': 'seanowen',
-        }
+        # kwargs = {
+        #         'warehouse_id': "89cf2c9b9f9cb3bc",
+        #         'catalog': 'main',
+        #         'schema': 'seanowen',
+        # }
 
         # Build Dataset
         super().__init__(

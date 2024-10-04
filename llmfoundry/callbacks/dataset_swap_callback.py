@@ -8,7 +8,7 @@ the future.
 """
 
 import logging
-from typing import Any
+from dataclasses import dataclass
 
 from composer.core import State
 from composer.loggers import Logger
@@ -21,6 +21,12 @@ from llmfoundry.utils.warnings import experimental_class
 log = logging.getLogger(__name__)
 
 __all__ = ['DatasetSwap']
+
+
+@dataclass
+class DatasetSwapStateDict:
+    dataset_index: int
+    all_dataset_configs: list
 
 
 @experimental_class('DatasetSwap callback')
@@ -104,11 +110,11 @@ class DatasetSwap(CallbackWithConfig):
             self.all_dataset_configs.append(self.current_dataset_config)
 
     def state_dict(self):
-        return {
-            'dataset_index': self.dataset_index,
-            'all_dataset_configs': self.all_dataset_configs,
-        }
+        return DatasetSwapStateDict(
+            dataset_index=self.dataset_index,
+            all_dataset_configs=self.all_dataset_configs,
+        )
 
-    def load_state_dict(self, state: dict[str, Any]):
-        self.saved_dataset_index = state.get('dataset_index', 0)
-        self.all_dataset_configs = state.get('all_dataset_configs', [])
+    def load_state_dict(self, state: DatasetSwapStateDict):
+        self.saved_dataset_index = getattr(state, 'dataset_index', 0)
+        self.all_dataset_configs = getattr(state, 'all_dataset_configs', [])

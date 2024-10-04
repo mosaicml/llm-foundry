@@ -110,11 +110,19 @@ class DatasetSwap(CallbackWithConfig):
             self.all_dataset_configs.append(self.current_dataset_config)
 
     def state_dict(self):
-        return DatasetSwapStateDict(
-            dataset_index=self.dataset_index,
-            all_dataset_configs=self.all_dataset_configs,
-        )
+        return {
+            'callback_state':
+                DatasetSwapStateDict(
+                    dataset_index=self.dataset_index,
+                    all_dataset_configs=self.all_dataset_configs,
+                ),
+        }
 
-    def load_state_dict(self, state: DatasetSwapStateDict):
-        self.saved_dataset_index = getattr(state, 'dataset_index', 0)
-        self.all_dataset_configs = getattr(state, 'all_dataset_configs', [])
+    def load_state_dict(self, state: dict[str, DatasetSwapStateDict]):
+        _dummy_obj = DatasetSwapStateDict(
+            dataset_index=0,
+            all_dataset_configs=[],
+        )
+        _state_obj = state.get('callback_state', _dummy_obj)
+        self.saved_dataset_index = getattr(_state_obj, 'dataset_index')
+        self.all_dataset_configs = getattr(_state_obj, 'all_dataset_configs')

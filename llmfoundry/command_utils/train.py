@@ -318,8 +318,7 @@ def train(cfg: DictConfig) -> Trainer:
 
     # Enable autoresume from model checkpoints if possible
     autoresume_default: bool = False
-    if logged_cfg.get('run_name', None) is not None \
-        and train_cfg.save_folder is not None \
+    if train_cfg.save_folder is not None \
         and not train_cfg.save_overwrite \
         and not train_cfg.save_weights_only:
         autoresume_default = True

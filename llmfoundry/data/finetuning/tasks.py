@@ -76,6 +76,7 @@ from llmfoundry.utils.exceptions import (
     DatasetTooSmallError,
     IncorrectMessageKeyQuantityError,
     InvalidContentTypeError,
+    InvalidConversationError,
     InvalidExampleTypeError,
     InvalidFileExtensionError,
     InvalidLastChatMessageRoleError,
@@ -174,6 +175,8 @@ def _get_key(dictionary: Mapping[str, Any], allowed_keys: set[str]):
     if not isinstance(dictionary, Mapping):
         raise InvalidExampleTypeError(str(type(dictionary)))
     desired_keys = allowed_keys.intersection(dictionary.keys())
+    if len(desired_keys) == 0:
+        raise UnknownExampleTypeError(str(set(dictionary.keys())))
     return list(desired_keys)[0]
 
 
@@ -268,17 +271,17 @@ def _slice_chat_formatted_example(
         if conversation_through_previous_turn != full_conversation[:len(
             conversation_through_previous_turn,
         )]:
-            raise ValueError(
+            raise InvalidConversationError(
                 f'The full conversation must start with the conversation through the previous turn. {conversation_through_previous_turn=}, {full_conversation=}',
             )
         if conversation_through_previous_turn != prompt_with_history[:len(
             conversation_through_previous_turn,
         )]:
-            raise ValueError(
+            raise InvalidConversationError(
                 f'The prompt_with_history must start with the conversation through the previous turn. {conversation_through_previous_turn=}, {prompt_with_history=}',
             )
         if prompt_with_history != full_conversation[:len(prompt_with_history)]:
-            raise ValueError(
+            raise InvalidConversationError(
                 f'prompt_with_history must be the first part of the full conversation. {prompt_with_history=}, {full_conversation=}',
             )
         prompt = prompt_with_history[len(conversation_through_previous_turn):]
@@ -877,7 +880,7 @@ class DatasetConstructor:
         if tokenizer is None:
             raise ValueError('A tokenizer must be provided.')
 
-        signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_data_prep_completed'
+        signal_file_path = dist.get_node_signal_file_name()
 
         # Non local rank 0 ranks will wait here for local rank 0 to finish the data processing.
         # Once local rank 0 is done, the datasets are all cached on disk, and all other ranks

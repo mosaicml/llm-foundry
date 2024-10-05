@@ -18,6 +18,7 @@ from composer.callbacks import (
 
 from llmfoundry.callbacks.async_eval_callback import AsyncEval
 from llmfoundry.callbacks.curriculum_learning_callback import CurriculumLearning
+from llmfoundry.callbacks.dataset_swap_callback import DatasetSwap
 from llmfoundry.callbacks.env_logging_callback import EnvironmentLoggingCallback
 from llmfoundry.callbacks.eval_gauntlet_callback import EvalGauntlet
 from llmfoundry.callbacks.eval_output_logging_callback import EvalOutputLogging
@@ -67,6 +68,7 @@ callbacks.register('load_checkpoint', func=LoadCheckpoint)
 
 callbacks_with_config.register('async_eval', func=AsyncEval)
 callbacks_with_config.register('curriculum_learning', func=CurriculumLearning)
+callbacks_with_config.register('dataset_swap', func=DatasetSwap)
 
 __all__ = [
     'FDiffMetrics',

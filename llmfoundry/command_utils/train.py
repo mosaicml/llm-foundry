@@ -5,7 +5,6 @@ import logging
 import os
 import time
 import warnings
-from copy import deepcopy
 from typing import Any, Optional, Union
 
 import torch
@@ -19,7 +18,7 @@ from composer.profiler import (
     TraceHandler,
     cyclic_schedule,
 )
-from composer.utils import dist, get_device, reproducibility
+from composer.utils import TPConfig, dist, get_device, reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
@@ -331,7 +330,7 @@ def train(cfg: DictConfig) -> Trainer:
         )
 
     # Optional tp config
-    tp_config: Optional[dict[str, Any]] = train_cfg.tp_config
+    tp_config: Optional[Union[TPConfig, dict[str, Any]]] = train_cfg.tp_config
 
     # Warn if FSDP or TP is enabled but user only has 1 GPU
     if dist.get_world_size(
@@ -350,7 +349,7 @@ def train(cfg: DictConfig) -> Trainer:
     # Initialize context
     init_context = process_init_device(model_config, fsdp_config, tp_config)
     logged_cfg.update({'fsdp_config': fsdp_config}, merge=True)
-    logged_cfg.update({'tp_config': deepcopy(tp_config)}, merge=True)
+    logged_cfg.update({'tp_config': tp_config}, merge=True)
 
     # Build tokenizer
     log.info('Building tokenizer...')
@@ -516,9 +515,9 @@ def train(cfg: DictConfig) -> Trainer:
 
     # TP config
     if tp_config is not None:
-        strategy = tp_config.pop('strategy', None)
-        assert isinstance(strategy, str), '`strategy` must be in `tp_config`.'
-        tp_config['layer_plan'] = build_tp_strategies(strategy, model)
+        strategy = tp_config.pop('strategy')
+        layer_plan = build_tp_strategies(strategy, model)
+        tp_config = TPConfig(**tp_config, layer_plan=layer_plan)
 
     # Parallelism config
     parallelism_config = {'fsdp': fsdp_config, 'tp': tp_config}

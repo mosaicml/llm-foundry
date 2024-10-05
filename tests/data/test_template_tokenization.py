@@ -53,11 +53,21 @@ def test_tokenize_chat_example_malformed():
     }
     wrong_example_type = ['this is not a dictionary']
     wrong_messages_type = {'messages': 'this is not a list of messages'}
+    wrong_role = {
+        'messages': [{
+            'role': 'user',
+            'content': 'Hello GPT!',
+        }, {
+            'role': 'misnamed_assistant',
+            'content': 'user message not followed by an assistant label',
+        }],
+    }
     malformed_chat_examples = [
         too_few_messages,
         no_content,
         ends_with_user_role,
         no_assistant_message,
+        wrong_role,
     ]
     my_tokenizer = build_tokenizer('mosaicml/mpt-7b-8k-chat', {})
     for example in malformed_chat_examples:

@@ -251,6 +251,7 @@ def create_c4_dataset_xxsmall(path: Path) -> str:
         shutil.copytree(
             os.path.join(c4_dir, 'val_xxsmall'),
             os.path.join(c4_dir, mocked_split),
+            dirs_exist_ok=True,
         )
     assert os.path.exists(c4_dir)
     return c4_dir

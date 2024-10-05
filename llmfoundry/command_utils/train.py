@@ -61,7 +61,6 @@ from llmfoundry.utils.exceptions import (
     TrainDataLoaderLocation,
 )
 from llmfoundry.utils.registry_utils import import_file
-from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
 log = logging.getLogger(__name__)
 
@@ -320,8 +319,7 @@ def train(cfg: DictConfig) -> Trainer:
 
     # Enable autoresume from model checkpoints if possible
     autoresume_default: bool = False
-    if logged_cfg.get('run_name', None) is not None \
-        and train_cfg.save_folder is not None \
+    if train_cfg.save_folder is not None \
         and not train_cfg.save_overwrite \
         and not train_cfg.save_weights_only:
         autoresume_default = True
@@ -330,12 +328,6 @@ def train(cfg: DictConfig) -> Trainer:
         log.info(
             'As run_name, save_folder, and save_latest_filename are set, \
                 changing autoresume default to True...',
-        )
-        warnings.warn(
-            VersionedDeprecationWarning(
-                'Automatic detection of autoresume is deprecated. Please explicitly set `autoresume` to True.',
-                remove_version='0.15.0',
-            ),
         )
 
     # Optional tp config

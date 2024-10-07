@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Streaming dataset conversion scripts for C4 and The Pile."""
+import os
 from argparse import ArgumentParser, Namespace
 
 from llmfoundry.command_utils import convert_dataset_hf_from_args
@@ -48,6 +49,8 @@ def parse_args() -> Namespace:
 
 if __name__ == '__main__':
     args = parse_args()
+    # to fix https://github.com/mosaicml/llm-foundry/issues/1575
+    os.environ['WORLD_SIZE'] = '1'
     convert_dataset_hf_from_args(
         dataset=args.dataset,
         data_subset=args.data_subset,

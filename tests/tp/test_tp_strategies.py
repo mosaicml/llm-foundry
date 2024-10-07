@@ -1,10 +1,16 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import os
+import pathlib
+import shutil
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Optional
 
 import pytest
+from composer import Trainer
+from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from torch.distributed._tensor import Replicate, Shard
 from torch.distributed.tensor.parallel import (
@@ -96,9 +102,94 @@ def test_ffn_tp_strategy():
             raise ValueError(f'Layer plan of wrong type: {type(layer_plan)}')
 
 
+def get_cfg(
+    dataset_name: pathlib.Path,
+    tp_strategy: Optional[str] = None,
+    tp_degree: Optional[int] = None,
+    yaml_path: str = 'scripts/train/yamls/pretrain/testing.yaml',
+):
+    # Read cfg from `testing.yaml`
+    from tests.fixtures.autouse import REPO_DIR
+    cfg_path: str = os.path.join(REPO_DIR, yaml_path)
+    with open(cfg_path, 'r', encoding='utf-8') as f:
+        train_cfg = om.load(f)
+    assert isinstance(train_cfg, DictConfig)
+
+    # Set the name, dataset, loggers
+    train_cfg.variables.run_name = 'fsdp-test'
+    train_cfg.variables.data_local = dataset_name
+    train_cfg.loggers = DictConfig({'inmemory': DictConfig({})})
+
+    # Set batch size, duration
+    train_cfg.global_train_batch_size = 16
+    train_cfg.device_eval_batch_size = 2
+    train_cfg.device_train_microbatch_size = 2
+    train_cfg.max_duration = '1ep'
+    train_cfg.eval_interval = '1ep'
+
+    # TP needs unfused qkv (even without TP, we unfuse qkv for a fair comparison)
+    train_cfg.model.attn_cfg = {'fused_qkv': False}
+
+    if tp_strategy and tp_degree:
+        train_cfg.variables.run_name = 'tp-test'
+        train_cfg.tp_config = {
+            'strategy': tp_strategy,
+            'tensor_parallel_degree': tp_degree,
+        }
+
+    return train_cfg
+
+
+def get_loss_array(trainer: Trainer):
+    logger = trainer.logger.destinations[0]
+    loss_array = logger.get_timeseries('loss/train/total')['loss/train/total'
+                                                          ]  # type: ignore
+    return loss_array
+
+
 @pytest.mark.gpu
-def test_no_tp_with_one_gpu():
-    """Test that when we have one GPU, we use DDP and not FSDP-TP."""
+@pytest.mark.world_size(4)
+@pytest.mark.parametrize('tp_degree', [2])
+@pytest.mark.parametrize('tp_strategy', ['ffn'])
+def test_tp_train(tp_degree: int, tp_strategy: str):
+    """Test that we can train with FSDP-TP."""
+    my_dir = Path('/my-data-dir')
+
+    try:
+        # create c4 dataset
+        if my_dir.is_dir() and my_dir.exists():
+            shutil.rmtree(my_dir)
+        my_dir.mkdir(parents=True)
+        tp_dataset_name = create_c4_dataset_xxsmall(my_dir)
+
+        # Train model with TP and get loss
+        tp_cfg = get_cfg(pathlib.Path(tp_dataset_name), tp_strategy, tp_degree)
+        tp_trainer = train(tp_cfg)
+        tp_trainer.close()
+        tp_loss = get_loss_array(tp_trainer)
+
+        # Compare loss and expected loss for TP
+        import numpy as np
+        expected_tp_loss = np.array([
+            12.02126884,
+            11.96996498,
+            12.02957344,
+            11.97966957,
+            11.99677086,
+            11.96347618,
+        ])
+        np.testing.assert_allclose(tp_loss, expected_tp_loss)
+    except Exception as e:
+        raise e
+    finally:
+        # always remove the directory
+        if os.path.isdir(my_dir):
+            shutil.rmtree(my_dir)
+
+
+@pytest.mark.gpu
+def test_tp_train_with_one_gpu():
+    """Test that when we have one GPU, we train DDP and not FSDP-TP."""
     with TemporaryDirectory() as tmp_path:
         # Make `train_cfg`` with a tensor parallelism strategy
         dataset_name = create_c4_dataset_xxsmall(Path(tmp_path))
@@ -115,19 +206,22 @@ def test_no_tp_with_one_gpu():
 
 
 @pytest.mark.gpu  # use gpu because `megablocks` only installed with `gpu` dependencies
-def test_no_tp_with_moes():
+@pytest.mark.parametrize('tp_degree', [2])
+@pytest.mark.parametrize('tp_strategy', ['ffn'])
+def test_tp_train_with_moes(tp_degree: int, tp_strategy: str):
     """Test that tensor parallelism is not compatible with MoEs."""
     # Make `cfg` for MoE model, fsdp, and tp
-    train_cfg_path: str = 'scripts/train/yamls/pretrain/testing-moe.yaml'
-    with open(train_cfg_path, 'r', encoding='utf-8') as f:
-        train_cfg = om.load(f)
-    model_cfg = train_cfg.model
-    fsdp_cfg = train_cfg.fsdp_config
-    tp_cfg = {'strategy': 'ffn'}
+    moe_yaml_path: str = 'scripts/train/yamls/pretrain/testing-moe.yaml'
+    dataset_name = Path('')  # dummy dataset path
+    train_cfg = get_cfg(dataset_name, tp_strategy, tp_degree, moe_yaml_path)
 
     # Expect an error
     with pytest.raises(
         ValueError,
         match='Tensor Parallelism is not currently supported for MoE models.',
     ):
-        process_init_device(model_cfg, fsdp_cfg, tp_cfg)
+        process_init_device(
+            train_cfg.model,
+            train_cfg.fsdp_config,
+            train_cfg.tp_config,
+        )

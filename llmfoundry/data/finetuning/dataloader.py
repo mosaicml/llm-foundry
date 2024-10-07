@@ -28,6 +28,7 @@ from llmfoundry.data.packing import BinPackCollator, auto_packing_ratio
 from llmfoundry.data.text_data import build_streams
 from llmfoundry.utils.config_utils import to_dict_container
 from llmfoundry.utils.exceptions import (
+    FinetuningFileNotFoundError,
     MissingHuggingFaceURLSplitError,
     NotEnoughDatasetSamplesError,
 )
@@ -587,10 +588,8 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
                     files_searched = [
                         f'{name}/{split}{ext}' for ext in SUPPORTED_EXTENSIONS
                     ]
-                    raise FileNotFoundError(
-                        f'Could not find a file with any of ' + \
-                        f'the supported extensions: {SUPPORTED_EXTENSIONS}\n' + \
-                        f'at {files_searched}',
+                    raise FinetuningFileNotFoundError(
+                        files_searched=files_searched,
                     ) from e
                 else:
                     log.debug(

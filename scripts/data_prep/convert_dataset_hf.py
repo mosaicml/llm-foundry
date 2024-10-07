@@ -49,7 +49,7 @@ def parse_args() -> Namespace:
 
 if __name__ == '__main__':
     args = parse_args()
-    # to fix https://github.com/mosaicml/llm-foundry/issues/1575
+    # set `WORLD_SIZE` to fix https://github.com/mosaicml/llm-foundry/issues/1575
     os.environ['WORLD_SIZE'] = '1'
     convert_dataset_hf_from_args(
         dataset=args.dataset,

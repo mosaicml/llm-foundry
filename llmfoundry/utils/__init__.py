@@ -55,6 +55,17 @@ from llmfoundry.utils.registry_utils import (
     import_file,
     save_registry,
 )
+from llmfoundry.utils.validation_notebook_utils import (
+    check_HF_datasets,
+    convert_text_to_mds,
+    create_om_cfg,
+    integrity_check,
+    is_hf_dataset_path,
+    is_uc_delta_table,
+    parse_args,
+    plot_hist,
+    token_counts_with_collate,
+)
 from llmfoundry.utils.warnings import (
     ExperimentalWarning,
     VersionedDeprecationWarning,
@@ -111,4 +122,13 @@ __all__ = [
     'ExperimentalWarning',
     'experimental_function',
     'experimental_class',
+    'check_HF_datasets',
+    'convert_text_to_mds',
+    'create_om_cfg',
+    'integrity_check',
+    'is_hf_dataset_path',
+    'is_uc_delta_table',
+    'parse_args',
+    'token_counts_with_collate',
+    'plot_hist',
 ]

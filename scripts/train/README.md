@@ -44,20 +44,20 @@ This will take 20-60 seconds depending on your internet bandwidth.
 You should see two folders once completed: `./my-copy-c4/train_small` and `./my-copy-c4/val_small` that are ~1.0GB total. Note that we are using the `--concat_tokens` option to pre tokenize our samples to be of the max sequence length without padding
 <!--pytest.mark.skip-->
 ```bash
-python ../data_prep/convert_dataset_hf.py --dataset allenai/c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
+WORLD_SIZE=1 python ../data_prep/convert_dataset_hf.py --dataset allenai/c4 --data_subset en --out_root ./my-copy-c4 --splits train_small val_small --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
 ```
 
 Alternatively, you can download the full `train` and `val` splits if you really want to train the model (i.e. not just profile the model). This will take 1-to-many hours depending on bandwidth, number of CPUs, etc. The final folder `./my-copy-c4/train` will be ~800GB so make sure you have space!
 <!--pytest.mark.skip-->
 ```bash
-python ../data_prep/convert_dataset_hf.py --dataset allenai/c4 --data_subset en --out_root ./my-copy-c4 --splits train val --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
+WORLD_SIZE=1 python ../data_prep/convert_dataset_hf.py --dataset allenai/c4 --data_subset en --out_root ./my-copy-c4 --splits train val --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
 ```
 
 For any of the above commands, you can also choose to compress the `.mds` files.
 This is useful if your plan is to store these in object store after conversion.
 <!--pytest.mark.skip-->
 ```bash
-python ../data_prep/convert_dataset_hf.py ... --compression zstd
+WORLD_SIZE=1 python ../data_prep/convert_dataset_hf.py ... --compression zstd
 ```
 
 Alternatively, feel free to substitute our dataloader with one of your own in [`train.py`](train.py).
@@ -70,11 +70,11 @@ To verify that the dataloader works, run a quick test on your `val_small` split 
 # This will construct a `StreamingTextDataset` dataset from your `val` split,
 # pass it into a PyTorch Dataloader, and iterate over it and print samples.
 # Since we only provide a local path, no streaming/copying takes place.
-python ../../llmfoundry/data/text_data.py --local_path ./my-copy-c4 --split val_small
+WORLD_SIZE=1 python ../../llmfoundry/data/text_data.py --local_path ./my-copy-c4 --split val_small
 
 # This will do the same thing, but stream data to {local} from {remote}.
 # The remote path can be a filesystem or object store URI.
-python ../../llmfoundry/data/text_data.py --local_path /tmp/cache-c4 --remote_path ./my-copy-c4  --split val_small # stream from filesystem, e.g. a slow NFS volume to fast local disk
+WORLD_SIZE=1 python ../../llmfoundry/data/text_data.py --local_path /tmp/cache-c4 --remote_path ./my-copy-c4  --split val_small # stream from filesystem, e.g. a slow NFS volume to fast local disk
 # python ../data_prep/text_data.py --local_path /tmp/cache-c4 --remote_path s3://my-bucket/my-copy-c4  # stream from object store
 ```
 
@@ -305,7 +305,7 @@ To enable streaming, you must first use the `convert_finetuning_dataset.py` scri
 
 <!--pytest.mark.skip-->
 ```bash
-python ../data_prep/convert_finetuning_dataset.py \
+WORLD_SIZE=1 python ../data_prep/convert_finetuning_dataset.py \
     --dataset tatsu-lab/alpaca \
     --splits train \
     --out_root s3://my-bucket/my-copy-alpaca
@@ -315,7 +315,7 @@ python ../data_prep/convert_finetuning_dataset.py \
 > Streaming datasets *must* follow the required "prompt"/"response" format, but you can preprocess during conversion by setting the `--preprocessor` argument.
 > <!--pytest.mark.skip-->
 > ```bash
-> python ../data_prep/convert_finetuning_dataset.py \
+> WORLD_SIZE=1 python ../data_prep/convert_finetuning_dataset.py \
 >     --dataset mosaicml/doge-facts \
 >     --preprocessor my_data.formatting:dogefacts_prep_fn \
 >     --splits train \

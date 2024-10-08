@@ -496,6 +496,7 @@ class FinetuningFileNotFoundError(UserError):
         super().__init__(
             message,
             files_searched=files_searched,
+            extensions=SUPPORTED_EXTENSIONS,
         )
 
 

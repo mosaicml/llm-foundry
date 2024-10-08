@@ -3,6 +3,7 @@
 
 import json
 import os
+import tempfile
 from glob import glob
 from typing import Optional
 
@@ -105,7 +106,7 @@ class DownloadingIterable:
     def __init__(
         self,
         object_names: list[str],
-        output_folder: str,
+        output_folder: Optional[str],
         object_store: Optional[ObjectStore],
     ):
         """Iterable that downloads files before yielding the local filename.
@@ -114,7 +115,7 @@ class DownloadingIterable:
 
         Args:
             object_names (List[str]): Names of objects to download
-            output_folder (str): Local folder to write downloaded files to
+            output_folder (Optional[str]): Local folder to write downloaded files to. If none, uses a temporary folder.
             object_store (Optional[ObjectStore]): Object store to download from
         """
         self.object_names = object_names
@@ -131,7 +132,8 @@ class DownloadingIterable:
                 output_filename = os.path.join(
                     self.output_folder,
                     object_name.strip('/'),
-                )
+                ) if self.output_folder is not None else tempfile.TemporaryFile(
+                ).name
 
                 download_file(
                     object_store=self.object_store,

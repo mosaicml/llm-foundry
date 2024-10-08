@@ -486,7 +486,11 @@ class FaultyDataPrepCluster(UserError):
 class FinetuningFileNotFoundError(UserError):
     """Error thrown when a file can't be found with any supported extension."""
 
-    def __init__(self, files_searched: list[str], supported_extensions: Optional[list[str]]) -> None:
+    def __init__(
+        self,
+        files_searched: list[str],
+        supported_extensions: Optional[list[str]] = None,
+    ) -> None:
         if supported_extensions is None:
             from llmfoundry.data.finetuning.tasks import SUPPORTED_EXTENSIONS
             supported_extensions = SUPPORTED_EXTENSIONS

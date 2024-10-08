@@ -489,11 +489,8 @@ class FinetuningFileNotFoundError(UserError):
     def __init__(
         self,
         files_searched: list[str],
-        supported_extensions: Optional[list[str]] = None,
+        supported_extensions: list[str],
     ) -> None:
-        if supported_extensions is None:
-            from llmfoundry.data.finetuning.tasks import SUPPORTED_EXTENSIONS
-            supported_extensions = SUPPORTED_EXTENSIONS
         message = (
             f'Could not find a file with any of ' + \
             f'the supported extensions: {supported_extensions}\n' + \

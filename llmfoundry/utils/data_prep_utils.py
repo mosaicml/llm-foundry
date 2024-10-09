@@ -132,7 +132,7 @@ class DownloadingIterable:
                 output_filename = os.path.join(
                     self.output_folder,
                     object_name.strip('/'),
-                ) if self.output_folder is not None else tempfile.TemporaryFile(
+                ) if self.output_folder is not None else tempfile.NamedTemporaryFile(
                 ).name
 
                 download_file(

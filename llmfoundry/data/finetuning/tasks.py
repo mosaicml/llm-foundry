@@ -612,11 +612,6 @@ class StreamingFinetuningDataset(StreamingDataset):
         **kwargs: Any,
     ):
 
-        # if len(kwargs) > 0:
-        #     raise ValueError(
-        #         f'StreamingFinetuningDataset() got an unexpected keyword argument: {kwargs}',
-        #     )
-
         if token_encoding_type not in SUPPORTED_MDS_ENCODING_TYPES:
             raise ValueError(
                 f'The token_encoding_type must be one of {SUPPORTED_MDS_ENCODING_TYPES}, but got {token_encoding_type}',
@@ -632,13 +627,6 @@ class StreamingFinetuningDataset(StreamingDataset):
                     stream.local,
                     split,
                 )
-
-        print(f'DeltaStream Testing: Temporarily add {kwargs=}')
-        # kwargs = {
-        #         'warehouse_id': "89cf2c9b9f9cb3bc",
-        #         'catalog': 'datasets',
-        #         'schema': 'finetuning',
-        # }
 
         super().__init__(
             streams=streams,

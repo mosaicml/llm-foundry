@@ -36,13 +36,6 @@ __all__ = [
 ]
 
 _ALLOWED_DATASET_KEYS = {
-    'shuffle',
-    'packing_ratio',
-    'allow_pad_trimming',
-    'seq_parallel_replication',
-    'auto_packing_replication',
-    'max_leftover_bins_to_keep',
-    'pad_to_longest',
     'warehouse_id',
     'catalog',
     'schema',
@@ -150,11 +143,6 @@ class StreamingTextDataset(StreamingDataset):
         **kwargs: Any,
     ):
 
-        # if len(kwargs) > 0:
-        #     raise ValueError(
-        #         f'StreamingTextDataset() got an unexpected keyword argument: {kwargs}',
-        #     )
-
         if token_encoding_type not in SUPPORTED_MDS_ENCODING_TYPES:
             raise ValueError(
                 f'The token_encoding_type must be one of {SUPPORTED_MDS_ENCODING_TYPES}, but got {token_encoding_type}',
@@ -174,13 +162,6 @@ class StreamingTextDataset(StreamingDataset):
         # TODO: discover where yamls are being converted incorrect, but temporary workaround
         if isinstance(shuffle_block_size, float):
             shuffle_block_size = int(shuffle_block_size)
-
-        print(f'DeltaStream Testing: Temporarily add {kwargs=}')
-        # kwargs = {
-        #         'warehouse_id': "89cf2c9b9f9cb3bc",
-        #         'catalog': 'main',
-        #         'schema': 'seanowen',
-        # }
 
         # Build Dataset
         super().__init__(

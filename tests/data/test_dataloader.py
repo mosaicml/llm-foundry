@@ -8,7 +8,7 @@ import shutil
 from contextlib import nullcontext as does_not_raise
 from pathlib import Path
 from typing import Any, Callable, ContextManager, Literal, Optional, Union
-from unittest.mock import MagicMock, patch, mock_open
+from unittest.mock import MagicMock, mock_open, patch
 
 import catalogue
 import numpy as np
@@ -1426,9 +1426,6 @@ def test_sharegpt_format(
 
 def test_ft_dataloader_with_extra_keys():
     max_seq_len = 2
-    decoder_only_format = True
-    packing_ratio = 'auto'
-    allow_pad_trimming = False
     cfg = {
         'dataset': {
             'remote': '/remote',
@@ -1491,17 +1488,17 @@ def test_ft_dataloader_with_extra_keys():
                 'raw_data': {
                     'basename': 'shard.00000.mds',
                     'bytes': 1024,
-                    'hashes': {}
+                    'hashes': {},
                 },
                 'samples': 1000,
                 'size_limit': 67108864,
                 'version': 2,
-                'zip_data': None
-            }]
+                'zip_data': None,
+            }],
         }
 
         with pytest.raises(TypeError, match=f'.*got an unexpected keyword argument.*'):
-            dataloader = build_finetuning_dataloader(
+            _ = build_finetuning_dataloader(
                 **cfg,
                 tokenizer=tokenizer,
                 device_batch_size=device_batch_size,
@@ -1569,20 +1566,18 @@ def test_text_dataloader_with_extra_keys():
                 'raw_data': {
                     'basename': 'shard.00000.mds',
                     'bytes': 1024,
-                    'hashes': {}
+                    'hashes': {},
                 },
                 'samples': 1000,
                 'size_limit': 67108864,
                 'version': 2,
-                'zip_data': None
-            }]
+                'zip_data': None,
+            }],
         }
 
         with pytest.raises(TypeError, match=f'.*got an unexpected keyword argument.*'):
-            dataloader = build_text_dataloader(
+            _ = build_text_dataloader(
                 **cfg,
                 tokenizer=tokenizer,
                 device_batch_size=device_batch_size,
             ).dataloader
-
-

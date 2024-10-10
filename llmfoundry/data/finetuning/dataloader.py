@@ -204,7 +204,9 @@ def build_finetuning_dataloader(
         allowed_dataset_keys=allowed_dataset_config_keys,
     )
 
-    allowed_dataset_config_keys = allowed_dataset_config_keys.union(extraneous_keys)
+    allowed_dataset_config_keys = allowed_dataset_config_keys.union(
+        extraneous_keys,
+    )
 
     # Use EOS as the pad token if none exists
     if tokenizer.pad_token is None:  # type: ignore (sometimes it's none and that's ok)
@@ -381,7 +383,7 @@ def _validate_config(
     target_responses: Optional[str] = None,
     allowed_dataset_keys: set[str] = _ALLOWED_DATASET_KEYS,
     **kwargs: dict[str, Any],
-) -> dict[str, Any]:
+) -> set[str]:
     """Validates the dataset configuration.
 
     Makes sure that the dataset is properly configured for either

@@ -52,9 +52,6 @@ _ALLOWED_DATASET_KEYS = {
     'auto_packing_replication',
     'max_leftover_bins_to_keep',
     'pad_to_longest',
-    'warehouse_id',
-    'catalog',
-    'schema',
 }
 
 
@@ -201,10 +198,13 @@ def build_finetuning_dataloader(
     allowed_dataset_config_keys = set(
         dataset_constructor_keys,
     ).union(_ALLOWED_DATASET_KEYS)
-    _validate_config(
+
+    extraneous_keys = _validate_config(
         **dataset_cfg,
         allowed_dataset_keys=allowed_dataset_config_keys,
     )
+
+    allowed_dataset_config_keys = allowed_dataset_config_keys.union(extraneous_keys)
 
     # Use EOS as the pad token if none exists
     if tokenizer.pad_token is None:  # type: ignore (sometimes it's none and that's ok)
@@ -381,7 +381,7 @@ def _validate_config(
     target_responses: Optional[str] = None,
     allowed_dataset_keys: set[str] = _ALLOWED_DATASET_KEYS,
     **kwargs: dict[str, Any],
-) -> None:
+) -> dict[str, Any]:
     """Validates the dataset configuration.
 
     Makes sure that the dataset is properly configured for either
@@ -437,11 +437,16 @@ def _validate_config(
 
     Raises:
         ValueError: If the dataset configuration does not meet the requirements.
+
+    Returns:
+        set[str]: Return the extraneous keys.
     """
+    extraneous_keys = set()
     if not set(kwargs.keys()).issubset(allowed_dataset_keys):
-        raise ValueError(
+        extraneous_keys = set(kwargs.keys()) - allowed_dataset_keys
+        log.warning(
             'The dataset config contains the following extraneous keys: ' +\
-            ', '.join(set(kwargs.keys()) - allowed_dataset_keys),
+            ', '.join(extraneous_keys),
         )
 
     if hf_name is not None:
@@ -535,6 +540,8 @@ def _validate_config(
         target_responses,
         decoder_only_format,
     )
+
+    return extraneous_keys
 
 
 def _download_remote_hf_dataset(remote_path: str, split: str) -> str:

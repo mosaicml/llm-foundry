@@ -52,6 +52,9 @@ _ALLOWED_DATASET_KEYS = {
     'auto_packing_replication',
     'max_leftover_bins_to_keep',
     'pad_to_longest',
+    'warehouse_id',
+    'catalog',
+    'schema',
 }
 
 
@@ -257,7 +260,7 @@ def build_finetuning_dataloader(
         dataset_constructor_args = {
             k: v
             for k, v in dataset_cfg.items()
-            if k in dataset_constructor_keys and
+            if k in allowed_dataset_config_keys and
             k not in {'streams', 'packing_ratio'}
         }
         streaming_dataset = dataset_constructor.build_from_streaming(

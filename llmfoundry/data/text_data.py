@@ -35,6 +35,11 @@ __all__ = [
     'ConcatenatedSequenceCollatorWrapper',
 ]
 
+_ALLOWED_DATASET_KEYS = {
+    'warehouse_id',
+    'catalog',
+    'schema',
+}
 
 class StreamingTextDataset(StreamingDataset):
     """Generic text dataset using MosaicML's StreamingDataset.
@@ -138,11 +143,6 @@ class StreamingTextDataset(StreamingDataset):
         **kwargs: Any,
     ):
 
-        if len(kwargs) > 0:
-            raise ValueError(
-                f'StreamingTextDataset() got an unexpected keyword argument: {kwargs}',
-            )
-
         if token_encoding_type not in SUPPORTED_MDS_ENCODING_TYPES:
             raise ValueError(
                 f'The token_encoding_type must be one of {SUPPORTED_MDS_ENCODING_TYPES}, but got {token_encoding_type}',
@@ -188,6 +188,7 @@ class StreamingTextDataset(StreamingDataset):
             batching_method=batching_method,
             allow_unsafe_types=allow_unsafe_types,
             replication=replication,
+            **kwargs,
         )
         self.tokenizer = tokenizer
         self.max_seq_len = max_seq_len
@@ -328,9 +329,9 @@ def build_text_dataloader(
         if 'streams' in dataset_cfg else None,
     )
 
-    valid_streaming_text_dataset_parameters = inspect.signature(
+    valid_streaming_text_dataset_parameters = set(inspect.signature(
         StreamingTextDataset,
-    ).parameters
+    ).parameters.keys()).union(_ALLOWED_DATASET_KEYS)
 
     dataset_config_subset_for_streaming_text_dataset = {
         k: v

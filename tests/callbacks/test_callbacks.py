@@ -80,7 +80,7 @@ def maybe_skip_callback_test(callback_class: type):
     if hasattr(
         callback_class,
         'is_experimental',
-    ) and callback_class.is_experimental:
+    ) and callback_class.is_experimental:  # type: ignore
         pytest.skip(
             f'Skipping test for {callback_class.__name__} because it is experimental.',
         )

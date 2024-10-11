@@ -312,7 +312,9 @@ def train(cfg: DictConfig) -> Trainer:
 
     # Optional parameters will be set to default values if not specified.
     env_run_name: Optional[str] = os.environ.get('RUN_NAME', None)
-    run_name: str = train_cfg.run_name if train_cfg.run_name else env_run_name or 'llm'
+    run_name: str = (
+        train_cfg.run_name if train_cfg.run_name else env_run_name
+    ) or 'llm'
     is_state_dict_sharded: bool = (
         fsdp_config.get('state_dict_type', 'full') == 'sharded'
     ) if fsdp_config else False

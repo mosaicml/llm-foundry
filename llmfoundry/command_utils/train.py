@@ -308,8 +308,8 @@ def train(cfg: DictConfig) -> Trainer:
     eval_gauntlet_config = train_cfg.eval_gauntlet or train_cfg.eval_gauntlet_str
 
     # Optional parameters will be set to default values if not specified.
-    default_run_name: str = os.environ.get('RUN_NAME', 'llm')
-    run_name: str = train_cfg.run_name if train_cfg.run_name else default_run_name
+    env_run_name: Optional[str] = os.environ.get('RUN_NAME', None)
+    run_name: str = train_cfg.run_name if train_cfg.run_name else env_run_name or 'llm'
     is_state_dict_sharded: bool = (
         fsdp_config.get('state_dict_type', 'full') == 'sharded'
     ) if fsdp_config else False
@@ -317,8 +317,10 @@ def train(cfg: DictConfig) -> Trainer:
     save_filename: str = train_cfg.save_filename if train_cfg.save_filename else 'ep{epoch}-ba{batch}-rank{rank}.pt'
 
     # Enable autoresume from model checkpoints if possible
+    is_user_set_run_name: bool = train_cfg.run_name is not None or env_run_name is not None
     autoresume_default: bool = False
-    if train_cfg.save_folder is not None \
+    if is_user_set_run_name and \
+        train_cfg.save_folder is not None \
         and not train_cfg.save_overwrite \
         and not train_cfg.save_weights_only:
         autoresume_default = True

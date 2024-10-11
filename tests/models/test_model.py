@@ -39,7 +39,7 @@ from transformers.models.llama.modeling_llama import LlamaRotaryEmbedding
 
 from llmfoundry import ComposerHFCausalLM
 from llmfoundry.layers_registry import norms
-from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithFSDP
+from llmfoundry.models.hf.hf_base import BaseHuggingFaceModel
 from llmfoundry.models.layers import build_alibi_bias
 from llmfoundry.models.layers.attention import (
     check_alibi_support,
@@ -2560,7 +2560,7 @@ def test_hf_init(
         False,
     )
 
-    model = HuggingFaceModelWithFSDP(model, tokenizer)
+    model = BaseHuggingFaceModel(model, tokenizer)
 
     batch = gen_random_batch(batch_size, test_cfg)
 
@@ -2609,7 +2609,7 @@ def test_head_dim_8_flash_mqa_attn(batch_size: int = 2):
 
     mpt = MPTForCausalLM(hf_config)
 
-    model = HuggingFaceModelWithFSDP(mpt, tokenizer, shift_labels=True)
+    model = BaseHuggingFaceModel(mpt, tokenizer, shift_labels=True)
 
     model = model.to(test_cfg.device)
     batch = gen_random_batch(batch_size, test_cfg)

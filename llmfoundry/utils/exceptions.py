@@ -310,7 +310,7 @@ class UnableToProcessPromptResponseError(
 
 
 ## Convert Delta to JSON exceptions
-class ClusterDoesNotExistError(NetworkError):
+class ClusterDoesNotExistError(UserError):
     """Error thrown when the cluster does not exist."""
 
     def __init__(self, cluster_id: str) -> None:
@@ -318,7 +318,7 @@ class ClusterDoesNotExistError(NetworkError):
         super().__init__(message, cluster_id=cluster_id)
 
 
-class ClusterInvalidAccessMode(NetworkError):
+class ClusterInvalidAccessMode(UserError):
     """Error thrown when the cluster does not exist."""
 
     def __init__(self, cluster_id: str, access_mode: str) -> None:
@@ -395,6 +395,14 @@ class MisconfiguredHfDatasetError(UserError):
         message = f'Your dataset (name={dataset_name}, split={split}) is misconfigured. ' + \
             'Please check your dataset format and make sure you can load your dataset locally.'
         super().__init__(message, dataset_name=dataset_name, split=split)
+
+
+class InvalidDatasetError(UserError):
+    """Error thrown when a dataset contains no valid samples for training."""
+
+    def __init__(self, reason: str) -> None:
+        message = f'Dataset contains no valid samples for training. {reason}'
+        super().__init__(message, reason=reason)
 
 
 class DatasetTooSmallError(UserError):

@@ -13,6 +13,8 @@ from composer.loggers import Logger
 from omegaconf import OmegaConf as om
 from torch.utils.data import DataLoader
 
+from llmfoundry.callbacks.curriculum_learning_callback import \
+    CurriculumLearningState
 from llmfoundry.data.text_data import StreamingTextDataset
 from llmfoundry.utils.builders import build_callback
 
@@ -237,8 +239,11 @@ def test_curriculum_learning_callback_state_dict(build_tiny_mpt: Callable,):
     callback.iteration_start(state, logger)
     callback.iteration_end(state, logger)
     assert callback.state_dict() == {
-        'schedule': kwargs['schedule'],
-        'schedule_index': 1,
+        'state':
+            CurriculumLearningState(
+                schedule=kwargs['schedule'],
+                schedule_index=1,
+            ),
     }
 
 
@@ -280,8 +285,11 @@ def test_curriculum_learning_callback_load_state_dict(
     callback.iteration_start(state, logger)
     callback.iteration_end(state, logger)
     assert callback.state_dict() == {
-        'schedule': kwargs['schedule'],
-        'schedule_index': 1,
+        'state':
+            CurriculumLearningState(
+                schedule=kwargs['schedule'],
+                schedule_index=1,
+            ),
     }
 
 

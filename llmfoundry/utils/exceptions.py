@@ -310,7 +310,7 @@ class UnableToProcessPromptResponseError(
 
 
 ## Convert Delta to JSON exceptions
-class ClusterDoesNotExistError(NetworkError):
+class ClusterDoesNotExistError(UserError):
     """Error thrown when the cluster does not exist."""
 
     def __init__(self, cluster_id: str) -> None:
@@ -318,7 +318,7 @@ class ClusterDoesNotExistError(NetworkError):
         super().__init__(message, cluster_id=cluster_id)
 
 
-class ClusterInvalidAccessMode(NetworkError):
+class ClusterInvalidAccessMode(UserError):
     """Error thrown when the cluster does not exist."""
 
     def __init__(self, cluster_id: str, access_mode: str) -> None:

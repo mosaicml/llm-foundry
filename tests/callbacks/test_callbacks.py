@@ -76,7 +76,7 @@ def get_default_kwargs(callback_class: type):
     return default_kwargs
 
 
-def skip_callback_test(callback_class: type):
+def maybe_skip_callback_test(callback_class: type):
     if hasattr(
         callback_class,
         'is_experimental',
@@ -92,10 +92,10 @@ def skip_callback_test(callback_class: type):
 
 @pytest.mark.parametrize(
     'callback_name,callback_class',
-    list(callbacks.get_all().items()),
+    callbacks.get_all().items(),
 )
 def test_build_callback(callback_name: str, callback_class: type):
-    skip_callback_test(callback_class)
+    maybe_skip_callback_test(callback_class)
     get_default_kwargs(callback_class)
     try:
         callback = build_callback(
@@ -110,16 +110,10 @@ def test_build_callback(callback_name: str, callback_class: type):
 
 @pytest.mark.parametrize(
     'callback_name,callback_class',
-    list(callbacks_with_config.get_all().items()),
+    callbacks_with_config.get_all().items(),
 )
 def test_build_callback_with_config(callback_name: str, callback_class: type):
-    if hasattr(
-        callback_class,
-        'is_experimental',
-    ) and callback_class.is_experimental:
-        pytest.skip(f'Skipping {callback_name} because it is experimental.')
-    if callback_class in skip_callbacks:
-        pytest.skip(f'Skipping {callback_name}. It should be tested elsewhere.')
+    maybe_skip_callback_test(callback_class)
     get_default_kwargs(callback_class)
     try:
         callback = build_callback(

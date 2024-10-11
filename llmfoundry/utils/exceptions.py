@@ -397,6 +397,14 @@ class MisconfiguredHfDatasetError(UserError):
         super().__init__(message, dataset_name=dataset_name, split=split)
 
 
+class InvalidDatasetError(UserError):
+    """Error thrown when a dataset contains no valid samples for training."""
+
+    def __init__(self, reason: str) -> None:
+        message = f'Dataset contains no valid samples for training. {reason}'
+        super().__init__(message, reason=reason)
+
+
 class DatasetTooSmallError(UserError):
     """Error thrown when the dataset is too small to be processed."""
 

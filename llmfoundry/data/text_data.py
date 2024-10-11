@@ -3,6 +3,7 @@
 
 """Build a StreamingTextDataset dataset and dataloader for training."""
 
+import inspect
 from itertools import islice
 from typing import (
     Any,
@@ -327,14 +328,13 @@ def build_text_dataloader(
         StreamingTextDataset,
     ).parameters
 
-    valid_base_dataset_params = inspect.signature(
-        StreamingDataset,
-    ).parameters
+    valid_base_dataset_params = inspect.signature(StreamingDataset,).parameters
 
     dataset_config_subset_for_streaming_text_dataset = {
         k: v
         for k, v in dataset_cfg.items()
-        if k in valid_streaming_text_dataset_parameters or k in valid_base_dataset_params
+        if k in valid_streaming_text_dataset_parameters or
+        k in valid_base_dataset_params
     }
 
     # build dataset potentially with streams

@@ -4,7 +4,6 @@
 import logging
 import os
 import time
-import warnings
 from typing import Any, Optional, Union
 
 import pandas as pd
@@ -63,7 +62,6 @@ def evaluate_model(
     callback_configs: Optional[dict[str, Any]],
     metadata: Optional[dict[str, str]],
     logged_config: dict[str, Any],
-    fsdp_config: Optional[dict[str, Any]] = None,
     parallelism_config: Optional[dict[str, Any]] = None,
     should_log_config: bool = True,
     load_path: Optional[str] = None,
@@ -77,18 +75,6 @@ def evaluate_model(
                 raise ValueError(
                     'parallelism_config cannot contain deprecated fsdp_config arguments.',
                 )
-
-    if fsdp_config:
-        warnings.warn(
-            VersionedDeprecationWarning(
-                'The argument fsdp_config is deprecated. Please use parallelism_config instead.',
-                remove_version='0.14.0',
-            ),
-        )
-    if fsdp_config and parallelism_config:
-        raise ValueError(
-            'Both fsdp_config and parallelism_config cannot be provided at the same time. Please use parallelism_config.',
-        )
 
     log.info(f'Evaluating model: {model_name}')
     # Build tokenizer and model

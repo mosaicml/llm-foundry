@@ -323,12 +323,26 @@ def build_text_dataloader(
         if 'streams' in dataset_cfg else None,
     )
 
+    valid_streaming_text_dataset_parameters = inspect.signature(
+        StreamingTextDataset,
+    ).parameters
+
+    valid_base_dataset_params = inspect.signature(
+        StreamingDataset,
+    ).parameters
+
+    dataset_config_subset_for_streaming_text_dataset = {
+        k: v
+        for k, v in dataset_cfg.items()
+        if k in valid_streaming_text_dataset_parameters or k in valid_base_dataset_params
+    }
+
     # build dataset potentially with streams
     text_dataset = StreamingTextDataset(
         tokenizer=tokenizer,
         streams=streams,
         batch_size=dataset_batch_size,
-        **dataset_cfg,
+        **dataset_config_subset_for_streaming_text_dataset,
     )
 
     dataloader_cfg = {

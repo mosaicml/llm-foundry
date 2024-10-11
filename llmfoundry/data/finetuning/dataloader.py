@@ -246,7 +246,6 @@ def build_finetuning_dataloader(
         },
     )
 
-
     streaming_dataset = None  # for pyright
     sampler = None
     if is_streaming:
@@ -263,8 +262,13 @@ def build_finetuning_dataloader(
         dataset_constructor_args = {
             k: v
             for k, v in dataset_cfg.items()
-            if k in allowed_dataset_config_keys and
-            k not in {'streams', 'packing_ratio'}
+            if k in allowed_dataset_config_keys and k not in {
+                'streams',
+                'packing_ratio',
+                'auto_packing_replication',
+                'seq_parallel_replication',
+                'pad_to_longest',
+            }
         }
 
         streaming_dataset = dataset_constructor.build_from_streaming(

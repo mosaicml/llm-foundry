@@ -686,7 +686,7 @@ def test_finetuning_dataloader_streaming(
         'dataset': {
             'max_seq_len': 2048,
             'decoder_only_format': True,
-            'allow_pad_trimming': False,
+            # 'allow_pad_trimming': False, # This should not be allowed by Streaming
             'packing_ratio': None,
             'shuffle': True,
         },

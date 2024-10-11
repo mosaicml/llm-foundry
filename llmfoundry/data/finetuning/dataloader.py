@@ -259,17 +259,18 @@ def build_finetuning_dataloader(
         ) if streams_cfg is not None else None
 
         # Take the constructor args from above, minus args that have been created separately
-        dataset_constructor_args = {
-            k: v
-            for k, v in dataset_cfg.items()
-            if k in allowed_dataset_config_keys and k not in {
-                'streams',
-                'packing_ratio',
-                'auto_packing_replication',
-                'seq_parallel_replication',
-                'pad_to_longest',
-            }
-        }
+        # dataset_constructor_args = {
+        #     k: v
+        #     for k, v in dataset_cfg.items()
+        #     if k in allowed_dataset_config_keys and k not in {
+        #         'streams',
+        #         'packing_ratio',
+        #         'auto_packing_replication',
+        #         'seq_parallel_replication',
+        #         'pad_to_longest',
+        #     }
+        # }
+        dataset_constructor_args = dataset_constructor_keys.union(extraneous_keys)
 
         streaming_dataset = dataset_constructor.build_from_streaming(
             tokenizer=tokenizer,

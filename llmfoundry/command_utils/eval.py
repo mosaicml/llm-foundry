@@ -112,7 +112,7 @@ def evaluate_model(
     fsdp_config = parallelism_config.get(
         'fsdp_config',
         None,
-    )
+    ) if parallelism_config else None
     if fsdp_config and model.get('load_in_8bit', False):
         raise ValueError(
             'The FSDP config block is not supported when loading ' +

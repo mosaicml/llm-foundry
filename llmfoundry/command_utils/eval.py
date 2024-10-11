@@ -253,8 +253,6 @@ def evaluate(cfg: DictConfig) -> tuple[list[Trainer], pd.DataFrame]:
     model_configs = eval_config.models
     eval_gauntlet_config = eval_config.eval_gauntlet or eval_config.eval_gauntlet_str
 
-    fsdp_config = eval_config.fsdp_config
-
     # Mandatory Evaluation Parameters
     icl_tasks = eval_config.icl_tasks or eval_config.icl_tasks_str
     if icl_tasks is None:

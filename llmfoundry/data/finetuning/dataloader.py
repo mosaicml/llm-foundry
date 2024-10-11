@@ -273,7 +273,8 @@ def build_finetuning_dataloader(
         dataset_constructor_args = {
             k: v
             for k, v in dataset_cfg.items()
-            if k in set(dataset_constructor_keys).union(extraneous_keys) and k not in {'streams', 'packing_ratio'}
+            if k in set(dataset_constructor_keys).union(extraneous_keys) and
+            k not in {'streams', 'packing_ratio'}
         }
 
         streaming_dataset = dataset_constructor.build_from_streaming(

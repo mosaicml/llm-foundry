@@ -270,7 +270,11 @@ def build_finetuning_dataloader(
         #         'pad_to_longest',
         #     }
         # }
-        dataset_constructor_args = dataset_constructor_keys.union(extraneous_keys)
+        dataset_constructor_args = {
+            k: v
+            for k, v in dataset_cfg.items()
+            if k in set(dataset_constructor_keys).union(extraneous_keys)
+        }
 
         streaming_dataset = dataset_constructor.build_from_streaming(
             tokenizer=tokenizer,

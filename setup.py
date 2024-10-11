@@ -115,7 +115,7 @@ extra_deps['peft'] = [
 
 extra_deps['openai'] = [
     'openai==1.3.8',
-    'tiktoken==0.4.0',
+    'tiktoken>=0.4,<0.8.1',
 ]
 
 extra_deps['megablocks'] = [

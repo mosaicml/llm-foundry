@@ -240,41 +240,39 @@ def download_and_convert(
     object_store = maybe_create_object_store_from_uri(input_folder)
 
     # Download file_names
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        log.info(f'Created temporary directory: {tmp_dir}')
-        downloading_iter = DownloadingIterable(
-            object_names=file_names,
-            output_folder=tmp_dir,
-            object_store=object_store,
-        )
-        log.info(f'Initializing tokenizer: {tokenizer_name}')
-        tokenizer = AutoTokenizer.from_pretrained(
-            tokenizer_name,
-            trust_remote_code=trust_remote_code,
-        )
-        tokenizer.model_max_length = 5000000000  # Hack to prevent warnings from HuggingFace
+    downloading_iter = DownloadingIterable(
+        object_names=file_names,
+        output_folder=None, # Downloads to temporary files.
+        object_store=object_store,
+    )
+    log.info(f'Initializing tokenizer: {tokenizer_name}')
+    tokenizer = AutoTokenizer.from_pretrained(
+        tokenizer_name,
+        trust_remote_code=trust_remote_code,
+    )
+    tokenizer.model_max_length = 5000000000  # Hack to prevent warnings from HuggingFace
 
-        # Use the ConcatTokensDataset from LLM-foundry to concatenate sequences of tokens up
-        # to the maximum sequence length
-        dataset = ConcatTokensFromFilesDataset(
-            files=downloading_iter,
-            max_length=concat_tokens,
-            tokenizer=tokenizer,
-            eos_text=eos_text,
-            bos_text=bos_text,
-            no_wrap=no_wrap,
-        )
+    # Use the ConcatTokensDataset from LLM-foundry to concatenate sequences of tokens up
+    # to the maximum sequence length
+    dataset = ConcatTokensFromFilesDataset(
+        files=downloading_iter,
+        max_length=concat_tokens,
+        tokenizer=tokenizer,
+        eos_text=eos_text,
+        bos_text=bos_text,
+        no_wrap=no_wrap,
+    )
 
-        columns = {'tokens': 'ndarray:int32'}
+    columns = {'tokens': 'ndarray:int32'}
 
-        log.info('Converting to MDS format...')
-        with MDSWriter(
-            out=output_folder,
-            columns=columns,
-            compression=compression,
-        ) as out:
-            for sample in tqdm(dataset):
-                out.write(sample)
+    log.info('Converting to MDS format...')
+    with MDSWriter(
+        out=output_folder,
+        columns=columns,
+        compression=compression,
+    ) as out:
+        for sample in tqdm(dataset):
+            out.write(sample)
 
     log.info(f'Completed download and conversion for {len(file_names)} files')
 

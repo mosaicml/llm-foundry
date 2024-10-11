@@ -614,6 +614,7 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
                     ]
                     raise FinetuningFileNotFoundError(
                         files_searched=files_searched,
+                        supported_extensions=SUPPORTED_EXTENSIONS,
                     ) from e
                 else:
                     log.debug(

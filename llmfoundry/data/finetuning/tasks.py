@@ -77,6 +77,7 @@ from llmfoundry.utils.exceptions import (
     IncorrectMessageKeyQuantityError,
     InvalidContentTypeError,
     InvalidConversationError,
+    InvalidDatasetError,
     InvalidExampleTypeError,
     InvalidFileExtensionError,
     InvalidLastChatMessageRoleError,
@@ -992,6 +993,12 @@ class DatasetConstructor:
                     f'Dropped {examples_removed} examples where the prompt was longer than {max_seq_len}, '
                     +
                     'the prompt or response was empty, or the response was all padding tokens.',
+                )
+            if len(filtered_dataset) == 0:
+                raise InvalidDatasetError(
+                    f'No valid examples found after filtering out prompts longer than {max_seq_len}, '
+                    +
+                    'examples with empty prompts or responses, and examples with responses that are all padding tokens.',
                 )
         except Exception as e:
             error = e

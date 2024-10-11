@@ -97,13 +97,12 @@ def maybe_skip_callback_test(callback_class: type):
 def test_build_callback(callback_name: str, callback_class: type):
     maybe_skip_callback_test(callback_class)
     get_default_kwargs(callback_class)
-    try:
-        callback = build_callback(
-            callback_name,
-            kwargs=get_default_kwargs(callback_class),
-        )
-    except ImportError:
-        pytest.skip(f'Skipping {callback_name} because of missing import.')
+
+    callback = build_callback(
+        callback_name,
+        kwargs=get_default_kwargs(callback_class),
+    )
+
     assert isinstance(callback, callback_class)
     assert isinstance(callback, Callback)
 
@@ -115,16 +114,15 @@ def test_build_callback(callback_name: str, callback_class: type):
 def test_build_callback_with_config(callback_name: str, callback_class: type):
     maybe_skip_callback_test(callback_class)
     get_default_kwargs(callback_class)
-    try:
-        callback = build_callback(
-            callback_name,
-            kwargs=get_default_kwargs(callback_class),
-            train_config={
-                'save_folder': 'test',
-                'save_interval': '1ba',
-            },
-        )
-    except ImportError:
-        pytest.skip(f'Skipping {callback_name} because of missing import.')
+
+    callback = build_callback(
+        callback_name,
+        kwargs=get_default_kwargs(callback_class),
+        train_config={
+            'save_folder': 'test',
+            'save_interval': '1ba',
+        },
+    )
+
     assert isinstance(callback, callback_class)
     assert isinstance(callback, CallbackWithConfig)

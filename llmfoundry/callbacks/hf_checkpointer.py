@@ -138,6 +138,7 @@ def _register_model_with_run_id_multiprocess(
 def _log_model_multiprocess(
     mlflow_logger: MLFlowLogger,
     composer_logging_level: int,
+    transformers_model_path: str,
     flavor: str,
     input_example: dict[str, Any],
     log_model_metadata: dict[str, str],
@@ -160,6 +161,7 @@ def _log_model_multiprocess(
     - await_creation_for: int: time to wait for model creation
     - registered_model_name: Optional
     """
+    print("----------------- REACHED MLFLOW LOG MODEL -----------------")
     # Setup logging for child process. This ensures that any logs from composer are surfaced.
     if composer_logging_level > 0:
         # If logging_level is 0, then the composer logger was unset.
@@ -168,36 +170,10 @@ def _log_model_multiprocess(
             f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s',
         )
         logging.getLogger('composer').setLevel(composer_logging_level)
-    
-    # monkey patch to prevent duplicate tokenizer upload
-    import mlflow
-    original_save_model = mlflow.transformers.save_model
-    def save_model_patch(*args, **kwargs):
-        original_save_model(*args, **kwargs)
-        print(f"List of root path: {os.listdir(kwargs['path'])}")
-        components_path = os.path.join(kwargs['path'], 'components')
-        if os.path.exists(components_path):
-            print(f"List of components path: {components_path}: {os.listdir(components_path)}")
-        tokenizer_path = os.path.join(kwargs['path'], 'components', 'tokenizer')
-        if os.path.exists(tokenizer_path):
-            tokenizer_files = os.listdir(os.path.join(kwargs['path'], 'components', 'tokenizer'))
-            print(f"Tokenizer files: {tokenizer_files}")
-        try:
-            print(f"List of model/model/ files: {os.listdir(os.path.join(kwargs['path'], 'model'))}")
-        except Exception as e:
-            print(f"exception", e)
-        # TODO: what do we do here in code??
-        for tokenizer_file_name in tokenizer_files:
-            try:
-            dupe_file = os.path.isfile(os.path.join(kwargs['path'], 'model', tokenizer_file_name))
-            if dupe_file:
-                os.remove(os.path.join(kwargs['path'], 'model', tokenizer_file_name))
-            except Exception as e:
-            print(f"exception", e)
-    mlflow.transformers.save_model = save_model_patch
 
     if registered_model_name is not None:
         mlflow_logger.log_model(
+            transformers_model=transformers_model_path,
             flavor=flavor,
             artifact_path='model', # TODO: where should we define this parent dir name?
             input_example=input_example,
@@ -208,6 +184,7 @@ def _log_model_multiprocess(
         )
     else:
          mlflow_logger.log_model(
+            transformers_model=transformers_model_path,
             flavor=flavor,
             artifact_path='model', # TODO: where should we define this parent dir name?
             input_example=input_example,
@@ -724,13 +701,34 @@ class HuggingFaceCheckpointer(Callback):
                         self.flatten_imports,
                     )
 
-                # TODO: Log the model without registering
+                if self.remote_ud is not None:
+                    for filename in os.listdir(temp_save_dir):
+                        remote_file_name = os.path.join(save_dir, filename)
+                        remote_file_uri = self.remote_ud.remote_backend.get_uri(
+                            remote_file_name,
+                        )
+                        log.info(
+                            f'Uploading HuggingFace formatted checkpoint to {remote_file_uri}',
+                        )
+                        self.remote_ud.upload_file(
+                            state=state,
+                            remote_file_name=remote_file_name,
+                            file_path=Path(
+                                os.path.join(temp_save_dir, filename),
+                            ),
+                            overwrite=self.overwrite,
+                        )
+
+                # Log intermediate checkpoints to MLflow, but don't register the model
+                # TODO: is this the right place to place this code?
                 for i, mlflow_logger in enumerate(self.mlflow_loggers):
                     process = SpawnProcess(
                             target=_log_model_multiprocess,
                             kwargs={
                                 'mlflow_logger':
                                     mlflow_logger,
+                                'transformers_model_path':
+                                    temp_save_dir,
                                 'flavor':
                                     'peft' if self.using_peft else 'transformers',
                                 'composer_logging_level':
@@ -820,17 +818,15 @@ class HuggingFaceCheckpointer(Callback):
                         monitor_process = None
 
                     # Spawn a new process to register the model.
-                    # TODO: how do we fix intermediate checkpointing logic to use this too but not register
-                    # the model with that param
-                    # TODO: pass in model correctly
                     # Slower method to register the model via log_model.
                     if self.use_mlflow_log_model:
-                        print("----------------- REACHED MLFLOW LOG MODEL -----------------")
                         process = SpawnProcess(
                             target=_log_model_multiprocess,
                             kwargs={
                                 'mlflow_logger':
                                     mlflow_logger,
+                                'transformers_model_path':
+                                    local_save_path,
                                 'flavor':
                                     'peft' if self.using_peft else 'transformers',
                                 'composer_logging_level':

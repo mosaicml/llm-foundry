@@ -38,6 +38,8 @@ from llmfoundry.callbacks.resumption_callbacks import (
 )
 from llmfoundry.callbacks.run_timeout_callback import RunTimeoutCallback
 from llmfoundry.callbacks.scheduled_gc_callback import ScheduledGarbageCollector
+from llmfoundry.callbacks.sliding_window_size_scheduler_callback import \
+    SlidingWindowSizeScheduler
 from llmfoundry.registry import callbacks, callbacks_with_config
 
 callbacks.register('system_metrics_monitor', func=SystemMetricsMonitor)
@@ -63,6 +65,10 @@ callbacks.register('loss_perp_v_len', func=LossPerpVsContextLengthLogger)
 callbacks.register('env_logging', func=EnvironmentLoggingCallback)
 callbacks.register('nan_monitor', func=NaNMonitor)
 callbacks.register('kill_loss_spike', func=KillLossSpike)
+callbacks.register(
+    'sliding_window_size_scheduler',
+    func=SlidingWindowSizeScheduler,
+)
 
 callbacks_with_config.register('async_eval', func=AsyncEval)
 callbacks_with_config.register('curriculum_learning', func=CurriculumLearning)
@@ -81,4 +87,5 @@ __all__ = [
     'CurriculumLearning',
     'LossPerpVsContextLengthLogger',
     'KillLossSpike',
+    'SlidingWindowSizeScheduler',
 ]

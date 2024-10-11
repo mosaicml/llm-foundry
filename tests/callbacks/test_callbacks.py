@@ -28,12 +28,12 @@ def get_default_value(
     tpe: type,
     inspected_param: typing.Optional[inspect.Parameter],
 ):
-    if typing.get_origin(tpe) == typing.Union:
+    if typing.get_origin(tpe) is typing.Union:
         args = typing.get_args(tpe)
         return get_default_value(param, args[0], None)
-    elif typing.get_origin(tpe) == list or typing.get_origin(tpe) == list:
+    elif typing.get_origin(tpe) is list or typing.get_origin(tpe) is list:
         return []
-    elif typing.get_origin(tpe) == dict or typing.get_origin(tpe) == dict:
+    elif typing.get_origin(tpe) is dict or typing.get_origin(tpe) is dict:
         return {}
     elif tpe is int:
         return 0
@@ -47,9 +47,9 @@ def get_default_value(
         return {}
     elif tpe is list:
         return []
-    elif inspected_param is not None and tpe == typing.Any and inspected_param.kind == inspect.Parameter.VAR_KEYWORD:
+    elif inspected_param is not None and tpe is typing.Any and inspected_param.kind is inspect.Parameter.VAR_KEYWORD:
         return None
-    elif inspected_param is not None and tpe == typing.Any and inspected_param.kind == inspect.Parameter.VAR_POSITIONAL:
+    elif inspected_param is not None and tpe is typing.Any and inspected_param.kind is inspect.Parameter.VAR_POSITIONAL:
         return None
     else:
         raise ValueError(f'Unsupported type: {tpe} for parameter {param}')

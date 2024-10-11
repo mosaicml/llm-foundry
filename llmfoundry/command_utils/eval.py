@@ -36,7 +36,6 @@ from llmfoundry.utils.config_utils import (
     process_init_device,
 )
 from llmfoundry.utils.registry_utils import import_file
-from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
 log = logging.getLogger(__name__)
 
@@ -113,7 +112,7 @@ def evaluate_model(
     fsdp_config = parallelism_config.get(
         'fsdp_config',
         None,
-    ) if parallelism_config else fsdp_config
+    )
     if fsdp_config and model.get('load_in_8bit', False):
         raise ValueError(
             'The FSDP config block is not supported when loading ' +

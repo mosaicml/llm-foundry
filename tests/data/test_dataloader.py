@@ -437,7 +437,7 @@ def test_finetuning_dataloader_safe_load(
         'dataset': {
             'hf_name': hf_name,
             'split': 'train',
-            'max_seq_len': 8,
+            'max_seq_len': 100,
             'decoder_only_format': True,
             'shuffle': True,
             'safe_load': True,

@@ -20,8 +20,10 @@ from packaging import version
 
 from llmfoundry.utils.exceptions import (
     ClusterDoesNotExistError,
+    ClusterInvalidAccessMode,
     FailedToConnectToDatabricksError,
     FailedToCreateSQLConnectionError,
+    FaultyDataPrepCluster,
     InsufficientPermissionsError,
 )
 
@@ -448,69 +450,66 @@ def fetch(
     """
     cursor = dbsql.cursor() if dbsql is not None else None
     try:
-        nrows = get_total_rows(
-            tablename,
-            method,
-            cursor,
-            sparkSession,
-        )
-    except Exception as e:
-        from pyspark.errors import AnalysisException
-        if isinstance(e, AnalysisException):
-            if 'INSUFFICIENT_PERMISSIONS' in e.message:  # pyright: ignore
-                raise InsufficientPermissionsError(
-                    action=f'reading from {tablename}',
-                ) from e
-        raise RuntimeError(
-            f'Error in get rows from {tablename}. Restart sparkSession and try again',
-        ) from e
+        # Get total rows
+        nrows = get_total_rows(tablename, method, cursor, sparkSession)
 
-    try:
+        # Get columns info
         columns, order_by, columns_str = get_columns_info(
             tablename,
             method,
             cursor,
             sparkSession,
         )
+
+        if method == 'dbconnect' and sparkSession is not None:
+            log.info(f'{processes=}')
+            df = sparkSession.table(tablename)
+
+            # Running the query and collecting the data as arrow or json.
+            signed, _, _ = df.collect_cf('arrow')  # pyright: ignore
+            log.info(f'len(signed) = {len(signed)}')
+
+            args = get_args(signed, json_output_folder, columns)
+
+            # Stopping the SparkSession to avoid spilling connection state into the subprocesses.
+            sparkSession.stop()
+
+            with ProcessPoolExecutor(max_workers=processes) as executor:
+                list(executor.map(download_starargs, args))
+
+        elif method == 'dbsql' and cursor is not None:
+            for start in range(0, nrows, batch_size):
+                log.warning(f'batch {start}')
+                end = min(start + batch_size, nrows)
+                fetch_data(
+                    method,
+                    cursor,
+                    sparkSession,
+                    start,
+                    end,
+                    order_by,
+                    tablename,
+                    columns_str,
+                    json_output_folder,
+                )
+
     except Exception as e:
-        raise RuntimeError(
-            f'Error in get columns from {tablename}. Restart sparkSession and try again',
-        ) from e
+        from databricks.sql.exc import ServerOperationError
+        from pyspark.errors import AnalysisException
 
-    if method == 'dbconnect' and sparkSession is not None:
-        log.info(f'{processes=}')
-        df = sparkSession.table(tablename)
+        if isinstance(e, (AnalysisException, ServerOperationError)):
+            if 'INSUFFICIENT_PERMISSIONS' in str(e):
+                raise InsufficientPermissionsError(str(e)) from e
 
-        # Running the query and collecting the data as arrow or json.
-        signed, _, _ = df.collect_cf('arrow')  # pyright: ignore
-        log.info(f'len(signed) = {len(signed)}')
+        if isinstance(e, InsufficientPermissionsError):
+            raise
 
-        args = get_args(signed, json_output_folder, columns)
+        # For any other exception, raise a general error
+        raise RuntimeError(f'Error processing {tablename}: {str(e)}') from e
 
-        # Stopping the SparkSession to avoid spilling connection state into the subprocesses.
-        sparkSession.stop()
-
-        with ProcessPoolExecutor(max_workers=processes) as executor:
-            list(executor.map(download_starargs, args))
-
-    elif method == 'dbsql' and cursor is not None:
-        for start in range(0, nrows, batch_size):
-            log.warning(f'batch {start}')
-            end = min(start + batch_size, nrows)
-            fetch_data(
-                method,
-                cursor,
-                sparkSession,
-                start,
-                end,
-                order_by,
-                tablename,
-                columns_str,
-                json_output_folder,
-            )
-
-    if cursor is not None:
-        cursor.close()
+    finally:
+        if cursor is not None:
+            cursor.close()
 
 
 def validate_and_get_cluster_info(
@@ -545,6 +544,17 @@ def validate_and_get_cluster_info(
         res = w.clusters.get(cluster_id=cluster_id)
         if res is None:
             raise ClusterDoesNotExistError(cluster_id)
+
+        data_security_mode = str(
+            res.data_security_mode,
+        ).upper()[len('DATASECURITYMODE.'):]
+
+        # NONE stands for No Isolation Shared
+        if data_security_mode == 'NONE':
+            raise ClusterInvalidAccessMode(
+                cluster_id=cluster_id,
+                access_mode=data_security_mode,
+            )
 
         assert res.spark_version is not None
         stripped_runtime = re.sub(
@@ -651,16 +661,26 @@ def fetch_DT(
     )
 
     formatted_delta_table_name = format_tablename(delta_table_name)
-
-    fetch(
-        method,
-        formatted_delta_table_name,
-        json_output_folder,
-        batch_size,
-        processes,
-        sparkSession,
-        dbsql,
-    )
+    import grpc
+    try:
+        fetch(
+            method,
+            formatted_delta_table_name,
+            json_output_folder,
+            batch_size,
+            processes,
+            sparkSession,
+            dbsql,
+        )
+    except grpc.RpcError as e:
+        if e.code(
+        ) == grpc.StatusCode.INTERNAL and 'Job aborted due to stage failure' in e.details(
+        ):
+            raise FaultyDataPrepCluster(
+                message=
+                f'Faulty data prep cluster, please try swapping data prep cluster: {e.details()}',
+            ) from e
+        raise e
 
     if dbsql is not None:
         dbsql.close()

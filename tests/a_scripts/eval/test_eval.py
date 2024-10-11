@@ -121,7 +121,7 @@ def test_loader_eval(
 
     # Set up multiple eval dataloaders
     first_eval_loader = test_cfg.eval_loader
-    first_eval_loader.label = 'c4'
+    first_eval_loader.label = 'allenai/c4'
     # Create second eval dataloader using the arxiv dataset.
     second_eval_loader = copy.deepcopy(first_eval_loader)
     second_eval_loader.label = 'arxiv'
@@ -157,16 +157,17 @@ def test_loader_eval(
     print(inmemorylogger.data.keys())
 
     # Checks for first eval dataloader
-    assert 'metrics/eval/c4/LanguageCrossEntropy' in inmemorylogger.data.keys()
+    assert 'metrics/eval/allenai/c4/LanguageCrossEntropy' in inmemorylogger.data.keys(
+    )
     assert isinstance(
-        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'],
+        inmemorylogger.data['metrics/eval/allenai/c4/LanguageCrossEntropy'],
         list,
     )
     assert len(
-        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1],
+        inmemorylogger.data['metrics/eval/allenai/c4/LanguageCrossEntropy'][-1],
     ) > 0
     assert isinstance(
-        inmemorylogger.data['metrics/eval/c4/LanguageCrossEntropy'][-1],
+        inmemorylogger.data['metrics/eval/allenai/c4/LanguageCrossEntropy'][-1],
         tuple,
     )
 

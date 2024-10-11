@@ -318,6 +318,19 @@ class ClusterDoesNotExistError(NetworkError):
         super().__init__(message, cluster_id=cluster_id)
 
 
+class ClusterInvalidAccessMode(NetworkError):
+    """Error thrown when the cluster does not exist."""
+
+    def __init__(self, cluster_id: str, access_mode: str) -> None:
+        message = f'Cluster with id {cluster_id} has access mode {access_mode}. ' + \
+        'please make sure the cluster used has access mode Shared or Single User!'
+        super().__init__(
+            message,
+            cluster_id=cluster_id,
+            access_mode=access_mode,
+        )
+
+
 class FailedToCreateSQLConnectionError(
     NetworkError,
 ):
@@ -384,6 +397,14 @@ class MisconfiguredHfDatasetError(UserError):
         super().__init__(message, dataset_name=dataset_name, split=split)
 
 
+class InvalidDatasetError(UserError):
+    """Error thrown when a dataset contains no valid samples for training."""
+
+    def __init__(self, reason: str) -> None:
+        message = f'Dataset contains no valid samples for training. {reason}'
+        super().__init__(message, reason=reason)
+
+
 class DatasetTooSmallError(UserError):
     """Error thrown when the dataset is too small to be processed."""
 
@@ -443,6 +464,63 @@ class HighLossError(UserError):
 class InsufficientPermissionsError(UserError):
     """Error thrown when the user does not have sufficient permissions."""
 
-    def __init__(self, action: str) -> None:
-        message = f'Insufficient permissions when {action}. Please check your permissions.'
-        super().__init__(message, action=action)
+    def __init__(self, message: str) -> None:
+        self.message = message
+        super().__init__(message)
+
+    def __reduce__(self):
+        # Return a tuple of class, a tuple of arguments, and optionally state
+        return (InsufficientPermissionsError, (self.message,))
+
+    def __str__(self):
+        return self.message
+
+
+class FaultyDataPrepCluster(UserError):
+    """Error thrown when the user uses faulty data prep cluster."""
+
+    def __init__(self, message: str) -> None:
+        self.message = message
+        super().__init__(message)
+
+    def __reduce__(self):
+        # Return a tuple of class, a tuple of arguments, and optionally state
+        return (FaultyDataPrepCluster, (self.message,))
+
+    def __str__(self):
+        return self.message
+
+
+class FinetuningFileNotFoundError(UserError):
+    """Error thrown when a file can't be found with any supported extension."""
+
+    def __init__(
+        self,
+        files_searched: list[str],
+        supported_extensions: list[str],
+    ) -> None:
+        message = (
+            f'Could not find a file with any of ' + \
+            f'the supported extensions: {supported_extensions}\n' + \
+            f'at {files_searched}'
+        )
+        super().__init__(
+            message,
+            files_searched=files_searched,
+            supported_extensions=supported_extensions,
+        )
+
+
+class InvalidConversationError(UserError):
+    """Error thrown when the conversation is invalid."""
+
+    def __init__(self, message: str) -> None:
+        self.message = message
+        super().__init__(message)
+
+    def __reduce__(self):
+        # Return a tuple of class, a tuple of arguments, and optionally state
+        return (InvalidConversationError, (self.message,))
+
+    def __str__(self):
+        return self.message

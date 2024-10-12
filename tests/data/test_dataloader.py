@@ -686,6 +686,7 @@ def test_finetuning_dataloader_streaming(
         'dataset': {
             'max_seq_len': 2048,
             'decoder_only_format': True,
+            'allow_pad_trimming': False,
             'packing_ratio': None,
             'shuffle': True,
         },

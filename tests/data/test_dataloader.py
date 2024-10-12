@@ -1580,4 +1580,3 @@ def test_text_dataloader_with_extra_keys():
                 tokenizer=tokenizer,
                 device_batch_size=device_batch_size,
             ).dataloader
-

@@ -65,14 +65,14 @@ callbacks.register('loss_perp_v_len', func=LossPerpVsContextLengthLogger)
 callbacks.register('env_logging', func=EnvironmentLoggingCallback)
 callbacks.register('nan_monitor', func=NaNMonitor)
 callbacks.register('kill_loss_spike', func=KillLossSpike)
-callbacks.register(
-    'sliding_window_size_warmer_upper',
-    func=SlidingWindowSizeWarmerUpper,
-)
 
 callbacks_with_config.register('async_eval', func=AsyncEval)
 callbacks_with_config.register('curriculum_learning', func=CurriculumLearning)
 callbacks_with_config.register('dataset_swap', func=DatasetSwap)
+callbacks_with_config.register(
+    'sliding_window_size_warmer_upper',
+    func=SlidingWindowSizeWarmerUpper,
+)
 
 __all__ = [
     'FDiffMetrics',

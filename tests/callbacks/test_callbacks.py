@@ -62,7 +62,6 @@ def get_default_kwargs(callback_class: type):
     default_kwargs = {}
 
     for param, tpe in type_hints.items():
-        print(param, tpe)
         if param == 'self' or param == 'return' or param == 'train_config':
             continue
         if inspected_params[param].default == inspect.Parameter.empty:

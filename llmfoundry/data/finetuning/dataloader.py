@@ -198,7 +198,8 @@ def build_finetuning_dataloader(
     allowed_dataset_config_keys = set(
         dataset_constructor_keys,
     ).union(_ALLOWED_DATASET_KEYS)
-    _validate_config(
+
+    extraneous_keys = _validate_config(
         **dataset_cfg,
         allowed_dataset_keys=allowed_dataset_config_keys,
     )
@@ -253,13 +254,13 @@ def build_finetuning_dataloader(
             streams_cfg,
         ) if streams_cfg is not None else None
 
-        # Take the constructor args from above, minus args that have been created separately
         dataset_constructor_args = {
             k: v
             for k, v in dataset_cfg.items()
-            if k in dataset_constructor_keys and
+            if k in set(dataset_constructor_keys).union(extraneous_keys) and
             k not in {'streams', 'packing_ratio'}
         }
+
         streaming_dataset = dataset_constructor.build_from_streaming(
             tokenizer=tokenizer,
             streams=streams,
@@ -378,7 +379,7 @@ def _validate_config(
     target_responses: Optional[str] = None,
     allowed_dataset_keys: set[str] = _ALLOWED_DATASET_KEYS,
     **kwargs: dict[str, Any],
-) -> None:
+) -> set[str]:
     """Validates the dataset configuration.
 
     Makes sure that the dataset is properly configured for either
@@ -434,11 +435,16 @@ def _validate_config(
 
     Raises:
         ValueError: If the dataset configuration does not meet the requirements.
+
+    Returns:
+        set[str]: Return the extraneous keys.
     """
+    extraneous_keys = set()
     if not set(kwargs.keys()).issubset(allowed_dataset_keys):
-        raise ValueError(
+        extraneous_keys = set(kwargs.keys()) - allowed_dataset_keys
+        log.warning(
             'The dataset config contains the following extraneous keys: ' +\
-            ', '.join(set(kwargs.keys()) - allowed_dataset_keys),
+            ', '.join(extraneous_keys),
         )
 
     if hf_name is not None:
@@ -532,6 +538,8 @@ def _validate_config(
         target_responses,
         decoder_only_format,
     )
+
+    return extraneous_keys
 
 
 def _download_remote_hf_dataset(remote_path: str, split: str) -> str:

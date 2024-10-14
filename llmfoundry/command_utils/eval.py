@@ -160,7 +160,7 @@ def evaluate_model(
         callbacks=callbacks,
         loggers=loggers,
         precision=precision,
-        parallelism_config={'fsdp': fsdp_config},
+        parallelism_config=parallelism_config,
         load_path=load_path,
         load_weights_only=True,
         progress_bar=False,

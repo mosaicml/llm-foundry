@@ -330,6 +330,7 @@ def evaluate(cfg: DictConfig) -> tuple[list[Trainer], pd.DataFrame]:
              eval_loader_config=eval_loader_config,
              loggers=loggers,
              python_log_level=eval_config.python_log_level,
+             parallelism_config={'fsdp': eval_config.fsdp_config},
              precision=eval_config.precision,
              eval_gauntlet_df=eval_gauntlet_df,
              callback_configs=eval_config.callbacks,

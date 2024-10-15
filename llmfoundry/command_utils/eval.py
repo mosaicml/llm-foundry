@@ -125,7 +125,7 @@ def evaluate_model(
             mosaicml_logger._flush_metadata(force_flush=True)
 
     fsdp_config = parallelism_config.get(
-        'fsdp_config',
+        'fsdp',
         None,
     ) if parallelism_config else fsdp_config
     if fsdp_config and model.get('load_in_8bit', False):

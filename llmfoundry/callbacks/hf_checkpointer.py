@@ -107,34 +107,6 @@ def _maybe_get_license_filename(
         return None
 
 
-def _register_model_with_run_id_multiprocess(
-    mlflow_logger: MLFlowLogger,
-    composer_logging_level: int,
-    model_uri: str,
-    name: str,
-    await_creation_for: int,
-):
-    """Call MLFlowLogger.register_model.
-
-    Used mainly to register from a child process.
-    """
-    # Setup logging for child process. This ensures that any logs from composer are surfaced.
-    if composer_logging_level > 0:
-        # If logging_level is 0, then the composer logger was unset.
-        logging.basicConfig(
-            format=
-            f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s',
-        )
-        logging.getLogger('composer').setLevel(composer_logging_level)
-
-    # Register model.
-    mlflow_logger.register_model_with_run_id(
-        model_uri=model_uri,
-        name=name,
-        await_creation_for=await_creation_for,
-    )
-
-
 def _log_model_multiprocess(
     mlflow_logger: MLFlowLogger,
     composer_logging_level: int,
@@ -230,7 +202,7 @@ class HuggingFaceCheckpointer(Callback):
 
     def __init__(
         self,
-        save_folder: str,
+        save_folder: Optional[str],
         save_interval: Union[str, int, Time],
         huggingface_folder_name: str = 'ba{batch}',
         precision: str = 'float32',
@@ -261,7 +233,6 @@ class HuggingFaceCheckpointer(Callback):
                 +
                 f'Defaulting to final_register_only=False and saving the HuggingFace checkpoint to {save_folder=}.',
             )
-        self.use_mlflow_log_model = False
 
         # mlflow config setup
         if mlflow_logging_config is None:
@@ -292,8 +263,6 @@ class HuggingFaceCheckpointer(Callback):
                 'input_example',
                 default_input_example,
             )
-        if mlflow_logging_config['use_mlflow_log_model']:
-            self.use_mlflow_log_model = True
 
         self.mlflow_logging_config = mlflow_logging_config
         if 'metadata' in self.mlflow_logging_config:
@@ -719,32 +688,6 @@ class HuggingFaceCheckpointer(Callback):
                             ),
                             overwrite=self.overwrite,
                         )
-
-                # Log intermediate checkpoints to MLflow, but don't register the model
-                # TODO: is this the right place to place this code?
-                for i, mlflow_logger in enumerate(self.mlflow_loggers):
-                    process = SpawnProcess(
-                            target=_log_model_multiprocess,
-                            kwargs={
-                                'mlflow_logger':
-                                    mlflow_logger,
-                                'transformers_model_path':
-                                    temp_save_dir,
-                                'flavor':
-                                    'peft' if self.using_peft else 'transformers',
-                                'composer_logging_level':
-                                    logging.getLogger('composer').level,
-                                'task':
-                                    self.mlflow_logging_config['metadata']['task'],
-                                'log_model_metadata': self.mlflow_logging_config['metadata'],
-                                'model_name':
-                                    self.pretrained_model_name,
-                                'input_example':
-                                    self.mlflow_logging_config['input_example'],
-                                'await_creation_for':
-                                    3600,
-                            },
-                        )
                     process.start()
 
         dist.barrier()
@@ -820,32 +763,31 @@ class HuggingFaceCheckpointer(Callback):
 
                     # Spawn a new process to register the model.
                     # Slower method to register the model via log_model.
-                    if self.use_mlflow_log_model:
-                        process = SpawnProcess(
-                            target=_log_model_multiprocess,
-                            kwargs={
-                                'mlflow_logger':
-                                    mlflow_logger,
-                                'transformers_model_path':
-                                    local_save_path,
-                                'flavor':
-                                    'peft' if self.using_peft else 'transformers',
-                                'composer_logging_level':
-                                    logging.getLogger('composer').level,
-                                'task':
-                                    self.mlflow_logging_config['metadata']['task'],
-                                'log_model_metadata': self.mlflow_logging_config['metadata'],
-                                'registered_model_name':
-                                    self.mlflow_registered_model_name,
-                                'model_name':
-                                    self.pretrained_model_name,
-                                'input_example':
-                                    self.mlflow_logging_config['input_example'],
-                                'await_creation_for':
-                                    3600,
-                            },
-                        )
-                        process.start()
+                    process = SpawnProcess(
+                        target=_log_model_multiprocess,
+                        kwargs={
+                            'mlflow_logger':
+                                mlflow_logger,
+                            'transformers_model_path':
+                                local_save_path,
+                            'flavor':
+                                'peft' if self.using_peft else 'transformers',
+                            'composer_logging_level':
+                                logging.getLogger('composer').level,
+                            'task':
+                                self.mlflow_logging_config['metadata']['task'],
+                            'log_model_metadata': self.mlflow_logging_config['metadata'],
+                            'registered_model_name':
+                                self.mlflow_registered_model_name,
+                            'model_name':
+                                self.pretrained_model_name,
+                            'input_example':
+                                self.mlflow_logging_config['input_example'],
+                            'await_creation_for':
+                                3600,
+                        },
+                    )
+                    process.start()
 
                     # Restore the monitor process.
                     if monitor_process is not None:

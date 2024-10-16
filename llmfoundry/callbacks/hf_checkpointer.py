@@ -709,17 +709,24 @@ class HuggingFaceCheckpointer(Callback):
                         ]
                         try:
                             from transformers.pipelines.base import check_tasks
+
+                            #from transformers import pipeline
                             current_task = new_model_instance.config.task
-                            log.info(f'Current task for model is: {current_task}')
+                            log.info(
+                                f'Current task for model is: {current_task}'
+                            )
                             check_tasks(task=current_task)
-                        
+
                         except KeyError as e:
                             if 'Unknown task' in str(e):
-                                log.warning(f'Current task is not supported by transformers: {e}, make sure task is a supported llm inference task.')
-                                new_model_instance.config.task = None
+                                log.warning(
+                                    f'Current task is not supported by transformers: {e}, make sure task is a supported llm inference task.'
+                                )
+                                print(f'----Debug: {new_model_instance.config}')
+                                if hasattr(new_model_instance.config, 'task'):
+                                    delattr(new_model_instance.config, 'task')
                             else:
                                 log.error(f'Error in checking task: {e}')
-
 
                         mlflow_logger.save_model(**model_saving_kwargs)
 

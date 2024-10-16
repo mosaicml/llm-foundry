@@ -83,7 +83,7 @@ def get_data_spec(
 
 def get_tokens_per_batch_func(
     decoder_only: bool = True,
-) -> Callable[[Batch], int]:
+) -> Callable[[Batch], Union[int, dict[str, int]]]:
     """Returns a callable that counts the number of tokens in a batch.
 
     Args:
@@ -114,6 +114,10 @@ def get_tokens_per_batch_func(
         else:
             input_ids_tokens = batch['input_ids'].numel()
 
+        loss_generating_tokens = 0
+        if 'labels' in batch:
+            loss_generating_tokens = int(torch.sum(batch['labels'] != -100).item())
+
         # For encoder decoder models only
         decoder_input_ids_tokens = 0
         if not decoder_only:
@@ -121,6 +125,8 @@ def get_tokens_per_batch_func(
                 torch.sum(batch['decoder_attention_mask']).item(),
             )
 
+        if loss_generating_tokens != 0:
+            return {'total': input_ids_tokens + decoder_input_ids_tokens, 'loss_generating': loss_generating_tokens}
         return input_ids_tokens + decoder_input_ids_tokens
 
     return get_num_tokens_in_batch

@@ -718,6 +718,9 @@ class HuggingFaceCheckpointer(Callback):
                         print(
                             f'----model instance config: {new_model_instance.config}'
                         )
+                        print(
+                            '----model_saving_kwargs: ', model_saving_kwargs,
+                        )
                         if hasattr(
                             new_model_instance.config, 'task'
                         ) and new_model_instance.config.task not in supported_transformer_tasks:

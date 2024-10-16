@@ -592,6 +592,8 @@ def train(cfg: DictConfig) -> Trainer:
         profiler=profiler,
         compile_config=compile_config,
         spin_dataloaders=train_cfg.spin_dataloaders,
+        accumulate_train_batch_on_tokens=train_cfg.
+        accumulate_train_batch_on_tokens,
     )
 
     _sort_callbacks(trainer)

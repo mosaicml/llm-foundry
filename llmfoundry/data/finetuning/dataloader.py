@@ -594,7 +594,8 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
             except FileNotFoundError as e:
                 if extension == SUPPORTED_EXTENSIONS[-1]:
                     files_searched = [
-                        f'{name}/{split}{ext}' for ext in SUPPORTED_EXTENSIONS
+                        f'{name[:-len(extension)]}{ext}'
+                        for ext in SUPPORTED_EXTENSIONS
                     ]
                     raise FinetuningFileNotFoundError(
                         files_searched=files_searched,
@@ -793,12 +794,12 @@ if __name__ == '__main__':
                         print(
                             '\033[91m{}\033[00m\n'.format('TARGET:   '),
                             tokenizer.decode(
-                                batch['input_ids'][
-                                    j,
-                                    torch.logical_and(
-                                        is_subseq,
-                                        batch['labels'][j] != _HF_IGNORE_INDEX,
-                                    )],
+                                batch['input_ids'][j,
+                                                   torch.logical_and(
+                                                       is_subseq,
+                                                       batch['labels'][j] !=
+                                                       _HF_IGNORE_INDEX,
+                                                   )],
                                 skip_special_tokens=False,
                                 clean_up_tokenization_spaces=True,
                             ),
@@ -828,8 +829,8 @@ if __name__ == '__main__':
                     print(
                         '\033[91m{}\033[00m\n'.format('TARGET:   '),
                         tokenizer.decode(
-                            batch['input_ids'][
-                                j, batch['labels'][j] != _HF_IGNORE_INDEX],
+                            batch['input_ids'][j, batch['labels'][j] !=
+                                               _HF_IGNORE_INDEX],
                             skip_special_tokens=False,
                             clean_up_tokenization_spaces=True,
                         ),

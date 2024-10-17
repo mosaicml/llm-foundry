@@ -186,6 +186,7 @@ def convert_dataset_json_from_args(
         ValueError: If the out_root directory exists and contains files that overlap with the requested splits
         ValueError: If concat_tokens is set and a tokenizer is not provided
     """
+    os.environ['WORLD_SIZE'] = '1'
     if os.path.isdir(out_root) and len(
         set(os.listdir(out_root)).intersection(set(split)),
     ) > 0:

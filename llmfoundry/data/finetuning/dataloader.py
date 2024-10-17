@@ -258,7 +258,7 @@ def build_finetuning_dataloader(
             k: v
             for k, v in dataset_cfg.items()
             if k in set(dataset_constructor_keys).union(extraneous_keys) and
-            k not in {'streams', 'packing_ratio'}
+            k not in {'streams', 'packing_ratio', 'replication'}
         }
 
         streaming_dataset = dataset_constructor.build_from_streaming(
@@ -367,7 +367,7 @@ def build_finetuning_dataloader(
 
 def _validate_config(
     max_seq_len: int,
-    decoder_only_format: bool = False,
+    decoder_only_format: Optional[bool] = None,
     hf_name: Optional[str] = None,
     local: Optional[str] = None,
     remote: Optional[str] = None,
@@ -390,7 +390,7 @@ def _validate_config(
         max_seq_len (int): The maximum length of sequences
             in the batch. See :class:`Seq2SeqFinetuningCollator` docstring
             for details.
-        decoder_only_format (bool): Whether to format the
+        decoder_only_format (bool, optional): Whether to format the
             examples for a decoder-only model. See :class:`Seq2SeqFinetuningCollator`
             docstring for details.
         hf_name (str, optional): The name of the HuggingFace dataset
@@ -439,6 +439,11 @@ def _validate_config(
     Returns:
         set[str]: Return the extraneous keys.
     """
+    if decoder_only_format is None:
+        raise ValueError(
+            f'decoder_only_format must be set to either True or False, but it was {decoder_only_format}.',
+        )
+
     extraneous_keys = set()
     if not set(kwargs.keys()).issubset(allowed_dataset_keys):
         extraneous_keys = set(kwargs.keys()) - allowed_dataset_keys
@@ -462,7 +467,7 @@ def _validate_config(
                 'Those keys are used when building from a streaming dataset, but ' +\
                 'setting `hf_name` instructs the dataset to build from a HuggingFace dataset.',
             )
-    elif remote is not None:
+    elif remote is not None or local is not None:
         # Using the streaming dataset codepath
         illegal_keys = {
             'hf_name': hf_name,

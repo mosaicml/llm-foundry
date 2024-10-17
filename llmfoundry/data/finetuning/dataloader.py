@@ -441,7 +441,7 @@ def _validate_config(
     """
     if decoder_only_format is None:
         raise ValueError(
-            f'decoder_only_format must be set to either True or False, but it was {decoder_only_format}.'
+            f'decoder_only_format must be set to either True or False, but it was {decoder_only_format}.',
         )
 
     extraneous_keys = set()

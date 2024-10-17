@@ -440,7 +440,9 @@ def _validate_config(
         set[str]: Return the extraneous keys.
     """
     if decoder_only_format is None:
-        raise ValueError(f'decoder_only_format must be set to either True or False, but it was {decoder_only_format}.')
+        raise ValueError(
+            f'decoder_only_format must be set to either True or False, but it was {decoder_only_format}.'
+        )
 
     extraneous_keys = set()
     if not set(kwargs.keys()).issubset(allowed_dataset_keys):

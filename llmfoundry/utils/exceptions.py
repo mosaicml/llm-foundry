@@ -322,8 +322,8 @@ class ClusterInvalidAccessMode(UserError):
     """Error thrown when the cluster does not exist."""
 
     def __init__(self, cluster_id: str, access_mode: str) -> None:
-        message = f'Cluster with id {cluster_id} has access mode {access_mode}. ' + \
-        'please make sure the cluster used has access mode Shared or Single User!'
+        message = f'Cluster with id {cluster_id} has access mode {access_mode}, ' + \
+        'which is not compatible with Unity Catalog. Please provide another cluster and try again!'
         super().__init__(
             message,
             cluster_id=cluster_id,

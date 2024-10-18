@@ -559,7 +559,6 @@ def convert_text_to_mds_from_args(
     Raises:
         ValueError: If `use_tokenizer_eos` is True and `eos_text` is not None
     """
-    os.environ['WORLD_SIZE'] = '1'
     if use_tokenizer_eos:
         # Ensure that eos text is not specified twice.
         if eos_text is not None:

@@ -309,7 +309,6 @@ def convert_finetuning_dataset_from_args(
         ValueError: If the target settings are invalid.
         ValueError: If the output directory already contains the requested splits.
     """
-    os.environ['WORLD_SIZE'] = '1'
     if os.path.isdir(out_root) and len(
         set(os.listdir(out_root)).intersection(set(splits)),
     ) > 0:

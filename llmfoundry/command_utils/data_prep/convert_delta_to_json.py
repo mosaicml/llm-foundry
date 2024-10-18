@@ -550,7 +550,7 @@ def validate_and_get_cluster_info(
         cluster_spark_version_key = res.spark_version
         assert cluster_spark_version_key
         cluster_major_version_match = re.search(r'^(\d+)\.', cluster_spark_version_key)
-        
+
         assert cluster_major_version_match
         cluster_major_version = int(cluster_major_version_match.group(1))
         databricks_connect_major_version = int(MINIMUM_DB_CONNECT_DBR_VERSION.split('.')[0])
@@ -783,7 +783,6 @@ def convert_delta_to_json_from_args(
         use_serverless (bool): Use serverless or not. Make sure the workspace is entitled with serverless
         json_output_filename (str): The name of the combined final jsonl that combines all partitioned jsonl
     """
-    os.environ['WORLD_SIZE'] = '1'
     _check_imports()
     from databricks.sdk import WorkspaceClient
     w = WorkspaceClient()

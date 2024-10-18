@@ -546,27 +546,6 @@ def validate_and_get_cluster_info(
         if res is None:
             raise ClusterDoesNotExistError(cluster_id)
 
-        # Validate compute version is expected
-        cluster_spark_version_key = res.spark_version
-        assert cluster_spark_version_key
-        cluster_major_version_match = re.search(
-            r'^(\d+)\.',
-            cluster_spark_version_key,
-        )
-
-        assert cluster_major_version_match
-        cluster_major_version = int(cluster_major_version_match.group(1))
-        databricks_connect_major_version = int(
-            MINIMUM_DB_CONNECT_DBR_VERSION.split('.')[0],
-        )
-
-        if cluster_major_version != databricks_connect_major_version:
-            log.warning(
-                f'Cluster Spark version {cluster_spark_version_key} does not match Databricks Connect version {MINIMUM_DB_CONNECT_DBR_VERSION}.',
-                f'If you encounter _MultiThreadedRendezvous issues, please consider downgrading the compute Databricks Runtime Version to',
-                f'{MINIMUM_DB_CONNECT_DBR_VERSION}.',
-            )
-
         data_security_mode = str(
             res.data_security_mode,
         ).upper()[len('DATASECURITYMODE.'):]

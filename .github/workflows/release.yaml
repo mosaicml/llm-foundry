@@ -58,7 +58,7 @@ jobs:
     - name: Define Image Cache
       run: |
         set -euxo pipefail
-        IMAGE_CACHE="mosaicml/ci-staging:${{matrix.name}}-shared-buildcache"
+        IMAGE_CACHE="mosaicml/llm-foundry:${{matrix.name}}-buildcache"
         echo "IMAGE_CACHE=${IMAGE_CACHE}" >> ${GITHUB_ENV}
 
     - name: Build and push Docker image

@@ -73,7 +73,7 @@ jobs:
         cache-from: type=registry,ref=${{ env.IMAGE_CACHE }}
         cache-to: type=registry,ref=${{ env.IMAGE_CACHE }},mode=max
         build-args: |
-          BRANCH_NAME=${{ github.head_ref || github.ref_name }}
+          BRANCH_NAME=main
           BASE_IMAGE=${{ matrix.base_image }}
           DEP_GROUPS=${{ matrix.dep_groups }}
           TE_COMMIT=${{ matrix.te_commit }}

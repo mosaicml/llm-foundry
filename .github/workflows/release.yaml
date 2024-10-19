@@ -77,3 +77,4 @@ jobs:
           BASE_IMAGE=${{ matrix.base_image }}
           DEP_GROUPS=${{ matrix.dep_groups }}
           TE_COMMIT=${{ matrix.te_commit }}
+          KEEP_FOUNDRY=true

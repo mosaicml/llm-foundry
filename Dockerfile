@@ -2,6 +2,7 @@ ARG BASE_IMAGE
 FROM $BASE_IMAGE
 
 # Install TransformerEngine
+ARG TE_COMMIT
 RUN NVTE_FRAMEWORK=pytorch CMAKE_BUILD_PARALLEL_LEVEL=4 MAX_JOBS=4 pip install git+https://github.com/NVIDIA/TransformerEngine.git@$TE_COMMIT
 
 ARG BRANCH_NAME

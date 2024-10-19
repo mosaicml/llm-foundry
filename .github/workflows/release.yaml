@@ -73,8 +73,8 @@ jobs:
         file: Dockerfile
         push: true
         tags: |
-          ${{ env.AWS_DOCKER_TAG }}
-          ${{ env.AWS_LATEST_TAG }}
+          ${{ env.DOCKER_TAG }}
+          ${{ env.DOCKER_LATEST_TAG }}
         cache-from: type=registry,ref=${{ env.IMAGE_CACHE }}
         cache-to: type=registry,ref=${{ env.IMAGE_CACHE }},mode=max
         build-args: |

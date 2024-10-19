@@ -29,10 +29,8 @@ jobs:
         set -euxo pipefail
 
         ###################
-        # Calculate the tag
+        # Calculate the cache
         ###################
-        GIT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
-        echo "IMAGE_TAG=${GIT_SHA}" >> ${GITHUB_ENV}
 
         if [ "${{ github.event_name }}" == "pull_request" ]; then
           echo "Triggered by pull_request event."
@@ -45,7 +43,6 @@ jobs:
           IMAGE_CACHE="${PROD_REPO}:${{matrix.name}}-buildcache"
         fi
 
-        echo "IMAGE_TAG=${IMAGE_TAG}" >> ${GITHUB_ENV}
         echo "IMAGE_CACHE=${IMAGE_CACHE}" >> ${GITHUB_ENV}
 
     - name: Define Docker tags

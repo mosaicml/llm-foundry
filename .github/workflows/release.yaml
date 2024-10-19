@@ -24,27 +24,6 @@ jobs:
         username: ${{ secrets.DOCKER_HUB_USERNAME }}
         password: ${{ secrets.DOCKER_HUB_PASSWORD }}
 
-    - name: Calculate Docker Image Variables
-      run: |
-        set -euxo pipefail
-
-        ###################
-        # Calculate the cache
-        ###################
-
-        if [ "${{ github.event_name }}" == "pull_request" ]; then
-          echo "Triggered by pull_request event."
-          STAGING_REPO="mosaicml/ci-staging"
-          IMAGE_CACHE="${STAGING_REPO}:${{matrix.name}}-buildcache"
-        else
-          # Triggered by push or workflow_dispatch event
-          echo "Triggered by ${{ github.event_name }} event, releasing to prod"
-          PROD_REPO="mosaicml/llm-foundry"
-          IMAGE_CACHE="${PROD_REPO}:${{matrix.name}}-buildcache"
-        fi
-
-        echo "IMAGE_CACHE=${IMAGE_CACHE}" >> ${GITHUB_ENV}
-
     - name: Define Docker tags
       id: define-tags
       run: |
@@ -54,6 +33,26 @@ jobs:
 
         echo "DOCKER_TAG=mosaicml/llm-foundry:test-release_${TAG_NAME}" >> $GITHUB_ENV
         echo "AWS_DOCKER_TAG=mosaicml/llm-foundry:test-release_${TAG_NAME}_aws" >> $GITHUB_ENV
+
+    - name: Calculate Docker Image Variables
+      run: |
+        set -euxo pipefail
+
+        ###################
+        # Calculate the image cache
+        ###################
+        if [ "${{ github.event_name }}" == "pull_request" ]; then
+          echo "Triggered by pull_request event."
+          STAGING_REPO="mosaicml/ci-staging"
+          IMAGE_CACHE="${STAGING_REPO}:${{ env.BRANCH_NAME }}-buildcache"
+        else
+          # Triggered by push or workflow_dispatch event
+          echo "Triggered by ${{ github.event_name }} event, releasing to prod"
+          PROD_REPO="mosaicml/llm-foundry"
+          IMAGE_CACHE="${PROD_REPO}:${{ env.BRANCH_NAME }}-buildcache"
+        fi
+
+        echo "IMAGE_CACHE=${IMAGE_CACHE}" >> ${GITHUB_ENV}
 
     - name: Build and push AWS Docker image
       uses: docker/build-push-action@v3

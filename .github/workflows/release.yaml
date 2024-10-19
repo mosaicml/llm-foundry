@@ -70,8 +70,8 @@ jobs:
         tags: |
           ${{ env.DOCKER_TAG }}
           ${{ env.DOCKER_LATEST_TAG }}
-        cache-from: type=registry,ref=${{ env.IMAGE_CACHE }}
-        cache-to: type=registry,ref=${{ env.IMAGE_CACHE }},mode=max
+        cache-from: type=registry,ref=${{ env.IMAGE_CACHE }},scope=global
+        cache-to: type=registry,ref=${{ env.IMAGE_CACHE }},mode=max,scope=global
         build-args: |
           BRANCH_NAME=main
           BASE_IMAGE=${{ matrix.base_image }}

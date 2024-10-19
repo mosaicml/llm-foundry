@@ -11,6 +11,19 @@ jobs:
     name: Build llm-foundry Release Docker Image
     runs-on: mosaic-8wide
     if: github.repository_owner == 'mosaicml'
+    strategy:
+      matrix:
+        include:
+        - name: "2.4.0_cu124"
+          base_image: mosaicml/pytorch:2.4.0_cu124-python3.11-ubuntu20.04
+          dep_groups: "[all]"
+          te_commit: 901e5d2
+          aws_extension: ""
+        - name: "2.4.0_cu124_aws"
+          base_image: mosaicml/pytorch:2.4.0_cu124-python3.11-ubuntu20.04-aws
+          dep_groups: "[all]"
+          te_commit: 901e5d2
+          aws_extension: "_aws"
     steps:
     - name: Checkout source
       uses: actions/checkout@v3
@@ -31,8 +44,7 @@ jobs:
         TAG_NAME=$(echo "${BRANCH_NAME}" | sed 's/\//_/g')
         echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_ENV
 
-        echo "DOCKER_TAG=mosaicml/llm-foundry:test-release_${TAG_NAME}" >> $GITHUB_ENV
-        echo "AWS_DOCKER_TAG=mosaicml/llm-foundry:test-release_${TAG_NAME}_aws" >> $GITHUB_ENV
+        echo "DOCKER_TAG=mosaicml/llm-foundry:test-release_${TAG_NAME}${{matrix.aws_extension}}" >> $GITHUB_ENV
 
     - name: Calculate Docker Image Variables
       run: |
@@ -44,17 +56,17 @@ jobs:
         if [ "${{ github.event_name }}" == "pull_request" ]; then
           echo "Triggered by pull_request event."
           STAGING_REPO="mosaicml/ci-staging"
-          IMAGE_CACHE="${STAGING_REPO}:${{ env.BRANCH_NAME }}-buildcache"
+          IMAGE_CACHE="${STAGING_REPO}:${{matrix.name}}-buildcache"
         else
           # Triggered by push or workflow_dispatch event
           echo "Triggered by ${{ github.event_name }} event, releasing to prod"
           PROD_REPO="mosaicml/llm-foundry"
-          IMAGE_CACHE="${PROD_REPO}:${{ env.BRANCH_NAME }}-buildcache"
+          IMAGE_CACHE="${PROD_REPO}:${{matrix.name}}-buildcache"
         fi
 
         echo "IMAGE_CACHE=${IMAGE_CACHE}" >> ${GITHUB_ENV}
 
-    - name: Build and push AWS Docker image
+    - name: Build and push Docker image
       uses: docker/build-push-action@v3
       with:
         context: .
@@ -66,26 +78,7 @@ jobs:
         cache-from: type=registry,ref=${{ env.IMAGE_CACHE }}
         cache-to: type=registry,ref=${{ env.IMAGE_CACHE }},mode=max
         build-args: |
-          BASE_IMAGE=mosaicml/pytorch:2.4.0_cu124-python3.11-ubuntu20.04-aws
-          BRANCH_NAME=${{ env.BRANCH_NAME }}
-          TE_COMMIT=901e5d2
-          DEP_GROUPS=[all]
-          KEEP_FOUNDRY=true
-
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v3
-      with:
-        context: .
-        file: Dockerfile
-        push: true
-        tags: |
-          ${{ env.DOCKER_TAG }}
-          ${{ env.LATEST_TAG }}
-        cache-from: type=registry,ref=${{ env.IMAGE_CACHE }}
-        cache-to: type=registry,ref=${{ env.IMAGE_CACHE }},mode=max
-        build-args: |
-          BASE_IMAGE=mosaicml/pytorch:2.4.0_cu124-python3.11-ubuntu20.04
-          BRANCH_NAME=${{ env.BRANCH_NAME }}
-          TE_COMMIT=901e5d2
-          DEP_GROUPS=[all]
-          KEEP_FOUNDRY=true
+          BRANCH_NAME=${{ github.head_ref || github.ref_name }}
+          BASE_IMAGE=${{ matrix.base_image }}
+          DEP_GROUPS=${{ matrix.dep_groups }}
+          TE_COMMIT=${{ matrix.te_commit }}

@@ -95,7 +95,6 @@ jobs:
         build-args: |
           BASE_IMAGE=mosaicml/pytorch:2.4.0_cu124-python3.11-ubuntu20.04-aws
           BRANCH_NAME=${{ env.BRANCH_NAME }}
-          TE_COMMIT=901e5d2
           DEP_GROUPS=[all]
           KEEP_FOUNDRY=true
 
@@ -111,6 +110,5 @@ jobs:
         build-args: |
           BASE_IMAGE=mosaicml/pytorch:2.4.0_cu124-python3.11-ubuntu20.04
           BRANCH_NAME=${{ env.BRANCH_NAME }}
-          TE_COMMIT=901e5d2
           DEP_GROUPS=[all]
           KEEP_FOUNDRY=true

@@ -371,11 +371,8 @@ class MPTConfig(PretrainedConfig):
                 del te  # unused
             except:
                 raise ImportError(
-                    'TransformerEngine import fail. `fc_type: te` requires TransformerEngine be installed. '
-                    +
-                    'The required version of transformer_engine also requires FlashAttention v1.0.6 is installed:\n'
-                    + 'pip install flash-attn==1.0.6 --no-build-isolation \n' +
-                    'pip install git+https://github.com/NVIDIA/TransformerEngine.git@144e4888b2cdd60bd52e706d5b7a79cb9c1a7156',
+                    'TransformerEngine import failed. `fc_type: te` requires TransformerEngine be installed, ',
+                    'e.g. pip install transformer-engine[pytorch]',
                 )
 
         self.ffn_config['fc_type'] = self.fc_type

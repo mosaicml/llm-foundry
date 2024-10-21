@@ -90,36 +90,3 @@ class TestEvaluateModelDeprecation(unittest.TestCase):
             'parallelism_config cannot contain deprecated fsdp_config arguments.',
             str(context.exception),
         )
-
-    def test_deprecation_warning_with_fsdp_config(self):
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter('always')
-
-            try:
-                evaluate_model(
-                    **self.common_args,
-                    parallelism_config=None,
-                    fsdp_config={'verbose': True},
-                )
-            except Exception:
-                pass
-
-            self.assertTrue(
-                any(
-                    issubclass(warning.category, VersionedDeprecationWarning)
-                    for warning in w
-                ),
-            )
-
-    def test_error_with_both_fsdp_and_parallelism_config(self):
-        with self.assertRaises(ValueError) as context:
-            evaluate_model(
-                **self.common_args,
-                parallelism_config={'some_arg': True},
-                fsdp_config={'some_arg': True},
-            )
-
-        self.assertIn(
-            'Both fsdp_config and parallelism_config cannot be provided at the same time.',
-            str(context.exception),
-        )

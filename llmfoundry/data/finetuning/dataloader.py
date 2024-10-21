@@ -198,7 +198,8 @@ def build_finetuning_dataloader(
     allowed_dataset_config_keys = set(
         dataset_constructor_keys,
     ).union(_ALLOWED_DATASET_KEYS)
-    _validate_config(
+
+    extraneous_keys = _validate_config(
         **dataset_cfg,
         allowed_dataset_keys=allowed_dataset_config_keys,
     )
@@ -253,13 +254,13 @@ def build_finetuning_dataloader(
             streams_cfg,
         ) if streams_cfg is not None else None
 
-        # Take the constructor args from above, minus args that have been created separately
         dataset_constructor_args = {
             k: v
             for k, v in dataset_cfg.items()
-            if k in dataset_constructor_keys and
-            k not in {'streams', 'packing_ratio'}
+            if k in set(dataset_constructor_keys).union(extraneous_keys) and
+            k not in {'streams', 'packing_ratio', 'replication'}
         }
+
         streaming_dataset = dataset_constructor.build_from_streaming(
             tokenizer=tokenizer,
             streams=streams,
@@ -366,7 +367,7 @@ def build_finetuning_dataloader(
 
 def _validate_config(
     max_seq_len: int,
-    decoder_only_format: bool = False,
+    decoder_only_format: Optional[bool] = None,
     hf_name: Optional[str] = None,
     local: Optional[str] = None,
     remote: Optional[str] = None,
@@ -378,7 +379,7 @@ def _validate_config(
     target_responses: Optional[str] = None,
     allowed_dataset_keys: set[str] = _ALLOWED_DATASET_KEYS,
     **kwargs: dict[str, Any],
-) -> None:
+) -> set[str]:
     """Validates the dataset configuration.
 
     Makes sure that the dataset is properly configured for either
@@ -389,7 +390,7 @@ def _validate_config(
         max_seq_len (int): The maximum length of sequences
             in the batch. See :class:`Seq2SeqFinetuningCollator` docstring
             for details.
-        decoder_only_format (bool): Whether to format the
+        decoder_only_format (bool, optional): Whether to format the
             examples for a decoder-only model. See :class:`Seq2SeqFinetuningCollator`
             docstring for details.
         hf_name (str, optional): The name of the HuggingFace dataset
@@ -434,11 +435,21 @@ def _validate_config(
 
     Raises:
         ValueError: If the dataset configuration does not meet the requirements.
+
+    Returns:
+        set[str]: Return the extraneous keys.
     """
-    if not set(kwargs.keys()).issubset(allowed_dataset_keys):
+    if decoder_only_format is None:
         raise ValueError(
+            f'decoder_only_format must be set to either True or False, but it was {decoder_only_format}.',
+        )
+
+    extraneous_keys = set()
+    if not set(kwargs.keys()).issubset(allowed_dataset_keys):
+        extraneous_keys = set(kwargs.keys()) - allowed_dataset_keys
+        log.warning(
             'The dataset config contains the following extraneous keys: ' +\
-            ', '.join(set(kwargs.keys()) - allowed_dataset_keys),
+            ', '.join(extraneous_keys),
         )
 
     if hf_name is not None:
@@ -456,7 +467,7 @@ def _validate_config(
                 'Those keys are used when building from a streaming dataset, but ' +\
                 'setting `hf_name` instructs the dataset to build from a HuggingFace dataset.',
             )
-    elif remote is not None:
+    elif remote is not None or local is not None:
         # Using the streaming dataset codepath
         illegal_keys = {
             'hf_name': hf_name,
@@ -533,6 +544,8 @@ def _validate_config(
         decoder_only_format,
     )
 
+    return extraneous_keys
+
 
 def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
     """Downloads a dataset from a remote object store.
@@ -590,6 +603,7 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
                     ]
                     raise FinetuningFileNotFoundError(
                         files_searched=files_searched,
+                        supported_extensions=SUPPORTED_EXTENSIONS,
                     ) from e
                 else:
                     log.debug(

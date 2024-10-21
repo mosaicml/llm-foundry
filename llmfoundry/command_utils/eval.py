@@ -4,7 +4,6 @@
 import logging
 import os
 import time
-import warnings
 from typing import Any, Optional, Union
 
 import pandas as pd
@@ -37,7 +36,6 @@ from llmfoundry.utils.config_utils import (
     process_init_device,
 )
 from llmfoundry.utils.registry_utils import import_file
-from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
 log = logging.getLogger(__name__)
 
@@ -63,7 +61,6 @@ def evaluate_model(
     callback_configs: Optional[dict[str, Any]],
     metadata: Optional[dict[str, str]],
     logged_config: dict[str, Any],
-    fsdp_config: Optional[dict[str, Any]] = None,
     parallelism_config: Optional[dict[str, Any]] = None,
     should_log_config: bool = True,
     load_path: Optional[str] = None,
@@ -77,18 +74,6 @@ def evaluate_model(
                 raise ValueError(
                     'parallelism_config cannot contain deprecated fsdp_config arguments.',
                 )
-
-    if fsdp_config:
-        warnings.warn(
-            VersionedDeprecationWarning(
-                'The argument fsdp_config is deprecated. Please use parallelism_config instead.',
-                remove_version='0.14.0',
-            ),
-        )
-    if fsdp_config and parallelism_config:
-        raise ValueError(
-            'Both fsdp_config and parallelism_config cannot be provided at the same time. Please use parallelism_config.',
-        )
 
     log.info(f'Evaluating model: {model_name}')
     # Build tokenizer and model
@@ -125,9 +110,9 @@ def evaluate_model(
             mosaicml_logger._flush_metadata(force_flush=True)
 
     fsdp_config = parallelism_config.get(
-        'fsdp_config',
+        'fsdp',
         None,
-    ) if parallelism_config else fsdp_config
+    ) if parallelism_config else None
     if fsdp_config and model.get('load_in_8bit', False):
         raise ValueError(
             'The FSDP config block is not supported when loading ' +
@@ -175,7 +160,7 @@ def evaluate_model(
         callbacks=callbacks,
         loggers=loggers,
         precision=precision,
-        parallelism_config={'fsdp': fsdp_config},
+        parallelism_config=parallelism_config,
         load_path=load_path,
         load_weights_only=True,
         progress_bar=False,
@@ -268,8 +253,6 @@ def evaluate(cfg: DictConfig) -> tuple[list[Trainer], pd.DataFrame]:
     model_configs = eval_config.models
     eval_gauntlet_config = eval_config.eval_gauntlet or eval_config.eval_gauntlet_str
 
-    fsdp_config = eval_config.fsdp_config
-
     # Mandatory Evaluation Parameters
     icl_tasks = eval_config.icl_tasks or eval_config.icl_tasks_str
     if icl_tasks is None:
@@ -345,9 +328,9 @@ def evaluate(cfg: DictConfig) -> tuple[list[Trainer], pd.DataFrame]:
              device_eval_batch_size=eval_config.device_eval_batch_size,
              eval_gauntlet_config=eval_gauntlet_config,
              eval_loader_config=eval_loader_config,
-             fsdp_config=fsdp_config,
              loggers=loggers,
              python_log_level=eval_config.python_log_level,
+             parallelism_config={'fsdp': eval_config.fsdp_config},
              precision=eval_config.precision,
              eval_gauntlet_df=eval_gauntlet_df,
              callback_configs=eval_config.callbacks,

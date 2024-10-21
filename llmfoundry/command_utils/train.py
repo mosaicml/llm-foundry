@@ -5,7 +5,6 @@ import logging
 import os
 import time
 import warnings
-from copy import deepcopy
 from typing import Any, Optional, Union
 
 import torch
@@ -19,7 +18,7 @@ from composer.profiler import (
     TraceHandler,
     cyclic_schedule,
 )
-from composer.utils import dist, get_device, reproducibility
+from composer.utils import TPConfig, dist, get_device, reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
@@ -235,6 +234,9 @@ def train(cfg: DictConfig) -> Trainer:
         logging.getLogger(__name__).setLevel(
             train_cfg.python_log_level.upper(),
         )  # Train script
+        logging.getLogger('streaming').setLevel(
+            train_cfg.python_log_level.upper(),
+        )  # Streaming module
 
     _initialize_dist_with_barrier(dist_timeout=train_cfg.dist_timeout)
 
@@ -309,8 +311,10 @@ def train(cfg: DictConfig) -> Trainer:
     eval_gauntlet_config = train_cfg.eval_gauntlet or train_cfg.eval_gauntlet_str
 
     # Optional parameters will be set to default values if not specified.
-    default_run_name: str = os.environ.get('RUN_NAME', 'llm')
-    run_name: str = train_cfg.run_name if train_cfg.run_name else default_run_name
+    env_run_name: Optional[str] = os.environ.get('RUN_NAME', None)
+    run_name: str = (
+        train_cfg.run_name if train_cfg.run_name else env_run_name
+    ) or 'llm'
     is_state_dict_sharded: bool = (
         fsdp_config.get('state_dict_type', 'full') == 'sharded'
     ) if fsdp_config else False
@@ -318,9 +322,10 @@ def train(cfg: DictConfig) -> Trainer:
     save_filename: str = train_cfg.save_filename if train_cfg.save_filename else 'ep{epoch}-ba{batch}-rank{rank}.pt'
 
     # Enable autoresume from model checkpoints if possible
+    is_user_set_run_name: bool = train_cfg.run_name is not None or env_run_name is not None
     autoresume_default: bool = False
-    if logged_cfg.get('run_name', None) is not None \
-        and train_cfg.save_folder is not None \
+    if is_user_set_run_name and \
+        train_cfg.save_folder is not None \
         and not train_cfg.save_overwrite \
         and not train_cfg.save_weights_only:
         autoresume_default = True
@@ -332,7 +337,7 @@ def train(cfg: DictConfig) -> Trainer:
         )
 
     # Optional tp config
-    tp_config: Optional[dict[str, Any]] = train_cfg.tp_config
+    tp_config: Optional[Union[TPConfig, dict[str, Any]]] = train_cfg.tp_config
 
     # Warn if FSDP or TP is enabled but user only has 1 GPU
     if dist.get_world_size(
@@ -351,7 +356,7 @@ def train(cfg: DictConfig) -> Trainer:
     # Initialize context
     init_context = process_init_device(model_config, fsdp_config, tp_config)
     logged_cfg.update({'fsdp_config': fsdp_config}, merge=True)
-    logged_cfg.update({'tp_config': deepcopy(tp_config)}, merge=True)
+    logged_cfg.update({'tp_config': tp_config}, merge=True)
 
     # Build tokenizer
     log.info('Building tokenizer...')
@@ -517,9 +522,9 @@ def train(cfg: DictConfig) -> Trainer:
 
     # TP config
     if tp_config is not None:
-        strategy = tp_config.pop('strategy', None)
-        assert isinstance(strategy, str), '`strategy` must be in `tp_config`.'
-        tp_config['layer_plan'] = build_tp_strategies(strategy, model)
+        strategy = tp_config.pop('strategy')
+        layer_plan = build_tp_strategies(strategy, model)
+        tp_config = TPConfig(**tp_config, layer_plan=layer_plan)
 
     # Parallelism config
     parallelism_config = {'fsdp': fsdp_config, 'tp': tp_config}
@@ -587,6 +592,8 @@ def train(cfg: DictConfig) -> Trainer:
         profiler=profiler,
         compile_config=compile_config,
         spin_dataloaders=train_cfg.spin_dataloaders,
+        accumulate_train_batch_on_tokens=train_cfg.
+        accumulate_train_batch_on_tokens,
     )
 
     _sort_callbacks(trainer)

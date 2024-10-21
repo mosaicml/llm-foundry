@@ -65,8 +65,8 @@ install_requires = [
     'omegaconf>=2.2.3,<3',
     'slack-sdk<4',
     'mosaicml-cli>=0.6.10,<1',
-    'onnx==1.16.2',
-    'onnxruntime==1.19.0',
+    'onnx==1.17.0',
+    'onnxruntime==1.19.2',
     'boto3>=1.21.45,<2',
     'huggingface-hub>=0.19.0,<0.25',
     'beautifulsoup4>=4.12.2,<5',  # required for model download utils
@@ -115,11 +115,11 @@ extra_deps['peft'] = [
 
 extra_deps['openai'] = [
     'openai==1.3.8',
-    'tiktoken==0.4.0',
+    'tiktoken>=0.4,<0.8.1',
 ]
 
 extra_deps['megablocks'] = [
-    'megablocks==0.6.1',
+    'megablocks<1.0',
     'grouped-gemm==0.1.6',
 ]
 

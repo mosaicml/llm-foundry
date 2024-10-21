@@ -767,6 +767,7 @@ def convert_delta_to_json_from_args(
         use_serverless (bool): Use serverless or not. Make sure the workspace is entitled with serverless
         json_output_filename (str): The name of the combined final jsonl that combines all partitioned jsonl
     """
+    os.environ['WORLD_SIZE'] = '1'
     _check_imports()
     from databricks.sdk import WorkspaceClient
     w = WorkspaceClient()

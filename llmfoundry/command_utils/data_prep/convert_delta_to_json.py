@@ -550,6 +550,9 @@ def validate_and_get_cluster_info(
         ).upper()[len('DATASECURITYMODE.'):]
 
         # NONE stands for No Isolation Shared
+        # This check actually checks for Unity Catalog governance compatibility and does not
+        # check for invalid cluster access for a particular user. Cluster access controls is
+        # difficult and there is no single existing API to check this.
         if data_security_mode == 'NONE':
             raise ClusterInvalidAccessMode(
                 cluster_id=cluster_id,
@@ -767,6 +770,7 @@ def convert_delta_to_json_from_args(
         use_serverless (bool): Use serverless or not. Make sure the workspace is entitled with serverless
         json_output_filename (str): The name of the combined final jsonl that combines all partitioned jsonl
     """
+    os.environ['WORLD_SIZE'] = '1'
     _check_imports()
     from databricks.sdk import WorkspaceClient
     w = WorkspaceClient()

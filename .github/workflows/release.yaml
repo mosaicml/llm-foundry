@@ -22,7 +22,6 @@ jobs:
         - name: "2.4.0_cu124_aws"
           base_image: mosaicml/pytorch:2.4.0_cu124-python3.11-ubuntu20.04-aws
           dep_groups: "[all]"
-          te_commit: 901e5d2
           aws_extension: "_aws"
     steps:
     - name: Checkout source
@@ -63,10 +62,8 @@ jobs:
           ${{ env.DOCKER_TAG }}
           ${{ env.DOCKER_LATEST_TAG }}
         cache-from: type=registry,ref=${{ env.IMAGE_CACHE }},scope=global
-        cache-to: type=registry,ref=${{ env.IMAGE_CACHE }},mode=max,scope=global
         build-args: |
           BRANCH_NAME=${{ github.ref_name }}
           BASE_IMAGE=${{ matrix.base_image }}
           DEP_GROUPS=${{ matrix.dep_groups }}
-          TE_COMMIT=${{ matrix.te_commit }}
           KEEP_FOUNDRY=true

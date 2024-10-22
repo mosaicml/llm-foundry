@@ -550,6 +550,9 @@ def validate_and_get_cluster_info(
         ).upper()[len('DATASECURITYMODE.'):]
 
         # NONE stands for No Isolation Shared
+        # This check actually checks for Unity Catalog governance compatibility and does not
+        # check for invalid cluster access for a particular user. Cluster access controls is
+        # difficult and there is no single existing API to check this.
         if data_security_mode == 'NONE':
             raise ClusterInvalidAccessMode(
                 cluster_id=cluster_id,

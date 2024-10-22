@@ -86,6 +86,7 @@ def experimental_class(
 
     def class_decorator(cls: Type):  # noqa: UP006
         original_init = cls.__init__
+        cls.is_experimental = True
 
         def new_init(self: Any, *args: Any, **kwargs: Any):
             warnings.warn(ExperimentalWarning(feature_name))

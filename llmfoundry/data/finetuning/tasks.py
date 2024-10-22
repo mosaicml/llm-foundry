@@ -997,7 +997,7 @@ class DatasetConstructor:
                     target_responses,
                     decoder_only_format,
                 ),
-                num_proc=num_cpus_to_use,
+                num_proc=num_proc,
                 desc='Filtering out long prompts',
             )
 

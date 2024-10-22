@@ -77,7 +77,7 @@ jobs:
         TAG_NAME=$(echo "${BRANCH_NAME}" | sed 's/\//_/g')
         echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_ENV
 
-        # Don't overwrite latest if testing
+        # Don't trigger formal release if manual trigger
         if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" =~ ^refs/tags/v ]]; then
           echo "DOCKER_TAG=mosaicml/llm-foundry:release_${TAG_NAME}" >> $GITHUB_ENV
           echo "AWS_DOCKER_TAG=mosaicml/llm-foundry:release_${TAG_NAME}_aws" >> $GITHUB_ENV

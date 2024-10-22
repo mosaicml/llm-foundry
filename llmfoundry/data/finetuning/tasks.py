@@ -34,6 +34,7 @@ those keys are strings (i.e. text).
 import importlib
 import logging
 import os
+import tempfile
 import warnings
 from collections.abc import Mapping
 from functools import partial
@@ -107,15 +108,7 @@ _ALLOWED_ROLE_KEYS = {'role'}
 _ALLOWED_CONTENT_KEYS = {'content'}
 _ALLOWED_ROLES = {'user', 'assistant', 'system', 'tool'}
 _ALLOWED_LAST_MESSAGE_ROLES = {'assistant'}
-DOWNLOADED_FT_DATASETS_DIRPATH = os.path.abspath(
-    os.path.join(
-        os.path.realpath(__file__),
-        os.pardir,
-        os.pardir,
-        os.pardir,
-        '.downloaded_finetuning',
-    ),
-)
+DOWNLOADED_FT_DATASETS_DIRPATH = tempfile.mkdtemp()
 SUPPORTED_EXTENSIONS = ['.csv', '.json', '.jsonl', '.parquet']
 HUGGINGFACE_FOLDER_EXTENSIONS = ['.lock', '.metadata']
 DEFAULT_TARGET_RESPONSES = 'last'

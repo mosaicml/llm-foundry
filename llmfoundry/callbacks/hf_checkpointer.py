@@ -133,7 +133,6 @@ def _log_model_multiprocess(
     - await_creation_for: int: time to wait for model creation
     - registered_model_name: Optional
     """
-    print("----------------- REACHED MLFLOW LOG MODEL -----------------")
     # Setup logging for child process. This ensures that any logs from composer are surfaced.
     if composer_logging_level > 0:
         # If logging_level is 0, then the composer logger was unset.
@@ -143,24 +142,26 @@ def _log_model_multiprocess(
         )
         logging.getLogger('composer').setLevel(composer_logging_level)
     
+    log.info("----------------- REACHED MLFLOW LOG MODEL -----------------")
     # monkey patch to prevent duplicate tokenizer upload
     import mlflow
     original_save_model = mlflow.transformers.save_model
     def save_model_patch(*args: Any, **kwargs: Any):
         original_save_model(*args, **kwargs)
-        log.debug(f"List of root path: {os.listdir(kwargs['path'])}")
+        log.info(f"List of root path: {os.listdir(kwargs['path'])}")
         components_path = os.path.join(kwargs['path'], 'components')
         if os.path.exists(components_path):
-            log.debug(f"List of components path: {components_path}: {os.listdir(components_path)}")
+            log.info(f"List of components path: {components_path}: {os.listdir(components_path)}")
         tokenizer_path = os.path.join(kwargs['path'], 'components', 'tokenizer')
         tokenizer_files = []
         if os.path.exists(tokenizer_path):
             tokenizer_files = os.listdir(os.path.join(kwargs['path'], 'components', 'tokenizer'))
-            log.debug(f"Tokenizer files: {tokenizer_files}")
+            log.info(f"Tokenizer files: {tokenizer_files}")
         try:
             for tokenizer_file_name in tokenizer_files:
                 dupe_file = os.path.isfile(os.path.join(kwargs['path'], 'model', tokenizer_file_name))
                 if dupe_file:
+                    log.info(f"Removing duplicate tokenizer file: {tokenizer_file_name}")
                     os.remove(os.path.join(kwargs['path'], 'model', tokenizer_file_name))
         except Exception as e:
             log.error(f"Exception when removing duplicate tokenizer files in the model directory", e)

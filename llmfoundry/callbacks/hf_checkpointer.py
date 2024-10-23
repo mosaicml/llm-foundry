@@ -781,6 +781,7 @@ class HuggingFaceCheckpointer(Callback):
 
                     # Spawn a new process to register the model.
                     # Slower method to register the model via log_model.
+                    log.info('USING MY BRANCH!!!!!!!!!!!!!!')
                     process = SpawnProcess(
                         target=_log_model_multiprocess,
                         kwargs={

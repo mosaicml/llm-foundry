@@ -34,7 +34,6 @@ those keys are strings (i.e. text).
 import importlib
 import logging
 import os
-import tempfile
 import warnings
 from collections.abc import Mapping
 from functools import partial
@@ -92,6 +91,7 @@ from llmfoundry.utils.exceptions import (
     UnableToProcessPromptResponseError,
     UnknownExampleTypeError,
 )
+from llmfoundry.utils.file_utils import dist_mkdtemp
 #  yapf: enable
 from llmfoundry.utils.logging_utils import SpecificWarningFilter
 
@@ -108,7 +108,6 @@ _ALLOWED_ROLE_KEYS = {'role'}
 _ALLOWED_CONTENT_KEYS = {'content'}
 _ALLOWED_ROLES = {'user', 'assistant', 'system', 'tool'}
 _ALLOWED_LAST_MESSAGE_ROLES = {'assistant'}
-DOWNLOADED_FT_DATASETS_DIRPATH = tempfile.mkdtemp()
 SUPPORTED_EXTENSIONS = ['.csv', '.json', '.jsonl', '.parquet']
 HUGGINGFACE_FOLDER_EXTENSIONS = ['.lock', '.metadata']
 DEFAULT_TARGET_RESPONSES = 'last'
@@ -897,11 +896,11 @@ class DatasetConstructor:
                 if not os.path.isdir(dataset_name):
                     # dataset_name is not a local dir path, download if needed.
                     local_dataset_dir = os.path.join(
-                        DOWNLOADED_FT_DATASETS_DIRPATH,
+                        dist_mkdtemp(),
                         dataset_name,
                     )
 
-                    log.debug(
+                    print(
                         f'Downloading dataset {dataset_name} to {local_dataset_dir}.',
                     )
 

@@ -20,7 +20,6 @@ from llmfoundry.data.finetuning.collator import (
 from llmfoundry.data.finetuning.tasks import (
     DEFAULT_TARGET_PROMPTS,
     DEFAULT_TARGET_RESPONSES,
-    DOWNLOADED_FT_DATASETS_DIRPATH,
     SUPPORTED_EXTENSIONS,
     dataset_constructor,
 )
@@ -32,6 +31,7 @@ from llmfoundry.utils.exceptions import (
     MissingHuggingFaceURLSplitError,
     NotEnoughDatasetSamplesError,
 )
+from llmfoundry.utils.file_utils import dist_mkdtemp
 from llmfoundry.utils.registry_utils import construct_from_registry
 
 log = logging.getLogger(__name__)
@@ -571,7 +571,7 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
     # HF datasets does not support a split with dashes, so we replace dashes with underscores.
     hf_formatted_split = split.replace('-', '_')
     finetune_dir = os.path.join(
-        DOWNLOADED_FT_DATASETS_DIRPATH,
+        dist_mkdtemp(),
         hf_formatted_split if hf_formatted_split != 'data' else 'data_not',
     )
     os.makedirs(finetune_dir, exist_ok=True)
@@ -617,10 +617,13 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
             with open(signal_file_path, 'wb') as f:
                 f.write(b'local_rank0_completed_download')
 
+        print(dist.get_local_rank(), f'signal_file_path: {signal_file_path}')
+
         # Avoid the collective call until the local rank zero has finished trying to download the dataset
         # so that we don't timeout for large downloads. This syncs all processes on the node
         with dist.local_rank_zero_download_and_wait(signal_file_path):
             # Then, wait to ensure every node has finished trying to download the dataset
+            print('GOT TO BARRIER')
             dist.barrier()
 
         # clean up signal file

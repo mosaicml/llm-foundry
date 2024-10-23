@@ -30,6 +30,7 @@ __all__ = [
     'MisconfiguredHfDatasetError',
     'DatasetTooSmallError',
     'RunTimeoutError',
+    'PrivateLinkNotSupportedError',
 ]
 
 ALLOWED_RESPONSE_KEYS = {'response', 'completion'}
@@ -524,3 +525,11 @@ class InvalidConversationError(UserError):
 
     def __str__(self):
         return self.message
+
+
+class PrivateLinkNotSupportedError(UserError):
+    """Error thrown in preflight check due to not supporting private link."""
+
+    def __init__(self, path: str) -> None:
+        message = f"A private link error occurred when accessing path {path}."
+        super().__init__(message)

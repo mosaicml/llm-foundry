@@ -17,5 +17,5 @@ def dist_mkdtemp() -> str:
         tempdir = tempfile.mkdtemp()
     tempdir = dist.all_gather_object(tempdir)[0]
     if tempdir is None:
-        raise ValueError('Dist operation to get tempdir failed.')
+        raise RuntimeError('Dist operation to get tempdir failed.')
     return tempdir

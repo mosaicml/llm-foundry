@@ -600,12 +600,6 @@ class HuggingFaceCheckpointer(Callback):
             new_model_instance.load_state_dict(state_dict, assign=True)
             del state_dict
 
-            # Transform the model and tokenizer before saving
-            new_model_instance, original_tokenizer = self.transform_model_and_tokenizer(
-                new_model_instance,
-                original_tokenizer,
-            )
-
             # Ensure that the pretrained model name is correctly set on the saved HF checkpoint.
             if self.pretrained_model_name is not None:
                 new_model_instance.name_or_path = self.pretrained_model_name
@@ -615,6 +609,12 @@ class HuggingFaceCheckpointer(Callback):
                         new_model_instance.peft_config[
                             k
                         ].base_model_name_or_path = self.pretrained_model_name
+
+            # Transform the model and tokenizer before saving
+            new_model_instance, original_tokenizer = self.transform_model_and_tokenizer(
+                new_model_instance,
+                original_tokenizer,
+            )
 
             log.debug('Saving Hugging Face checkpoint to disk')
 

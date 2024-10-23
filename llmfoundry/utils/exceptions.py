@@ -532,4 +532,4 @@ class PrivateLinkNotSupportedError(UserError):
 
     def __init__(self, path: str) -> None:
         message = f"A private link error occurred when accessing path {path}."
-        super().__init__(message)
+        super().__init__(message, path=path)

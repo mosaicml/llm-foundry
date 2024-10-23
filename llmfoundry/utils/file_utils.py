@@ -7,6 +7,11 @@ from composer.utils import dist
 
 
 def dist_mkdtemp() -> str:
+    """Creates a temp directory on local rank 0 to use for other ranks.
+
+    Returns:
+        str: The path to the temporary directory.
+    """
     tempdir = None
     if dist.get_local_rank() == 0:
         tempdir = tempfile.mkdtemp()

@@ -65,7 +65,7 @@ install_requires = [
     'omegaconf>=2.2.3,<3',
     'slack-sdk<4',
     'mosaicml-cli>=0.6.10,<1',
-    'onnx==1.16.2',
+    'onnx==1.17.0',
     'onnxruntime==1.19.2',
     'boto3>=1.21.45,<2',
     'huggingface-hub>=0.19.0,<0.25',
@@ -119,18 +119,22 @@ extra_deps['openai'] = [
 ]
 
 extra_deps['megablocks'] = [
-    'megablocks==0.6.1',
+    'megablocks<1.0',
     'grouped-gemm==0.1.6',
+]
+
+extra_deps['te'] = [
+    'transformer-engine[pytorch]>=1.11.0,<1.12',
 ]
 
 extra_deps['databricks-serverless'] = {
     dep for key, deps in extra_deps.items() for dep in deps
-    if 'gpu' not in key and 'megablocks' not in key and
+    if 'gpu' not in key and 'megablocks' not in key and 'te' not in key and
     'databricks-connect' not in dep
 }
 extra_deps['all-cpu'] = {
     dep for key, deps in extra_deps.items() for dep in deps
-    if 'gpu' not in key and 'megablocks' not in key
+    if 'gpu' not in key and 'megablocks' not in key and 'te' not in key
 }
 extra_deps['all'] = {
     dep for key, deps in extra_deps.items() for dep in deps

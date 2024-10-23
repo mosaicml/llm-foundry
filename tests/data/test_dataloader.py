@@ -454,7 +454,7 @@ def test_finetuning_dataloader_safe_load(
 
     tokenizer = build_tokenizer('gpt2', {})
 
-    with patch('llmfoundry.data.finetuning.tasks.dist_mkdtemp', return_value=str(tmp_path)):
+    with patch('llmfoundry.data.finetuning.tasks.tempfile.mkdtemp', return_value=str(tmp_path)):
         with expectation:
             _ = build_finetuning_dataloader(
                 tokenizer=tokenizer,

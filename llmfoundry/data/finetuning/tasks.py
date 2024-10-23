@@ -900,7 +900,7 @@ class DatasetConstructor:
                         dataset_name,
                     )
 
-                    print(
+                    log.debug(
                         f'Downloading dataset {dataset_name} to {local_dataset_dir}.',
                     )
 

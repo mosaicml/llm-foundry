@@ -323,9 +323,8 @@ def train(cfg: DictConfig) -> Trainer:
     save_filename: str = train_cfg.save_filename if train_cfg.save_filename else 'ep{epoch}-ba{batch}-rank{rank}.pt'
 
     # Enable autoresume from model checkpoints if possible
-    is_user_set_run_name: bool = train_cfg.run_name is not None or run_name is not None
     autoresume_default: bool = False
-    if is_user_set_run_name and \
+    if run_name is not None and \
         train_cfg.save_folder is not None \
         and not train_cfg.save_overwrite \
         and not train_cfg.save_weights_only:

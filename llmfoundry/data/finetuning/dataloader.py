@@ -617,13 +617,10 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
             with open(signal_file_path, 'wb') as f:
                 f.write(b'local_rank0_completed_download')
 
-        print(dist.get_local_rank(), f'signal_file_path: {signal_file_path}')
-
         # Avoid the collective call until the local rank zero has finished trying to download the dataset
         # so that we don't timeout for large downloads. This syncs all processes on the node
         with dist.local_rank_zero_download_and_wait(signal_file_path):
             # Then, wait to ensure every node has finished trying to download the dataset
-            print('GOT TO BARRIER')
             dist.barrier()
 
         # clean up signal file

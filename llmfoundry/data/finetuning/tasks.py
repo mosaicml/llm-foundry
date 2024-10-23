@@ -34,6 +34,7 @@ those keys are strings (i.e. text).
 import importlib
 import logging
 import os
+import tempfile
 import warnings
 from collections.abc import Mapping
 from functools import partial
@@ -91,7 +92,6 @@ from llmfoundry.utils.exceptions import (
     UnableToProcessPromptResponseError,
     UnknownExampleTypeError,
 )
-from llmfoundry.utils.file_utils import dist_mkdtemp
 #  yapf: enable
 from llmfoundry.utils.logging_utils import SpecificWarningFilter
 
@@ -912,7 +912,7 @@ class DatasetConstructor:
                 if not os.path.isdir(dataset_name):
                     # dataset_name is not a local dir path, download if needed.
                     local_dataset_dir = os.path.join(
-                        dist_mkdtemp(),
+                        tempfile.mkdtemp(),
                         dataset_name,
                     )
 

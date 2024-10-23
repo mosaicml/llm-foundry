@@ -451,6 +451,7 @@ def convert_dataset_hf_from_args(
         ValueError: If the output directory already contains the requested splits
         ValueError: If `concat_tokens` is set but `tokenizer` is not
     """
+    os.environ['WORLD_SIZE'] = '1'
     if tokenizer_kwargs:
         parsed_tokenizer_kwargs = json.loads(tokenizer_kwargs)
     else:

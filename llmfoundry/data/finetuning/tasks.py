@@ -916,9 +916,7 @@ class DatasetConstructor:
                         dataset_name,
                     )
 
-                    log.debug(
-                        f'Downloading dataset {dataset_name} to {local_dataset_dir}.',
-                    )
+                    log.debug(f'Downloading dataset {dataset_name} to {local_dataset_dir}.')
 
                     if _is_empty_or_nonexistent(dirpath=local_dataset_dir):
                         # Safely load a dataset from HF Hub with restricted file types.

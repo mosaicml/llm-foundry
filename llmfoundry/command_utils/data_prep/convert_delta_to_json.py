@@ -25,6 +25,7 @@ from llmfoundry.utils.exceptions import (
     FailedToCreateSQLConnectionError,
     FaultyDataPrepCluster,
     InsufficientPermissionsError,
+    UCNotEnabledError,
 )
 
 if TYPE_CHECKING:
@@ -500,6 +501,8 @@ def fetch(
         if isinstance(e, (AnalysisException, ServerOperationError)):
             if 'INSUFFICIENT_PERMISSIONS' in str(e):
                 raise InsufficientPermissionsError(str(e)) from e
+            elif 'UC_NOT_ENABLED' in str(e):
+                raise UCNotEnabledError() from e
 
         if isinstance(e, InsufficientPermissionsError):
             raise
@@ -711,10 +714,11 @@ def _check_imports():
         ) from e
 
     try:
-        from databricks import sql
         from databricks.sdk import WorkspaceClient
         from databricks.sql.client import Connection as Connection
         from databricks.sql.client import Cursor as Cursor
+
+        from databricks import sql
         _ = WorkspaceClient, Connection, Cursor, sql
     except ImportError as e:
         raise ImportError(

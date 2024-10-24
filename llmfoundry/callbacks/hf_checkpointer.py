@@ -600,6 +600,8 @@ class HuggingFaceCheckpointer(Callback):
             new_model_instance.load_state_dict(state_dict, assign=True)
             del state_dict
 
+            print("new_model_instance name or path BEFORE SETTING:", new_model_instance.name_or_path)
+
             # Ensure that the pretrained model name is correctly set on the saved HF checkpoint.
             if self.pretrained_model_name is not None:
                 new_model_instance.name_or_path = self.pretrained_model_name

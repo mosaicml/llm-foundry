@@ -117,7 +117,7 @@ def get_tokens_per_batch_func(
         loss_generating_tokens = 0
         if 'labels' in batch:
             loss_generating_tokens = int(
-                torch.sum(batch['labels'] != -100).item()
+                torch.sum(batch['labels'] != -100).item(),
             )
 
             # Subtract one for each example in the batch because the labels
@@ -134,7 +134,7 @@ def get_tokens_per_batch_func(
         if loss_generating_tokens != 0:
             return {
                 'total': input_ids_tokens + decoder_input_ids_tokens,
-                'loss_generating': loss_generating_tokens
+                'loss_generating': loss_generating_tokens,
             }
         return input_ids_tokens + decoder_input_ids_tokens
 

@@ -1186,6 +1186,7 @@ def test_token_counting_func_dataloader_setting(
 
     batch_strings = []
     expected_token_count = 0
+    expected_loss_generating_token_count = 0
     for _ in range(batch_size):
         # Get randomly different lengths if we are going to add padding
         sample_length = random.randint(1, model_max_length // 4) if (
@@ -1208,8 +1209,14 @@ def test_token_counting_func_dataloader_setting(
         for b in batch_tokenized:
             b['labels'] = b['input_ids'].copy()  # type: ignore
         batch_tokenized = [{'turns': [b]} for b in batch_tokenized]
+        expected_loss_generating_token_count = expected_token_count
         expected_token_count *= 2
         expected_token_count += 1 * batch_size  # for the eos token
+        expected_loss_generating_token_count += 1 * batch_size  # for the eos token
+    else:
+        expected_loss_generating_token_count = expected_token_count
+
+    expected_loss_generating_token_count -= 1 * batch_size  # because the labels will be shifted
 
     common_args = {
         'drop_last': False,
@@ -1311,9 +1318,11 @@ def test_token_counting_func_dataloader_setting(
         raise NotImplementedError()
 
     batch_collated = dl.dataloader.collate_fn(batch_tokenized)  # type: ignore
-    actual_token_count = dl.get_num_tokens_in_batch(batch_collated)
+    actual_total_token_count = dl.get_num_tokens_in_batch(batch_collated, token_type='total')
+    actual_loss_generating_token_count = dl.get_num_tokens_in_batch(batch_collated, token_type='loss_generating')
 
-    assert actual_token_count == expected_token_count
+    assert actual_total_token_count == expected_token_count
+    assert actual_loss_generating_token_count == expected_loss_generating_token_count
 
 
 def test_build_unknown_dataloader():

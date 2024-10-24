@@ -714,11 +714,10 @@ def _check_imports():
         ) from e
 
     try:
+        from databricks import sql
         from databricks.sdk import WorkspaceClient
         from databricks.sql.client import Connection as Connection
         from databricks.sql.client import Cursor as Cursor
-
-        from databricks import sql
         _ = WorkspaceClient, Connection, Cursor, sql
     except ImportError as e:
         raise ImportError(

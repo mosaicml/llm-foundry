@@ -31,8 +31,9 @@ DEPRECATED_HF_TOKEN_ENV_VAR = 'HUGGING_FACE_HUB_TOKEN'
 HF_TOKEN_ENV_VAR = 'HF_TOKEN'
 
 logging.basicConfig(
-    format=f'%(asctime)s: %(levelname)s: %(name)s: %(message)s',
-    level=logging.INFO,
+    format=
+    f'%(asctime)s: [%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s',
+    force=True,
 )
 log = logging.getLogger(__name__)
 

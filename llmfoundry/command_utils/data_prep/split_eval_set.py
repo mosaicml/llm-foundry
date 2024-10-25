@@ -13,6 +13,7 @@ from typing import Optional
 import composer.utils as utils
 from llmfoundry.data.finetuning.tasks import maybe_safe_download_hf_data
 
+log = logging.getLogger(__name__)
 
 DELTA_JSONL_REGEX = re.compile(r"^tmp-t$")
 REMOTE_OBJECT_STORE_FILE_REGEX = re.compile(
@@ -20,10 +21,25 @@ REMOTE_OBJECT_STORE_FILE_REGEX = re.compile(
 )
 HF_REGEX = re.compile(r"^[/a-zA-Z0-9 ()_\-.]+$")
 
+def get_dataset_format(data_path_folder: str) -> str:
+    """
+    Determine the format of the dataset from the provided data path
+
+    Args:
+        data_path_folder (str): Path to the training dataset folder
+
+    Returns:
+        str: The format of the dataset
+    """
+    if DELTA_JSONL_REGEX.match(data_path_folder):
+        return "delta"
+    if REMOTE_OBJECT_STORE_FILE_REGEX.match(data_path_folder):
+        return "remote_object_store"
+    if HF_REGEX.match(data_path_folder):
+        return "hugging_face"
+    return "unknown"
+
 TEMP_DIR = "tmp-split"
-
-log = logging.getLogger(__name__)
-
 
 def maybe_download_data_as_json(data_path_folder: str, data_path_split: str) -> str:
     """
@@ -45,11 +61,13 @@ def maybe_download_data_as_json(data_path_folder: str, data_path_split: str) -> 
     """
     os.makedirs(TEMP_DIR, exist_ok=True)
 
-    if DELTA_JSONL_REGEX.match(data_path_folder):
+    dataset_format = get_dataset_format(data_path_folder)
+
+    if dataset_format == "delta":
         log.info(f"Dataset is converted from Delta table. Using local file {data_path_folder}")
         data_path = os.path.join(data_path_folder, f"{data_path_split}-00000-of-00001.jsonl")
 
-    elif REMOTE_OBJECT_STORE_FILE_REGEX.match(data_path_folder):
+    elif dataset_format == "remote_object_store":
         log.info(
             f"Downloading dataset from remote object store: {data_path_folder}{data_path_split}.jsonl"
         )
@@ -57,7 +75,7 @@ def maybe_download_data_as_json(data_path_folder: str, data_path_split: str) -> 
         data_path = os.path.join(TEMP_DIR, f"{data_path_split}.jsonl")
         utils.get_file(remote_path, data_path, overwrite=True)
 
-    elif HF_REGEX.match(data_path_folder):
+    elif dataset_format == "hugging_face":
         log.info(
             f"Downloading dataset from Hugging Face: {data_path_folder} with split {data_path_split}"
         )

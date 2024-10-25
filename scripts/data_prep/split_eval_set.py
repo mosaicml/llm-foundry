@@ -18,8 +18,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--output_path",
-        required=True,
+        required=False,
         type=str,
+        default="/tmp-split",
         help="Path to save the split dataset",
     )
     parser.add_argument(
@@ -33,7 +34,7 @@ if __name__ == "__main__":
         "--max_eval_samples",
         required=False,
         type=int,
-        default=None,
+        default=100,
         help="Maximum number of samples to include in the eval set",
     )
     parser.add_argument(

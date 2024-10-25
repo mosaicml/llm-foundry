@@ -5,6 +5,7 @@ import hashlib
 from unittest.mock import patch
 
 from llmfoundry.command_utils import split_eval_set_from_args, split_examples
+from llmfoundry.command_utils.data_prep.split_eval_set import DELTA_JSONL_REGEX, get_dataset_format, HF_REGEX, REMOTE_OBJECT_STORE_FILE_REGEX
 
 # Default values
 OUTPUT_DIR = "tmp-split"
@@ -13,6 +14,59 @@ DATA_PATH_SPLIT = "train"
 EVAL_SPLIT_RATIO = 0.1
 DEFAULT_FILE = TMPT_DIR + "/train-00000-of-00001.jsonl"
 
+
+def test_delta_jsonl_regex():
+    """Test the regex pattern matches tmp-t exactly"""
+    assert DELTA_JSONL_REGEX.match("tmp-t")
+    assert not DELTA_JSONL_REGEX.match("/tmp-t")
+    assert not DELTA_JSONL_REGEX.match("tmp-t-00000-of-00001.jsonl")
+    assert not DELTA_JSONL_REGEX.match("tmp-t-something")
+    assert not DELTA_JSONL_REGEX.match("tmp-t/")
+    assert not DELTA_JSONL_REGEX.match("tmp-t\\")
+
+def test_remote_object_store_file_regex():
+    """Test the regex pattern for remote object store file paths"""
+    assert REMOTE_OBJECT_STORE_FILE_REGEX.match("s3://bucket-name/path/to/file")
+    assert REMOTE_OBJECT_STORE_FILE_REGEX.match("oci://bucket-name/path/to/file")
+    assert REMOTE_OBJECT_STORE_FILE_REGEX.match("gs://bucket-name/path/to/file")
+    assert REMOTE_OBJECT_STORE_FILE_REGEX.match("dbfs:/Volumes/path/to/file")
+    assert not REMOTE_OBJECT_STORE_FILE_REGEX.match("https://bucket-name/path/to/file")
+    assert not REMOTE_OBJECT_STORE_FILE_REGEX.match("/local/path/to/file")
+    assert not REMOTE_OBJECT_STORE_FILE_REGEX.match("s3:/bucket-name/path/to/file")
+    assert not REMOTE_OBJECT_STORE_FILE_REGEX.match("s3://bucket-name/path/to/file with spaces")
+    assert not REMOTE_OBJECT_STORE_FILE_REGEX.match("s3://bucket-name/path/to/file?")
+
+def test_hf_regex():
+    """Test the regex pattern for Hugging Face dataset paths"""
+    assert HF_REGEX.match("dataset-name")
+    assert HF_REGEX.match("dataset_name")
+    assert HF_REGEX.match("dataset-name_with-mixed.characters-123")
+    assert not HF_REGEX.match("dataset/name")
+    assert not HF_REGEX.match("dataset\\name")
+    assert not HF_REGEX.match("dataset:name")
+
+def test_get_dataset_format():
+    """Test the get_dataset_format function"""
+
+    # Test delta format
+    assert get_dataset_format("tmp-t") == "delta"
+    assert get_dataset_format("tmp-t/") == "unknown"
+
+    # Test remote object store format
+    assert get_dataset_format("s3://bucket-name/path/to/file") == "remote_object_store"
+    assert get_dataset_format("oci://bucket-name/path/to/file") == "remote_object_store"
+    assert get_dataset_format("gs://bucket-name/path/to/file") == "remote_object_store"
+    assert get_dataset_format("dbfs:/Volumes/path/to/file") == "remote_object_store"
+
+    # Test Hugging Face format
+    assert get_dataset_format("dataset-name") == "hugging_face"
+    assert get_dataset_format("dataset_name") == "hugging_face"
+    assert get_dataset_format("dataset-name_with-mixed.characters-123") == "hugging_face"
+
+    # Test unknown format
+    assert get_dataset_format("/local/path/to/file") == "unknown"
+    assert get_dataset_format("s3:/bucket-name/path/to/file") == "unknown"
+    assert get_dataset_format("dataset:name") == "unknown"
 
 def calculate_file_hash(filepath: str) -> str:
     with open(filepath, "rb") as f:

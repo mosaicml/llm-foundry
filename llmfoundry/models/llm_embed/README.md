@@ -176,11 +176,6 @@ integrations:
   ssh_clone: true
   git_branch: main
   pip_install: .[gpu]
-- integration_type: git_repo
-  git_repo: databricks-mosaic/runtime-private-plugins
-  ssh_clone: true
-  git_branch: main
-  pip_install: -e .[gpu] --no-deps
 env_variables:
   NCCL_DEBUG: INFO
 command: |-

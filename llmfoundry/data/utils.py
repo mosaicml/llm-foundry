@@ -114,19 +114,17 @@ def get_tokens_per_batch_func(
         else:
             input_ids_tokens = batch['input_ids'].numel()
 
-        loss_generating_tokens = 0
+        loss_generating_tokens = None
         if 'labels' in batch:
             loss_generating_tokens = int(
                 torch.sum(batch['labels'] != -100).item(),
             )
 
-            print(loss_generating_tokens)
             # Subtract one for each example in the batch that starts with a non -100,
             # because those will be shifted off
             loss_generating_tokens -= int(
                 torch.sum(batch['labels'][:, 0] != -100).item(),
             )
-            print(loss_generating_tokens)
 
         # For encoder decoder models only
         decoder_input_ids_tokens = 0
@@ -135,7 +133,7 @@ def get_tokens_per_batch_func(
                 torch.sum(batch['decoder_attention_mask']).item(),
             )
 
-        if loss_generating_tokens != 0:
+        if loss_generating_tokens is not None:
             return {
                 'total': input_ids_tokens + decoder_input_ids_tokens,
                 'loss_generating': loss_generating_tokens,

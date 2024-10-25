@@ -25,7 +25,7 @@ models.register('openai_causal_lm', func=OpenAICausalLMEvalWrapper)
 models.register('fmapi_causal_lm', func=FMAPICasualLMEvalWrapper)
 models.register('openai_chat', func=OpenAIChatAPIEvalWrapper)
 models.register('fmapi_chat', func=FMAPIChatAPIEvalWrapper)
-models.register('finetune_embedding_model', func=FinetuneEmbeddingModel)
+models.register('contrastive_lm', func=FinetuneEmbeddingModel)
 models.register('finetune_embedding_model', func=ContrastiveModel)
 
 __all__ = [

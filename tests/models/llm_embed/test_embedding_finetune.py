@@ -179,7 +179,7 @@ def test_construct_model_distributed(
          patch('torch.distributed.get_rank', return_value=0), \
          patch('torch.distributed.barrier'), \
          patch('transformers.AutoModel.from_pretrained', return_value=mock_auto_model), \
-         patch('runtime_private_plugins.models.llm_embed.FinetuneEmbeddingModel.construct_model', return_value=mock_auto_model):
+         patch('llmfoundry.models.llm_embed.FinetuneEmbeddingModel.construct_model', return_value=mock_auto_model):
         model_instance: FinetuneEmbeddingModel = FinetuneEmbeddingModel(
             tokenizer=mock_tokenizer,
             pretrained_model_name_or_path='bert-base-uncased',

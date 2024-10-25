@@ -28,8 +28,8 @@ from torchmetrics import Metric
 from transformers import PreTrainedTokenizerBase
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
-from llmfoundry.models.mpt.configuration_mpt import MPTConfig
 from llmfoundry.models.hf.hf_causal_lm import ComposerHFCausalLM
+from llmfoundry.models.mpt.configuration_mpt import MPTConfig
 from llmfoundry.models.mpt.modeling_mpt import MPTForCausalLM
 from llmfoundry.models.utils.config_moe_args import create_set_process_group
 

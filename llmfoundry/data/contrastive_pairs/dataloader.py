@@ -14,7 +14,7 @@ import torch
 from composer.core import DataSpec
 from llmfoundry import registry
 from llmfoundry.data.text_data import ConcatenatedSequenceCollatorWrapper, StreamingTextDataset
-from llmfoundry.utils import construct_from_registry
+from llmfoundry.utils.registry_utils import construct_from_registry
 from streaming import Stream, StreamingDataset
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase

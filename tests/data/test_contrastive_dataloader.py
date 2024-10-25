@@ -1,7 +1,10 @@
+# Copyright 2024 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 import pytest
 import torch
-from llmfoundry.utils.builders import build_dataloader
 
+from llmfoundry.utils.builders import build_dataloader
 from tests.data_utils import (
     temporary_contrastive_streaming_dataset,
     temporary_tokenizer,

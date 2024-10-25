@@ -1,5 +1,6 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
+
 """Dataset and dataloader for contrastive training.
 
 Build a StreamingPairsDataset dataset and dataloader for contrastive training.
@@ -12,17 +13,24 @@ from typing import Any, Literal, Mapping, Optional, Union
 import numpy as np
 import torch
 from composer.core import DataSpec
-from llmfoundry import registry
-from llmfoundry.data.text_data import ConcatenatedSequenceCollatorWrapper, StreamingTextDataset
-from llmfoundry.utils.registry_utils import construct_from_registry
 from streaming import Stream, StreamingDataset
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
-ContrastiveSampleType = Literal['one_query_multiple_responses', 'one_query_one_response']
+from llmfoundry import registry
+from llmfoundry.data.text_data import (
+    ConcatenatedSequenceCollatorWrapper,
+    StreamingTextDataset,
+)
+from llmfoundry.utils.registry_utils import construct_from_registry
+
+ContrastiveSampleType = Literal['one_query_multiple_responses',
+                                'one_query_one_response']
 
 
-def _get_contrastive_sample_type(sample: Mapping[str, Any]) -> ContrastiveSampleType:
+def _get_contrastive_sample_type(
+    sample: Mapping[str, Any],
+) -> ContrastiveSampleType:
     """Get the type of contrastive sample from the sample.
 
     Args:
@@ -31,8 +39,12 @@ def _get_contrastive_sample_type(sample: Mapping[str, Any]) -> ContrastiveSample
     Returns:
         ContrastiveSampleType: The type of contrastive sample.
     """
-    sample_contains_text_a = any(key.startswith('text_a') for key in sample.keys())
-    sample_contains_text_b = any(key.startswith('text_b') for key in sample.keys())
+    sample_contains_text_a = any(
+        key.startswith('text_a') for key in sample.keys()
+    )
+    sample_contains_text_b = any(
+        key.startswith('text_b') for key in sample.keys()
+    )
 
     if sample_contains_text_a and sample_contains_text_b:
         return 'one_query_one_response'
@@ -86,13 +98,19 @@ class StreamingPairsDataset(StreamingTextDataset):
         self._generator = np.random.default_rng(seed=self.shuffle_seed)
         if append_eos_token:
             if append_token != '':
-                raise ValueError('The arguments append_eos_token and append_token are mutually exclusive.',)
+                raise ValueError(
+                    'The arguments append_eos_token and append_token are mutually exclusive.',
+                )
             self.append_token = self.tokenizer.eos_token
         else:
             self.append_token = append_token
 
-    def _get_contrastive_samples(self, query_text: str, positive_response: str,
-                                 negative_responses: list[str]) -> dict[str, Union[str, list[str]]]:
+    def _get_contrastive_samples(
+        self,
+        query_text: str,
+        positive_response: str,
+        negative_responses: list[str],
+    ) -> dict[str, Union[str, list[str]]]:
         """Flatten contrastive samples into a list of strings.
 
         Args:
@@ -108,7 +126,10 @@ class StreamingPairsDataset(StreamingTextDataset):
         if self.shuffle_hard_negatives:
             self._generator.shuffle(negative_responses)
         negative_responses = negative_responses[:self.max_hard_negatives]
-        negative_responses = [f'{self.prepend_passage}{response}{self.append_token}' for response in negative_responses]
+        negative_responses = [
+            f'{self.prepend_passage}{response}{self.append_token}'
+            for response in negative_responses
+        ]
         return {
             'query': query_text,
             'positive': positive_response,
@@ -121,7 +142,11 @@ class StreamingPairsDataset(StreamingTextDataset):
 
         sample_type = _get_contrastive_sample_type(sample)
         if sample_type == 'one_query_one_response':
-            text_samples = self._get_contrastive_samples(sample['text_a'], sample['text_b'], [])
+            text_samples = self._get_contrastive_samples(
+                sample['text_a'],
+                sample['text_b'],
+                [],
+            )
         elif sample_type == 'one_query_multiple_responses':
             negative_passages_str = sample['negative_passages']
             text_samples = self._get_contrastive_samples(
@@ -135,15 +160,25 @@ class StreamingPairsDataset(StreamingTextDataset):
         token_samples = self._tokenize(text_samples)
         return token_samples
 
-    def _tokenize(self, text_samples: dict[str, Union[str, list[str]]]) -> dict[str, list[int]]:
+    def _tokenize(
+        self,
+        text_samples: dict[str, Union[str, list[str]]],
+    ) -> dict[str, list[int]]:
         if self.tokenizer.pad_token is None:
-            raise RuntimeError('If tokenizing on-the-fly, tokenizer must have a pad_token_id')
+            raise RuntimeError(
+                'If tokenizing on-the-fly, tokenizer must have a pad_token_id',
+            )
 
         text_samples_list = [text_samples['query'], text_samples['positive']]
         text_samples_negatives = text_samples['negative']
         assert isinstance(text_samples_negatives, list)  # pyright type check
         text_samples_list.extend(text_samples_negatives)
-        return self.tokenizer(text_samples_list, truncation=True, padding='max_length', max_length=self.max_seq_len)
+        return self.tokenizer(
+            text_samples_list,
+            truncation=True,
+            padding='max_length',
+            max_length=self.max_seq_len,
+        )
 
 
 def build_pairs_dataloader(
@@ -245,20 +280,37 @@ if __name__ == '__main__':
         default='EleutherAI/gpt-neox-20b',
         help='the name of the tokenizer to use',
     )
-    parser.add_argument('--local_path', type=str, required=True, help='the path to the local copy of the dataset')
+    parser.add_argument(
+        '--local_path',
+        type=str,
+        required=True,
+        help='the path to the local copy of the dataset',
+    )
     parser.add_argument(
         '--remote_path',
         type=str,
         default=None,
         help='the path to the remote copy to stream from (optional)',
     )
-    parser.add_argument('--split', type=str, default='train', help='which split of the dataset to use')
-    parser.add_argument('--max_seq_len', type=int, default=32, help='max sequence length to test')
+    parser.add_argument(
+        '--split',
+        type=str,
+        default='train',
+        help='which split of the dataset to use',
+    )
+    parser.add_argument(
+        '--max_seq_len',
+        type=int,
+        default=32,
+        help='max sequence length to test',
+    )
 
     args = parser.parse_args()
 
     if args.remote_path is not None:
-        print(f'Reading {args.split} split from {args.local_path} <- streamed from <- {args.remote_path}',)
+        print(
+            f'Reading {args.split} split from {args.local_path} <- streamed from <- {args.remote_path}',
+        )
     else:
         print(f'Reading {args.split} split from {args.local_path}')
 
@@ -281,7 +333,11 @@ if __name__ == '__main__':
     tokenizer_kwargs = {'model_max_length': args.max_seq_len}
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
-    loader = build_pairs_dataloader(**cfg, tokenizer=tokenizer, device_batch_size=device_batch_size).dataloader
+    loader = build_pairs_dataloader(
+        **cfg,
+        tokenizer=tokenizer,
+        device_batch_size=device_batch_size,
+    ).dataloader
     assert isinstance(loader, DataLoader)
     assert isinstance(loader.dataset, StreamingPairsDataset)
     tokenizer = loader.dataset.tokenizer

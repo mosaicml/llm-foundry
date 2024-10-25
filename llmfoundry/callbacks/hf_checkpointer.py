@@ -76,6 +76,11 @@ def _maybe_get_license_filename(
 
     If the license file does not exist, returns None.
     """
+    # Early return if no local directory exists
+    if not os.path.exists(local_dir):
+        return None
+    
+    # Try to find the license file
     try:
         license_filename = next(
             file for file in os.listdir(local_dir)

@@ -1,7 +1,6 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from llmfoundry.consts import CROSS_ENTROPY_IGNORE_INDEX
 from llmfoundry.registry import config_transforms
 from llmfoundry.utils.builders import (
     add_metrics_to_eval_loaders,
@@ -30,6 +29,7 @@ from llmfoundry.utils.config_utils import (
     process_init_device,
     update_batch_size_info,
 )
+from llmfoundry.utils.consts import CROSS_ENTROPY_IGNORE_INDEX
 from llmfoundry.utils.data_prep_utils import (
     DownloadingIterable,
     merge_shard_groups,

@@ -332,7 +332,7 @@ def build_temporary_contrastive_streaming_dataset(ds_format: str):
         'text_a': 'str',
         'text_b': 'str',
         'id': 'int',
-    } if ds_format == 'text_a_text_b' else {
+    } if ds_format == 'one_query_one_response' else {
         'query_text': 'str',
         'positive_passage': 'str',
         'negative_passages': 'str',
@@ -344,13 +344,13 @@ def build_temporary_contrastive_streaming_dataset(ds_format: str):
         compression=None,
     ) as output_writer:
         for i in range(100):
-            if ds_format == 'text_a_text_b':
+            if ds_format == 'one_query_one_response':
                 output_writer.write({
                     'text_a': f'hello {i}',
                     'text_b': f'world {i}',
                     'id': i,
                 })
-            elif ds_format == 'query_passages':
+            elif ds_format == 'one_query_multiple_responses':
                 output_writer.write({
                     'query_text':
                         f'query {i}',

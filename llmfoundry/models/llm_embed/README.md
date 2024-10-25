@@ -18,7 +18,7 @@ Before the final "logit" layer of the decoder, the tensor still has dimensions _
 
 The main additions are as follows:
 
-* The class `ComposerMPTContrastiveLM(HuggingFaceModel)`, which implements the InfoNCE Loss in the `.loss()` function. `mpt_embed` is treated as a separate model folder from `mpt`.
+* The class `ContrastiveModel(HuggingFaceModel)`, which implements the InfoNCE Loss in the `.loss()` function. `mpt_embed` is treated as a separate model folder from `mpt`.
 * A naive dataloader for contrastive pairs `build_pairs_dataloader()`. This can handle positive pairs formatted as `text_a` and `text_b`, or positive pairs with hard negatives formatted as `query`,`passage` and a list of `hard_negatives`.
 
 ## Example YAML

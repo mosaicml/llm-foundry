@@ -11,7 +11,10 @@ from tests.data_utils import (
 )
 
 
-@pytest.mark.parametrize('ds_format', ['text_a_text_b', 'query_passages'])
+@pytest.mark.parametrize(
+    'ds_format',
+    ['one_query_one_response', 'one_query_multiple_responses'],
+)
 def test_pairs_dataloader(ds_format: str):
     with temporary_tokenizer('mosaicml/mpt-7b') as tokenizer, \
         temporary_contrastive_streaming_dataset(ds_format) as data_dir:
@@ -33,7 +36,7 @@ def test_pairs_dataloader(ds_format: str):
         for i, batch in enumerate(dl.dataloader):
             # query + positive + max 2 hard negatives
             assert batch['input_ids'].shape[1] <= 4
-            if ds_format == 'text_a_text_b':
+            if ds_format == 'one_query_one_response':
                 # 0th item is the query, 1st item is the positive, 2nd item is (optionally) the negative
                 expected = tokenizer([
                     f'hello {i}',

@@ -183,7 +183,10 @@ dataloader_config = lambda remote, local_ext: {
 @pytest.mark.gpu
 @pytest.mark.parametrize('is_hf', [True, False])
 @pytest.mark.parametrize('attn_impl', ['flash', 'torch'])
-@pytest.mark.parametrize('ds_format', ['text_a_text_b', 'query_passages'])
+@pytest.mark.parametrize(
+    'ds_format',
+    ['one_query_one_response', 'one_query_multiple_responses'],
+)
 def test_contrastive_loss(ds_format: str, is_hf: bool, attn_impl: str):
     maybe_attn_impl = None if is_hf else attn_impl
     tokenizer_config = build_tokenizer_config(is_hf)

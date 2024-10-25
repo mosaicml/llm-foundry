@@ -15,6 +15,7 @@ from llmfoundry.data.finetuning.collator import Seq2SeqFinetuningCollator
 from llmfoundry.data.finetuning.dataloader import build_collate_fn
 from llmfoundry.data.packing import BinPackCollator
 from llmfoundry.data.text_data import ConcatenatedSequenceCollatorWrapper
+from llmfoundry.utils.consts import CROSS_ENTROPY_IGNORE_INDEX
 
 log = logging.getLogger(__name__)
 
@@ -117,13 +118,15 @@ def get_tokens_per_batch_func(
         loss_generating_tokens = None
         if 'labels' in batch:
             loss_generating_tokens = int(
-                torch.sum(batch['labels'] != -100).item(),
+                torch.sum(batch['labels'] != CROSS_ENTROPY_IGNORE_INDEX).item(),
             )
 
             # Subtract one for each example in the batch that starts with a non -100,
             # because those will be shifted off
             loss_generating_tokens -= int(
-                torch.sum(batch['labels'][:, 0] != -100).item(),
+                torch.sum(
+                    batch['labels'][:, 0] != CROSS_ENTROPY_IGNORE_INDEX,
+                ).item(),
             )
 
         # For encoder decoder models only

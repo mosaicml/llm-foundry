@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+from llmfoundry.consts import CROSS_ENTROPY_IGNORE_INDEX
 from llmfoundry.registry import config_transforms
 from llmfoundry.utils.builders import (
     add_metrics_to_eval_loaders,
@@ -111,4 +112,5 @@ __all__ = [
     'ExperimentalWarning',
     'experimental_function',
     'experimental_class',
+    'CROSS_ENTROPY_IGNORE_INDEX',
 ]

@@ -27,7 +27,6 @@ from llmfoundry.command_utils.data_prep.convert_finetuning_dataset import \
     get_columns_and_format
 from llmfoundry.data import build_dataloader, build_finetuning_dataloader
 from llmfoundry.data.finetuning.collator import (
-    _HF_IGNORE_INDEX,
     validate_target_settings,
 )
 from llmfoundry.data.finetuning.tasks import (
@@ -45,6 +44,7 @@ from llmfoundry.data.text_data import (
 from llmfoundry.data.utils import get_tokens_per_batch_func
 from llmfoundry.utils.builders import build_tokenizer
 from llmfoundry.utils.config_utils import to_dict_container
+from llmfoundry.utils.consts import CROSS_ENTROPY_IGNORE_INDEX
 # yapf: disable
 from llmfoundry.utils.exceptions import (
     ConsecutiveRepeatedChatRolesError,
@@ -271,7 +271,7 @@ def test_correct_padding(
         torch.ones_like(batch['input_ids'], dtype=torch.bool),
     )
     a = attention_mask == 0
-    b = batch['labels'] == -100
+    b = batch['labels'] == CROSS_ENTROPY_IGNORE_INDEX
     assert torch.equal(a, b)
 
 
@@ -1106,7 +1106,7 @@ def test_finetune_dataloader_pure_pad_responses():
             labels = batch['labels'][
                 0,
                 torch.
-                logical_and(is_subseq, batch['labels'][0] != _HF_IGNORE_INDEX)]
+                logical_and(is_subseq, batch['labels'][0] != CROSS_ENTROPY_IGNORE_INDEX)]
             assert all(labels[:-1] == tokenizer.pad_token_id)
         if i >= 20:
             break

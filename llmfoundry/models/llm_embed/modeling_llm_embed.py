@@ -1,5 +1,6 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
+
 """LLM Contrastive Embedding Model.
 
 Implements InfoNCE Loss using the MPT architecture. The resulting model can
@@ -21,15 +22,16 @@ import triton
 from composer.models import HuggingFaceModel
 from composer.utils import dist
 from einops import rearrange
-from llmfoundry import MPTConfig
-from llmfoundry.models.hf.hf_causal_lm import ComposerHFCausalLM
-from llmfoundry.models.mpt.modeling_mpt import MPTForCausalLM
-from llmfoundry.models.utils.config_moe_args import create_set_process_group
 from omegaconf import OmegaConf as om
 from torch.distributed.nn.functional import all_gather
 from torchmetrics import Metric
 from transformers import PreTrainedTokenizerBase
 from transformers.modeling_outputs import CausalLMOutputWithPast
+
+from llmfoundry import MPTConfig
+from llmfoundry.models.hf.hf_causal_lm import ComposerHFCausalLM
+from llmfoundry.models.mpt.modeling_mpt import MPTForCausalLM
+from llmfoundry.models.utils.config_moe_args import create_set_process_group
 
 log = logging.getLogger(__name__)
 
@@ -123,13 +125,16 @@ class ContrastiveModel(HuggingFaceModel):
         self.is_mpt = False
 
         contrastive_config = contrastive_config or {}
-        contrastive_config_obj: ContrastiveConfig = om.structured(ContrastiveConfig(**contrastive_config))
+        contrastive_config_obj: ContrastiveConfig = om.structured(
+            ContrastiveConfig(**contrastive_config),
+        )
         if tokenizer.pad_token is None:  # type: ignore
             tokenizer.pad_token = tokenizer.eos_token
 
         model = self.construct_model()
 
-        train_metrics: list[Metric] = []  # TODO: no train metrics for embedding models yet!
+        train_metrics: list[Metric] = [
+        ]  # TODO: no train metrics for embedding models yet!
 
         self.eval_metrics = [
             ContrastiveEvalLoss(),
@@ -159,14 +164,17 @@ class ContrastiveModel(HuggingFaceModel):
         self.n_active_params = sum(p.numel() for p in self.parameters())
         if loss_fn == 'fused_crossentropy':
             try:
-                from flash_attn.losses.cross_entropy import CrossEntropyLoss as FusedCrossEntropyLoss
+                from flash_attn.losses.cross_entropy import \
+                    CrossEntropyLoss as FusedCrossEntropyLoss
 
                 self.loss_fn = FusedCrossEntropyLoss(ignore_index=-100)
             except:
                 raise ValueError(
-                    'Fused Cross Entropy is not installed. Either (1) have a CUDA-compatible GPU ' +
+                    'Fused Cross Entropy is not installed. Either (1) have a CUDA-compatible GPU '
+                    +
                     'and `pip install .[gpu]` if installing from source or `pip install xentropy-cuda-lib@git+https://github.com/HazyResearch/flash-attention.git@v1.0.3#subdirectory=csrc/xentropy` '
-                    + 'if installing from pypi, or (2) set your config model.loss_fn=torch_crossentropy.',
+                    +
+                    'if installing from pypi, or (2) set your config model.loss_fn=torch_crossentropy.',
                 )
         elif loss_fn == 'torch_crossentropy':
             self.loss_fn = nn.CrossEntropyLoss(ignore_index=-100)
@@ -184,7 +192,8 @@ class ContrastiveModel(HuggingFaceModel):
         if self.pretrained_model_name_or_path:
             model = ComposerHFCausalLM.build_inner_model(
                 pretrained=True,
-                pretrained_model_name_or_path=self.pretrained_model_name_or_path,
+                pretrained_model_name_or_path=self.
+                pretrained_model_name_or_path,
                 pretrained_lora_id_or_path=self.pretrained_lora_id_or_path,
                 trust_remote_code=self.trust_remote_code,
                 init_device=self.init_device,
@@ -233,8 +242,11 @@ class ContrastiveModel(HuggingFaceModel):
         index = 0
         for key in batch:
             num_blocks = batch[key].size(0) // self.step_size
-            index = torch.arange(1, num_blocks * self.step_size + 1,
-                                 device=last_hidden_state.device).view(num_blocks, self.step_size)
+            index = torch.arange(
+                1,
+                num_blocks * self.step_size + 1,
+                device=last_hidden_state.device,
+            ).view(num_blocks, self.step_size)
             index = index[:, :self.step_size - 1].reshape(-1)
             passages[key] = batch[key][index]
 
@@ -248,7 +260,9 @@ class ContrastiveModel(HuggingFaceModel):
         kwargs = {}
         for key in batch:
             kwargs[key] = collapse_dims(batch[key])
-            batch[key] = kwargs[key]  # the batch needs to be updated in place for loss computation
+            batch[key] = kwargs[
+                key
+            ]  # the batch needs to be updated in place for loss computation
 
         return self.model(
             output_hidden_states=True,
@@ -276,9 +290,14 @@ class ContrastiveModel(HuggingFaceModel):
         """Returns the hidden state to use for pooling."""
         return outputs.hidden_states[-1]
 
-    def handle_language_head(self, outputs: CausalLMOutputWithPast) -> torch.Tensor:
+    def handle_language_head(
+        self,
+        outputs: CausalLMOutputWithPast,
+    ) -> torch.Tensor:
         """Handles `zero` tensor to avoid DDP unused parameters error."""
-        return torch.sum(outputs.logits) * 0  # This attaches the language head to the computation graph
+        return torch.sum(
+            outputs.logits,
+        ) * 0  # This attaches the language head to the computation graph
 
     def _compute_scores(
         self,
@@ -294,14 +313,21 @@ class ContrastiveModel(HuggingFaceModel):
 
         Args:
             batch (MutableMapping): The input batch containing queries and passages.
+            outputs (CausalLMOutputWithPast): The model outputs.
 
         Returns:
             Tuple[torch.Tensor, torch.Tensor]: The encoded representations of queries and passages.
         """
         hidden_state = self.get_hidden_state(outputs)
         zero = self.handle_language_head(outputs)
-        (queries_batch, queries_last_hidden_state) = self.format_queries_batch(batch, hidden_state)
-        (passages_batch, passages_last_hidden_state) = self.format_passages_batch(batch, hidden_state)
+        (
+            queries_batch,
+            queries_last_hidden_state,
+        ) = self.format_queries_batch(batch, hidden_state)
+        (
+            passages_batch,
+            passages_last_hidden_state,
+        ) = self.format_passages_batch(batch, hidden_state)
 
         query_attn_mask = queries_batch.get('attention_mask')
         passage_attn_mask = passages_batch.get('attention_mask')
@@ -327,7 +353,10 @@ class ContrastiveModel(HuggingFaceModel):
             )
 
         q_pooled_outputs = pool_fn(queries_last_hidden_state, query_attn_mask)
-        p_pooled_outputs = pool_fn(passages_last_hidden_state, passage_attn_mask)
+        p_pooled_outputs = pool_fn(
+            passages_last_hidden_state,
+            passage_attn_mask,
+        )
 
         if self.normalize_output:
             q_pooled_outputs = F.normalize(q_pooled_outputs, dim=-1)
@@ -350,30 +379,53 @@ class ContrastiveModel(HuggingFaceModel):
         assert all_q_pooled_outputs is not None
         assert all_p_pooled_outputs is not None
 
-        all_scores = self._full_contrastive_scores(queries=all_q_pooled_outputs, passages=all_p_pooled_outputs)
+        all_scores = self._full_contrastive_scores(
+            queries=all_q_pooled_outputs,
+            passages=all_p_pooled_outputs,
+        )
         all_scores = all_scores * (1 / self.temperature) + zero
 
-        all_labels = torch.arange(all_scores.size(0), device=q_pooled_outputs.device, dtype=torch.long)
-        all_labels = all_labels * (p_pooled_outputs.size(0) // q_pooled_outputs.size(0))
+        all_labels = torch.arange(
+            all_scores.size(0),
+            device=q_pooled_outputs.device,
+            dtype=torch.long,
+        )
+        all_labels = all_labels * (
+            p_pooled_outputs.size(0) // q_pooled_outputs.size(0)
+        )
 
         return all_scores, all_labels
 
-    def _full_contrastive_scores(self, queries: torch.Tensor, passages: torch.Tensor) -> torch.Tensor:
+    def _full_contrastive_scores(
+        self,
+        queries: torch.Tensor,
+        passages: torch.Tensor,
+    ) -> torch.Tensor:
 
         # this calculates the inner product between query and passage pairs
         qp = torch.mm(queries, passages.t())
 
         return qp
 
-    def loss(self, outputs: CausalLMOutputWithPast, batch: MutableMapping) -> torch.Tensor:
+    def loss(
+        self,
+        outputs: CausalLMOutputWithPast,
+        batch: MutableMapping,
+    ) -> torch.Tensor:
         scores, labels = self._compute_scores(batch, outputs)
         try:
             loss = self.loss_fn(scores, labels)
             return loss
         except triton.compiler.errors.CompilationError:
-            raise ValueError(f'global_train_batch_size is too small. Increase the batch size to at least 2.',)
+            raise ValueError(
+                f'global_train_batch_size is too small. Increase the batch size to at least 2.',
+            )
 
-    def eval_forward(self, batch: MutableMapping, outputs: Optional[Any] = None):
+    def eval_forward(
+        self,
+        batch: MutableMapping,
+        outputs: Optional[Any] = None,
+    ):
         if outputs is None:
             outputs = self.forward(batch)
         val_loss = self.loss(outputs, batch)
@@ -387,6 +439,9 @@ class ContrastiveModel(HuggingFaceModel):
         bs, msl = batch['input_ids'].shape[0:2]
         params_flops_per_token = 2 * self.n_active_params
         params_flops_per_seq = params_flops_per_token * msl
-        attn_flops_per_seq = (self.model.config.n_layers * 2 * 2 * (self.model.config.d_model * (msl**2)))
+        attn_flops_per_seq = (
+            self.model.config.n_layers * 2 * 2 *
+            (self.model.config.d_model * (msl**2))
+        )
 
         return (params_flops_per_seq + attn_flops_per_seq) * 3 * bs

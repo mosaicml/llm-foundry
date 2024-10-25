@@ -1,3 +1,6 @@
+# Copyright 2024 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 import json
 import logging
 import os
@@ -6,14 +9,15 @@ from argparse import ArgumentParser
 from typing import Optional
 
 from databricks.sql.client import Cursor
+from pyspark.sql import SparkSession
+from streaming import MDSWriter
+
 from llmfoundry.command_utils.data_prep.convert_delta_to_json import (
     _check_imports,
     fetch_DT,
     run_query,
     validate_and_get_cluster_info,
 )
-from pyspark.sql import SparkSession
-from streaming import MDSWriter
 
 logger = logging.getLogger(__name__)
 
@@ -29,9 +33,15 @@ def validate_columns_in_table(
     """Validate that required and optional columns exist in the Delta table."""
     try:
         # Reusing the run_query from the original script to fetch columns
-        result = run_query(f'SHOW COLUMNS IN {table_name}', method, cursor, spark)
+        result = run_query(
+            f'SHOW COLUMNS IN {table_name}',
+            method,
+            cursor,
+            spark,
+        )
 
         # Get the actual column names
+        assert result
         actual_columns = [row.asDict()['col_name'] for row in result]
 
         missing_required = set(required_columns) - set(actual_columns)
@@ -45,7 +55,9 @@ def validate_columns_in_table(
             logger.warning(f'Extra columns found: {extra_columns}')
             return False
 
-        logger.info(f'Table {table_name} contains the required and optional columns.')
+        logger.info(
+            f'Table {table_name} contains the required and optional columns.',
+        )
         return True
     except Exception as e:
         logger.error(f'Error validating columns in table {table_name}: {e}')
@@ -67,8 +79,14 @@ def main(
     DATABRICKS_HOST = w.config.host
     DATABRICKS_TOKEN = w.config.token
 
-    logger.info(f'Validating columns in table {delta_table_name} and cluster info...')
-    dtypes = {'query_text': 'str', 'positive_passage': 'str', 'negative_passages': 'str'}
+    logger.info(
+        f'Validating columns in table {delta_table_name} and cluster info...',
+    )
+    dtypes = {
+        'query_text': 'str',
+        'positive_passage': 'str',
+        'negative_passages': 'str',
+    }
     required_columns = ['query_text', 'positive_passage']
     optional_columns = ['negative_passages']
     method, dbsql, sparkSession = validate_and_get_cluster_info(
@@ -98,9 +116,13 @@ def main(
     def convert_x(x: dict) -> dict:
 
         return {
-            'query_text': x['query_text'],
-            'positive_passage': x['positive_passage'],
-            'negative_passages': json.dumps(x['negative_passages']) if 'negative_passages' in x else '[]',
+            'query_text':
+                x['query_text'],
+            'positive_passage':
+                x['positive_passage'],
+            'negative_passages':
+                json.dumps(x['negative_passages'])
+                if 'negative_passages' in x else '[]',
         }
 
     # Create a temporary directory
@@ -142,7 +164,10 @@ def main(
 
 
 if __name__ == '__main__':
-    parser = ArgumentParser(description='Download Delta table from UC and convert to JSON to save locally.')
+    parser = ArgumentParser(
+        description=
+        'Download Delta table from UC and convert to JSON to save locally.',
+    )
     parser.add_argument(
         '--delta_table_name',
         required=True,
@@ -173,7 +198,8 @@ if __name__ == '__main__':
         required=False,
         type=bool,
         default=False,
-        help='Use serverless or not. Make sure the workspace is entitled with serverless',
+        help=
+        'Use serverless or not. Make sure the workspace is entitled with serverless',
     )
     parser.add_argument(
         '--batch_size',

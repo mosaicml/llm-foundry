@@ -1,3 +1,6 @@
+# Copyright 2024 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 from typing import Any, Mapping
 
 import torch
@@ -38,9 +41,16 @@ class FinetuneEmbeddingModel(ContrastiveModel):
         """Override to return the last hidden state."""
         return outputs.last_hidden_state
 
-    def handle_language_head(self, outputs: CausalLMOutputWithPast) -> torch.Tensor:
+    def handle_language_head(
+        self,
+        outputs: CausalLMOutputWithPast,
+    ) -> torch.Tensor:
         """Override to skip language head handling."""
-        return torch.tensor(0, dtype=torch.float32, device=outputs.last_hidden_state.device)
+        return torch.tensor(
+            0,
+            dtype=torch.float32,
+            device=outputs.last_hidden_state.device,
+        )
 
     def flops_per_batch(self, batch: Mapping) -> int:
         # Get the batch size and maximum sequence length

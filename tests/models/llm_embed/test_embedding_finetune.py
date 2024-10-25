@@ -1,10 +1,14 @@
+# Copyright 2024 MosaicML LLM Foundry authors
+# SPDX-License-Identifier: Apache-2.0
+
 from typing import Any
 from unittest.mock import patch
 
 import pytest
 import torch
 from transformers import AutoConfig, PreTrainedTokenizerBase
-from transformers.modeling_outputs import BaseModelOutputWithPastAndCrossAttentions
+from transformers.modeling_outputs import \
+    BaseModelOutputWithPastAndCrossAttentions
 
 from llmfoundry.models.llm_embed import FinetuneEmbeddingModel
 
@@ -32,27 +36,43 @@ class MockAutoModel(torch.nn.Module):
 
     def __init__(self) -> None:
         super().__init__()
-        self.config: AutoConfig = AutoConfig.from_pretrained('bert-base-uncased')
+        self.config: AutoConfig = AutoConfig.from_pretrained(
+            'bert-base-uncased',
+        )
         self.config.hidden_size = 768
         self.config.num_hidden_layers = 12
         self.config.n_layers = 12
         self.config.vocab_size = 30000
-        self.linear: torch.nn.Linear = torch.nn.Linear(self.config.hidden_size, self.config.hidden_size)
+        self.linear: torch.nn.Linear = torch.nn.Linear(
+            self.config.hidden_size,
+            self.config.hidden_size,
+        )
 
     @classmethod
     def from_pretrained(cls, *args: Any, **kwargs: Any) -> 'MockAutoModel':
         return cls()
 
-    def forward(self, **kwargs: Any) -> BaseModelOutputWithPastAndCrossAttentions:
+    def forward(
+        self,
+        **kwargs: Any,
+    ) -> BaseModelOutputWithPastAndCrossAttentions:
         # Simulate forward pass
-        input_ids: torch.Tensor = kwargs.get('input_ids', torch.zeros(1, 10, dtype=torch.long))
+        input_ids: torch.Tensor = kwargs.get(
+            'input_ids',
+            torch.zeros(1, 10, dtype=torch.long),
+        )
         batch_size: int = input_ids.size(0)
         seq_length: int = input_ids.size(1)
-        last_hidden_state: torch.Tensor = torch.randn(batch_size, seq_length, self.config.hidden_size)
+        last_hidden_state: torch.Tensor = torch.randn(
+            batch_size,
+            seq_length,
+            self.config.hidden_size,
+        )
         last_hidden_state = self.linear(last_hidden_state)
         return BaseModelOutputWithPastAndCrossAttentions(
             last_hidden_state=last_hidden_state,
-            hidden_states=(last_hidden_state,) * (self.config.num_hidden_layers + 1),
+            hidden_states=(last_hidden_state,) *
+            (self.config.num_hidden_layers + 1),
         )
 
 
@@ -62,7 +82,10 @@ def mock_auto_model() -> MockAutoModel:
 
 
 @pytest.fixture
-def model(mock_tokenizer: MockTokenizer, mock_auto_model: MockAutoModel) -> FinetuneEmbeddingModel:
+def model(
+    mock_tokenizer: MockTokenizer,
+    mock_auto_model: MockAutoModel,
+) -> FinetuneEmbeddingModel:
     with patch('transformers.AutoModel.from_pretrained', return_value=mock_auto_model), \
          patch('torch.distributed.is_initialized', return_value=False), \
          patch('torch.distributed.get_rank', return_value=0), \
@@ -77,7 +100,10 @@ def model(mock_tokenizer: MockTokenizer, mock_auto_model: MockAutoModel) -> Fine
 
 
 def test_construct_model(model: FinetuneEmbeddingModel) -> None:
-    with patch('transformers.AutoModel.from_pretrained', return_value=model.model):
+    with patch(
+        'transformers.AutoModel.from_pretrained',
+        return_value=model.model,
+    ):
         constructed_model: torch.nn.Module = model.construct_model()
         assert constructed_model is not None
         assert isinstance(constructed_model, torch.nn.Module)
@@ -117,11 +143,17 @@ def test_get_attribute(model: FinetuneEmbeddingModel) -> None:
     config.d_model = 1024
     config.n_embd = 512
 
-    attribute_value: Any = model._get_attribute(config, ['hidden_size', 'd_model', 'n_embd'])
+    attribute_value: Any = model._get_attribute(
+        config,
+        ['hidden_size', 'd_model', 'n_embd'],
+    )
     assert attribute_value == 768
     attribute_value = model._get_attribute(config, ['d_model', 'n_embd'])
     assert attribute_value == 1024
-    attribute_value = model._get_attribute(config, ['non_existent', 'also_non_existent'])
+    attribute_value = model._get_attribute(
+        config,
+        ['non_existent', 'also_non_existent'],
+    )
     assert attribute_value is None
 
 

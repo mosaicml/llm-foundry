@@ -10,12 +10,16 @@ import torch
 from composer import Trainer
 from composer.core import get_precision_context
 from composer.utils import dist
-from llmfoundry.utils.builders import build_dataloader
 from torch.nn.parallel import DistributedDataParallel as DDP
 from transformers import AutoConfig, PreTrainedTokenizerBase
-from transformers.modeling_outputs import BaseModelOutputWithPastAndCrossAttentions
+from transformers.modeling_outputs import \
+    BaseModelOutputWithPastAndCrossAttentions
 
-from llmfoundry.models.llm_embed.modeling_llm_embed import ContrastiveEvalLoss, ContrastiveModel
+from llmfoundry.models.llm_embed.modeling_llm_embed import (
+    ContrastiveEvalLoss,
+    ContrastiveModel,
+)
+from llmfoundry.utils.builders import build_dataloader
 from tests.data_utils import (
     build_temporary_tokenizer,
     temporary_contrastive_streaming_dataset,
@@ -46,27 +50,43 @@ class MockAutoModel(torch.nn.Module):
 
     def __init__(self) -> None:
         super().__init__()
-        self.config: AutoConfig = AutoConfig.from_pretrained('bert-base-uncased')
+        self.config: AutoConfig = AutoConfig.from_pretrained(
+            'bert-base-uncased',
+        )
         self.config.hidden_size = 768
         self.config.num_hidden_layers = 12
         self.config.n_layers = 12
         self.config.vocab_size = 30000
-        self.linear: torch.nn.Linear = torch.nn.Linear(self.config.hidden_size, self.config.hidden_size)
+        self.linear: torch.nn.Linear = torch.nn.Linear(
+            self.config.hidden_size,
+            self.config.hidden_size,
+        )
 
     @classmethod
     def from_pretrained(cls, *args: Any, **kwargs: Any) -> 'MockAutoModel':
         return cls()
 
-    def forward(self, **kwargs: Any) -> BaseModelOutputWithPastAndCrossAttentions:
+    def forward(
+        self,
+        **kwargs: Any,
+    ) -> BaseModelOutputWithPastAndCrossAttentions:
         # Simulate forward pass
-        input_ids: torch.Tensor = kwargs.get('input_ids', torch.zeros(1, 10, dtype=torch.long))
+        input_ids: torch.Tensor = kwargs.get(
+            'input_ids',
+            torch.zeros(1, 10, dtype=torch.long),
+        )
         batch_size: int = input_ids.size(0)
         seq_length: int = input_ids.size(1)
-        last_hidden_state: torch.Tensor = torch.randn(batch_size, seq_length, self.config.hidden_size)
+        last_hidden_state: torch.Tensor = torch.randn(
+            batch_size,
+            seq_length,
+            self.config.hidden_size,
+        )
         last_hidden_state = self.linear(last_hidden_state)
         return BaseModelOutputWithPastAndCrossAttentions(
             last_hidden_state=last_hidden_state,
-            hidden_states=(last_hidden_state,) * (self.config.num_hidden_layers + 1),
+            hidden_states=(last_hidden_state,) *
+            (self.config.num_hidden_layers + 1),
         )
 
 
@@ -76,7 +96,10 @@ def mock_auto_model() -> MockAutoModel:
 
 
 @pytest.fixture
-def model(mock_tokenizer: MockTokenizer, mock_auto_model: MockAutoModel) -> ContrastiveModel:
+def model(
+    mock_tokenizer: MockTokenizer,
+    mock_auto_model: MockAutoModel,
+) -> ContrastiveModel:
     with patch('transformers.AutoModel.from_pretrained', return_value=mock_auto_model), \
          patch('torch.distributed.is_initialized', return_value=False), \
          patch('torch.distributed.get_rank', return_value=0), \
@@ -122,15 +145,23 @@ def test_mpt_embedding_lm(is_hf: bool, attn_impl: str):
     maybe_attn_impl = None if is_hf else attn_impl
     lm_config = build_lm_config(is_hf, maybe_attn_impl)
     tokenizer_config = build_tokenizer_config(is_hf)
-    with temporary_tokenizer(tokenizer_config['name'], tokenizer_config['kwargs']) as tokenizer:
-        model = ContrastiveModel(**lm_config, tokenizer=tokenizer).to(torch.bfloat16).to('cuda')
-        model_inputs_batch = tokenizer([['pair 1 a', 'pair 1 b'], ['pair 2 a', 'pair 2 b']],
+    with temporary_tokenizer(
+        tokenizer_config['name'],
+        tokenizer_config['kwargs'],
+    ) as tokenizer:
+        model = ContrastiveModel(**lm_config, tokenizer=tokenizer).to(
+            torch.bfloat16,
+        ).to('cuda')
+        model_inputs_batch = tokenizer([['pair 1 a', 'pair 1 b'],
+                                        ['pair 2 a', 'pair 2 b']],
                                        padding='max_length',
                                        truncation=True,
                                        max_length=128,
                                        return_tensors='pt').to('cuda')
 
-        ctx = get_precision_context('amp_bf16') if maybe_attn_impl == 'flash' else nullcontext()
+        ctx = get_precision_context(
+            'amp_bf16',
+        ) if maybe_attn_impl == 'flash' else nullcontext()
         with ctx:
             model(model_inputs_batch)
 
@@ -160,14 +191,27 @@ def test_contrastive_loss(ds_format: str, is_hf: bool, attn_impl: str):
                              tokenizer_config['kwargs']) as tokenizer, \
                                 temporary_contrastive_streaming_dataset(ds_format) as data_dir:
         lm_config = build_lm_config(is_hf, maybe_attn_impl)
-        model = ContrastiveModel(**lm_config, tokenizer=tokenizer).to(torch.bfloat16).to('cuda')
+        model = ContrastiveModel(**lm_config, tokenizer=tokenizer).to(
+            torch.bfloat16,
+        ).to('cuda')
 
-        train_dataloader = build_dataloader(dataloader_config(data_dir, 'local'), tokenizer, 2)
+        train_dataloader = build_dataloader(
+            dataloader_config(data_dir, 'local'),
+            tokenizer,
+            2,
+        )
 
         precision = 'amp_bf16' if maybe_attn_impl == 'flash' else 'fp32'
-        ctx = get_precision_context('amp_bf16') if attn_impl == 'flash' else nullcontext()
+        ctx = get_precision_context(
+            'amp_bf16',
+        ) if attn_impl == 'flash' else nullcontext()
         with ctx:
-            trainer = Trainer(model=model, train_dataloader=train_dataloader, precision=precision, max_duration='3ba')
+            trainer = Trainer(
+                model=model,
+                train_dataloader=train_dataloader,
+                precision=precision,
+                max_duration='3ba',
+            )
             trainer.fit()
 
 
@@ -186,7 +230,10 @@ def _assert_allclose(state1: dict[str, Any], state2: dict[str, Any]) -> None:
 @pytest.mark.parametrize(
     'use_legacy_gradient_passthrough',
     [
-        pytest.param(True, marks=pytest.mark.xfail(reason='Does not backprop gradients.')),
+        pytest.param(
+            True,
+            marks=pytest.mark.xfail(reason='Does not backprop gradients.'),
+        ),
         False,
     ],
 )
@@ -195,7 +242,10 @@ def test_distributed_loss(use_legacy_gradient_passthrough: bool):
     rank = dist.get_local_rank()
 
     tokenizer_config = build_tokenizer_config(is_hf)
-    tokenizer, _ = build_temporary_tokenizer(tokenizer_config['name'], tokenizer_config['kwargs'])
+    tokenizer, _ = build_temporary_tokenizer(
+        tokenizer_config['name'],
+        tokenizer_config['kwargs'],
+    )
 
     lm_config = build_lm_config(is_hf, 'flash')
     lm_config['contrastive_config'] = {
@@ -204,24 +254,36 @@ def test_distributed_loss(use_legacy_gradient_passthrough: bool):
     }
 
     lm_config_single_device = lm_config.copy()
-    lm_config_single_device['contrastive_config'] = lm_config['contrastive_config'].copy()
-    lm_config_single_device['contrastive_config']['gather_in_batch_negatives'] = False
+    lm_config_single_device['contrastive_config'] = lm_config[
+        'contrastive_config'].copy()
+    lm_config_single_device['contrastive_config']['gather_in_batch_negatives'
+                                                 ] = False
 
     model_for_ddp = ContrastiveModel(tokenizer, **lm_config)
     model_ddp = model_for_ddp.to('cuda').to(torch.bfloat16)
     model_ddp = DDP(model_ddp)
 
-    model = ContrastiveModel(tokenizer, **lm_config_single_device).to('cuda').to(torch.bfloat16)
+    model = ContrastiveModel(tokenizer,
+                             **lm_config_single_device).to('cuda').to(
+                                 torch.bfloat16,
+                             )
     model.load_state_dict(model_for_ddp.state_dict())
 
-    input_batch = tokenizer([['pair 1 a', 'pair 1 b'], ['pair 2 a', 'pair 2 b'], ['pair 3 a', 'pair 3 b'],
-                             ['pair 4 a', 'pair 4 b']],
+    input_batch = tokenizer([
+        ['pair 1 a', 'pair 1 b'],
+        ['pair 2 a', 'pair 2 b'],
+        ['pair 3 a', 'pair 3 b'],
+        ['pair 4 a', 'pair 4 b'],
+    ],
                             padding='max_length',
                             truncation=True,
                             max_length=128,
                             return_tensors='pt').to('cuda')
 
-    def _input_batch_to_rank(input_batch: MutableMapping, rank: int) -> MutableMapping:
+    def _input_batch_to_rank(
+        input_batch: MutableMapping,
+        rank: int,
+    ) -> MutableMapping:
         output_batch = {}
         for key in input_batch:
             indices = [0, 1] if rank == 0 else [2, 3]
@@ -234,7 +296,10 @@ def test_distributed_loss(use_legacy_gradient_passthrough: bool):
     ddp_model_outs = model_ddp(rank_input_batch)
     model_outs = model(input_batch)
 
-    ddp_loss = model_for_ddp.loss(outputs=ddp_model_outs, batch=rank_input_batch)
+    ddp_loss = model_for_ddp.loss(
+        outputs=ddp_model_outs,
+        batch=rank_input_batch,
+    )
     loss = model.loss(outputs=model_outs, batch=input_batch)
 
     ddp_loss.backward()
@@ -292,7 +357,10 @@ def test_eval_forward_without_outputs(model: ContrastiveModel) -> None:
     # Mock the forward method to return a mock output with 'loss'
     with patch.object(model, 'forward') as mock_forward, \
          patch.object(model, 'loss') as mock_loss:
-        mock_forward.return_value = {'loss': torch.tensor(1.0), 'hidden_states': None}
+        mock_forward.return_value = {
+            'loss': torch.tensor(1.0),
+            'hidden_states': None,
+        }
         mock_loss.return_value = torch.tensor(1.0)
 
         result = model.eval_forward(batch)
@@ -326,7 +394,9 @@ def test_eval_forward_with_outputs(model: ContrastiveModel) -> None:
         assert result['outputs'] == mock_outputs
 
 
-def test_eval_forward_returns_correct_structure(model: ContrastiveModel) -> None:
+def test_eval_forward_returns_correct_structure(
+    model: ContrastiveModel,
+) -> None:
     # Create a mock batch
     batch = {
         'input_ids': torch.randint(0, 1000, (1, 50)),
@@ -337,7 +407,10 @@ def test_eval_forward_returns_correct_structure(model: ContrastiveModel) -> None
     # Mock the forward and loss methods
     with patch.object(model, 'forward') as mock_forward, \
          patch.object(model, 'loss') as mock_loss:
-        mock_forward.return_value = {'loss': torch.tensor(0.5), 'hidden_states': None}
+        mock_forward.return_value = {
+            'loss': torch.tensor(0.5),
+            'hidden_states': None,
+        }
         mock_loss.return_value = torch.tensor(0.5)
 
         result = model.eval_forward(batch)
@@ -362,7 +435,9 @@ def test_eval_forward_handles_missing_outputs(model: ContrastiveModel) -> None:
     with patch.object(model, 'forward') as mock_forward, \
          patch.object(model, 'loss') as mock_loss:
         mock_forward.return_value = {'hidden_states': None}
-        mock_loss.return_value = torch.tensor(1.0)  # Assume loss is computed elsewhere
+        mock_loss.return_value = torch.tensor(
+            1.0,
+        )  # Assume loss is computed elsewhere
 
         result = model.eval_forward(batch)
 

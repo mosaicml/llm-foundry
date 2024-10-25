@@ -1,7 +1,6 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from llmfoundry.models.llm_embed import FinetuneEmbeddingModel, ContrastiveModel
 from llmfoundry.models.hf import ComposerHFCausalLM, ComposerHFT5
 from llmfoundry.models.inference_api_wrapper import (
     FMAPICasualLMEvalWrapper,
@@ -9,6 +8,7 @@ from llmfoundry.models.inference_api_wrapper import (
     OpenAICausalLMEvalWrapper,
     OpenAIChatAPIEvalWrapper,
 )
+from llmfoundry.models.llm_embed import ContrastiveModel, FinetuneEmbeddingModel
 from llmfoundry.models.mpt import (
     ComposerMPTCausalLM,
     MPTConfig,

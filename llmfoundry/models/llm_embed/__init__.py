@@ -2,7 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from llmfoundry.models.llm_embed.gte_finetune_lm import FinetuneEmbeddingModel
-from llmfoundry.models.llm_embed.modeling_llm_embed import ContrastiveEvalLoss, ContrastiveModel
+from llmfoundry.models.llm_embed.modeling_llm_embed import (
+    ContrastiveEvalLoss,
+    ContrastiveModel,
+)
 
 __all__ = [
     'ContrastiveModel',

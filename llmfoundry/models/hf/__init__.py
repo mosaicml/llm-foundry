@@ -9,7 +9,6 @@ from llmfoundry.models.hf.hf_fsdp import (
     prepare_hf_model_for_fsdp,
 )
 from llmfoundry.models.hf.hf_t5 import ComposerHFT5
-from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithFSDP
 
 __all__ = [
     'BaseHuggingFaceModel',
@@ -18,5 +17,4 @@ __all__ = [
     'prepare_hf_causal_lm_model_for_fsdp',
     'prepare_hf_enc_dec_model_for_fsdp',
     'prepare_hf_model_for_fsdp',
-    'HuggingFaceModelWithFSDP',
 ]

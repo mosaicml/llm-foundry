@@ -43,7 +43,7 @@ def build_hf_dataset(
         no_wrap (bool): if concatenating, whether to wrap text across `max_length` boundaries
         tokenizer (PreTrainedTokenizerBase): if mode is CONCAT_TOKENS, the tokenizer to use
         data_subset (str): Referred to as "name" in HuggingFace datasets.load_dataset.
-            Typically "all" (The Pile) or "en" (c4).
+            Typically "all" (The Pile) or "en" (allenai/c4).
 
     Returns:
         An IterableDataset.
@@ -186,6 +186,7 @@ def convert_dataset_json_from_args(
         ValueError: If the out_root directory exists and contains files that overlap with the requested splits
         ValueError: If concat_tokens is set and a tokenizer is not provided
     """
+    os.environ['WORLD_SIZE'] = '1'
     if os.path.isdir(out_root) and len(
         set(os.listdir(out_root)).intersection(set(split)),
     ) > 0:

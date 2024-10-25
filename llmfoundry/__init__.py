@@ -48,6 +48,7 @@ from llmfoundry import (
     models,
     optim,
     tokenizers,
+    tp,
     utils,
 )
 from llmfoundry._version import __version__
@@ -87,5 +88,6 @@ __all__ = [
     'models',
     'optim',
     'tokenizers',
+    'tp',
     'utils',
 ]

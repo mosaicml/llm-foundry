@@ -51,6 +51,7 @@ class MPTConfig(PretrainedConfig):
         tie_word_embeddings: bool = True,
         use_pad_tok_in_ffn: bool = True,
         block_overrides: Optional[dict[str, Any]] = None,
+        final_logit_softcapping: Optional[float] = None,
         **kwargs: Any,
     ):
         """The MPT configuration class.
@@ -148,6 +149,7 @@ class MPTConfig(PretrainedConfig):
                             reuse_kv_layer:
                                 attn_config:
                                     reuse_kv_layer_idx: -6 # Relative index of the layer whose kv cache to reuse
+            final_logit_softcapping (float | None): Softcapping threshold for final logit. Set to None to disable (default value None). Please see https://arxiv.org/pdf/2403.08295 for more details.
             kwargs (Any): Other relevant keyword arguments.
         """
         self.d_model = d_model
@@ -181,6 +183,7 @@ class MPTConfig(PretrainedConfig):
         if block_overrides is not None:
             self._validate_block_overrides(block_overrides)
         self.block_overrides = block_overrides
+        self.final_logit_softcapping = final_logit_softcapping
 
         if isinstance(fc_type, str):
             fc_type = {'name': fc_type}
@@ -325,6 +328,17 @@ class MPTConfig(PretrainedConfig):
             raise NotImplementedError(
                 'sliding window attention only implemented for torch attention and flash attention (v2.3.0 or higher).',
             )
+        if self.attn_config['attn_logit_softcapping'] is not None:
+            if self.attn_config['attn_logit_softcapping'] <= 0:
+                raise ValueError(
+                    'Attention attn_logit_softcapping should be positive.',
+                )
+            if self.attn_config[
+                'attn_impl'
+            ] == 'flash' and not is_flash_v2_installed(v2_version='v2.6.2',):
+                raise NotImplementedError(
+                    'Attention attn_logit_softcapping is only implemented with torch attention or flash attention v2.6.2 (or higher).',
+                )
         if self.attn_config['kv_dim'] is not None and self.attn_config[
             'fused_qkv']:
             raise ValueError(
@@ -357,11 +371,8 @@ class MPTConfig(PretrainedConfig):
                 del te  # unused
             except:
                 raise ImportError(
-                    'TransformerEngine import fail. `fc_type: te` requires TransformerEngine be installed. '
-                    +
-                    'The required version of transformer_engine also requires FlashAttention v1.0.6 is installed:\n'
-                    + 'pip install flash-attn==1.0.6 --no-build-isolation \n' +
-                    'pip install git+https://github.com/NVIDIA/TransformerEngine.git@144e4888b2cdd60bd52e706d5b7a79cb9c1a7156',
+                    'TransformerEngine import failed. `fc_type: te` requires TransformerEngine be installed, ',
+                    'e.g. pip install transformer-engine[pytorch]',
                 )
 
         self.ffn_config['fc_type'] = self.fc_type

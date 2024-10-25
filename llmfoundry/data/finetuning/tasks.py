@@ -34,6 +34,7 @@ those keys are strings (i.e. text).
 import importlib
 import logging
 import os
+import tempfile
 import warnings
 from collections.abc import Mapping
 from functools import partial
@@ -76,6 +77,8 @@ from llmfoundry.utils.exceptions import (
     DatasetTooSmallError,
     IncorrectMessageKeyQuantityError,
     InvalidContentTypeError,
+    InvalidConversationError,
+    InvalidDatasetError,
     InvalidExampleTypeError,
     InvalidFileExtensionError,
     InvalidLastChatMessageRoleError,
@@ -105,15 +108,6 @@ _ALLOWED_ROLE_KEYS = {'role'}
 _ALLOWED_CONTENT_KEYS = {'content'}
 _ALLOWED_ROLES = {'user', 'assistant', 'system', 'tool'}
 _ALLOWED_LAST_MESSAGE_ROLES = {'assistant'}
-DOWNLOADED_FT_DATASETS_DIRPATH = os.path.abspath(
-    os.path.join(
-        os.path.realpath(__file__),
-        os.pardir,
-        os.pardir,
-        os.pardir,
-        '.downloaded_finetuning',
-    ),
-)
 SUPPORTED_EXTENSIONS = ['.csv', '.json', '.jsonl', '.parquet']
 HUGGINGFACE_FOLDER_EXTENSIONS = ['.lock', '.metadata']
 DEFAULT_TARGET_RESPONSES = 'last'
@@ -174,6 +168,8 @@ def _get_key(dictionary: Mapping[str, Any], allowed_keys: set[str]):
     if not isinstance(dictionary, Mapping):
         raise InvalidExampleTypeError(str(type(dictionary)))
     desired_keys = allowed_keys.intersection(dictionary.keys())
+    if len(desired_keys) == 0:
+        raise UnknownExampleTypeError(str(set(dictionary.keys())))
     return list(desired_keys)[0]
 
 
@@ -268,17 +264,17 @@ def _slice_chat_formatted_example(
         if conversation_through_previous_turn != full_conversation[:len(
             conversation_through_previous_turn,
         )]:
-            raise ValueError(
+            raise InvalidConversationError(
                 f'The full conversation must start with the conversation through the previous turn. {conversation_through_previous_turn=}, {full_conversation=}',
             )
         if conversation_through_previous_turn != prompt_with_history[:len(
             conversation_through_previous_turn,
         )]:
-            raise ValueError(
+            raise InvalidConversationError(
                 f'The prompt_with_history must start with the conversation through the previous turn. {conversation_through_previous_turn=}, {prompt_with_history=}',
             )
         if prompt_with_history != full_conversation[:len(prompt_with_history)]:
-            raise ValueError(
+            raise InvalidConversationError(
                 f'prompt_with_history must be the first part of the full conversation. {prompt_with_history=}, {full_conversation=}',
             )
         prompt = prompt_with_history[len(conversation_through_previous_turn):]
@@ -519,6 +515,22 @@ def is_valid_ift_example(
     return True
 
 
+def _get_num_processes() -> int:
+    """Get the number of processes to use for dataset processing."""
+    detected_cpu_count = os.cpu_count() or 1
+    detected_cpus_with_margin = detected_cpu_count - 8
+    num_proc = max(1, detected_cpus_with_margin)
+
+    # Check if the user has set the MAX_NUM_PROC environment variable
+    # which caps the number of processes used for dataset processing.
+    if 'MAX_NUM_PROC' in os.environ:
+        max_num_proc_env = int(os.environ['MAX_NUM_PROC'])
+        if max_num_proc_env < num_proc:
+            num_proc = max_num_proc_env
+
+    return num_proc
+
+
 class StreamingFinetuningDataset(StreamingDataset):
     """Finetuning dataset with flexible tokenization using StreamingDataset.
 
@@ -617,11 +629,6 @@ class StreamingFinetuningDataset(StreamingDataset):
         **kwargs: Any,
     ):
 
-        if len(kwargs) > 0:
-            raise ValueError(
-                f'StreamingFinetuningDataset() got an unexpected keyword argument: {kwargs}',
-            )
-
         if token_encoding_type not in SUPPORTED_MDS_ENCODING_TYPES:
             raise ValueError(
                 f'The token_encoding_type must be one of {SUPPORTED_MDS_ENCODING_TYPES}, but got {token_encoding_type}',
@@ -662,6 +669,7 @@ class StreamingFinetuningDataset(StreamingDataset):
             batching_method=batching_method,
             allow_unsafe_types=allow_unsafe_types,
             replication=replication,
+            **kwargs,
         )
 
         self.tokenizer = tokenizer
@@ -885,7 +893,7 @@ class DatasetConstructor:
         if tokenizer is None:
             raise ValueError('A tokenizer must be provided.')
 
-        signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_data_prep_completed'
+        signal_file_path = dist.get_node_signal_file_name()
 
         # Non local rank 0 ranks will wait here for local rank 0 to finish the data processing.
         # Once local rank 0 is done, the datasets are all cached on disk, and all other ranks
@@ -912,8 +920,12 @@ class DatasetConstructor:
                 if not os.path.isdir(dataset_name):
                     # dataset_name is not a local dir path, download if needed.
                     local_dataset_dir = os.path.join(
-                        DOWNLOADED_FT_DATASETS_DIRPATH,
+                        tempfile.mkdtemp(),
                         dataset_name,
+                    )
+
+                    log.debug(
+                        f'Downloading dataset {dataset_name} to {local_dataset_dir}.',
                     )
 
                     if _is_empty_or_nonexistent(dirpath=local_dataset_dir):
@@ -968,11 +980,9 @@ class DatasetConstructor:
                     )
                 return mapping_fn(example, tokenizer)
 
-            detected_cpu_count = os.cpu_count() or 1
-            detected_cpus_with_margin = detected_cpu_count - 8
-            num_cpus_to_use = max(1, detected_cpus_with_margin)
-            if len(dataset) < num_cpus_to_use:
-                num_cpus_to_use = 1
+            num_proc = _get_num_processes()
+            if len(dataset) < num_proc:
+                num_proc = 1
 
             columns_to_remove = list(dataset[0].keys())
 
@@ -980,7 +990,7 @@ class DatasetConstructor:
                 dataset_mapper,
                 batched=False,
                 remove_columns=columns_to_remove,
-                num_proc=num_cpus_to_use,
+                num_proc=num_proc,
                 desc='Tokenizing dataset',
             )
 
@@ -992,7 +1002,7 @@ class DatasetConstructor:
                     target_responses,
                     decoder_only_format,
                 ),
-                num_proc=num_cpus_to_use,
+                num_proc=num_proc,
                 desc='Filtering out long prompts',
             )
 
@@ -1002,6 +1012,12 @@ class DatasetConstructor:
                     f'Dropped {examples_removed} examples where the prompt was longer than {max_seq_len}, '
                     +
                     'the prompt or response was empty, or the response was all padding tokens.',
+                )
+            if len(filtered_dataset) == 0:
+                raise InvalidDatasetError(
+                    f'No valid examples found after filtering out prompts longer than {max_seq_len}, '
+                    +
+                    'examples with empty prompts or responses, and examples with responses that are all padding tokens.',
                 )
         except Exception as e:
             error = e

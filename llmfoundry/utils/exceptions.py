@@ -310,12 +310,25 @@ class UnableToProcessPromptResponseError(
 
 
 ## Convert Delta to JSON exceptions
-class ClusterDoesNotExistError(NetworkError):
+class ClusterDoesNotExistError(UserError):
     """Error thrown when the cluster does not exist."""
 
     def __init__(self, cluster_id: str) -> None:
         message = f'Cluster with id {cluster_id} does not exist. Check cluster id and try again!'
         super().__init__(message, cluster_id=cluster_id)
+
+
+class ClusterInvalidAccessMode(UserError):
+    """Error thrown when the cluster does not exist."""
+
+    def __init__(self, cluster_id: str, access_mode: str) -> None:
+        message = f'The cluster you have provided: {cluster_id} does not have data governance enabled.' + \
+                  'Please use a cluster with a data security mode other than NONE.'
+        super().__init__(
+            message,
+            cluster_id=cluster_id,
+            access_mode=access_mode,
+        )
 
 
 class FailedToCreateSQLConnectionError(
@@ -348,6 +361,17 @@ class InputFolderMissingDataError(UserError):
         super().__init__(message, input_folder=input_folder)
 
 
+class InputFolderNotFound(UserError):
+    """Error thrown when the a folder is not found."""
+
+    def __init__(self, folder_that_was_not_found: str) -> None:
+        message = f'{folder_that_was_not_found} not found.'
+        super().__init__(
+            message,
+            folder_that_was_not_found=folder_that_was_not_found,
+        )
+
+
 class CannotUnicodeDecodeFile(UserError):
     """Error thrown when the input folder is missing data."""
 
@@ -371,6 +395,14 @@ class MisconfiguredHfDatasetError(UserError):
         message = f'Your dataset (name={dataset_name}, split={split}) is misconfigured. ' + \
             'Please check your dataset format and make sure you can load your dataset locally.'
         super().__init__(message, dataset_name=dataset_name, split=split)
+
+
+class InvalidDatasetError(UserError):
+    """Error thrown when a dataset contains no valid samples for training."""
+
+    def __init__(self, reason: str) -> None:
+        message = f'Dataset contains no valid samples for training. {reason}'
+        super().__init__(message, reason=reason)
 
 
 class DatasetTooSmallError(UserError):
@@ -432,6 +464,71 @@ class HighLossError(UserError):
 class InsufficientPermissionsError(UserError):
     """Error thrown when the user does not have sufficient permissions."""
 
-    def __init__(self, action: str) -> None:
-        message = f'Insufficient permissions when {action}. Please check your permissions.'
-        super().__init__(message, action=action)
+    def __init__(self, message: str) -> None:
+        self.message = message
+        super().__init__(message)
+
+    def __reduce__(self):
+        # Return a tuple of class, a tuple of arguments, and optionally state
+        return (InsufficientPermissionsError, (self.message,))
+
+    def __str__(self):
+        return self.message
+
+
+class FaultyDataPrepCluster(UserError):
+    """Error thrown when the user uses faulty data prep cluster."""
+
+    def __init__(self, message: str) -> None:
+        self.message = message
+        super().__init__(message)
+
+    def __reduce__(self):
+        # Return a tuple of class, a tuple of arguments, and optionally state
+        return (FaultyDataPrepCluster, (self.message,))
+
+    def __str__(self):
+        return self.message
+
+
+class FinetuningFileNotFoundError(UserError):
+    """Error thrown when a file can't be found with any supported extension."""
+
+    def __init__(
+        self,
+        files_searched: list[str],
+        supported_extensions: list[str],
+    ) -> None:
+        message = (
+            f'Could not find a file with any of ' + \
+            f'the supported extensions: {supported_extensions}\n' + \
+            f'at {files_searched}'
+        )
+        super().__init__(
+            message,
+            files_searched=files_searched,
+            supported_extensions=supported_extensions,
+        )
+
+
+class InvalidConversationError(UserError):
+    """Error thrown when the conversation is invalid."""
+
+    def __init__(self, message: str) -> None:
+        self.message = message
+        super().__init__(message)
+
+    def __reduce__(self):
+        # Return a tuple of class, a tuple of arguments, and optionally state
+        return (InvalidConversationError, (self.message,))
+
+    def __str__(self):
+        return self.message
+
+
+class UCNotEnabledError(UserError):
+    """Error thrown when user does not have UC enabled on their cluster."""
+
+    def __init__(self) -> None:
+        message = f'Unity Catalog is not enabled on your cluster.'
+        super().__init__(message)

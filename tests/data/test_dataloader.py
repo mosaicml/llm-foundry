@@ -8,7 +8,7 @@ import shutil
 from contextlib import nullcontext as does_not_raise
 from pathlib import Path
 from typing import Any, Callable, ContextManager, Literal, Optional, Union
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, mock_open, patch
 
 import catalogue
 import numpy as np
@@ -30,7 +30,6 @@ from llmfoundry.data.finetuning.collator import (
     validate_target_settings,
 )
 from llmfoundry.data.finetuning.tasks import (
-    DOWNLOADED_FT_DATASETS_DIRPATH,
     HUGGINGFACE_FOLDER_EXTENSIONS,
     SUPPORTED_EXTENSIONS,
     dataset_constructor,
@@ -204,7 +203,7 @@ def test_correct_padding(
     shutil.rmtree(path, ignore_errors=True)
     if pretokenize:
         convert_dataset_hf(
-            dataset='c4',
+            dataset='allenai/c4',
             data_subset='en',
             splits=[split],
             out_root=path,
@@ -219,7 +218,7 @@ def test_correct_padding(
         )
     else:
         convert_dataset_hf(
-            dataset='c4',
+            dataset='allenai/c4',
             data_subset='en',
             splits=[split],
             out_root=path,
@@ -233,7 +232,7 @@ def test_correct_padding(
             num_workers=None,
         )
     if not os.path.isdir(path):
-        raise RuntimeError(f'c4 dataset at {path} not set up as expected')
+        raise RuntimeError(f'allenai/c4 dataset at {path} not set up as expected')
 
     test_cfg = get_config(
         conf_path='scripts/train/yamls/pretrain/mpt-125m.yaml',
@@ -430,14 +429,14 @@ def test_finetuning_dataloader_safe_load(
     hf_name: str,
     hf_revision: Optional[str],
     expectation: ContextManager,
+    tmp_path: pathlib.Path,
 ):
     # Clear the folder
-    shutil.rmtree(DOWNLOADED_FT_DATASETS_DIRPATH, ignore_errors=True)
     cfg = DictConfig({
         'dataset': {
             'hf_name': hf_name,
             'split': 'train',
-            'max_seq_len': 8,
+            'max_seq_len': 100,
             'decoder_only_format': True,
             'shuffle': True,
             'safe_load': True,
@@ -455,18 +454,18 @@ def test_finetuning_dataloader_safe_load(
 
     tokenizer = build_tokenizer('gpt2', {})
 
-    with expectation:
-        _ = build_finetuning_dataloader(
-            tokenizer=tokenizer,
-            device_batch_size=1,
-            **cfg,
-        )
+    with patch('llmfoundry.data.finetuning.tasks.tempfile.mkdtemp', return_value=str(tmp_path)):
+        with expectation:
+            _ = build_finetuning_dataloader(
+                tokenizer=tokenizer,
+                device_batch_size=1,
+                **cfg,
+            )
 
     # If no raised errors, we should expect downloaded files with only safe file types.
     if isinstance(expectation, does_not_raise):
-        download_dir = os.path.join(DOWNLOADED_FT_DATASETS_DIRPATH, hf_name)
         downloaded_files = [
-            file for _, _, files in os.walk(download_dir) for file in files
+            file for _, _, files in os.walk(tmp_path) for file in files
         ]
         assert len(downloaded_files) > 0
         assert all(
@@ -1423,3 +1422,160 @@ def test_sharegpt_format(
             device_batch_size=device_batch_size,
             **cfg,
         ).dataloader
+
+def test_ft_dataloader_with_extra_keys():
+    max_seq_len = 2
+    cfg = {
+        'dataset': {
+            'remote': '/remote',
+            'local': '/local',
+            'split': 'train',
+            'max_seq_len': 2048,
+            'decoder_only_format': True,
+            'shuffle': True,
+            'num_canonical_nodes': 472,
+            'target_responses': 'last',
+            'target_prompts': 'none',
+            'extra_key_1': 'extra_key_1',
+            'extra_key_2': 'extra_key_2',
+            'extra_key_3': 'extra_key_3',
+        },
+        'drop_last': False,
+        'num_workers': 0,
+        'pin_memory': False,
+        'prefetch_factor': None,
+        'persistent_workers': False,
+        'timeout': 0,
+    }
+
+    cfg = om.create(cfg)
+
+    tokenizer = build_tokenizer(
+        tokenizer_name='gpt2',
+        tokenizer_kwargs={'model_max_length': max_seq_len},
+    )
+
+    device_batch_size = 2
+
+    mock_stat = MagicMock()
+    mock_stat.st_size = 1024  # Mock st_size with a desired value
+    mock_stat.st_mode = 33188  # Regular file mode for Unix-based systems
+
+    #with patch('streaming.base.stream.get_shards', return_value=None):
+    with patch('os.makedirs'), \
+        patch('builtins.open', new_callable=mock_open, read_data='{"version": 2, "shards": []}'), \
+        patch('json.load') as mock_json_load, \
+        patch('os.stat', return_value=mock_stat), \
+        patch('torch.distributed.is_available', return_value=True), \
+        patch('torch.distributed.is_initialized', return_value=True), \
+        patch('torch.distributed.broadcast_object_list'),  \
+        patch('torch.distributed.init_process_group'), \
+        patch('torch.distributed.destroy_process_group'), \
+        patch('torch.distributed.barrier'), \
+        patch('streaming.base.dataset.StreamingDataset.get_item'):
+
+        mock_json_load.return_value = {
+            'version':
+                2,
+            'shards': [{
+                'column_names': ['column1', 'column2'],
+                'column_encodings': ['int', 'float'],
+                'column_sizes': [4, 8],
+                'compression': None,
+                'format': 'mds',
+                'hashes': [],
+                'raw_data': {
+                    'basename': 'shard.00000.mds',
+                    'bytes': 1024,
+                    'hashes': {},
+                },
+                'samples': 1000,
+                'size_limit': 67108864,
+                'version': 2,
+                'zip_data': None,
+            }],
+        }
+
+        with pytest.raises(TypeError, match=f'.*got an unexpected keyword argument.*'):
+            _ = build_finetuning_dataloader(
+                **cfg,
+                tokenizer=tokenizer,
+                device_batch_size=device_batch_size,
+            ).dataloader
+
+@pytest.mark.xfail
+def test_text_dataloader_with_extra_keys():
+    max_seq_len = 1024
+    cfg = {
+        'dataset': {
+            'remote': '/remote',
+            'local': '/local',
+            'split': 'train',
+            'max_seq_len': max_seq_len,
+            'shuffle': True,
+            'num_canonical_nodes': 472,
+            'extra_key_1': 'extra_key_1',
+            'extra_key_2': 'extra_key_2',
+            'extra_key_3': 'extra_key_3',
+        },
+        'drop_last': False,
+        'num_workers': 0,
+        'pin_memory': False,
+        'prefetch_factor': None,
+        'persistent_workers': False,
+        'timeout': 0,
+    }
+
+    cfg = om.create(cfg)
+
+    tokenizer = build_tokenizer(
+        tokenizer_name='gpt2',
+        tokenizer_kwargs={'model_max_length': max_seq_len},
+    )
+
+    device_batch_size = 2
+
+    mock_stat = MagicMock()
+    mock_stat.st_size = 1024  # Mock st_size with a desired value
+    mock_stat.st_mode = 33188  # Regular file mode for Unix-based systems
+
+    #with patch('streaming.base.stream.get_shards', return_value=None):
+    with patch('os.makedirs'), \
+        patch('builtins.open', new_callable=mock_open, read_data='{"version": 2, "shards": []}'), \
+        patch('json.load') as mock_json_load, \
+        patch('os.stat', return_value=mock_stat), \
+        patch('torch.distributed.is_available', return_value=True), \
+        patch('torch.distributed.is_initialized', return_value=True), \
+        patch('torch.distributed.broadcast_object_list'),  \
+        patch('torch.distributed.init_process_group'), \
+        patch('torch.distributed.destroy_process_group'), \
+        patch('torch.distributed.barrier'), \
+        patch('streaming.base.dataset.StreamingDataset.get_item'):
+
+        mock_json_load.return_value = {
+            'version':
+                2,
+            'shards': [{
+                'column_names': ['column1', 'column2'],
+                'column_encodings': ['int', 'float'],
+                'column_sizes': [4, 8],
+                'compression': None,
+                'format': 'mds',
+                'hashes': [],
+                'raw_data': {
+                    'basename': 'shard.00000.mds',
+                    'bytes': 1024,
+                    'hashes': {},
+                },
+                'samples': 1000,
+                'size_limit': 67108864,
+                'version': 2,
+                'zip_data': None,
+            }],
+        }
+        with pytest.raises(TypeError, match=f'.*got an unexpected keyword argument.*'):
+            _ = build_text_dataloader(
+                **cfg,
+                tokenizer=tokenizer,
+                device_batch_size=device_batch_size,
+            ).dataloader

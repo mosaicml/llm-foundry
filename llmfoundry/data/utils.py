@@ -95,7 +95,7 @@ def get_tokens_per_batch_func(
         Callable[[Batch], int]: A callable that counts the number of tokens in a batch.
     """
 
-    def get_num_tokens_in_batch(batch: Batch) -> int:
+    def get_num_tokens_in_batch(batch: Batch) -> Union[int, dict[str, int]]:
         if not isinstance(batch, Mapping) or (
             'attention_mask' not in batch and 'input_ids' not in batch
         ):

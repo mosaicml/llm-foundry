@@ -120,9 +120,13 @@ def get_tokens_per_batch_func(
                 torch.sum(batch['labels'] != -100).item(),
             )
 
-            # Subtract one for each example in the batch because the labels
-            # will be shifted by one
-            loss_generating_tokens -= batch['labels'].shape[0]
+            print(loss_generating_tokens)
+            # Subtract one for each example in the batch that starts with a non -100,
+            # because those will be shifted off
+            loss_generating_tokens -= int(
+                torch.sum(batch['labels'][:, 0] != -100).item(),
+            )
+            print(loss_generating_tokens)
 
         # For encoder decoder models only
         decoder_input_ids_tokens = 0

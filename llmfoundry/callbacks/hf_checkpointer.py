@@ -719,7 +719,6 @@ class HuggingFaceCheckpointer(Callback):
                             ),
                             overwrite=self.overwrite,
                         )
-                    process.start()
 
         dist.barrier()
 

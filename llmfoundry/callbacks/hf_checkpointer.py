@@ -147,7 +147,6 @@ def _log_model_multiprocess(
         )
         logging.getLogger('llmfoundry').setLevel(python_logging_level)
     
-    log.info("----------------- REACHED MLFLOW LOG MODEL -----------------")
     # monkey patch to prevent duplicate tokenizer upload
     import mlflow
     mlflow.start_run(
@@ -156,20 +155,13 @@ def _log_model_multiprocess(
     original_save_model = mlflow.transformers.save_model
     def save_model_patch(*args: Any, **kwargs: Any):
         original_save_model(*args, **kwargs)
-        log.info(f"List of root path: {os.listdir(kwargs['path'])}")
-        components_path = os.path.join(kwargs['path'], 'components')
-        if os.path.exists(components_path):
-            log.info(f"List of components path: {components_path}: {os.listdir(components_path)}")
-        tokenizer_path = os.path.join(kwargs['path'], 'components', 'tokenizer')
         tokenizer_files = []
-        if os.path.exists(tokenizer_path):
-            tokenizer_files = os.listdir(os.path.join(kwargs['path'], 'components', 'tokenizer'))
-            log.info(f"Tokenizer files: {tokenizer_files}")
+        # Check if there are duplicate tokenizer files in the model directory and remove them.
         try:
             for tokenizer_file_name in tokenizer_files:
                 dupe_file = os.path.isfile(os.path.join(kwargs['path'], 'model', tokenizer_file_name))
                 if dupe_file:
-                    log.info(f"Removing duplicate tokenizer file: {tokenizer_file_name}")
+                    log.debug(f"Removing duplicate tokenizer file: {tokenizer_file_name}")
                     os.remove(os.path.join(kwargs['path'], 'model', tokenizer_file_name))
         except Exception as e:
             log.error(f"Exception when removing duplicate tokenizer files in the model directory", e)
@@ -403,7 +395,6 @@ class HuggingFaceCheckpointer(Callback):
             if self._any_register_processes_error(
                 state.device,
             ) and self.final_register_only:
-                time.sleep(60) # give me some debugging time
                 log.error(
                     'An error occurred in one or more registration processes. Fallback to saving the HuggingFace checkpoint.',
                 )
@@ -682,7 +673,6 @@ class HuggingFaceCheckpointer(Callback):
 
             log.debug('Saving Hugging Face checkpoint to disk')
 
-            log.debug(f"UPLOAD_TO_SAVE_FOLDER: {upload_to_save_folder}")
             # This context manager casts the TE extra state in io.BytesIO format to tensor format
             # Needed for proper hf ckpt saving.
             context_manager = te.onnx_export(
@@ -784,7 +774,6 @@ class HuggingFaceCheckpointer(Callback):
 
                     # Spawn a new process to register the model.
                     # Slower method to register the model via log_model.
-                    log.info(f'USING MY BRANCH!!!!!!!!!!!!!! REGISTERED MODEL NAME: {self.mlflow_registered_model_name}')
                     process = SpawnProcess(
                         target=_log_model_multiprocess,
                         kwargs={
@@ -801,8 +790,6 @@ class HuggingFaceCheckpointer(Callback):
                             'log_model_metadata': self.mlflow_logging_config['metadata'],
                             'registered_model_name':
                                 self.mlflow_registered_model_name,
-                            # 'model_name':
-                            #     self.pretrained_model_name,
                             'input_example':
                                 self.mlflow_logging_config['input_example'],
                             'await_creation_for':

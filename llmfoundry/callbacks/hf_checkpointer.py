@@ -400,6 +400,7 @@ class HuggingFaceCheckpointer(Callback):
             if self._any_register_processes_error(
                 state.device,
             ) and self.final_register_only:
+                time.sleep(60) # give me some debugging time
                 log.error(
                     'An error occurred in one or more registration processes. Fallback to saving the HuggingFace checkpoint.',
                 )
@@ -679,22 +680,16 @@ class HuggingFaceCheckpointer(Callback):
             log.debug('Saving Hugging Face checkpoint to disk')
 
             log.debug(f"UPLOAD_TO_SAVE_FOLDER: {upload_to_save_folder}")
+            # This context manager casts the TE extra state in io.BytesIO format to tensor format
+            # Needed for proper hf ckpt saving.
+            context_manager = te.onnx_export(
+                True,
+            ) if is_te_imported and state.precision == Precision.AMP_FP8 else contextlib.nullcontext(
+            )
+            with context_manager:
+                new_model_instance.save_pretrained(temp_save_dir)
+            original_tokenizer.save_pretrained(temp_save_dir)
             if upload_to_save_folder:
-                # This context manager casts the TE extra state in io.BytesIO format to tensor format
-                # Needed for proper hf ckpt saving.
-                context_manager = te.onnx_export(
-                    True,
-                ) if is_te_imported and state.precision == Precision.AMP_FP8 else contextlib.nullcontext(
-                )
-                with context_manager:
-                    new_model_instance.save_pretrained(temp_save_dir)
-                if original_tokenizer is not None:
-                    assert isinstance(
-                        original_tokenizer,
-                        PreTrainedTokenizerBase,
-                    )
-                    original_tokenizer.save_pretrained(temp_save_dir)
-
                 # Only need to edit files for MPT because it has custom code
                 if new_model_instance.config.model_type == 'mpt':
                     log.debug('Editing MPT files for HuggingFace compatibility')

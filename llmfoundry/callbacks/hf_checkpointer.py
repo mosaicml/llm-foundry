@@ -180,7 +180,7 @@ def _log_model_multiprocess(
             input_example=input_example,
             metadata=log_model_metadata,
             task=task,
-            registered_model_name=mlflow_logger.model_registry_prefix + registered_model_name,
+            registered_model_name=registered_model_name, # not the full path? mlflow_logger.model_registry_prefix
             await_creation_for=await_creation_for
         )
     else:

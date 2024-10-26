@@ -150,6 +150,9 @@ def _log_model_multiprocess(
     log.info("----------------- REACHED MLFLOW LOG MODEL -----------------")
     # monkey patch to prevent duplicate tokenizer upload
     import mlflow
+    mlflow.start_run(
+        run_id=mlflow_logger._run_id,
+    )
     original_save_model = mlflow.transformers.save_model
     def save_model_patch(*args: Any, **kwargs: Any):
         original_save_model(*args, **kwargs)

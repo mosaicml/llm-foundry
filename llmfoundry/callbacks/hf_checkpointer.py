@@ -180,7 +180,7 @@ def _log_model_multiprocess(
             input_example=input_example,
             metadata=log_model_metadata,
             task=task,
-            registered_model_name=registered_model_name,
+            registered_model_name=mlflow_logger.model_registry_prefix + registered_model_name,
             await_creation_for=await_creation_for
         )
     else:
@@ -803,8 +803,8 @@ class HuggingFaceCheckpointer(Callback):
                             'log_model_metadata': self.mlflow_logging_config['metadata'],
                             'registered_model_name':
                                 self.mlflow_registered_model_name,
-                            'model_name':
-                                self.pretrained_model_name,
+                            # 'model_name':
+                            #     self.pretrained_model_name,
                             'input_example':
                                 self.mlflow_logging_config['input_example'],
                             'await_creation_for':

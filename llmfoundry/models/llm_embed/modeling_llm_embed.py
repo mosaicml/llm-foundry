@@ -257,16 +257,12 @@ class ContrastiveModel(HuggingFaceModel):
         collapse_dims = lambda x: rearrange(x, 'b p d -> (b p) d') if \
             len(x.shape) > 2 else x
 
-        kwargs = {}
         for key in batch:
-            kwargs[key] = collapse_dims(batch[key])
-            batch[key] = kwargs[
-                key
-            ]  # the batch needs to be updated in place for loss computation
+            batch[key] = collapse_dims(batch[key])
 
         return self.model(
             output_hidden_states=True,
-            **kwargs,
+            **batch,
         )
 
     def _cat_gather(self, t: torch.Tensor, group: Any = None) -> torch.Tensor:

@@ -13,12 +13,12 @@ class TestValidateColumnsInTable(unittest.TestCase):
     """Unit tests for the validate_columns_in_table function."""
 
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.command_utils.data_prep.delta_to_contrastive_mds.run_query',
+        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.run_query',
         autospec=True,
     )
     def test_validate_columns_success(self, mock_run_query: MagicMock) -> None:
         # Import inside the test after patching
-        from llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.command_utils.data_prep.delta_to_contrastive_mds import \
+        from llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds import \
             validate_columns_in_table
 
         # Mock the run_query to return all required and optional columns
@@ -59,14 +59,14 @@ class TestValidateColumnsInTable(unittest.TestCase):
         )
 
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.command_utils.data_prep.delta_to_contrastive_mds.run_query',
+        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.run_query',
         autospec=True,
     )
     def test_validate_columns_missing_required(
         self,
         mock_run_query: MagicMock,
     ) -> None:
-        from llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.command_utils.data_prep.delta_to_contrastive_mds import \
+        from llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds import \
             validate_columns_in_table
 
         # Mock the run_query to return missing required columns
@@ -82,7 +82,7 @@ class TestValidateColumnsInTable(unittest.TestCase):
         method = 'dbconnect'
 
         with self.assertLogs(
-            'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.command_utils.data_prep.delta_to_contrastive_mds',
+            'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds',
             level='ERROR',
         ) as log:
             result: bool = validate_columns_in_table(
@@ -98,14 +98,14 @@ class TestValidateColumnsInTable(unittest.TestCase):
         self.assertIn('Missing required columns', log.output[0])
 
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.command_utils.data_prep.delta_to_contrastive_mds.run_query',
+        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.run_query',
         autospec=True,
     )
     def test_validate_columns_extra_columns(
         self,
         mock_run_query: MagicMock,
     ) -> None:
-        from llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.command_utils.data_prep.delta_to_contrastive_mds import \
+        from llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds import \
             validate_columns_in_table
 
         # Mock the run_query to return extra columns
@@ -127,7 +127,7 @@ class TestValidateColumnsInTable(unittest.TestCase):
         method = 'dbconnect'
 
         with self.assertLogs(
-            'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.command_utils.data_prep.delta_to_contrastive_mds',
+            'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds',
             level='WARNING',
         ) as log:
             result: bool = validate_columns_in_table(
@@ -143,14 +143,14 @@ class TestValidateColumnsInTable(unittest.TestCase):
         self.assertIn('Extra columns found', log.output[0])
 
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.command_utils.data_prep.delta_to_contrastive_mds.run_query',
+        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.run_query',
         autospec=True,
     )
     def test_validate_columns_exception(
         self,
         mock_run_query: MagicMock,
     ) -> None:
-        from llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.command_utils.data_prep.delta_to_contrastive_mds import \
+        from llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds import \
             validate_columns_in_table
 
         # Mock run_query to raise an exception
@@ -162,7 +162,7 @@ class TestValidateColumnsInTable(unittest.TestCase):
         method = 'dbconnect'
 
         with self.assertLogs(
-            'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.command_utils.data_prep.delta_to_contrastive_mds',
+            'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds',
             level='ERROR',
         ) as log:
             result: bool = validate_columns_in_table(
@@ -183,19 +183,19 @@ class TestMainFunction(unittest.TestCase):
 
     @patch('databricks.sdk.WorkspaceClient', autospec=True)
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.command_utils.data_prep.delta_to_contrastive_mds.validate_columns_in_table',
+        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.validate_columns_in_table',
         autospec=True,
     )
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.command_utils.data_prep.delta_to_contrastive_mds.validate_and_get_cluster_info',
+        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.validate_and_get_cluster_info',
         autospec=True,
     )
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.command_utils.data_prep.delta_to_contrastive_mds.fetch_DT',
+        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.fetch_DT',
         autospec=True,
     )
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.command_utils.data_prep.delta_to_contrastive_mds.MDSWriter',
+        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.MDSWriter',
         autospec=True,
     )
     def test_main_success(
@@ -210,8 +210,8 @@ class TestMainFunction(unittest.TestCase):
             'databricks.sdk.WorkspaceClient',
             mock_workspace_client_class,
         ):
-            from llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.command_utils.data_prep.delta_to_contrastive_mds import \
-                main
+            from llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds import \
+                convert_delta_to_contrastive_mds
 
             # Setup mocks
             mock_workspace_client_instance = MagicMock()
@@ -248,7 +248,7 @@ class TestMainFunction(unittest.TestCase):
                         '{"query_text": "sample", "positive_passage": "passage", "negative_passages": []}\n',
                     ),
                 ):
-                    main(**args)
+                    convert_delta_to_contrastive_mds(**args)
 
                     # Assertions
                     mock_workspace_client_class.assert_called_once()
@@ -303,20 +303,20 @@ class TestMainFunction(unittest.TestCase):
 
     @patch('databricks.sdk.WorkspaceClient', autospec=True)
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.command_utils.data_prep.delta_to_contrastive_mds.validate_columns_in_table',
+        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.validate_columns_in_table',
         autospec=True,
     )
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.command_utils.data_prep.delta_to_contrastive_mds.validate_and_get_cluster_info',
+        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.validate_and_get_cluster_info',
         autospec=True,
     )
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.command_utils.data_prep.delta_to_contrastive_mds.fetch_DT',
+        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.fetch_DT',
         side_effect=Exception('Fetch DT Error'),
         autospec=True,
     )
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.command_utils.data_prep.delta_to_contrastive_mds.MDSWriter',
+        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.MDSWriter',
         autospec=True,
     )
     def test_main_fetch_DT_exception(
@@ -332,8 +332,8 @@ class TestMainFunction(unittest.TestCase):
             'databricks.sdk.WorkspaceClient',
             mock_workspace_client_class,
         ):
-            from llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.command_utils.data_prep.delta_to_contrastive_mds import \
-                main
+            from llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds import \
+                convert_delta_to_contrastive_mds
 
             # Setup mocks
             mock_workspace_client_instance = MagicMock()
@@ -357,32 +357,32 @@ class TestMainFunction(unittest.TestCase):
             }
 
             with self.assertLogs(
-                'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.command_utils.data_prep.delta_to_contrastive_mds',
+                'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds',
                 level='ERROR',
             ) as log:
                 with self.assertRaises(Exception) as cm:
-                    main(**args)
+                    convert_delta_to_contrastive_mds(**args)
 
             self.assertIn('Error fetching data: Fetch DT Error', log.output[0])
             self.assertEqual(str(cm.exception), 'Fetch DT Error')
 
     @patch('databricks.sdk.WorkspaceClient', autospec=True)
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.command_utils.data_prep.delta_to_contrastive_mds.validate_columns_in_table',
+        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.validate_columns_in_table',
         return_value=True,
         autospec=True,
     )
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.command_utils.data_prep.delta_to_contrastive_mds.validate_and_get_cluster_info',
+        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.validate_and_get_cluster_info',
         return_value=('dbconnect', MagicMock(), MagicMock()),
         autospec=True,
     )
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.command_utils.data_prep.delta_to_contrastive_mds.fetch_DT',
+        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.fetch_DT',
         autospec=True,
     )
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.command_utils.data_prep.delta_to_contrastive_mds.MDSWriter',
+        'llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.MDSWriter',
         autospec=True,
     )
     def test_main_temporary_directory_handling(
@@ -397,8 +397,8 @@ class TestMainFunction(unittest.TestCase):
             'databricks.sdk.WorkspaceClient',
             mock_workspace_client_class,
         ):
-            from llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds.command_utils.data_prep.delta_to_contrastive_mds import \
-                main
+            from llmfoundry.command_utils.data_prep.convert_delta_to_contrastive_mds import \
+                convert_delta_to_contrastive_mds
 
             # Setup mocks
             mock_workspace_client_instance = MagicMock()
@@ -434,7 +434,7 @@ class TestMainFunction(unittest.TestCase):
                         '{"query_text": "sample", "positive_passage": "passage", "negative_passages": []}\n',
                     ),
                 ):
-                    main(**args)
+                    convert_delta_to_contrastive_mds(**args)
                     mock_temp_dir.assert_called_once()
                     mock_fetch_DT.assert_called_once_with(
                         delta_table_name='test_table',

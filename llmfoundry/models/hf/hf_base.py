@@ -38,9 +38,6 @@ if TYPE_CHECKING:
 
 __all__ = ['BaseHuggingFaceModel']
 
-# HuggingFace hardcodes the ignore index to -100
-_HF_IGNORE_INDEX = -100
-
 log = logging.getLogger(__name__)
 
 

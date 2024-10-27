@@ -8,14 +8,13 @@ from typing import Any, Optional, Union
 import torch
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
 
+from llmfoundry.utils.consts import CROSS_ENTROPY_IGNORE_INDEX
+
 log = logging.getLogger(__name__)
 
 __all__ = [
     'Seq2SeqFinetuningCollator',
 ]
-
-# HuggingFace hardcodes the ignore index to -100
-_HF_IGNORE_INDEX = -100
 
 TokenizedExample = dict[str, list[dict[str, list[int]]]]
 
@@ -79,7 +78,7 @@ def _sequence_to_labels_none(
     cutoff: Optional[int] = None,
 ) -> list[int]:
     del is_last_turn, cutoff  # unused
-    return [_HF_IGNORE_INDEX] * len(sequence)
+    return [CROSS_ENTROPY_IGNORE_INDEX] * len(sequence)
 
 
 def _sequence_to_labels_last(
@@ -91,7 +90,7 @@ def _sequence_to_labels_last(
     if is_last_turn:
         return sequence
     else:
-        return [_HF_IGNORE_INDEX] * len(sequence)
+        return [CROSS_ENTROPY_IGNORE_INDEX] * len(sequence)
 
 
 def _sequence_to_labels_cutoff(
@@ -105,7 +104,7 @@ def _sequence_to_labels_cutoff(
     if len(sequence) >= cutoff:
         return sequence
     else:
-        return [_HF_IGNORE_INDEX] * len(sequence)
+        return [CROSS_ENTROPY_IGNORE_INDEX] * len(sequence)
 
 
 _TARGET_POLICY_LOOKUP = {
@@ -352,7 +351,8 @@ class Seq2SeqFinetuningCollator:
                 labels = labels[:max_seq_len]
 
                 # Check to make sure there are still loss-generating tokens. Error if not.
-                if len([l for l in labels if l != _HF_IGNORE_INDEX]) == 0:
+                if len([l for l in labels if l != CROSS_ENTROPY_IGNORE_INDEX
+                       ],) == 0:
                     raise ValueError(
                         f'Truncating to max_seq_len={max_seq_len} has removed all loss-generating tokens. ' +\
                         f'Pre-truncation sequence length was {orig_size}. ' +\
@@ -375,7 +375,7 @@ class Seq2SeqFinetuningCollator:
             # Annoyingly, we need to pad everything but input_ids
             # and attention_mask ourselves
             n_total = len(input_ids)
-            i_pad = [_HF_IGNORE_INDEX] * (max_seq_len - n_total)
+            i_pad = [CROSS_ENTROPY_IGNORE_INDEX] * (max_seq_len - n_total)
             if self.tokenizer.padding_side == 'left':
                 labels = i_pad + labels
             else:
@@ -444,7 +444,9 @@ class Seq2SeqFinetuningCollator:
         for context, target in contexts_and_targets:
             # We need to pad labels ourselves. Because HF.
             if len(target) < max_seq_len:
-                i_pad = [_HF_IGNORE_INDEX] * (max_seq_len - len(target))
+                i_pad = [
+                    CROSS_ENTROPY_IGNORE_INDEX,
+                ] * (max_seq_len - len(target))
                 target = target + i_pad
             else:
                 if not self._warned_target:
@@ -491,12 +493,12 @@ class Seq2SeqFinetuningCollator:
         ],
                                                dim=1)
         batch['decoder_input_ids'].masked_fill_(
-            batch['decoder_input_ids'] == _HF_IGNORE_INDEX,
+            batch['decoder_input_ids'] == CROSS_ENTROPY_IGNORE_INDEX,
             self.tokenizer.pad_token_id,
         )
         batch['decoder_attention_mask'] = torch.not_equal(
             batch['labels'],
-            _HF_IGNORE_INDEX,
+            CROSS_ENTROPY_IGNORE_INDEX,
         )
 
         # This logic prevents trimming on at least the first batch

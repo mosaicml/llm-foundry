@@ -4,9 +4,11 @@
 import logging
 import os
 from argparse import ArgumentParser, Namespace
+
 from llmfoundry.command_utils import convert_delta_to_contrastive_mds
 
 logger = logging.getLogger(__name__)
+
 
 def parse_args() -> Namespace:
     parser = ArgumentParser(
@@ -62,6 +64,7 @@ def parse_args() -> Namespace:
     )
     parsed = parser.parse_args()
     return parsed
+
 
 if __name__ == '__main__':
     args = parse_args()

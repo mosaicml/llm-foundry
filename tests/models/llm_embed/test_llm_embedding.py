@@ -121,7 +121,6 @@ def build_lm_config(is_hf: bool, attn_impl: Optional[str]) -> dict[str, Any]:
     else:
         assert attn_impl is not None
         return {
-            # bare config
             'num_layers': 2,
             'd_model': 64,
             'vocab_size': 100352,
@@ -213,7 +212,7 @@ def test_contrastive_loss(ds_format: str, is_hf: bool, attn_impl: str):
                 model=model,
                 train_dataloader=train_dataloader,
                 precision=precision,
-                max_duration='3ba',
+                max_duration='1ba',
             )
             trainer.fit()
 

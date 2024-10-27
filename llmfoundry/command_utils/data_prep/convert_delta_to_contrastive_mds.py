@@ -5,10 +5,8 @@ import json
 import logging
 import os
 import tempfile
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-from databricks.sql.client import Cursor
-from pyspark.sql import SparkSession
 from streaming import MDSWriter
 
 from llmfoundry.command_utils.data_prep.convert_delta_to_json import (
@@ -17,6 +15,10 @@ from llmfoundry.command_utils.data_prep.convert_delta_to_json import (
     run_query,
     validate_and_get_cluster_info,
 )
+
+if TYPE_CHECKING:
+    from databricks.sql.client import Cursor
+    from pyspark.sql import SparkSession
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +33,6 @@ def validate_columns_in_table(
 ) -> bool:
     """Validate that required and optional columns exist in the Delta table."""
     try:
-        # Reusing the run_query from the original script to fetch columns
         result = run_query(
             f'SHOW COLUMNS IN {table_name}',
             method,
@@ -124,7 +125,6 @@ def convert_delta_to_contrastive_mds(
                 if 'negative_passages' in x else '[]',
         }
 
-    # Create a temporary directory
     with tempfile.TemporaryDirectory() as temp_dir:
         logger.info(f'Created temporary directory at {temp_dir}')
         json_output_path = os.path.join(temp_dir, 'output.jsonl')

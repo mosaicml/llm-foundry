@@ -38,23 +38,24 @@ def test_pairs_dataloader(ds_format: str):
             assert batch['input_ids'].shape[1] <= 4
             if ds_format == 'one_query_one_response':
                 # 0th item is the query, 1st item is the positive, 2nd item is (optionally) the negative
-                expected = tokenizer([
-                    f'hello {i}',
-                    f'world {i}',
-                ],
-                                     padding='max_length',
-                                     max_length=1024,
-                                     return_tensors='pt')['input_ids']
+                expected = tokenizer(
+                    [f'hello {i}', f'world {i}'],
+                    padding='max_length',
+                    max_length=1024,
+                    return_tensors='pt',
+                )['input_ids']
             else:
                 # 0th item is the query, 1st item is the positive, 2nd and 3rd items are the negatives
-                expected = tokenizer([
-                    f'query {i}',
-                    f'positive passage {i}',
-                    f'negative passage {i}',
-                    f'negative passage {i + 1}',
-                ],
-                                     padding='max_length',
-                                     max_length=1024,
-                                     return_tensors='pt')['input_ids']
+                expected = tokenizer(
+                    [
+                        f'query {i}',
+                        f'positive passage {i}',
+                        f'negative passage {i}',
+                        f'negative passage {i + 1}',
+                    ],
+                    padding='max_length',
+                    max_length=1024,
+                    return_tensors='pt',
+                )['input_ids']
 
             assert torch.allclose(batch['input_ids'][0], expected)

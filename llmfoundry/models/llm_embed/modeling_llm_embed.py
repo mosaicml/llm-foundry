@@ -143,10 +143,10 @@ class ContrastiveModel(HuggingFaceModel):
         super().__init__(
             model=model,
             tokenizer=tokenizer,
-            use_logits=False,  # Note: set to False
+            use_logits=False,
             metrics=train_metrics,
             eval_metrics=self.eval_metrics, # type: ignore
-            shift_labels=False,  # Note: set to False
+            shift_labels=False,
             allow_embedding_resizing=True,
         )
 

@@ -227,6 +227,7 @@ def train(cfg: DictConfig) -> Trainer:
             # 2022-06-29 11:22:26,152: rank0[822018][MainThread]: INFO: Message here
             format=
             f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s',
+            force=True,
         )
         logging.getLogger('llmfoundry').setLevel(
             train_cfg.python_log_level.upper(),
@@ -311,10 +312,11 @@ def train(cfg: DictConfig) -> Trainer:
     eval_gauntlet_config = train_cfg.eval_gauntlet or train_cfg.eval_gauntlet_str
 
     # Optional parameters will be set to default values if not specified.
-    env_run_name: Optional[str] = os.environ.get('RUN_NAME', None)
-    run_name: str = (
-        train_cfg.run_name if train_cfg.run_name else env_run_name
-    ) or 'llm'
+    run_name: Optional[
+        str] = train_cfg.run_name if train_cfg.run_name else os.environ.get(
+            'RUN_NAME',
+            None,
+        )
     is_state_dict_sharded: bool = (
         fsdp_config.get('state_dict_type', 'full') == 'sharded'
     ) if fsdp_config else False
@@ -322,9 +324,8 @@ def train(cfg: DictConfig) -> Trainer:
     save_filename: str = train_cfg.save_filename if train_cfg.save_filename else 'ep{epoch}-ba{batch}-rank{rank}.pt'
 
     # Enable autoresume from model checkpoints if possible
-    is_user_set_run_name: bool = train_cfg.run_name is not None or env_run_name is not None
     autoresume_default: bool = False
-    if is_user_set_run_name and \
+    if run_name is not None and \
         train_cfg.save_folder is not None \
         and not train_cfg.save_overwrite \
         and not train_cfg.save_weights_only:

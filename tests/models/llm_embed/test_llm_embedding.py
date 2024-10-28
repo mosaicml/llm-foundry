@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from contextlib import nullcontext
-from typing import Any, Optional
+from typing import Any, Optional, Union
 from unittest.mock import patch
 
 import pytest
@@ -32,7 +32,10 @@ class MockTokenizer(PreTrainedTokenizerBase):
     def __len__(self) -> int:
         return self._vocab_size
 
-    def convert_tokens_to_ids(self, tokens: str | list[str]) -> int | list[int]:
+    def convert_tokens_to_ids(
+        self,
+        tokens: Union[str, list[str]],
+    ) -> Union[int, list[int]]:
         return 0
 
     @property

@@ -38,11 +38,12 @@ TEMP_DIR = 'tmp-split'
 
 
 def maybe_download_data_as_json(
-    data_path_folder: str, data_path_split: str
+    data_path_folder: str,
+    data_path_split: str,
 ) -> str:
-    """Prepares dataset as a local JSONL file. Downloads from remote object
-    store if necessary.
+    """Prepares dataset as a local JSONL file.
 
+    Downloads from remote object store if needed.
     This function is intended to be invoked by DBX Finetuning.
     Thus, it assumes the provided data is:
         1. A Delta table converted to JSONL at 'tmp-t/{data_path_split}-00000-of-00001.jsonl`
@@ -62,10 +63,11 @@ def maybe_download_data_as_json(
 
     if dataset_format == 'delta':
         log.info(
-            f'Dataset is converted from Delta table. Using local file {data_path_folder}'
+            f'Dataset is converted from Delta table. Using local file {data_path_folder}',
         )
         data_path = os.path.join(
-            data_path_folder, f'{data_path_split}-00000-of-00001.jsonl'
+            data_path_folder,
+            f'{data_path_split}-00000-of-00001.jsonl',
         )
 
     elif dataset_format == 'remote_object_store':
@@ -136,7 +138,8 @@ def split_examples(
         os.path.join(output_path, 'train.jsonl'),
         'w',
     ) as train_outfile, open(
-        os.path.join(output_path, 'eval.jsonl'), 'w'
+        os.path.join(output_path, 'eval.jsonl'),
+        'w',
     ) as eval_outfile:
         for idx, line in enumerate(infile):
             if idx in sample_indices:
@@ -169,5 +172,9 @@ def split_eval_set_from_args(
     """
     data_path = maybe_download_data_as_json(data_path_folder, data_path_split)
     split_examples(
-        data_path, output_path, eval_split_ratio, max_eval_samples, seed
+        data_path,
+        output_path,
+        eval_split_ratio,
+        max_eval_samples,
+        seed,
     )

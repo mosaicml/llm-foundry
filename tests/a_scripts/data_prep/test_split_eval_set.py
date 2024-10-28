@@ -10,7 +10,10 @@ import pytest
 
 from llmfoundry.command_utils import split_eval_set_from_args, split_examples
 from llmfoundry.command_utils.data_prep.split_eval_set import (
-    DELTA_JSONL_REGEX, REMOTE_OBJECT_STORE_FILE_REGEX, get_dataset_format,)
+    DELTA_JSONL_REGEX,
+    REMOTE_OBJECT_STORE_FILE_REGEX,
+    get_dataset_format,
+)
 
 # Default values
 OUTPUT_DIR = 'tmp-split'
@@ -34,22 +37,22 @@ def test_remote_object_store_file_regex():
     """Test the regex pattern for remote object store file paths."""
     assert REMOTE_OBJECT_STORE_FILE_REGEX.match('s3://bucket-name/path/to/file')
     assert REMOTE_OBJECT_STORE_FILE_REGEX.match(
-        'oci://bucket-name/path/to/file'
+        'oci://bucket-name/path/to/file',
     )
     assert REMOTE_OBJECT_STORE_FILE_REGEX.match('gs://bucket-name/path/to/file')
     assert REMOTE_OBJECT_STORE_FILE_REGEX.match('dbfs:/Volumes/path/to/file')
     assert REMOTE_OBJECT_STORE_FILE_REGEX.match(
-        's3://bucket-name/path/to/file with spaces'
+        's3://bucket-name/path/to/file with spaces',
     )
     assert not REMOTE_OBJECT_STORE_FILE_REGEX.match(
-        'https://bucket-name/path/to/file'
+        'https://bucket-name/path/to/file',
     )
     assert not REMOTE_OBJECT_STORE_FILE_REGEX.match('/local/path/to/file')
     assert not REMOTE_OBJECT_STORE_FILE_REGEX.match(
-        's3:/bucket-name/path/to/file'
+        's3:/bucket-name/path/to/file',
     )
     assert not REMOTE_OBJECT_STORE_FILE_REGEX.match(
-        's3://bucket-name/path/to/file?'
+        's3://bucket-name/path/to/file?',
     )
 
 
@@ -61,16 +64,16 @@ def test_get_dataset_format():
 
     # Test remote object store format
     assert get_dataset_format(
-        's3://bucket-name/path/to/file'
+        's3://bucket-name/path/to/file',
     ) == 'remote_object_store'
     assert get_dataset_format(
-        'oci://bucket-name/path/to/file'
+        'oci://bucket-name/path/to/file',
     ) == 'remote_object_store'
     assert get_dataset_format(
-        'gs://bucket-name/path/to/file'
+        'gs://bucket-name/path/to/file',
     ) == 'remote_object_store'
     assert get_dataset_format(
-        'dbfs:/Volumes/path/to/file'
+        'dbfs:/Volumes/path/to/file',
     ) == 'remote_object_store'
 
     # Test unknown format
@@ -99,8 +102,8 @@ def setup_and_teardown_module():
             f.write(
                 json.dumps({
                     'prompt': 'hello world ' + str(i),
-                    'response': 'hi you!'
-                }) + '\n'
+                    'response': 'hi you!',
+                }) + '\n',
             )
     yield
 
@@ -113,7 +116,10 @@ def test_basic_split():
     """Test basic functionality on local file."""
     output_path = os.path.join(OUTPUT_DIR, 'basic-test')
     split_eval_set_from_args(
-        TMPT_DIR, DATA_PATH_SPLIT, output_path, EVAL_SPLIT_RATIO
+        TMPT_DIR,
+        DATA_PATH_SPLIT,
+        output_path,
+        EVAL_SPLIT_RATIO,
     )
     assert os.path.isfile(os.path.join(output_path, 'train.jsonl'))
     assert os.path.isfile(os.path.join(output_path, 'eval.jsonl'))
@@ -160,12 +166,15 @@ def test_eval_split_ratio():
     """Test case where max_eval_samples is not used."""
     output_path = os.path.join(OUTPUT_DIR, 'eval-split-test')
     split_eval_set_from_args(
-        TMPT_DIR, DATA_PATH_SPLIT, output_path, EVAL_SPLIT_RATIO
+        TMPT_DIR,
+        DATA_PATH_SPLIT,
+        output_path,
+        EVAL_SPLIT_RATIO,
     )
     original_data_lines = count_lines(DEFAULT_FILE)
     eval_lines = count_lines(os.path.join(output_path, 'eval.jsonl'))
     assert abs(
-        eval_lines - EVAL_SPLIT_RATIO * original_data_lines
+        eval_lines - EVAL_SPLIT_RATIO * original_data_lines,
     ) < 1  # allow for rounding errors
 
 
@@ -176,10 +185,10 @@ def test_seed_consistency():
     split_examples(DEFAULT_FILE, output_path_1, EVAL_SPLIT_RATIO, seed=12345)
     split_examples(DEFAULT_FILE, output_path_2, EVAL_SPLIT_RATIO, seed=12345)
     train_hash_1 = calculate_file_hash(
-        os.path.join(output_path_1, 'train.jsonl')
+        os.path.join(output_path_1, 'train.jsonl'),
     )
     train_hash_2 = calculate_file_hash(
-        os.path.join(output_path_2, 'train.jsonl')
+        os.path.join(output_path_2, 'train.jsonl'),
     )
     eval_hash_1 = calculate_file_hash(os.path.join(output_path_1, 'eval.jsonl'))
     eval_hash_2 = calculate_file_hash(os.path.join(output_path_2, 'eval.jsonl'))
@@ -190,7 +199,7 @@ def test_seed_consistency():
     output_path_3 = os.path.join(OUTPUT_DIR, 'seed-test-3')
     split_examples(DEFAULT_FILE, output_path_3, EVAL_SPLIT_RATIO, seed=54321)
     train_hash_3 = calculate_file_hash(
-        os.path.join(output_path_3, 'train.jsonl')
+        os.path.join(output_path_3, 'train.jsonl'),
     )
     eval_hash_3 = calculate_file_hash(os.path.join(output_path_3, 'eval.jsonl'))
 
@@ -204,8 +213,8 @@ def _mock_get_file(remote_path: str, data_path: str, overwrite: bool):
             f.write(
                 json.dumps({
                     'prompt': 'hello world ' + str(i),
-                    'response': 'hi you!'
-                }) + '\n'
+                    'response': 'hi you!',
+                }) + '\n',
             )
 
 
@@ -213,7 +222,8 @@ def test_remote_store_data_split():
     """Test splitting a dataset from a remote store."""
     output_path = os.path.join(OUTPUT_DIR, 'remote-split-test')
     with patch(
-        'composer.utils.get_file', side_effect=_mock_get_file
+        'composer.utils.get_file',
+        side_effect=_mock_get_file,
     ) as mock_get_file:
         split_eval_set_from_args(
             'dbfs:/Volumes/test/test/test.jsonl',
@@ -233,12 +243,18 @@ def test_missing_delta_file_error():
     # expects file 'TMPT_DIR/missing-00000-of-00001.jsonl
     with pytest.raises(FileNotFoundError):
         split_eval_set_from_args(
-            TMPT_DIR, 'missing', OUTPUT_DIR, EVAL_SPLIT_RATIO
+            TMPT_DIR,
+            'missing',
+            OUTPUT_DIR,
+            EVAL_SPLIT_RATIO,
         )
 
 
 def test_unknown_file_format_error():
     with pytest.raises(ValueError):
         split_eval_set_from_args(
-            's3:/path/to/file.jsonl', 'train', OUTPUT_DIR, EVAL_SPLIT_RATIO
+            's3:/path/to/file.jsonl',
+            'train',
+            OUTPUT_DIR,
+            EVAL_SPLIT_RATIO,
         )

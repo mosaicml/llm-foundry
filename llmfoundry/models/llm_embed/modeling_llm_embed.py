@@ -12,7 +12,7 @@ https://github.com/microsoft/unilm
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Mapping, MutableMapping, Optional, Union
+from typing import Any, Mapping, MutableMapping, Optional, Union, cast
 
 import torch
 import torch.distributed
@@ -28,9 +28,9 @@ from torchmetrics import Metric
 from transformers import PreTrainedTokenizerBase
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
+from llmfoundry import registry
 from llmfoundry.models.hf.hf_causal_lm import ComposerHFCausalLM
-from llmfoundry.models.mpt.configuration_mpt import MPTConfig
-from llmfoundry.models.mpt.modeling_mpt import MPTForCausalLM
+from llmfoundry.models.mpt import ComposerMPTCausalLM
 from llmfoundry.models.utils.config_moe_args import create_set_process_group
 
 log = logging.getLogger(__name__)
@@ -190,8 +190,20 @@ class ContrastiveModel(HuggingFaceModel):
 
     def construct_model(self):
         if self.pretrained_model_name_or_path:
-            model = ComposerHFCausalLM.build_inner_model(
-                pretrained=True,
+            if self.tokenizer is None:
+                raise ValueError(
+                    '`tokenizer` must be provided when `pretrained_model_name_or_path` is specified.'
+                )
+
+            # Get the model class from the registry
+            model_class = registry.models.get('hf_causal_lm')
+
+            # Cast the model_class to the expected type
+            model_class = cast(type[ComposerHFCausalLM], model_class)
+
+            # Instantiate the model
+            model = model_class(
+                tokenizer=self.tokenizer,
                 pretrained_model_name_or_path=self.
                 pretrained_model_name_or_path,
                 pretrained_lora_id_or_path=self.pretrained_lora_id_or_path,
@@ -204,7 +216,17 @@ class ContrastiveModel(HuggingFaceModel):
                 **self.kwargs,
             )
         else:
-            model = MPTForCausalLM(MPTConfig(**self.kwargs))
+            # Get the model class from the registry
+            model_class = registry.models.get('mpt_causal_lm')
+
+            # Cast the model_class to the expected type
+            model_class = cast(type[ComposerMPTCausalLM], model_class)
+
+            # Instantiate the model
+            model = model_class(
+                tokenizer=self.tokenizer,  # tokenizer can be None here if allowed
+                **self.kwargs,
+            )
             self.is_mpt = True
         return model
 

@@ -32,6 +32,9 @@ class MockTokenizer(PreTrainedTokenizerBase):
     def __len__(self) -> int:
         return self._vocab_size
 
+    def convert_tokens_to_ids(self, tokens: str | list[str]) -> int | list[int]:
+        return 0
+
 
 @pytest.fixture
 def mock_tokenizer() -> MockTokenizer:

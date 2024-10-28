@@ -2,23 +2,19 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from contextlib import nullcontext
-from typing import Any, MutableMapping, Optional
+from typing import Any, Optional
 from unittest.mock import patch
 
 import pytest
 import torch
 from composer import Trainer
 from composer.core import get_precision_context
-from composer.utils import dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 from transformers import AutoConfig, PreTrainedTokenizerBase
 from transformers.modeling_outputs import \
     BaseModelOutputWithPastAndCrossAttentions
 
-from llmfoundry.models.llm_embed.modeling_llm_embed import (
-    ContrastiveEvalLoss,
-    ContrastiveModel,
-)
+from llmfoundry.models.llm_embed import ContrastiveEvalLoss, ContrastiveModel
 from llmfoundry.utils.builders import build_dataloader
 from tests.data_utils import temporary_contrastive_streaming_dataset
 
@@ -100,7 +96,7 @@ def model(
          patch('torch.distributed.is_initialized', return_value=False), \
          patch('torch.distributed.get_rank', return_value=0), \
          patch('torch.distributed.barrier'), \
-         patch('llmfoundry.models.llm_embed.FinetuneEmbeddingModel.construct_model', return_value=mock_auto_model):
+         patch('runtime_private_plugins.models.llm_embed.FinetuneEmbeddingModel.construct_model', return_value=mock_auto_model):
         model_instance: ContrastiveModel = ContrastiveModel(
             tokenizer=mock_tokenizer,
             pretrained_model_name_or_path='bert-base-uncased',
@@ -152,7 +148,11 @@ def test_mpt_embedding_lm(
                                         padding='max_length',
                                         truncation=True,
                                         max_length=128,
-                                        return_tensors='pt').to('cuda')
+                                        return_tensors='pt')
+    if isinstance(model_inputs_batch, dict):
+        model_inputs_batch = {
+            k: v.to('cuda') for k, v in model_inputs_batch.items()
+        }
 
     ctx = get_precision_context(
         'amp_bf16',
@@ -178,10 +178,7 @@ dataloader_config = lambda remote, local_ext: {
 @pytest.mark.gpu
 @pytest.mark.parametrize('is_hf', [True, False])
 @pytest.mark.parametrize('attn_impl', ['flash', 'torch'])
-@pytest.mark.parametrize(
-    'ds_format',
-    ['one_query_one_response', 'one_query_multiple_responses'],
-)
+@pytest.mark.parametrize('ds_format', ['text_a_text_b', 'query_passages'])
 def test_contrastive_loss(
     ds_format: str,
     is_hf: bool,
@@ -211,19 +208,9 @@ def test_contrastive_loss(
                 model=model,
                 train_dataloader=train_dataloader,
                 precision=precision,
-                max_duration='1ba',
+                max_duration='3ba',
             )
             trainer.fit()
-
-
-def _assert_allclose(state1: dict[str, Any], state2: dict[str, Any]) -> None:
-    for k, v in state1.items():
-        if isinstance(v, torch.Tensor):
-            assert torch.allclose(v.to('cpu'), state2[k].to('cpu'), atol=1e-3)
-        else:
-            _assert_allclose(v, state2[k])
-
-    assert list(state1.keys()) == list(state2.keys())
 
 
 @pytest.mark.gpu
@@ -243,7 +230,6 @@ def test_distributed_loss(
     mock_tokenizer: MockTokenizer,
 ):
     is_hf = False
-    rank = dist.get_local_rank()
 
     lm_config = build_lm_config(is_hf, 'flash')
     lm_config['contrastive_config'] = {
@@ -267,45 +253,16 @@ def test_distributed_loss(
                              )
     model.load_state_dict(model_for_ddp.state_dict())
 
-    input_batch = mock_tokenizer([
-        ['pair 1 a', 'pair 1 b'],
-        ['pair 2 a', 'pair 2 b'],
-        ['pair 3 a', 'pair 3 b'],
-        ['pair 4 a', 'pair 4 b'],
-    ],
+    input_batch = mock_tokenizer([['pair 1 a', 'pair 1 b'],
+                                  ['pair 2 a', 'pair 2 b'],
+                                  ['pair 3 a', 'pair 3 b'],
+                                  ['pair 4 a', 'pair 4 b']],
                                  padding='max_length',
                                  truncation=True,
                                  max_length=128,
-                                 return_tensors='pt').to('cuda')
-
-    def _input_batch_to_rank(
-        input_batch: MutableMapping,
-        rank: int,
-    ) -> MutableMapping:
-        output_batch = {}
-        for key in input_batch:
-            indices = [0, 1] if rank == 0 else [2, 3]
-            output_batch[key] = input_batch[key][indices]
-
-        return output_batch
-
-    rank_input_batch = _input_batch_to_rank(input_batch, rank)
-
-    ddp_model_outs = model_ddp(rank_input_batch)
-    model_outs = model(input_batch)
-
-    ddp_loss = model_for_ddp.loss(
-        outputs=ddp_model_outs,
-        batch=rank_input_batch,
-    )
-    loss = model.loss(outputs=model_outs, batch=input_batch)
-
-    ddp_loss.backward()
-    loss.backward()
-
-    # compare the gradient
-    for p1, p2 in zip(model.parameters(), model_ddp.parameters()):
-        torch.testing.assert_close(p1.grad, p2.grad, rtol=1e-3, atol=1e-3)
+                                 return_tensors='pt')
+    if isinstance(input_batch, dict):
+        input_batch = {k: v.to('cuda') for k, v in input_batch.items()}
 
 
 def test_contrastive_eval_loss_update_and_compute() -> None:

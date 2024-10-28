@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from contextlib import nullcontext
-from typing import Any, Optional, Union
+from typing import Any, Optional
 from unittest.mock import patch
 
 import pytest
@@ -10,59 +10,14 @@ import torch
 from composer import Trainer
 from composer.core import get_precision_context
 from torch.nn.parallel import DistributedDataParallel as DDP
-from transformers import AutoConfig, PreTrainedTokenizerBase
+from transformers import AutoConfig
 from transformers.modeling_outputs import \
     BaseModelOutputWithPastAndCrossAttentions
 
 from llmfoundry.models.llm_embed import ContrastiveEvalLoss, ContrastiveModel
 from llmfoundry.utils.builders import build_dataloader
 from tests.data_utils import temporary_contrastive_streaming_dataset
-
-
-class MockTokenizer(PreTrainedTokenizerBase):
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.pad_token: str = '<pad>'
-        self.eos_token: str = '</s>'
-        self.bos_token: str = '<s>'
-        self.unk_token: str = '<unk>'
-        self._vocab_size: int = 30000
-
-    def __len__(self) -> int:
-        return self._vocab_size
-
-    def convert_tokens_to_ids(
-        self,
-        tokens: Union[str, list[str]],
-    ) -> Union[int, list[int]]:
-        return 0
-
-    @property
-    def pad_token_id(self) -> int:
-        return 0
-
-    def _batch_encode_plus(self, *args: Any,
-                           **kwargs: Any) -> dict[str, torch.Tensor]:
-        batch_texts = args[0] if args else kwargs.get(
-            'batch_text_or_text_pairs',
-            [],
-        )
-        max_length = kwargs.get('max_length', 1024)
-
-        if isinstance(batch_texts[0], list):
-            texts = [t for pair in batch_texts for t in pair]
-        else:
-            texts = batch_texts
-
-        token_ids = torch.tensor([
-            [hash(text) % 1000 + j for j in range(max_length)] for text in texts
-        ])
-
-        return {
-            'input_ids': token_ids,
-            'attention_mask': torch.ones_like(token_ids),
-        }
+from tests.test_utils import MockTokenizer
 
 
 @pytest.fixture

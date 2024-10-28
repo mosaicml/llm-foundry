@@ -192,7 +192,7 @@ class ContrastiveModel(HuggingFaceModel):
         if self.pretrained_model_name_or_path:
             if self.tokenizer is None:
                 raise ValueError(
-                    '`tokenizer` must be provided when `pretrained_model_name_or_path` is specified.'
+                    '`tokenizer` must be provided when `pretrained_model_name_or_path` is specified.',
                 )
 
             # Get the model class from the registry

@@ -145,7 +145,15 @@ def test_mpt_embedding_lm(
         'amp_bf16',
     ) if maybe_attn_impl == 'flash' else nullcontext()
     with ctx:
-        model(model_inputs_batch)
+        outputs = model(model_inputs_batch)
+        
+        assert isinstance(outputs, dict)
+        assert 'hidden_states' in outputs
+        
+        hidden_states = outputs['hidden_states']
+        assert hidden_states.shape == (4, 128, 768)  # 2 pairs * 2 texts per pair, 128 sequence length, 768 hidden dim
+        assert hidden_states.dtype == torch.bfloat16
+        assert hidden_states.device.type == 'cuda'
 
 
 dataloader_config = lambda remote, local_ext: {

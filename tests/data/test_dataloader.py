@@ -5,6 +5,7 @@ import os
 import pathlib
 import random
 import shutil
+from collections import Counter
 from contextlib import nullcontext as does_not_raise
 from pathlib import Path
 from typing import Any, Callable, ContextManager, Literal, Optional, Union
@@ -26,7 +27,6 @@ from llmfoundry.command_utils.data_prep.convert_finetuning_dataset import \
     get_columns_and_format
 from llmfoundry.data import build_dataloader, build_finetuning_dataloader
 from llmfoundry.data.finetuning.collator import (
-    _HF_IGNORE_INDEX,
     validate_target_settings,
 )
 from llmfoundry.data.finetuning.tasks import (
@@ -43,6 +43,7 @@ from llmfoundry.data.text_data import (
 from llmfoundry.data.utils import get_tokens_per_batch_func
 from llmfoundry.utils.builders import build_tokenizer
 from llmfoundry.utils.config_utils import to_dict_container
+from llmfoundry.utils.consts import CROSS_ENTROPY_IGNORE_INDEX
 # yapf: disable
 from llmfoundry.utils.exceptions import (
     ConsecutiveRepeatedChatRolesError,
@@ -269,7 +270,7 @@ def test_correct_padding(
         torch.ones_like(batch['input_ids'], dtype=torch.bool),
     )
     a = attention_mask == 0
-    b = batch['labels'] == -100
+    b = batch['labels'] == CROSS_ENTROPY_IGNORE_INDEX
     assert torch.equal(a, b)
 
 
@@ -1104,7 +1105,7 @@ def test_finetune_dataloader_pure_pad_responses():
             labels = batch['labels'][
                 0,
                 torch.
-                logical_and(is_subseq, batch['labels'][0] != _HF_IGNORE_INDEX)]
+                logical_and(is_subseq, batch['labels'][0] != CROSS_ENTROPY_IGNORE_INDEX)]
             assert all(labels[:-1] == tokenizer.pad_token_id)
         if i >= 20:
             break
@@ -1185,12 +1186,15 @@ def test_token_counting_func_dataloader_setting(
 
     batch_strings = []
     expected_token_count = 0
+    expected_loss_generating_token_count = 0
+    sample_lengths = []
     for _ in range(batch_size):
         # Get randomly different lengths if we are going to add padding
         sample_length = random.randint(1, model_max_length // 4) if (
             pad_token_id is not None and not tensor_input
         ) else model_max_length // 4
         batch_strings.append(' '.join(['hello'] * sample_length))
+        sample_lengths.append(sample_length)
         expected_token_count += sample_length
 
     batch_tokenized = [
@@ -1207,8 +1211,15 @@ def test_token_counting_func_dataloader_setting(
         for b in batch_tokenized:
             b['labels'] = b['input_ids'].copy()  # type: ignore
         batch_tokenized = [{'turns': [b]} for b in batch_tokenized]
+        expected_loss_generating_token_count = expected_token_count
         expected_token_count *= 2
         expected_token_count += 1 * batch_size  # for the eos token
+        expected_loss_generating_token_count += 1 * batch_size  # for the eos token
+    else:
+        expected_loss_generating_token_count = expected_token_count
+
+        number_of_shifted_off_labels = Counter(sample_lengths)[max(sample_lengths)]
+        expected_loss_generating_token_count -= 1 * number_of_shifted_off_labels  # because the labels will be shifted
 
     common_args = {
         'drop_last': False,
@@ -1310,9 +1321,11 @@ def test_token_counting_func_dataloader_setting(
         raise NotImplementedError()
 
     batch_collated = dl.dataloader.collate_fn(batch_tokenized)  # type: ignore
-    actual_token_count = dl.get_num_tokens_in_batch(batch_collated)
+    actual_total_token_count = dl.get_num_tokens_in_batch(batch_collated, token_type='total')
+    actual_loss_generating_token_count = dl.get_num_tokens_in_batch(batch_collated, token_type='loss_generating')
 
-    assert actual_token_count == expected_token_count
+    assert actual_total_token_count == expected_token_count
+    assert actual_loss_generating_token_count == expected_loss_generating_token_count
 
 
 def test_build_unknown_dataloader():

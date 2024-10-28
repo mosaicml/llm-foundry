@@ -1,7 +1,7 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Optional, Union, cast
+from typing import Union, cast
 
 import pytest
 import torch
@@ -24,33 +24,11 @@ class MockTokenizer(PreTrainedTokenizerBase):
     def __len__(self) -> int:
         return self._vocab_size
 
-    def __call__(
+    def convert_tokens_to_ids(
         self,
-        texts: Union[str, list[str], list[list[str]]],
-        padding: str = 'max_length',
-        truncation: bool = True,
-        max_length: Optional[int] = None,
-        return_tensors: Optional[str] = None,
-    ) -> Union[torch.Tensor, dict[str, torch.Tensor]]:
-        # Simple mock implementation that creates deterministic token IDs
-        max_len = max_length or 1024
-
-        if isinstance(texts, list):
-            # Create deterministic but different tokens for each text
-            token_ids = torch.tensor([[
-                hash(text) % 1000 + j for j in range(max_len)
-            ] for text in texts])
-        else:
-            token_ids = torch.tensor([[
-                hash(texts) % 1000 + j for j in range(max_len)
-            ]])
-
-        if return_tensors == 'pt':
-            return {
-                'input_ids': token_ids,
-                'attention_mask': torch.ones_like(token_ids),
-            }
-        return token_ids
+        tokens: Union[str, list[str]],
+    ) -> Union[int, list[int]]:
+        return 0
 
 
 @pytest.fixture

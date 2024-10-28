@@ -18,7 +18,6 @@ import torch
 import torch.distributed
 import torch.nn as nn
 import torch.nn.functional as F
-import triton
 from composer.models import HuggingFaceModel
 from composer.utils import dist
 from einops import rearrange
@@ -412,13 +411,8 @@ class ContrastiveModel(HuggingFaceModel):
         batch: MutableMapping,
     ) -> torch.Tensor:
         scores, labels = self._compute_scores(batch, outputs)
-        try:
-            loss = self.loss_fn(scores, labels)
-            return loss
-        except triton.compiler.errors.CompilationError:
-            raise ValueError(
-                f'global_train_batch_size is too small. Increase the batch size to at least 2.',
-            )
+        loss = self.loss_fn(scores, labels)
+        return loss
 
     def eval_forward(
         self,

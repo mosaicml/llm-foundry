@@ -15,7 +15,10 @@ import torch.nn as nn
 from accelerate import init_empty_weights
 from composer.core.precision import Precision, get_precision_context
 from composer.distributed.dist_strategy import prepare_fsdp_module
-from composer.models.huggingface import maybe_get_underlying_model
+from composer.models.huggingface import (
+    HuggingFaceModel,
+    maybe_get_underlying_model,
+)
 from composer.optim import DecoupledAdamW
 from composer.utils import (
     FSDPConfig,
@@ -39,7 +42,6 @@ from transformers.models.llama.modeling_llama import LlamaRotaryEmbedding
 
 from llmfoundry import ComposerHFCausalLM
 from llmfoundry.layers_registry import norms
-from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithFSDP
 from llmfoundry.models.layers import build_alibi_bias
 from llmfoundry.models.layers.attention import (
     check_alibi_support,
@@ -47,7 +49,10 @@ from llmfoundry.models.layers.attention import (
 )
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM, MPTModel
-from llmfoundry.models.mpt.modeling_mpt import LlamaRotaryEmbeddingFoundry
+from llmfoundry.models.mpt.modeling_mpt import (
+    CROSS_ENTROPY_IGNORE_INDEX,
+    LlamaRotaryEmbeddingFoundry,
+)
 from llmfoundry.utils import build_tokenizer
 from llmfoundry.utils.builders import build_composer_model
 from llmfoundry.utils.config_utils import to_dict_container
@@ -623,7 +628,10 @@ def test_loss_fn():
     model_2.to(test_cfg.device)
 
     assert isinstance(model_1.loss_fn, torch.nn.CrossEntropyLoss)
-    model_2.loss_fn = FusedCrossEntropyLoss(ignore_index=-100, reduction='none')
+    model_2.loss_fn = FusedCrossEntropyLoss(
+        ignore_index=CROSS_ENTROPY_IGNORE_INDEX,
+        reduction='none',
+    )
 
     optimizer_1 = DecoupledAdamW(
         model_1.parameters(),
@@ -730,13 +738,13 @@ def test_loss_reduction(loss_fn_config: str):
     if loss_fn_config == 'fused_crossentropy':
         assert isinstance(model_1.loss_fn, FusedCrossEntropyLoss)
         model_2.loss_fn = FusedCrossEntropyLoss(
-            ignore_index=-100,
+            ignore_index=CROSS_ENTROPY_IGNORE_INDEX,
             reduction='mean',
         )
     else:
         assert isinstance(model_1.loss_fn, torch.nn.CrossEntropyLoss)
         model_2.loss_fn = torch.nn.CrossEntropyLoss(
-            ignore_index=-100,
+            ignore_index=CROSS_ENTROPY_IGNORE_INDEX,
             reduction='mean',
         )
 
@@ -2560,7 +2568,7 @@ def test_hf_init(
         False,
     )
 
-    model = HuggingFaceModelWithFSDP(model, tokenizer)
+    model = HuggingFaceModel(model, tokenizer)
 
     batch = gen_random_batch(batch_size, test_cfg)
 
@@ -2609,7 +2617,7 @@ def test_head_dim_8_flash_mqa_attn(batch_size: int = 2):
 
     mpt = MPTForCausalLM(hf_config)
 
-    model = HuggingFaceModelWithFSDP(mpt, tokenizer, shift_labels=True)
+    model = HuggingFaceModel(mpt, tokenizer, shift_labels=True)
 
     model = model.to(test_cfg.device)
     batch = gen_random_batch(batch_size, test_cfg)

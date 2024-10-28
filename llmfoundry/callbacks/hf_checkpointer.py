@@ -124,6 +124,7 @@ def _register_model_with_run_id_multiprocess(
         logging.basicConfig(
             format=
             f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s',
+            force=True,
         )
         logging.getLogger('composer').setLevel(composer_logging_level)
 
@@ -180,6 +181,7 @@ class HuggingFaceCheckpointer(Callback):
         mlflow_logging_config: Optional[dict] = None,
         flatten_imports: Sequence[str] = ('llmfoundry',),
         final_register_only: bool = False,
+        register_wait_seconds: int = 7200,
     ):
         _, _, self.save_dir_format_str = parse_uri(save_folder)
         self.overwrite = overwrite
@@ -193,6 +195,7 @@ class HuggingFaceCheckpointer(Callback):
         self.using_peft = False
 
         self.final_register_only = final_register_only
+        self.register_wait_seconds = register_wait_seconds
 
         self.mlflow_registered_model_name = mlflow_registered_model_name
         if self.final_register_only and self.mlflow_registered_model_name is None:
@@ -325,7 +328,7 @@ class HuggingFaceCheckpointer(Callback):
             self.using_peft = composer_model.using_peft
         elif event == Event.FIT_END:
             # Wait for all child processes spawned by the callback to finish.
-            timeout = 3600
+            timeout = self.register_wait_seconds
             wait_start = time.time()
             while not self._all_register_processes_done(state.device):
                 wait_time = time.time() - wait_start

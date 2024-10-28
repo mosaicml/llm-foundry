@@ -121,6 +121,7 @@ class TrainConfig:
     dist_timeout: Union[int, float] = 600.0
     fsdp_config: Optional[dict[str, Any]] = None
     tp_config: Optional[dict[str, Any]] = None
+    accumulate_train_batch_on_tokens: bool = True
 
     # Evaluation parameters
     eval_interval: Union[int, str] = 1

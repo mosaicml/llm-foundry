@@ -1,13 +1,31 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
+import os
 from contextlib import nullcontext
 from typing import Optional
 from unittest import mock
 
 import pytest
 
-from llmfoundry.data.finetuning.tasks import dataset_constructor
+from llmfoundry.data.finetuning.tasks import (
+    _get_num_processes,
+    dataset_constructor,
+)
 from llmfoundry.utils.exceptions import DatasetTooSmallError
+
+
+def test_get_num_processes():
+    with mock.patch.dict(os.environ, {'MAX_NUM_PROC': '4'}):
+        with mock.patch('os.cpu_count', return_value=16):
+            assert _get_num_processes() == 4
+
+    with mock.patch.dict(os.environ, {'MAX_NUM_PROC': '32'}):
+        with mock.patch('os.cpu_count', return_value=16):
+            assert _get_num_processes() == 8
+
+    with mock.patch.dict(os.environ, {}):
+        with mock.patch('os.cpu_count', return_value=16):
+            assert _get_num_processes() == 8
 
 
 @pytest.mark.parametrize('num_canonical_nodes', [None, 8, 2])

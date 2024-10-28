@@ -15,6 +15,7 @@ from llmfoundry.data.finetuning.collator import Seq2SeqFinetuningCollator
 from llmfoundry.data.finetuning.dataloader import build_collate_fn
 from llmfoundry.data.packing import BinPackCollator
 from llmfoundry.data.text_data import ConcatenatedSequenceCollatorWrapper
+from llmfoundry.utils.consts import CROSS_ENTROPY_IGNORE_INDEX
 
 log = logging.getLogger(__name__)
 
@@ -83,7 +84,7 @@ def get_data_spec(
 
 def get_tokens_per_batch_func(
     decoder_only: bool = True,
-) -> Callable[[Batch], int]:
+) -> Callable[[Batch], Union[int, dict[str, int]]]:
     """Returns a callable that counts the number of tokens in a batch.
 
     Args:
@@ -95,7 +96,7 @@ def get_tokens_per_batch_func(
         Callable[[Batch], int]: A callable that counts the number of tokens in a batch.
     """
 
-    def get_num_tokens_in_batch(batch: Batch) -> int:
+    def get_num_tokens_in_batch(batch: Batch) -> Union[int, dict[str, int]]:
         if not isinstance(batch, Mapping) or (
             'attention_mask' not in batch and 'input_ids' not in batch
         ):
@@ -114,6 +115,20 @@ def get_tokens_per_batch_func(
         else:
             input_ids_tokens = batch['input_ids'].numel()
 
+        loss_generating_tokens = None
+        if 'labels' in batch:
+            loss_generating_tokens = int(
+                torch.sum(batch['labels'] != CROSS_ENTROPY_IGNORE_INDEX).item(),
+            )
+
+            # Subtract one for each example in the batch that starts with a non -100,
+            # because those will be shifted off
+            loss_generating_tokens -= int(
+                torch.sum(
+                    batch['labels'][:, 0] != CROSS_ENTROPY_IGNORE_INDEX,
+                ).item(),
+            )
+
         # For encoder decoder models only
         decoder_input_ids_tokens = 0
         if not decoder_only:
@@ -121,6 +136,11 @@ def get_tokens_per_batch_func(
                 torch.sum(batch['decoder_attention_mask']).item(),
             )
 
+        if loss_generating_tokens is not None:
+            return {
+                'total': input_ids_tokens + decoder_input_ids_tokens,
+                'loss_generating': loss_generating_tokens,
+            }
         return input_ids_tokens + decoder_input_ids_tokens
 
     return get_num_tokens_in_batch

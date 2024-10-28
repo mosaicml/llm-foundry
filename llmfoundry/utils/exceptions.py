@@ -310,7 +310,7 @@ class UnableToProcessPromptResponseError(
 
 
 ## Convert Delta to JSON exceptions
-class ClusterDoesNotExistError(NetworkError):
+class ClusterDoesNotExistError(UserError):
     """Error thrown when the cluster does not exist."""
 
     def __init__(self, cluster_id: str) -> None:
@@ -318,12 +318,12 @@ class ClusterDoesNotExistError(NetworkError):
         super().__init__(message, cluster_id=cluster_id)
 
 
-class ClusterInvalidAccessMode(NetworkError):
+class ClusterInvalidAccessMode(UserError):
     """Error thrown when the cluster does not exist."""
 
     def __init__(self, cluster_id: str, access_mode: str) -> None:
-        message = f'Cluster with id {cluster_id} has access mode {access_mode}. ' + \
-        'please make sure the cluster used has access mode Shared or Single User!'
+        message = f'The cluster you have provided: {cluster_id} does not have data governance enabled.' + \
+                  'Please use a cluster with a data security mode other than NONE.'
         super().__init__(
             message,
             cluster_id=cluster_id,
@@ -395,6 +395,14 @@ class MisconfiguredHfDatasetError(UserError):
         message = f'Your dataset (name={dataset_name}, split={split}) is misconfigured. ' + \
             'Please check your dataset format and make sure you can load your dataset locally.'
         super().__init__(message, dataset_name=dataset_name, split=split)
+
+
+class InvalidDatasetError(UserError):
+    """Error thrown when a dataset contains no valid samples for training."""
+
+    def __init__(self, reason: str) -> None:
+        message = f'Dataset contains no valid samples for training. {reason}'
+        super().__init__(message, reason=reason)
 
 
 class DatasetTooSmallError(UserError):
@@ -486,16 +494,20 @@ class FaultyDataPrepCluster(UserError):
 class FinetuningFileNotFoundError(UserError):
     """Error thrown when a file can't be found with any supported extension."""
 
-    def __init__(self, files_searched: list[str]) -> None:
-        from llmfoundry.data.finetuning.tasks import SUPPORTED_EXTENSIONS
+    def __init__(
+        self,
+        files_searched: list[str],
+        supported_extensions: list[str],
+    ) -> None:
         message = (
             f'Could not find a file with any of ' + \
-            f'the supported extensions: {SUPPORTED_EXTENSIONS}\n' + \
+            f'the supported extensions: {supported_extensions}\n' + \
             f'at {files_searched}'
         )
         super().__init__(
             message,
             files_searched=files_searched,
+            supported_extensions=supported_extensions,
         )
 
 
@@ -512,3 +524,11 @@ class InvalidConversationError(UserError):
 
     def __str__(self):
         return self.message
+
+
+class UCNotEnabledError(UserError):
+    """Error thrown when user does not have UC enabled on their cluster."""
+
+    def __init__(self) -> None:
+        message = f'Unity Catalog is not enabled on your cluster.'
+        super().__init__(message)

@@ -4,7 +4,7 @@
 from typing import Any, Mapping
 
 import torch
-import torch.distributed as dist
+from composer.utils import dist
 from transformers import AutoModel
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
@@ -25,13 +25,10 @@ class FinetuneEmbeddingModel(ContrastiveModel):
                 **self.kwargs,
             )
 
-        if dist.is_initialized():
-            if dist.get_rank() == 0:
-                model = load_model()
-            dist.barrier()
-            if dist.get_rank() != 0:
-                model = load_model()
-        else:
+        if dist.get_global_rank() == 0:
+            model = load_model()
+        dist.barrier()
+        if model is None:
             model = load_model()
 
         assert model, 'Model is not loaded properly'

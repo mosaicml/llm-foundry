@@ -62,11 +62,11 @@ from llmfoundry.data import (
     stream_remote_local_validate,
 )
 from llmfoundry.data.finetuning.collator import (
-    _HF_IGNORE_INDEX,
     stitch_turns_decoder_only,
     stitch_turns_encoder_decoder,
 )
 from llmfoundry.tokenizers import get_date_string
+from llmfoundry.utils.consts import CROSS_ENTROPY_IGNORE_INDEX
 # yapf: disable
 from llmfoundry.utils.exceptions import (
     ALLOWED_MESSAGES_KEYS,
@@ -501,7 +501,8 @@ def is_valid_ift_example(
     if len(input_ids) == 0:
         return False
 
-    if len([label for label in labels if label != _HF_IGNORE_INDEX]) == 0:
+    if len([label for label in labels if label != CROSS_ENTROPY_IGNORE_INDEX
+           ],) == 0:
         return False
 
     return True

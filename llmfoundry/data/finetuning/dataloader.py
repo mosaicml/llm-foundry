@@ -26,6 +26,7 @@ from llmfoundry.data.finetuning.tasks import (
 from llmfoundry.data.packing import BinPackCollator, auto_packing_ratio
 from llmfoundry.data.text_data import build_streams
 from llmfoundry.utils.config_utils import to_dict_container
+from llmfoundry.utils.consts import CROSS_ENTROPY_IGNORE_INDEX
 from llmfoundry.utils.exceptions import (
     FinetuningFileNotFoundError,
     MissingHuggingFaceURLSplitError,
@@ -39,9 +40,6 @@ log = logging.getLogger(__name__)
 __all__ = [
     'build_finetuning_dataloader',
 ]
-
-# HuggingFace hardcodes the ignore index to -100
-_HF_IGNORE_INDEX = -100
 
 # Extra keys present in the dataset config dictionary beyond the constructor keys
 _ALLOWED_DATASET_KEYS = {
@@ -786,7 +784,7 @@ if __name__ == '__main__':
                         )
                         context = torch.logical_and(
                             batch['attention_mask'][j] == 1,
-                            batch['labels'][j] == _HF_IGNORE_INDEX,
+                            batch['labels'][j] == CROSS_ENTROPY_IGNORE_INDEX,
                         )
                         print(
                             '\033[92m{}\033[00m\n'.format('CONTEXT:  '),
@@ -804,7 +802,8 @@ if __name__ == '__main__':
                                     j,
                                     torch.logical_and(
                                         is_subseq,
-                                        batch['labels'][j] != _HF_IGNORE_INDEX,
+                                        batch['labels'][j] !=
+                                        CROSS_ENTROPY_IGNORE_INDEX,
                                     )],
                                 skip_special_tokens=False,
                                 clean_up_tokenization_spaces=True,
@@ -822,7 +821,7 @@ if __name__ == '__main__':
                     )
                     context = torch.logical_and(
                         batch['attention_mask'][j] == 1,
-                        batch['labels'][j] == _HF_IGNORE_INDEX,
+                        batch['labels'][j] == CROSS_ENTROPY_IGNORE_INDEX,
                     )
                     print(
                         '\033[92m{}\033[00m\n'.format('CONTEXT:  '),
@@ -835,8 +834,9 @@ if __name__ == '__main__':
                     print(
                         '\033[91m{}\033[00m\n'.format('TARGET:   '),
                         tokenizer.decode(
-                            batch['input_ids'][
-                                j, batch['labels'][j] != _HF_IGNORE_INDEX],
+                            batch['input_ids']
+                            [j,
+                             batch['labels'][j] != CROSS_ENTROPY_IGNORE_INDEX],
                             skip_special_tokens=False,
                             clean_up_tokenization_spaces=True,
                         ),

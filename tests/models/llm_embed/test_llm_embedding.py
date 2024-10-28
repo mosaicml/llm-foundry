@@ -32,7 +32,10 @@ class MockTokenizer(PreTrainedTokenizerBase):
     def __len__(self) -> int:
         return self._vocab_size
 
-    def convert_tokens_to_ids(self, tokens: Union[str, list[str]]) -> Union[int, list[int]]:
+    def convert_tokens_to_ids(
+        self,
+        tokens: Union[str, list[str]],
+    ) -> Union[int, list[int]]:
         return 0
 
 

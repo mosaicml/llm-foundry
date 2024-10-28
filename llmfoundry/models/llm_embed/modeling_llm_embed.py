@@ -212,9 +212,7 @@ class ContrastiveModel(HuggingFaceModel):
                 **self.kwargs,
             )
         else:
-            model_class = registry.models.get('mpt_causal_lm')
-            model_class = cast(type[MPTForCausalLM], model_class)
-            model = model_class(MPTConfig(**self.kwargs))
+            model = MPTForCausalLM(MPTConfig(**self.kwargs))
             self.is_mpt = True
         return model
 

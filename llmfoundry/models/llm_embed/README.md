@@ -18,77 +18,56 @@ Before the final "logit" layer of the decoder, the tensor still has dimensions _
 
 The main additions are as follows:
 
-* The class `ContrastiveModel(HuggingFaceModel)`, which implements the InfoNCE Loss in the `.loss()` function. `mpt_embed` is treated as a separate model folder from `mpt`.
-* A naive dataloader for contrastive pairs `build_pairs_dataloader()`. This can handle positive pairs formatted as `text_a` and `text_b`, or positive pairs with hard negatives formatted as `query`,`passage` and a list of `hard_negatives`.
+* The class `ContrastiveModel(HuggingFaceModel)`, which implements the InfoNCE Loss in the `.loss()` function.
+* A dataloader for contrastive pairs `build_pairs_dataloader()`. This can handle positive pairs formatted as `text_a` and `text_b`, or positive pairs with hard negatives formatted as `query`,`passage` and a list of `hard_negatives`.
 
 ## Example YAML
 
 ```yaml
-parameters:
-  seed: ${global_seed}
-  model:
-    name: contrastive_lm
-    d_model: 2048
-    n_heads: 16
-    no_bias: true
-    n_layers: 20
-    norm_type: low_precision_layernorm
-    ffn_config:
-      ffn_type: mb_dmoe
-      mlp_impl: grouped
-      mlp_type: glu
-      moe_top_k: 4
-      ffn_act_fn:
-        name: silu
-      moe_jitter_eps: 0.01
-      moe_world_size: 8
-      ffn_hidden_size: 3584
-      moe_lbl_in_fp32: false
-      moe_loss_weight: 0.05
-      moe_num_experts: 16
-      memory_optimized_mlp: true
-      moe_weight_parallelism: false
-      quantize_inputs_num_bits: 8
-      quantize_scatter_num_bits: 8
-      uniform_expert_assignment: false
-      moe_normalize_expert_weights: 1
-      quantize_rematerialize_num_bits: -1
-    vocab_size: 100352
-    attn_config:
-      rope: true
-      alibi: false
-      clip_qkv: 8
-      attn_impl: flash
-      attn_type: grouped_query_attention
-      kv_n_heads: 8
-      rope_theta: 500000
-      attn_uses_sequence_id: false
-    init_device: meta
-    max_seq_len: ${max_seq_len}
-    contrastive_config:
-      temperature: 0.01
-      normalize_output: true
-      vector_representation: avg
-    fuse_norm_attn_norm: true
-    tie_word_embeddings: false
-  data_local: /tmp/mds-cache/mds-ms_marco/
-  data_remote: <your dataset>
-  train_loader:
-    name: contrastive_pairs
-    dataset:
-      local: ${data_local}
-      split: null
-      remote: ${data_remote}
-      shuffle: true
-      max_seq_len: ${max_seq_len}
-      shuffle_seed: ${global_seed}
-      prepend_query: 'query: '
-      prepend_passage: 'passage: '
-      append_eos_token: true
-    drop_last: true
-    num_workers: 8
-  ...
-command: |-
-  cd llm-foundry/scripts
-  composer train/train.py /mnt/config/parameters.yaml
+variables:
+  data_local: <your_dataset_location>
+  data_remote:  # If blank, files must be present in data_local
+  max_seq_len: 2048
+  global_seed: 17
+
+  # Run Name
+  run_name:  # If left blank, will be read from env var $RUN_NAME
+
+max_seq_len: ${variables.max_seq_len}
+run_name: ${variables.run_name}
+
+# Model
+model:
+  name: contrastive_lm
+  init_device: meta
+  d_model: 768
+  n_heads: 12
+  n_layers: 12
+  expansion_ratio: 4
+  max_seq_len: ${variables.max_seq_len}
+  vocab_size: 50368
+  attn_config:
+    attn_impl: flash
+
+# Tokenizer
+tokenizer:
+  name: EleutherAI/gpt-neox-20b
+  kwargs:
+    model_max_length: ${variables.max_seq_len}
+
+# Dataloaders
+train_loader:
+  name: contrastive_pairs
+  dataset:
+    local: ${variables.data_local}
+    split: null
+    remote: ${variables.data_remote}
+    shuffle: true
+    max_seq_len: ${variables.max_seq_len}
+    shuffle_seed: ${variables.global_seed}
+    prepend_query: 'query: '
+    prepend_passage: 'passage: '
+    append_eos_token: true
+  drop_last: true
+  num_workers: 8
 ```

@@ -195,13 +195,8 @@ class ContrastiveModel(HuggingFaceModel):
                     '`tokenizer` must be provided when `pretrained_model_name_or_path` is specified.',
                 )
 
-            # Get the model class from the registry
             model_class = registry.models.get('hf_causal_lm')
-
-            # Cast the model_class to the expected type
             model_class = cast(type[ComposerHFCausalLM], model_class)
-
-            # Instantiate the model
             model = model_class(
                 tokenizer=self.tokenizer,
                 pretrained_model_name_or_path=self.
@@ -216,15 +211,10 @@ class ContrastiveModel(HuggingFaceModel):
                 **self.kwargs,
             )
         else:
-            # Get the model class from the registry
             model_class = registry.models.get('mpt_causal_lm')
-
-            # Cast the model_class to the expected type
             model_class = cast(type[ComposerMPTCausalLM], model_class)
-
-            # Instantiate the model
             model = model_class(
-                tokenizer=self.tokenizer,  # tokenizer can be None here if allowed
+                tokenizer=self.tokenizer,
                 **self.kwargs,
             )
             self.is_mpt = True

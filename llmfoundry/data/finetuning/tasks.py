@@ -731,11 +731,12 @@ def maybe_safe_download_hf_data(
         hf_kwargs = {}
 
     if not os.path.isdir(dataset_name):
+        # dataset_name is not a local dir path, download if needed.
         local_dataset_dir = os.path.join(
             tempfile.mkdtemp(),
             dataset_name,
         )
-        
+
         log.debug(
             f'Downloading dataset {dataset_name} to {local_dataset_dir}.',
         )
@@ -753,7 +754,7 @@ def maybe_safe_download_hf_data(
                 local_dir_use_symlinks=False,
                 local_dir=local_dataset_dir,
             )
-            if _is_empty_or_nonexistent(dirpath=dataset_name):
+            if _is_empty_or_nonexistent(dirpath=local_dataset_dir):
                 log.error("Failed to safely load the dataset from HF Hub.")
                 raise InvalidFileExtensionError(
                     dataset_name,

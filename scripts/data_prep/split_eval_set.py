@@ -5,44 +5,50 @@ from argparse import ArgumentParser
 
 from llmfoundry.command_utils import split_eval_set_from_args
 
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     parser = ArgumentParser(
-        description="Split training dataset into train and eval sets",
+        description='Split training dataset into train and eval sets',
     )
     parser.add_argument(
-        "--data_path_folder", required=True, type=str, help="Path to the training dataset folder"
+        '--data_path_folder',
+        required=True,
+        type=str,
+        help='Path to the training dataset folder',
     )
     parser.add_argument(
-        "--data_path_split", required=True, type=str, help="Path to the training dataset split"
+        '--data_path_split',
+        required=True,
+        type=str,
+        help='Path to the training dataset split',
     )
     parser.add_argument(
-        "--output_path",
+        '--output_path',
         required=False,
         type=str,
-        default="/tmp-split",
-        help="Path to save the split dataset",
+        default='/tmp-split',
+        help='Path to save the split dataset',
     )
     parser.add_argument(
-        "--eval_split_ratio",
+        '--eval_split_ratio',
         required=False,
         type=float,
         default=0.1,
-        help="Ratio of the dataset to use for evaluation. The remainder will be used for training",
+        help=
+        'Ratio of the dataset to use for evaluation. The remainder will be used for training',
     )
     parser.add_argument(
-        "--max_eval_samples",
+        '--max_eval_samples',
         required=False,
         type=int,
         default=100,
-        help="Maximum number of samples to include in the eval set",
+        help='Maximum number of samples to include in the eval set',
     )
     parser.add_argument(
-        "--seed",
+        '--seed',
         required=False,
         type=int,
         default=42,
-        help="Random seed for splitting the dataset",
+        help='Random seed for splitting the dataset',
     )
     args = parser.parse_args()
     split_eval_set_from_args(

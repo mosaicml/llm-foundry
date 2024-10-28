@@ -711,16 +711,16 @@ class StreamingFinetuningDataset(StreamingDataset):
             num_samples=num_samples,
             from_beginning=from_beginning,
         )
-    
+
+
 def maybe_safe_download_hf_data(
     dataset_name: str,
-    hf_kwargs: Optional[dict[str, Any]] = None
+    hf_kwargs: Optional[dict[str, Any]] = None,
 ) -> str:
-    """
-    Download a HuggingFace dataset locally if it does not already exist.
+    """Download a HuggingFace dataset locally if it does not already exist.
 
     Args:
-        dataset_name (str): The name of the HuggingFace dataset to use. Can be a remote http(s) 
+        dataset_name (str): The name of the HuggingFace dataset to use. Can be a remote http(s)
         directory or object store bucket containing the file {split}.jsonl.
         hf_kwargs (dict, optional): Additional kwargs to pass to `datasets.load_dataset`.
 
@@ -746,16 +746,14 @@ def maybe_safe_download_hf_data(
             hf_hub.snapshot_download(
                 dataset_name,
                 repo_type='dataset',
-                allow_patterns=[
-                    '*' + ext for ext in SUPPORTED_EXTENSIONS
-                ],
+                allow_patterns=['*' + ext for ext in SUPPORTED_EXTENSIONS],
                 token=hf_kwargs.get('token', None),
                 revision=hf_kwargs.get('revision', None),
                 local_dir_use_symlinks=False,
                 local_dir=local_dataset_dir,
             )
             if _is_empty_or_nonexistent(dirpath=local_dataset_dir):
-                log.error("Failed to safely load the dataset from HF Hub.")
+                log.error('Failed to safely load the dataset from HF Hub.')
                 raise InvalidFileExtensionError(
                     dataset_name,
                     SUPPORTED_EXTENSIONS,
@@ -767,21 +765,20 @@ def maybe_safe_download_hf_data(
     dataset_name = os.path.abspath(dataset_name)
 
     # Check that the directory contains only allowed file types.
-    dataset_files = [
-        f for _, _, files in os.walk(dataset_name) for f in files
-    ]
+    dataset_files = [f for _, _, files in os.walk(dataset_name) for f in files]
     if not all(
         Path(f).suffix in SUPPORTED_EXTENSIONS +
         HUGGINGFACE_FOLDER_EXTENSIONS or f == '.gitignore'
         for f in dataset_files
     ):
-        log.error(f"Invalid file extension found in dataset during safe load.")
+        log.error(f'Invalid file extension found in dataset during safe load.')
         raise InvalidFileExtensionError(
             dataset_name,
             SUPPORTED_EXTENSIONS,
         )
 
     return dataset_name
+
 
 class DatasetConstructor:
 

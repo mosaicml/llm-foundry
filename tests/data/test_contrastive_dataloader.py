@@ -1,23 +1,72 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+from typing import Optional, Union, cast
+
 import pytest
 import torch
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.utils.builders import build_dataloader
-from tests.data_utils import (
-    temporary_contrastive_streaming_dataset,
-    temporary_tokenizer,
-)
+from tests.data_utils import temporary_contrastive_streaming_dataset
+
+
+class MockTokenizer(PreTrainedTokenizerBase):
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.pad_token: str = '<pad>'
+        self.eos_token: str = '</s>'
+        self.bos_token: str = '<s>'
+        self.unk_token: str = '<unk>'
+        self._vocab_size: int = 30000
+
+    def __len__(self) -> int:
+        return self._vocab_size
+
+    def __call__(
+        self,
+        texts: Union[str, list[str], list[list[str]]],
+        padding: str = 'max_length',
+        truncation: bool = True,
+        max_length: Optional[int] = None,
+        return_tensors: Optional[str] = None,
+    ) -> Union[torch.Tensor, dict[str, torch.Tensor]]:
+        # Simple mock implementation that creates deterministic token IDs
+        max_len = max_length or 1024
+
+        if isinstance(texts, list):
+            # Create deterministic but different tokens for each text
+            token_ids = torch.tensor([[
+                hash(text) % 1000 + j for j in range(max_len)
+            ] for text in texts])
+        else:
+            token_ids = torch.tensor([[
+                hash(texts) % 1000 + j for j in range(max_len)
+            ]])
+
+        if return_tensors == 'pt':
+            return {
+                'input_ids': token_ids,
+                'attention_mask': torch.ones_like(token_ids),
+            }
+        return token_ids
+
+
+@pytest.fixture
+def mock_tokenizer() -> MockTokenizer:
+    return MockTokenizer()
 
 
 @pytest.mark.parametrize(
     'ds_format',
     ['one_query_one_response', 'one_query_multiple_responses'],
 )
-def test_pairs_dataloader(ds_format: str):
-    with temporary_tokenizer('mosaicml/mpt-7b') as tokenizer, \
-        temporary_contrastive_streaming_dataset(ds_format) as data_dir:
+def test_pairs_dataloader(
+    ds_format: str,
+    mock_tokenizer: MockTokenizer,
+) -> None:
+    with temporary_contrastive_streaming_dataset(ds_format) as data_dir:
         cfg = {
             'name': 'contrastive_pairs',
             'dataset': {
@@ -31,22 +80,26 @@ def test_pairs_dataloader(ds_format: str):
             'max_hard_negatives': 2,
         }
 
-        dl = build_dataloader(cfg, tokenizer, 1)
+        dl = build_dataloader(cfg, mock_tokenizer, 1)
 
         for i, batch in enumerate(dl.dataloader):
+            batch_dict = cast(dict[str, torch.Tensor], batch)
+            batch_input_ids = batch_dict['input_ids']
             # query + positive + max 2 hard negatives
-            assert batch['input_ids'].shape[1] <= 4
+            assert batch_input_ids.shape[1] <= 4
             if ds_format == 'one_query_one_response':
                 # 0th item is the query, 1st item is the positive, 2nd item is (optionally) the negative
-                expected = tokenizer(
+                tokenizer_output = mock_tokenizer(
                     [f'hello {i}', f'world {i}'],
                     padding='max_length',
                     max_length=1024,
                     return_tensors='pt',
-                )['input_ids']
+                )
+                tokenizer_dict = cast(dict[str, torch.Tensor], tokenizer_output)
+                expected_ids = tokenizer_dict['input_ids']
             else:
                 # 0th item is the query, 1st item is the positive, 2nd and 3rd items are the negatives
-                expected = tokenizer(
+                tokenizer_output = mock_tokenizer(
                     [
                         f'query {i}',
                         f'positive passage {i}',
@@ -56,6 +109,8 @@ def test_pairs_dataloader(ds_format: str):
                     padding='max_length',
                     max_length=1024,
                     return_tensors='pt',
-                )['input_ids']
+                )
+                tokenizer_dict = cast(dict[str, torch.Tensor], tokenizer_output)
+                expected_ids = tokenizer_dict['input_ids']
 
-            assert torch.allclose(batch['input_ids'][0], expected)
+            assert torch.allclose(batch_input_ids[0], expected_ids)

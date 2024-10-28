@@ -191,11 +191,6 @@ class ContrastiveModel(HuggingFaceModel):
 
     def construct_model(self):
         if self.pretrained_model_name_or_path:
-            if self.tokenizer is None:
-                raise ValueError(
-                    '`tokenizer` must be provided when `pretrained_model_name_or_path` is specified.',
-                )
-
             model_class = registry.models.get('hf_causal_lm')
             model_class = cast(type[ComposerHFCausalLM], model_class)
             model = model_class.build_inner_model(

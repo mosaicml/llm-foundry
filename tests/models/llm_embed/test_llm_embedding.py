@@ -20,11 +20,7 @@ from llmfoundry.models.llm_embed.modeling_llm_embed import (
     ContrastiveModel,
 )
 from llmfoundry.utils.builders import build_dataloader
-from tests.data_utils import (
-    build_temporary_tokenizer,
-    temporary_contrastive_streaming_dataset,
-    temporary_tokenizer,
-)
+from tests.data_utils import temporary_contrastive_streaming_dataset
 
 
 class MockTokenizer(PreTrainedTokenizerBase):
@@ -140,29 +136,29 @@ def build_tokenizer_config(is_hf: bool):
 @pytest.mark.gpu
 @pytest.mark.parametrize('is_hf', [True, False])
 @pytest.mark.parametrize('attn_impl', ['flash', 'torch'])
-def test_mpt_embedding_lm(is_hf: bool, attn_impl: str):
+def test_mpt_embedding_lm(
+    is_hf: bool,
+    attn_impl: str,
+    mock_tokenizer: MockTokenizer,
+):
     maybe_attn_impl = None if is_hf else attn_impl
     lm_config = build_lm_config(is_hf, maybe_attn_impl)
-    tokenizer_config = build_tokenizer_config(is_hf)
-    with temporary_tokenizer(
-        tokenizer_config['name'],
-        tokenizer_config['kwargs'],
-    ) as tokenizer:
-        model = ContrastiveModel(**lm_config, tokenizer=tokenizer).to(
-            torch.bfloat16,
-        ).to('cuda')
-        model_inputs_batch = tokenizer([['pair 1 a', 'pair 1 b'],
-                                        ['pair 2 a', 'pair 2 b']],
-                                       padding='max_length',
-                                       truncation=True,
-                                       max_length=128,
-                                       return_tensors='pt').to('cuda')
 
-        ctx = get_precision_context(
-            'amp_bf16',
-        ) if maybe_attn_impl == 'flash' else nullcontext()
-        with ctx:
-            model(model_inputs_batch)
+    model = ContrastiveModel(**lm_config, tokenizer=mock_tokenizer).to(
+        torch.bfloat16,
+    ).to('cuda')
+    model_inputs_batch = mock_tokenizer([['pair 1 a', 'pair 1 b'],
+                                         ['pair 2 a', 'pair 2 b']],
+                                        padding='max_length',
+                                        truncation=True,
+                                        max_length=128,
+                                        return_tensors='pt').to('cuda')
+
+    ctx = get_precision_context(
+        'amp_bf16',
+    ) if maybe_attn_impl == 'flash' else nullcontext()
+    with ctx:
+        model(model_inputs_batch)
 
 
 dataloader_config = lambda remote, local_ext: {
@@ -186,20 +182,23 @@ dataloader_config = lambda remote, local_ext: {
     'ds_format',
     ['one_query_one_response', 'one_query_multiple_responses'],
 )
-def test_contrastive_loss(ds_format: str, is_hf: bool, attn_impl: str):
+def test_contrastive_loss(
+    ds_format: str,
+    is_hf: bool,
+    attn_impl: str,
+    mock_tokenizer: MockTokenizer,
+):
     maybe_attn_impl = None if is_hf else attn_impl
-    tokenizer_config = build_tokenizer_config(is_hf)
-    with temporary_tokenizer(tokenizer_config['name'],
-                             tokenizer_config['kwargs']) as tokenizer, \
-                                temporary_contrastive_streaming_dataset(ds_format) as data_dir:
+
+    with temporary_contrastive_streaming_dataset(ds_format) as data_dir:
         lm_config = build_lm_config(is_hf, maybe_attn_impl)
-        model = ContrastiveModel(**lm_config, tokenizer=tokenizer).to(
+        model = ContrastiveModel(**lm_config, tokenizer=mock_tokenizer).to(
             torch.bfloat16,
         ).to('cuda')
 
         train_dataloader = build_dataloader(
             dataloader_config(data_dir, 'local'),
-            tokenizer,
+            mock_tokenizer,
             2,
         )
 
@@ -239,15 +238,12 @@ def _assert_allclose(state1: dict[str, Any], state2: dict[str, Any]) -> None:
         False,
     ],
 )
-def test_distributed_loss(use_legacy_gradient_passthrough: bool):
+def test_distributed_loss(
+    use_legacy_gradient_passthrough: bool,
+    mock_tokenizer: MockTokenizer,
+):
     is_hf = False
     rank = dist.get_local_rank()
-
-    tokenizer_config = build_tokenizer_config(is_hf)
-    tokenizer, _ = build_temporary_tokenizer(
-        tokenizer_config['name'],
-        tokenizer_config['kwargs'],
-    )
 
     lm_config = build_lm_config(is_hf, 'flash')
     lm_config['contrastive_config'] = {
@@ -261,26 +257,26 @@ def test_distributed_loss(use_legacy_gradient_passthrough: bool):
     lm_config_single_device['contrastive_config']['gather_in_batch_negatives'
                                                  ] = False
 
-    model_for_ddp = ContrastiveModel(tokenizer, **lm_config)
+    model_for_ddp = ContrastiveModel(mock_tokenizer, **lm_config)
     model_ddp = model_for_ddp.to('cuda').to(torch.bfloat16)
     model_ddp = DDP(model_ddp)
 
-    model = ContrastiveModel(tokenizer,
+    model = ContrastiveModel(mock_tokenizer,
                              **lm_config_single_device).to('cuda').to(
                                  torch.bfloat16,
                              )
     model.load_state_dict(model_for_ddp.state_dict())
 
-    input_batch = tokenizer([
+    input_batch = mock_tokenizer([
         ['pair 1 a', 'pair 1 b'],
         ['pair 2 a', 'pair 2 b'],
         ['pair 3 a', 'pair 3 b'],
         ['pair 4 a', 'pair 4 b'],
     ],
-                            padding='max_length',
-                            truncation=True,
-                            max_length=128,
-                            return_tensors='pt').to('cuda')
+                                 padding='max_length',
+                                 truncation=True,
+                                 max_length=128,
+                                 return_tensors='pt').to('cuda')
 
     def _input_batch_to_rank(
         input_batch: MutableMapping,

@@ -17,7 +17,6 @@ from llmfoundry.command_utils import (
     convert_dataset_hf,
     convert_dataset_json,
 )
-from llmfoundry.utils.builders import build_tokenizer
 
 
 def make_tiny_ft_dataset(
@@ -365,42 +364,3 @@ def build_temporary_contrastive_streaming_dataset(ds_format: str):
                 raise ValueError(f'Unknown format: {format}')
 
     return tempdir.name, tempdir.cleanup
-
-
-@contextmanager
-def temporary_tokenizer(
-    tokenizer_name: str = 'mosaicml/mpt-7b',
-    tokenizer_kwargs: Optional[dict] = None,
-):
-    tokenizer, cleanup_fn = build_temporary_tokenizer(
-        tokenizer_name,
-        tokenizer_kwargs,
-    )
-
-    try:
-        yield tokenizer
-    finally:
-        cleanup_fn()
-
-
-def build_temporary_tokenizer(
-    tokenizer_name: str = 'mosaicml/mpt-7b',
-    tokenizer_kwargs: Optional[dict] = None,
-    is_dist: bool = False,
-):
-    if tokenizer_kwargs is None:
-        tokenizer_kwargs = {}
-
-    if not is_dist:
-        # If we're not running in distributed mode, we need to set the cache_dir
-        tempdir = TemporaryDirectory()
-        tokenizer_kwargs['cache_dir'] = tempdir.name
-
-    tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
-
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-
-    cleanup_fn = lambda: None if is_dist else tempdir.cleanup
-
-    return tokenizer, cleanup_fn

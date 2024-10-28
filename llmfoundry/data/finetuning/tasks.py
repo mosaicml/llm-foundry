@@ -34,6 +34,7 @@ those keys are strings (i.e. text).
 import importlib
 import logging
 import os
+import tempfile
 import warnings
 from collections.abc import Mapping
 from functools import partial
@@ -107,15 +108,6 @@ _ALLOWED_ROLE_KEYS = {'role'}
 _ALLOWED_CONTENT_KEYS = {'content'}
 _ALLOWED_ROLES = {'user', 'assistant', 'system', 'tool'}
 _ALLOWED_LAST_MESSAGE_ROLES = {'assistant'}
-DOWNLOADED_FT_DATASETS_DIRPATH = os.path.abspath(
-    os.path.join(
-        os.path.realpath(__file__),
-        os.pardir,
-        os.pardir,
-        os.pardir,
-        '.downloaded_finetuning',
-    ),
-)
 SUPPORTED_EXTENSIONS = ['.csv', '.json', '.jsonl', '.parquet']
 HUGGINGFACE_FOLDER_EXTENSIONS = ['.lock', '.metadata']
 DEFAULT_TARGET_RESPONSES = 'last'
@@ -739,8 +731,12 @@ def maybe_safe_download_hf_data(
 
     if not os.path.isdir(dataset_name):
         local_dataset_dir = os.path.join(
-            DOWNLOADED_FT_DATASETS_DIRPATH,
+            tempfile.mkdtemp(),
             dataset_name,
+        )
+        
+        log.debug(
+            f'Downloading dataset {dataset_name} to {local_dataset_dir}.',
         )
 
         if _is_empty_or_nonexistent(dirpath=local_dataset_dir):
@@ -982,7 +978,7 @@ class DatasetConstructor:
         filtered_dataset = None
         try:
             if safe_load:
-                dataset_name = maybe_download_hf_data(
+                dataset_name = maybe_safe_download_hf_data(
                     dataset_name,
                     hf_kwargs,
                 )

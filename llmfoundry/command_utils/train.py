@@ -227,6 +227,7 @@ def train(cfg: DictConfig) -> Trainer:
             # 2022-06-29 11:22:26,152: rank0[822018][MainThread]: INFO: Message here
             format=
             f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s',
+            force=True,
         )
         logging.getLogger('llmfoundry').setLevel(
             train_cfg.python_log_level.upper(),

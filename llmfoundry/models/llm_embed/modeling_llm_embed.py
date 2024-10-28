@@ -30,7 +30,7 @@ from transformers.modeling_outputs import CausalLMOutputWithPast
 
 from llmfoundry import registry
 from llmfoundry.models.hf.hf_causal_lm import ComposerHFCausalLM
-from llmfoundry.models.mpt import ComposerMPTCausalLM, MPTConfig
+from llmfoundry.models.mpt import ComposerMPTCausalLM
 from llmfoundry.models.utils.config_moe_args import create_set_process_group
 
 log = logging.getLogger(__name__)
@@ -197,7 +197,7 @@ class ContrastiveModel(HuggingFaceModel):
 
             model_class = registry.models.get('hf_causal_lm')
             model_class = cast(type[ComposerHFCausalLM], model_class)
-            model = model_class(
+            model = model_class.build_inner_model(
                 pretrained=True,
                 pretrained_model_name_or_path=self.
                 pretrained_model_name_or_path,
@@ -213,9 +213,7 @@ class ContrastiveModel(HuggingFaceModel):
         else:
             model_class = registry.models.get('mpt_causal_lm')
             model_class = cast(type[ComposerMPTCausalLM], model_class)
-            assert model_class
-            config_class = cast(type[MPTConfig], model_class.config_class)
-            model = model_class(config_class(**self.kwargs))
+            model = model_class(**self.kwargs)
             self.is_mpt = True
         return model
 

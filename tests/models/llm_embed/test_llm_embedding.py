@@ -101,7 +101,8 @@ def build_lm_config(is_hf: bool, attn_impl: Optional[str]) -> dict[str, Any]:
         assert attn_impl is not None
         return {
             'num_layers': 2,
-            'd_model': 64,
+            'd_model': 768,
+            'n_heads': 12,
             'vocab_size': 100352,
             'attn_config': {
                 'attn_impl': attn_impl,
@@ -109,11 +110,8 @@ def build_lm_config(is_hf: bool, attn_impl: Optional[str]) -> dict[str, Any]:
         }
 
 
-def build_tokenizer_config(is_hf: bool):
-    if is_hf:
-        return {'name': 'facebook/opt-350m', 'kwargs': {}}
-    else:
-        return {'name': 'tiktoken', 'kwargs': {'model_name': 'gpt-4'}}
+def build_tokenizer_config(is_hf: bool) -> dict[str, Any]:
+    return {'vocab_size': 50257 if is_hf else 100352}
 
 
 @pytest.mark.gpu

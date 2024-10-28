@@ -30,8 +30,8 @@ from transformers.modeling_outputs import CausalLMOutputWithPast
 
 from llmfoundry import registry
 from llmfoundry.models.hf.hf_causal_lm import ComposerHFCausalLM
-from llmfoundry.models.mpt import MPTForCausalLM
 from llmfoundry.models.mpt.configuration_mpt import MPTConfig
+from llmfoundry.models.mpt.modeling_mpt import MPTForCausalLM
 from llmfoundry.models.utils.config_moe_args import create_set_process_group
 
 log = logging.getLogger(__name__)

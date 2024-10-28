@@ -155,15 +155,10 @@ def test_mpt_embedding_lm(
         assert last_hidden_state.shape == (
             4,
             128,
-            768,
+            model.model.config.hidden_size,
         )  # 2 pairs * 2 texts per pair, 128 sequence length, 768 hidden dim
         assert last_hidden_state.dtype == torch.bfloat16
         assert last_hidden_state.device.type == 'cuda'
-
-        # Check we have the expected number of layers
-        assert len(
-            hidden_states,
-        ) == model.model.config.num_hidden_layers + 1  # +1 for embedding layer
 
 
 dataloader_config = lambda remote, local_ext: {

@@ -1,7 +1,7 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Union, cast
+from typing import Any, Union, cast
 
 import pytest
 import torch
@@ -29,6 +29,32 @@ class MockTokenizer(PreTrainedTokenizerBase):
         tokens: Union[str, list[str]],
     ) -> Union[int, list[int]]:
         return 0
+
+    @property
+    def pad_token_id(self) -> int:
+        return 0
+
+    def _batch_encode_plus(self, *args: Any,
+                           **kwargs: Any) -> dict[str, torch.Tensor]:
+        batch_texts = args[0] if args else kwargs.get(
+            'batch_text_or_text_pairs',
+            [],
+        )
+        max_length = kwargs.get('max_length', 1024)
+
+        if isinstance(batch_texts[0], list):
+            texts = [t for pair in batch_texts for t in pair]
+        else:
+            texts = batch_texts
+
+        token_ids = torch.tensor([
+            [hash(text) % 1000 + j for j in range(max_length)] for text in texts
+        ])
+
+        return {
+            'input_ids': token_ids,
+            'attention_mask': torch.ones_like(token_ids),
+        }
 
 
 @pytest.fixture

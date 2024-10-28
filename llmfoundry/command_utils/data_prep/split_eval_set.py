@@ -4,14 +4,11 @@
 import logging
 import os
 import re
-import json
 import contextlib
-import datasets as hf_datasets
 import numpy as np
 from typing import Optional
 
 import composer.utils as utils
-from llmfoundry.data.finetuning.tasks import maybe_safe_download_hf_data
 
 log = logging.getLogger(__name__)
 
@@ -19,7 +16,6 @@ DELTA_JSONL_REGEX = re.compile(r"^tmp-t$")
 REMOTE_OBJECT_STORE_FILE_REGEX = re.compile(
     r"^((s3|oci|gs):\/\/|dbfs:\/Volumes\/)[/a-zA-Z0-9 ()_\-.]+$"
 )
-HF_REGEX = re.compile(r"^[/a-zA-Z0-9 ()_\-.]+$")
 
 def get_dataset_format(data_path_folder: str) -> str:
     """
@@ -35,22 +31,19 @@ def get_dataset_format(data_path_folder: str) -> str:
         return "delta"
     if REMOTE_OBJECT_STORE_FILE_REGEX.match(data_path_folder):
         return "remote_object_store"
-    if HF_REGEX.match(data_path_folder):
-        return "hugging_face"
     return "unknown"
 
 TEMP_DIR = "tmp-split"
 
 def maybe_download_data_as_json(data_path_folder: str, data_path_split: str) -> str:
     """
-    Prepares dataset as a local JSONL file. Downloads from remote object store or HF if necessary.
+    Prepares dataset as a local JSONL file. Downloads from remote object store if necessary.
 
     This function is intended to be invoked by DBX Finetuning.
-    Thus, it assumes the provided data is in one of three formats:
+    Thus, it assumes the provided data is:
         1. A Delta table converted to JSONL at 'tmp-t/{data_path_split}-00000-of-00001.jsonl`
            using the 'llmfoundry.scripts.convert_delta_to_json.py' script.
         2. A JSONL stored as a remote object store file (e.g. S3, OCI, GCS)
-        3. A Hugging Face dataset
 
     Args:
         data_path_folder (str): Path to the training dataset folder
@@ -74,22 +67,6 @@ def maybe_download_data_as_json(data_path_folder: str, data_path_split: str) -> 
         remote_path = f"{data_path_folder}/{data_path_split}.jsonl"
         data_path = os.path.join(TEMP_DIR, f"{data_path_split}.jsonl")
         utils.get_file(remote_path, data_path, overwrite=True)
-
-    elif dataset_format == "hugging_face":
-        log.info(
-            f"Downloading dataset from Hugging Face: {data_path_folder} with split {data_path_split}"
-        )
-        # TODO: maybe add support for HF kwargs
-        local_hf_path = maybe_safe_download_hf_data(data_path_folder)
-        # convert dataset split to JSONL
-        dataset = hf_datasets.load_dataset(
-            local_hf_path,
-            split=data_path_split,
-        )
-        data_path = os.path.join(TEMP_DIR, f"{data_path_split}.jsonl")
-        with open(data_path, "w") as f:
-            for example in dataset:
-                f.write(json.dumps(example) + "\n")
 
     else:
         raise ValueError(

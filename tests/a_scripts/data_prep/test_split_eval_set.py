@@ -5,7 +5,7 @@ import hashlib
 from unittest.mock import patch
 
 from llmfoundry.command_utils import split_eval_set_from_args, split_examples
-from llmfoundry.command_utils.data_prep.split_eval_set import DELTA_JSONL_REGEX, get_dataset_format, HF_REGEX, REMOTE_OBJECT_STORE_FILE_REGEX
+from llmfoundry.command_utils.data_prep.split_eval_set import DELTA_JSONL_REGEX, get_dataset_format, REMOTE_OBJECT_STORE_FILE_REGEX
 
 # Default values
 OUTPUT_DIR = "tmp-split"
@@ -30,20 +30,11 @@ def test_remote_object_store_file_regex():
     assert REMOTE_OBJECT_STORE_FILE_REGEX.match("oci://bucket-name/path/to/file")
     assert REMOTE_OBJECT_STORE_FILE_REGEX.match("gs://bucket-name/path/to/file")
     assert REMOTE_OBJECT_STORE_FILE_REGEX.match("dbfs:/Volumes/path/to/file")
+    assert REMOTE_OBJECT_STORE_FILE_REGEX.match("s3://bucket-name/path/to/file with spaces")
     assert not REMOTE_OBJECT_STORE_FILE_REGEX.match("https://bucket-name/path/to/file")
     assert not REMOTE_OBJECT_STORE_FILE_REGEX.match("/local/path/to/file")
     assert not REMOTE_OBJECT_STORE_FILE_REGEX.match("s3:/bucket-name/path/to/file")
-    assert not REMOTE_OBJECT_STORE_FILE_REGEX.match("s3://bucket-name/path/to/file with spaces")
     assert not REMOTE_OBJECT_STORE_FILE_REGEX.match("s3://bucket-name/path/to/file?")
-
-def test_hf_regex():
-    """Test the regex pattern for Hugging Face dataset paths"""
-    assert HF_REGEX.match("dataset-name")
-    assert HF_REGEX.match("dataset_name")
-    assert HF_REGEX.match("dataset-name_with-mixed.characters-123")
-    assert not HF_REGEX.match("dataset/name")
-    assert not HF_REGEX.match("dataset\\name")
-    assert not HF_REGEX.match("dataset:name")
 
 def test_get_dataset_format():
     """Test the get_dataset_format function"""
@@ -57,11 +48,6 @@ def test_get_dataset_format():
     assert get_dataset_format("oci://bucket-name/path/to/file") == "remote_object_store"
     assert get_dataset_format("gs://bucket-name/path/to/file") == "remote_object_store"
     assert get_dataset_format("dbfs:/Volumes/path/to/file") == "remote_object_store"
-
-    # Test Hugging Face format
-    assert get_dataset_format("dataset-name") == "hugging_face"
-    assert get_dataset_format("dataset_name") == "hugging_face"
-    assert get_dataset_format("dataset-name_with-mixed.characters-123") == "hugging_face"
 
     # Test unknown format
     assert get_dataset_format("/local/path/to/file") == "unknown"
@@ -168,18 +154,6 @@ def test_seed_consistency():
 
     assert train_hash_1 != train_hash_3
     assert eval_hash_1 != eval_hash_3
-
-
-def test_hf_data_split():
-    """Test splitting a dataset from Hugging Face"""
-    output_path = os.path.join(OUTPUT_DIR, "hf-split-test")
-    split_eval_set_from_args(
-        "databricks/databricks-dolly-15k", "train", output_path, EVAL_SPLIT_RATIO
-    )
-    assert os.path.isfile(os.path.join(output_path, "train.jsonl"))
-    assert os.path.isfile(os.path.join(output_path, "eval.jsonl"))
-    assert count_lines(os.path.join(output_path, "train.jsonl")) > 0
-    assert count_lines(os.path.join(output_path, "eval.jsonl")) > 0
 
 
 def _mock_get_file(remote_path: str, data_path: str, overwrite: bool):

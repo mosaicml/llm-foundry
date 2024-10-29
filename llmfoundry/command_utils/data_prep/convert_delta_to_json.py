@@ -505,7 +505,7 @@ def fetch(
             elif 'UC_NOT_ENABLED' in str(e):
                 raise UCNotEnabledError() from e
             elif 'DELTA_TABLE_NOT_FOUND' in str(e):
-                raise DeltaTabelNotFoundError(str(e)) from e
+                raise DeltaTableNotFoundError(str(e)) from e
 
         if isinstance(e, InsufficientPermissionsError):
             raise

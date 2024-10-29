@@ -4,11 +4,14 @@
 import json
 import os
 import shutil
+from contextlib import contextmanager
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Optional
 
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
+from streaming import MDSWriter
 
 from llmfoundry.command_utils import (
     convert_dataset_hf,
@@ -308,3 +311,56 @@ def gpt_tiny_cfg(dataset_name: str, device: str):
         test_cfg.precision = 'fp32'
 
     return test_cfg
+
+
+@contextmanager
+def temporary_contrastive_streaming_dataset(ds_format: str):
+    dir_name, cleanup_fn = build_temporary_contrastive_streaming_dataset(
+        ds_format,
+    )
+
+    try:
+        yield dir_name
+    finally:
+        cleanup_fn()
+
+
+def build_temporary_contrastive_streaming_dataset(ds_format: str):
+    tempdir = TemporaryDirectory()
+    columns = {
+        'text_a': 'str',
+        'text_b': 'str',
+        'id': 'int',
+    } if ds_format == 'one_query_one_response' else {
+        'query_text': 'str',
+        'positive_passage': 'str',
+        'negative_passages': 'str',
+        'id': 'int',
+    }
+    with MDSWriter(
+        columns=columns,
+        out=os.path.join(tempdir.name, 'train'),
+        compression=None,
+    ) as output_writer:
+        for i in range(100):
+            if ds_format == 'one_query_one_response':
+                output_writer.write({
+                    'text_a': f'hello {i}',
+                    'text_b': f'world {i}',
+                    'id': i,
+                })
+            elif ds_format == 'one_query_multiple_responses':
+                output_writer.write({
+                    'query_text':
+                        f'query {i}',
+                    'positive_passage':
+                        f'positive passage {i}',
+                    'negative_passages':
+                        f'["negative passage {i}", "negative passage {i + 1}", "negative passage {i + 2}"]',
+                    'id':
+                        i,
+                })
+            else:
+                raise ValueError(f'Unknown format: {format}')
+
+    return tempdir.name, tempdir.cleanup

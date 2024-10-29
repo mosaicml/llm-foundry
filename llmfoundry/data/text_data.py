@@ -23,7 +23,7 @@ from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry import registry
-from llmfoundry.data import (
+from llmfoundry.data.data import (
     SUPPORTED_MDS_ENCODING_TYPES,
     stream_remote_local_validate,
 )

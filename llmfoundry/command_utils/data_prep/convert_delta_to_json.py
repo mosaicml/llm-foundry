@@ -21,6 +21,7 @@ from packaging import version
 from llmfoundry.utils.exceptions import (
     ClusterDoesNotExistError,
     ClusterInvalidAccessMode,
+    DeltaTableNotFoundError,
     FailedToConnectToDatabricksError,
     FailedToCreateSQLConnectionError,
     FaultyDataPrepCluster,

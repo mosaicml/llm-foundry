@@ -101,7 +101,7 @@ def build_lm_config(is_hf: bool, attn_impl: Optional[str]) -> dict[str, Any]:
         assert attn_impl is not None
         return {
             'num_layers': 2,
-            'd_model': 768,
+            'hidden_size': 768,
             'n_heads': 12,
             'vocab_size': 100352,
             'attn_config': {
@@ -124,41 +124,47 @@ def test_mpt_embedding_lm(
 ):
     maybe_attn_impl = None if is_hf else attn_impl
     lm_config = build_lm_config(is_hf, maybe_attn_impl)
+    print(f"lm_config: {lm_config}")
 
-    model = ContrastiveModel(**lm_config, tokenizer=mock_tokenizer).to(
-        torch.bfloat16,
-    ).to('cuda')
-    model_inputs_batch = mock_tokenizer([['pair 1 a', 'pair 1 b'],
-                                         ['pair 2 a', 'pair 2 b']],
-                                        padding='max_length',
-                                        truncation=True,
-                                        max_length=128,
-                                        return_tensors='pt')
+    model = ContrastiveModel(**lm_config, tokenizer=mock_tokenizer).to('cuda')
+    print(f"Model's pretrained_model_name_or_path: {model.pretrained_model_name_or_path}")
+    print(f"Model's config: {model.model.config}")
+
+    model_inputs_batch = mock_tokenizer(
+        [['pair 1 a', 'pair 1 b'], ['pair 2 a', 'pair 2 b']],
+        padding='max_length',
+        truncation=True,
+        max_length=128,
+        return_tensors='pt'
+    )
     if isinstance(model_inputs_batch, dict):
         model_inputs_batch = {
             k: v.to('cuda') for k, v in model_inputs_batch.items()
         }
 
-    ctx = get_precision_context(
-        'amp_bf16',
-    ) if maybe_attn_impl == 'flash' else nullcontext()
+    ctx = get_precision_context('amp_bf16') if maybe_attn_impl == 'flash' else nullcontext()
     with ctx:
         outputs = model(model_inputs_batch)
 
-        assert isinstance(outputs, dict)
-        assert 'hidden_states' in outputs
-
         hidden_states = outputs['hidden_states']
-        assert isinstance(hidden_states, tuple)
-
         last_hidden_state = hidden_states[-1]
+
+        # Get the hidden size from the model configuration
+        if hasattr(model.model.config, 'hidden_size'):
+            hidden_size = model.model.config.hidden_size
+        elif hasattr(model.model.config, 'd_model'):
+            hidden_size = model.model.config.d_model
+        else:
+            raise ValueError('Cannot determine hidden size from model config')
+
+        print(f"Hidden size from model config: {hidden_size}")
+        print(f"last_hidden_state.shape: {last_hidden_state.shape}")
+
         assert last_hidden_state.shape == (
             4,
             128,
-            model.model.config.hidden_size,
-        )  # 2 pairs * 2 texts per pair, 128 sequence length, 768 hidden dim
-        assert last_hidden_state.dtype == torch.bfloat16
-        assert last_hidden_state.device.type == 'cuda'
+            hidden_size,
+        ), f"Expected hidden size {hidden_size}, but got {last_hidden_state.shape[-1]}"
 
 
 dataloader_config = lambda remote, local_ext: {

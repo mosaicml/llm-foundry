@@ -113,6 +113,8 @@ class ContrastiveModel(HuggingFaceModel):
         **kwargs: dict[str, Any],
     ):
 
+        print(f"ContrastiveModel.__init__ called with pretrained_model_name_or_path: {pretrained_model_name_or_path}")
+        print(f"Other kwargs: {kwargs}")
         self.pretrained_model_name_or_path = pretrained_model_name_or_path
         self.pretrained_lora_id_or_path = pretrained_lora_id_or_path
         self.trust_remote_code = trust_remote_code
@@ -205,6 +207,7 @@ class ContrastiveModel(HuggingFaceModel):
                 load_in_8bit=self.load_in_8bit,
                 **self.kwargs,
             )
+            print(f"Loaded model config: {model.config}")
         else:
             model = MPTForCausalLM(MPTConfig(**self.kwargs))
             self.is_mpt = True

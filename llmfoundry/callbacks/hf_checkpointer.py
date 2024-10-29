@@ -113,14 +113,12 @@ def _maybe_get_license_filename(
 
 
 def _log_model_multiprocess(
+    await_creation_for: int,
+    flavor: str,
     mlflow_logger: MLFlowLogger,
+    mlflow_logging_config: dict[str, Any],
     python_logging_level: int,
     transformers_model_path: str,
-    flavor: str,
-    input_example: dict[str, Any],
-    log_model_metadata: dict[str, str],
-    task: str,
-    await_creation_for: int,
     registered_model_name: Optional[str] = None,
 ):
     """
@@ -128,15 +126,14 @@ def _log_model_multiprocess(
     
     Used mainly to log from a child process.
 
-    Inputs:
-    - mlflow_logger: MLFlowLogger: MLflow logger object
-    - python_logging_level: int: logging level
-    - flavor: str: transformers or peft
-    - input_example: dict[str, Any]: model serving input example for model
-    - log_model_metadata: dict[str, str]: This metadata is currently needed for optimized serving
-    - task: str: LLM task for model deployment (i.e. chat or completions)
-    - await_creation_for: int: time to wait for model creation
-    - registered_model_name: Optional
+    Args:
+        await_creation_for: int: time to wait for model creation
+        flavor: str: transformers or peft
+        mlflow_logger: MLFlowLogger: MLflow logger object
+        mlflow_logging_config: dict: mlflow logging config
+        python_logging_level: int: logging level
+        transformers_model_path: str: path to the transformers model
+        registered_model_name: Optional name to register the model under in the MLflow model registry
     """
     # Setup logging for child process. This ensures that any logs from composer are surfaced.
     if python_logging_level > 0:
@@ -146,6 +143,7 @@ def _log_model_multiprocess(
             f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s',
         )
         logging.getLogger('llmfoundry').setLevel(python_logging_level)
+        logging.getLogger('composer').setLevel(python_logging_level)
     
     # monkey patch to prevent duplicate tokenizer upload
     import mlflow
@@ -167,27 +165,16 @@ def _log_model_multiprocess(
             log.error(f"Exception when removing duplicate tokenizer files in the model directory", e)
     mlflow.transformers.save_model = save_model_patch
 
-    if registered_model_name is not None:
-        mlflow_logger.log_model(
-            transformers_model=transformers_model_path,
-            flavor=flavor,
-            artifact_path='model', # TODO: where should we define this parent dir name?
-            input_example=input_example,
-            metadata=log_model_metadata,
-            task=task,
-            registered_model_name=registered_model_name, # not the full path? mlflow_logger.model_registry_prefix
-            await_creation_for=await_creation_for
-        )
-    else:
-         mlflow_logger.log_model(
-            transformers_model=transformers_model_path,
-            flavor=flavor,
-            artifact_path='model', # TODO: where should we define this parent dir name?
-            input_example=input_example,
-            metadata=log_model_metadata,
-            task=task,
-            await_creation_for=await_creation_for
-        )
+    mlflow_logger.log_model(
+        transformers_model=transformers_model_path,
+        flavor='transformers',
+        artifact_path='last_model_checkpoint',
+        input_example=mlflow_logging_config['input_example'],
+        metadata=mlflow_logging_config['metadata'],
+        task=mlflow_logging_config['metadata']['task'],
+        registered_model_name=registered_model_name,
+        await_creation_for=await_creation_for
+    )
 
 
 class HuggingFaceCheckpointer(Callback):
@@ -226,7 +213,7 @@ class HuggingFaceCheckpointer(Callback):
 
     def __init__(
         self,
-        save_folder: Optional[str],
+        save_folder: str,
         save_interval: Union[str, int, Time],
         huggingface_folder_name: str = 'ba{batch}',
         precision: str = 'float32',
@@ -682,32 +669,31 @@ class HuggingFaceCheckpointer(Callback):
             with context_manager:
                 new_model_instance.save_pretrained(temp_save_dir)
             original_tokenizer.save_pretrained(temp_save_dir)
-            if upload_to_save_folder:
-                # Only need to edit files for MPT because it has custom code
-                if new_model_instance.config.model_type == 'mpt':
-                    log.debug('Editing MPT files for HuggingFace compatibility')
-                    edit_files_for_hf_compatibility(
-                        temp_save_dir,
-                        self.flatten_imports,
-                    )
+            # Only need to edit files for MPT because it has custom code
+            if new_model_instance.config.model_type == 'mpt':
+                log.debug('Editing MPT files for HuggingFace compatibility')
+                edit_files_for_hf_compatibility(
+                    temp_save_dir,
+                    self.flatten_imports,
+                )
 
-                if self.remote_ud is not None:
-                    for filename in os.listdir(temp_save_dir):
-                        remote_file_name = os.path.join(save_dir, filename)
-                        remote_file_uri = self.remote_ud.remote_backend.get_uri(
-                            remote_file_name,
-                        )
-                        log.info(
-                            f'Uploading HuggingFace formatted checkpoint to {remote_file_uri}',
-                        )
-                        self.remote_ud.upload_file(
-                            state=state,
-                            remote_file_name=remote_file_name,
-                            file_path=Path(
-                                os.path.join(temp_save_dir, filename),
-                            ),
-                            overwrite=self.overwrite,
-                        )
+            if upload_to_save_folder and self.remote_ud is not None:
+                for filename in os.listdir(temp_save_dir):
+                    remote_file_name = os.path.join(save_dir, filename)
+                    remote_file_uri = self.remote_ud.remote_backend.get_uri(
+                        remote_file_name,
+                    )
+                    log.info(
+                        f'Uploading HuggingFace formatted checkpoint to {remote_file_uri}',
+                    )
+                    self.remote_ud.upload_file(
+                        state=state,
+                        remote_file_name=remote_file_name,
+                        file_path=Path(
+                            os.path.join(temp_save_dir, filename),
+                        ),
+                        overwrite=self.overwrite,
+                    )
 
         dist.barrier()
 
@@ -747,11 +733,6 @@ class HuggingFaceCheckpointer(Callback):
                         model_saving_kwargs['transformers_model'] = components
                         model_saving_kwargs.update(self.mlflow_logging_config)
 
-                    context_manager = te.onnx_export(
-                        True,
-                    ) if is_te_imported and state.precision == Precision.AMP_FP8 else contextlib.nullcontext(
-                    )
-
                     # Upload the license file generated by mlflow during the model saving.
                     license_filename = _maybe_get_license_filename(
                         local_save_path,
@@ -777,23 +758,20 @@ class HuggingFaceCheckpointer(Callback):
                     process = SpawnProcess(
                         target=_log_model_multiprocess,
                         kwargs={
-                            'mlflow_logger':
-                                mlflow_logger,
-                            'transformers_model_path':
-                                temp_save_dir,
-                            'flavor':
-                                'peft' if self.using_peft else 'transformers',
-                            'python_logging_level':
-                                logging.getLogger('llmfoundry').level,
-                            'task':
-                                self.mlflow_logging_config['metadata']['task'],
-                            'log_model_metadata': self.mlflow_logging_config['metadata'],
-                            'registered_model_name':
-                                self.mlflow_registered_model_name,
-                            'input_example':
-                                self.mlflow_logging_config['input_example'],
                             'await_creation_for':
                                 3600,
+                            'flavor':
+                                'peft' if self.using_peft else 'transformers',
+                            'mlflow_logger':
+                                mlflow_logger,
+                            'mlflow_logging_config':
+                                self.mlflow_logging_config,
+                            'python_logging_level':
+                                logging.getLogger('llmfoundry').level,
+                            'registered_model_name':
+                                self.mlflow_registered_model_name,
+                            'transformers_model_path':
+                                temp_save_dir,
                         },
                     )
                     process.start()

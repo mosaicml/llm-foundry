@@ -597,7 +597,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
             message='[DELTA_TABLE_NOT_FOUND] yada yada',
         )
 
-        # Configure the fetch function to raise the grpc.RpcError
+        # Configure the fetch function to raise the AnalysisException
         mock_gtr.side_effect = analysis_exception
 
         # Test inputs
@@ -613,11 +613,11 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
                 json_output_folder=json_output_folder,
             )
 
-        # Verify that the FaultyDataPrepCluster contains the expected message
+        # Verify that the DeltaTableNotFoundError contains the expected message
         self.assertIn(
             'DELTA_TABLE_NOT_FOUND',
             str(context.exception),
         )
 
-        # Verify that fetch was called
+        # Verify that get_total_rows was called
         mock_gtr.assert_called_once()

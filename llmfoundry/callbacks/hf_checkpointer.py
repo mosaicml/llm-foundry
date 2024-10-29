@@ -76,9 +76,9 @@ def _maybe_get_license_filename(
 
     If the license file does not exist, returns None.
     """
-    # Early return if no local directory exists
+    # Error if no local directory exists
     if not os.path.exists(local_dir):
-        return None
+        raise FileNotFoundError(f'Local directory {local_dir} does not exist')
     
     # Try to find the license file
     try:
@@ -151,6 +151,9 @@ def _log_model_multiprocess(
     def save_model_patch(*args: Any, **kwargs: Any):
         original_save_model(*args, **kwargs)
         tokenizer_files = []
+        tokenizer_path = os.path.join(kwargs['path'], 'components', 'tokenizer')
+        if os.path.exists(tokenizer_path):
+            tokenizer_files = os.listdir(os.path.join(kwargs['path'], 'components', 'tokenizer'))
         # Check if there are duplicate tokenizer files in the model directory and remove them.
         try:
             for tokenizer_file_name in tokenizer_files:

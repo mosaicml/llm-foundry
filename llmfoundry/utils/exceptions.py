@@ -537,7 +537,7 @@ class UCNotEnabledError(UserError):
 
 
 class DeltaTableNotFoundError(UserError):
-    """Error thrown when the delta table passed in training does not exist or is not found."""
+    """Error thrown when the delta table passed in training doesn't exist."""
 
     def __init__(self, message: str) -> None:
         self.message = message

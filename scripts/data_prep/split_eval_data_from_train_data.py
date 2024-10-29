@@ -3,7 +3,7 @@
 
 from argparse import ArgumentParser
 
-from llmfoundry.command_utils import split_eval_set_from_args
+from llmfoundry.command_utils import split_eval_data_from_train_data_from_args
 
 if __name__ == '__main__':
     parser = ArgumentParser(
@@ -51,7 +51,7 @@ if __name__ == '__main__':
         help='Random seed for splitting the dataset',
     )
     args = parser.parse_args()
-    split_eval_set_from_args(
+    split_eval_data_from_train_data_from_args(
         data_path_folder=args.data_path_folder,
         data_path_split=args.data_path_split,
         output_path=args.output_path,

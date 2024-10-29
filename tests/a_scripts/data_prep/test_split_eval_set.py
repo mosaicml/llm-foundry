@@ -8,8 +8,11 @@ from unittest.mock import patch
 
 import pytest
 
-from llmfoundry.command_utils import split_eval_set_from_args, split_examples
-from llmfoundry.command_utils.data_prep.split_eval_set import (
+from llmfoundry.command_utils import (
+    split_eval_data_from_train_data_from_args,
+    split_examples,
+)
+from llmfoundry.command_utils.data_prep.split_eval_data_from_train_data import (
     REMOTE_OBJECT_STORE_FILE_REGEX,
     is_remote_object_store_file,
 )
@@ -96,7 +99,7 @@ def setup_and_teardown_module():
 def test_basic_split():
     """Test basic functionality on local file."""
     output_path = os.path.join(OUTPUT_DIR, 'basic-test')
-    split_eval_set_from_args(
+    split_eval_data_from_train_data_from_args(
         TMPT_DIR,
         DATA_PATH_SPLIT,
         output_path,
@@ -118,7 +121,7 @@ def test_basic_split_output_exists():
         f.write('existing file eval')
     old_train_hash = calculate_file_hash(train_file)
     old_eval_hash = calculate_file_hash(eval_file)
-    split_eval_set_from_args(
+    split_eval_data_from_train_data_from_args(
         TMPT_DIR,
         DATA_PATH_SPLIT,
         output_path,
@@ -132,7 +135,7 @@ def test_max_eval_samples():
     """Test case where max_eval_samples < eval_split_ratio * total samples"""
     output_path = os.path.join(OUTPUT_DIR, 'max-eval-test')
     max_eval_samples = 50
-    split_eval_set_from_args(
+    split_eval_data_from_train_data_from_args(
         TMPT_DIR,
         DATA_PATH_SPLIT,
         output_path,
@@ -146,7 +149,7 @@ def test_max_eval_samples():
 def test_eval_split_ratio():
     """Test case where max_eval_samples is not used."""
     output_path = os.path.join(OUTPUT_DIR, 'eval-split-test')
-    split_eval_set_from_args(
+    split_eval_data_from_train_data_from_args(
         TMPT_DIR,
         DATA_PATH_SPLIT,
         output_path,
@@ -206,7 +209,7 @@ def test_remote_store_data_split():
         'composer.utils.get_file',
         side_effect=_mock_get_file,
     ) as mock_get_file:
-        split_eval_set_from_args(
+        split_eval_data_from_train_data_from_args(
             'dbfs:/Volumes/test/test/test.jsonl',
             'unique-split-name',
             output_path,
@@ -223,7 +226,7 @@ def test_remote_store_data_split():
 def test_missing_delta_file_error():
     # expects file 'TMPT_DIR/missing-00000-of-00001.jsonl
     with pytest.raises(FileNotFoundError):
-        split_eval_set_from_args(
+        split_eval_data_from_train_data_from_args(
             TMPT_DIR,
             'missing',
             OUTPUT_DIR,

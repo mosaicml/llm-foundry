@@ -23,8 +23,8 @@ from llmfoundry.command_utils.data_prep.convert_text_to_mds import (
     convert_text_to_mds,
     convert_text_to_mds_from_args,
 )
-from llmfoundry.command_utils.data_prep.split_eval_set import (
-    split_eval_set_from_args,
+from llmfoundry.command_utils.data_prep.split_eval_data_from_train_data import (
+    split_eval_data_from_train_data_from_args,
     split_examples,
 )
 from llmfoundry.command_utils.eval import (
@@ -58,6 +58,6 @@ __all__ = [
     'convert_text_to_mds_from_args',
     'convert_delta_to_json_from_args',
     'fetch_DT',
-    'split_eval_set_from_args',
+    'split_eval_data_from_train_data_from_args',
     'split_examples',
 ]

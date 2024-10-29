@@ -131,7 +131,7 @@ def split_examples(
     )
 
 
-def split_eval_set_from_args(
+def split_eval_data_from_train_data_from_args(
     data_path_folder: str,
     data_path_split: str,
     output_path: str,
@@ -139,7 +139,7 @@ def split_eval_set_from_args(
     max_eval_samples: Optional[int] = None,
     seed: Optional[int] = None,
 ) -> None:
-    """A wrapper for split_eval_set that parses arguments.
+    """A wrapper for split_examples that parses arguments.
 
     Args:
         data_path_folder (str): Path to the training dataset folder

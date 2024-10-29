@@ -141,24 +141,22 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
 
         mock_listdir.assert_called_once_with(json_directory)
         mock_file.assert_called()
-        """Diagnostic print for call_args in mock_file().write.call_args_list:
-
-            print(call_args)
-        --------------------
-        call('{')
-        call('"key"')
-        call(': ')
-        call('"value"')
-        call('}')
-        call('\n')
-        call('{')
-        call('"key"')
-        call(': ')
-        call('"value"')
-        call('}')
-        call('\n')
-        --------------------
-        """
+        # Diagnostic print for call_args in mock_file().write.call_args_list:
+        #     print(call_args)
+        # --------------------
+        # call('{')
+        # call('"key"')
+        # call(': ')
+        # call('"value"')
+        # call('}')
+        # call('\n')
+        # call('{')
+        # call('"key"')
+        # call(': ')
+        # call('"value"')
+        # call('}')
+        # call('\n')
+        # --------------------
         self.assertEqual(mock_file().write.call_count, 2)
 
     @patch(

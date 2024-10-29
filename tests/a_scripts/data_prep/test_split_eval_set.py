@@ -10,7 +10,6 @@ import pytest
 
 from llmfoundry.command_utils import split_eval_set_from_args, split_examples
 from llmfoundry.command_utils.data_prep.split_eval_set import (
-    DELTA_JSONL_REGEX,
     REMOTE_OBJECT_STORE_FILE_REGEX,
     get_dataset_format,
 )
@@ -23,52 +22,48 @@ EVAL_SPLIT_RATIO = 0.1
 DEFAULT_FILE = TMPT_DIR + '/train-00000-of-00001.jsonl'
 
 
-@pytest.mark.parametrize("test_input: str, expected: bool", [
-    ('tmp-t', True),
-    ('/tmp-t', False),
-    ('tmp-t-00000-of-00001.jsonl', False),
-    ('tmp-t-something', False),
-    ('tmp-t/', False),
-    ('tmp-t\\', False)
-])
-def test_delta_jsonl_regex(test_input: str, expected: bool) -> None:
-    """Test the regex pattern matches tmp-t exactly."""
-    assert bool(DELTA_JSONL_REGEX.match(test_input)) == expected
-
-
-
-@pytest.mark.parametrize("test_input: str, expected: bool", [
-    ('s3://bucket-name/path/to/file', True),
-    ('oci://bucket-name/path/to/file', True),
-    ('gs://bucket-name/path/to/file', True),
-    ('dbfs:/Volumes/path/to/file', True),
-    ('s3://bucket-name/path/to/file with spaces', True),
-    ('https://bucket-name/path/to/file', False),
-    ('/local/path/to/file', False),
-    ('s3:/bucket-name/path/to/file', False),
-    ('s3://bucket-name/path/to/file?', False)
-])
-def test_remote_object_store_file_regex(test_input: str, expected: bool) -> None:
+@pytest.mark.parametrize(
+    'test_input, expected',
+    [
+        ('s3://bucket-name/path/to/file', True),
+        ('oci://bucket-name/path/to/file', True),
+        ('gs://bucket-name/path/to/file', True),
+        ('dbfs:/Volumes/path/to/file', True),
+        ('s3://bucket-name/path/to/file with spaces', True),
+        ('https://bucket-name/path/to/file', False),
+        ('/local/path/to/file', False),
+        ('s3:/bucket-name/path/to/file', False),
+        ('s3://bucket-name/path/to/file?', False),
+    ],
+)
+def test_remote_object_store_file_regex(
+    test_input: str,
+    expected: bool,
+) -> None:
     """Test the regex pattern for remote object store file paths."""
     assert bool(REMOTE_OBJECT_STORE_FILE_REGEX.match(test_input)) == expected
 
 
-@pytest.mark.parametrize("test_input: str, expected: str", [
-    # Test delta format
-    ('tmp-t', 'delta'),
-    ('tmp-t/', 'unknown'),
+@pytest.mark.parametrize(
+    'test_input, expected',
+    [
+        # Test delta format
+        ('tmp-t', 'local_file'),
+        ('/tmp-t', 'unknown'),
+        ('tmp-t/', 'unknown'),
 
-    # Test remote object store format
-    ('s3://bucket-name/path/to/file', 'remote_object_store'),
-    ('oci://bucket-name/path/to/file', 'remote_object_store'),
-    ('gs://bucket-name/path/to/file', 'remote_object_store'),
-    ('dbfs:/Volumes/path/to/file', 'remote_object_store'),
+        # Test remote object store format
+        ('s3://bucket-name/path/to/file', 'remote_object_store'),
+        ('oci://bucket-name/path/to/file', 'remote_object_store'),
+        ('gs://bucket-name/path/to/file', 'remote_object_store'),
+        ('dbfs:/Volumes/path/to/file', 'remote_object_store'),
 
-    # Test unknown format
-    ('/local/path/to/file', 'unknown'),
-    ('s3:/bucket-name/path/to/file', 'unknown'),
-    ('dataset:name', 'unknown')
-])
+        # Test unknown format
+        ('/local/path/to/file', 'unknown'),
+        ('s3:/bucket-name/path/to/file', 'unknown'),
+        ('dataset:name', 'unknown'),
+    ],
+)
 def test_get_dataset_format(test_input: str, expected: str) -> None:
     """Test the get_dataset_format function."""
     assert get_dataset_format(test_input) == expected

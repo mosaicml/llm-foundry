@@ -12,7 +12,7 @@ import numpy as np
 
 log = logging.getLogger(__name__)
 
-DELTA_JSONL_REGEX = re.compile(r'^tmp-t$')
+LOCAL_PATH = 'tmp-t'
 REMOTE_OBJECT_STORE_FILE_REGEX = re.compile(
     r'^((s3|oci|gs):\/\/|dbfs:\/Volumes\/)[/a-zA-Z0-9 ()_\-.]+$',
 )
@@ -27,8 +27,8 @@ def get_dataset_format(data_path_folder: str) -> str:
     Returns:
         str: The format of the dataset
     """
-    if DELTA_JSONL_REGEX.match(data_path_folder):
-        return 'delta'
+    if data_path_folder == LOCAL_PATH:
+        return 'local_file'
     if REMOTE_OBJECT_STORE_FILE_REGEX.match(data_path_folder):
         return 'remote_object_store'
     return 'unknown'
@@ -61,7 +61,7 @@ def maybe_download_data_as_jsonl(
 
     dataset_format = get_dataset_format(data_path_folder)
 
-    if dataset_format == 'delta':
+    if dataset_format == 'local_file':
         log.info(
             f'Dataset is converted from Delta table. Using local file {data_path_folder}',
         )

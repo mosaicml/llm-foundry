@@ -12,26 +12,21 @@ import numpy as np
 
 log = logging.getLogger(__name__)
 
-LOCAL_PATH = 'tmp-t'
 REMOTE_OBJECT_STORE_FILE_REGEX = re.compile(
     r'^((s3|oci|gs):\/\/|dbfs:\/Volumes\/)[/a-zA-Z0-9 ()_\-.]+$',
 )
 
 
-def get_dataset_format(data_path_folder: str) -> str:
-    """Determine the format of the dataset from the provided data path.
+def is_remote_object_store_file(data_path_folder: str) -> bool:
+    """Check if the provided data path is a remote object store file.
 
     Args:
         data_path_folder (str): Path to the training dataset folder
 
     Returns:
-        str: The format of the dataset
+        bool: True if the data path is a remote object store file
     """
-    if data_path_folder == LOCAL_PATH:
-        return 'local_file'
-    if REMOTE_OBJECT_STORE_FILE_REGEX.match(data_path_folder):
-        return 'remote_object_store'
-    return 'unknown'
+    return REMOTE_OBJECT_STORE_FILE_REGEX.match(data_path_folder) is not None
 
 
 def maybe_download_data_as_jsonl(
@@ -43,9 +38,9 @@ def maybe_download_data_as_jsonl(
     Downloads from remote object store if needed.
     This function is intended to be invoked by DBX Finetuning.
     Thus, it assumes the provided data is:
-        1. A Delta table converted to JSONL at 'tmp-t/{data_path_split}-00000-of-00001.jsonl`
+        1. A JSONL stored as a remote object store file (e.g. S3, OCI, GCS)
+        2. A Delta table converted to JSONL at 'tmp-t/{data_path_split}-00000-of-00001.jsonl`
            using the 'llmfoundry.scripts.convert_delta_to_json.py' script.
-        2. A JSONL stored as a remote object store file (e.g. S3, OCI, GCS)
 
     Args:
         data_path_folder (str): Path to the training dataset folder
@@ -56,28 +51,20 @@ def maybe_download_data_as_jsonl(
     """
     TEMP_DIR = tempfile.mkdtemp()
 
-    dataset_format = get_dataset_format(data_path_folder)
-
-    if dataset_format == 'local_file':
-        log.info(
-            f'Dataset is converted from Delta table. Using local file {data_path_folder}',
-        )
-        data_path = os.path.join(
-            data_path_folder,
-            f'{data_path_split}-00000-of-00001.jsonl',
-        )
-
-    elif dataset_format == 'remote_object_store':
+    if is_remote_object_store_file(data_path_folder):
         log.info(
             f'Downloading dataset from remote object store: {data_path_folder}{data_path_split}.jsonl',
         )
         remote_path = f'{data_path_folder}/{data_path_split}.jsonl'
         data_path = os.path.join(TEMP_DIR, f'{data_path_split}.jsonl')
         utils.get_file(remote_path, data_path, overwrite=True)
-
     else:
-        raise ValueError(
-            f'Encountered unknown data path format when splitting dataset: {data_path_folder} with split {data_path_split}',
+        log.info(
+            f'Dataset is converted from Delta table. Using local file {data_path_folder}',
+        )
+        data_path = os.path.join(
+            data_path_folder,
+            f'{data_path_split}-00000-of-00001.jsonl',
         )
 
     if not os.path.exists(data_path):

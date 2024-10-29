@@ -11,7 +11,7 @@ import pytest
 from llmfoundry.command_utils import split_eval_set_from_args, split_examples
 from llmfoundry.command_utils.data_prep.split_eval_set import (
     REMOTE_OBJECT_STORE_FILE_REGEX,
-    get_dataset_format,
+    is_remote_object_store_file,
 )
 
 # Default values
@@ -47,26 +47,20 @@ def test_remote_object_store_file_regex(
 @pytest.mark.parametrize(
     'test_input, expected',
     [
-        # Test delta format
-        ('tmp-t', 'local_file'),
-        ('/tmp-t', 'unknown'),
-        ('tmp-t/', 'unknown'),
-
-        # Test remote object store format
-        ('s3://bucket-name/path/to/file', 'remote_object_store'),
-        ('oci://bucket-name/path/to/file', 'remote_object_store'),
-        ('gs://bucket-name/path/to/file', 'remote_object_store'),
-        ('dbfs:/Volumes/path/to/file', 'remote_object_store'),
-
-        # Test unknown format
-        ('/local/path/to/file', 'unknown'),
-        ('s3:/bucket-name/path/to/file', 'unknown'),
-        ('dataset:name', 'unknown'),
+        ('s3://bucket-name/path/to/file', True),
+        ('oci://bucket-name/path/to/file', True),
+        ('gs://bucket-name/path/to/file', True),
+        ('dbfs:/Volumes/path/to/file', True),
+        ('s3://bucket-name/path/to/file with spaces', True),
+        ('https://bucket-name/path/to/file', False),
+        ('/local/path/to/dir', False),
+        ('s3:/bucket-name/path/to/file', False),
+        ('s3://bucket-name/path/to/file?', False),
     ],
 )
-def test_get_dataset_format(test_input: str, expected: str) -> None:
-    """Test the get_dataset_format function."""
-    assert get_dataset_format(test_input) == expected
+def test_is_remote_object_store_file(test_input: str, expected: bool) -> None:
+    """Test the is_remote_object_store_file function."""
+    assert is_remote_object_store_file(test_input) == expected
 
 
 def calculate_file_hash(filepath: str) -> str:

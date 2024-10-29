@@ -8,6 +8,7 @@ from typing import Any
 from unittest.mock import MagicMock, mock_open, patch
 
 import grpc
+from pyspark.errors import AnalysisException
 
 from llmfoundry.command_utils.data_prep.convert_delta_to_json import (
     FaultyDataPrepCluster,
@@ -19,10 +20,7 @@ from llmfoundry.command_utils.data_prep.convert_delta_to_json import (
     iterative_combine_jsons,
     run_query,
 )
-
 from llmfoundry.utils.exceptions import DeltaTableNotFoundError
-
-from pyspark.errors import AnalysisException
 
 
 class TestConvertDeltaToJsonl(unittest.TestCase):
@@ -587,13 +585,17 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         # Verify that fetch was called
         mock_fetch.assert_called_once()
 
-    @patch('llmfoundry.command_utils.data_prep.convert_delta_to_json.get_total_rows')
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.get_total_rows',
+    )
     def test_fetch_nonexistent_table_error(
         self,
         mock_gtr: MagicMock,
     ):
         # Create a spark.AnalysisException with specific details
-        analysis_exception = AnalysisException(message="[DELTA_TABLE_NOT_FOUND] yada yada")
+        analysis_exception = AnalysisException(
+            message='[DELTA_TABLE_NOT_FOUND] yada yada',
+        )
 
         # Configure the fetch function to raise the grpc.RpcError
         mock_gtr.side_effect = analysis_exception

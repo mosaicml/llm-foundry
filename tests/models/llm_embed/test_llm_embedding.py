@@ -125,21 +125,16 @@ def test_mpt_embedding_lm(
 ):
     maybe_attn_impl = None if is_hf else attn_impl
     lm_config = build_lm_config(is_hf, maybe_attn_impl)
-    print(f'lm_config: {lm_config}')
 
-    model = ContrastiveModel(**lm_config, tokenizer=mock_tokenizer).to('cuda')
-    print(
-        f"Model's pretrained_model_name_or_path: {model.pretrained_model_name_or_path}",
-    )
-    print(f"Model's config: {model.model.config}")
-
-    model_inputs_batch = mock_tokenizer(
-        [['pair 1 a', 'pair 1 b'], ['pair 2 a', 'pair 2 b']],
-        padding='max_length',
-        truncation=True,
-        max_length=128,
-        return_tensors='pt',
-    )
+    model = ContrastiveModel(**lm_config, tokenizer=mock_tokenizer).to(
+        torch.bfloat16,
+    ).to('cuda')
+    model_inputs_batch = mock_tokenizer([['pair 1 a', 'pair 1 b'],
+                                         ['pair 2 a', 'pair 2 b']],
+                                        padding='max_length',
+                                        truncation=True,
+                                        max_length=128,
+                                        return_tensors='pt')
     if isinstance(model_inputs_batch, dict):
         model_inputs_batch = {
             k: v.to('cuda') for k, v in model_inputs_batch.items()
@@ -151,15 +146,21 @@ def test_mpt_embedding_lm(
     with ctx:
         outputs = model(model_inputs_batch)
 
+        assert isinstance(outputs, dict)
+        assert 'hidden_states' in outputs
+
         hidden_states = outputs['hidden_states']
+        assert isinstance(hidden_states, tuple)
+
         last_hidden_state = hidden_states[-1]
         proj_dim = model.model.config.word_embed_proj_dim
-
         assert last_hidden_state.shape == (
             4,
             128,
             proj_dim,
-        ), f'Expected hidden size {proj_dim}, but got {last_hidden_state.shape[-1]}'
+        )  # 2 pairs * 2 texts per pair, 128 sequence length, word_embed_proj_dim dim
+        assert last_hidden_state.dtype == torch.bfloat16
+        assert last_hidden_state.device.type == 'cuda'
 
 
 dataloader_config = lambda remote, local_ext: {

@@ -23,63 +23,55 @@ EVAL_SPLIT_RATIO = 0.1
 DEFAULT_FILE = TMPT_DIR + '/train-00000-of-00001.jsonl'
 
 
-def test_delta_jsonl_regex():
+@pytest.mark.parametrize("test_input: str, expected: bool", [
+    ('tmp-t', True),
+    ('/tmp-t', False),
+    ('tmp-t-00000-of-00001.jsonl', False),
+    ('tmp-t-something', False),
+    ('tmp-t/', False),
+    ('tmp-t\\', False)
+])
+def test_delta_jsonl_regex(test_input: str, expected: bool) -> None:
     """Test the regex pattern matches tmp-t exactly."""
-    assert DELTA_JSONL_REGEX.match('tmp-t')
-    assert not DELTA_JSONL_REGEX.match('/tmp-t')
-    assert not DELTA_JSONL_REGEX.match('tmp-t-00000-of-00001.jsonl')
-    assert not DELTA_JSONL_REGEX.match('tmp-t-something')
-    assert not DELTA_JSONL_REGEX.match('tmp-t/')
-    assert not DELTA_JSONL_REGEX.match('tmp-t\\')
+    assert bool(DELTA_JSONL_REGEX.match(test_input)) == expected
 
 
-def test_remote_object_store_file_regex():
+
+@pytest.mark.parametrize("test_input: str, expected: bool", [
+    ('s3://bucket-name/path/to/file', True),
+    ('oci://bucket-name/path/to/file', True),
+    ('gs://bucket-name/path/to/file', True),
+    ('dbfs:/Volumes/path/to/file', True),
+    ('s3://bucket-name/path/to/file with spaces', True),
+    ('https://bucket-name/path/to/file', False),
+    ('/local/path/to/file', False),
+    ('s3:/bucket-name/path/to/file', False),
+    ('s3://bucket-name/path/to/file?', False)
+])
+def test_remote_object_store_file_regex(test_input: str, expected: bool) -> None:
     """Test the regex pattern for remote object store file paths."""
-    assert REMOTE_OBJECT_STORE_FILE_REGEX.match('s3://bucket-name/path/to/file')
-    assert REMOTE_OBJECT_STORE_FILE_REGEX.match(
-        'oci://bucket-name/path/to/file',
-    )
-    assert REMOTE_OBJECT_STORE_FILE_REGEX.match('gs://bucket-name/path/to/file')
-    assert REMOTE_OBJECT_STORE_FILE_REGEX.match('dbfs:/Volumes/path/to/file')
-    assert REMOTE_OBJECT_STORE_FILE_REGEX.match(
-        's3://bucket-name/path/to/file with spaces',
-    )
-    assert not REMOTE_OBJECT_STORE_FILE_REGEX.match(
-        'https://bucket-name/path/to/file',
-    )
-    assert not REMOTE_OBJECT_STORE_FILE_REGEX.match('/local/path/to/file')
-    assert not REMOTE_OBJECT_STORE_FILE_REGEX.match(
-        's3:/bucket-name/path/to/file',
-    )
-    assert not REMOTE_OBJECT_STORE_FILE_REGEX.match(
-        's3://bucket-name/path/to/file?',
-    )
+    assert bool(REMOTE_OBJECT_STORE_FILE_REGEX.match(test_input)) == expected
 
 
-def test_get_dataset_format():
-    """Test the get_dataset_format function."""
+@pytest.mark.parametrize("test_input: str, expected: str", [
     # Test delta format
-    assert get_dataset_format('tmp-t') == 'delta'
-    assert get_dataset_format('tmp-t/') == 'unknown'
+    ('tmp-t', 'delta'),
+    ('tmp-t/', 'unknown'),
 
     # Test remote object store format
-    assert get_dataset_format(
-        's3://bucket-name/path/to/file',
-    ) == 'remote_object_store'
-    assert get_dataset_format(
-        'oci://bucket-name/path/to/file',
-    ) == 'remote_object_store'
-    assert get_dataset_format(
-        'gs://bucket-name/path/to/file',
-    ) == 'remote_object_store'
-    assert get_dataset_format(
-        'dbfs:/Volumes/path/to/file',
-    ) == 'remote_object_store'
+    ('s3://bucket-name/path/to/file', 'remote_object_store'),
+    ('oci://bucket-name/path/to/file', 'remote_object_store'),
+    ('gs://bucket-name/path/to/file', 'remote_object_store'),
+    ('dbfs:/Volumes/path/to/file', 'remote_object_store'),
 
     # Test unknown format
-    assert get_dataset_format('/local/path/to/file') == 'unknown'
-    assert get_dataset_format('s3:/bucket-name/path/to/file') == 'unknown'
-    assert get_dataset_format('dataset:name') == 'unknown'
+    ('/local/path/to/file', 'unknown'),
+    ('s3:/bucket-name/path/to/file', 'unknown'),
+    ('dataset:name', 'unknown')
+])
+def test_get_dataset_format(test_input: str, expected: str) -> None:
+    """Test the get_dataset_format function."""
+    assert get_dataset_format(test_input) == expected
 
 
 def calculate_file_hash(filepath: str) -> str:

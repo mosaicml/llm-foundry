@@ -37,7 +37,7 @@ def get_dataset_format(data_path_folder: str) -> str:
 TEMP_DIR = 'tmp-split'
 
 
-def maybe_download_data_as_json(
+def maybe_download_data_as_jsonl(
     data_path_folder: str,
     data_path_split: str,
 ) -> str:
@@ -129,9 +129,10 @@ def split_examples(
     if max_eval_samples is not None:
         sample_size = min(sample_size, max_eval_samples)
 
-    with temp_seed(seed) if seed is not None else contextlib.nullcontext():
-        random_numbers = np.random.rand(total_lines)
-        sample_indices = set(np.argsort(random_numbers)[:sample_size])
+    # Use a new RNG instance with the provided seed
+    rng = np.random.default_rng(seed)
+    random_numbers = rng.random(total_lines)
+    sample_indices = set(np.argsort(random_numbers)[:sample_size])
 
     # second pass: sample indices
     with open(data_path, 'r') as infile, open(
@@ -170,7 +171,7 @@ def split_eval_set_from_args(
         max_eval_samples (int): Maximum number of samples to include in the eval set. If None, all eval_split_ratio * train_dataset_size samples will be used
         seed (int): Random seed for splitting the dataset
     """
-    data_path = maybe_download_data_as_json(data_path_folder, data_path_split)
+    data_path = maybe_download_data_as_jsonl(data_path_folder, data_path_split)
     split_examples(
         data_path,
         output_path,

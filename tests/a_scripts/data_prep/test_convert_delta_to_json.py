@@ -587,16 +587,16 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         # Verify that fetch was called
         mock_fetch.assert_called_once()
 
-    @patch('llmfoundry.command_utils.data_prep.convert_delta_to_json.fetch_data')
+    @patch('llmfoundry.command_utils.data_prep.convert_delta_to_json.get_total_rows')
     def test_fetch_nonexistent_table_error(
         self,
-        mock_fetch_data: MagicMock,
+        mock_gtr: MagicMock,
     ):
         # Create a spark.AnalysisException with specific details
         analysis_exception = AnalysisException(message="[DELTA_TABLE_NOT_FOUND] yada yada")
 
         # Configure the fetch function to raise the grpc.RpcError
-        mock_fetch_data.side_effect = analysis_exception
+        mock_gtr.side_effect = analysis_exception
 
         # Test inputs
         method = 'dbsql'
@@ -618,4 +618,4 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )
 
         # Verify that fetch was called
-        mock_fetch_data.assert_called_once()
+        mock_gtr.assert_called_once()

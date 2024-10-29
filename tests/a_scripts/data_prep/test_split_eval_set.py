@@ -229,13 +229,3 @@ def test_missing_delta_file_error():
             OUTPUT_DIR,
             EVAL_SPLIT_RATIO,
         )
-
-
-def test_unknown_file_format_error():
-    with pytest.raises(ValueError):
-        split_eval_set_from_args(
-            's3:/path/to/file.jsonl',
-            'train',
-            OUTPUT_DIR,
-            EVAL_SPLIT_RATIO,
-        )

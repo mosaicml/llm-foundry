@@ -30,6 +30,8 @@ __all__ = [
     'MisconfiguredHfDatasetError',
     'DatasetTooSmallError',
     'RunTimeoutError',
+    'UCNotEnabledError',
+    'DeltaTableNotFoundError',
 ]
 
 ALLOWED_RESPONSE_KEYS = {'response', 'completion'}
@@ -532,3 +534,18 @@ class UCNotEnabledError(UserError):
     def __init__(self) -> None:
         message = f'Unity Catalog is not enabled on your cluster.'
         super().__init__(message)
+
+
+class DeltaTableNotFoundError(UserError):
+    """Error thrown when the delta table passed in training does not exist or is not found."""
+
+    def __init__(self, message: str) -> None:
+        self.message = message
+        super().__init__(message)
+
+    def __reduce__(self):
+        # Return a tuple of class, a tuple of arguments, and optionally state
+        return (DeltaTableNotFoundError, (self.message,))
+
+    def __str__(self):
+        return self.message

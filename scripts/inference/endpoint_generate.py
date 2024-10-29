@@ -25,7 +25,11 @@ from composer.utils import (
 
 from llmfoundry.utils import prompt_files as utils
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
+logging.basicConfig(
+    format=
+    f'%(asctime)s: [%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s',
+    force=True,
+)
 log = logging.getLogger(__name__)
 
 ENDPOINT_API_KEY_ENV: str = 'ENDPOINT_API_KEY'

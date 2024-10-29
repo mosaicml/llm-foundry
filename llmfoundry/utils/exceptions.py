@@ -524,3 +524,11 @@ class InvalidConversationError(UserError):
 
     def __str__(self):
         return self.message
+
+
+class UCNotEnabledError(UserError):
+    """Error thrown when user does not have UC enabled on their cluster."""
+
+    def __init__(self) -> None:
+        message = f'Unity Catalog is not enabled on your cluster.'
+        super().__init__(message)

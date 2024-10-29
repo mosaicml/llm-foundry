@@ -25,6 +25,7 @@ from llmfoundry.utils.exceptions import (
     FailedToCreateSQLConnectionError,
     FaultyDataPrepCluster,
     InsufficientPermissionsError,
+    UCNotEnabledError,
 )
 
 if TYPE_CHECKING:
@@ -500,6 +501,8 @@ def fetch(
         if isinstance(e, (AnalysisException, ServerOperationError)):
             if 'INSUFFICIENT_PERMISSIONS' in str(e):
                 raise InsufficientPermissionsError(str(e)) from e
+            elif 'UC_NOT_ENABLED' in str(e):
+                raise UCNotEnabledError() from e
 
         if isinstance(e, InsufficientPermissionsError):
             raise

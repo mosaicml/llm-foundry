@@ -81,6 +81,8 @@ from llmfoundry.models.layers.norm import LPLayerNorm  # type: ignore
 
 log = logging.getLogger(__name__)
 
+CROSS_ENTROPY_IGNORE_INDEX = -100
+
 
 class InvalidConfigAccessError(KeyError):
     pass
@@ -1181,7 +1183,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
         loss = None
         if labels is not None:
             _labels = torch.roll(labels, shifts=-1)
-            _labels[:, -1] = -100
+            _labels[:, -1] = CROSS_ENTROPY_IGNORE_INDEX
             loss = F.cross_entropy(
                 logits.view(-1, logits.size(-1)),
                 _labels.to(logits.device).view(-1),
@@ -1331,7 +1333,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
 def get_targets(labels: torch.Tensor) -> torch.Tensor:
     targets = torch.roll(labels, shifts=-1)
-    targets[:, -1] = -100
+    targets[:, -1] = CROSS_ENTROPY_IGNORE_INDEX
     return targets
 
 
@@ -1410,7 +1412,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
                     CrossEntropyLoss as FusedCrossEntropyLoss
 
                 self.loss_fn = FusedCrossEntropyLoss(
-                    ignore_index=-100,
+                    ignore_index=CROSS_ENTROPY_IGNORE_INDEX,
                     reduction='none',
                 )
             except:
@@ -1423,7 +1425,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
                 )
         elif loss_fn_config == 'torch_crossentropy':
             self.loss_fn = nn.CrossEntropyLoss(
-                ignore_index=-100,
+                ignore_index=CROSS_ENTROPY_IGNORE_INDEX,
                 reduction='none',
             )
         else:

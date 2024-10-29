@@ -1,10 +1,10 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-import contextlib
 import logging
 import os
 import re
+import tempfile
 from typing import Optional
 
 import composer.utils as utils
@@ -34,9 +34,6 @@ def get_dataset_format(data_path_folder: str) -> str:
     return 'unknown'
 
 
-TEMP_DIR = 'tmp-split'
-
-
 def maybe_download_data_as_jsonl(
     data_path_folder: str,
     data_path_split: str,
@@ -57,7 +54,7 @@ def maybe_download_data_as_jsonl(
     Returns:
         str: Path to the training dataset
     """
-    os.makedirs(TEMP_DIR, exist_ok=True)
+    TEMP_DIR = tempfile.mkdtemp()
 
     dataset_format = get_dataset_format(data_path_folder)
 
@@ -91,17 +88,6 @@ def maybe_download_data_as_jsonl(
     return data_path
 
 
-@contextlib.contextmanager
-def temp_seed(seed: int):
-    log.info(f'Setting random seed to {seed}')
-    state = np.random.get_state()
-    np.random.seed(seed)
-    try:
-        yield
-    finally:
-        np.random.set_state(state)
-
-
 def split_examples(
     data_path: str,
     output_path: str,
@@ -132,6 +118,11 @@ def split_examples(
     # Use a new RNG instance with the provided seed
     rng = np.random.default_rng(seed)
     random_numbers = rng.random(total_lines)
+
+    # TODO: Consider using reservoir sampling for large datasets
+    # Jimmy doesn't think we need to do this right now, since we will
+    # migrate all of this splitting logic to workflows later anyways, so
+    # we can do it then
     sample_indices = set(np.argsort(random_numbers)[:sample_size])
 
     # second pass: sample indices

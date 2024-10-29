@@ -114,7 +114,6 @@ def _maybe_get_license_filename(
 
 def _log_model_multiprocess(
     await_creation_for: int,
-    flavor: str,
     mlflow_logger: MLFlowLogger,
     mlflow_logging_config: dict[str, Any],
     python_logging_level: int,
@@ -128,7 +127,6 @@ def _log_model_multiprocess(
 
     Args:
         await_creation_for: int: time to wait for model creation
-        flavor: str: transformers or peft
         mlflow_logger: MLFlowLogger: MLflow logger object
         mlflow_logging_config: dict: mlflow logging config
         python_logging_level: int: logging level
@@ -760,8 +758,6 @@ class HuggingFaceCheckpointer(Callback):
                         kwargs={
                             'await_creation_for':
                                 3600,
-                            'flavor':
-                                'peft' if self.using_peft else 'transformers',
                             'mlflow_logger':
                                 mlflow_logger,
                             'mlflow_logging_config':

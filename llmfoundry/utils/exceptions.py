@@ -532,20 +532,23 @@ class UCNotEnabledError(UserError):
     """Error thrown when user does not have UC enabled on their cluster."""
 
     def __init__(self) -> None:
-        message = f'Unity Catalog is not enabled on your cluster.'
+        message = 'Unity Catalog is not enabled on your cluster.'
         super().__init__(message)
 
 
 class DeltaTableNotFoundError(UserError):
     """Error thrown when the delta table passed in training doesn't exist."""
 
-    def __init__(self, message: str) -> None:
-        self.message = message
-        super().__init__(message)
-
-    def __reduce__(self):
-        # Return a tuple of class, a tuple of arguments, and optionally state
-        return (DeltaTableNotFoundError, (self.message,))
-
-    def __str__(self):
-        return self.message
+    def __init__(
+        self,
+        catalog_name: str,
+        volume_name: str,
+        table_name: str,
+    ) -> None:
+        message = f'Your data path {catalog_name}.{volume_name}.{table_name} does not exist. Please double check your delta table name'
+        super().__init__(
+            message=message,
+            catalog_name=catalog_name,
+            volume_name=volume_name,
+            table_name=table_name,
+        )

@@ -120,8 +120,7 @@ def _log_model_multiprocess(
     transformers_model_path: str,
     registered_model_name: Optional[str] = None,
 ):
-    """
-    Call MLFlowLogger.log_model.
+    """Call MLFlowLogger.log_model.
     
     Used mainly to log from a child process.
 
@@ -172,6 +171,42 @@ def _log_model_multiprocess(
         task=mlflow_logging_config['metadata']['task'],
         registered_model_name=registered_model_name,
         await_creation_for=await_creation_for
+    )
+
+
+def _register_model_with_run_id_multiprocess(
+    mlflow_logger: MLFlowLogger,
+    composer_logging_level: int,
+    model_uri: str,
+    name: str,
+    await_creation_for: int,
+):
+    """Call MLFlowLogger.register_model_with_run_id.
+
+    Used mainly to register from a child process.
+
+    Args:
+        mlflow_logger: MLFlowLogger: MLflow logger object
+        composer_logging_level: int: logging level
+        model_uri: str: path to the model
+        name: str: name to register the model under in the MLflow model registry
+        await_creation_for: int: time to wait for model creation
+    """
+    # Setup logging for child process. This ensures that any logs from composer are surfaced.
+    if composer_logging_level > 0:
+        # If logging_level is 0, then the composer logger was unset.
+        logging.basicConfig(
+            format=
+            f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s',
+            force=True,
+        )
+        logging.getLogger('composer').setLevel(composer_logging_level)
+
+    # Register model.
+    mlflow_logger.register_model_with_run_id(
+        model_uri=model_uri,
+        name=name,
+        await_creation_for=await_creation_for,
     )
 
 
@@ -726,6 +761,19 @@ class HuggingFaceCheckpointer(Callback):
                                            ] = temp_save_dir
                         model_saving_kwargs[
                             'metadata'] = self.mlflow_logging_config['metadata']
+                        # If PEFT, still use original save_model codepath
+                        context_manager = te.onnx_export(
+                            True,
+                        ) if is_te_imported and state.precision == Precision.AMP_FP8 else contextlib.nullcontext(
+                        )
+                        with context_manager:
+                            # Add the pip requirements directly to avoid mlflow
+                            # attempting to run inference on the model
+                            model_saving_kwargs['pip_requirements'] = [
+                                'transformers',
+                                'torch',
+                            ]
+                            mlflow_logger.save_model(**model_saving_kwargs)
                     else:
                         model_saving_kwargs['flavor'] = 'transformers'
                         model_saving_kwargs['transformers_model'] = components
@@ -753,23 +801,43 @@ class HuggingFaceCheckpointer(Callback):
 
                     # Spawn a new process to register the model.
                     # Slower method to register the model via log_model.
-                    process = SpawnProcess(
-                        target=_log_model_multiprocess,
-                        kwargs={
-                            'await_creation_for':
-                                3600,
-                            'mlflow_logger':
-                                mlflow_logger,
-                            'mlflow_logging_config':
-                                self.mlflow_logging_config,
-                            'python_logging_level':
-                                logging.getLogger('llmfoundry').level,
-                            'registered_model_name':
-                                self.mlflow_registered_model_name,
-                            'transformers_model_path':
-                                temp_save_dir,
-                        },
-                    )
+                    if self.using_peft:
+                        # If PEFT, use original register_model codepath until Composer
+                        # supports logging PEFT models to MLFlow
+                        process = SpawnProcess(
+                            target=_register_model_with_run_id_multiprocess,
+                            kwargs={
+                                'mlflow_logger':
+                                    mlflow_logger,
+                                'composer_logging_level':
+                                    logging.getLogger('composer').level,
+                                'model_uri':
+                                    local_save_path,
+                                'name':
+                                    self.mlflow_registered_model_name,
+                                'await_creation_for':
+                                    3600,
+                            },
+                        )
+                    else:
+                        # Log a transformers model
+                        process = SpawnProcess(
+                            target=_log_model_multiprocess,
+                            kwargs={
+                                'await_creation_for':
+                                    3600,
+                                'mlflow_logger':
+                                    mlflow_logger,
+                                'mlflow_logging_config':
+                                    self.mlflow_logging_config,
+                                'python_logging_level':
+                                    logging.getLogger('llmfoundry').level,
+                                'registered_model_name':
+                                    self.mlflow_registered_model_name,
+                                'transformers_model_path':
+                                    temp_save_dir,
+                            },
+                        )
                     process.start()
 
                     # Restore the monitor process.

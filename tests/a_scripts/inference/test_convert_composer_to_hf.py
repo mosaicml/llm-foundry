@@ -374,7 +374,7 @@ def _create_optimizer(original_model: torch.nn.Module) -> torch.optim.Optimizer:
     new=MockSpawnProcess,
 )
 @patch(
-    'llmfoundry.callbacks.hf_checkpointer.mlflow.start_run',
+    'mlflow.start_run',
     new=MockSpawnProcess,
 )
 def test_final_register_only(
@@ -479,6 +479,10 @@ def test_final_register_only(
 @patch('os.cpu_count', MagicMock(return_value=1))
 @patch(
     'llmfoundry.callbacks.hf_checkpointer.SpawnProcess',
+    new=MockSpawnProcess,
+)
+@patch(
+    'mlflow.start_run',
     new=MockSpawnProcess,
 )
 def test_huggingface_conversion_callback_interval(

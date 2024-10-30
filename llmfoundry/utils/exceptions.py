@@ -536,7 +536,7 @@ class StoragePermissionError(UserError):
         self.message = message
         super().__init__(message)
 
-        
+
 class UCNotEnabledError(UserError):
     """Error thrown when user does not have UC enabled on their cluster."""
 

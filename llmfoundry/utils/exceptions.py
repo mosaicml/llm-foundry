@@ -30,7 +30,7 @@ __all__ = [
     'MisconfiguredHfDatasetError',
     'DatasetTooSmallError',
     'RunTimeoutError',
-    'ProbablyNetworkingError',
+    'StoragePermissionError',
 ]
 
 ALLOWED_RESPONSE_KEYS = {'response', 'completion'}
@@ -527,9 +527,9 @@ class InvalidConversationError(UserError):
         return self.message
 
 
-class ProbablyNetworkingError(UserError):
-    """Error thrown due to a networking restriction."""
+class StoragePermissionError(UserError):
+    """Error thrown due to invalid permissions accessing blob storage."""
 
-    def __init__(self) -> None:
-        message = f"An error occurred while trying to access a remote URL. This is likely due to some networking restriction such as private link or SEG."
+    def __init__(self, message: str) -> None:
+        self.message = message
         super().__init__(message)

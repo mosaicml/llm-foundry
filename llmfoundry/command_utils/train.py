@@ -239,7 +239,8 @@ def train(cfg: DictConfig) -> Trainer:
             train_cfg.python_log_level.upper(),
         )  # Streaming module
 
-    _initialize_dist_with_barrier(dist_timeout=train_cfg.dist_timeout)
+    if dist.get_world_size() > 1:
+        _initialize_dist_with_barrier(dist_timeout=train_cfg.dist_timeout)
 
     # Filter deprecation warning from torch internal usage
     warnings.filterwarnings(

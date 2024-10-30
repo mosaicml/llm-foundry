@@ -42,6 +42,7 @@ from transformers import (
     PreTrainedTokenizerBase,
 )
 
+from llmfoundry.utils.exceptions import ProbablyNetworkingError
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.models.utils import init_empty_weights
 from llmfoundry.utils.huggingface_hub_utils import \
@@ -296,7 +297,13 @@ class HuggingFaceCheckpointer(Callback):
                     + f'Got {type(state.model)} instead.',
                 )
             if self.remote_ud is not None:
-                self.remote_ud.init(state, logger)
+                try:
+                    self.remote_ud.init(state, logger)
+                except PermissionError as e:
+                    log.error(
+                        f'Error initializing remote uploader/downloader. This is likely private link related. {e}',
+                    )
+                    raise ProbablyNetworkingError()
                 state.callbacks.append(self.remote_ud)
 
             if self.mlflow_registered_model_name is not None:

@@ -303,7 +303,7 @@ class HuggingFaceCheckpointer(Callback):
                     log.error(
                         f'Error initializing remote uploader/downloader. This is likely private link related. {e}',
                     )
-                    raise ProbablyNetworkingError()
+                    raise ProbablyNetworkingError(is_contd_pretrain=state.run_name.startswith('contd-pretrain'))
                 state.callbacks.append(self.remote_ud)
 
             if self.mlflow_registered_model_name is not None:

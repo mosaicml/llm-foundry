@@ -30,7 +30,7 @@ __all__ = [
     'MisconfiguredHfDatasetError',
     'DatasetTooSmallError',
     'RunTimeoutError',
-    'PrivateLinkNotSupportedError',
+    'ProbablyNetworkingError',
 ]
 
 ALLOWED_RESPONSE_KEYS = {'response', 'completion'}
@@ -530,6 +530,6 @@ class InvalidConversationError(UserError):
 class ProbablyNetworkingError(UserError):
     """Error thrown due to a networking restriction."""
 
-    def __init__(self) -> None:
+    def __init__(self, is_contd_pretrain: bool) -> None:
         message = f"An error occurred while trying to access a remote URL. This is likely due to some networking restriction such as private link or SEG."
-        super().__init__(message)
+        super().__init__(message, is_contd_pretrain=is_contd_pretrain)

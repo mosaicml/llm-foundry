@@ -125,6 +125,7 @@ def _register_model_with_run_id_multiprocess(
         logging.basicConfig(
             format=
             f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s',
+            force=True,
         )
         logging.getLogger('composer').setLevel(composer_logging_level)
 

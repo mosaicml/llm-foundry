@@ -8,6 +8,7 @@ from typing import Any
 from unittest.mock import MagicMock, mock_open, patch
 
 import grpc
+from pyspark.errors import AnalysisException
 
 from llmfoundry.command_utils.data_prep.convert_delta_to_json import (
     FaultyDataPrepCluster,
@@ -19,6 +20,7 @@ from llmfoundry.command_utils.data_prep.convert_delta_to_json import (
     iterative_combine_jsons,
     run_query,
 )
+from llmfoundry.utils.exceptions import DeltaTableNotFoundError
 
 
 class TestConvertDeltaToJsonl(unittest.TestCase):
@@ -139,25 +141,24 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
 
         mock_listdir.assert_called_once_with(json_directory)
         mock_file.assert_called()
-        """
-        Diagnostic print
-        for call_args in mock_file().write.call_args_list:
-            print(call_args)
-        --------------------
-        call('{')
-        call('"key"')
-        call(': ')
-        call('"value"')
-        call('}')
-        call('\n')
-        call('{')
-        call('"key"')
-        call(': ')
-        call('"value"')
-        call('}')
-        call('\n')
-        --------------------
-        """
+        # Diagnostic print
+        # for call_args in mock_file().write.call_args_list:
+        #     print(call_args)
+        # --------------------
+        # call('{')
+        # call('"key"')
+        # call(': ')
+        # call('"value"')
+        # call('}')
+        # call('\n')
+        # call('{')
+        # call('"key"')
+        # call(': ')
+        # call('"value"')
+        # call('}')
+        # call('\n')
+        # --------------------
+
         self.assertEqual(mock_file().write.call_count, 2)
 
     @patch(
@@ -582,3 +583,40 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
 
         # Verify that fetch was called
         mock_fetch.assert_called_once()
+
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.get_total_rows',
+    )
+    def test_fetch_nonexistent_table_error(
+        self,
+        mock_gtr: MagicMock,
+    ):
+        # Create a spark.AnalysisException with specific details
+        analysis_exception = AnalysisException(
+            message='[DELTA_TABLE_NOT_FOUND] yada yada',
+        )
+
+        # Configure the fetch function to raise the AnalysisException
+        mock_gtr.side_effect = analysis_exception
+
+        # Test inputs
+        method = 'dbsql'
+        delta_table_name = 'test_table'
+        json_output_folder = '/tmp/to/jsonl'
+
+        # Act & Assert
+        with self.assertRaises(DeltaTableNotFoundError) as context:
+            fetch(
+                method=method,
+                tablename=delta_table_name,
+                json_output_folder=json_output_folder,
+            )
+
+        # Verify that the DeltaTableNotFoundError contains the expected message
+        self.assertIn(
+            'Please double check your delta table name',
+            str(context.exception),
+        )
+
+        # Verify that get_total_rows was called
+        mock_gtr.assert_called_once()

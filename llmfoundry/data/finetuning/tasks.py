@@ -34,6 +34,7 @@ those keys are strings (i.e. text).
 import importlib
 import logging
 import os
+import tempfile
 import warnings
 from collections.abc import Mapping
 from functools import partial
@@ -61,11 +62,11 @@ from llmfoundry.data import (
     stream_remote_local_validate,
 )
 from llmfoundry.data.finetuning.collator import (
-    _HF_IGNORE_INDEX,
     stitch_turns_decoder_only,
     stitch_turns_encoder_decoder,
 )
 from llmfoundry.tokenizers import get_date_string
+from llmfoundry.utils.consts import CROSS_ENTROPY_IGNORE_INDEX
 # yapf: disable
 from llmfoundry.utils.exceptions import (
     ALLOWED_MESSAGES_KEYS,
@@ -107,15 +108,6 @@ _ALLOWED_ROLE_KEYS = {'role'}
 _ALLOWED_CONTENT_KEYS = {'content'}
 _ALLOWED_ROLES = {'user', 'assistant', 'system', 'tool'}
 _ALLOWED_LAST_MESSAGE_ROLES = {'assistant'}
-DOWNLOADED_FT_DATASETS_DIRPATH = os.path.abspath(
-    os.path.join(
-        os.path.realpath(__file__),
-        os.pardir,
-        os.pardir,
-        os.pardir,
-        '.downloaded_finetuning',
-    ),
-)
 SUPPORTED_EXTENSIONS = ['.csv', '.json', '.jsonl', '.parquet']
 HUGGINGFACE_FOLDER_EXTENSIONS = ['.lock', '.metadata']
 DEFAULT_TARGET_RESPONSES = 'last'
@@ -509,7 +501,8 @@ def is_valid_ift_example(
     if len(input_ids) == 0:
         return False
 
-    if len([label for label in labels if label != _HF_IGNORE_INDEX]) == 0:
+    if len([label for label in labels if label != CROSS_ENTROPY_IGNORE_INDEX
+           ],) == 0:
         return False
 
     return True
@@ -920,8 +913,12 @@ class DatasetConstructor:
                 if not os.path.isdir(dataset_name):
                     # dataset_name is not a local dir path, download if needed.
                     local_dataset_dir = os.path.join(
-                        DOWNLOADED_FT_DATASETS_DIRPATH,
+                        tempfile.mkdtemp(),
                         dataset_name,
+                    )
+
+                    log.debug(
+                        f'Downloading dataset {dataset_name} to {local_dataset_dir}.',
                     )
 
                     if _is_empty_or_nonexistent(dirpath=local_dataset_dir):

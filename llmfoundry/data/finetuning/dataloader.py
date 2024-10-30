@@ -20,18 +20,19 @@ from llmfoundry.data.finetuning.collator import (
 from llmfoundry.data.finetuning.tasks import (
     DEFAULT_TARGET_PROMPTS,
     DEFAULT_TARGET_RESPONSES,
-    DOWNLOADED_FT_DATASETS_DIRPATH,
     SUPPORTED_EXTENSIONS,
     dataset_constructor,
 )
 from llmfoundry.data.packing import BinPackCollator, auto_packing_ratio
 from llmfoundry.data.text_data import build_streams
 from llmfoundry.utils.config_utils import to_dict_container
+from llmfoundry.utils.consts import CROSS_ENTROPY_IGNORE_INDEX
 from llmfoundry.utils.exceptions import (
     FinetuningFileNotFoundError,
     MissingHuggingFaceURLSplitError,
     NotEnoughDatasetSamplesError,
 )
+from llmfoundry.utils.file_utils import dist_mkdtemp
 from llmfoundry.utils.registry_utils import construct_from_registry
 
 log = logging.getLogger(__name__)
@@ -39,9 +40,6 @@ log = logging.getLogger(__name__)
 __all__ = [
     'build_finetuning_dataloader',
 ]
-
-# HuggingFace hardcodes the ignore index to -100
-_HF_IGNORE_INDEX = -100
 
 # Extra keys present in the dataset config dictionary beyond the constructor keys
 _ALLOWED_DATASET_KEYS = {
@@ -571,7 +569,7 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
     # HF datasets does not support a split with dashes, so we replace dashes with underscores.
     hf_formatted_split = split.replace('-', '_')
     finetune_dir = os.path.join(
-        DOWNLOADED_FT_DATASETS_DIRPATH,
+        dist_mkdtemp(),
         hf_formatted_split if hf_formatted_split != 'data' else 'data_not',
     )
     os.makedirs(finetune_dir, exist_ok=True)
@@ -593,6 +591,8 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
             finetune_dir,
             f'.node_{dist.get_node_rank()}_local_rank0_completed',
         )
+
+        log.debug(f'Downloading dataset {name} to {destination}.')
         if dist.get_local_rank() == 0:
             try:
                 get_file(path=name, destination=destination, overwrite=True)
@@ -784,7 +784,7 @@ if __name__ == '__main__':
                         )
                         context = torch.logical_and(
                             batch['attention_mask'][j] == 1,
-                            batch['labels'][j] == _HF_IGNORE_INDEX,
+                            batch['labels'][j] == CROSS_ENTROPY_IGNORE_INDEX,
                         )
                         print(
                             '\033[92m{}\033[00m\n'.format('CONTEXT:  '),
@@ -802,7 +802,8 @@ if __name__ == '__main__':
                                     j,
                                     torch.logical_and(
                                         is_subseq,
-                                        batch['labels'][j] != _HF_IGNORE_INDEX,
+                                        batch['labels'][j] !=
+                                        CROSS_ENTROPY_IGNORE_INDEX,
                                     )],
                                 skip_special_tokens=False,
                                 clean_up_tokenization_spaces=True,
@@ -820,7 +821,7 @@ if __name__ == '__main__':
                     )
                     context = torch.logical_and(
                         batch['attention_mask'][j] == 1,
-                        batch['labels'][j] == _HF_IGNORE_INDEX,
+                        batch['labels'][j] == CROSS_ENTROPY_IGNORE_INDEX,
                     )
                     print(
                         '\033[92m{}\033[00m\n'.format('CONTEXT:  '),
@@ -833,8 +834,9 @@ if __name__ == '__main__':
                     print(
                         '\033[91m{}\033[00m\n'.format('TARGET:   '),
                         tokenizer.decode(
-                            batch['input_ids'][
-                                j, batch['labels'][j] != _HF_IGNORE_INDEX],
+                            batch['input_ids']
+                            [j,
+                             batch['labels'][j] != CROSS_ENTROPY_IGNORE_INDEX],
                             skip_special_tokens=False,
                             clean_up_tokenization_spaces=True,
                         ),

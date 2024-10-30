@@ -1677,7 +1677,7 @@ def test_generation_config_variants(
         def save_pretrained(self, output_path: str):
             os.makedirs(output_path, exist_ok=True)
             with open(os.path.join(output_path, 'generation_config.json'), 'w') as f:
-                json.dump(self.config.to_dict(), f)
+                json.dump(self.config.to_json_string(), f)
 
     config = AutoConfig.from_pretrained('gpt2')
     # Convert dict to GenerationConfig if needed

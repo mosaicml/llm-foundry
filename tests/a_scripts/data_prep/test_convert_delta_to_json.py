@@ -614,7 +614,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
 
         # Verify that the DeltaTableNotFoundError contains the expected message
         self.assertIn(
-            'DELTA_TABLE_NOT_FOUND',
+            'Please double check your delta table name',
             str(context.exception),
         )
 

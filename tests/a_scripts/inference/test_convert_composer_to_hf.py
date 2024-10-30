@@ -548,6 +548,7 @@ def test_huggingface_conversion_callback_interval(
     checkpointer_callback.pre_register_edit = MagicMock(
         wraps=checkpointer_callback.pre_register_edit,
     )
+    checkpointer_callback.mlflow_logging_config = MagicMock()
     trainer = Trainer(
         model=original_model,
         device='gpu',
@@ -563,15 +564,16 @@ def test_huggingface_conversion_callback_interval(
     trainer.fit()
 
     if log_to_mlflow:
-        assert mlflow_logger_mock.save_model.call_count == 1
-        mlflow_logger_mock.save_model.assert_called_with(
-            flavor='transformers',
+        assert mlflow_logger_mock.log_model.call_count == 1
+        mlflow_logger_mock.log_model.assert_called_with(
             transformers_model=ANY,
-            path=ANY,
-            task='llm/v1/completions',
+            flavor='transformers',
+            artifact_path='last_model_checkpoint',
             input_example=ANY,
-            metadata={},
-            pip_requirements=ANY,
+            metadata=ANY,
+            task=ANY,
+            registered_model_name=ANY,
+            await_creation_for=3600,
         )
         assert checkpointer_callback.transform_model_pre_registration.call_count == 1
         assert checkpointer_callback.pre_register_edit.call_count == 1
@@ -580,16 +582,10 @@ def test_huggingface_conversion_callback_interval(
         assert checkpointer_callback.transform_model_pre_registration.call_count == 0
         assert checkpointer_callback.pre_register_edit.call_count == 0
         assert mlflow_logger_mock.save_model.call_count == 0
-        assert mlflow_logger_mock.log_model.call_count == 0
 
-    normal_checkpoints = [
-        name for name in os.listdir(os.path.join(tmp_path, 'checkpoints'))
-        if name != 'huggingface'
-    ]
     huggingface_checkpoints = list(
         os.listdir(os.path.join(tmp_path, 'checkpoints', 'huggingface')),
     )
-    assert len(normal_checkpoints) == expected_normal_checkpoints
     assert len(huggingface_checkpoints) == expected_hf_checkpoints
 
     # Load the last huggingface checkpoint

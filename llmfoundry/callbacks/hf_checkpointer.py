@@ -165,6 +165,8 @@ def _log_model_multiprocess(
             log.error(f"Exception when removing duplicate tokenizer files in the model directory", e)
     mlflow.transformers.save_model = save_model_patch
 
+    model_registry_name = f'{mlflow_logger.model_registry_prefix}.{registered_model_name}' \
+                          if registered_model_name is not None else None
     mlflow_logger.log_model(
         transformers_model=transformers_model_path,
         flavor='transformers',
@@ -172,7 +174,7 @@ def _log_model_multiprocess(
         input_example=mlflow_logging_config['input_example'],
         metadata=mlflow_logging_config['metadata'],
         task=mlflow_logging_config['metadata']['task'],
-        registered_model_name=registered_model_name,
+        registered_model_name=model_registry_name,
         await_creation_for=await_creation_for
     )
 

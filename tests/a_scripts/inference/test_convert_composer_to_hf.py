@@ -341,9 +341,10 @@ class MockSpawnProcess:
 
 def _create_mlflow_logger_mock() -> MagicMock:
     mlflow_logger_mock = MagicMock(spec=MLFlowLogger)
+    mlflow_logger_mock.log_model = MagicMock()
     mlflow_logger_mock.state_dict = lambda *args, **kwargs: {}
     mlflow_logger_mock.save_model = MagicMock(wraps=_save_model_mock)
-    mlflow_logger_mock._log_model_multiprocess = MagicMock()
+    mlflow_logger_mock._mlflow_client = MagicMock()
     mlflow_logger_mock.model_registry_prefix = ''
     mlflow_logger_mock._experiment_id = 'mlflow-experiment-id'
     mlflow_logger_mock._run_id = 'mlflow-run-id'
@@ -409,6 +410,8 @@ def test_final_register_only(
 
     mlflow_logger_mock = _create_mlflow_logger_mock()
 
+    original_model.save_pretrained = MagicMock()
+
     checkpointer_callback._save_checkpoint = MagicMock(
         wraps=checkpointer_callback._save_checkpoint,
     )
@@ -436,10 +439,10 @@ def test_final_register_only(
 
     if mlflow_registered_model_name is not None:
         # We should always attempt to register the model once
-        assert mlflow_logger_mock._log_model_multiprocess.call_count == 1
+        assert mlflow_logger_mock.log_model.call_count == 1
         if mlflow_registry_error:
             # If the registry fails, we should still save the model
-            assert mlflow_logger_mock._log_model_multiprocess.call_count == 1
+            assert mlflow_logger_mock.log_model.call_count == 1
             assert checkpointer_callback._save_checkpoint.call_count == 2
             assert checkpointer_callback._save_checkpoint.call_args_list[
                 0].kwargs == {
@@ -461,7 +464,7 @@ def test_final_register_only(
                 }
     else:
         # No mlflow_registered_model_name, so we should only save the checkpoint
-        assert mlflow_logger_mock._log_model_multiprocess.call_count == 0
+        assert mlflow_logger_mock.log_model.call_count == 0
         assert checkpointer_callback._save_checkpoint.call_count == 1
         assert checkpointer_callback._save_checkpoint.call_args_list[
             0].kwargs == {
@@ -483,7 +486,23 @@ def test_final_register_only(
 )
 @patch(
     'mlflow.start_run',
-    new=MockSpawnProcess,
+    new=MagicMock(),
+)
+@patch(
+    'llmfoundry.callbacks.hf_checkpointer._maybe_get_license_filename',
+    new=MagicMock(),
+)
+@patch(
+    'composer.callbacks.checkpoint_saver.CheckpointSaver._save_checkpoint',
+    new=MagicMock()
+)
+@patch(
+    'llmfoundry.callbacks.hf_checkpointer._log_model_multiprocess',
+    new=MagicMock(),
+)
+@patch(
+    'mlflow.transformers.save_model',
+    new=MagicMock(),
 )
 def test_huggingface_conversion_callback_interval(
     tmp_path: pathlib.Path,
@@ -520,6 +539,9 @@ def test_huggingface_conversion_callback_interval(
     optimizer = _create_optimizer(original_model)
 
     mlflow_logger_mock = _create_mlflow_logger_mock()
+    
+    mpt_tokenizer.save_pretrained = MagicMock()
+
     checkpointer_callback.transform_model_pre_registration = MagicMock(
         wraps=checkpointer_callback.transform_model_pre_registration,
     )
@@ -553,12 +575,12 @@ def test_huggingface_conversion_callback_interval(
         )
         assert checkpointer_callback.transform_model_pre_registration.call_count == 1
         assert checkpointer_callback.pre_register_edit.call_count == 1
-        assert mlflow_logger_mock._log_model_multiprocess.call_count == 1
+        assert mlflow_logger_mock.log_model.call_count == 1
     else:
         assert checkpointer_callback.transform_model_pre_registration.call_count == 0
         assert checkpointer_callback.pre_register_edit.call_count == 0
         assert mlflow_logger_mock.save_model.call_count == 0
-        assert mlflow_logger_mock._log_model_multiprocess.call_count == 0
+        assert mlflow_logger_mock.log_model.call_count == 0
 
     normal_checkpoints = [
         name for name in os.listdir(os.path.join(tmp_path, 'checkpoints'))
@@ -732,10 +754,10 @@ def _assert_mlflow_logger_calls(
                 'pip_requirements': ANY,
             }
         mlflow_logger_mock.save_model.assert_called_with(**expectation)
-        assert mlflow_logger_mock._log_model_multiprocess.call_count == 1
+        assert mlflow_logger_mock.log_model.call_count == 1
     else:
         assert mlflow_logger_mock.log_model.call_count == 0
-        assert mlflow_logger_mock._log_model_multiprocess.call_count == 0
+        assert mlflow_logger_mock.log_model.call_count == 0
 
 
 def _get_fsdp_config(fsdp_state_dict_type: Optional[str]):
@@ -1047,7 +1069,7 @@ def test_huggingface_conversion_callback(
     mlflow_logger_mock = MagicMock(spec=MLFlowLogger)
     mlflow_logger_mock.state_dict = lambda *args, **kwargs: {}
     mlflow_logger_mock.save_model = MagicMock(wraps=_save_model_mock)
-    mlflow_logger_mock._log_model_multiprocess = MagicMock()
+    mlflow_logger_mock.log_model = MagicMock()
     mlflow_logger_mock.model_registry_prefix = ''
     mlflow_logger_mock._experiment_id = 'mlflow-experiment-id'
     mlflow_logger_mock._run_id = 'mlflow-run-id'
@@ -1677,7 +1699,7 @@ def test_generation_config_variants(
         def save_pretrained(self, output_path: str):
             os.makedirs(output_path, exist_ok=True)
             with open(os.path.join(output_path, 'generation_config.json'), 'w') as f:
-                json.dump(self.config.to_json_string(), f)
+                f.write(str(self.generation_config))
 
     config = AutoConfig.from_pretrained('gpt2')
     # Convert dict to GenerationConfig if needed
@@ -1688,10 +1710,11 @@ def test_generation_config_variants(
     mock_model = MockModel(config)
     logger = MagicMock()
     state = MagicMock()
+    tokenizer = MagicMock()
     state.timestamp.batch = 1
     state.is_model_ddp = False
     state.model.model = mock_model
-    state.model.tokenizer = None
+    state.model.tokenizer = tokenizer
 
     checkpointer = HuggingFaceCheckpointer(
         save_folder='test',

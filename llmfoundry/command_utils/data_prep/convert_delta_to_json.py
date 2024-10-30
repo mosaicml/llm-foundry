@@ -519,7 +519,9 @@ def fetch(
                     # errors in the spark library.
                     catalog_name, volume_name, table_name = ['unknown']*3
                 else:
-                    catalog_name, volume_name, table_name = parts[1], parts[3], parts[5]
+                    catalog_name = parts[1]
+                    volume_name = parts[3]
+                    table_name = parts[5]
                 raise DeltaTableNotFoundError(catalog_name, volume_name, table_name) from e
 
         if isinstance(e, InsufficientPermissionsError):

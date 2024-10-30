@@ -21,6 +21,7 @@ from packaging import version
 from llmfoundry.utils.exceptions import (
     ClusterDoesNotExistError,
     ClusterInvalidAccessMode,
+    DeltaTableNotFoundError,
     FailedToConnectToDatabricksError,
     FailedToCreateSQLConnectionError,
     FaultyDataPrepCluster,
@@ -503,6 +504,29 @@ def fetch(
                 raise InsufficientPermissionsError(str(e)) from e
             elif 'UC_NOT_ENABLED' in str(e):
                 raise UCNotEnabledError() from e
+            elif 'DELTA_TABLE_NOT_FOUND' in str(e):
+                err_str = str(e)
+                # Error string should be in this format:
+                # ---
+                # Error processing `catalog`.`volume_name`.`table_name`:
+                # [DELTA_TABLE_NOT_FOUND] Delta table `volume_name`.`table_name`
+                # doesn't exist.
+                # ---
+                parts = err_str.split('`')
+                if len(parts) < 7:
+                    # Failed to parse error, our codebase is brittle
+                    # with respect to the string representations of
+                    # errors in the spark library.
+                    catalog_name, volume_name, table_name = ['unknown'] * 3
+                else:
+                    catalog_name = parts[1]
+                    volume_name = parts[3]
+                    table_name = parts[5]
+                raise DeltaTableNotFoundError(
+                    catalog_name,
+                    volume_name,
+                    table_name,
+                ) from e
 
         if isinstance(e, InsufficientPermissionsError):
             raise

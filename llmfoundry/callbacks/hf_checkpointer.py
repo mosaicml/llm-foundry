@@ -300,7 +300,7 @@ class HuggingFaceCheckpointer(Callback):
                 try:
                     self.remote_ud.init(state, logger)
                 except PermissionError as e:
-                    raise StoragePermissionError('Error when write to save_folder.') from e
+                    raise StoragePermissionError('Error when writing to save_folder.') from e
                 state.callbacks.append(self.remote_ud)
 
             if self.mlflow_registered_model_name is not None:

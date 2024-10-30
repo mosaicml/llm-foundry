@@ -1675,6 +1675,7 @@ def test_generation_config_variants(
                 self.generation_config = config.generation_config
         
         def save_pretrained(self, output_path: str):
+            os.makedirs(output_path, exist_ok=True)
             with open(os.path.join(output_path, 'generation_config.json'), 'w') as f:
                 json.dump(self.config.to_dict(), f)
 

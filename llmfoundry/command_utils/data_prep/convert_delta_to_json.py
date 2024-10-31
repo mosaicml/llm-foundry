@@ -692,6 +692,7 @@ def fetch_DT(
 
     formatted_delta_table_name = format_tablename(delta_table_name)
     import grpc
+    import pyspark.errors.exceptions.connect as spark_errors
     try:
         fetch(
             method,
@@ -702,8 +703,16 @@ def fetch_DT(
             sparkSession,
             dbsql,
         )
-    except grpc.RpcError as e:
-        if e.code(
+    except (grpc.RpcError, spark_errors.SparkConnectGrpcException) as e:
+        if isinstance(
+            e,
+            spark_errors.SparkConnectGrpcException,
+        ) and 'Cannot start cluster' in str(e):
+            raise FaultyDataPrepCluster(
+                message=
+                f'Data prep cluster failed to start, please try swapping data prep cluster: {e}',
+            ) from e
+        if isinstance(e, grpc.RpcError) and e.code(
         ) == grpc.StatusCode.INTERNAL and 'Job aborted due to stage failure' in e.details(
         ):
             raise FaultyDataPrepCluster(

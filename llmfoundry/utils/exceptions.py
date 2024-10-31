@@ -536,6 +536,13 @@ class StoragePermissionError(UserError):
         self.message = message
         super().__init__(message)
 
+    def __reduce__(self):
+        # Return a tuple of class, a tuple of arguments, and optionally state
+        return (StoragePermissionError, (self.message,))
+
+    def __str__(self):
+        return self.message
+
 
 class UCNotEnabledError(UserError):
     """Error thrown when user does not have UC enabled on their cluster."""

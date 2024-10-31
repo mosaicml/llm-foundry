@@ -630,7 +630,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
 
         # Verify that the FaultyDataPrepCluster contains the expected message
         self.assertIn(
-            'Data prep cluster failed to start, please try swapping data prep cluster',
+            'The data preparation cluster you provided is terminated. Please retry with a cluster that is healthy and alive.',
             str(context.exception),
         )
 

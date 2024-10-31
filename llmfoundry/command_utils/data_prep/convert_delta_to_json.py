@@ -710,7 +710,7 @@ def fetch_DT(
         ) and 'Cannot start cluster' in str(e):
             raise FaultyDataPrepCluster(
                 message=
-                f'Data prep cluster failed to start, please try swapping data prep cluster: {e}',
+                f'The data preparation cluster you provided is terminated. Please retry with a cluster that is healthy and alive. {e}',
             ) from e
         if isinstance(e, grpc.RpcError) and e.code(
         ) == grpc.StatusCode.INTERNAL and 'Job aborted due to stage failure' in e.details(

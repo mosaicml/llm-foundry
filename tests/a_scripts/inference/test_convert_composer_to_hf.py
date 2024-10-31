@@ -375,8 +375,12 @@ def _create_optimizer(original_model: torch.nn.Module) -> torch.optim.Optimizer:
     new=MockSpawnProcess,
 )
 @patch(
+    'llmfoundry.callbacks.hf_checkpointer._maybe_get_license_filename',
+    new=MagicMock(),
+)
+@patch(
     'mlflow.start_run',
-    new=MockSpawnProcess,
+    new=MagicMock(),
 )
 def test_final_register_only(
     mlflow_registry_error: bool,
@@ -415,6 +419,7 @@ def test_final_register_only(
     checkpointer_callback._save_checkpoint = MagicMock(
         wraps=checkpointer_callback._save_checkpoint,
     )
+    checkpointer_callback.mlflow_logging_config = MagicMock()
     trainer = Trainer(
         model=original_model,
         device='gpu',
@@ -582,11 +587,18 @@ def test_huggingface_conversion_callback_interval(
         assert checkpointer_callback.transform_model_pre_registration.call_count == 0
         assert checkpointer_callback.pre_register_edit.call_count == 0
         assert mlflow_logger_mock.save_model.call_count == 0
+    
+    normal_checkpoints = [
+        name for name in os.listdir(os.path.join(tmp_path, 'checkpoints'))
+        if name != 'huggingface'
+    ]
 
     huggingface_checkpoints = list(
         os.listdir(os.path.join(tmp_path, 'checkpoints', 'huggingface')),
     )
+    assert len(normal_checkpoints) == expected_normal_checkpoints
     assert len(huggingface_checkpoints) == expected_hf_checkpoints
+
 
     # Load the last huggingface checkpoint
     loaded_model = transformers.AutoModelForCausalLM.from_pretrained(

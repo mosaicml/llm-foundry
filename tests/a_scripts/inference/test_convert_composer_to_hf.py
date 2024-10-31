@@ -347,6 +347,9 @@ def _create_mlflow_logger_mock() -> MagicMock:
     mlflow_logger_mock.model_registry_prefix = ''
     mlflow_logger_mock._experiment_id = 'mlflow-experiment-id'
     mlflow_logger_mock._run_id = 'mlflow-run-id'
+    mlflow_logger_mock.tracking_uri = 'databricks'
+    mlflow_logger_mock.log_model = MagicMock()
+    mlflow_logger_mock.model_registry_uri = 'test-registry-uri'
     mlflow_logger_mock._enabled = True
     mlflow_logger_mock.run_url = 'fake-url'
     return mlflow_logger_mock
@@ -373,6 +376,7 @@ def _create_optimizer(original_model: torch.nn.Module) -> torch.optim.Optimizer:
     'llmfoundry.callbacks.hf_checkpointer.SpawnProcess',
     new=MockSpawnProcess,
 )
+@patch('llmfoundry.callbacks.hf_checkpointer.mlflow.start_run', MagicMock())
 def test_final_register_only(
     mlflow_registry_error: bool,
     mlflow_registered_model_name: Optional[str],
@@ -432,10 +436,10 @@ def test_final_register_only(
 
     if mlflow_registered_model_name is not None:
         # We should always attempt to register the model once
-        assert mlflow_logger_mock.register_model_with_run_id.call_count == 1
+        assert mlflow_logger_mock.log_model.call_count == 1
         if mlflow_registry_error:
             # If the registry fails, we should still save the model
-            assert mlflow_logger_mock.register_model_with_run_id.call_count == 1
+            assert mlflow_logger_mock.log_model.call_count == 1
             assert checkpointer_callback._save_checkpoint.call_count == 2
             assert checkpointer_callback._save_checkpoint.call_args_list[
                 0].kwargs == {
@@ -457,7 +461,7 @@ def test_final_register_only(
                 }
     else:
         # No mlflow_registered_model_name, so we should only save the checkpoint
-        assert mlflow_logger_mock.register_model_with_run_id.call_count == 0
+        assert mlflow_logger_mock.log_model.call_count == 0
         assert checkpointer_callback._save_checkpoint.call_count == 1
         assert checkpointer_callback._save_checkpoint.call_args_list[
             0].kwargs == {
@@ -477,6 +481,7 @@ def test_final_register_only(
     'llmfoundry.callbacks.hf_checkpointer.SpawnProcess',
     new=MockSpawnProcess,
 )
+@patch('llmfoundry.callbacks.hf_checkpointer.mlflow.start_run', MagicMock())
 def test_huggingface_conversion_callback_interval(
     tmp_path: pathlib.Path,
     log_to_mlflow: bool,
@@ -533,24 +538,23 @@ def test_huggingface_conversion_callback_interval(
     trainer.fit()
 
     if log_to_mlflow:
-        assert mlflow_logger_mock.save_model.call_count == 1
-        mlflow_logger_mock.save_model.assert_called_with(
+        mlflow_logger_mock.log_model.assert_called_with(
             flavor='transformers',
             transformers_model=ANY,
-            path=ANY,
+            artifact_path=ANY,
+            registered_model_name=ANY,
+            run_id=ANY,
+            await_registration_for=ANY,
             task='llm/v1/completions',
-            input_example=ANY,
             metadata={},
-            pip_requirements=ANY,
         )
         assert checkpointer_callback.transform_model_pre_registration.call_count == 1
         assert checkpointer_callback.pre_register_edit.call_count == 1
-        assert mlflow_logger_mock.register_model_with_run_id.call_count == 1
+        assert mlflow_logger_mock.log_model.call_count == 1
     else:
         assert checkpointer_callback.transform_model_pre_registration.call_count == 0
         assert checkpointer_callback.pre_register_edit.call_count == 0
-        assert mlflow_logger_mock.save_model.call_count == 0
-        assert mlflow_logger_mock.register_model_with_run_id.call_count == 0
+        assert mlflow_logger_mock.log_model.call_count == 0
 
     normal_checkpoints = [
         name for name in os.listdir(os.path.join(tmp_path, 'checkpoints'))

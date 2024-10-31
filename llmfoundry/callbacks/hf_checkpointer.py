@@ -15,6 +15,7 @@ from multiprocessing.context import SpawnProcess
 from pathlib import Path
 from typing import Any, Optional, Sequence, Union
 
+import mlflow
 import numpy as np
 import torch
 import torch.nn as nn
@@ -184,7 +185,7 @@ def _patch_mlflow_save_model(
 def _log_model_with_multi_process(
     mlflow_logger: MLFlowLogger,
     composer_logging_level: int,
-    flavor: str,
+    transformers_model: str,
     artifact_path: str,
     task: str,
     registered_model_name: str,
@@ -195,6 +196,10 @@ def _log_model_with_multi_process(
 
     Used mainly to register from a child process.
     """
+    mlflow.set_tracking_uri(mlflow_logger.tracking_uri)
+    if mlflow_logger.model_registry_uri is not None:
+        mlflow.set_registry_uri(mlflow_logger.model_registry_uri)
+    mlflow.start_run(run_id=mlflow_logger._run_id,)
     # Setup logging for child process. This ensures that any logs from composer are surfaced.
     if composer_logging_level > 0:
         # If logging_level is 0, then the composer logger was unset.
@@ -206,7 +211,8 @@ def _log_model_with_multi_process(
         logging.getLogger('composer').setLevel(composer_logging_level)
 
     mlflow_logger.log_model(
-        flavor=flavor, # type: ignore
+        transformers_model=transformers_model,
+        flavor='transformers',
         artifact_path=artifact_path,
         registered_model_name=registered_model_name,
         task=task,
@@ -793,6 +799,7 @@ class HuggingFaceCheckpointer(Callback):
                     )
 
                     new_model_instance.save_pretrained(register_save_dir)
+                    original_tokenizer.save_pretrained(register_save_dir)
 
                     self.pre_register_edit(register_save_dir)
 
@@ -816,8 +823,10 @@ class HuggingFaceCheckpointer(Callback):
                                         mlflow_logger,
                                     'composer_logging_level':
                                         logging.getLogger('composer').level,
-                                    'artifact_path':
+                                    'transformers_model':
                                         register_save_dir,
+                                    'artifact_path':
+                                        'model',
                                     'task':
                                         self.mlflow_logging_config['task'],
                                     'registered_model_name':
@@ -830,6 +839,7 @@ class HuggingFaceCheckpointer(Callback):
                             )
 
                             process.start()
+                            self.register_processes.append(process)
 
                 # Save the temporary directory to be cleaned up later.
                 if use_temp_dir:
@@ -917,3 +927,4 @@ class HuggingFaceCheckpointer(Callback):
                     },
                 )
                 process.start()
+                self.register_processes.append(process)

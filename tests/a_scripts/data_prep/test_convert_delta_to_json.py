@@ -8,7 +8,8 @@ from typing import Any
 from unittest.mock import MagicMock, mock_open, patch
 
 import grpc
-from pyspark.errors import AnalysisException, SparkConnectGrpcException
+from pyspark.errors import AnalysisException
+from pyspark.errors.exceptions.connect import SparkConnectGrpcException
 
 from llmfoundry.command_utils.data_prep.convert_delta_to_json import (
     FaultyDataPrepCluster,
@@ -603,7 +604,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
             message='Cannot start cluster etc...',
         )
 
-        # Configure the fetch function to raise the grpc.RpcError
+        # Configure the fetch function to raise the SparkConnectGrpcException
         mock_fetch.side_effect = grpc_error
 
         # Test inputs

@@ -30,6 +30,7 @@ __all__ = [
     'MisconfiguredHfDatasetError',
     'DatasetTooSmallError',
     'RunTimeoutError',
+    'StoragePermissionError',
     'UCNotEnabledError',
     'DeltaTableNotFoundError',
 ]
@@ -523,6 +524,21 @@ class InvalidConversationError(UserError):
     def __reduce__(self):
         # Return a tuple of class, a tuple of arguments, and optionally state
         return (InvalidConversationError, (self.message,))
+
+    def __str__(self):
+        return self.message
+
+
+class StoragePermissionError(UserError):
+    """Error thrown due to invalid permissions accessing blob storage."""
+
+    def __init__(self, message: str) -> None:
+        self.message = message
+        super().__init__(message)
+
+    def __reduce__(self):
+        # Return a tuple of class, a tuple of arguments, and optionally state
+        return (StoragePermissionError, (self.message,))
 
     def __str__(self):
         return self.message

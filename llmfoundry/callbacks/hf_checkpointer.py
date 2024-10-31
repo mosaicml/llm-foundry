@@ -44,6 +44,7 @@ from transformers import (
 
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.models.utils import init_empty_weights
+from llmfoundry.utils.exceptions import StoragePermissionError
 from llmfoundry.utils.huggingface_hub_utils import \
     edit_files_for_hf_compatibility
 
@@ -297,7 +298,16 @@ class HuggingFaceCheckpointer(Callback):
                     + f'Got {type(state.model)} instead.',
                 )
             if self.remote_ud is not None:
-                self.remote_ud.init(state, logger)
+                try:
+                    self.remote_ud.init(state, logger)
+                except PermissionError as e:
+                    if 'Client Error' in str(
+                        e,
+                    ):  # thrown from composer.utils._wrap_mlflow_exceptions
+                        raise StoragePermissionError(
+                            'Error when write to save_folder.',
+                        ) from e
+                    raise e
                 state.callbacks.append(self.remote_ud)
 
             if self.mlflow_registered_model_name is not None:

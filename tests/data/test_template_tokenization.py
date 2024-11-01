@@ -7,10 +7,10 @@ import pytest
 import transformers
 
 from llmfoundry.data.finetuning.tasks import (
+    _DEFAULT_CHAT_TEMPLATE,
     _slice_chat_formatted_example,
     dataset_constructor,
     tokenize_formatted_example,
-    _DEFAULT_CHAT_TEMPLATE
 )
 from llmfoundry.tokenizers import get_date_string
 from llmfoundry.utils.builders import build_tokenizer

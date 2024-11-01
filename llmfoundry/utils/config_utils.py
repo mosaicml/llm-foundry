@@ -19,12 +19,14 @@ from typing import (
 )
 
 import mlflow
-import mlflow.data.delta_dataset_source
-import mlflow.data.http_dataset_source
-import mlflow.data.huggingface_dataset_source
-import mlflow.data.uc_volume_dataset_source
 from composer.loggers import Logger
 from composer.utils import dist, parse_uri
+from mlflow.data import (
+    delta_dataset_source,
+    http_dataset_source,
+    huggingface_dataset_source,
+    uc_volume_dataset_source,
+)
 from omegaconf import MISSING, DictConfig, ListConfig, MissingMandatoryValue
 from omegaconf import OmegaConf as om
 from transformers import PretrainedConfig
@@ -773,15 +775,15 @@ def log_dataset_uri(cfg: dict[str, Any]) -> None:
     data_paths = _parse_source_dataset(cfg)
 
     dataset_source_mapping = {
-        's3': mlflow.data.http_dataset_source.HTTPDatasetSource,
-        'oci': mlflow.data.http_dataset_source.HTTPDatasetSource,
-        'azure': mlflow.data.http_dataset_source.HTTPDatasetSource,
-        'gs': mlflow.data.http_dataset_source.HTTPDatasetSource,
-        'https': mlflow.data.http_dataset_source.HTTPDatasetSource,
-        'hf': mlflow.data.huggingface_dataset_source.HuggingFaceDatasetSource,
-        'delta_table': mlflow.data.delta_dataset_source.DeltaDatasetSource,
-        'uc_volume': mlflow.data.uc_volume_dataset_source.UCVolumeDatasetSource,
-        'local': mlflow.data.http_dataset_source.HTTPDatasetSource,
+        's3': http_dataset_source.HTTPDatasetSource,
+        'oci': http_dataset_source.HTTPDatasetSource,
+        'azure': http_dataset_source.HTTPDatasetSource,
+        'gs': http_dataset_source.HTTPDatasetSource,
+        'https': http_dataset_source.HTTPDatasetSource,
+        'hf': huggingface_dataset_source.HuggingFaceDatasetSource,
+        'delta_table': delta_dataset_source.DeltaDatasetSource,
+        'uc_volume': uc_volume_dataset_source.UCVolumeDatasetSource,
+        'local': http_dataset_source.HTTPDatasetSource,
     }
 
     # Map data source types to their respective MLFlow DataSource.
@@ -799,7 +801,7 @@ def log_dataset_uri(cfg: dict[str, Any]) -> None:
             log.info(
                 f'{dataset_type} unknown, defaulting to http dataset source',
             )
-            source = mlflow.data.http_dataset_source.HTTPDatasetSource(url=path)
+            source = http_dataset_source.HTTPDatasetSource(url=path)
 
         mlflow.log_input(
             mlflow.data.meta_dataset.MetaDataset(source, name=split),

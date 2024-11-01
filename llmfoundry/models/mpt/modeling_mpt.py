@@ -99,6 +99,9 @@ _ALLOWED_LLAMA_CONFIG_KEYS = {
     # Not set but llama modeling code tries to read this attribute
     'partial_rotary_factor',
 
+    # This key is accessed with a default of hidden_size / num_attention_heads
+    'head_dim',
+
     # Benign transformers attributes needed for __init__
     '_get_generation_defaults',
     'label2id',

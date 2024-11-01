@@ -195,7 +195,7 @@ def _log_model_with_multi_process(
                 e,
             )
 
-    mlflow.transformers.save_model = save_model_patch
+    mlflow.transformers.save_model = save_model_patch  # type: ignore
 
     mlflow.set_tracking_uri(mlflow_logger.tracking_uri)
     if mlflow_logger.model_registry_uri is not None:

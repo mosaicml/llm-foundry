@@ -150,7 +150,7 @@ def _log_model_with_multi_process(
     transformers_model: str,
     artifact_path: str,
     task: str,
-    registered_model_name: str,
+    registered_model_name: Optional[str],
     metadata: dict[str, Any],
     await_registration_for: int,
 ):
@@ -210,11 +210,12 @@ def _log_model_with_multi_process(
         logging.getLogger('composer').setLevel(python_logging_level)
         logging.getLogger('llmfoundry').setLevel(python_logging_level)
 
+    register_model_path = f'{mlflow_logger.model_registry_prefix}.{registered_model_name}' if registered_model_name else None
     mlflow_logger.log_model(
         transformers_model=transformers_model,
         flavor='transformers',
         artifact_path=artifact_path,
-        registered_model_name=registered_model_name,
+        registered_model_name=register_model_path,
         task=task,
         metadata=metadata,
         run_id=mlflow_logger._run_id,
@@ -831,7 +832,7 @@ class HuggingFaceCheckpointer(Callback):
                                     'task':
                                         self.mlflow_logging_config['task'],
                                     'registered_model_name':
-                                        f'{mlflow_logger.model_registry_prefix}.{self.mlflow_registered_model_name}',
+                                        self.mlflow_registered_model_name,
                                     'metadata':
                                         self.mlflow_logging_config['metadata'],
                                     'await_registration_for':

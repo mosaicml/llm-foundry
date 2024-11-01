@@ -324,6 +324,7 @@ class HuggingFaceCheckpointer(Callback):
                     )
 
                 import mlflow
+                import mlflow.environment_variables
                 mlflow.environment_variables.MLFLOW_HUGGINGFACE_MODEL_MAX_SHARD_SIZE.set(
                     '1GB',
                 )
@@ -694,6 +695,7 @@ class HuggingFaceCheckpointer(Callback):
 
                     # TODO: Remove after mlflow fixes the bug that makes this necessary
                     import mlflow
+                    import mlflow.store
                     mlflow.store._unity_catalog.registry.rest_store.get_feature_dependencies = lambda *args, **kwargs: ''
                     model_saving_kwargs: dict[str, Any] = {
                         'path': local_save_path,

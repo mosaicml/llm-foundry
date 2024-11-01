@@ -768,6 +768,11 @@ def log_dataset_uri(cfg: dict[str, Any]) -> None:
     # Figure out which data source to use
     data_paths = _parse_source_dataset(cfg)
 
+    import mlflow.data.delta_dataset_source
+    import mlflow.data.http_dataset_source
+    import mlflow.data.huggingface_dataset_source
+    import mlflow.data.uc_volume_dataset_source
+
     dataset_source_mapping = {
         's3': mlflow.data.http_dataset_source.HTTPDatasetSource,
         'oci': mlflow.data.http_dataset_source.HTTPDatasetSource,

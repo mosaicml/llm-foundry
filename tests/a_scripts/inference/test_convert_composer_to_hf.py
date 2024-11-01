@@ -341,15 +341,17 @@ class MockSpawnProcess:
 
 def _create_mlflow_logger_mock() -> MagicMock:
     mlflow_logger_mock = MagicMock(spec=MLFlowLogger)
-    mlflow_logger_mock.log_model = MagicMock()
-    mlflow_logger_mock.state_dict = lambda *args, **kwargs: {}
-    mlflow_logger_mock.save_model = MagicMock(wraps=_save_model_mock)
     mlflow_logger_mock._mlflow_client = MagicMock()
-    mlflow_logger_mock.model_registry_prefix = ''
     mlflow_logger_mock._experiment_id = 'mlflow-experiment-id'
     mlflow_logger_mock._run_id = 'mlflow-run-id'
     mlflow_logger_mock._enabled = True
+    mlflow_logger_mock.log_model = MagicMock()
+    mlflow_logger_mock.model_registry_prefix = ''
+    mlflow_logger_mock.model_registry_uri = 'databricks'
+    mlflow_logger_mock.state_dict = lambda *args, **kwargs: {}
+    mlflow_logger_mock.save_model = MagicMock(wraps=_save_model_mock)
     mlflow_logger_mock.run_url = 'fake-url'
+    mlflow_logger_mock.tracking_uri = 'databricks'
     return mlflow_logger_mock
 
 

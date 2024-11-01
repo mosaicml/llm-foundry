@@ -601,6 +601,11 @@ def test_huggingface_conversion_callback_interval(
 
 
     # Load the last huggingface checkpoint
+    from transformers.models.auto.configuration_auto import CONFIG_MAPPING
+    CONFIG_MAPPING._extra_content['mpt'] = MPTConfig
+    MPTConfig.register_for_auto_class()
+    MPTForCausalLM.register_for_auto_class('AutoModelForCausalLM')
+
     loaded_model = transformers.AutoModelForCausalLM.from_pretrained(
         os.path.join(
             tmp_path,

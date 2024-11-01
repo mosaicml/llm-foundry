@@ -133,11 +133,10 @@ def _log_model_with_multi_process(
     python_logging_level: int,
     transformers_model: str,
     artifact_path: str,
-    task: str,
     pretrained_model_name: str,
     registered_model_name: Optional[str],
-    metadata: dict[str, Any],
     await_registration_for: int,
+    mlflow_logging_config: dict[str, Any],
 ):
     """Call MLFlowLogger.log_model.
 
@@ -202,16 +201,15 @@ def _log_model_with_multi_process(
     if mlflow_logger.model_registry_uri is not None:
         mlflow.set_registry_uri(mlflow_logger.model_registry_uri)
 
-    register_model_path = f'{mlflow_logger.model_registry_prefix}.{registered_model_name}' if registered_model_name else None
+    register_model_path = f'{mlflow_logger.model_registry_prefix}.{registered_model_name}' if mlflow_logger.model_registry_prefix and registered_model_name else registered_model_name
     mlflow_logger.log_model(
         transformers_model=transformers_model,
         flavor='transformers',
         artifact_path=artifact_path,
         registered_model_name=register_model_path,
-        task=task,
-        metadata=metadata,
         run_id=mlflow_logger._run_id,
         await_registration_for=await_registration_for,
+        **mlflow_logging_config,
     )
 
 
@@ -825,16 +823,14 @@ class HuggingFaceCheckpointer(Callback):
                                         register_save_dir,
                                     'artifact_path':
                                         'final_model_checkpoint',
-                                    'task':
-                                        self.mlflow_logging_config['task'],
                                     'pretrained_model_name':
                                         self.pretrained_model_name,
                                     'registered_model_name':
                                         self.mlflow_registered_model_name,
-                                    'metadata':
-                                        self.mlflow_logging_config['metadata'],
                                     'await_registration_for':
                                         3600,
+                                    'mlflow_logging_config':
+                                        self.mlflow_logging_config,
                                 },
                             )
 

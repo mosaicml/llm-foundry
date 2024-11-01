@@ -47,6 +47,8 @@ from llmfoundry.models.utils import init_empty_weights
 from llmfoundry.utils.huggingface_hub_utils import \
     edit_files_for_hf_compatibility
 
+from llmfoundry.utils.exceptions import StoragePermissionError
+
 try:
     import transformer_engine.pytorch as te
     is_te_imported = True
@@ -144,6 +146,17 @@ def _log_model_with_multi_process(
     files in the model directory. Then, register the model to mlflow from a
     child process.
     """
+    # Setup logging for child process. This ensures that any logs from composer are surfaced.
+    if python_logging_level > 0:
+        # If logging_level is 0, then the composer logger was unset.
+        logging.basicConfig(
+            format=
+            f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s',
+            force=True,
+        )
+        logging.getLogger('composer').setLevel(python_logging_level)
+        logging.getLogger('llmfoundry').setLevel(python_logging_level)
+    
     import mlflow
     original_save_model = mlflow.transformers.save_model
 
@@ -189,17 +202,6 @@ def _log_model_with_multi_process(
     mlflow.set_tracking_uri(mlflow_logger.tracking_uri)
     if mlflow_logger.model_registry_uri is not None:
         mlflow.set_registry_uri(mlflow_logger.model_registry_uri)
-    mlflow.start_run(run_id=mlflow_logger._run_id,)
-    # Setup logging for child process. This ensures that any logs from composer are surfaced.
-    if python_logging_level > 0:
-        # If logging_level is 0, then the composer logger was unset.
-        logging.basicConfig(
-            format=
-            f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s',
-            force=True,
-        )
-        logging.getLogger('composer').setLevel(python_logging_level)
-        logging.getLogger('llmfoundry').setLevel(python_logging_level)
 
     register_model_path = f'{mlflow_logger.model_registry_prefix}.{registered_model_name}' if registered_model_name else None
     mlflow_logger.log_model(
@@ -404,6 +406,16 @@ class HuggingFaceCheckpointer(Callback):
                     + f'Got {type(state.model)} instead.',
                 )
             if self.remote_ud is not None:
+                try:
+                    self.remote_ud.init(state, logger)
+                except PermissionError as e:
+                    if 'Client Error' in str(
+                        e,
+                    ):  # thrown from composer.utils._wrap_mlflow_exceptions
+                        raise StoragePermissionError(
+                            'Error when write to save_folder.',
+                        ) from e
+                    raise e
                 self.remote_ud.init(state, logger)
                 state.callbacks.append(self.remote_ud)
 
@@ -791,7 +803,8 @@ class HuggingFaceCheckpointer(Callback):
                     )
 
                     new_model_instance.save_pretrained(register_save_dir)
-                    original_tokenizer.save_pretrained(register_save_dir)
+                    if original_tokenizer:
+                        original_tokenizer.save_pretrained(register_save_dir)
 
                     self.pre_register_edit(register_save_dir)
 

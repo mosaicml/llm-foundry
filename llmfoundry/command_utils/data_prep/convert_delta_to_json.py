@@ -21,6 +21,7 @@ from packaging import version
 from llmfoundry.utils.exceptions import (
     ClusterDoesNotExistError,
     ClusterInvalidAccessMode,
+    DeltaTableNotFoundError,
     FailedToConnectToDatabricksError,
     FailedToCreateSQLConnectionError,
     FaultyDataPrepCluster,
@@ -503,6 +504,29 @@ def fetch(
                 raise InsufficientPermissionsError(str(e)) from e
             elif 'UC_NOT_ENABLED' in str(e):
                 raise UCNotEnabledError() from e
+            elif 'DELTA_TABLE_NOT_FOUND' in str(e):
+                err_str = str(e)
+                # Error string should be in this format:
+                # ---
+                # Error processing `catalog`.`volume_name`.`table_name`:
+                # [DELTA_TABLE_NOT_FOUND] Delta table `volume_name`.`table_name`
+                # doesn't exist.
+                # ---
+                parts = err_str.split('`')
+                if len(parts) < 7:
+                    # Failed to parse error, our codebase is brittle
+                    # with respect to the string representations of
+                    # errors in the spark library.
+                    catalog_name, volume_name, table_name = ['unknown'] * 3
+                else:
+                    catalog_name = parts[1]
+                    volume_name = parts[3]
+                    table_name = parts[5]
+                raise DeltaTableNotFoundError(
+                    catalog_name,
+                    volume_name,
+                    table_name,
+                ) from e
 
         if isinstance(e, InsufficientPermissionsError):
             raise
@@ -668,6 +692,7 @@ def fetch_DT(
 
     formatted_delta_table_name = format_tablename(delta_table_name)
     import grpc
+    import pyspark.errors.exceptions.connect as spark_errors
     try:
         fetch(
             method,
@@ -678,8 +703,16 @@ def fetch_DT(
             sparkSession,
             dbsql,
         )
-    except grpc.RpcError as e:
-        if e.code(
+    except (grpc.RpcError, spark_errors.SparkConnectGrpcException) as e:
+        if isinstance(
+            e,
+            spark_errors.SparkConnectGrpcException,
+        ) and 'Cannot start cluster' in str(e):
+            raise FaultyDataPrepCluster(
+                message=
+                f'The data preparation cluster you provided is terminated. Please retry with a cluster that is healthy and alive. {e}',
+            ) from e
+        if isinstance(e, grpc.RpcError) and e.code(
         ) == grpc.StatusCode.INTERNAL and 'Job aborted due to stage failure' in e.details(
         ):
             raise FaultyDataPrepCluster(

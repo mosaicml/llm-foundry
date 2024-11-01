@@ -712,6 +712,14 @@ def fetch_DT(
                 message=
                 f'The data preparation cluster you provided is terminated. Please retry with a cluster that is healthy and alive. {e}',
             ) from e
+        if isinstance(
+            e,
+            spark_errors.SparkConnectGrpcException,
+        ) and 'is not usable' in str(e):
+            raise FaultyDataPrepCluster(
+                message=
+                f'The data preparation cluster you provided is not usable. Please retry with a cluster that is healthy and alive. {e}',
+            ) from e
         if isinstance(e, grpc.RpcError) and e.code(
         ) == grpc.StatusCode.INTERNAL and 'Job aborted due to stage failure' in e.details(
         ):

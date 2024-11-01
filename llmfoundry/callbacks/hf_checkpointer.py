@@ -796,11 +796,11 @@ class HuggingFaceCheckpointer(Callback):
                         temp_save_dir,
                         'register_save',
                     )
-                    new_model_instance = self.transform_model_pre_registration(
-                        new_model_instance,
-                    )
-
-                    new_model_instance.save_pretrained(register_save_dir)
+                    if new_model_instance is not None:
+                        new_model_instance = self.transform_model_pre_registration(
+                            new_model_instance,
+                        )
+                        new_model_instance.save_pretrained(register_save_dir)
                     if original_tokenizer:
                         original_tokenizer.save_pretrained(register_save_dir)
 

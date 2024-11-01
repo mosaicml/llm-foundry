@@ -499,10 +499,10 @@ def test_final_register_only(
 )
 @patch(
     'composer.callbacks.checkpoint_saver.CheckpointSaver._save_checkpoint',
-    new=MagicMock()
+    new=MagicMock(),
 )
 @patch(
-    'llmfoundry.callbacks.hf_checkpointer._log_model_with_multiprocess',
+    'llmfoundry.callbacks.hf_checkpointer._log_model_with_multi_process',
     new=MagicMock(),
 )
 @patch(
@@ -544,7 +544,7 @@ def test_huggingface_conversion_callback_interval(
     optimizer = _create_optimizer(original_model)
 
     mlflow_logger_mock = _create_mlflow_logger_mock()
-    
+
     mpt_tokenizer.save_pretrained = MagicMock()
 
     checkpointer_callback.transform_model_pre_registration = MagicMock(
@@ -587,7 +587,7 @@ def test_huggingface_conversion_callback_interval(
         assert checkpointer_callback.transform_model_pre_registration.call_count == 0
         assert checkpointer_callback.pre_register_edit.call_count == 0
         assert mlflow_logger_mock.save_model.call_count == 0
-    
+
     normal_checkpoints = [
         name for name in os.listdir(os.path.join(tmp_path, 'checkpoints'))
         if name != 'huggingface'
@@ -598,7 +598,6 @@ def test_huggingface_conversion_callback_interval(
     )
     assert len(normal_checkpoints) == expected_normal_checkpoints
     assert len(huggingface_checkpoints) == expected_hf_checkpoints
-
 
     # Load the last huggingface checkpoint
     from transformers.models.auto.configuration_auto import CONFIG_MAPPING
@@ -1708,10 +1707,13 @@ def test_generation_config_variants(
                 )
             else:
                 self.generation_config = config.generation_config
-        
+
         def save_pretrained(self, output_path: str):
             os.makedirs(output_path, exist_ok=True)
-            with open(os.path.join(output_path, 'generation_config.json'), 'w') as f:
+            with open(
+                os.path.join(output_path, 'generation_config.json'),
+                'w',
+            ) as f:
                 f.write(str(self.generation_config))
 
     config = AutoConfig.from_pretrained('gpt2')

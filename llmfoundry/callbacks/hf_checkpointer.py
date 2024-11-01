@@ -126,11 +126,12 @@ def _maybe_get_license_filename(
 
     except StopIteration:
         return None
-    
+
+
 def _log_license_file_with_mlflow(
-        mlflow_logger: MLFlowLogger,
-        pretrained_model_name: Optional[str],
-        save_path: str,
+    mlflow_logger: MLFlowLogger,
+    pretrained_model_name: Optional[str],
+    save_path: str,
 ):
     # Get and log the license file.
     license_filename = _maybe_get_license_filename(
@@ -156,11 +157,9 @@ def _log_model_with_multi_process(
 ):
     """Call MLFlowLogger.log_model.
 
-    Used mainly to register from a child process.
-    First, patch the mlflow save_model function.
-
-    We do two things: (1) Remove duplicate tokenizer files in the model
-    directory. (2) Log the license file.
+    First, patch the mlflow save_model function by removing duplicate tokenizer
+    files in the model directory. Then, register the model to mlflow from a
+    child process.
     """
     import mlflow
     original_save_model = mlflow.transformers.save_model
@@ -194,7 +193,7 @@ def _log_model_with_multi_process(
             )
 
     mlflow.transformers.save_model = save_model_patch
-    
+
     mlflow.set_tracking_uri(mlflow_logger.tracking_uri)
     if mlflow_logger.model_registry_uri is not None:
         mlflow.set_registry_uri(mlflow_logger.model_registry_uri)
@@ -903,7 +902,7 @@ class HuggingFaceCheckpointer(Callback):
             _log_license_file_with_mlflow(
                 mlflow_logger=mlflow_logger,
                 pretrained_model_name=self.pretrained_model_name,
-                save_path=local_save_path
+                save_path=local_save_path,
             )
 
             self.pre_register_edit(local_save_path)

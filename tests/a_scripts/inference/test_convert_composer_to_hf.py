@@ -380,10 +380,6 @@ def _create_optimizer(original_model: torch.nn.Module) -> torch.optim.Optimizer:
     'llmfoundry.callbacks.hf_checkpointer._maybe_get_license_filename',
     new=MagicMock(),
 )
-@patch(
-    'mlflow.start_run',
-    new=MagicMock(),
-)
 def test_final_register_only(
     mlflow_registry_error: bool,
     mlflow_registered_model_name: Optional[str],
@@ -490,10 +486,6 @@ def test_final_register_only(
 @patch(
     'llmfoundry.callbacks.hf_checkpointer.SpawnProcess',
     new=MockSpawnProcess,
-)
-@patch(
-    'mlflow.start_run',
-    new=MagicMock(),
 )
 @patch(
     'llmfoundry.callbacks.hf_checkpointer._maybe_get_license_filename',

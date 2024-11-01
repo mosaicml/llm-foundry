@@ -119,6 +119,15 @@ Example = Union[PromptResponseDict, ChatFormattedDict]
 ExampleType = Literal['prompt_response', 'chat']
 TokenizedExample = dict[str, list[dict[str, list[int]]]]
 
+_DEFAULT_CHAT_TEMPLATE = (
+    '{% for message in messages %}'
+    "{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}"
+    '{% endfor %}'
+    '{% if add_generation_prompt %}'
+    "{{ '<|im_start|>assistant\n' }}"
+    '{% endif %}'
+)
+
 
 def _get_example_type(example: Example) -> ExampleType:
     """Determines the type of the input example.
@@ -243,17 +252,21 @@ def _slice_chat_formatted_example(
         messages_through_current_turn: list[dict[str, str]],
         conversation_through_previous_turn: str,
     ) -> tuple[str, str]:
+        chat_template = None if tokenizer.chat_template is not None else _DEFAULT_CHAT_TEMPLATE
+
         try:
             full_conversation = tokenizer.apply_chat_template(
                 messages_through_current_turn,
                 tokenize=False,
                 date_string=get_date_string(),
+                chat_template=chat_template,
             )
             prompt_with_history = tokenizer.apply_chat_template(
                 messages_through_current_turn[:-1],
                 tokenize=False,
                 add_generation_prompt=True,
                 date_string=get_date_string(),
+                chat_template=chat_template,
             )
         except Exception as e:
             raise ChatTemplateError(

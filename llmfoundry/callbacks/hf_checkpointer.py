@@ -44,10 +44,9 @@ from transformers import (
 
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.models.utils import init_empty_weights
+from llmfoundry.utils.exceptions import StoragePermissionError
 from llmfoundry.utils.huggingface_hub_utils import \
     edit_files_for_hf_compatibility
-
-from llmfoundry.utils.exceptions import StoragePermissionError
 
 try:
     import transformer_engine.pytorch as te
@@ -156,7 +155,7 @@ def _log_model_with_multi_process(
         )
         logging.getLogger('composer').setLevel(python_logging_level)
         logging.getLogger('llmfoundry').setLevel(python_logging_level)
-    
+
     import mlflow
     original_save_model = mlflow.transformers.save_model
 
@@ -416,7 +415,6 @@ class HuggingFaceCheckpointer(Callback):
                             'Error when write to save_folder.',
                         ) from e
                     raise e
-                self.remote_ud.init(state, logger)
                 state.callbacks.append(self.remote_ud)
 
             if self.mlflow_registered_model_name is not None:

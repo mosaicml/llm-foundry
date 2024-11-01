@@ -181,6 +181,9 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             **kwargs,
         )
 
+        if not self.chat_template:
+            self.chat_template = self.default_chat_template
+
     @property
     def vocab_size(self) -> int:
         """Returns vocab size."""

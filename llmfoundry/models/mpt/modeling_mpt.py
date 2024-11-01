@@ -106,6 +106,7 @@ _ALLOWED_LLAMA_CONFIG_KEYS = {
     'torch_dtype',
     'problem_type',
     '__class__',
+    '_get_global_generation_defaults'
 }
 
 

@@ -348,11 +348,11 @@ def _create_mlflow_logger_mock() -> MagicMock:
     mlflow_logger_mock._enabled = True
     mlflow_logger_mock.log_model = MagicMock()
     mlflow_logger_mock.model_registry_prefix = ''
-    mlflow_logger_mock.model_registry_uri = 'databricks'
+    mlflow_logger_mock.model_registry_uri = None
     mlflow_logger_mock.state_dict = lambda *args, **kwargs: {}
     mlflow_logger_mock.save_model = MagicMock(wraps=_save_model_mock)
     mlflow_logger_mock.run_url = 'fake-url'
-    mlflow_logger_mock.tracking_uri = 'databricks'
+    mlflow_logger_mock.tracking_uri = None
     return mlflow_logger_mock
 
 
@@ -376,10 +376,6 @@ def _create_optimizer(original_model: torch.nn.Module) -> torch.optim.Optimizer:
 @patch(
     'llmfoundry.callbacks.hf_checkpointer.SpawnProcess',
     new=MockSpawnProcess,
-)
-@patch(
-    'llmfoundry.callbacks.hf_checkpointer._maybe_get_license_filename',
-    new=MagicMock(),
 )
 def test_final_register_only(
     mlflow_registry_error: bool,
@@ -413,12 +409,9 @@ def test_final_register_only(
 
     mlflow_logger_mock = _create_mlflow_logger_mock()
 
-    original_model.save_pretrained = MagicMock()
-
     checkpointer_callback._save_checkpoint = MagicMock(
         wraps=checkpointer_callback._save_checkpoint,
     )
-    checkpointer_callback.mlflow_logging_config = MagicMock()
     trainer = Trainer(
         model=original_model,
         device='gpu',
@@ -487,14 +480,6 @@ def test_final_register_only(
 @patch(
     'llmfoundry.callbacks.hf_checkpointer.SpawnProcess',
     new=MockSpawnProcess,
-)
-@patch(
-    'llmfoundry.callbacks.hf_checkpointer._maybe_get_license_filename',
-    new=MagicMock(),
-)
-@patch(
-    'mlflow.transformers.save_model',
-    new=MagicMock(),
 )
 def test_huggingface_conversion_callback_interval(
     tmp_path: pathlib.Path,
@@ -587,11 +572,6 @@ def test_huggingface_conversion_callback_interval(
     assert len(huggingface_checkpoints) == expected_hf_checkpoints
 
     # Load the last huggingface checkpoint
-    from transformers.models.auto.configuration_auto import CONFIG_MAPPING
-    CONFIG_MAPPING._extra_content['mpt'] = MPTConfig
-    MPTConfig.register_for_auto_class()
-    MPTForCausalLM.register_for_auto_class('AutoModelForCausalLM')
-
     loaded_model = transformers.AutoModelForCausalLM.from_pretrained(
         os.path.join(
             tmp_path,
@@ -754,7 +734,6 @@ def _assert_mlflow_logger_calls(
             assert mlflow_logger_mock.log_model.call_count == 1
         mlflow_logger_mock.log_model.assert_called_with(**expectation)
     else:
-        assert mlflow_logger_mock.log_model.call_count == 0
         assert mlflow_logger_mock.log_model.call_count == 0
 
 
@@ -1696,14 +1675,6 @@ def test_generation_config_variants(
             else:
                 self.generation_config = config.generation_config
 
-        def save_pretrained(self, output_path: str):
-            os.makedirs(output_path, exist_ok=True)
-            with open(
-                os.path.join(output_path, 'generation_config.json'),
-                'w',
-            ) as f:
-                f.write(str(self.generation_config))
-
     config = AutoConfig.from_pretrained('gpt2')
     # Convert dict to GenerationConfig if needed
     if isinstance(generation_config, dict):
@@ -1713,11 +1684,10 @@ def test_generation_config_variants(
     mock_model = MockModel(config)
     logger = MagicMock()
     state = MagicMock()
-    tokenizer = MagicMock()
     state.timestamp.batch = 1
     state.is_model_ddp = False
     state.model.model = mock_model
-    state.model.tokenizer = tokenizer
+    state.model.tokenizer = None
 
     checkpointer = HuggingFaceCheckpointer(
         save_folder='test',

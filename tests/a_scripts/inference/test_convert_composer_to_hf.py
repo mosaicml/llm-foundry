@@ -502,7 +502,7 @@ def test_final_register_only(
     new=MagicMock()
 )
 @patch(
-    'llmfoundry.callbacks.hf_checkpointer._log_model_multiprocess',
+    'llmfoundry.callbacks.hf_checkpointer._log_model_with_multiprocess',
     new=MagicMock(),
 )
 @patch(

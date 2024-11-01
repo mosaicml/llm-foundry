@@ -15,6 +15,7 @@ from multiprocessing.context import SpawnProcess
 from pathlib import Path
 from typing import Any, Optional, Sequence, Union
 
+import mlflow
 import numpy as np
 import torch
 import torch.nn as nn
@@ -44,7 +45,6 @@ from transformers import (
 
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.models.utils import init_empty_weights
-from llmfoundry.utils.exceptions import StoragePermissionError
 from llmfoundry.utils.huggingface_hub_utils import \
     edit_files_for_hf_compatibility
 
@@ -59,6 +59,26 @@ log = logging.getLogger(__name__)
 __all__ = ['HuggingFaceCheckpointer']
 
 _LICENSE_FILE_PATTERN = re.compile(r'license(\.[a-z]+|$)', re.IGNORECASE)
+
+from contextlib import contextmanager
+
+
+@contextmanager
+def _monitor_process_saver(mlflow_logger: MLFlowLogger):
+    # Save the current monitor process
+    if hasattr(mlflow_logger, 'monitor_process'):
+        original_monitor_process = mlflow_logger.monitor_process  # type: ignore
+        mlflow_logger.monitor_process = None  # type: ignore
+    else:
+        original_monitor_process = None
+
+    try:
+        # Yield control back to the calling code
+        yield
+    finally:
+        # Restore the monitor process
+        if original_monitor_process is not None:
+            mlflow_logger.monitor_process = original_monitor_process  # type: ignore
 
 
 def _maybe_get_license_filename(
@@ -77,11 +97,6 @@ def _maybe_get_license_filename(
 
     If the license file does not exist, returns None.
     """
-    # Error if no local directory exists
-    if not os.path.exists(local_dir):
-        raise FileNotFoundError(f'Local directory {local_dir} does not exist')
-    
-    # Try to find the license file
     try:
         license_filename = next(
             file for file in os.listdir(local_dir)
@@ -111,72 +126,99 @@ def _maybe_get_license_filename(
 
     except StopIteration:
         return None
+    
+def _log_license_file_with_mlflow(
+        mlflow_logger: MLFlowLogger,
+        pretrained_model_name: Optional[str],
+        save_path: str,
+):
+    # Get and log the license file.
+    license_filename = _maybe_get_license_filename(
+        save_path,
+        pretrained_model_name,
+    )
+    if license_filename is not None:
+        mlflow_logger._mlflow_client.log_artifact(
+            mlflow_logger._run_id,
+            os.path.join(save_path, license_filename),
+        )
 
 
-def _log_model_multiprocess(
-    await_creation_for: int,
+def _log_model_with_multi_process(
     mlflow_logger: MLFlowLogger,
-    mlflow_logging_config: dict[str, Any],
     python_logging_level: int,
-    transformers_model_path: str,
-    registered_model_name: Optional[str] = None,
+    transformers_model: str,
+    artifact_path: str,
+    task: str,
+    registered_model_name: str,
+    metadata: dict[str, Any],
+    await_registration_for: int,
 ):
     """Call MLFlowLogger.log_model.
-    
-    Used mainly to log from a child process.
 
-    Args:
-        await_creation_for: int: time to wait for model creation
-        mlflow_logger: MLFlowLogger: MLflow logger object
-        mlflow_logging_config: dict: mlflow logging config
-        python_logging_level: int: logging level
-        transformers_model_path: str: path to the transformers model
-        registered_model_name: Optional name to register the model under in the MLflow model registry
+    Used mainly to register from a child process.
+    First, patch the mlflow save_model function.
+
+    We do two things: (1) Remove duplicate tokenizer files in the model
+    directory. (2) Log the license file.
     """
+    import mlflow
+    original_save_model = mlflow.transformers.save_model
+
+    def save_model_patch(*args: Any, **kwargs: Any):
+        original_save_model(*args, **kwargs)
+        tokenizer_files = []
+        save_path = kwargs['path']
+        tokenizer_path = os.path.join(save_path, 'components', 'tokenizer')
+        if os.path.exists(tokenizer_path):
+            tokenizer_files = os.listdir(
+                os.path.join(save_path, 'components', 'tokenizer'),
+            )
+        try:
+            # Check if there are duplicate tokenizer files in the model directory and remove them.
+            for tokenizer_file_name in tokenizer_files:
+                dupe_file = os.path.isfile(
+                    os.path.join(save_path, 'model', tokenizer_file_name),
+                )
+                if dupe_file:
+                    log.debug(
+                        f'Removing duplicate tokenizer file: {tokenizer_file_name}',
+                    )
+                    os.remove(
+                        os.path.join(save_path, 'model', tokenizer_file_name),
+                    )
+        except Exception as e:
+            log.error(
+                f'Exception when removing duplicate tokenizer files in the model directory',
+                e,
+            )
+
+    mlflow.transformers.save_model = save_model_patch
+    
+    mlflow.set_tracking_uri(mlflow_logger.tracking_uri)
+    if mlflow_logger.model_registry_uri is not None:
+        mlflow.set_registry_uri(mlflow_logger.model_registry_uri)
+    mlflow.start_run(run_id=mlflow_logger._run_id,)
     # Setup logging for child process. This ensures that any logs from composer are surfaced.
     if python_logging_level > 0:
         # If logging_level is 0, then the composer logger was unset.
         logging.basicConfig(
             format=
             f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s',
+            force=True,
         )
-        logging.getLogger('llmfoundry').setLevel(python_logging_level)
         logging.getLogger('composer').setLevel(python_logging_level)
-    
-    # monkey patch to prevent duplicate tokenizer upload
-    import mlflow
-    mlflow.start_run(
-        run_id=mlflow_logger._run_id,
-    )
-    original_save_model = mlflow.transformers.save_model
-    def save_model_patch(*args: Any, **kwargs: Any):
-        original_save_model(*args, **kwargs)
-        tokenizer_files = []
-        tokenizer_path = os.path.join(kwargs['path'], 'components', 'tokenizer')
-        if os.path.exists(tokenizer_path):
-            tokenizer_files = os.listdir(os.path.join(kwargs['path'], 'components', 'tokenizer'))
-        # Check if there are duplicate tokenizer files in the model directory and remove them.
-        try:
-            for tokenizer_file_name in tokenizer_files:
-                dupe_file = os.path.isfile(os.path.join(kwargs['path'], 'model', tokenizer_file_name))
-                if dupe_file:
-                    log.debug(f"Removing duplicate tokenizer file: {tokenizer_file_name}")
-                    os.remove(os.path.join(kwargs['path'], 'model', tokenizer_file_name))
-        except Exception as e:
-            log.error(f"Exception when removing duplicate tokenizer files in the model directory", e)
-    mlflow.transformers.save_model = save_model_patch
+        logging.getLogger('llmfoundry').setLevel(python_logging_level)
 
-    model_registry_name = f'{mlflow_logger.model_registry_prefix}.{registered_model_name}' \
-                          if registered_model_name is not None else None
     mlflow_logger.log_model(
-        transformers_model=transformers_model_path,
+        transformers_model=transformers_model,
         flavor='transformers',
-        artifact_path='last_model_checkpoint',
-        input_example=mlflow_logging_config['input_example'],
-        metadata=mlflow_logging_config['metadata'],
-        task=mlflow_logging_config['metadata']['task'],
-        registered_model_name=model_registry_name,
-        await_creation_for=await_creation_for
+        artifact_path=artifact_path,
+        registered_model_name=registered_model_name,
+        task=task,
+        metadata=metadata,
+        run_id=mlflow_logger._run_id,
+        await_registration_for=await_registration_for,
     )
 
 
@@ -190,13 +232,6 @@ def _register_model_with_run_id_multiprocess(
     """Call MLFlowLogger.register_model_with_run_id.
 
     Used mainly to register from a child process.
-
-    Args:
-        mlflow_logger: MLFlowLogger: MLflow logger object
-        composer_logging_level: int: logging level
-        model_uri: str: path to the model
-        name: str: name to register the model under in the MLflow model registry
-        await_creation_for: int: time to wait for model creation
     """
     # Setup logging for child process. This ensures that any logs from composer are surfaced.
     if composer_logging_level > 0:
@@ -377,16 +412,7 @@ class HuggingFaceCheckpointer(Callback):
                     + f'Got {type(state.model)} instead.',
                 )
             if self.remote_ud is not None:
-                try:
-                    self.remote_ud.init(state, logger)
-                except PermissionError as e:
-                    if 'Client Error' in str(
-                        e,
-                    ):  # thrown from composer.utils._wrap_mlflow_exceptions
-                        raise StoragePermissionError(
-                            'Error when write to save_folder.',
-                        ) from e
-                    raise e
+                self.remote_ud.init(state, logger)
                 state.callbacks.append(self.remote_ud)
 
             if self.mlflow_registered_model_name is not None:
@@ -708,163 +734,194 @@ class HuggingFaceCheckpointer(Callback):
 
             log.debug('Saving Hugging Face checkpoint to disk')
 
-            # This context manager casts the TE extra state in io.BytesIO format to tensor format
-            # Needed for proper hf ckpt saving.
-            context_manager = te.onnx_export(
-                True,
-            ) if is_te_imported and state.precision == Precision.AMP_FP8 else contextlib.nullcontext(
-            )
-            with context_manager:
-                new_model_instance.save_pretrained(temp_save_dir)
-            original_tokenizer.save_pretrained(temp_save_dir)
-            # Only need to edit files for MPT because it has custom code
-            if new_model_instance.config.model_type == 'mpt':
-                log.debug('Editing MPT files for HuggingFace compatibility')
-                edit_files_for_hf_compatibility(
-                    temp_save_dir,
-                    self.flatten_imports,
+            if upload_to_save_folder:
+                # This context manager casts the TE extra state in io.BytesIO format to tensor format
+                # Needed for proper hf ckpt saving.
+                context_manager = te.onnx_export(
+                    True,
+                ) if is_te_imported and state.precision == Precision.AMP_FP8 else contextlib.nullcontext(
                 )
+                with context_manager:
+                    new_model_instance.save_pretrained(temp_save_dir)
+                if original_tokenizer is not None:
+                    assert isinstance(
+                        original_tokenizer,
+                        PreTrainedTokenizerBase,
+                    )
+                    original_tokenizer.save_pretrained(temp_save_dir)
 
-            if upload_to_save_folder and self.remote_ud is not None:
-                for filename in os.listdir(temp_save_dir):
-                    remote_file_name = os.path.join(save_dir, filename)
-                    remote_file_uri = self.remote_ud.remote_backend.get_uri(
-                        remote_file_name,
+                # Only need to edit files for MPT because it has custom code
+                if new_model_instance.config.model_type == 'mpt':
+                    log.debug('Editing MPT files for HuggingFace compatibility')
+                    edit_files_for_hf_compatibility(
+                        temp_save_dir,
+                        self.flatten_imports,
                     )
-                    log.info(
-                        f'Uploading HuggingFace formatted checkpoint to {remote_file_uri}',
-                    )
-                    self.remote_ud.upload_file(
-                        state=state,
-                        remote_file_name=remote_file_name,
-                        file_path=Path(
-                            os.path.join(temp_save_dir, filename),
-                        ),
-                        overwrite=self.overwrite,
-                    )
+
+                if self.remote_ud is not None:
+                    for filename in os.listdir(temp_save_dir):
+                        remote_file_name = os.path.join(save_dir, filename)
+                        remote_file_uri = self.remote_ud.remote_backend.get_uri(
+                            remote_file_name,
+                        )
+                        log.info(
+                            f'Uploading HuggingFace formatted checkpoint to {remote_file_uri}',
+                        )
+                        self.remote_ud.upload_file(
+                            state=state,
+                            remote_file_name=remote_file_name,
+                            file_path=Path(
+                                os.path.join(temp_save_dir, filename),
+                            ),
+                            overwrite=self.overwrite,
+                        )
 
         dist.barrier()
 
         if dist.get_global_rank() == 0:
             if register_to_mlflow:
-                new_model_instance = self.transform_model_pre_registration(
-                    new_model_instance,
-                )
+                if self.using_peft:
 
-                components = {'model': new_model_instance}
-                if original_tokenizer is not None:
-                    components['tokenizer'] = original_tokenizer
-
-                log.debug('Logging Hugging Face model to MLFlow')
-                for i, mlflow_logger in enumerate(self.mlflow_loggers):
-                    log.debug(
-                        f'Registering model to UC at {mlflow_logger.model_registry_prefix}.{self.mlflow_registered_model_name}',
+                    # Save and register peft model to mlflow, this code path uses our older two step logic
+                    self._save_and_register_peft_model(
+                        state,
+                        new_model_instance,
+                        original_tokenizer,
+                        temp_save_dir,
                     )
-                    local_save_path = str(
-                        Path(temp_save_dir) / f'mlflow_save_{i}',
+                else:
+                    register_save_dir = os.path.join(
+                        temp_save_dir,
+                        'register_save',
+                    )
+                    new_model_instance = self.transform_model_pre_registration(
+                        new_model_instance,
                     )
 
-                    # TODO: Remove after mlflow fixes the bug that makes this necessary
-                    import mlflow
-                    mlflow.store._unity_catalog.registry.rest_store.get_feature_dependencies = lambda *args, **kwargs: ''
-                    model_saving_kwargs: dict[str, Any] = {
-                        'path': local_save_path,
-                    }
-                    if self.using_peft:
-                        model_saving_kwargs['flavor'] = 'peft'
-                        model_saving_kwargs['save_pretrained_dir'
-                                           ] = temp_save_dir
-                        model_saving_kwargs[
-                            'metadata'] = self.mlflow_logging_config['metadata']
-                        # If PEFT, still use original save_model codepath
-                        context_manager = te.onnx_export(
-                            True,
-                        ) if is_te_imported and state.precision == Precision.AMP_FP8 else contextlib.nullcontext(
-                        )
-                        with context_manager:
-                            # Add the pip requirements directly to avoid mlflow
-                            # attempting to run inference on the model
-                            model_saving_kwargs['pip_requirements'] = [
-                                'transformers',
-                                'torch',
-                            ]
-                            mlflow_logger.save_model(**model_saving_kwargs)
-                    else:
-                        model_saving_kwargs['flavor'] = 'transformers'
-                        model_saving_kwargs['transformers_model'] = components
-                        model_saving_kwargs.update(self.mlflow_logging_config)
+                    new_model_instance.save_pretrained(register_save_dir)
+                    original_tokenizer.save_pretrained(register_save_dir)
 
-                    # Upload the license file generated by mlflow during the model saving.
-                    license_filename = _maybe_get_license_filename(
-                        local_save_path,
-                        self.pretrained_model_name,
-                    )
-                    if license_filename is not None:
-                        mlflow_logger._mlflow_client.log_artifact(
-                            mlflow_logger._run_id,
-                            os.path.join(local_save_path, license_filename),
+                    self.pre_register_edit(register_save_dir)
+
+                    for mlflow_logger in self.mlflow_loggers:
+                        if self.mlflow_registered_model_name:
+                            log.debug(
+                                f'Registering model to UC at {mlflow_logger.model_registry_prefix}.{self.mlflow_registered_model_name}',
+                            )
+
+                        _log_license_file_with_mlflow(
+                            mlflow_logger=mlflow_logger,
+                            pretrained_model_name=self.pretrained_model_name,
+                            save_path=register_save_dir,
                         )
 
-                    self.pre_register_edit(local_save_path,)
+                        # Save the monitor process to be restored after registering the model.
+                        with _monitor_process_saver(mlflow_logger):
+                            process = SpawnProcess(
+                                target=_log_model_with_multi_process,
+                                kwargs={
+                                    'mlflow_logger':
+                                        mlflow_logger,
+                                    'python_logging_level':
+                                        logging.getLogger('llmfoundry').level,
+                                    'transformers_model':
+                                        register_save_dir,
+                                    'artifact_path':
+                                        'final_model_checkpoint',
+                                    'task':
+                                        self.mlflow_logging_config['task'],
+                                    'registered_model_name':
+                                        f'{mlflow_logger.model_registry_prefix}.{self.mlflow_registered_model_name}',
+                                    'metadata':
+                                        self.mlflow_logging_config['metadata'],
+                                    'await_registration_for':
+                                        3600,
+                                },
+                            )
 
-                    # Save the monitor process to be restored after registering the model.
-                    if hasattr(mlflow_logger, 'monitor_process'):
-                        monitor_process = mlflow_logger.monitor_process  # type: ignore
-                        mlflow_logger.monitor_process = None  # type: ignore
-                    else:
-                        monitor_process = None
+                            process.start()
+                            self.register_processes.append(process)
 
-                    # Spawn a new process to register the model.
-                    # Slower method to register the model via log_model.
-                    if self.using_peft:
-                        # If PEFT, use original register_model codepath until Composer
-                        # supports logging PEFT models to MLFlow
-                        process = SpawnProcess(
-                            target=_register_model_with_run_id_multiprocess,
-                            kwargs={
-                                'mlflow_logger':
-                                    mlflow_logger,
-                                'composer_logging_level':
-                                    logging.getLogger('composer').level,
-                                'model_uri':
-                                    local_save_path,
-                                'name':
-                                    self.mlflow_registered_model_name,
-                                'await_creation_for':
-                                    3600,
-                            },
-                        )
-                    else:
-                        # Log a transformers model
-                        process = SpawnProcess(
-                            target=_log_model_multiprocess,
-                            kwargs={
-                                'await_creation_for':
-                                    3600,
-                                'mlflow_logger':
-                                    mlflow_logger,
-                                'mlflow_logging_config':
-                                    self.mlflow_logging_config,
-                                'python_logging_level':
-                                    logging.getLogger('llmfoundry').level,
-                                'registered_model_name':
-                                    self.mlflow_registered_model_name,
-                                'transformers_model_path':
-                                    temp_save_dir,
-                            },
-                        )
-                    process.start()
-
-                    # Restore the monitor process.
-                    if monitor_process is not None:
-                        mlflow_logger.monitor_process = monitor_process  # type: ignore
-                    self.register_processes.append(process)
-
-                    # Save the temporary directory to be cleaned up later.
-                    if use_temp_dir:
-                        self.temp_save_dir = temp_save_dir
+                # Save the temporary directory to be cleaned up later.
+                if use_temp_dir:
+                    self.temp_save_dir = temp_save_dir
             else:
                 # Clean up the temporary directory if we don't need to register to mlflow.
                 if use_temp_dir:
                     shutil.rmtree(temp_save_dir)
         dist.barrier()
+
+    def _save_and_register_peft_model(
+        self,
+        state: State,
+        new_model_instance: Any,
+        original_tokenizer: Optional[Any],
+        save_dir: str,
+    ):
+        new_model_instance = self.transform_model_pre_registration(
+            new_model_instance,
+        )
+        components = {'model': new_model_instance}
+        if original_tokenizer is not None:
+            components['tokenizer'] = original_tokenizer
+
+        log.debug('Logging Hugging Face model to MLFlow')
+        for i, mlflow_logger in enumerate(self.mlflow_loggers):
+            log.debug(
+                f'Registering model to UC at {mlflow_logger.model_registry_prefix}.{self.mlflow_registered_model_name}',
+            )
+
+            local_save_path = str(Path(save_dir) / f'mlflow_save_{i}',)
+
+            # TODO: Remove after mlflow fixes the bug that makes this necessary
+            import mlflow
+            mlflow.store._unity_catalog.registry.rest_store.get_feature_dependencies = lambda *args, **kwargs: ''
+
+            model_saving_kwargs: dict[str, Any] = {
+                'path': local_save_path,
+            }
+            model_saving_kwargs['flavor'] = 'peft'
+            model_saving_kwargs['save_pretrained_dir'] = save_dir
+            model_saving_kwargs['metadata'] = self.mlflow_logging_config[
+                'metadata']
+
+            context_manager = te.onnx_export(
+                True,
+            ) if is_te_imported and state.precision == Precision.AMP_FP8 else contextlib.nullcontext(
+            )
+            with context_manager:
+                # Add the pip requirements directly to avoid mlflow
+                # attempting to run inference on the model
+                model_saving_kwargs['pip_requirements'] = [
+                    'transformers',
+                    'torch',
+                ]
+                mlflow_logger.save_model(**model_saving_kwargs)
+
+            # Upload the license file generated by mlflow during the model saving.
+            _log_license_file_with_mlflow(
+                mlflow_logger=mlflow_logger,
+                pretrained_model_name=self.pretrained_model_name,
+                save_path=local_save_path
+            )
+
+            self.pre_register_edit(local_save_path)
+
+            with _monitor_process_saver(mlflow_logger):
+                process = SpawnProcess(
+                    target=_register_model_with_run_id_multiprocess,
+                    kwargs={
+                        'mlflow_logger':
+                            mlflow_logger,
+                        'composer_logging_level':
+                            logging.getLogger('composer').level,
+                        'model_uri':
+                            local_save_path,
+                        'name':
+                            self.mlflow_registered_model_name,
+                        'await_creation_for':
+                            3600,
+                    },
+                )
+                process.start()
+                self.register_processes.append(process)

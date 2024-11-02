@@ -117,9 +117,7 @@ def get_tokens_per_batch_func(
 
         loss_generating_tokens = None
         if 'labels' in batch:
-            loss_generating_tokens = int(
-                torch.sum(batch['labels'][...,1:] != CROSS_ENTROPY_IGNORE_INDEX).item(),
-            )
+            loss_generating_tokens = int((batch['labels'][...,1:] != CROSS_ENTROPY_IGNORE_INDEX).sum())
 
         # For encoder decoder models only
         decoder_input_ids_tokens = 0

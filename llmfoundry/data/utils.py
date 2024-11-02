@@ -21,12 +21,12 @@ log = logging.getLogger(__name__)
 
 
 class LossGeneratingTokensCollatorWrapper:
-    """Collator wrapper to add sequence_id to batch."""
+    """Collator wrapper to add loss generating token counts to batch."""
 
     def __init__(
         self,
         base_collator: Callable,
-        token_counting_func: Callable,
+        token_counting_func: Callable[[Batch], Union[int, dict[str, int]]],
     ):
         self.base_collator = base_collator
         self.token_counting_func = token_counting_func
@@ -222,7 +222,10 @@ def get_text_collator(
             bos_token_id=bos_token_id,
         )
 
-    collate_fn = LossGeneratingTokensCollatorWrapper(collate_fn, get_tokens_per_batch_func())
+    collate_fn = LossGeneratingTokensCollatorWrapper(
+        collate_fn,
+        get_tokens_per_batch_func(),
+    )
 
     return collate_fn, dataset_batch_size
 
@@ -238,5 +241,8 @@ def get_finetuning_collator(
         tokenizer,
         dataset_batch_size,
     )
-    collate_fn = LossGeneratingTokensCollatorWrapper(collate_fn, get_tokens_per_batch_func())
+    collate_fn = LossGeneratingTokensCollatorWrapper(
+        collate_fn,
+        get_tokens_per_batch_func(),
+    )
     return collate_fn, dataset_batch_size

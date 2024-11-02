@@ -39,12 +39,12 @@ class LossGeneratingTokensCollatorWrapper:
         num_rows = batch['input_ids'].shape[0]
         for row in range(num_rows):
             row_batch = {
-                'input_ids': batch['input_ids'][row],
+                'input_ids': batch['input_ids'][row].unsqueeze(0),
             }
             if 'attention_mask' in batch:
-                row_batch['attention_mask'] = batch['attention_mask'][row]
+                row_batch['attention_mask'] = batch['attention_mask'][row].unsqueeze(0)
             if 'labels' in batch:
-                row_batch['labels'] = batch['labels'][row]
+                row_batch['labels'] = batch['labels'][row].unsqueeze(0)
 
             num_tokens = get_tokens_per_batch_func()(row_batch)
             output['total_tokens'].append(num_tokens['total'])

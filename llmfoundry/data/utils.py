@@ -37,7 +37,7 @@ class LossGeneratingTokensCollatorWrapper:
             'loss_generating_tokens': [],
         }
         num_rows = batch['input_ids'].shape[0]
-        for row in num_rows:
+        for row in range(num_rows):
             row_batch = {
                 'input_ids': batch['input_ids'][row],
             }
@@ -50,8 +50,8 @@ class LossGeneratingTokensCollatorWrapper:
             output['total_tokens'].append(num_tokens['total'])
             output['loss_generating_tokens'].append(num_tokens['loss_generating'])
 
-        batch['total_tokens'] = torch.tensor(output['total_tokens'])
-        batch['loss_generating_tokens'] = torch.tensor(output['loss_generating_tokens'])
+        batch['total_tokens'] = output['total_tokens']
+        batch['loss_generating_tokens'] = output['loss_generating_tokens']
 
         return batch
 

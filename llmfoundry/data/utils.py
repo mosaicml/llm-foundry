@@ -19,6 +19,7 @@ from llmfoundry.utils.consts import CROSS_ENTROPY_IGNORE_INDEX
 
 log = logging.getLogger(__name__)
 
+
 class LossGeneratingTokensCollatorWrapper:
     """Collator wrapper to add sequence_id to batch."""
 
@@ -30,7 +31,7 @@ class LossGeneratingTokensCollatorWrapper:
 
     def __call__(self, examples: list[Any]) -> dict[str, torch.Tensor]:
         batch = self.base_collator(examples)
-        
+
         # Add token counts to batch
         output = {
             'total_tokens': [],
@@ -42,18 +43,29 @@ class LossGeneratingTokensCollatorWrapper:
                 'input_ids': batch['input_ids'][row].unsqueeze(0),
             }
             if 'attention_mask' in batch:
-                row_batch['attention_mask'] = batch['attention_mask'][row].unsqueeze(0)
+                row_batch['attention_mask'] = batch['attention_mask'][
+                    row].unsqueeze(0)
             if 'labels' in batch:
                 row_batch['labels'] = batch['labels'][row].unsqueeze(0)
+            if 'decoder_attention_mask' in batch:
+                row_batch['decoder_attention_mask'] = batch[
+                    'decoder_attention_mask'][row].unsqueeze(0)
 
             num_tokens = get_tokens_per_batch_func()(row_batch)
-            output['total_tokens'].append(num_tokens['total'])
-            output['loss_generating_tokens'].append(num_tokens['loss_generating'])
+            if isinstance(num_tokens, dict):
+                output['total_tokens'].append(num_tokens['total'])
+                output['loss_generating_tokens'].append(
+                    num_tokens['loss_generating']
+                )
+            else:
+                output['total_tokens'].append(num_tokens)
+                output['loss_generating_tokens'].append(num_tokens)
 
         batch['total_tokens'] = output['total_tokens']
         batch['loss_generating_tokens'] = output['loss_generating_tokens']
 
         return batch
+
 
 def _validate_cfg(
     dataset_cfg: dict[str, Any],
@@ -143,7 +155,7 @@ def get_tokens_per_batch_func(
             raise ValueError(
                 'get_tokens_per_batch_func() for encoder decoder requires a batch with a decoder_attention_mask key',
             )
-        
+
         # Short cut if the dataloader has already calculated the number of tokens
         if 'total_tokens' in batch and 'loss_generating_tokens' in batch:
             return {
@@ -159,7 +171,11 @@ def get_tokens_per_batch_func(
 
         loss_generating_tokens = None
         if 'labels' in batch:
-            loss_generating_tokens = (batch['labels'].shape[0] * (batch['labels'].shape[1] - 1)) - torch.count_nonzero(torch.eq(batch['labels'][...,1:], CROSS_ENTROPY_IGNORE_INDEX))
+            loss_generating_tokens = (
+                batch['labels'].shape[0] * (batch['labels'].shape[1] - 1)
+            ) - torch.count_nonzero(
+                torch.eq(batch['labels'][..., 1:], CROSS_ENTROPY_IGNORE_INDEX)
+            )
 
         # For encoder decoder models only
         decoder_input_ids_tokens = 0

@@ -55,7 +55,7 @@ class LossGeneratingTokensCollatorWrapper:
             if isinstance(num_tokens, dict):
                 output['total_tokens'].append(num_tokens['total'])
                 output['loss_generating_tokens'].append(
-                    num_tokens['loss_generating']
+                    num_tokens['loss_generating'],
                 )
             else:
                 output['total_tokens'].append(num_tokens)
@@ -174,7 +174,7 @@ def get_tokens_per_batch_func(
             loss_generating_tokens = (
                 batch['labels'].shape[0] * (batch['labels'].shape[1] - 1)
             ) - torch.count_nonzero(
-                torch.eq(batch['labels'][..., 1:], CROSS_ENTROPY_IGNORE_INDEX)
+                torch.eq(batch['labels'][..., 1:], CROSS_ENTROPY_IGNORE_INDEX),
             )
 
         # For encoder decoder models only
@@ -199,7 +199,8 @@ def get_text_collator(
     tokenizer: PreTrainedTokenizerBase,
     dataset_batch_size: int,
 ) -> tuple[Union[transformers.DataCollatorForLanguageModeling,
-                 ConcatenatedSequenceCollatorWrapper], int]:
+                 ConcatenatedSequenceCollatorWrapper,
+                 LossGeneratingTokensCollatorWrapper], int]:
     dataset_cfg = dataloader_cfg.get('dataset')
     assert isinstance(dataset_cfg, dict)
     eos_token_id = dataset_cfg.get('eos_token_id', None)
@@ -228,5 +229,10 @@ def get_finetuning_collator(
     dataloader_cfg: dict[str, Any],
     tokenizer: PreTrainedTokenizerBase,
     dataset_batch_size: int,
-) -> tuple[Union[Seq2SeqFinetuningCollator, BinPackCollator], int]:
-    return build_collate_fn(dataloader_cfg, tokenizer, dataset_batch_size)
+) -> tuple[Union[Seq2SeqFinetuningCollator, BinPackCollator,
+                 LossGeneratingTokensCollatorWrapper], int]:
+    collate_fn, dataset_batch_size = build_collate_fn(
+        dataloader_cfg, tokenizer, dataset_batch_size
+    )
+    collate_fn = LossGeneratingTokensCollatorWrapper(collate_fn)
+    return collate_fn, dataset_batch_size

@@ -26,8 +26,10 @@ class LossGeneratingTokensCollatorWrapper:
     def __init__(
         self,
         base_collator: Callable,
+        token_counting_func: Callable,
     ):
         self.base_collator = base_collator
+        self.token_counting_func = token_counting_func
 
     def __call__(self, examples: list[Any]) -> dict[str, torch.Tensor]:
         batch = self.base_collator(examples)
@@ -51,7 +53,7 @@ class LossGeneratingTokensCollatorWrapper:
                 row_batch['decoder_attention_mask'] = batch[
                     'decoder_attention_mask'][row].unsqueeze(0)
 
-            num_tokens = get_tokens_per_batch_func()(row_batch)
+            num_tokens = self.token_counting_func(row_batch)
             if isinstance(num_tokens, dict):
                 output['total_tokens'].append(num_tokens['total'])
                 output['loss_generating_tokens'].append(
@@ -220,7 +222,7 @@ def get_text_collator(
             bos_token_id=bos_token_id,
         )
 
-    collate_fn = LossGeneratingTokensCollatorWrapper(collate_fn)
+    collate_fn = LossGeneratingTokensCollatorWrapper(collate_fn, get_tokens_per_batch_func())
 
     return collate_fn, dataset_batch_size
 
@@ -236,5 +238,5 @@ def get_finetuning_collator(
         tokenizer,
         dataset_batch_size,
     )
-    collate_fn = LossGeneratingTokensCollatorWrapper(collate_fn)
+    collate_fn = LossGeneratingTokensCollatorWrapper(collate_fn, get_tokens_per_batch_func())
     return collate_fn, dataset_batch_size

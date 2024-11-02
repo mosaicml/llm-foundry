@@ -1573,7 +1573,8 @@ def test_mptmoe_huggingface_conversion_callback(
             # Check output equivalence
             loaded_model = loaded_model.cuda().bfloat16()  # type: ignore
             for k, v in batch.items():
-                batch[k] = v.cuda()
+                if isinstance(v, torch.Tensor):
+                    batch[k] = v.cuda()
             loaded_model_logits = loaded_model(
                 input_ids=batch.get('input_ids', None),
                 attention_mask=batch.get('attention_mask', None),

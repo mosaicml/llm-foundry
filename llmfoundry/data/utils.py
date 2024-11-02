@@ -116,8 +116,8 @@ def get_tokens_per_batch_func(
             input_ids_tokens = batch['input_ids'].numel()
 
         loss_generating_tokens = None
-        # if 'labels' in batch:
-        #     loss_generating_tokens = (batch['labels'].shape[0] * (batch['labels'].shape[1] - 1)) - torch.count_nonzero(torch.eq(batch['labels'][...,1:], CROSS_ENTROPY_IGNORE_INDEX))
+        if 'labels' in batch:
+            loss_generating_tokens = (batch['labels'].shape[0] * (batch['labels'].shape[1] - 1)) - torch.count_nonzero(torch.eq(batch['labels'][...,1:], CROSS_ENTROPY_IGNORE_INDEX))
 
         # For encoder decoder models only
         decoder_input_ids_tokens = 0

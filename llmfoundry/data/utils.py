@@ -19,6 +19,41 @@ from llmfoundry.utils.consts import CROSS_ENTROPY_IGNORE_INDEX
 
 log = logging.getLogger(__name__)
 
+class LossGeneratingTokensCollatorWrapper:
+    """Collator wrapper to add sequence_id to batch."""
+
+    def __init__(
+        self,
+        base_collator: Callable,
+    ):
+        self.base_collator = base_collator
+
+    def __call__(self, examples: list[Any]) -> dict[str, torch.Tensor]:
+        batch = self.base_collator(examples)
+        
+        # Add token counts to batch
+        output = {
+            'total_tokens': [],
+            'loss_generating_tokens': [],
+        }
+        num_rows = batch['input_ids'].shape[0]
+        for row in num_rows:
+            row_batch = {
+                'input_ids': batch['input_ids'][row],
+            }
+            if 'attention_mask' in batch:
+                row_batch['attention_mask'] = batch['attention_mask'][row]
+            if 'labels' in batch:
+                row_batch['labels'] = batch['labels'][row]
+
+            num_tokens = get_tokens_per_batch_func()(row_batch)
+            output['total_tokens'].append(num_tokens['total'])
+            output['loss_generating_tokens'].append(num_tokens['loss_generating'])
+
+        batch['total_tokens'] = output['total_tokens']
+        batch['loss_generating_tokens'] = output['loss_generating_tokens']
+
+        return batch
 
 def _validate_cfg(
     dataset_cfg: dict[str, Any],
@@ -108,6 +143,13 @@ def get_tokens_per_batch_func(
             raise ValueError(
                 'get_tokens_per_batch_func() for encoder decoder requires a batch with a decoder_attention_mask key',
             )
+        
+        # Short cut if the dataloader has already calculated the number of tokens
+        if 'total_tokens' in batch and 'loss_generating_tokens' in batch:
+            return {
+                'total': sum(batch['total_tokens']),
+                'loss_generating': sum(batch['loss_generating_tokens']),
+            }
 
         # Count number of non padding tokens in batch
         if 'attention_mask' in batch:
@@ -160,6 +202,8 @@ def get_text_collator(
             eos_token_id=eos_token_id,
             bos_token_id=bos_token_id,
         )
+
+    collate_fn = LossGeneratingTokensCollatorWrapper(collate_fn)
 
     return collate_fn, dataset_batch_size
 

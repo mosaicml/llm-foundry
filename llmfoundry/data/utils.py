@@ -32,7 +32,7 @@ class LossGeneratingTokensCollatorWrapper:
     def __call__(self, examples: list[Any]) -> dict[str, torch.Tensor]:
         batch = self.base_collator(examples)
 
-        # Add token counts to batch
+        # Add token counts to batch as a list, one for each row, so that microbatch splitting works
         output = {
             'total_tokens': [],
             'loss_generating_tokens': [],

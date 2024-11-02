@@ -232,7 +232,9 @@ def get_finetuning_collator(
 ) -> tuple[Union[Seq2SeqFinetuningCollator, BinPackCollator,
                  LossGeneratingTokensCollatorWrapper], int]:
     collate_fn, dataset_batch_size = build_collate_fn(
-        dataloader_cfg, tokenizer, dataset_batch_size
+        dataloader_cfg,
+        tokenizer,
+        dataset_batch_size,
     )
     collate_fn = LossGeneratingTokensCollatorWrapper(collate_fn)
     return collate_fn, dataset_batch_size

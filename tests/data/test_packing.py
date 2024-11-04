@@ -16,6 +16,7 @@ from torch.utils.data import DataLoader
 from llmfoundry.data.finetuning.dataloader import build_finetuning_dataloader
 from llmfoundry.data.finetuning.tasks import StreamingFinetuningDataset
 from llmfoundry.data.packing import BinPackCollator, auto_packing_ratio
+from llmfoundry.data.utils import LossGeneratingTokensCollatorWrapper
 from llmfoundry.utils.builders import build_tokenizer
 
 
@@ -253,7 +254,8 @@ def test_packing_with_dataloader(packing_ratio: Any):
     ).dataloader
 
     assert isinstance(loader, DataLoader)
-    pack_collator = loader.collate_fn
+    assert isinstance(loader.collate_fn, LossGeneratingTokensCollatorWrapper)
+    pack_collator = loader.collate_fn.base_collator
     assert isinstance(pack_collator, BinPackCollator)
 
     batch_ix = 0

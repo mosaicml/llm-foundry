@@ -53,7 +53,7 @@ classifiers = [
 
 install_requires = [
     'mosaicml[libcloud,wandb,oci,gcs,mlflow]>=0.26.0,<0.27',
-    'mlflow>=2.14.1,<2.17',
+    'mlflow>=2.14.1,<2.18',
     'accelerate>=0.25,<0.34',  # for HF inference `device_map`
     'transformers>=4.43.2,<4.47',
     'mosaicml-streaming>=0.9.0,<0.10',
@@ -94,7 +94,7 @@ extra_deps['databricks'] = [
     'mosaicml[databricks]>=0.26.0,<0.27',
     'numpy<2',
     'databricks-sql-connector>=3,<4',
-    'databricks-connect==14.1.0',
+    'databricks-connect==15.4.3',
     'lz4>=4,<5',
 ]
 

@@ -514,6 +514,10 @@ def profile_packing(
     big_batch = next(iter(train_dataloader))
 
     # Cut everything down to size
+    if 'total_tokens' in big_batch:
+        del big_batch['total_tokens']
+    if 'loss_generating_tokens' in big_batch:
+        del big_batch['loss_generating_tokens']
     sizes, trimmed_examples = _trim_batch(big_batch)
 
     def profile(raw_batch_size: int) -> tuple[Optional[float], Optional[float]]:

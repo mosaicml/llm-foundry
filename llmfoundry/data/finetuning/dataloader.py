@@ -20,6 +20,7 @@ from llmfoundry.data.finetuning.collator import (
 from llmfoundry.data.finetuning.tasks import (
     DEFAULT_TARGET_PROMPTS,
     DEFAULT_TARGET_RESPONSES,
+    DOWNLOADED_FT_DATASETS_DIRPATH,
     SUPPORTED_EXTENSIONS,
     dataset_constructor,
 )
@@ -32,7 +33,6 @@ from llmfoundry.utils.exceptions import (
     MissingHuggingFaceURLSplitError,
     NotEnoughDatasetSamplesError,
 )
-from llmfoundry.utils.file_utils import dist_mkdtemp
 from llmfoundry.utils.registry_utils import construct_from_registry
 
 log = logging.getLogger(__name__)
@@ -569,7 +569,7 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
     # HF datasets does not support a split with dashes, so we replace dashes with underscores.
     hf_formatted_split = split.replace('-', '_')
     finetune_dir = os.path.join(
-        dist_mkdtemp(),
+        DOWNLOADED_FT_DATASETS_DIRPATH,
         hf_formatted_split if hf_formatted_split != 'data' else 'data_not',
     )
     os.makedirs(finetune_dir, exist_ok=True)
@@ -591,8 +591,6 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
             finetune_dir,
             f'.node_{dist.get_node_rank()}_local_rank0_completed',
         )
-
-        log.debug(f'Downloading dataset {name} to {destination}.')
         if dist.get_local_rank() == 0:
             try:
                 get_file(path=name, destination=destination, overwrite=True)

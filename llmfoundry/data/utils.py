@@ -31,7 +31,9 @@ class LossGeneratingTokensCollatorWrapper:
         self.base_collator = base_collator
         self.token_counting_func = token_counting_func
 
-        self._token_count_batch_keys = ['input_ids', 'attention_mask', 'labels', 'decoder_attention_mask']
+        self._token_count_batch_keys = [
+            'input_ids', 'attention_mask', 'labels', 'decoder_attention_mask'
+        ]
 
     def __call__(self, examples: list[Any]) -> dict[str, torch.Tensor]:
         batch = self.base_collator(examples)
@@ -46,7 +48,7 @@ class LossGeneratingTokensCollatorWrapper:
             row_batch = {}
             for key in self._token_count_batch_keys:
                 if key in batch:
-                    row_batch[key] = batch[key][row:row+1]
+                    row_batch[key] = batch[key][row:row + 1]
 
             num_tokens = self.token_counting_func(row_batch)
             if isinstance(num_tokens, dict):

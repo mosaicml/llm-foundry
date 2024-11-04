@@ -249,6 +249,11 @@ def build_pairs_dataloader(
         processed_batch: dict[str, torch.Tensor] = collate_fn(batch)
         if 'labels' in processed_batch:
             del processed_batch['labels']
+
+        if 'total_tokens' in processed_batch:
+            del processed_batch['total_tokens']
+        if 'loss_generating_tokens' in processed_batch:
+            del processed_batch['loss_generating_tokens']
         return processed_batch
 
     dl = DataLoader(

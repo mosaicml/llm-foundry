@@ -32,7 +32,10 @@ class LossGeneratingTokensCollatorWrapper:
         self.token_counting_func = token_counting_func
 
         self._token_count_batch_keys = [
-            'input_ids', 'attention_mask', 'labels', 'decoder_attention_mask'
+            'input_ids',
+            'attention_mask',
+            'labels',
+            'decoder_attention_mask',
         ]
 
     def __call__(self, examples: list[Any]) -> dict[str, torch.Tensor]:

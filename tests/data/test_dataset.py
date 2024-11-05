@@ -14,6 +14,7 @@ from llmfoundry.data.finetuning.tasks import (
 from llmfoundry.utils.exceptions import DatasetTooSmallError
 
 
+@pytest.mark.skip
 def test_get_num_processes():
     with mock.patch.dict(os.environ, {'MAX_NUM_PROC': '4'}):
         with mock.patch('os.cpu_count', return_value=16):

@@ -455,7 +455,7 @@ def test_finetuning_dataloader_safe_load(
 
     tokenizer = build_tokenizer('gpt2', {})
 
-    with patch('llmfoundry.data.finetuning.tasks.tempfile.mkdtemp', return_value=str(tmp_path)):
+    with patch('llmfoundry.utils.file_utils.tempfile.mkdtemp', return_value=str(tmp_path)), patch('os.cpu_count', return_value=1):
         with expectation:
             _ = build_finetuning_dataloader(
                 tokenizer=tokenizer,
@@ -1516,7 +1516,8 @@ def test_ft_dataloader_with_extra_keys():
                 device_batch_size=device_batch_size,
             ).dataloader
 
-@pytest.mark.xfail
+# TODO: Change this back to xfail after figuring out why it caused CI to hang
+@pytest.mark.skip
 def test_text_dataloader_with_extra_keys():
     max_seq_len = 1024
     cfg = {

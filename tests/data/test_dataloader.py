@@ -1517,7 +1517,7 @@ def test_ft_dataloader_with_extra_keys():
             ).dataloader
 
 # TODO: Change this back to xfail after figuring out why it caused CI to hang
-@pytest.mark.skip
+@pytest.mark.xfail
 def test_text_dataloader_with_extra_keys():
     from streaming.base.constant import BARRIER_FILELOCK, CACHE_FILELOCK
     max_seq_len = 1024

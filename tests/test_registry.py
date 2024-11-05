@@ -5,7 +5,7 @@ import importlib.metadata
 import os
 import pathlib
 from importlib.metadata import EntryPoint
-from typing import Any, Callable, Type, Union
+from typing import Any, Callable, Union
 
 import catalogue
 import pytest
@@ -24,6 +24,7 @@ def test_expected_registries_exist():
         'loggers',
         'optimizers',
         'schedulers',
+        'tokenizers',
         'callbacks',
         'algorithms',
         'callbacks_with_config',
@@ -44,6 +45,9 @@ def test_expected_registries_exist():
         'fcs',
         'icl_datasets',
         'config_transforms',
+        'load_planners',
+        'save_planners',
+        'tp_strategies',
     }
 
     assert existing_registries == expected_registry_names
@@ -168,7 +172,7 @@ def test_registry_builder(monkeypatch: pytest.MonkeyPatch):
         'llmfoundry',
         'test_registry',
         entry_points=False,
-        generic_type=Union[Type[LoggerDestination],
+        generic_type=Union[type[LoggerDestination],
                            Callable[..., LoggerDestination]],
     )
 

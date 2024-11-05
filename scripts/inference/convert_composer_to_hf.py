@@ -5,7 +5,7 @@ import os
 import tempfile
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Optional, Union
 
 import torch
 import transformers
@@ -31,7 +31,7 @@ def write_huggingface_pretrained_from_composer_checkpoint(
     trust_remote_code: bool,
     output_precision: str = 'fp32',
     local_checkpoint_save_location: Optional[Union[Path, str]] = None,
-) -> Tuple[PretrainedConfig, Optional[PreTrainedTokenizerBase]]:
+) -> tuple[PretrainedConfig, Optional[PreTrainedTokenizerBase]]:
     """Convert a Composer checkpoint to a pretrained HF checkpoint folder.
 
     Write a ``config.json`` and ``pytorch_model.bin``, like

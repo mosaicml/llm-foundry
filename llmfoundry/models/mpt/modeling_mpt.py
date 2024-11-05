@@ -14,13 +14,9 @@ import warnings
 from functools import cached_property
 from typing import (
     Any,
-    Dict,
-    List,
     Mapping,
     MutableMapping,
     Optional,
-    Tuple,
-    Type,
     Union,
 )
 
@@ -49,12 +45,10 @@ from transformers.modeling_outputs import (
     BaseModelOutputWithPast,
     CausalLMOutputWithPast,
 )
-from transformers.models.llama.modeling_llama import \
-    LlamaDynamicNTKScalingRotaryEmbedding as HFDynamicNTKScalingRotaryEmbedding
-from transformers.models.llama.modeling_llama import \
-    LlamaLinearScalingRotaryEmbedding as HFLinearScalingRotaryEmbedding
-from transformers.models.llama.modeling_llama import \
-    LlamaRotaryEmbedding as HFRotaryEmbedding
+from transformers.models.llama.modeling_llama import (
+    LlamaConfig,
+    LlamaRotaryEmbedding,
+)
 
 from llmfoundry.layers_registry import norms, param_init_fns
 from llmfoundry.models.layers.attention import (
@@ -87,15 +81,65 @@ from llmfoundry.models.layers.norm import LPLayerNorm  # type: ignore
 
 log = logging.getLogger(__name__)
 
+CROSS_ENTROPY_IGNORE_INDEX = -100
+
+
+class InvalidConfigAccessError(KeyError):
+    pass
+
+
+_ALLOWED_LLAMA_CONFIG_KEYS = {
+    # These are the only config keys that are set and are safe to read from
+    'rope_scaling',
+    'rope_theta',
+    'max_position_embeddings',
+    'hidden_size',
+    'num_attention_heads',
+
+    # Not set but llama modeling code tries to read this attribute
+    'partial_rotary_factor',
+
+    # Benign transformers attributes needed for __init__
+    '_get_generation_defaults',
+    'label2id',
+    'id2label',
+    'torch_dtype',
+    'problem_type',
+    '__class__',
+}
+
+
+class PartialLlamaConfig(LlamaConfig):
+    """Holds the rope config for Llama models and throws.
+
+    an `InvalidConfigAccessError` if any other config elements are read. This
+    class is necessary because the `LlamaRotaryEmbedding` class takes a full
+    `LlamaConfig` now instead of the old keyword arguments.
+    """
+
+    def __getattribute__(self, key: str):
+        if key not in _ALLOWED_LLAMA_CONFIG_KEYS:
+            raise InvalidConfigAccessError(key)
+
+        return super().__getattribute__(key)
+
+    def __getitem__(self, key: str):
+        if key not in _ALLOWED_LLAMA_CONFIG_KEYS:
+            raise InvalidConfigAccessError(key)
+
+        return super().__getitem__(key)
+
 
 def gen_rotary_embedding(
-    rope_head_dim: int,
     rope_impl: str,
     rope_theta: int,
     rope_dail_config: dict,
     rope_hf_config: dict,
     max_seq_len: int,
+    d_model: int,
+    n_heads: int,
 ):
+    rope_head_dim = d_model // n_heads
     if rope_impl == 'dail':
         return DAILRotaryEmbedding(
             dim=rope_head_dim,
@@ -108,32 +152,18 @@ def gen_rotary_embedding(
             'cpu',  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
         )
     elif rope_impl == 'hf':
-        if rope_hf_config['type'] == 'no_scaling':
-            return HFRotaryEmbedding(
-                rope_head_dim,
-                max_position_embeddings=max_seq_len,
-                base=rope_theta,
-                device=
-                'cpu',  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
-            )
-        elif rope_hf_config['type'] == 'linear':
-            return HFLinearScalingRotaryEmbedding(
-                rope_head_dim,
-                max_position_embeddings=max_seq_len,
-                base=rope_theta,
-                scaling_factor=rope_hf_config['factor'],
-                device=
-                'cpu',  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
-            )
-        elif rope_hf_config['type'] == 'dynamic':
-            return HFDynamicNTKScalingRotaryEmbedding(
-                rope_head_dim,
-                max_position_embeddings=max_seq_len,
-                base=rope_theta,
-                scaling_factor=rope_hf_config['factor'],
-                device=
-                'cpu',  # FSDP does not materialize modules with meta buffers, hence device is set to cpu
-            )
+        llama_rope_config = {**rope_hf_config}
+        llama_rope_config['rope_type'] = llama_rope_config.pop('type')
+        if llama_rope_config['rope_type'] == 'no_scaling':
+            llama_rope_config['rope_type'] = 'default'
+        partial_llama_config = PartialLlamaConfig(
+            rope_scaling=llama_rope_config,
+            rope_theta=rope_theta,
+            max_position_embeddings=max_seq_len,
+            hidden_size=d_model,
+            num_attention_heads=n_heads,
+        )
+        return LlamaRotaryEmbeddingFoundry(config=partial_llama_config)
     raise ValueError('rope_impl needs to be either dail or hf')
 
 
@@ -306,6 +336,20 @@ def apply_sequence_id(
     return attn_bias
 
 
+class LlamaRotaryEmbeddingFoundry(LlamaRotaryEmbedding):
+
+    @torch.no_grad()
+    def forward(
+        self,
+        x: torch.Tensor,
+        position_ids: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        # In this subclass, we move `inv_freq` to same device as position_ids. This operation should be a no-op during training.
+        # This is done to fix pipeline parallel generation using hf.generate. Please see this comment for details: https://github.com/mosaicml/llm-foundry/pull/1334#issue-2387337525
+        self.inv_freq = self.inv_freq.to(position_ids.device)
+        return super().forward(x=x, position_ids=position_ids)
+
+
 class MPTPreTrainedModel(PreTrainedModel):
     config_class = MPTConfig
     base_model_prefix = 'model'
@@ -354,6 +398,7 @@ class MPTModel(MPTPreTrainedModel):
         self.wte = SharedEmbedding(
             config.vocab_size,
             config.d_model,
+            padding_idx=config.pad_token_id,
             device=config.init_device,
         )
         if self.learned_pos_emb:
@@ -377,6 +422,7 @@ class MPTModel(MPTPreTrainedModel):
         self.norm_f = build_norm(
             name=config.norm_type.lower(),
             normalized_shape=config.d_model,
+            eps=config.norm_eps,
             device=config.init_device,
         )
 
@@ -385,12 +431,13 @@ class MPTModel(MPTPreTrainedModel):
         if self.rope:
             self.rope_impl = config.attn_config['rope_impl']
             self.rotary_embedding = gen_rotary_embedding(
-                rope_head_dim=config.d_model // config.n_heads,
                 rope_impl=self.rope_impl,
                 rope_theta=config.attn_config['rope_theta'],
                 rope_dail_config=config.attn_config['rope_dail_config'],
                 rope_hf_config=config.attn_config['rope_hf_config'],
                 max_seq_len=self.config.max_seq_len,
+                d_model=config.d_model,
+                n_heads=config.n_heads,
             )
 
         if config.init_device != 'meta':
@@ -429,7 +476,7 @@ class MPTModel(MPTPreTrainedModel):
         log.debug(f'Using {self.config.init_config["name"]} initialization.')
 
     @property
-    def block_class(self) -> Type[MPTBlock]:
+    def block_class(self) -> type[MPTBlock]:
         return MPTBlock
 
     def construct_blocks(self, config: MPTConfig) -> nn.ModuleList:
@@ -466,8 +513,8 @@ class MPTModel(MPTPreTrainedModel):
     def _get_override_block_args_list(
         self,
         config: MPTConfig,
-        block_args: Dict[str, Any],
-    ) -> List[Dict[str, Any]]:
+        block_args: dict[str, Any],
+    ) -> list[dict[str, Any]]:
         if config.block_overrides is None:
             raise ValueError(
                 'config.block_overrides should not be None when calling _get_override_block_args_list.',
@@ -530,11 +577,11 @@ class MPTModel(MPTPreTrainedModel):
 
     @staticmethod
     def _resolve_reuse_kv_layer_idx(
-        overrides_definition: Dict[str, Any],
-        model_modules_order_expanded: List[str],
+        overrides_definition: dict[str, Any],
+        model_modules_order_expanded: list[str],
         b_idx: int,
-        override_config: Dict[str, Any],
-        reuse_kv_layer_idx_dict: Dict[int, int],
+        override_config: dict[str, Any],
+        reuse_kv_layer_idx_dict: dict[int, int],
     ) -> int:
         override_attn_config = override_config['attn_config']
         if override_attn_config['reuse_kv_layer_idx'] >= 0:
@@ -570,7 +617,7 @@ class MPTModel(MPTPreTrainedModel):
         return reuse_kv_layer_idx
 
     @staticmethod
-    def _get_modules_order_expanded(order: List[Dict[str, Any]]) -> List[str]:
+    def _get_modules_order_expanded(order: list[dict[str, Any]]) -> list[str]:
         model_modules_order_expanded = []
         for item in order:
             repeat = item['repeat'] if 'repeat' in item else 1
@@ -591,10 +638,10 @@ class MPTModel(MPTPreTrainedModel):
 
     @staticmethod
     def _override_block_args(
-        block_args: Dict[str, Any],
-        override_config: Dict[str, Any],
-        allowed_block_overrides: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        block_args: dict[str, Any],
+        override_config: dict[str, Any],
+        allowed_block_overrides: dict[str, Any],
+    ) -> dict[str, Any]:
         unpermitted_keys = override_config.keys(
         ) - allowed_block_overrides.keys()
         if len(unpermitted_keys):
@@ -617,7 +664,7 @@ class MPTModel(MPTPreTrainedModel):
                 new_block_args[k] = override_config[k]
         return new_block_args
 
-    def extract_block_args(self, block_args: Dict[str, Any]) -> Dict[str, Any]:
+    def extract_block_args(self, block_args: dict[str, Any]) -> dict[str, Any]:
         """Sets the block args."""
         if block_args['ffn_config']['ffn_type'] in ffns_with_megablocks:
             block_args['ffn_config'] = config_moe_args(
@@ -645,7 +692,7 @@ class MPTModel(MPTPreTrainedModel):
         dtype: torch.dtype,
         attention_mask: Optional[torch.ByteTensor] = None,
         sequence_id: Optional[torch.LongTensor] = None,
-    ) -> Tuple[Optional[torch.Tensor], Optional[torch.ByteTensor]]:
+    ) -> tuple[Optional[torch.Tensor], Optional[torch.ByteTensor]]:
         if not self._attn_bias_initialized:
             if self.attn_bias_shape:
                 self.attn_bias = torch.zeros(
@@ -708,7 +755,7 @@ class MPTModel(MPTPreTrainedModel):
     def forward(
         self,
         input_ids: Optional[torch.LongTensor] = None,
-        past_key_values: Optional[List[Tuple[torch.FloatTensor]]] = None,
+        past_key_values: Optional[list[tuple[torch.FloatTensor]]] = None,
         attention_mask: Optional[torch.ByteTensor] = None,
         sequence_id: Optional[torch.LongTensor] = None,
         return_dict: Optional[bool] = None,
@@ -716,6 +763,7 @@ class MPTModel(MPTPreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         use_cache: Optional[bool] = None,
         inputs_embeds: Optional[torch.Tensor] = None,
+        position_ids: Optional[torch.LongTensor] = None,
     ) -> BaseModelOutputWithPast:
         return_dict = (
             return_dict if return_dict is not None else self.config.return_dict
@@ -812,12 +860,16 @@ class MPTModel(MPTPreTrainedModel):
                 )
 
             if self.learned_pos_emb or (self.rope and self.rope_impl == 'hf'):
-                pos = torch.arange(
-                    past_position,
-                    S + past_position,
-                    dtype=torch.long,
-                    device=input_device,
-                ).unsqueeze(0)
+                if position_ids is None:
+                    pos = torch.arange(
+                        past_position,
+                        S + past_position,
+                        dtype=torch.long,
+                        device=input_device,
+                    ).unsqueeze(0)
+                else:
+                    pos = position_ids
+
                 if attention_mask is not None:
                     # adjust the position indices to account for padding tokens
                     pos = torch.clamp(
@@ -1021,9 +1073,10 @@ class MPTForCausalLM(MPTPreTrainedModel):
                         f"{logit_scale=} is not recognized as an option; use numeric value or 'inv_sqrt_d_model'.",
                     )
             self.logit_scale = logit_scale
+        self.final_logit_softcapping = config.final_logit_softcapping
 
     @property
-    def backbone_model_class(self) -> Type[MPTModel]:
+    def backbone_model_class(self) -> type[MPTModel]:
         return MPTModel
 
     def get_input_embeddings(self) -> Union[SharedEmbedding, nn.Embedding]:
@@ -1075,7 +1128,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
     def forward(
         self,
         input_ids: Optional[torch.LongTensor] = None,
-        past_key_values: Optional[List[Tuple[torch.FloatTensor]]] = None,
+        past_key_values: Optional[list[tuple[torch.FloatTensor]]] = None,
         attention_mask: Optional[torch.ByteTensor] = None,
         sequence_id: Optional[torch.LongTensor] = None,
         labels: Optional[torch.LongTensor] = None,
@@ -1084,6 +1137,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         use_cache: Optional[bool] = None,
         inputs_embeds: Optional[torch.FloatTensor] = None,
+        position_ids: Optional[torch.LongTensor] = None,
     ) -> CausalLMOutputWithPast:
         return_dict = (
             return_dict if return_dict is not None else self.config.return_dict
@@ -1102,6 +1156,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
             output_hidden_states=output_hidden_states,
             use_cache=use_cache,
             inputs_embeds=inputs_embeds,
+            position_ids=position_ids,
         )
 
         if self.lm_head is not None:
@@ -1120,10 +1175,15 @@ class MPTForCausalLM(MPTPreTrainedModel):
                 )
             logits *= self.logit_scale
 
+        if self.final_logit_softcapping is not None:
+            logits = self.final_logit_softcapping * torch.tanh(
+                logits / self.final_logit_softcapping,
+            )
+
         loss = None
         if labels is not None:
             _labels = torch.roll(labels, shifts=-1)
-            _labels[:, -1] = -100
+            _labels[:, -1] = CROSS_ENTROPY_IGNORE_INDEX
             loss = F.cross_entropy(
                 logits.view(-1, logits.size(-1)),
                 _labels.to(logits.device).view(-1),
@@ -1216,11 +1276,11 @@ class MPTForCausalLM(MPTPreTrainedModel):
     def prepare_inputs_for_generation(
         self,
         input_ids: torch.Tensor,
-        past_key_values: Optional[List[Tuple[torch.Tensor,
+        past_key_values: Optional[list[tuple[torch.Tensor,
                                              torch.Tensor]]] = None,
         inputs_embeds: Optional[torch.Tensor] = None,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         attention_mask = kwargs['attention_mask'].bool()
         if attention_mask[:, -1].sum() != attention_mask.shape[0]:
             raise NotImplementedError(
@@ -1252,9 +1312,9 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
     @staticmethod
     def _reorder_cache(
-        past_key_values: List[Tuple[torch.Tensor, torch.Tensor]],
+        past_key_values: list[tuple[torch.Tensor, torch.Tensor]],
         beam_idx: torch.LongTensor,
-    ) -> List[Tuple[torch.Tensor, ...]]:
+    ) -> list[tuple[torch.Tensor, ...]]:
         """Used by HuggingFace generate when using beam search with kv-caching.
 
         See https://github.com/huggingface/transformers/blob/3ec7a47664ebe40c40f4b722f6bb1cd30c3821ec/src/transformers/models/gpt2/modeling_gpt2.py#L1122-L1133
@@ -1271,15 +1331,49 @@ class MPTForCausalLM(MPTPreTrainedModel):
         return reordered_past
 
 
+def get_targets(labels: torch.Tensor) -> torch.Tensor:
+    targets = torch.roll(labels, shifts=-1)
+    targets[:, -1] = CROSS_ENTROPY_IGNORE_INDEX
+    return targets
+
+
+def compute_loss_from_logits(
+    outputs: CausalLMOutputWithPast,
+    shift_labels: bool,
+    labels: torch.Tensor,
+    loss_fn: nn.Module,
+    sample_weighing_factor: Optional[torch.Tensor] = None,
+) -> torch.Tensor:
+    targets = get_targets(labels) if shift_labels else labels
+
+    losses = loss_fn(
+        outputs.logits.view(-1, outputs.logits.size(-1)),
+        targets.view(-1),
+    )
+
+    if torch.all(targets == loss_fn.ignore_index):
+        loss = losses.sum()
+    else:
+        loss = losses.sum() / (targets != loss_fn.ignore_index).sum()
+        if sample_weighing_factor is not None:
+            if sample_weighing_factor.shape[0] > 1:
+                raise ValueError(
+                    'Sample weighing factor is not supported when batch["sample_weighing_factor"].shape[0] > 1.',
+                )
+            loss = loss * sample_weighing_factor[0].item()
+
+    return loss
+
+
 class ComposerMPTCausalLM(HuggingFaceModel):
 
     def __init__(
         self,
         tokenizer: Optional[PreTrainedTokenizerBase] = None,
         use_train_metrics: Optional[bool] = True,
-        additional_train_metrics: Optional[List] = None,
-        loss_fn: Optional[Union[str, Dict]] = 'fused_crossentropy',
-        **kwargs: Dict[str, Any],
+        additional_train_metrics: Optional[list] = None,
+        loss_fn: Optional[Union[str, dict]] = 'fused_crossentropy',
+        **kwargs: dict[str, Any],
     ):
         from llmfoundry.metrics import (
             DEFAULT_CAUSAL_LM_EVAL_METRICS,
@@ -1318,7 +1412,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
                     CrossEntropyLoss as FusedCrossEntropyLoss
 
                 self.loss_fn = FusedCrossEntropyLoss(
-                    ignore_index=-100,
+                    ignore_index=CROSS_ENTROPY_IGNORE_INDEX,
                     reduction='none',
                 )
             except:
@@ -1331,7 +1425,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
                 )
         elif loss_fn_config == 'torch_crossentropy':
             self.loss_fn = nn.CrossEntropyLoss(
-                ignore_index=-100,
+                ignore_index=CROSS_ENTROPY_IGNORE_INDEX,
                 reduction='none',
             )
         else:
@@ -1340,17 +1434,15 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             )
 
     @property
-    def model_class(self) -> Type[MPTForCausalLM]:
+    def model_class(self) -> type[MPTForCausalLM]:
         return MPTForCausalLM
 
     @property
-    def config_class(self) -> Type[MPTConfig]:
+    def config_class(self) -> type[MPTConfig]:
         return MPTConfig
 
     def get_targets(self, batch: Mapping) -> torch.Tensor:
-        targets = torch.roll(batch['labels'], shifts=-1)
-        targets[:, -1] = -100
-        return targets
+        return get_targets(batch['labels'])
 
     def forward(self, batch: MutableMapping) -> CausalLMOutputWithPast:
         if self.config.ffn_config['ffn_type'] in ffns_with_megablocks:
@@ -1367,30 +1459,18 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             attention_mask=batch.get('attention_mask', None),
             sequence_id=batch.get('sequence_id', None),
             inputs_embeds=batch.get('inputs_embeds', None),
+            position_ids=batch.get('position_ids', None),
         )
 
     def loss(self, outputs: CausalLMOutputWithPast,
              batch: Mapping) -> Union[dict, torch.Tensor]:
-        if self.shift_labels:
-            targets = self.get_targets(batch)
-        else:
-            targets = batch['labels']
-
-        losses = self.loss_fn(
-            outputs.logits.view(-1, outputs.logits.size(-1)),
-            targets.view(-1),
+        loss = compute_loss_from_logits(
+            outputs,
+            self.shift_labels,
+            batch['labels'],
+            self.loss_fn,
+            batch.get('sample_weighing_factor', None),
         )
-
-        if torch.all(targets == self.loss_fn.ignore_index):
-            loss = losses.sum()
-        else:
-            loss = losses.sum() / (targets != self.loss_fn.ignore_index).sum()
-            if 'sample_weighing_factor' in batch:
-                if batch['sample_weighing_factor'].shape[0] > 1:
-                    raise ValueError(
-                        'Sample weighing factor is not supported when batch["sample_weighing_factor"].shape[0] > 1.',
-                    )
-                loss = loss * batch['sample_weighing_factor'][0].item()
 
         if self.config.ffn_config['ffn_type'] in ffns_with_megablocks:
             # MegaBlocks MoE load balancing loss
@@ -1406,7 +1486,6 @@ class ComposerMPTCausalLM(HuggingFaceModel):
                 'loss': loss,
                 'lbl': lbl,
             }
-
         return loss
 
     @cached_property

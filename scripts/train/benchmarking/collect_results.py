@@ -4,7 +4,7 @@
 import argparse
 import csv
 import math
-from typing import Any, Dict, List, Union
+from typing import Any, Union
 
 from composer.callbacks.speed_monitor import \
     GPU_AVAILABLE_FLOPS as GPU_FLOP_DICT
@@ -91,7 +91,7 @@ def get_runs(args: argparse.Namespace):
     return runs
 
 
-def filter_runs(runs: List[msdk.Run]):
+def filter_runs(runs: list[msdk.Run]):
     pop_runs = []
     for run in runs:
         if run.status == msdk.RunStatus('FAILED'):
@@ -114,7 +114,7 @@ def filter_runs(runs: List[msdk.Run]):
     return runs
 
 
-def parse_run(run: msdk.Run) -> Dict[str, Any]:
+def parse_run(run: msdk.Run) -> dict[str, Any]:
     n_params = micro_batchsize = throughput = -1
 
     model_name = run.name.split('-')[2]

@@ -1,19 +1,20 @@
-# Copyright 2022 MosaicML LLM Foundry authors
+# Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-"""Enable curriculum learning by resuming with a different dataset.
+"""Enable curriculum learning by specifying a schedule of datasets to train on.
 
-This callback is currently experimental. The API may change without warning in
-the future.
+This module provides a CurriculumLearning callback that allows for dynamic
+dataset switching during training based on a predefined schedule.
 """
 
 import copy
 import logging
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, Union
 
 from composer import DataSpec
 from composer.core import State, Time, TimeUnit, ensure_time
-from composer.loggers import Logger, MosaicMLLogger
+from composer.loggers import Logger
 from streaming import StreamingDataset
 from streaming.base.util import clean_stale_shared_memory
 from torch.utils.data import DataLoader
@@ -23,29 +24,36 @@ from llmfoundry.utils.exceptions import (
     BaseContextualError,
     TrainDataLoaderLocation,
 )
-from llmfoundry.utils.mosaicml_logger_utils import no_override_excepthook
 
 log = logging.getLogger(__name__)
 
 __all__ = ['CurriculumLearning']
 
 
+@dataclass
+class CurriculumLearningState:
+    schedule: list[dict[str, Any]]
+    schedule_index: int
+
+
 class CurriculumLearning(CallbackWithConfig):
     """Starts an epoch with a different dataset when resuming from a checkpoint.
 
+    Example duration:
+    <number>tok
     Example schedule:
     [
         {
             'duration': <number>tok,
-            'train_loader': <dataloader parameters>, # matches top level train_loader
+            'dataset': <dataset parameters>,
         },
         {
             'duration': <number>tok,
-            'train_loader': <dataloader parameters>,
+            'dataset': <dataset parameters>,
         },
         {
             'duration': <number>tok,
-            'train_loader': <dataloader parameters>,
+            'dataset': <dataset parameters>,
         ],
     ]
 
@@ -54,48 +62,47 @@ class CurriculumLearning(CallbackWithConfig):
             being used. Note that this is the full train config and must
             contain the 'train_loader', 'device_train_batch_size', and
             'tokenizer' keys.
+        duration (Union[Time, str, int]): The duration of the first datamix
+            (which corresponds to the train_loader).
         schedule (list[dict[str, Any]]): The list of datamixes to use and their
             durations. Duration units must match max_duration and be in terms of
             a TimeUnit that is supported by Iteration. The duration values must
             be positive. There must be at least one datamix in the schedule. The
-            first datamix in the schedule must match the train_loader in the
-            train_config. On resumption, previously trained on datamixes and
-            durations cannot be changed. The duration of the current datamix
-            must be greater than the saved timestamp. The dataset must be a
-            StreamingDataset.
+            first datamix during training is not included in the schedule. On
+            resumption, previously trained on datamixes and durations cannot be
+            changed. The duration of the current datamix must be greater than
+            the saved timestamp. The dataset must be a StreamingDataset.
     """
 
     def __init__(
         self,
         train_config: dict[str, Any],
         schedule: list[dict[str, Any]],
+        duration: Union[Time, str, int],
     ):
         # Ensure all duration units are in epochs or tokens and values are positive
         self._schedule = schedule
         if len(self._schedule) == 0:
             raise ValueError('The schedule must have at least one datamix.')
-        for index, datamix in enumerate(self._schedule):
+        first_datamix = {
+            'duration': duration,
+            'dataset': train_config['train_loader']['dataset'],
+        }
+        self._schedule.insert(0, first_datamix)
+        for datamix in self._schedule:
             self._validate_datamix(datamix)
 
-            if (
-                index == 0 and
-                train_config['train_loader'] != datamix['train_loader']
-            ):
-                raise ValueError((
-                    'The first datamix in the schedule must match the '
-                    'train_loader in the train_config.'
-                ))
-
         self._schedule_index = 0
-        self.device_train_batch_size = train_config['device_train_batch_size']
-        self.tokenizer = None
+        self._train_loader_config: dict[str, Any] = train_config['train_loader']
+        self._device_train_batch_size = train_config['device_train_batch_size']
+        self._tokenizer = None
 
     def init(self, state: State, logger: Logger):
         del logger  # unused
 
         if not hasattr(state.model, 'tokenizer'):
             raise ValueError('state.model must have a tokenizer attribute.')
-        self.tokenizer = state.model.tokenizer
+        self._tokenizer = state.model.tokenizer
 
     def before_load(self, state: State, logger: Logger):
         del logger  # unused
@@ -129,18 +136,17 @@ class CurriculumLearning(CallbackWithConfig):
         self._validate_dataloader(state.train_dataloader)
 
         # If checkpoint was saved before iteration was incremented, we need to increment it now
+        duration = self._schedule[self._schedule_index]['duration']
         if ((
-            self._schedule[self._schedule_index]['duration'].unit
-            == TimeUnit.TOKEN and state.timestamp.token_in_iteration >=
-            self._schedule[self._schedule_index]['duration'].value
+            duration.unit == TimeUnit.TOKEN and
+            state.timestamp.token_in_iteration >= duration.value
         ) or (
-            self._schedule[self._schedule_index]['duration'].unit
-            == TimeUnit.EPOCH and state.timestamp.epoch_in_iteration >=
-            self._schedule[self._schedule_index]['duration'].value
+            duration.unit == TimeUnit.EPOCH and
+            state.timestamp.epoch_in_iteration >= duration.value
         )):
             log.warning((
-                'The CurriculumLearning callback has detected that the previous run did not correctly '
-                'increment the iteration.'
+                'The CurriculumLearning callback has detected that the '
+                'previous run did not correctly increment the iteration.'
             ))
             self._schedule_index += 1
             state.timestamp = state.timestamp.to_next_iteration()
@@ -153,8 +159,10 @@ class CurriculumLearning(CallbackWithConfig):
             # which is stale
             clean_stale_shared_memory()
             datamix = copy.deepcopy(self._schedule[self._schedule_index])
+            train_loader_config = copy.deepcopy(self._train_loader_config)
+            train_loader_config['dataset'].update(datamix['dataset'])
             data_spec = self._build_train_loader(
-                train_loader_config=datamix['train_loader'],
+                train_loader_config=train_loader_config,
                 logger=logger,
             )
             state.set_dataloader(
@@ -175,48 +183,41 @@ class CurriculumLearning(CallbackWithConfig):
 
     def state_dict(self):
         return {
-            'schedule': self._schedule,
-            'schedule_index': self._schedule_index,
+            'state':
+                CurriculumLearningState(
+                    schedule=self._schedule,
+                    schedule_index=self._schedule_index,
+                ),
         }
 
     def load_state_dict(self, state: dict[str, Any]):
-        self._schedule_index = state['schedule_index']
+        schedule = state['state'].schedule
+        self._schedule_index = state['state'].schedule_index
 
         # Ensure that the schedule has not changed on previously trained datamixes
-        for idx in range(state['schedule_index']):
-            if self._schedule[idx] != state['schedule'][idx]:
+        for idx in range(self._schedule_index):
+            if self._schedule[idx] != schedule[idx]:
                 raise ValueError((
                     f'Previous datamixes must stay the same across ',
-                    f'resumptions. Expected {state["schedule"][idx]} but got ',
+                    f'resumptions. Expected {schedule[idx]} but got ',
                     f'{self._schedule[idx]}',
                 ))
 
         # Ensure that the datamix has not changed on the current datamix
-        current_loader = self._schedule[self._schedule_index]['train_loader']
-        saved_loader = state['schedule'][self._schedule_index]['train_loader']
-        if current_loader != saved_loader:
+        current_dataset = self._schedule[self._schedule_index]['dataset']
+        saved_dataset = schedule[self._schedule_index]['dataset']
+        if current_dataset != saved_dataset:
             raise ValueError((
                 f'The current datamix must stay the same across resumptions. ',
-                f'Expected {saved_loader} but got {current_loader}',
+                f'Expected {saved_dataset} but got {current_dataset}',
             ))
 
-        # Ensure that the current datamix duration is greater than timestamp
+        # Ensure that the current datamix duration is in the correct units
         duration = self._schedule[self._schedule_index]['duration']
         if duration.unit != TimeUnit.TOKEN and duration.unit != TimeUnit.EPOCH:
             raise ValueError((
                 f'Duration must be in terms of tokens or epochs, but got ',
                 f'{duration.unit}.',
-            ))
-        if ((
-            duration.unit == TimeUnit.TOKEN and
-            duration > state['timestamp'].token_in_iteration
-        ) or (
-            duration.unit == TimeUnit.EPOCH and
-            duration > state['timestamp'].epoch_in_iteration
-        )):
-            raise ValueError((
-                'The duration of the current datamix must be less or equal to '
-                'than the saved timestamp.'
             ))
 
     def _build_train_loader(
@@ -224,27 +225,23 @@ class CurriculumLearning(CallbackWithConfig):
         train_loader_config: dict[str, Any],
         logger: Logger,
     ) -> DataSpec:
+        del logger  # unused
+
         from llmfoundry.data.dataloader import build_dataloader
 
         # Copied from scripts/train/train.py
         log.info(
             f'Building train loader in CurriculumLearning callback for dataset {self._schedule_index}',
         )
-        assert self.tokenizer is not None
+        assert self._tokenizer is not None
         try:
             return build_dataloader(
                 train_loader_config,
-                self.tokenizer,
-                self.device_train_batch_size,
+                self._tokenizer,
+                self._device_train_batch_size,
             )
         except BaseContextualError as e:
-            for destination in logger.destinations:
-                if (
-                    isinstance(destination, MosaicMLLogger) and
-                    no_override_excepthook()
-                ):
-                    e.location = TrainDataLoaderLocation
-                    destination.log_exception(e)
+            e.location = TrainDataLoaderLocation
             raise e
 
     def _validate_dataloader(self, train_loader: Any):
@@ -279,5 +276,5 @@ class CurriculumLearning(CallbackWithConfig):
                 'Schedules can only be defined in terms of epochs or tokens.',
             )
 
-        if 'train_loader' not in datamix:
-            raise ValueError('Each datamix must have a train_loader.')
+        if 'dataset' not in datamix:
+            raise ValueError('Each datamix must have a dataset.')

@@ -1,7 +1,6 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Dict
 from unittest.mock import patch
 
 import pytest
@@ -74,7 +73,7 @@ class MockChatCompletion:
         setattr(self, 'choices', [MockMessage(expected_token)])
 
 
-def mock_create(**kwargs: Dict[str, str]):
+def mock_create(**kwargs: dict[str, str]):
     prompt = kwargs['prompt']
     if prompt == 'AMERICAN HISTORY: On May 29, 1765 Patrick Henrys Stamp Act protest was interrupted with this one word\nAnswer:':  # pyright: ignore[reportUnnecessaryComparison]
         return MockCompletion(' Tre')

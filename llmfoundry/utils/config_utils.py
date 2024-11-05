@@ -11,19 +11,22 @@ from dataclasses import dataclass, fields
 from typing import (
     Any,
     Callable,
-    Dict,
-    List,
     Literal,
     Mapping,
     Optional,
-    Set,
-    Tuple,
     TypeVar,
     Union,
 )
 
 import mlflow
+from composer.loggers import Logger
 from composer.utils import dist, parse_uri
+from mlflow.data import (
+    delta_dataset_source,
+    http_dataset_source,
+    huggingface_dataset_source,
+    uc_volume_dataset_source,
+)
 from omegaconf import MISSING, DictConfig, ListConfig, MissingMandatoryValue
 from omegaconf import OmegaConf as om
 from transformers import PretrainedConfig
@@ -47,27 +50,27 @@ __all__ = [
 @dataclass
 class EvalConfig:
     # Eval Config required parameters:
-    models: List[Dict[str, Any]] = MISSING
+    models: list[dict[str, Any]] = MISSING
     max_seq_len: int = MISSING
     device_eval_batch_size: Union[int, float] = MISSING
 
     # Eval Config optional parameters:
-    code_paths: Optional[List[str]] = None
+    code_paths: Optional[list[str]] = None
 
     # Eval hyperparameters
-    eval_gauntlet: Optional[Dict[str, Any]] = None
+    eval_gauntlet: Optional[dict[str, Any]] = None
     eval_gauntlet_str: Optional[str] = None
-    eval_loader: Optional[Dict[str, Any]] = None
-    eval_loaders: Optional[List[Dict[str, Any]]] = None
+    eval_loader: Optional[dict[str, Any]] = None
+    eval_loaders: Optional[list[dict[str, Any]]] = None
     eval_subset_num_batches: int = -1
     icl_subset_num_batches: Optional[int] = None
     # One of icl_tasks or icl_tasks_str must be specified
-    icl_tasks: Optional[List[Dict[str, Any]]] = None
+    icl_tasks: Optional[list[dict[str, Any]]] = None
     icl_tasks_str: Optional[str] = None
 
     # Logging parameters
     python_log_level: Optional[str] = 'debug'
-    loggers: Optional[Dict[str, Any]] = None
+    loggers: Optional[dict[str, Any]] = None
     console_log_interval: Union[int, str] = '1ba'
     log_config: bool = True
 
@@ -75,17 +78,17 @@ class EvalConfig:
     seed: int = 17
     precision: str = 'amp_bf16'
     run_name: Optional[str] = None
-    metadata: Optional[Dict[str, str]] = None
+    metadata: Optional[dict[str, str]] = None
 
     # Distributed parameters
     dist_timeout: Union[float, int] = 600.0
-    fsdp_config: Optional[Dict[str, Any]] = None
+    fsdp_config: Optional[dict[str, Any]] = None
 
     # Callback parameters
-    callbacks: Optional[Dict[str, Any]] = None
+    callbacks: Optional[dict[str, Any]] = None
 
     # Variables to ignore
-    variables: Optional[Dict[str, Any]] = None
+    variables: Optional[dict[str, Any]] = None
 
 
 EVAL_CONFIG_KEYS = {field.name for field in fields(EvalConfig)}
@@ -96,15 +99,14 @@ class TrainConfig:
     """Dataclass for training configuration."""
 
     # Mandatory model training parameters
-    model: Dict[str, Any] = MISSING
-    tokenizer: Dict[str, Any] = MISSING
-    optimizer: Dict[str, Any] = MISSING
-    scheduler: Dict[str, Any] = MISSING
-    train_loader: Dict[str, Any] = MISSING
+    model: dict[str, Any] = MISSING
+    tokenizer: dict[str, Any] = MISSING
+    optimizer: dict[str, Any] = MISSING
+    scheduler: dict[str, Any] = MISSING
+    train_loader: dict[str, Any] = MISSING
     device_train_batch_size: Union[int, float] = MISSING
     device_eval_batch_size: Union[int, float] = MISSING
     max_duration: Union[int, str] = MISSING
-    eval_interval: Union[int, str] = MISSING
     max_seq_len: int = MISSING
 
     # Seed
@@ -114,7 +116,7 @@ class TrainConfig:
     precision: str = 'amp_bf16'
 
     # Code paths to import
-    code_paths: Optional[List[str]] = None
+    code_paths: Optional[list[str]] = None
 
     # Cuda allocation configuration
     max_split_size_mb: Optional[int] = None
@@ -123,21 +125,24 @@ class TrainConfig:
 
     # Distributed training parameters
     dist_timeout: Union[int, float] = 600.0
-    fsdp_config: Optional[Dict[str, Any]] = None
+    fsdp_config: Optional[dict[str, Any]] = None
+    tp_config: Optional[dict[str, Any]] = None
+    accumulate_train_batch_on_tokens: bool = True
 
     # Evaluation parameters
-    eval_loader: Optional[Dict[str, Any]] = None
-    eval_loaders: Optional[List[Dict[str, Any]]
+    eval_interval: Union[int, str] = 1
+    eval_loader: Optional[dict[str, Any]] = None
+    eval_loaders: Optional[list[dict[str, Any]]
                           ] = None  # should not be set by the user
-    icl_tasks: Optional[List[Dict[str, Any]]] = None
+    icl_tasks: Optional[list[dict[str, Any]]] = None
     icl_tasks_str: Optional[str] = None  # should not be set by the user
-    eval_gauntlet: Optional[Dict[str, Any]] = None
+    eval_gauntlet: Optional[dict[str, Any]] = None
     eval_gauntlet_str: Optional[str] = None  # should not be set by the user
     icl_subset_num_batches: Optional[int] = None
     icl_seq_len: Optional[int] = None
 
     # Logging
-    loggers: Optional[Dict[str, Any]] = None
+    loggers: Optional[dict[str, Any]] = None
     progress_bar: bool = False
     log_to_console: bool = True
     python_log_level: Optional[str] = 'debug'
@@ -145,8 +150,8 @@ class TrainConfig:
     log_config: bool = True
 
     # Callbacks
-    callbacks: Optional[Dict[str, Any]] = None
-    algorithms: Optional[Dict[str, Any]] = None
+    callbacks: Optional[dict[str, Any]] = None
+    algorithms: Optional[dict[str, Any]] = None
 
     # Checkpoints
     save_folder: Optional[str] = None
@@ -159,20 +164,24 @@ class TrainConfig:
     load_path: Optional[str] = None
     load_weights_only: bool = False
     load_strict_model_weights: bool = True
-    load_ignore_keys: Optional[List[str]] = None
-    save_ignore_keys: Optional[List[str]] = None
+    load_ignore_keys: Optional[list[str]] = None
+    save_ignore_keys: Optional[list[str]] = None
+    only_hf_checkpoint: bool = False
+    only_composer_checkpoint: bool = False
 
     # Dataloader
+    train_subset_num_batches: int = -1
     device_train_microbatch_size: Union[str, int, float] = 'auto'
     global_train_batch_size: Optional[int] = None
+    spin_dataloaders: bool = True
 
     # Eval dataloader
     eval_subset_num_batches: int = -1
     eval_first: bool = False
-    compile_config: Optional[Dict[str, Any]] = None
+    compile_config: Optional[dict[str, Any]] = None
 
     # Metadata
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[dict[str, Any]] = None
     flatten_metadata: bool = True
     run_name: Optional[str] = None
 
@@ -180,10 +189,10 @@ class TrainConfig:
     autoresume: bool = False
 
     # Profiling
-    profiler: Optional[Dict[str, Any]] = None
+    profiler: Optional[dict[str, Any]] = None
 
     # Variables to ignore
-    variables: Optional[Dict[str, Any]] = None
+    variables: Optional[dict[str, Any]] = None
 
     # Fields created by `update_batch_size_info`
     n_gpus: int = MISSING
@@ -193,14 +202,14 @@ class TrainConfig:
 TRAIN_CONFIG_KEYS = {field.name for field in fields(TrainConfig)}
 
 
-def forbid_config_key(cfg_dict: Dict[str, Any], key: str):
+def forbid_config_key(cfg_dict: dict[str, Any], key: str):
     if key in cfg_dict:
         raise ValueError(
             f'Config key `{key}` should not be set. Please remove it from the config.',
         )
 
 
-def to_dict_container(cfg: Union[DictConfig, Dict[str, Any]]) -> Dict[str, Any]:
+def to_dict_container(cfg: Union[DictConfig, dict[str, Any]]) -> dict[str, Any]:
     maybe_dict = to_container(cfg)
     if isinstance(maybe_dict, dict):
         return maybe_dict
@@ -209,8 +218,8 @@ def to_dict_container(cfg: Union[DictConfig, Dict[str, Any]]) -> Dict[str, Any]:
 
 
 def to_list_container(
-    cfg: Union[ListConfig, List[Dict[str, Any]]],
-) -> List[Dict[str, Any]]:
+    cfg: Union[ListConfig, list[dict[str, Any]]],
+) -> list[dict[str, Any]]:
     maybe_list = to_container(cfg)
     if isinstance(maybe_list, list):
         return maybe_list
@@ -219,9 +228,9 @@ def to_list_container(
 
 
 def to_container(
-    cfg: Optional[Union[DictConfig, ListConfig, Dict[str, Any],
-                        List[Dict[str, Any]]]],
-) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
+    cfg: Optional[Union[DictConfig, ListConfig, dict[str, Any],
+                        list[dict[str, Any]]]],
+) -> Union[dict[str, Any], list[dict[str, Any]]]:
     """Converts a DictConfig or ListConfig to a dict or list.
 
     `omegaconf.to_container` does not handle nested DictConfig or ListConfig
@@ -243,10 +252,10 @@ T = TypeVar('T')
 
 
 def apply_transforms_to_config(
-    cfg: Dict[str, Any],
-    transforms: Optional[Union[List[Callable[[Dict[str, Any]], Dict[str, Any]]],
-                               List[str], str]],
-) -> Dict[str, Any]:
+    cfg: dict[str, Any],
+    transforms: Optional[Union[list[Callable[[dict[str, Any]], dict[str, Any]]],
+                               list[str], str]],
+) -> dict[str, Any]:
     """Applies a list of transforms to a config.
 
     Args:
@@ -286,18 +295,17 @@ def apply_transforms_to_config(
 
     for transform in transform_functions:
         cfg = transform(cfg)
-
     return cfg
 
 
 def make_dataclass_and_log_config(
     cfg: DictConfig,
     dataclass_constructor: Callable[..., T],
-    dataclass_fields: Set[str],
-    transforms: Optional[Union[List[Callable[[Dict[str, Any]], Dict[str, Any]]],
-                               List[str], str]] = None,
+    dataclass_fields: set[str],
+    transforms: Optional[Union[list[Callable[[dict[str, Any]], dict[str, Any]]],
+                               list[str], str]] = None,
     icl_tasks_required: bool = False,
-) -> Tuple[Dict[str, Any], T]:
+) -> tuple[dict[str, Any], T]:
     """Converts a DictConfig to a dataclass and creates a logged config."""
     unstructured_config = om.to_container(cfg, resolve=True)
     assert isinstance(unstructured_config, dict)
@@ -329,16 +337,14 @@ def make_dataclass_and_log_config(
                 'icl_tasks must be specified in the config',
             )
 
-    # Create copy of config for logging
-    logged_cfg: Dict[str, Any] = copy.deepcopy(unstructured_config)
-
     # Apply transforms to the unstructured config before constructing dataclass
     unstructured_config = apply_transforms_to_config(
         unstructured_config,
         transforms,
     )
 
-    logged_cfg.update(unstructured_config, merge=True)
+    # Create copy of config for logging
+    logged_cfg: dict[str, Any] = copy.deepcopy(unstructured_config)
 
     arg_config_keys = set(unstructured_config.keys())
     extraneous_keys = set.difference(arg_config_keys, dataclass_fields)
@@ -346,9 +352,9 @@ def make_dataclass_and_log_config(
     if 'variables' not in unstructured_config:
         unstructured_config['variables'] = {}
 
-    for key in extraneous_keys:
+    if len(extraneous_keys) > 0:
         raise ValueError(
-            f'Unused parameter {key} found in cfg. Please check your yaml to ensure this parameter is necessary. Please place any variables under the `variables` key.',
+            f'Unused parameters {sorted(extraneous_keys)} found in cfg. Please check your yaml to ensure these parameters are necessary. Please place any variables under the `variables` key.',
         )
 
     dataclass_dict_config: DictConfig = om.structured(
@@ -369,7 +375,7 @@ def make_dataclass_and_log_config(
 
 
 def pop_config(
-    cfg: Union[Dict[str, Any], DictConfig],
+    cfg: Union[dict[str, Any], DictConfig],
     key: str,
     must_exist: bool = True,
     default_value: Any = None,
@@ -419,7 +425,7 @@ def calculate_batch_size_info(
     global_batch_size: int,
     device_microbatch_size: Union[int, float, Literal['auto']],
     data_replication_degree: int = 1,
-) -> Tuple[Union[int, float], Union[int, float, Literal['auto']], Union[
+) -> tuple[Union[int, float], Union[int, float, Literal['auto']], Union[
     int, Literal['auto']]]:
 
     world_size = dist.get_world_size()
@@ -456,15 +462,18 @@ def calculate_batch_size_info(
 
 
 def update_config_with_batch_size_info(
-    cfg: Dict[str, Any],
+    cfg: dict[str, Any],
     device_train_batch_size: Union[int, float],
     device_train_microbatch_size: Union[int, float, Literal['auto']],
     device_train_grad_accum: Union[int, Literal['auto']],
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Update the config with batch size information.
 
     Args:
         cfg (Dict[str, Any]): The config to update.
+        device_train_batch_size (Union[int, float]): The batch size of the training dataset for each device.
+        device_train_microbatch_size (Union[int, float, Literal['auto']]): The microbatch size of the training dataset for each device.
+        device_train_grad_accum (Union[int, Literal['auto']]): The gradient accumulation settings for each device.
 
     Returns:
         Dict[str, Any]: The updated config.
@@ -483,7 +492,7 @@ def update_config_with_batch_size_info(
     return cfg
 
 
-def update_batch_size_info(cfg: Dict[str, Any]) -> Dict[str, Any]:
+def update_batch_size_info(cfg: dict[str, Any]) -> dict[str, Any]:
     data_replication_degree = 1
     device_train_batch_size, device_train_microbatch_size, device_train_grad_accum = calculate_batch_size_info(
         cfg['global_train_batch_size'],
@@ -499,7 +508,11 @@ def update_batch_size_info(cfg: Dict[str, Any]) -> Dict[str, Any]:
     return cfg
 
 
-def process_init_device(model_cfg: Dict[str, Any], fsdp_config: Optional[Dict]):
+def process_init_device(
+    model_cfg: dict[str, Any],
+    fsdp_config: Optional[dict] = None,
+    tp_config: Optional[dict] = None,
+):
     # Restrict model init_device to 'meta' and 'cpu',
     # using 'cuda' vs. 'cuda:id' is tricky and can lead to common user errors
     # when multiple GPUs are available.
@@ -529,21 +542,60 @@ def process_init_device(model_cfg: Dict[str, Any], fsdp_config: Optional[Dict]):
                 fsdp_config['sync_module_states'] = True
 
             # Set defaults for mixed initialization
-            fsdp_config.setdefault('use_orig_params', False)
             fsdp_config.setdefault('load_monolith_rank0_only', True)
 
-    # Set ffn_config.device_mesh to fsdp_config.device_mesh
-    if fsdp_config is not None and 'device_mesh' in fsdp_config and 'ffn_config' in model_cfg and model_cfg[
-        'ffn_config'].get('ffn_type', None) in ffns_with_megablocks:
-        # Raise ValueError if not using device mesh with MoE expert parallelism
-        if fsdp_config['device_mesh'] is None and model_cfg['ffn_config'].get(
-            'moe_world_size',
-            1,
-        ) > 1:
+    if tp_config is not None:
+        # Check tp_config has required fields
+        if 'strategy' not in tp_config or 'tensor_parallel_degree' not in tp_config:
             raise ValueError(
-                'device_mesh must be specified in fsdp_config when using MoE with moe_world_size > 1.',
+                "`tp_config` requires 'strategy' and 'tensor_parallel_degree' values. ",
             )
-        model_cfg['ffn_config']['device_mesh'] = fsdp_config['device_mesh']
+
+        # Check we are not using tensor parallelism with MoEs
+        if 'ffn_config' in model_cfg and model_cfg['ffn_config'].get(
+            'ffn_type',
+            None,
+        ) in ffns_with_megablocks:
+            raise ValueError(
+                'Tensor Parallelism is not currently supported for MoE models.',
+            )
+
+    # Check we are not using tensor parallelism with MoEs
+    if tp_config is not None and 'ffn_config' in model_cfg and model_cfg[
+        'ffn_config'].get('ffn_type', None) in ffns_with_megablocks:
+        raise ValueError(
+            'Tensor Parallelism is not currently supported for MoE models.',
+        )
+
+    # Set ffn_config.device_mesh using fsdp_config
+    if fsdp_config is not None and 'ffn_config' in model_cfg and model_cfg[
+        'ffn_config'].get('ffn_type', None) in ffns_with_megablocks:
+        shard_degree = fsdp_config.get('data_parallel_shard_degree', None)
+        replicate_degree = fsdp_config.get(
+            'data_parallel_replicate_degree',
+            None,
+        )
+
+        if shard_degree is None and replicate_degree is None:
+            # Default to sharding over all gpus.
+            shard_degree = dist.get_world_size()
+            device_mesh_cfg = [shard_degree]
+        else:
+            if shard_degree is None:
+                # Shard degree is not specified, so calculate it from replicate degree
+                assert isinstance(replicate_degree, int)
+                shard_degree = dist.get_world_size() // replicate_degree
+            elif replicate_degree is None:
+                # Replicate degree is not specified, so calculate it from shard degree
+                assert isinstance(shard_degree, int)
+                replicate_degree = dist.get_world_size() // shard_degree
+
+            if replicate_degree == 1:
+                device_mesh_cfg = [shard_degree]
+            else:
+                device_mesh_cfg = [replicate_degree, shard_degree]
+
+        model_cfg['ffn_config']['device_mesh'] = device_mesh_cfg
 
     # No mixed precision needed for weights when they're already 16 bits
     master_dtype = model_cfg.get('master_weights_dtype')
@@ -572,24 +624,17 @@ def process_init_device(model_cfg: Dict[str, Any], fsdp_config: Optional[Dict]):
     return init_context
 
 
-def log_config(cfg: Dict[str, Any]) -> None:
+def log_config(logger: Logger, cfg: dict[str, Any]) -> None:
     """Logs the current config and updates the wandb and mlflow configs.
 
     This function can be called multiple times to update the wandb and MLflow
     config with different variables.
     """
     print(om.to_yaml(cfg))
-    loggers = cfg.get('loggers', None) or {}
-    if 'wandb' in loggers:
-        import wandb
-        if wandb.run:
-            wandb.config.update(cfg)
-
-    if 'mlflow' in loggers and mlflow.active_run():
-        mlflow.log_params(params=cfg)
+    logger.log_hyperparameters(cfg)
 
 
-def _parse_source_dataset(cfg: Dict[str, Any]) -> List[Tuple[str, str, str]]:
+def _parse_source_dataset(cfg: dict[str, Any]) -> list[tuple[str, str, str]]:
     """Parse a run config for dataset information.
 
     Given a config dictionary, parse through it to determine what the datasource
@@ -605,7 +650,7 @@ def _parse_source_dataset(cfg: Dict[str, Any]) -> List[Tuple[str, str, str]]:
     data_paths = []
 
     # Handle train loader if it exists
-    train_dataset: Dict = cfg.get('train_loader', {}).get('dataset', {})
+    train_dataset: dict = cfg.get('train_loader', {}).get('dataset', {})
     train_split = train_dataset.get('split', None)
     train_source_path = cfg.get('source_dataset_train', None)
     _process_data_source(
@@ -625,7 +670,7 @@ def _parse_source_dataset(cfg: Dict[str, Any]) -> List[Tuple[str, str, str]]:
 
     for eval_data_loader in eval_data_loaders:
         assert isinstance(eval_data_loader, dict)  # pyright type check
-        eval_dataset: Dict = eval_data_loader.get('dataset', {})
+        eval_dataset: dict = eval_data_loader.get('dataset', {})
         eval_split = eval_dataset.get('split', None)
         eval_source_path = cfg.get('source_dataset_eval', None)
         _process_data_source(
@@ -641,10 +686,10 @@ def _parse_source_dataset(cfg: Dict[str, Any]) -> List[Tuple[str, str, str]]:
 
 def _process_data_source(
     source_dataset_path: Optional[str],
-    dataset: Dict[str, str],
+    dataset: dict[str, str],
     cfg_split: Optional[str],
     true_split: str,
-    data_paths: List[Tuple[str, str, str]],
+    data_paths: list[tuple[str, str, str]],
 ):
     """Add a data source by mutating data_paths.
 
@@ -717,7 +762,7 @@ def _process_data_source(
         log.warning('DataSource Not Found.')
 
 
-def log_dataset_uri(cfg: Dict[str, Any]) -> None:
+def log_dataset_uri(cfg: dict[str, Any]) -> None:
     """Logs dataset tracking information to MLflow.
 
     Args:
@@ -730,15 +775,15 @@ def log_dataset_uri(cfg: Dict[str, Any]) -> None:
     data_paths = _parse_source_dataset(cfg)
 
     dataset_source_mapping = {
-        's3': mlflow.data.http_dataset_source.HTTPDatasetSource,
-        'oci': mlflow.data.http_dataset_source.HTTPDatasetSource,
-        'azure': mlflow.data.http_dataset_source.HTTPDatasetSource,
-        'gs': mlflow.data.http_dataset_source.HTTPDatasetSource,
-        'https': mlflow.data.http_dataset_source.HTTPDatasetSource,
-        'hf': mlflow.data.huggingface_dataset_source.HuggingFaceDatasetSource,
-        'delta_table': mlflow.data.delta_dataset_source.DeltaDatasetSource,
-        'uc_volume': mlflow.data.uc_volume_dataset_source.UCVolumeDatasetSource,
-        'local': mlflow.data.http_dataset_source.HTTPDatasetSource,
+        's3': http_dataset_source.HTTPDatasetSource,
+        'oci': http_dataset_source.HTTPDatasetSource,
+        'azure': http_dataset_source.HTTPDatasetSource,
+        'gs': http_dataset_source.HTTPDatasetSource,
+        'https': http_dataset_source.HTTPDatasetSource,
+        'hf': huggingface_dataset_source.HuggingFaceDatasetSource,
+        'delta_table': delta_dataset_source.DeltaDatasetSource,
+        'uc_volume': uc_volume_dataset_source.UCVolumeDatasetSource,
+        'local': http_dataset_source.HTTPDatasetSource,
     }
 
     # Map data source types to their respective MLFlow DataSource.
@@ -756,7 +801,7 @@ def log_dataset_uri(cfg: Dict[str, Any]) -> None:
             log.info(
                 f'{dataset_type} unknown, defaulting to http dataset source',
             )
-            source = mlflow.data.http_dataset_source.HTTPDatasetSource(url=path)
+            source = http_dataset_source.HTTPDatasetSource(url=path)
 
         mlflow.log_input(
             mlflow.data.meta_dataset.MetaDataset(source, name=split),
@@ -810,3 +855,45 @@ def _verify_uc_path(path: str) -> bool:
                 f'but your `UCVolumeDatasetSource` might be invalid.',
             )
     return False
+
+
+def set_config_overrides(
+    config: PretrainedConfig,
+    config_overrides: dict[str, Any],
+):
+    # set config overrides
+    for k, v in config_overrides.items():
+        if not hasattr(config, k):
+            raise ValueError(
+                f'config does not have attribute "{k}" to override ({k}: {v}).',
+            )
+
+        attr = getattr(config, k)
+        # attempt to disallow typos in nested configs
+        if isinstance(attr, Mapping):
+            extra_keys = [_k for _k in v.keys() if _k not in attr.keys()]
+            if extra_keys:
+                raise ValueError(
+                    f'Config dict override got unknown keys. ' +
+                    f'Extra keys: {extra_keys}. ' +
+                    f'Expected (a subset of) keys: {list(attr.keys())}.',
+                )
+            getattr(config, k).update(v)
+        # necessary case to allow for rope_scaling to be overriden in llama config
+        elif attr is None and isinstance(v, Mapping):
+            setattr(config, k, {})
+            getattr(config, k).update(v)
+        elif isinstance(attr, PretrainedConfig):
+            if not isinstance(v, Mapping):
+                raise ValueError(
+                    f'Expected a dictionary for config override {k}, but got {v}.',
+                )
+
+            for _k, _v in v.items():
+                if not hasattr(attr, _k):
+                    raise ValueError(
+                        f'config does not have attribute "{_k}" to override ({k}: {_k}: {_v}).',
+                    )
+                setattr(attr, _k, _v)
+        else:
+            setattr(config, k, v)

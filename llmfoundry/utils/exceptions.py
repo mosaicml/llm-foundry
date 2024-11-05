@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Custom exceptions for the LLMFoundry."""
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Literal, Optional, Union
 
 __all__ = [
     'ALLOWED_RESPONSE_KEYS',
@@ -28,7 +28,11 @@ __all__ = [
     'InputFolderMissingDataError',
     'OutputFolderNotEmptyError',
     'MisconfiguredHfDatasetError',
+    'DatasetTooSmallError',
     'RunTimeoutError',
+    'StoragePermissionError',
+    'UCNotEnabledError',
+    'DeltaTableNotFoundError',
 ]
 
 ALLOWED_RESPONSE_KEYS = {'response', 'completion'}
@@ -160,6 +164,22 @@ class NotEnoughDatasetSamplesError(UserError):
 
 
 ## Tasks exceptions
+class InvalidExampleTypeError(UserError):
+    """Error thrown when a message type is not a `Mapping`."""
+
+    def __init__(self, example_type: str) -> None:
+        message = f'Expected example to be a `Mapping`, but found type {example_type}'
+        super().__init__(message, example_type=example_type)
+
+
+class InvalidMessageTypeError(UserError):
+    """Error thrown when a message type is not an `Iterable`."""
+
+    def __init__(self, message_type: str) -> None:
+        message = f'Expected message to be an `Iterable`, but found type {message_type}'
+        super().__init__(message, message_type=message_type)
+
+
 class UnknownExampleTypeError(UserError):
     """Error thrown when an unknown example type is used in a task."""
 
@@ -195,7 +215,7 @@ class ChatTemplateError(UserError):
     def __init__(
         self,
         template: str,
-        sample: List[Dict[str, Any]],
+        sample: list[dict[str, Any]],
         inner_message: str,
     ) -> None:
         message = f'Failed to process sample {sample} with template {template}. {inner_message}'
@@ -222,7 +242,7 @@ class InvalidLastChatMessageRoleError(UserError):
 class IncorrectMessageKeyQuantityError(UserError):
     """Error thrown when a message has an incorrect number of keys."""
 
-    def __init__(self, keys: List[str]) -> None:
+    def __init__(self, keys: list[str]) -> None:
         message = f'Expected 2 keys in message, but found {len(keys)}'
         super().__init__(message, keys=keys)
 
@@ -262,7 +282,7 @@ class InvalidResponseTypeError(UserError):
 class InvalidPromptResponseKeysError(UserError):
     """Error thrown when missing expected prompt and response keys."""
 
-    def __init__(self, mapping: Dict[str, str], example: Dict[str, Any]):
+    def __init__(self, mapping: dict[str, str], example: dict[str, Any]):
         message = f'Expected {mapping=} to have keys "prompt" and "response".'
         super().__init__(message, mapping=mapping, example=example)
 
@@ -270,7 +290,7 @@ class InvalidPromptResponseKeysError(UserError):
 class InvalidFileExtensionError(UserError):
     """Error thrown when a file extension is not a safe extension."""
 
-    def __init__(self, dataset_name: str, valid_extensions: List[str]) -> None:
+    def __init__(self, dataset_name: str, valid_extensions: list[str]) -> None:
         message = (
             f'safe_load is set to True. No data files with safe extensions {valid_extensions} '
             + f'found for dataset at local path {dataset_name}.'
@@ -287,18 +307,31 @@ class UnableToProcessPromptResponseError(
 ):
     """Error thrown when a prompt and response cannot be processed."""
 
-    def __init__(self, input: Dict) -> None:
+    def __init__(self, input: dict) -> None:
         message = f'Unable to extract prompt/response from {input}'
         super().__init__(message, input=input)
 
 
 ## Convert Delta to JSON exceptions
-class ClusterDoesNotExistError(NetworkError):
+class ClusterDoesNotExistError(UserError):
     """Error thrown when the cluster does not exist."""
 
     def __init__(self, cluster_id: str) -> None:
         message = f'Cluster with id {cluster_id} does not exist. Check cluster id and try again!'
         super().__init__(message, cluster_id=cluster_id)
+
+
+class ClusterInvalidAccessMode(UserError):
+    """Error thrown when the cluster does not exist."""
+
+    def __init__(self, cluster_id: str, access_mode: str) -> None:
+        message = f'The cluster you have provided: {cluster_id} does not have data governance enabled.' + \
+                  'Please use a cluster with a data security mode other than NONE.'
+        super().__init__(
+            message,
+            cluster_id=cluster_id,
+            access_mode=access_mode,
+        )
 
 
 class FailedToCreateSQLConnectionError(
@@ -331,6 +364,25 @@ class InputFolderMissingDataError(UserError):
         super().__init__(message, input_folder=input_folder)
 
 
+class InputFolderNotFound(UserError):
+    """Error thrown when the a folder is not found."""
+
+    def __init__(self, folder_that_was_not_found: str) -> None:
+        message = f'{folder_that_was_not_found} not found.'
+        super().__init__(
+            message,
+            folder_that_was_not_found=folder_that_was_not_found,
+        )
+
+
+class CannotUnicodeDecodeFile(UserError):
+    """Error thrown when the input folder is missing data."""
+
+    def __init__(self, text_file: str) -> None:
+        message = f'Text file {text_file} contains chars that cannot be utf-8 decoded. Please remove or replace these chars.'
+        super().__init__(message, text_file=text_file)
+
+
 class OutputFolderNotEmptyError(UserError):
     """Error thrown when the output folder is not empty."""
 
@@ -348,9 +400,171 @@ class MisconfiguredHfDatasetError(UserError):
         super().__init__(message, dataset_name=dataset_name, split=split)
 
 
+class InvalidDatasetError(UserError):
+    """Error thrown when a dataset contains no valid samples for training."""
+
+    def __init__(self, reason: str) -> None:
+        message = f'Dataset contains no valid samples for training. {reason}'
+        super().__init__(message, reason=reason)
+
+
+class DatasetTooSmallError(UserError):
+    """Error thrown when the dataset is too small to be processed."""
+
+    def __init__(self, reason: str) -> None:
+        message = f'Your dataset is too small and produced no complete samples or too few samples. Please provide more data. {reason}'
+        super().__init__(message, reason=reason)
+
+
 class RunTimeoutError(InternalError):
     """Error thrown when a run times out."""
 
     def __init__(self, timeout: int) -> None:
         message = f'Run timed out after {timeout} seconds.'
         super().__init__(message, timeout=timeout)
+
+
+class LossSpikeError(UserError):
+    """Error thrown if a severe loss spike occurs."""
+
+    def __init__(
+        self,
+        outlier_multiplier: float,
+        running_loss_avg: float,
+        outlier_counter: int,
+        loss_window: list[float],
+    ) -> None:
+        message = f'Training stopped due to a loss spike. The training loss was more than {outlier_multiplier} times greater than the running average loss (approx. {running_loss_avg}) over {outlier_counter} consecutive training steps. Please try submitting the run again with a lower learning rate.'
+
+        super().__init__(
+            message,
+            outlier_multiplier=outlier_multiplier,
+            running_loss_avg=running_loss_avg,
+            outlier_counter=outlier_counter,
+            loss_window=loss_window,
+        )
+
+
+class HighLossError(UserError):
+    """Error thrown if training loss plateaus or is unstable at a high level."""
+
+    def __init__(
+        self,
+        loss_cap: float,
+        window_size: int,
+        loss_window: list[float],
+    ) -> None:
+        message = f'Training stopped due to consistently high losses. The training loss exceeded the threshold of {loss_cap} for more than half of the {window_size} most recent training steps. Please try submitting the run again with a lower learning rate.'
+
+        super().__init__(
+            message,
+            loss_cap=loss_cap,
+            window_size=window_size,
+            loss_window=loss_window,
+        )
+
+
+class InsufficientPermissionsError(UserError):
+    """Error thrown when the user does not have sufficient permissions."""
+
+    def __init__(self, message: str) -> None:
+        self.message = message
+        super().__init__(message)
+
+    def __reduce__(self):
+        # Return a tuple of class, a tuple of arguments, and optionally state
+        return (InsufficientPermissionsError, (self.message,))
+
+    def __str__(self):
+        return self.message
+
+
+class FaultyDataPrepCluster(UserError):
+    """Error thrown when the user uses faulty data prep cluster."""
+
+    def __init__(self, message: str) -> None:
+        self.message = message
+        super().__init__(message)
+
+    def __reduce__(self):
+        # Return a tuple of class, a tuple of arguments, and optionally state
+        return (FaultyDataPrepCluster, (self.message,))
+
+    def __str__(self):
+        return self.message
+
+
+class FinetuningFileNotFoundError(UserError):
+    """Error thrown when a file can't be found with any supported extension."""
+
+    def __init__(
+        self,
+        files_searched: list[str],
+        supported_extensions: list[str],
+    ) -> None:
+        message = (
+            f'Could not find a file with any of ' + \
+            f'the supported extensions: {supported_extensions}\n' + \
+            f'at {files_searched}'
+        )
+        super().__init__(
+            message,
+            files_searched=files_searched,
+            supported_extensions=supported_extensions,
+        )
+
+
+class InvalidConversationError(UserError):
+    """Error thrown when the conversation is invalid."""
+
+    def __init__(self, message: str) -> None:
+        self.message = message
+        super().__init__(message)
+
+    def __reduce__(self):
+        # Return a tuple of class, a tuple of arguments, and optionally state
+        return (InvalidConversationError, (self.message,))
+
+    def __str__(self):
+        return self.message
+
+
+class StoragePermissionError(UserError):
+    """Error thrown due to invalid permissions accessing blob storage."""
+
+    def __init__(self, message: str) -> None:
+        self.message = message
+        super().__init__(message)
+
+    def __reduce__(self):
+        # Return a tuple of class, a tuple of arguments, and optionally state
+        return (StoragePermissionError, (self.message,))
+
+    def __str__(self):
+        return self.message
+
+
+class UCNotEnabledError(UserError):
+    """Error thrown when user does not have UC enabled on their cluster."""
+
+    def __init__(self) -> None:
+        message = 'Unity Catalog is not enabled on your cluster.'
+        super().__init__(message)
+
+
+class DeltaTableNotFoundError(UserError):
+    """Error thrown when the delta table passed in training doesn't exist."""
+
+    def __init__(
+        self,
+        catalog_name: str,
+        volume_name: str,
+        table_name: str,
+    ) -> None:
+        message = f'Your data path {catalog_name}.{volume_name}.{table_name} does not exist. Please double check your delta table name'
+        super().__init__(
+            message=message,
+            catalog_name=catalog_name,
+            volume_name=volume_name,
+            table_name=table_name,
+        )

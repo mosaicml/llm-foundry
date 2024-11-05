@@ -5,26 +5,26 @@
 
 from __future__ import annotations
 
-from typing import List, Mapping, Optional
+from typing import Any, Mapping, Optional, Union
 
-from composer.utils import dist
 from transformers import (
     AutoConfig,
+    AutoModelForSeq2SeqLM,
+    PretrainedConfig,
+    PreTrainedModel,
     PreTrainedTokenizerBase,
-    T5ForConditionalGeneration,
 )
+from transformers.models.auto.auto_factory import _BaseAutoModelClass
 
 from llmfoundry.metrics import DEFAULT_ENC_DEC_METRICS
-from llmfoundry.models.hf.hf_fsdp import hf_get_init_device
-from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithFSDP
-from llmfoundry.models.utils import init_empty_weights
+from llmfoundry.models.hf.hf_base import BaseHuggingFaceModel
 from llmfoundry.utils.warnings import experimental_class
 
 __all__ = ['ComposerHFT5']
 
 
 @experimental_class('ComposerHFT5')
-class ComposerHFT5(HuggingFaceModelWithFSDP):
+class ComposerHFT5(BaseHuggingFaceModel):
     """Configures a :class:`.HuggingFaceModel` around a T5.
 
     Note: This function uses `transformers.T5ForConditionalGeneration`. Future releases
@@ -45,23 +45,45 @@ class ComposerHFT5(HuggingFaceModelWithFSDP):
         tokenizer (PreTrainedTokenizer): The tokenizer that the model will use.
     """
 
+    model_cls: Union[_BaseAutoModelClass,
+                     PreTrainedModel] = AutoModelForSeq2SeqLM
+    default_train_metrics: tuple = tuple(DEFAULT_ENC_DEC_METRICS)
+    default_eval_metrics: tuple = ()
+
     def __init__(
         self,
         tokenizer: PreTrainedTokenizerBase,
         pretrained_model_name_or_path: str,
-        pretrained: Optional[bool] = True,
+        pretrained: bool = True,
         trust_remote_code: bool = True,
         use_auth_token: bool = False,
-        config_overrides: Optional[Mapping] = None,
+        config_overrides: Optional[dict[str, Any]] = None,
         init_device: str = 'cpu',
-        additional_train_metrics: Optional[List] = None,
+        additional_train_metrics: Optional[list] = None,
         name: Optional[str] = None,
     ):
-        from llmfoundry.utils.builders import build_metric
+        super().__init__(
+            pretrained_model_name_or_path,
+            tokenizer=tokenizer,
+            pretrained=pretrained,
+            trust_remote_code=trust_remote_code,
+            use_auth_token=use_auth_token,
+            init_device=init_device,
+            config_overrides=config_overrides,
+            shift_labels=True,
+            additional_train_metrics=additional_train_metrics,
+        )
 
-        config_overrides = config_overrides or {}
-        additional_train_metrics = additional_train_metrics or []
-
+    @classmethod
+    def build_config(
+        cls,
+        pretrained_model_name_or_path: str,
+        trust_remote_code: bool,
+        use_auth_token: bool,
+        attn_implementation: str,
+        config_overrides: dict[str, Any],
+        **kwargs: Any,
+    ) -> PretrainedConfig:
         config = AutoConfig.from_pretrained(
             pretrained_model_name_or_path,
             trust_remote_code=trust_remote_code,
@@ -92,43 +114,4 @@ class ComposerHFT5(HuggingFaceModelWithFSDP):
             raise ValueError(f'Model type "hf_t5" currently only supports T5 models ' +\
                              f'using configs where `is_encoder_decoder` is ``True``.')
 
-        # Get the device we want to initialize, and use the
-        # resolved version to initialize the HF model
-        resolved_init_device = hf_get_init_device(init_device)
-
-        # We need to have all non-zero local ranks be not-pretrained
-        # Rank 0 will still be pretrained, and distribute the weights appropriately
-        if dist.get_local_rank() != 0 and init_device == 'mixed':
-            pretrained = False
-
-        if resolved_init_device == 'cpu':
-            if pretrained:
-                model = T5ForConditionalGeneration.from_pretrained(
-                    pretrained_model_name_or_path,
-                    config=config,
-                )
-            else:
-                model = T5ForConditionalGeneration(config)
-        elif resolved_init_device == 'meta':
-            if pretrained:
-                raise ValueError(
-                    'Setting cfg.pretrained=True is not supported when init_device="meta".',
-                )
-            with init_empty_weights(include_buffers=False):
-                model = T5ForConditionalGeneration(config)
-        else:
-            raise ValueError(
-                f'init_device="{init_device}" must be either "cpu" or "meta".',
-            )
-
-        metrics = [
-            build_metric(metric, {})
-            for metric in DEFAULT_ENC_DEC_METRICS + additional_train_metrics
-        ]
-
-        super().__init__(
-            model=model,
-            tokenizer=tokenizer,
-            metrics=metrics,
-            init_device=init_device,
-        )
+        return config

@@ -77,6 +77,7 @@ def allclose_helper(
 )
 @pytest.mark.parametrize('attn_uses_sequence_id', [True, False])
 @pytest.mark.parametrize('pad_attention_mask', [True, False])
+@pytest.mark.parametrize('sliding_window_size', [-1, 2])
 def test_attn_impl(
     attn_impl_0: str,
     attn_impl_1: str,
@@ -87,6 +88,7 @@ def test_attn_impl(
     attn_type: str,
     attn_uses_sequence_id: bool,
     pad_attention_mask: bool,
+    sliding_window_size: int,
     device: str = 'cuda',
 ):
     """Compare all attn impl with each other.
@@ -122,6 +124,7 @@ def test_attn_impl(
         'clip_qkv': clip_qkv,
         'qk_ln': qk_ln,
         'qk_gn': qk_gn,
+        'sliding_window_size': sliding_window_size,
     })
 
     n, s, f = 2, 4, cfg.d_model
@@ -185,7 +188,7 @@ def test_attn_impl(
                 alibi=alibi,
                 alibi_bias_max=8,
             )
-        if attn_impl != 'flash' and attn_uses_sequence_id and sequence_id is not None:
+        if attn_impl == 'torch' and attn_uses_sequence_id and sequence_id is not None:
             assert isinstance(attn_bias, torch.Tensor)  # pyright
             attn_bias = apply_sequence_id(
                 attn_bias,
@@ -251,12 +254,13 @@ def test_attn_impl(
         rotary_emb_w_meta_info = None
         if rope:
             rotary_embedding = gen_rotary_embedding(
-                rope_head_dim=cfg.d_model // cfg.n_heads,
                 rope_impl=pos_emb_config['rope_impl'],
                 rope_theta=pos_emb_config['rope_theta'],
                 rope_dail_config=pos_emb_config.get('rope_dail_config', {}),
                 rope_hf_config=pos_emb_config.get('rope_hf_config', {}),
                 max_seq_len=s,
+                d_model=cfg.d_model,
+                n_heads=cfg.n_heads,
             ).to(device)
             pos = torch.arange(s).unsqueeze(0).to(device=device)
             # adjust the position indices to account for padding tokens
@@ -557,8 +561,10 @@ def test_grouped_query_invalid_heads():
         },
     }],
 )
+@pytest.mark.parametrize('attn_impl', ['flash', 'torch'])
 def test_reuse_prev_layer_kv_cache(
     pos_emb_config: dict,
+    attn_impl: str,
     device: str = 'cuda',
 ):
     """Checks reusing previous layer's kv cache."""
@@ -566,7 +572,7 @@ def test_reuse_prev_layer_kv_cache(
     rope = pos_emb_config['rope']
 
     cfg = {
-        'attn_impl': 'flash',
+        'attn_impl': attn_impl,
         'd_model': 64,
         'n_heads': 4,
         'attn_pdrop': 0,
@@ -626,6 +632,13 @@ def test_reuse_prev_layer_kv_cache(
                 alibi=alibi,
                 alibi_bias_max=8,
             )
+        if attn_impl == 'torch':
+            assert isinstance(attn_bias, torch.Tensor)  # pyright
+            attn_bias = apply_sequence_id(
+                attn_bias,
+                sequence_id,  # type: ignore
+                s,
+            )
 
         return attn_bias
 
@@ -633,7 +646,7 @@ def test_reuse_prev_layer_kv_cache(
         sequence_id=sequence_id,
         S=s,
         attn_uses_sequence_id=True,
-        attn_impl='flash',
+        attn_impl=attn_impl,
         attention_mask=attention_mask,
     )
 
@@ -652,7 +665,7 @@ def test_reuse_prev_layer_kv_cache(
     x1.requires_grad = True
 
     with torch.autocast(x0.device.type):
-        attn_bias_0 = gen_bias('flash')
+        attn_bias_0 = gen_bias(attn_impl)
         alibi_slopes_0 = None
         if alibi:
             alibi_slopes_0 = gen_slopes(
@@ -664,12 +677,13 @@ def test_reuse_prev_layer_kv_cache(
         rotary_emb_w_meta_info = None
         if rope:
             rotary_embedding = gen_rotary_embedding(
-                rope_head_dim=cfg['d_model'] // cfg['n_heads'],
                 rope_impl=pos_emb_config['rope_impl'],
                 rope_theta=pos_emb_config['rope_theta'],
                 rope_dail_config=pos_emb_config.get('rope_dail_config', {}),
                 rope_hf_config=pos_emb_config.get('rope_hf_config', {}),
                 max_seq_len=s,
+                d_model=cfg['d_model'],
+                n_heads=cfg['n_heads'],
             ).to(device)
             pos = torch.arange(s).unsqueeze(0).to(device=device)
             # adjust the position indices to account for padding tokens
@@ -698,7 +712,7 @@ def test_reuse_prev_layer_kv_cache(
             flash_attn_padding_info=flash_attn_padding_info,
             alibi_slopes=alibi_slopes_0,
         )
-        attn_bias_1 = gen_bias('flash')
+        attn_bias_1 = gen_bias(attn_impl)
         alibi_slopes_1 = None
         if alibi:
             alibi_slopes_1 = gen_slopes(

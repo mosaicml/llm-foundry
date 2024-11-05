@@ -30,7 +30,7 @@ import argparse
 import os
 from argparse import ArgumentTypeError
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Optional, Union
 
 import torch
 from composer.utils import (
@@ -85,7 +85,7 @@ def export_to_onnx(
     export_batch_size: int,
     max_seq_len: Optional[int],
     verify_export: bool,
-    from_pretrained_kwargs: Dict[str, Any],
+    from_pretrained_kwargs: dict[str, Any],
 ):
     reproducibility.seed_all(42)
     save_object_store = maybe_create_object_store_from_uri(output_folder)
@@ -158,7 +158,7 @@ def export_to_onnx(
         ort_session = ort.InferenceSession(str(output_file))
 
         for key, value in sample_input.items():
-            sample_input[key] = value.cpu().numpy()
+            sample_input[key] = value.cpu().numpy()  # pyright: ignore
 
         loaded_model_out = ort_session.run(None, sample_input)
 

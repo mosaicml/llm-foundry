@@ -79,11 +79,14 @@ def experimental_function(feature_name: str) -> Callable[[F], F]:
     return decorator
 
 
-def experimental_class(feature_name: str) -> Callable[[Type], Type]:
+def experimental_class(
+    feature_name: str,
+) -> Callable[[Type], Type]:  # noqa: UP006
     """Class decorator to mark a class as experimental."""
 
-    def class_decorator(cls: Type):
+    def class_decorator(cls: Type):  # noqa: UP006
         original_init = cls.__init__
+        cls.is_experimental = True
 
         def new_init(self: Any, *args: Any, **kwargs: Any):
             warnings.warn(ExperimentalWarning(feature_name))

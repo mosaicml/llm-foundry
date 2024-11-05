@@ -3,22 +3,22 @@
 
 """Defaults for MPT model component configs."""
 
-from typing import Dict
-
-ffn_config_defaults: Dict = {
+ffn_config_defaults: dict = {
     'ffn_type': 'mptmlp',
 }
 
-attn_config_defaults: Dict = {
+attn_config_defaults: dict = {
     'attn_type': 'multihead_attention',
     'attn_pdrop': 0.0,
     'attn_impl': 'flash',
     'qk_ln': False,
     'qk_gn': False,
+    'fused_qkv': True,
     'clip_qkv': None,
     'softmax_scale': None,
     'attn_uses_sequence_id': False,
     'sliding_window_size': -1,
+    'attn_logit_softcapping': None,
     'alibi': False,
     'alibi_bias_max': 8,
     'rope': False,
@@ -33,9 +33,10 @@ attn_config_defaults: Dict = {
         'type': 'no_scaling',
         'factor': 1.0,
     },
+    'kv_dim': None,
 }
 
-init_config_defaults: Dict = {
+init_config_defaults: dict = {
     'name': 'kaiming_normal_',
     'fan_mode': 'fan_in',
     'init_nonlinearity': 'relu',
@@ -46,6 +47,6 @@ init_config_defaults: Dict = {
     'init_gain': 0.0,
 }
 
-fc_type_defaults: Dict = {
+fc_type_defaults: dict = {
     'name': 'torch',
 }

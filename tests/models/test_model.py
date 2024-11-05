@@ -6,7 +6,7 @@ import os
 import pathlib
 import warnings
 from functools import partial
-from typing import Any, Dict, List, Optional, Union, cast
+from typing import Any, Optional, Union, cast
 from unittest import mock
 
 import pytest
@@ -15,7 +15,10 @@ import torch.nn as nn
 from accelerate import init_empty_weights
 from composer.core.precision import Precision, get_precision_context
 from composer.distributed.dist_strategy import prepare_fsdp_module
-from composer.models.huggingface import maybe_get_underlying_model
+from composer.models.huggingface import (
+    HuggingFaceModel,
+    maybe_get_underlying_model,
+)
 from composer.optim import DecoupledAdamW
 from composer.utils import (
     FSDPConfig,
@@ -35,10 +38,10 @@ from transformers import (
 )
 from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.models.bloom.modeling_bloom import build_alibi_tensor
+from transformers.models.llama.modeling_llama import LlamaRotaryEmbedding
 
 from llmfoundry import ComposerHFCausalLM
 from llmfoundry.layers_registry import norms
-from llmfoundry.models.hf.model_wrapper import HuggingFaceModelWithFSDP
 from llmfoundry.models.layers import build_alibi_bias
 from llmfoundry.models.layers.attention import (
     check_alibi_support,
@@ -46,6 +49,10 @@ from llmfoundry.models.layers.attention import (
 )
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM, MPTModel
+from llmfoundry.models.mpt.modeling_mpt import (
+    CROSS_ENTROPY_IGNORE_INDEX,
+    LlamaRotaryEmbeddingFoundry,
+)
 from llmfoundry.utils import build_tokenizer
 from llmfoundry.utils.builders import build_composer_model
 from llmfoundry.utils.config_utils import to_dict_container
@@ -61,7 +68,7 @@ def get_config(
     return cast(DictConfig, test_cfg)
 
 
-def _load_tokenizer_cfg(cfg: Union[Dict[str, Any], DictConfig]) -> Dict:
+def _load_tokenizer_cfg(cfg: Union[dict[str, Any], DictConfig]) -> dict:
     if isinstance(cfg, DictConfig):
         config = to_dict_container(cfg)
     else:
@@ -73,7 +80,7 @@ def _load_tokenizer_cfg(cfg: Union[Dict[str, Any], DictConfig]) -> Dict:
 def _get_objs(
     request: pytest.FixtureRequest,
     conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml',
-    model_config_overrides: Optional[Dict] = None,
+    model_config_overrides: Optional[dict] = None,
     attn_impl: str = 'torch',
 ):
     warnings.filterwarnings(
@@ -112,7 +119,7 @@ def _get_objs(
     test_cfg.device_eval_batch_size = 2
     test_cfg.device_train_microbatch_size = 2
 
-    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
+    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
     tokenizer = build_tokenizer(
         test_cfg.tokenizer.name,
         tokenizer_cfg.get('kwargs', {}),
@@ -141,7 +148,7 @@ def _get_objs(
 def gen_random_batch(
     batch_size: int,
     test_cfg: Union[DictConfig, ListConfig],
-    inputs: Optional[List[str]] = None,
+    inputs: Optional[list[str]] = None,
 ):
     # inputs can be [], ['input_ids'], ['input_ids', 'inputs_embeds'], and ['inputs_embeds']
     # default to only input ids
@@ -258,7 +265,7 @@ def test_full_forward_and_backward_with_inputs_embeds(
 @pytest.mark.parametrize('inputs', [[], ['input_ids', 'inputs_embeds']])
 def test_invalid_inputs_embeds_input_ids_combinations(
     request: pytest.FixtureRequest,
-    inputs: List[str],
+    inputs: list[str],
 ):
     test_cfg, model, _ = _get_objs(
         request=request,
@@ -364,7 +371,7 @@ def test_full_forward_and_backward_gpt2_small(batch_size: int = 2):
     neo_cfg.max_seq_len = 256
     neo_cfg.model.name = 'hf_causal_lm'
 
-    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(neo_cfg.tokenizer)
+    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(neo_cfg.tokenizer)
     tokenizer = build_tokenizer(
         neo_cfg.tokenizer.name,
         tokenizer_cfg.get('kwargs', {}),
@@ -423,7 +430,7 @@ def test_full_forward_and_backward_t5_small(batch_size: int = 2):
     t5_cfg.device = device
     t5_cfg.max_seq_len = 16
 
-    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(t5_cfg.tokenizer)
+    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(t5_cfg.tokenizer)
     tokenizer = build_tokenizer(
         t5_cfg.tokenizer.name,
         tokenizer_cfg.get('kwargs', {}),
@@ -523,7 +530,7 @@ def test_determinism(
     test_cfg.model.init_device = 'cuda:0'
     test_cfg.device = 'cuda:0'
 
-    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
+    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
     tokenizer = build_tokenizer(
         test_cfg.tokenizer.name,
         tokenizer_cfg.get('kwargs', {}),
@@ -603,7 +610,7 @@ def test_loss_fn():
         'init_std': 0.02,
     }
 
-    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
+    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
     tokenizer = build_tokenizer(
         test_cfg.tokenizer.name,
         tokenizer_cfg.get('kwargs', {}),
@@ -621,7 +628,10 @@ def test_loss_fn():
     model_2.to(test_cfg.device)
 
     assert isinstance(model_1.loss_fn, torch.nn.CrossEntropyLoss)
-    model_2.loss_fn = FusedCrossEntropyLoss(ignore_index=-100, reduction='none')
+    model_2.loss_fn = FusedCrossEntropyLoss(
+        ignore_index=CROSS_ENTROPY_IGNORE_INDEX,
+        reduction='none',
+    )
 
     optimizer_1 = DecoupledAdamW(
         model_1.parameters(),
@@ -707,7 +717,7 @@ def test_loss_reduction(loss_fn_config: str):
         'init_std': 0.02,
     }
 
-    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
+    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
     tokenizer = build_tokenizer(
         test_cfg.tokenizer.name,
         tokenizer_cfg.get('kwargs', {}),
@@ -728,13 +738,13 @@ def test_loss_reduction(loss_fn_config: str):
     if loss_fn_config == 'fused_crossentropy':
         assert isinstance(model_1.loss_fn, FusedCrossEntropyLoss)
         model_2.loss_fn = FusedCrossEntropyLoss(
-            ignore_index=-100,
+            ignore_index=CROSS_ENTROPY_IGNORE_INDEX,
             reduction='mean',
         )
     else:
         assert isinstance(model_1.loss_fn, torch.nn.CrossEntropyLoss)
         model_2.loss_fn = torch.nn.CrossEntropyLoss(
-            ignore_index=-100,
+            ignore_index=CROSS_ENTROPY_IGNORE_INDEX,
             reduction='mean',
         )
 
@@ -820,7 +830,7 @@ def test_opt_wrapping(peft_config: Optional[dict[str, str]]):
     if peft_config is not None:
         conf['model']['peft_config'] = peft_config
 
-    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(conf['tokenizer'])
+    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(conf['tokenizer'])
     tokenizer = build_tokenizer(
         conf['tokenizer']['name'],
         tokenizer_cfg.get('kwargs', {}),
@@ -854,7 +864,7 @@ def test_lora_id():
 
     config = DictConfig(conf)
 
-    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(config.tokenizer)
+    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(config.tokenizer)
     tokenizer = build_tokenizer(
         config.tokenizer.name,
         tokenizer_cfg.get('kwargs', {}),
@@ -2197,7 +2207,7 @@ def test_generate_with_past_kv(
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
 def test_generation_kwargs_dont_crash(
     attn_impl: str,
-    generation_kwargs: Dict[str, Any],
+    generation_kwargs: dict[str, Any],
     pos_emb_config: dict,
     tie_word_embeddings: bool,
 ):
@@ -2537,7 +2547,7 @@ def test_hf_init(
             trust_remote_code=True,
         )
 
-    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
+    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
     tokenizer = build_tokenizer(
         test_cfg.tokenizer.name,
         tokenizer_cfg.get('kwargs', {}),
@@ -2558,7 +2568,7 @@ def test_hf_init(
         False,
     )
 
-    model = HuggingFaceModelWithFSDP(model, tokenizer)
+    model = HuggingFaceModel(model, tokenizer)
 
     batch = gen_random_batch(batch_size, test_cfg)
 
@@ -2599,7 +2609,7 @@ def test_head_dim_8_flash_mqa_attn(batch_size: int = 2):
     )
     test_cfg.device = torch.cuda.current_device()
 
-    tokenizer_cfg: Dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
+    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
     tokenizer = build_tokenizer(
         test_cfg.tokenizer.name,
         tokenizer_cfg.get('kwargs', {}),
@@ -2607,7 +2617,7 @@ def test_head_dim_8_flash_mqa_attn(batch_size: int = 2):
 
     mpt = MPTForCausalLM(hf_config)
 
-    model = HuggingFaceModelWithFSDP(mpt, tokenizer, shift_labels=True)
+    model = HuggingFaceModel(mpt, tokenizer, shift_labels=True)
 
     model = model.to(test_cfg.device)
     batch = gen_random_batch(batch_size, test_cfg)
@@ -2908,3 +2918,68 @@ def test_resolve_reuse_kv_layer_idx(reuse_kv_layer_idx: int):
             'The relative index of kv layer to reuse, override_attn_config\[\"reuse_kv_layer_idx\"\]=0, should be negative\.',  # type: ignore
         ):
             _validate_helper(b_idx=2)
+
+
+def test_hf_rotary_child_class_builds():
+    rope_head_dim = 32
+    num_heads = 4
+    max_seq_len = 128
+    rope_theta = 10000
+    bsz = 4
+    value = torch.rand([bsz, num_heads, max_seq_len, rope_head_dim])
+    position_ids = torch.Tensor([
+        list(range(max_seq_len)),
+    ] * bsz)
+
+    rot_emb_mp = LlamaRotaryEmbeddingFoundry(
+        rope_head_dim,
+        max_seq_len,
+        rope_theta,
+        device='cpu',
+    )
+    cos_mp, sin_mp = rot_emb_mp(value, position_ids)
+
+    rot_emb = LlamaRotaryEmbedding(
+        rope_head_dim,
+        max_seq_len,
+        rope_theta,
+        device='cpu',
+    )
+    cos, sin = rot_emb(value, position_ids)
+
+    assert torch.all(cos == cos_mp)
+    assert torch.all(sin == sin_mp)
+
+
+@pytest.mark.parametrize(
+    'conf_path',
+    [
+        'scripts/train/yamls/pretrain/testing.yaml',
+    ],
+)
+def test_position_ids_fwd_pass(
+    request: pytest.FixtureRequest,
+    conf_path: str,
+    batch_size: int = 2,
+):
+    test_cfg, model, _ = _get_objs(request=request, conf_path=conf_path)
+    model.eval()
+
+    # run a forward where we do not pass the position_ids
+    batch = gen_random_batch(batch_size, test_cfg)
+    outputs = model(batch)
+    loss_no_ids = model.loss(outputs, batch)
+    assert isinstance(loss_no_ids, torch.Tensor)
+
+    # run a forward where we explicitly pass the position_ids
+    input_ids = batch['input_ids']
+    _, S = input_ids.size()
+    pos = torch.arange(0, S, dtype=torch.long,
+                       device=input_ids.device).unsqueeze(0)
+    batch['position_ids'] = pos
+
+    outputs = model(batch)
+    loss_ids = model.loss(outputs, batch)
+    assert isinstance(loss_ids, torch.Tensor)
+
+    assert torch.eq(loss_no_ids, loss_ids)

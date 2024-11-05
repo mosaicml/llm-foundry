@@ -4,16 +4,19 @@
 import json
 import os
 import shutil
-from argparse import Namespace
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Dict, List, Optional
+from tempfile import TemporaryDirectory
+from typing import Optional
 
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
+from streaming import MDSWriter
 
-from scripts.data_prep.convert_dataset_hf import main as main_hf  # noqa: E402
-from scripts.data_prep.convert_dataset_json import \
-    main as main_json  # noqa: E402
+from llmfoundry.command_utils import (
+    convert_dataset_hf,
+    convert_dataset_json,
+)
 
 
 def make_tiny_ft_dataset(
@@ -199,7 +202,7 @@ def make_tiny_conversation_ft_dataset(
             }],
         })
 
-    def messages_to_conversation(sample: Dict):
+    def messages_to_conversation(sample: dict):
         assert 'messages' in sample
         messages = sample['messages']
 
@@ -207,7 +210,7 @@ def make_tiny_conversation_ft_dataset(
             'user': 'human',
             'assistant': 'gpt',
         }
-        conversations: List[Dict[str, str]] = []
+        conversations: list[dict[str, str]] = []
         for message in messages:
             role: str = role_map.get(message['role'], message['role'])
             content: str = message['content']
@@ -230,23 +233,19 @@ def create_c4_dataset_xxsmall(path: Path) -> str:
     downloaded_split = 'val_xxsmall'  # very fast to convert
 
     # Hyperparameters from https://github.com/mosaicml/llm-foundry/blob/340a56658560ebceb2a3aa69d6e37813e415acd0/README.md#L188
-    main_hf(
-        Namespace(
-            **{
-                'dataset': 'c4',
-                'data_subset': 'en',
-                'splits': [downloaded_split],
-                'out_root': c4_dir,
-                'compression': None,
-                'concat_tokens': 2048,
-                'tokenizer': 'EleutherAI/gpt-neox-20b',
-                'tokenizer_kwargs': {},
-                'bos_text': '',
-                'eos_text': '<|endoftext|>',
-                'no_wrap': False,
-                'num_workers': 8,
-            },
-        ),
+    convert_dataset_hf(
+        dataset='allenai/c4',
+        data_subset='en',
+        splits=[downloaded_split],
+        out_root=c4_dir,
+        compression=None,
+        concat_tokens=2048,
+        tokenizer='EleutherAI/gpt-neox-20b',
+        tokenizer_kwargs={},
+        bos_text='',
+        eos_text='<|endoftext|>',
+        no_wrap=False,
+        num_workers=8,
     )
 
     # copy the small downloaded_split to other c4 splits for mocking purposes
@@ -255,6 +254,7 @@ def create_c4_dataset_xxsmall(path: Path) -> str:
         shutil.copytree(
             os.path.join(c4_dir, 'val_xxsmall'),
             os.path.join(c4_dir, mocked_split),
+            dirs_exist_ok=True,
         )
     assert os.path.exists(c4_dir)
     return c4_dir
@@ -269,20 +269,16 @@ def create_arxiv_dataset(path: Path) -> str:
     if not os.getcwd().endswith('scripts'):
         arxiv_path = os.path.join('scripts', arxiv_path)
 
-    main_json(
-        Namespace(
-            **{
-                'path': arxiv_path,
-                'out_root': arxiv_dir,
-                'compression': None,
-                'split': downloaded_split,
-                'concat_tokens': None,
-                'bos_text': None,
-                'eos_text': None,
-                'no_wrap': False,
-                'num_workers': None,
-            },
-        ),
+    convert_dataset_json(
+        path=arxiv_path,
+        out_root=arxiv_dir,
+        compression=None,
+        split=downloaded_split,
+        concat_tokens=None,
+        bos_text='',
+        eos_text='',
+        no_wrap=False,
+        num_workers=None,
     )
 
     return arxiv_dir
@@ -315,3 +311,56 @@ def gpt_tiny_cfg(dataset_name: str, device: str):
         test_cfg.precision = 'fp32'
 
     return test_cfg
+
+
+@contextmanager
+def temporary_contrastive_streaming_dataset(ds_format: str):
+    dir_name, cleanup_fn = build_temporary_contrastive_streaming_dataset(
+        ds_format,
+    )
+
+    try:
+        yield dir_name
+    finally:
+        cleanup_fn()
+
+
+def build_temporary_contrastive_streaming_dataset(ds_format: str):
+    tempdir = TemporaryDirectory()
+    columns = {
+        'text_a': 'str',
+        'text_b': 'str',
+        'id': 'int',
+    } if ds_format == 'one_query_one_response' else {
+        'query_text': 'str',
+        'positive_passage': 'str',
+        'negative_passages': 'str',
+        'id': 'int',
+    }
+    with MDSWriter(
+        columns=columns,
+        out=os.path.join(tempdir.name, 'train'),
+        compression=None,
+    ) as output_writer:
+        for i in range(100):
+            if ds_format == 'one_query_one_response':
+                output_writer.write({
+                    'text_a': f'hello {i}',
+                    'text_b': f'world {i}',
+                    'id': i,
+                })
+            elif ds_format == 'one_query_multiple_responses':
+                output_writer.write({
+                    'query_text':
+                        f'query {i}',
+                    'positive_passage':
+                        f'positive passage {i}',
+                    'negative_passages':
+                        f'["negative passage {i}", "negative passage {i + 1}", "negative passage {i + 2}"]',
+                    'id':
+                        i,
+                })
+            else:
+                raise ValueError(f'Unknown format: {format}')
+
+    return tempdir.name, tempdir.cleanup

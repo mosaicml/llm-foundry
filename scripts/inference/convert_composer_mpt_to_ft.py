@@ -8,7 +8,7 @@ import os
 import tempfile
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Optional, Union
 
 import torch
 from composer.utils import get_file, safe_torch_load
@@ -21,7 +21,7 @@ from llmfoundry.utils import (
 
 
 def save_ft_config(
-    composer_config: Dict[str, Any],
+    composer_config: dict[str, Any],
     tokenizer: PreTrainedTokenizer,
     save_dir: str,
     infer_gpu_num: int = 1,

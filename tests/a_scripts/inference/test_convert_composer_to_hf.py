@@ -8,12 +8,15 @@ import os
 import pathlib
 import shutil
 from argparse import Namespace
-from typing import Any, Callable, Dict, Optional, cast
+from typing import Any, Callable, Optional, Union, cast
+from unittest import mock
 from unittest.mock import ANY, MagicMock, patch
 
 import catalogue
+import numpy as np
 import pytest
 import torch
+import torch.nn as nn
 import transformers
 from composer import ComposerModel, Trainer
 from composer.loggers import MLFlowLogger
@@ -22,7 +25,13 @@ from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from torch.distributed._tensor.api import DTensor
 from torch.utils.data import DataLoader
-from transformers import PreTrainedModel, PreTrainedTokenizerBase
+from transformers import (
+    AutoConfig,
+    GenerationConfig,
+    PretrainedConfig,
+    PreTrainedModel,
+    PreTrainedTokenizerBase,
+)
 
 from llmfoundry.callbacks import HuggingFaceCheckpointer
 from llmfoundry.callbacks.hf_checkpointer import _maybe_get_license_filename
@@ -314,15 +323,151 @@ class MockSpawnProcess:
     multiprocessing, so we need to patch SpawnProcess for tests.
     """
 
-    def __init__(self, target: Callable, kwargs: Dict[str, Any]):
+    def __init__(
+        self,
+        target: Callable,
+        kwargs: dict[str, Any],
+        exitcode: int = 0,
+    ):
         self.target = target
         self.kwargs = kwargs
+        self.exitcode = exitcode
 
     def start(self):
         self.target(**self.kwargs)
 
     def is_alive(self) -> bool:
         return False
+
+
+def _create_mlflow_logger_mock() -> MagicMock:
+    mlflow_logger_mock = MagicMock(spec=MLFlowLogger)
+    mlflow_logger_mock._mlflow_client = MagicMock()
+    mlflow_logger_mock._experiment_id = 'mlflow-experiment-id'
+    mlflow_logger_mock._run_id = 'mlflow-run-id'
+    mlflow_logger_mock._enabled = True
+    mlflow_logger_mock.log_model = MagicMock()
+    mlflow_logger_mock.model_registry_prefix = ''
+    mlflow_logger_mock.model_registry_uri = None
+    mlflow_logger_mock.state_dict = lambda *args, **kwargs: {}
+    mlflow_logger_mock.save_model = MagicMock(wraps=_save_model_mock)
+    mlflow_logger_mock.run_url = 'fake-url'
+    mlflow_logger_mock.tracking_uri = None
+    return mlflow_logger_mock
+
+
+def _create_optimizer(original_model: torch.nn.Module) -> torch.optim.Optimizer:
+    optimizer_config = _OPTIMIZER_CFG()
+    optimizer_name = optimizer_config.pop('name')
+    return build_optimizer(
+        original_model,
+        optimizer_name,
+        optimizer_config,
+    )
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize('mlflow_registry_error', [True, False])
+@pytest.mark.parametrize(
+    'mlflow_registered_model_name',
+    [None, 'dummy-registered-name'],
+)
+@patch('os.cpu_count', MagicMock(return_value=1))
+@patch(
+    'llmfoundry.callbacks.hf_checkpointer.SpawnProcess',
+    new=MockSpawnProcess,
+)
+def test_final_register_only(
+    mlflow_registry_error: bool,
+    mlflow_registered_model_name: Optional[str],
+    tiny_ft_dataloader: DataLoader,
+    tmp_path: pathlib.Path,
+    build_tiny_mpt: Callable,
+):
+    if mlflow_registry_error and mlflow_registered_model_name is None:
+        pytest.skip(
+            'Cannot test mlflow_registry_error without mlflow_registered_model_name',
+        )
+
+    delete_transformers_cache()
+
+    dist.initialize_dist(get_device('gpu'))
+
+    precision_str = 'bfloat16'
+
+    checkpointer_callback = HuggingFaceCheckpointer(
+        save_folder=os.path.join(tmp_path, 'checkpoints'),
+        save_interval='1dur',
+        precision=precision_str,
+        mlflow_registered_model_name=mlflow_registered_model_name,
+        final_register_only=True,
+    )
+
+    original_model = build_tiny_mpt()
+
+    optimizer = _create_optimizer(original_model)
+
+    mlflow_logger_mock = _create_mlflow_logger_mock()
+
+    checkpointer_callback._save_checkpoint = MagicMock(
+        wraps=checkpointer_callback._save_checkpoint,
+    )
+    trainer = Trainer(
+        model=original_model,
+        device='gpu',
+        train_dataloader=tiny_ft_dataloader,
+        max_duration='1ba',
+        callbacks=[checkpointer_callback],
+        loggers=[mlflow_logger_mock],
+        optimizers=optimizer,
+        save_latest_filename=None,
+    )
+
+    with mock.patch(
+        'llmfoundry.callbacks.hf_checkpointer.SpawnProcess',
+        new=lambda target,
+        kwargs: MockSpawnProcess(
+            target,
+            kwargs,
+            exitcode=1 if mlflow_registry_error else 0,
+        ),
+    ):
+        trainer.fit()
+
+    if mlflow_registered_model_name is not None:
+        # We should always attempt to register the model once
+        assert mlflow_logger_mock.log_model.call_count == 1
+        if mlflow_registry_error:
+            # If the registry fails, we should still save the model
+            assert mlflow_logger_mock.log_model.call_count == 1
+            assert checkpointer_callback._save_checkpoint.call_count == 2
+            assert checkpointer_callback._save_checkpoint.call_args_list[
+                0].kwargs == {
+                    'register_to_mlflow': True,
+                    'upload_to_save_folder': False,
+                }
+            assert checkpointer_callback._save_checkpoint.call_args_list[
+                1].kwargs == {
+                    'register_to_mlflow': False,
+                    'upload_to_save_folder': True,
+                }
+        else:
+            # No mlflow_registry_error, so we should only register the model
+            assert checkpointer_callback._save_checkpoint.call_count == 1
+            assert checkpointer_callback._save_checkpoint.call_args_list[
+                0].kwargs == {
+                    'register_to_mlflow': True,
+                    'upload_to_save_folder': False,
+                }
+    else:
+        # No mlflow_registered_model_name, so we should only save the checkpoint
+        assert mlflow_logger_mock.log_model.call_count == 0
+        assert checkpointer_callback._save_checkpoint.call_count == 1
+        assert checkpointer_callback._save_checkpoint.call_args_list[
+            0].kwargs == {
+                'register_to_mlflow': False,
+                'upload_to_save_folder': True,
+            }
 
 
 @pytest.mark.gpu
@@ -368,21 +513,16 @@ def test_huggingface_conversion_callback_interval(
 
     original_model = build_tiny_mpt()
 
-    optimizer_config = _OPTIMIZER_CFG()
-    optimizer_name = optimizer_config.pop('name')
-    optimizer = build_optimizer(
-        original_model,
-        optimizer_name,
-        optimizer_config,
-    )
+    optimizer = _create_optimizer(original_model)
 
-    mlflow_logger_mock = MagicMock(spec=MLFlowLogger)
-    mlflow_logger_mock.state_dict = lambda *args, **kwargs: {}
-    mlflow_logger_mock.save_model = MagicMock(wraps=_save_model_mock)
-    mlflow_logger_mock.register_model_with_run_id = MagicMock()
-    mlflow_logger_mock.model_registry_prefix = ''
-    mlflow_logger_mock._experiment_id = 'mlflow-experiment-id'
-    mlflow_logger_mock._run_id = 'mlflow-run-id'
+    mlflow_logger_mock = _create_mlflow_logger_mock()
+
+    checkpointer_callback.transform_model_pre_registration = MagicMock(
+        wraps=checkpointer_callback.transform_model_pre_registration,
+    )
+    checkpointer_callback.pre_register_edit = MagicMock(
+        wraps=checkpointer_callback.pre_register_edit,
+    )
     trainer = Trainer(
         model=original_model,
         device='gpu',
@@ -398,24 +538,33 @@ def test_huggingface_conversion_callback_interval(
     trainer.fit()
 
     if log_to_mlflow:
-        assert mlflow_logger_mock.save_model.call_count == 1
-        mlflow_logger_mock.save_model.assert_called_with(
-            flavor='transformers',
+        assert mlflow_logger_mock.log_model.call_count == 1
+        mlflow_logger_mock.log_model.assert_called_with(
             transformers_model=ANY,
-            path=ANY,
-            task='llm/v1/completions',
-            input_example=ANY,
-            metadata={},
+            flavor='transformers',
+            artifact_path='final_model_checkpoint',
+            registered_model_name='dummy-registered-name',
+            run_id='mlflow-run-id',
+            await_registration_for=3600,
+            metadata=ANY,
+            task=ANY,
+            input_example={
+                'prompt': np.array(['What is Machine Learning?']),
+            },
         )
-        assert mlflow_logger_mock.register_model_with_run_id.call_count == 1
+        assert checkpointer_callback.transform_model_pre_registration.call_count == 1
+        assert checkpointer_callback.pre_register_edit.call_count == 1
+        assert mlflow_logger_mock.log_model.call_count == 1
     else:
-        assert mlflow_logger_mock.save_model.call_count == 0
-        assert mlflow_logger_mock.register_model_with_run_id.call_count == 0
+        assert checkpointer_callback.transform_model_pre_registration.call_count == 0
+        assert checkpointer_callback.pre_register_edit.call_count == 0
+        assert mlflow_logger_mock.log_model.call_count == 0
 
     normal_checkpoints = [
         name for name in os.listdir(os.path.join(tmp_path, 'checkpoints'))
         if name != 'huggingface'
     ]
+
     huggingface_checkpoints = list(
         os.listdir(os.path.join(tmp_path, 'checkpoints', 'huggingface')),
     )
@@ -506,7 +655,6 @@ def _get_model_and_tokenizer(
                 'moe_num_experts': 4,
                 'moe_top_k': 2,
                 'moe_world_size': 1,
-                'moe_weight_parallelism': False,
                 'uniform_expert_assignment': False,
             },
             'max_seq_len': max_seq_len,
@@ -560,7 +708,6 @@ def _assert_mlflow_logger_calls(
     peft_config: Optional[dict] = None,
 ):
     if dist.get_global_rank() == 0:
-        assert mlflow_logger_mock.save_model.call_count == 1
         if peft_config is not None:
             expectation = {
                 'flavor': 'peft',
@@ -568,26 +715,26 @@ def _assert_mlflow_logger_calls(
                 'save_pretrained_dir': ANY,
                 'metadata': {},
             }
+            assert mlflow_logger_mock.save_model.call_count == 1
         else:
-            import numpy as np
-
             default_input_example = {
                 'prompt': np.array(['What is Machine Learning?']),
             }
-
             expectation = {
-                'flavor': 'transformers',
                 'transformers_model': ANY,
-                'path': ANY,
-                'task': 'llm/v1/completions',
+                'flavor': 'transformers',
+                'artifact_path': 'final_model_checkpoint',
+                'registered_model_name': 'dummy-registered-name',
+                'run_id': 'mlflow-run-id',
+                'await_registration_for': 3600,
+                'metadata': ANY,
+                'task': ANY,
                 'input_example': default_input_example,
-                'metadata': {},
             }
-        mlflow_logger_mock.save_model.assert_called_with(**expectation)
-        assert mlflow_logger_mock.register_model_with_run_id.call_count == 1
+            assert mlflow_logger_mock.log_model.call_count == 1
+        mlflow_logger_mock.log_model.assert_called_with(**expectation)
     else:
         assert mlflow_logger_mock.log_model.call_count == 0
-        assert mlflow_logger_mock.register_model_with_run_id.call_count == 0
 
 
 def _get_fsdp_config(fsdp_state_dict_type: Optional[str]):
@@ -899,17 +1046,20 @@ def test_huggingface_conversion_callback(
     mlflow_logger_mock = MagicMock(spec=MLFlowLogger)
     mlflow_logger_mock.state_dict = lambda *args, **kwargs: {}
     mlflow_logger_mock.save_model = MagicMock(wraps=_save_model_mock)
-    mlflow_logger_mock.register_model_with_run_id = MagicMock()
+    mlflow_logger_mock.log_model = MagicMock()
     mlflow_logger_mock.model_registry_prefix = ''
     mlflow_logger_mock._experiment_id = 'mlflow-experiment-id'
     mlflow_logger_mock._run_id = 'mlflow-run-id'
     mlflow_logger_mock._enabled = True
     mlflow_logger_mock.run_url = 'fake-url'
+    mlflow_logger_mock.tracking_uri = None
+    mlflow_logger_mock.model_registry_uri = None
     trainer = Trainer(
         model=original_model,
         device='gpu',
         precision=trainer_precision,
-        fsdp_config=fsdp_config if fsdp_state_dict_type is not None else None,
+        parallelism_config={'fsdp': fsdp_config}
+        if fsdp_state_dict_type is not None else None,
         train_dataloader=train_dataloader,
         save_folder=os.path.join(tmp_path, 'checkpoints'),
         save_interval=save_interval,
@@ -1237,8 +1387,6 @@ def test_mptmoe_huggingface_conversion_callback(
                 2,
             'moe_world_size':
                 2,
-            'moe_weight_parallelism':
-                False,
             'uniform_expert_assignment':
                 True,
             'mlp_impl':
@@ -1269,11 +1417,12 @@ def test_mptmoe_huggingface_conversion_callback(
         'activation_checkpointing_reentrant': False,
         'activation_cpu_offload': False,
         'limit_all_gathers': True,
-        'device_mesh': [1, 4] if sharding_strategy == 'HYBRID_SHARD' else [
-            4,
-        ],
         'use_orig_params': True,
+        'data_parallel_shard_degree': 4,
     }
+
+    if sharding_strategy == 'HYBRID_SHARD':
+        fsdp_config['data_parallel_shard_degree'] = 1
 
     tiny_dataset_folder_path = os.path.join(os.getcwd(), 'test-ift-data-small')
     tiny_dataset_path = os.path.join(tiny_dataset_folder_path, 'train.jsonl')
@@ -1337,7 +1486,7 @@ def test_mptmoe_huggingface_conversion_callback(
     trainer = Trainer(
         model=original_model,
         device='gpu',
-        fsdp_config=fsdp_config,
+        parallelism_config={'fsdp': fsdp_config},
         train_dataloader=train_dataloader,
         save_folder=os.path.join(tmp_path, 'checkpoints'),
         save_interval=save_interval,
@@ -1423,6 +1572,9 @@ def test_mptmoe_huggingface_conversion_callback(
 
             # Check output equivalence
             loaded_model = loaded_model.cuda().bfloat16()  # type: ignore
+            for k, v in batch.items():
+                if isinstance(v, torch.Tensor):
+                    batch[k] = v.cuda()
             loaded_model_logits = loaded_model(
                 input_ids=batch.get('input_ids', None),
                 attention_mask=batch.get('attention_mask', None),
@@ -1504,3 +1656,48 @@ def test_license_file_finder(
     found_path = _maybe_get_license_filename(str(tmp_path))
     assert (found_path == license_file_name
            ) if license_file_name is not None else (found_path is None)
+
+
+@pytest.mark.parametrize('generation_config', [None, {}, {'max_length': 200}])
+def test_generation_config_variants(
+    generation_config: Optional[Union[dict[str, Any], GenerationConfig]],
+):
+
+    class MockModel(nn.Module):
+
+        def __init__(self, config: PretrainedConfig):
+            super().__init__()
+            self.config = config
+            # Ensure generation_config is always a GenerationConfig object
+            if isinstance(config.generation_config, dict):
+                self.generation_config = GenerationConfig(
+                    **config.generation_config,
+                )
+            else:
+                self.generation_config = config.generation_config
+
+    config = AutoConfig.from_pretrained('gpt2')
+    # Convert dict to GenerationConfig if needed
+    if isinstance(generation_config, dict):
+        generation_config = GenerationConfig(**generation_config)
+    config.generation_config = generation_config
+
+    mock_model = MockModel(config)
+    logger = MagicMock()
+    state = MagicMock()
+    state.timestamp.batch = 1
+    state.is_model_ddp = False
+    state.model.model = mock_model
+    state.model.tokenizer = None
+
+    checkpointer = HuggingFaceCheckpointer(
+        save_folder='test',
+        save_interval='1ba',
+    )
+
+    checkpointer._save_checkpoint(
+        state=state,
+        logger=logger,
+        upload_to_save_folder=False,
+        register_to_mlflow=False,
+    )

@@ -8,7 +8,7 @@ import functools
 import logging
 import re
 import string
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable
 
 import torch
 from torch import Tensor
@@ -80,7 +80,7 @@ class InContextLearningMetric(Metric):
         Args:
             batch (dict): Batch must consist minimally of `input_ids` as well as any other structure needed
                 to compute the metric.
-            output_logits (torch.Tensor): The model outputs evaluated on the batch `input_ids`
+            outputs (torch.Tensor): The model outputs evaluated on the batch `input_ids`.
             labels (torch.Tensor): The correct outputs.
 
         Raises:
@@ -160,9 +160,9 @@ class InContextLearningGenerationExactMatchAccuracy(InContextLearningMetric):
 
     def update(
         self,
-        batch: Dict[str, Any],
-        outputs: List[str],
-        labels: List[List[str]],
+        batch: dict[str, Any],
+        outputs: list[str],
+        labels: list[list[str]],
     ):
         cot_delimiter = batch.get('cot_delimiter', '')
         do_normalization = batch.get('do_normalization', True)

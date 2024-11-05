@@ -50,7 +50,7 @@ DBRX is a state-of-the-art open source LLM trained by Databricks Mosaic team. It
 | DBRX Base          | 32768          | https://huggingface.co/databricks/dbrx-base        |
 | DBRX Instruct      | 32768          | https://huggingface.co/databricks/dbrx-instruct    |
 
-Our model weights and code are licensed for both researchers and commercial entities. The Databricks Open Source License can be found at [LICENSE](https://github.com/databricks/dbrx/LICENSE), and our Acceptable Use Policy can be found [here](https://www.databricks.com/legal/acceptable-use-policy-open-model).
+Our model weights and code are licensed for both researchers and commercial entities. The Databricks Open Source License can be found at [LICENSE](https://github.com/databricks/dbrx/blob/main/LICENSE), and our Acceptable Use Policy can be found [here](https://www.databricks.com/legal/acceptable-use-policy-open-model).
 
 For more information about the DBRX models, see https://github.com/databricks/dbrx.
 
@@ -107,14 +107,14 @@ Something missing? Contribute with a PR!
 
 
 # Hardware and Software Requirements
-This codebase has been tested with PyTorch 2.2 with NVIDIA A100s and H100s.
+This codebase has been tested with PyTorch 2.4 with NVIDIA A100s and H100s.
 This codebase may also work on systems with other devices, such as consumer NVIDIA cards and AMD cards, but we are not actively testing these systems.
 If you have success/failure using LLM Foundry on other systems, please let us know in a Github issue and we will update the support matrix!
 
 | Device         | Torch Version | Cuda Version | Status                       |
 | -------------- | ------------- | ------------ | ---------------------------- |
-| A100-40GB/80GB | 2.3.1         | 12.1         | :white_check_mark: Supported |
-| H100-80GB      | 2.3.1         | 12.1         | :white_check_mark: Supported |
+| A100-40GB/80GB | 2.4.0         | 12.4         | :white_check_mark: Supported |
+| H100-80GB      | 2.4.0         | 12.4         | :white_check_mark: Supported |
 
 ## MosaicML Docker Images
 We highly recommend using our prebuilt Docker images. You can find them here: https://hub.docker.com/orgs/mosaicml/repositories.
@@ -122,15 +122,15 @@ We highly recommend using our prebuilt Docker images. You can find them here: ht
 The `mosaicml/pytorch` images are pinned to specific PyTorch and CUDA versions, and are stable and rarely updated.
 
 The `mosaicml/llm-foundry` images are built with new tags upon every commit to the `main` branch.
-You can select a specific commit hash such as `mosaicml/llm-foundry:2.3.1_cu121-36ab1ba` or take the latest one using `mosaicml/llm-foundry:2.3.1_cu121-latest`.
+You can select a specific commit hash such as `mosaicml/llm-foundry:2.4.0_cu124-36ab1ba` or take the latest one using `mosaicml/llm-foundry:2.4.0_cu124-latest`.
 
 **Please Note:** The `mosaicml/llm-foundry` images do not come with the `llm-foundry` package preinstalled, just the dependencies. You will still need to `pip install llm-foundry` either from PyPi or from source.
 
 | Docker Image                                           | Torch Version | Cuda Version      | LLM Foundry dependencies installed? |
 | ------------------------------------------------------ | ------------- | ----------------- | ----------------------------------- |
-| `mosaicml/pytorch:2.3.1_cu121-python3.11-ubuntu20.04`  | 2.3.1         | 12.1 (Infiniband) | No                                  |
-| `mosaicml/llm-foundry:2.3.1_cu121-latest`              | 2.3.1         | 12.1 (Infiniband) | Yes                                 |
-| `mosaicml/llm-foundry:2.3.1_cu121_aws-latest`          | 2.3.1         | 12.1 (EFA)        | Yes                                 |
+| `mosaicml/pytorch:2.4.0_cu124-python3.11-ubuntu20.04`  | 2.4.0         | 12.4 (Infiniband) | No                                  |
+| `mosaicml/llm-foundry:2.4.0_cu124-latest`              | 2.4.0         | 12.4 (Infiniband) | Yes                                 |
+| `mosaicml/llm-foundry:2.4.0_cu124_aws-latest`          | 2.4.0         | 12.4 (EFA)        | Yes                                 |
 
 
 # Installation
@@ -223,7 +223,7 @@ cd scripts
 
 # Convert C4 dataset to StreamingDataset format
 python data_prep/convert_dataset_hf.py \
-  --dataset c4 --data_subset en \
+  --dataset allenai/c4 --data_subset en \
   --out_root my-copy-c4 --splits train_small val_small \
   --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
 
@@ -309,9 +309,14 @@ dependencies = [
     "llm-foundry",
 ]
 
+# Note: Even though in python code, this would be llmfoundry.registry.loggers,
+# when specified in the entry_points, it has to be "llmfoundry_loggers". That is,
+# the segments of the name should be joined by an _ in the entry_points section.
 [project.entry-points."llmfoundry_loggers"]
 my_logger = "foundry_registry.loggers:MyLogger"
 ```
+
+If developing new components via entrypoints, it is important to note that Python entrypoints are global to the Python environment. This means that if you have multiple packages that register components with the same key, the last one installed will be the one used. This can be useful for overriding components in LLM Foundry, but can also lead to unexpected behavior if not careful. Additionally, if you change the pyproject.toml, you will need to reinstall the package for the changes to take effect. You can do this quickly by installing with `pip install -e . --no-deps` to avoid reinstalling dependencies.
 
 ### Direct call to register
 

@@ -7,17 +7,9 @@ import functools
 import logging
 import os
 import re
+import warnings
 from collections import OrderedDict
-from typing import (
-    Any,
-    ContextManager,
-    Dict,
-    Iterable,
-    List,
-    Optional,
-    Tuple,
-    Union,
-)
+from typing import Any, ContextManager, Iterable, Optional, Union
 
 import torch
 from composer.core import Algorithm, Callback, Evaluator
@@ -27,6 +19,8 @@ from composer.optim.scheduler import ComposerScheduler
 from composer.utils import dist
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
+from torch.distributed.checkpoint import LoadPlanner, SavePlanner
+from torch.distributed.tensor.parallel.style import ParallelStyle
 from torch.optim.optimizer import Optimizer
 from torchmetrics import Metric
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
@@ -34,11 +28,12 @@ from transformers import AutoTokenizer, PreTrainedTokenizerBase
 from llmfoundry import registry
 from llmfoundry.callbacks import EvalGauntlet
 from llmfoundry.data.dataloader import build_dataloader
-from llmfoundry.eval.datasets.in_context_learning_evaluation import \
-    get_icl_task_dataloader
-from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
+from llmfoundry.eval.datasets.in_context_learning_evaluation import (
+    get_icl_task_dataloader,
+)
 from llmfoundry.utils.config_utils import to_dict_container, to_list_container
 from llmfoundry.utils.registry_utils import construct_from_registry
+from llmfoundry.utils.warnings import experimental_function
 
 log = logging.getLogger(__name__)
 
@@ -54,19 +49,20 @@ __all__ = [
     'build_tokenizer',
     'build_composer_model',
     'build_metric',
+    'build_tp_strategies',
 ]
 
 
 def build_evaluators(
-    eval_loader_config: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]],
-    icl_tasks_config: Optional[Union[str, List[Dict[str, Any]]]],
-    eval_gauntlet_config: Optional[Union[str, Dict[str, Any]]],
+    eval_loader_config: Optional[Union[dict[str, Any], list[dict[str, Any]]]],
+    icl_tasks_config: Optional[Union[str, list[dict[str, Any]]]],
+    eval_gauntlet_config: Optional[Union[str, dict[str, Any]]],
     *,
     tokenizer: PreTrainedTokenizerBase,
     device_eval_batch_size: Union[int, float],
     icl_seq_len: int,
     icl_subset_num_batches: Optional[int],
-) -> Tuple[List[Evaluator], List[str], Optional[EvalGauntlet]]:
+) -> tuple[list[Evaluator], list[str], Optional[EvalGauntlet]]:
 
     evaluators = []
     if eval_loader_config is not None:
@@ -97,11 +93,11 @@ def build_evaluators(
 
 
 def build_eval_loaders(
-    eval_loader_config: Union[Dict[str, Any], List[Dict[str, Any]]],
+    eval_loader_config: Union[dict[str, Any], list[dict[str, Any]]],
     tokenizer: PreTrainedTokenizerBase,
     device_eval_batch_size: Union[int, float],
-) -> List[Evaluator]:
-    evaluators: List[Evaluator] = []
+) -> list[Evaluator]:
+    evaluators: list[Evaluator] = []
     if isinstance(eval_loader_config, list):
         eval_configs = eval_loader_config
         is_multi_eval = True
@@ -126,17 +122,16 @@ def build_eval_loaders(
             # Load the eval data to fail fast. metrics will get added
             # later in add_metrics_to_eval_loaders, after the model is loaded
             metric_names=[],
-            # TODO: Fix type in Composer
-            device_eval_microbatch_size=device_eval_batch_size,  # type: ignore
+            device_eval_microbatch_size=device_eval_batch_size,
         )
         evaluators.append(eval_loader)
     return evaluators
 
 
 def add_metrics_to_eval_loaders(
-    evaluators: List[Evaluator],
-    metric_names: List[str],
-) -> List[Evaluator]:
+    evaluators: list[Evaluator],
+    metric_names: list[str],
+) -> list[Evaluator]:
     eval_loaders, other_evaluators = [], []
     for evaluator in evaluators:
         if evaluator.metric_names == []:
@@ -150,13 +145,13 @@ def add_metrics_to_eval_loaders(
 
 
 def build_icl_data_and_gauntlet(
-    icl_tasks_config: Union[str, List[Dict[str, Any]]],
-    eval_gauntlet_config: Optional[Union[str, Dict[str, Any]]],
+    icl_tasks_config: Union[str, list[dict[str, Any]]],
+    eval_gauntlet_config: Optional[Union[str, dict[str, Any]]],
     tokenizer: PreTrainedTokenizerBase,
     device_eval_batch_size: int,
     icl_seq_len: int,
     icl_subset_num_batches: Optional[int] = None,
-) -> Tuple[List[Evaluator], List[str], Optional[EvalGauntlet]]:
+) -> tuple[list[Evaluator], list[str], Optional[EvalGauntlet]]:
     icl_evaluators, logger_keys = build_icl_evaluators(
         icl_tasks_config,
         tokenizer,
@@ -187,9 +182,49 @@ def build_icl_data_and_gauntlet(
     return icl_evaluators, logger_keys, eval_gauntlet_cb
 
 
+def build_load_planner(name: str, **kwargs: Any) -> LoadPlanner:
+    """Builds a load planner from the registry.
+
+    Args:
+        name (str): Name of the load planner to build.
+        kwargs (Any): Other relevant keyword arguments.
+
+    Returns:
+        LoadPlanner: The load planner.
+    """
+    return construct_from_registry(
+        name=name,
+        registry=registry.load_planners,
+        partial_function=True,
+        pre_validation_function=LoadPlanner,
+        post_validation_function=None,
+        kwargs=kwargs,
+    )
+
+
+def build_save_planner(name: str, **kwargs: Any) -> SavePlanner:
+    """Builds a save planner from the registry.
+
+    Args:
+        name (str): Name of the save planner to build.
+        kwargs (Any): Other relevant keyword arguments.
+
+    Returns:
+        savePlanner: The save planner.
+    """
+    return construct_from_registry(
+        name=name,
+        registry=registry.save_planners,
+        partial_function=True,
+        pre_validation_function=SavePlanner,
+        post_validation_function=None,
+        kwargs=kwargs,
+    )
+
+
 def build_composer_model(
     name: str,
-    cfg: Dict[str, Any],
+    cfg: dict[str, Any],
     tokenizer: PreTrainedTokenizerBase,
     init_context: Optional[ContextManager] = None,
     master_weights_dtype: Optional[str] = None,
@@ -242,7 +277,7 @@ def build_composer_model(
 
 def build_callback(
     name: str,
-    kwargs: Optional[Dict[str, Any]] = None,
+    kwargs: Optional[dict[str, Any]] = None,
     train_config: Any = None,
 ) -> Callback:
     """Builds a callback from the registry."""
@@ -254,7 +289,7 @@ def build_callback(
             raise ValueError(
                 f'`train_config` is a reserved keyword for callbacks with config. Please remove it from the kwargs.',
             )
-        kwargs['train_config'] = train_config
+        kwargs['train_config'] = copy.deepcopy(train_config)
         registry_to_use = registry.callbacks_with_config
 
     return construct_from_registry(
@@ -269,7 +304,7 @@ def build_callback(
 
 def build_logger(
     name: str,
-    kwargs: Optional[Dict[str, Any]] = None,
+    kwargs: Optional[dict[str, Any]] = None,
 ) -> LoggerDestination:
     """Builds a logger from the registry."""
     return construct_from_registry(
@@ -284,7 +319,7 @@ def build_logger(
 
 def build_algorithm(
     name: str,
-    kwargs: Optional[Dict[str, Any]] = None,
+    kwargs: Optional[dict[str, Any]] = None,
 ) -> Algorithm:
     """Builds an algorithm from the registry."""
     return construct_from_registry(
@@ -297,7 +332,7 @@ def build_algorithm(
     )
 
 
-def build_metric(name: str, kwargs: Optional[Dict[str, Any]] = None) -> Metric:
+def build_metric(name: str, kwargs: Optional[dict[str, Any]] = None) -> Metric:
     """Builds a metric from the registry."""
     return construct_from_registry(
         name=name,
@@ -311,8 +346,8 @@ def build_metric(name: str, kwargs: Optional[Dict[str, Any]] = None) -> Metric:
 
 def _extract_param_groups(
     model: torch.nn.Module,
-    optimizer_config: Optional[Dict[str, Any]] = None,
-) -> Union[Iterable[torch.Tensor], Iterable[Dict[str, Any]]]:
+    optimizer_config: Optional[dict[str, Any]] = None,
+) -> Union[Iterable[torch.Tensor], Iterable[dict[str, Any]]]:
     """Extracts parameter groups defined in the optimizer config.
 
     The optimizer_config defines the optimizer args. It can additionally have key
@@ -415,7 +450,7 @@ def _extract_param_groups(
 def build_optimizer(
     model: torch.nn.Module,
     name: str,
-    optimizer_config: Dict[str, Any],
+    optimizer_config: dict[str, Any],
 ) -> Optimizer:
 
     params = _extract_param_groups(model, optimizer_config)
@@ -440,7 +475,7 @@ def build_optimizer(
 
 def build_scheduler(
     name: str,
-    scheduler_config: Optional[Dict[str, Any]] = None,
+    scheduler_config: Optional[dict[str, Any]] = None,
 ) -> ComposerScheduler:
     return construct_from_registry(
         name=name,
@@ -454,12 +489,12 @@ def build_scheduler(
 
 def build_tokenizer(
     tokenizer_name: str,
-    tokenizer_kwargs: Dict[str, Any],
+    tokenizer_kwargs: dict[str, Any],
 ) -> PreTrainedTokenizerBase:
     os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
-    signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_completed_tokenizer_setup'
+    signal_file_path = dist.get_node_signal_file_name()
 
     if dist.is_available() and dist.is_initialized(
     ) and dist.get_world_size() > 1:
@@ -467,8 +502,15 @@ def build_tokenizer(
         with dist.local_rank_zero_download_and_wait(signal_file_path):
             pass
 
-    if tokenizer_name.startswith('tiktoken'):
-        tokenizer = TiktokenTokenizerWrapper(**tokenizer_kwargs)
+    if tokenizer_name in registry.tokenizers:
+        tokenizer = construct_from_registry(
+            name=tokenizer_name,
+            registry=registry.tokenizers,
+            partial_function=True,
+            pre_validation_function=PreTrainedTokenizerBase,
+            post_validation_function=None,
+            kwargs=tokenizer_kwargs,
+        )
     else:
         tokenizer = AutoTokenizer.from_pretrained(
             tokenizer_name,
@@ -503,13 +545,13 @@ def build_tokenizer(
 
 
 def build_icl_evaluators(
-    icl_tasks: Union[str, List[Dict[str, Any]]],
+    icl_tasks: Union[str, list[dict[str, Any]]],
     tokenizer: PreTrainedTokenizerBase,
     default_max_seq_len: int,
     default_batch_size: int,
     destination_dir: Optional[str] = None,
     icl_subset_num_batches: Optional[int] = None,
-) -> Tuple[List[Evaluator], List[str]]:
+) -> tuple[list[Evaluator], list[str]]:
     if destination_dir is None:
         destination_dir = os.getcwd()
 
@@ -525,7 +567,7 @@ def build_icl_evaluators(
     else:
         icl_tasks_list = icl_tasks
 
-    def _validate_cfg(icl_cfg: Dict[str, Any]):
+    def _validate_cfg(icl_cfg: dict[str, Any]):
         assert 'label' in icl_cfg
         assert 'dataset_uri' in icl_cfg and icl_cfg['dataset_uri'] is not None
         assert 'icl_task_type' in icl_cfg
@@ -657,3 +699,20 @@ def build_icl_evaluators(
                 )
 
     return evaluators, logger_keys
+
+
+@experimental_function('Tensor Parallelism')
+def build_tp_strategies(
+    name: str,
+    model: ComposerModel,
+) -> dict[str, ParallelStyle]:
+
+    warnings.warn(
+        'Checkpointing is not currently supported for tensor parallelism due to this pytorch bug: https://github.com/pytorch/pytorch/issues/134095#issuecomment-2345018244',
+    )
+    return construct_from_registry(
+        name=name,
+        registry=registry.tp_strategies,
+        partial_function=False,
+        kwargs={'model': model},
+    )

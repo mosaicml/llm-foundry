@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from functools import lru_cache
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 from transformers import PreTrainedTokenizer
 
@@ -90,6 +90,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             errors (str, optional): Paradigm to follow when decoding bytes to UTF-8. See
                 [bytes.decode](https://docs.python.org/3/library/stdtypes.html#bytes.decode) for more information.
                 Defaults to `"replace"`.
+            kwargs (Any): Other relevant keyword arguments.
         """
         try:
             import tiktoken
@@ -147,7 +148,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         self.byte_decoder = {v: k for k, v in self.byte_encoder.items()}
         self.errors = errors
 
-        self.decoder: Dict[int, str] = {}
+        self.decoder: dict[int, str] = {}
         for i in range(self.encoding.n_vocab):
             try:
                 self.encoding.decode_single_token_bytes(i)
@@ -161,7 +162,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             ])
             self.decoder[i] = decoding
 
-        self.encoder: Dict[str, int] = {}
+        self.encoder: dict[str, int] = {}
         for i in range(self.encoding.n_vocab):
             if i in self.decoder:
                 self.encoder[self.decoder[i]] = i
@@ -230,7 +231,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         )
         return template
 
-    def get_vocab(self) -> Dict[str, int]:
+    def get_vocab(self) -> dict[str, int]:
         """Returns vocab as a dict."""
         # As far as I can tell, we don't require get_vocab to completely work,
         # but when using additional_special_tokens, Hugging Face determines the next
@@ -254,7 +255,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
 
         return dict(vocab_clone, **self.added_tokens_encoder)
 
-    def _tokenize(self, text: str) -> List[str]:
+    def _tokenize(self, text: str) -> list[str]:
         """Returns a tokenized string."""
         if not isinstance(text, str):
             raise ValueError(
@@ -279,7 +280,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         # but not slow tokenizers.
         return self.decoder.get(index, '')
 
-    def convert_tokens_to_string(self, tokens: List[str]) -> str:
+    def convert_tokens_to_string(self, tokens: list[str]) -> str:
         """Converts a sequence of tokens (string) in a single string."""
         text = ''.join(tokens)
         text = bytearray([self.byte_decoder[c] for c in text
@@ -288,9 +289,9 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
 
     def build_inputs_with_special_tokens(
         self,
-        token_ids_0: List[int],
-        token_ids_1: Optional[List[int]] = None,
-    ) -> List[int]:
+        token_ids_0: list[int],
+        token_ids_1: Optional[list[int]] = None,
+    ) -> list[int]:
         bos_token_id = [self.bos_token_id] if self.add_bos_token else []
         eos_token_id = [self.eos_token_id] if self.add_eos_token else []
 
@@ -303,10 +304,10 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
 
     def get_special_tokens_mask(
         self,
-        token_ids_0: List[int],
-        token_ids_1: Optional[List[int]] = None,
+        token_ids_0: list[int],
+        token_ids_1: Optional[list[int]] = None,
         already_has_special_tokens: bool = False,
-    ) -> List[int]:
+    ) -> list[int]:
         """Retrieves sequence ids from a token list that has no special tokens.
 
         Function copied from
@@ -345,9 +346,9 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
 
     def create_token_type_ids_from_sequences(
         self,
-        token_ids_0: List[int],
-        token_ids_1: Optional[List[int]] = None,
-    ) -> List[int]:
+        token_ids_0: list[int],
+        token_ids_1: Optional[list[int]] = None,
+    ) -> list[int]:
         sep = [self.sep_token_id]
 
         if token_ids_1 is None:
@@ -358,7 +359,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         self,
         save_directory: str,
         filename_prefix: Optional[str] = None,
-    ) -> Tuple[str]:
+    ) -> tuple[str]:
 
         # ignore the below type to keep the original signature
         # we are knowingly breaking the signature here, although not 100% certain

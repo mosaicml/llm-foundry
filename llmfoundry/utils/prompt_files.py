@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from typing import List, Optional
+from typing import Optional
 
 PROMPTFILE_PREFIX = 'file::'
 
@@ -12,8 +12,8 @@ __all__ = [
 ]
 
 
-def load_prompts(prompts: List[str],
-                 prompt_delimiter: Optional[str] = None) -> List[str]:
+def load_prompts(prompts: list[str],
+                 prompt_delimiter: Optional[str] = None) -> list[str]:
     """Loads a set of prompts, both free text and from file.
 
     Args:
@@ -37,7 +37,7 @@ def load_prompts(prompts: List[str],
 def load_prompts_from_file(
     prompt_path: str,
     prompt_delimiter: Optional[str] = None,
-) -> List[str]:
+) -> list[str]:
     """Load a set of prompts from a text fie.
 
     Args:

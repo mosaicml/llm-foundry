@@ -1,7 +1,7 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: v0.8.0
+  git_branch: v0.14.0
   # git_commit:  # OR use your commit hash
   pip_install: .[gpu]
   ssh_clone: false  # Should be true if using a private repo
@@ -13,7 +13,7 @@ integrations:
 command: |
   cd llm-foundry/scripts
   python data_prep/convert_dataset_hf.py \
-    --dataset c4 --data_subset en \
+    --dataset allenai/c4 --data_subset en \
     --out_root ./my-copy-c4 --splits train_small val_small \
     --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
   composer train/train.py train/yamls/pretrain/mpt-1b.yaml \
@@ -21,7 +21,7 @@ command: |
     eval_loader.dataset.split=val_small \
     max_duration=100ba \
     eval_interval=0
-image: mosaicml/llm-foundry:2.3.1_cu121-latest
+image: mosaicml/llm-foundry:2.4.0_cu124-latest
 name: mpt-1b-gpus-8
 
 compute:

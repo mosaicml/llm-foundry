@@ -4,7 +4,7 @@
 import re
 import unittest.mock as mock
 from copy import deepcopy
-from typing import Any, Dict, Union
+from typing import Any, Union
 from unittest.mock import MagicMock
 
 import pytest
@@ -13,17 +13,24 @@ import torch.nn as nn
 from composer.callbacks import Generate
 from composer.core import Evaluator
 from composer.loggers import WandBLogger
+from torch.distributed.checkpoint.default_planner import (
+    DefaultLoadPlanner,
+    DefaultSavePlanner,
+)
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.callbacks import HuggingFaceCheckpointer
+from llmfoundry.registry import load_planners, save_planners
 from llmfoundry.tokenizers.tiktoken import TiktokenTokenizerWrapper
 from llmfoundry.utils.builders import (
     add_metrics_to_eval_loaders,
     build_callback,
     build_eval_loaders,
     build_evaluators,
+    build_load_planner,
     build_logger,
     build_optimizer,
+    build_save_planner,
     build_tokenizer,
 )
 
@@ -233,8 +240,8 @@ class _DummyModule(nn.Module):
 )
 def test_build_optimizer(
     name: str,
-    optimizer_config: Dict[str, Any],
-    opt_additional_config: Dict[str, Any],
+    optimizer_config: dict[str, Any],
+    opt_additional_config: dict[str, Any],
 ):
     model = _DummyModule()
     optimizer_config = deepcopy(optimizer_config)
@@ -343,6 +350,34 @@ def test_build_eval_loaders(monkeypatch: pytest.MonkeyPatch):
     assert eval_loaders2[1].label == 'eval/test2'
     assert eval_loaders2[1].dataloader is not None
     assert eval_loaders2[1].metric_names == []
+
+
+def test_build_load_planner():
+    # Dummy LoadPlanner for testing
+    class DummyLoadPlanner(DefaultLoadPlanner):
+
+        def __init__(self, is_test: bool):
+            self.is_test = is_test
+
+    load_planners.register('dummy', func=DummyLoadPlanner)
+    load_planner = build_load_planner('dummy', is_test=True)
+
+    assert isinstance(load_planner, DummyLoadPlanner)
+    assert load_planner.is_test is True
+
+
+def test_build_save_planner():
+    # Dummy SavePlanner for testing
+    class DummySavePlanner(DefaultSavePlanner):
+
+        def __init__(self, is_test: bool):
+            self.is_test = is_test
+
+    save_planners.register('dummy', func=DummySavePlanner)
+    save_planner = build_save_planner('dummy', is_test=True)
+
+    assert isinstance(save_planner, DummySavePlanner)
+    assert save_planner.is_test is True
 
 
 def test_add_metrics_to_eval_loaders():

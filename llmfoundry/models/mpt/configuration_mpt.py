@@ -5,7 +5,7 @@
 
 import copy
 import warnings
-from typing import Any, Dict, Optional, Union
+from typing import Any, Optional, Union
 
 from transformers import PretrainedConfig
 
@@ -37,19 +37,21 @@ class MPTConfig(PretrainedConfig):
         resid_pdrop: float = 0.0,
         emb_pdrop: float = 0.0,
         learned_pos_emb: bool = True,
-        attn_config: Optional[Dict] = None,
-        ffn_config: Optional[Dict] = None,
+        attn_config: Optional[dict] = None,
+        ffn_config: Optional[dict] = None,
         init_device: str = 'cpu',
         logit_scale: Optional[Union[float, str]] = None,
         no_bias: bool = False,
         embedding_fraction: float = 1.0,
         norm_type: str = 'low_precision_layernorm',
+        norm_eps: float = 1e-05,
         use_cache: bool = False,
-        init_config: Optional[Dict] = None,
-        fc_type: Union[str, Dict] = 'torch',
+        init_config: Optional[dict] = None,
+        fc_type: Union[str, dict] = 'torch',
         tie_word_embeddings: bool = True,
         use_pad_tok_in_ffn: bool = True,
-        block_overrides: Optional[Dict[str, Any]] = None,
+        block_overrides: Optional[dict[str, Any]] = None,
+        final_logit_softcapping: Optional[float] = None,
         **kwargs: Any,
     ):
         """The MPT configuration class.
@@ -70,6 +72,8 @@ class MPTConfig(PretrainedConfig):
                 attn_impl (str): The attention implementation to use. One of 'torch' or 'flash'.
                 qk_ln (bool): Whether to apply layer normalization to the queries and keys in the attention layer.
                 qk_gn (bool): Whether to apply group normalization to the queries and keys in the attention layer.
+                fused_qkv (bool): Whether to fuse the Wq, Wk, and Wv weight matrices in the attention layer. If True, the weights are fused into a single
+                    Wqkv matrix, which can be faster for matmuls. If False, the weights are kept separate. Defaults to True.
                 clip_qkv (Optional[float]): If not None, clip the queries, keys, and values in the attention layer to
                     this value.
                 softmax_scale (Optional[float]): If not None, scale the softmax in the attention layer by this value. If None,
@@ -92,6 +96,7 @@ class MPTConfig(PretrainedConfig):
                     type (str): Can be one of 'no_scaling', 'linear', or 'dynamic'. 'no_scaling' uses the default implementation for rotary embeddings, 'linear' uses linear scaling as proposed by the Reddit user /u/kaiokendev, and 'dynamic' uses Dynamic NTK scaling as proposed by the Reddit users /u/bloc97 and /u/emozilla.
                     factor (float): Scaling factor to use if using 'linear' or 'dynamic' as rope_scaling.type.
                 kv_n_heads (Optional[int]): For grouped_query_attention only, allow user to specify number of kv heads.
+                kv_dim (Optional[int]): For cross-attention only, allow user to specify different input dimensions for kv projections.
             ffn_config (Dict): A dictionary used to configure the model's ffn module:
                 ffn_type (str): type of ffn to use. Options: mptmlp, mptglu, te_ln_mlp
             init_device (str): The device to use for parameter initialization.
@@ -99,6 +104,7 @@ class MPTConfig(PretrainedConfig):
             no_bias (bool): Whether to use bias in all layers.
             embedding_fraction (float): The fraction to scale the gradients of the embedding layer by.
             norm_type (str): choose type of norm to use
+            norm_eps (float): epsilon value for norm layer
             use_cache (bool): Whether or not the model should return the last key/values attentions
             init_config (Dict): A dictionary used to configure the model initialization:
                 init_config.name: The parameter initialization scheme to use. Options: 'default_', 'baseline_',
@@ -143,6 +149,8 @@ class MPTConfig(PretrainedConfig):
                             reuse_kv_layer:
                                 attn_config:
                                     reuse_kv_layer_idx: -6 # Relative index of the layer whose kv cache to reuse
+            final_logit_softcapping (float | None): Softcapping threshold for final logit. Set to None to disable (default value None). Please see https://arxiv.org/pdf/2403.08295 for more details.
+            kwargs (Any): Other relevant keyword arguments.
         """
         self.d_model = d_model
         self.n_heads = n_heads
@@ -166,19 +174,16 @@ class MPTConfig(PretrainedConfig):
         self.no_bias = no_bias
         self.embedding_fraction = embedding_fraction
         self.norm_type = norm_type
+        self.norm_eps = norm_eps
         self.use_cache = use_cache
         self.init_config = init_config if init_config is not None else copy.deepcopy(
             init_config_defaults,
         )
 
-        if 'reuse_kv_layer_idx' in self.attn_config and self.attn_config[
-            'attn_impl'] == 'torch':
-            raise NotImplementedError(
-                'reusing kv cache from a previous layer is not implemented for torch attention.',
-            )
         if block_overrides is not None:
             self._validate_block_overrides(block_overrides)
         self.block_overrides = block_overrides
+        self.final_logit_softcapping = final_logit_softcapping
 
         if isinstance(fc_type, str):
             fc_type = {'name': fc_type}
@@ -204,7 +209,7 @@ class MPTConfig(PretrainedConfig):
 
         self._validate_config()
 
-    def _validate_block_overrides(self, block_overrides: Dict[str, Any]):
+    def _validate_block_overrides(self, block_overrides: dict[str, Any]):
         warnings.warn(ExperimentalWarning('block_overrides'))
         if 'order' not in block_overrides:
             raise ValueError('`order` should be defined in block_overrides',)
@@ -212,20 +217,14 @@ class MPTConfig(PretrainedConfig):
             raise ValueError(
                 '`overrides` should be defined in block_overrides',
             )
-        for name, override in block_overrides['overrides'].items():
-            if name == 'default':
-                raise ValueError('block overrides cannot be named "default".',)
-            if 'attn_config' in override and 'reuse_kv_layer_idx' in override[
-                'attn_config'] and self.attn_config['attn_impl'] == 'torch':
-                raise NotImplementedError(
-                    'reusing kv cache from a previous layer is not implemented for torch attention.',
-                )
+        if 'default' in block_overrides['overrides'].keys():
+            raise ValueError('block overrides cannot be named "default".',)
 
     def _set_config_defaults(
         self,
-        config: Dict[str, Any],
-        config_defaults: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        config: dict[str, Any],
+        config_defaults: dict[str, Any],
+    ) -> dict[str, Any]:
         # set config defaults
         for k, v in config_defaults.items():
             if k not in config:
@@ -304,6 +303,7 @@ class MPTConfig(PretrainedConfig):
             'no_scaling',
             'linear',
             'dynamic',
+            'llama3',
         ]:
             raise ValueError(
                 'If using hf implementation of rope, the type should be one of "no_scaling", "linear" or "dynamic".',
@@ -322,12 +322,27 @@ class MPTConfig(PretrainedConfig):
                 raise ImportError(
                     'If using the dail implementation of rope, the flash_attn library v2.0.1 or higher must be installed. Please check the instructions at https://github.com/mosaicml/llm-foundry/blob/main/TUTORIAL.md#what-kinds-of-positional-embeddings-does-llm-foundry-support',
                 )
-        if self.attn_config['sliding_window_size'] != -1 and not (
-            self.attn_config['attn_impl'] == 'flash' and
-            is_flash_v2_installed(v2_version='v2.3.0')
-        ):
+        if self.attn_config['sliding_window_size'] != -1 and self.attn_config[
+            'attn_impl'
+        ] == 'flash' and not is_flash_v2_installed(v2_version='v2.3.0',):
             raise NotImplementedError(
-                'sliding window only implemented with flash attention v2.3.0 or higher.',
+                'sliding window attention only implemented for torch attention and flash attention (v2.3.0 or higher).',
+            )
+        if self.attn_config['attn_logit_softcapping'] is not None:
+            if self.attn_config['attn_logit_softcapping'] <= 0:
+                raise ValueError(
+                    'Attention attn_logit_softcapping should be positive.',
+                )
+            if self.attn_config[
+                'attn_impl'
+            ] == 'flash' and not is_flash_v2_installed(v2_version='v2.6.2',):
+                raise NotImplementedError(
+                    'Attention attn_logit_softcapping is only implemented with torch attention or flash attention v2.6.2 (or higher).',
+                )
+        if self.attn_config['kv_dim'] is not None and self.attn_config[
+            'fused_qkv']:
+            raise ValueError(
+                'fused_qkv should be False when "kv_dim" is specified.',
             )
         if self.embedding_fraction > 1 or self.embedding_fraction <= 0:
             raise ValueError(
@@ -356,11 +371,8 @@ class MPTConfig(PretrainedConfig):
                 del te  # unused
             except:
                 raise ImportError(
-                    'TransformerEngine import fail. `fc_type: te` requires TransformerEngine be installed. '
-                    +
-                    'The required version of transformer_engine also requires FlashAttention v1.0.6 is installed:\n'
-                    + 'pip install flash-attn==1.0.6 --no-build-isolation \n' +
-                    'pip install git+https://github.com/NVIDIA/TransformerEngine.git@144e4888b2cdd60bd52e706d5b7a79cb9c1a7156',
+                    'TransformerEngine import failed. `fc_type: te` requires TransformerEngine be installed, ',
+                    'e.g. pip install transformer-engine[pytorch]',
                 )
 
         self.ffn_config['fc_type'] = self.fc_type

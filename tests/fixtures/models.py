@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import copy
-from typing import Any, Callable, Dict
+from typing import Any, Callable
 
 import pytest
 from pytest import fixture
@@ -13,7 +13,7 @@ from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
 from llmfoundry.utils.builders import build_composer_model, build_tokenizer
 
 
-def _build_model(config: Dict[str, Any], tokenizer: PreTrainedTokenizerBase):
+def _build_model(config: dict[str, Any], tokenizer: PreTrainedTokenizerBase):
     name = config.pop('name')
     model = build_composer_model(
         name=name,

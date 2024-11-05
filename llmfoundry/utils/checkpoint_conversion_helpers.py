@@ -15,7 +15,7 @@ import os
 import random
 import string
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Optional, Union
 
 import numpy as np
 from transformers import (
@@ -44,7 +44,7 @@ def _get_weight_data_type(data_type: str):
 
 # TODO: move this functionality to composer once the bug fixes are upstreamed
 def get_hf_tokenizer_from_composer_state_dict(
-    state_dict: Dict[str, Any],
+    state_dict: dict[str, Any],
     trust_remote_code: bool,
     tokenizer_save_dir: Optional[str] = None,
 ) -> Optional[PreTrainedTokenizer]:
@@ -138,7 +138,7 @@ def load_tokenizer(
 def _write_zero_bias(
     weight_name: str,
     weight_file_path: str,
-    bias_shape: Union[Tuple[int, ...], int],
+    bias_shape: Union[tuple[int, ...], int],
     np_data_type: np.dtype,
 ) -> None:
     """Write zeros for bias when converting MPT to FasterTransformer weights.
@@ -165,7 +165,7 @@ def _convert_weight_to_ft_each(
     save_dir: str,
     infer_gpu_num: int,
     tensor_name: str,
-    config: Dict[str, Any],
+    config: dict[str, Any],
     data: np.ndarray,
     np_weight_data_type: np.dtype,
 ) -> None:
@@ -177,6 +177,7 @@ def _convert_weight_to_ft_each(
         tensor_name (str): Name of the weight tensor. Used in naming the output file.
         config (Dict[str, Any]): Configuration for the model. This is used in getting model specific parameters.
         data (np.ndarray): Tensor data in np.ndarray format.
+        np_weight_data_type (np.dtype): Data type of the numpy array `data`.
 
     Returns:
         None: Writes to a file in `save_dir`. File name is based on the `tensor_name`

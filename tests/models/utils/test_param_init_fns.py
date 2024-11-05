@@ -4,7 +4,7 @@ import math
 from collections import OrderedDict
 from collections.abc import Sequence
 from functools import partial
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Optional, Union
 
 import pytest
 import torch
@@ -146,8 +146,8 @@ def test_all_params_init(module: torch.nn.Module):
         ('emb_init_uniform_lim', [1, 1]),
     ],
 )
-def test_emb_init(emb_init_cfg: Optional[Tuple[str, Union[int, List[int]]]]):
-    cfg: Dict[str, Union[int, List[int]]] = {
+def test_emb_init(emb_init_cfg: Optional[tuple[str, Union[int, list[int]]]]):
+    cfg: dict[str, Union[int, list[int]]] = {
         'vocab_size': 64,
         'in_features': 16,
         'out_features': 32,
@@ -199,3 +199,30 @@ def test_emb_init(emb_init_cfg: Optional[Tuple[str, Union[int, List[int]]]]):
                 emb_init_uniform_lim,
             ) == 2 and emb_init_uniform_lim[0] == emb_init_uniform_lim[1]:
                 assert (model.emb.weight == emb_init_uniform_lim[0]).all()
+
+
+@pytest.mark.parametrize(
+    'padding_idx',
+    [0, 2],
+)
+def test_emb_padding_init(padding_idx: int,):
+    cfg: dict[str, Union[int, list[int]]] = {
+        'vocab_size': 64,
+        'in_features': 16,
+        'n_layers': 2,
+        'padding_idx': padding_idx,
+        'emb_init_std': 5,
+    }
+    dict_cfg = om.create(cfg)
+
+    model = nn.Embedding(
+        dict_cfg.vocab_size,
+        dict_cfg.in_features,
+        dict_cfg.padding_idx,
+    )
+
+    model.apply(partial(param_init_fns.get('kaiming_normal_'), **dict_cfg))
+    assert isinstance(model, torch.nn.Embedding)
+
+    if dict_cfg.get('emb_init_std') is not None:
+        assert (model.weight[padding_idx] == 0).all()

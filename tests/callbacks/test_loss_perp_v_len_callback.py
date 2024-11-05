@@ -21,6 +21,7 @@ from llmfoundry.data.text_data import (
     build_text_dataloader,
 )
 from llmfoundry.utils.builders import build_composer_model
+from llmfoundry.utils.consts import CROSS_ENTROPY_IGNORE_INDEX
 from llmfoundry.utils.registry_utils import construct_from_registry
 
 
@@ -201,7 +202,7 @@ def test_metric():
         del input_logits, input_labels
         return loss
 
-    loss_v_len_metric = LossPerpVLen(ignore_index=-100)
+    loss_v_len_metric = LossPerpVLen(ignore_index=CROSS_ENTROPY_IGNORE_INDEX)
     loss_v_len_metric.update(
         labels=labels,
         logits=logits,
@@ -288,7 +289,7 @@ def test_valid_labels():
     labels = torch.tensor([[
         1,
     ] * (seq_len - ignore_labels_len) + [
-        -100,
+        CROSS_ENTROPY_IGNORE_INDEX,
     ] * ignore_labels_len] * batch_size)
     logits = torch.tensor([[
         1,
@@ -302,7 +303,7 @@ def test_valid_labels():
         del input_logits, input_labels
         return loss
 
-    loss_v_len_metric = LossPerpVLen(ignore_index=-100)
+    loss_v_len_metric = LossPerpVLen(ignore_index=CROSS_ENTROPY_IGNORE_INDEX)
     loss_v_len_metric.update(
         labels=labels,
         logits=logits,
@@ -349,7 +350,9 @@ def test_padding():
         del input_logits, input_labels
         return loss_no_pad
 
-    loss_v_len_metric_no_pad = LossPerpVLen(ignore_index=-100)
+    loss_v_len_metric_no_pad = LossPerpVLen(
+        ignore_index=CROSS_ENTROPY_IGNORE_INDEX,
+    )
     loss_v_len_metric_no_pad.update(
         labels=labels_no_pad,
         logits=logits_no_pad,
@@ -362,7 +365,7 @@ def test_padding():
     labels_pad = torch.tensor([[
         1,
     ] * seq_len + [
-        -100,
+        CROSS_ENTROPY_IGNORE_INDEX,
     ] * pad_len] * batch_size)
     logits_pad = torch.tensor([[
         1,
@@ -388,7 +391,9 @@ def test_padding():
         del input_logits, input_labels
         return loss_pad
 
-    loss_v_len_metric_pad = LossPerpVLen(ignore_index=-100)
+    loss_v_len_metric_pad = LossPerpVLen(
+        ignore_index=CROSS_ENTROPY_IGNORE_INDEX,
+    )
     loss_v_len_metric_pad.update(
         labels=labels_pad,
         logits=logits_pad,

@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import math
+from typing import Optional
 
 import pytest
 import torch
@@ -220,104 +221,6 @@ def test_seq_id_masking_FA_v2():
 
 @pytest.mark.gpu
 @pytest.mark.skipif(
-    not is_flash_v2_installed(v2_version='v2.3.0'),
-    reason=
-    'Sliding window attention only supported by Flash Attention after v2.3.0.',
-)
-@pytest.mark.parametrize('sliding_window_size', [1, 4, 8])
-def test_sliding_window(sliding_window_size: int):
-    # Test that sliding window attention works as expected.
-    dtype = torch.bfloat16
-    device = 'cuda'
-    d = 128
-    n_heads = 8
-    seqlen_1 = 8
-    bsz = 2
-
-    query_1 = torch.randn(bsz, seqlen_1,
-                          n_heads * d).to(dtype=dtype, device=device)
-    query_1.requires_grad = True
-    key_1 = torch.randn(bsz, seqlen_1,
-                        n_heads * d).to(dtype=dtype, device=device)
-    key_1.requires_grad = True
-    value_1 = torch.randn(bsz, seqlen_1,
-                          n_heads * d).to(dtype=dtype, device=device)
-    value_1.requires_grad = True
-
-    output_1, _, _ = flash_attn_fn(
-        query=query_1,
-        key=key_1,
-        value=value_1,
-        n_heads=n_heads,
-        kv_n_heads=n_heads,
-        past_key_value=None,
-        softmax_scale=1 / math.sqrt(d),
-        attn_bias=None,
-        key_padding_mask=None,
-        is_causal=True,
-        dropout_p=0.0,
-        training=False,
-        needs_weights=False,
-        flash_attn_padding_info=gen_flash_attn_padding_info(
-            bsz,
-            seqlen_1,
-            0,
-            query_1.device,
-            None,
-            None,
-        ),
-        should_repeat_kv_for_gqa=True,
-        sliding_window_size=sliding_window_size,
-    )
-
-    output_1.sum().backward()
-
-    query_2 = query_1.detach().clone()
-    query_2.requires_grad = True
-    key_2 = key_1.detach().clone()
-    key_2.requires_grad = True
-    value_2 = value_1.detach().clone()
-    value_2.requires_grad = True
-
-    attn_bias_2 = torch.zeros(1, 1, seqlen_1,
-                              seqlen_1).to(dtype=dtype, device=device)
-
-    window_mask_2 = torch.tril(
-        torch.ones(seqlen_1, seqlen_1),
-        diagonal=-(sliding_window_size + 1),
-    ).to(dtype=dtype, device=device) * torch.finfo(attn_bias_2.dtype).min
-    attn_bias_2 = attn_bias_2 + window_mask_2
-    output_2, _, _ = scaled_multihead_dot_product_attention(
-        query=query_2,
-        key=key_2,
-        value=value_2,
-        n_heads=n_heads,
-        kv_n_heads=n_heads,
-        past_key_value=None,
-        softmax_scale=1 / math.sqrt(d),
-        attn_bias=attn_bias_2,
-        key_padding_mask=None,
-        is_causal=True,
-        dropout_p=0.0,
-        training=False,
-        needs_weights=False,
-    )
-
-    output_2.sum().backward()
-
-    print(torch.max(output_1 - output_2))
-
-    _assert_approx_equal(output_1, output_2)
-    assert (query_2.grad is not None) and (query_1.grad is not None)
-    _assert_approx_equal(query_1.grad, query_2.grad)
-    assert (key_2.grad is not None) and (key_1.grad is not None)
-    _assert_approx_equal(key_1.grad, key_2.grad)
-    assert (value_2.grad is not None) and (value_1.grad is not None)
-    _assert_approx_equal(value_1.grad, value_2.grad)
-
-
-@pytest.mark.gpu
-@pytest.mark.skipif(
     not check_alibi_support('flash'),
     reason='ALiBi only supported by Flash Attention after v2.4.2.',
 )
@@ -432,5 +335,99 @@ def test_alibi_bias(n_heads: int):
     _assert_approx_equal(value_1.grad, value_2.grad)
 
 
-def _assert_approx_equal(value1: torch.Tensor, value2: torch.Tensor):
-    assert torch.norm(value2 - value1) <= 1e-2 + 1e-2 * torch.norm(value2)
+@pytest.mark.gpu
+@pytest.mark.skipif(
+    not is_flash_v2_installed(v2_version='v2.6.2'),
+    reason=
+    'attn_logit_softcapping only supported by Flash Attention after v2.6.2.',
+)
+@pytest.mark.parametrize(
+    'attn_logit_softcapping',
+    [None, 0.1, 1.0, 10.0, 100.0],
+)
+def test_attn_logit_softcapping(attn_logit_softcapping: Optional[float]):
+    # Test that attn_logit_softcapping in attention works as expected.
+    dtype = torch.bfloat16
+    device = 'cuda'
+    d = 128
+    seqlen_1 = 8
+    bsz = 2
+    n_heads = 4
+
+    query_1 = torch.randn(bsz, seqlen_1,
+                          n_heads * d).to(dtype=dtype, device=device)
+    query_1.requires_grad = True
+    key_1 = torch.randn(bsz, seqlen_1,
+                        n_heads * d).to(dtype=dtype, device=device)
+    key_1.requires_grad = True
+    value_1 = torch.randn(bsz, seqlen_1,
+                          n_heads * d).to(dtype=dtype, device=device)
+    value_1.requires_grad = True
+    output_1, _, _ = flash_attn_fn(
+        query=query_1,
+        key=key_1,
+        value=value_1,
+        n_heads=n_heads,
+        kv_n_heads=n_heads,
+        past_key_value=None,
+        softmax_scale=1 / math.sqrt(d),
+        attn_bias=None,
+        key_padding_mask=None,
+        is_causal=True,
+        dropout_p=0.0,
+        training=False,
+        needs_weights=False,
+        flash_attn_padding_info=gen_flash_attn_padding_info(
+            bsz,
+            seqlen_1,
+            0,
+            query_1.device,
+            None,
+            None,
+        ),
+        should_repeat_kv_for_gqa=True,
+        attn_logit_softcapping=attn_logit_softcapping,
+    )
+    output_1.sum().backward()
+
+    query_2 = query_1.detach().clone()
+    query_2.requires_grad = True
+    key_2 = key_1.detach().clone()
+    key_2.requires_grad = True
+    value_2 = value_1.detach().clone()
+    value_2.requires_grad = True
+    output_2, _, _ = scaled_multihead_dot_product_attention(
+        query=query_2,
+        key=key_2,
+        value=value_2,
+        n_heads=n_heads,
+        kv_n_heads=n_heads,
+        past_key_value=None,
+        softmax_scale=1 / math.sqrt(d),
+        key_padding_mask=None,
+        is_causal=True,
+        dropout_p=0.0,
+        training=False,
+        needs_weights=False,
+        attn_logit_softcapping=attn_logit_softcapping,
+    )
+    output_2.sum().backward()
+
+    _assert_approx_equal(output_1, output_2)
+    assert (query_2.grad is not None) and (query_1.grad is not None)
+    _assert_approx_equal(query_1.grad, query_2.grad)
+    assert (key_2.grad is not None) and (key_1.grad is not None)
+    _assert_approx_equal(key_1.grad, key_2.grad)
+    assert (value_2.grad is not None) and (value_1.grad is not None)
+    _assert_approx_equal(value_1.grad, value_2.grad)
+
+
+def _assert_approx_equal(
+    value1: torch.Tensor,
+    value2: torch.Tensor,
+    atol: float = 1e-2,
+    rtol: float = 1e-2,
+):
+    actual_difference = torch.norm(value2 - value1)
+    allowed_difference = atol + rtol * torch.norm(value2)
+    assert actual_difference < allowed_difference, f'{actual_difference=}, {allowed_difference=}'

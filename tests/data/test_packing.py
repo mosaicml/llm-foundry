@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
@@ -16,11 +16,12 @@ from torch.utils.data import DataLoader
 from llmfoundry.data.finetuning.dataloader import build_finetuning_dataloader
 from llmfoundry.data.finetuning.tasks import StreamingFinetuningDataset
 from llmfoundry.data.packing import BinPackCollator, auto_packing_ratio
+from llmfoundry.data.utils import LossGeneratingTokensCollatorWrapper
 from llmfoundry.utils.builders import build_tokenizer
 
 
-def _data_to_batch(data: List[List[int]], max_seq_len: int,
-                   pad_token_id: int) -> Dict[str, torch.Tensor]:
+def _data_to_batch(data: list[list[int]], max_seq_len: int,
+                   pad_token_id: int) -> dict[str, torch.Tensor]:
     """Helper function to create a proper batch of data."""
     input_ids = torch.stack([
         torch.tensor(d + [pad_token_id] * (max_seq_len - len(d))) for d in data
@@ -253,7 +254,8 @@ def test_packing_with_dataloader(packing_ratio: Any):
     ).dataloader
 
     assert isinstance(loader, DataLoader)
-    pack_collator = loader.collate_fn
+    assert isinstance(loader.collate_fn, LossGeneratingTokensCollatorWrapper)
+    pack_collator = loader.collate_fn.base_collator
     assert isinstance(pack_collator, BinPackCollator)
 
     batch_ix = 0

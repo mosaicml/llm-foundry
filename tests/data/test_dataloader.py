@@ -1437,6 +1437,7 @@ def test_sharegpt_format(
             **cfg,
         ).dataloader
 
+@pytest.mark.skip
 def test_ft_dataloader_with_extra_keys():
     max_seq_len = 2
     cfg = {

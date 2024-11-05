@@ -93,6 +93,7 @@ from llmfoundry.utils.exceptions import (
     UnknownExampleTypeError,
 )
 #  yapf: enable
+from llmfoundry.utils.file_utils import dist_mkdtemp
 from llmfoundry.utils.logging_utils import SpecificWarningFilter
 
 log = logging.getLogger(__name__)
@@ -888,6 +889,8 @@ class DatasetConstructor:
 
         signal_file_path = dist.get_node_signal_file_name()
 
+        download_folder = dist_mkdtemp()
+
         # Non local rank 0 ranks will wait here for local rank 0 to finish the data processing.
         # Once local rank 0 is done, the datasets are all cached on disk, and all other ranks
         # can just read them.
@@ -913,7 +916,7 @@ class DatasetConstructor:
                 if not os.path.isdir(dataset_name):
                     # dataset_name is not a local dir path, download if needed.
                     local_dataset_dir = os.path.join(
-                        tempfile.mkdtemp(),
+                        download_folder,
                         dataset_name,
                     )
 

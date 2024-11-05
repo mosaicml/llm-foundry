@@ -63,11 +63,6 @@ from tests.data_utils import (
 )
 from tests.test_utils import generate_exclusive_test_params
 
-@pytest.fixture(autouse=True)
-def clean_streaming():
-    clean_stale_shared_memory()
-    yield
-    clean_stale_shared_memory()
 
 def get_config(conf_path: str = 'yamls/mpt/125m.yaml'):
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
@@ -1521,6 +1516,7 @@ def test_ft_dataloader_with_extra_keys():
                 device_batch_size=device_batch_size,
             ).dataloader
 
+# TODO: Change this back to xfail after figuring out why it caused CI to hang
 @pytest.mark.skip
 def test_text_dataloader_with_extra_keys():
     max_seq_len = 1024

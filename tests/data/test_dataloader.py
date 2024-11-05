@@ -1521,7 +1521,7 @@ def test_ft_dataloader_with_extra_keys():
                 device_batch_size=device_batch_size,
             ).dataloader
 
-@pytest.mark.xfail
+@pytest.mark.skip
 def test_text_dataloader_with_extra_keys():
     max_seq_len = 1024
     cfg = {

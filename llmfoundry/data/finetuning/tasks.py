@@ -34,7 +34,6 @@ those keys are strings (i.e. text).
 import importlib
 import logging
 import os
-import tempfile
 import warnings
 from collections.abc import Mapping
 from functools import partial
@@ -93,6 +92,7 @@ from llmfoundry.utils.exceptions import (
     UnknownExampleTypeError,
 )
 #  yapf: enable
+from llmfoundry.utils.file_utils import dist_mkdtemp
 from llmfoundry.utils.logging_utils import SpecificWarningFilter
 
 log = logging.getLogger(__name__)
@@ -118,6 +118,15 @@ ChatFormattedDict = Mapping[str, list[dict[str, str]]]
 Example = Union[PromptResponseDict, ChatFormattedDict]
 ExampleType = Literal['prompt_response', 'chat']
 TokenizedExample = dict[str, list[dict[str, list[int]]]]
+
+_DEFAULT_CHAT_TEMPLATE = (
+    '{% for message in messages %}'
+    "{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}"
+    '{% endfor %}'
+    '{% if add_generation_prompt %}'
+    "{{ '<|im_start|>assistant\n' }}"
+    '{% endif %}'
+)
 
 
 def _get_example_type(example: Example) -> ExampleType:
@@ -243,17 +252,21 @@ def _slice_chat_formatted_example(
         messages_through_current_turn: list[dict[str, str]],
         conversation_through_previous_turn: str,
     ) -> tuple[str, str]:
+        chat_template = None if tokenizer.chat_template is not None else _DEFAULT_CHAT_TEMPLATE
+
         try:
             full_conversation = tokenizer.apply_chat_template(
                 messages_through_current_turn,
                 tokenize=False,
                 date_string=get_date_string(),
+                chat_template=chat_template,
             )
             prompt_with_history = tokenizer.apply_chat_template(
                 messages_through_current_turn[:-1],
                 tokenize=False,
                 add_generation_prompt=True,
                 date_string=get_date_string(),
+                chat_template=chat_template,
             )
         except Exception as e:
             raise ChatTemplateError(
@@ -888,6 +901,8 @@ class DatasetConstructor:
 
         signal_file_path = dist.get_node_signal_file_name()
 
+        download_folder = dist_mkdtemp()
+
         # Non local rank 0 ranks will wait here for local rank 0 to finish the data processing.
         # Once local rank 0 is done, the datasets are all cached on disk, and all other ranks
         # can just read them.
@@ -913,7 +928,7 @@ class DatasetConstructor:
                 if not os.path.isdir(dataset_name):
                     # dataset_name is not a local dir path, download if needed.
                     local_dataset_dir = os.path.join(
-                        tempfile.mkdtemp(),
+                        download_folder,
                         dataset_name,
                     )
 

@@ -1549,18 +1549,12 @@ def test_text_dataloader_with_extra_keys():
     )
 
     device_batch_size = 2
-
     def custom_stat_mock(path: Any):
-        if any([BARRIER_FILELOCK in path, CACHE_FILELOCK in path]):
+        if BARRIER_FILELOCK in path or CACHE_FILELOCK in path:
             return original_os_stat(path)
-        else:
-            mock_stat = MagicMock()
-            mock_stat.st_size = 1024  # Mock st_size with a desired value
-            mock_stat.st_mode = 33188  # Regular file mode for Unix-based systems
-            return mock_stat
+        return MagicMock(st_size=1024, st_mode=33188)  # Mock regular file attributes
 
     original_os_stat = os.stat
-
 
     #with patch('streaming.base.stream.get_shards', return_value=None):
     with patch('os.makedirs'), \

@@ -151,8 +151,13 @@ def get_loss_array(trainer: Trainer):
 @pytest.mark.parametrize('tp_strategy', ['ffn'])
 def test_tp_train(tp_degree: int, tp_strategy: str, tmp_path: Path):
     """Test that we can train with FSDP-TP."""
-    # create c4 dataset
+    from composer.utils import dist, get_device
+
+    dist.initialize_dist(get_device(None), timeout=10)
+
     tp_dataset_name = create_c4_dataset_xxsmall(tmp_path)
+
+    tp_dataset_name = dist.all_gather_object(tp_dataset_name)[0]
 
     # Train model with TP and get loss
     tp_cfg = get_cfg(pathlib.Path(tp_dataset_name), tp_strategy, tp_degree)

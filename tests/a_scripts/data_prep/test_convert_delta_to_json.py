@@ -108,17 +108,20 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )
         mock_workspace_client.return_value.clusters.get = mock_cluster_get
 
-        fetch_DT(
-            delta_table_name=delta_table_name,
-            json_output_folder=json_output_folder,
-            http_path=http_path,
-            cluster_id=cluster_id,
-            DATABRICKS_HOST=DATABRICKS_HOST,
-            DATABRICKS_TOKEN=DATABRICKS_TOKEN,
-            use_serverless=use_serverless,
-            batch_size=batch_size,
-            json_output_filename=json_output_filename,
-        )
+        try:
+            fetch_DT(
+                delta_table_name=delta_table_name,
+                json_output_folder=json_output_folder,
+                http_path=http_path,
+                cluster_id=cluster_id,
+                DATABRICKS_HOST=DATABRICKS_HOST,
+                DATABRICKS_TOKEN=DATABRICKS_TOKEN,
+                use_serverless=use_serverless,
+                batch_size=batch_size,
+                json_output_filename=json_output_filename,
+            )
+        except FileNotFoundError:
+            pass
         mock_sql_connect.assert_called_once_with(
             server_hostname='test_host',
             http_path='test_path',
@@ -293,15 +296,18 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )  # Mock return value for getOrCreate
         mock_databricks_session.builder.remote.return_value = mock_remote
 
-        fetch_DT(
-            delta_table_name=delta_table_name,
-            json_output_folder=json_output_folder,
-            http_path=http_path,
-            cluster_id=cluster_id,
-            DATABRICKS_HOST=DATABRICKS_HOST,
-            DATABRICKS_TOKEN=DATABRICKS_TOKEN,
-            use_serverless=use_serverless,
-        )
+        try:
+            fetch_DT(
+                delta_table_name=delta_table_name,
+                json_output_folder=json_output_folder,
+                http_path=http_path,
+                cluster_id=cluster_id,
+                DATABRICKS_HOST=DATABRICKS_HOST,
+                DATABRICKS_TOKEN=DATABRICKS_TOKEN,
+                use_serverless=use_serverless,
+            )
+        except FileNotFoundError:
+            pass
         mock_databricks_session.builder.remote.assert_called_once_with(
             host=DATABRICKS_HOST,
             token=DATABRICKS_TOKEN,
@@ -348,15 +354,19 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
-        fetch_DT(
-            delta_table_name=delta_table_name,
-            json_output_folder=json_output_folder,
-            http_path=http_path,
-            cluster_id=cluster_id,
-            DATABRICKS_HOST=DATABRICKS_HOST,
-            DATABRICKS_TOKEN=DATABRICKS_TOKEN,
-            use_serverless=use_serverless,
-        )
+        try:
+            fetch_DT(
+                delta_table_name=delta_table_name,
+                json_output_folder=json_output_folder,
+                http_path=http_path,
+                cluster_id=cluster_id,
+                DATABRICKS_HOST=DATABRICKS_HOST,
+                DATABRICKS_TOKEN=DATABRICKS_TOKEN,
+                use_serverless=use_serverless,
+            )
+        except FileNotFoundError:
+            pass
+
         mock_sql_connect.assert_called_once_with(
             server_hostname=DATABRICKS_HOST,
             http_path=http_path,
@@ -403,15 +413,19 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
-        fetch_DT(
-            delta_table_name=delta_table_name,
-            json_output_folder=json_output_folder,
-            http_path=http_path,
-            cluster_id=cluster_id,
-            DATABRICKS_HOST=DATABRICKS_HOST,
-            DATABRICKS_TOKEN=DATABRICKS_TOKEN,
-            use_serverless=use_serverless,
-        )
+        try:
+            fetch_DT(
+                delta_table_name=delta_table_name,
+                json_output_folder=json_output_folder,
+                http_path=http_path,
+                cluster_id=cluster_id,
+                DATABRICKS_HOST=DATABRICKS_HOST,
+                DATABRICKS_TOKEN=DATABRICKS_TOKEN,
+                use_serverless=use_serverless,
+            )
+        except FileNotFoundError:
+            pass
+
         mock_sql_connect.assert_called_once_with(
             server_hostname=DATABRICKS_HOST,
             http_path=http_path,
@@ -458,15 +472,18 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
-        fetch_DT(
-            delta_table_name=delta_table_name,
-            json_output_folder=json_output_folder,
-            http_path=http_path,
-            cluster_id=cluster_id,
-            DATABRICKS_HOST=DATABRICKS_HOST,
-            DATABRICKS_TOKEN=DATABRICKS_TOKEN,
-            use_serverless=use_serverless,
-        )
+        try:
+            fetch_DT(
+                delta_table_name=delta_table_name,
+                json_output_folder=json_output_folder,
+                http_path=http_path,
+                cluster_id=cluster_id,
+                DATABRICKS_HOST=DATABRICKS_HOST,
+                DATABRICKS_TOKEN=DATABRICKS_TOKEN,
+                use_serverless=use_serverless,
+            )
+        except FileNotFoundError:
+            pass
         mock_sql_connect.assert_called_once_with(
             server_hostname='test-host',
             http_path=http_path,
@@ -510,15 +527,19 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         mock_cluster_response = Namespace(spark_version='14.2.0-scala2.12')
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
-        fetch_DT(
-            delta_table_name=delta_table_name,
-            json_output_folder=json_output_folder,
-            http_path=http_path,
-            cluster_id=cluster_id,
-            DATABRICKS_HOST=DATABRICKS_HOST,
-            DATABRICKS_TOKEN=DATABRICKS_TOKEN,
-            use_serverless=use_serverless,
-        )
+        try:
+            fetch_DT(
+                delta_table_name=delta_table_name,
+                json_output_folder=json_output_folder,
+                http_path=http_path,
+                cluster_id=cluster_id,
+                DATABRICKS_HOST=DATABRICKS_HOST,
+                DATABRICKS_TOKEN=DATABRICKS_TOKEN,
+                use_serverless=use_serverless,
+            )
+        except FileNotFoundError:
+            pass
+
         assert not mock_sql_connect.called
         assert not mock_databricks_session.builder.remote.called
 

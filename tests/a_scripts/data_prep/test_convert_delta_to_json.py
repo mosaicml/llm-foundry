@@ -1,9 +1,11 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 import sys
 import unittest
 from argparse import Namespace
+from tempfile import NamedTemporaryFile
 from typing import Any
 from unittest.mock import MagicMock, mock_open, patch
 
@@ -14,6 +16,7 @@ from pyspark.errors.exceptions.connect import SparkConnectGrpcException
 from llmfoundry.command_utils.data_prep.convert_delta_to_json import (
     FaultyDataPrepCluster,
     InsufficientPermissionsError,
+    _validate_written_file,
     download,
     fetch,
     fetch_DT,
@@ -21,7 +24,10 @@ from llmfoundry.command_utils.data_prep.convert_delta_to_json import (
     iterative_combine_jsons,
     run_query,
 )
-from llmfoundry.utils.exceptions import DeltaTableNotFoundError
+from llmfoundry.utils.exceptions import (
+    DeltaTableNotFoundError,
+    StoragePermissionError,
+)
 
 
 class TestConvertDeltaToJsonl(unittest.TestCase):
@@ -644,3 +650,14 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
 
         # Verify that get_total_rows was called
         mock_gtr.assert_called_once()
+
+    def test_fetch_DT_catches_bad_download(self):
+        with NamedTemporaryFile() as tf:
+            file_name = tf.name
+            file_folder, file_name = os.path.split(file_name)
+            with self.assertRaises(StoragePermissionError):
+                _validate_written_file(
+                    file_folder,
+                    file_name,
+                    'test_delta_table',
+                )

@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import json
 import logging
 import os
 import re
@@ -26,6 +27,8 @@ from llmfoundry.utils.exceptions import (
     FailedToCreateSQLConnectionError,
     FaultyDataPrepCluster,
     InsufficientPermissionsError,
+    MisconfiguredHfDatasetError,
+    StoragePermissionError,
     UCNotEnabledError,
 )
 
@@ -681,7 +684,7 @@ def fetch_DT(
 
     log.info(f'Directory {json_output_folder} created.')
 
-    # validate_and_get_cluster_info allows cluster_id to be None if use_serverless is True
+    # Validate_and_get_cluster_info allows cluster_id to be None if use_serverless is True.
     method, dbsql, sparkSession = validate_and_get_cluster_info(
         cluster_id=cluster_id,
         databricks_host=DATABRICKS_HOST,
@@ -732,11 +735,40 @@ def fetch_DT(
     if dbsql is not None:
         dbsql.close()
 
-    # combine downloaded jsonl into one big jsonl for IFT
+    # Combine downloaded jsonl into one big jsonl for IFT.
     iterative_combine_jsons(
         json_output_folder,
         os.path.join(json_output_folder, json_output_filename),
     )
+
+    _validate_written_file(
+        json_output_folder,
+        json_output_filename,
+        delta_table_name,
+    )
+
+
+def _validate_written_file(
+    json_output_folder: str,
+    json_output_filename: str,
+    delta_table_name: str,
+):
+    # Validate downloaded dataset is actually downloaded.
+    with open(os.path.join(json_output_folder, json_output_filename)) as f:
+        is_empty = True
+        for line in f.readlines():
+            is_empty = False
+            try:
+                json.loads(line)
+            except:
+                raise MisconfiguredHfDatasetError(
+                    delta_table_name,
+                    split=json_output_folder,
+                ) from ValueError('line')
+        if is_empty:
+            raise StoragePermissionError(
+                f'Unable to download {delta_table_name}, check network permissions.',
+            )
 
 
 def _check_imports():

@@ -763,7 +763,6 @@ def _validate_written_file(
             except:
                 raise MisconfiguredHfDatasetError(
                     delta_table_name,
-                    split=json_output_folder,
                 ) from ValueError('line')
         if is_empty:
             raise StoragePermissionError(

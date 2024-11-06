@@ -394,8 +394,10 @@ class OutputFolderNotEmptyError(UserError):
 class MisconfiguredHfDatasetError(UserError):
     """Error thrown when a HuggingFace dataset is misconfigured."""
 
-    def __init__(self, dataset_name: str, split: str) -> None:
+    def __init__(self, dataset_name: str, split: Optional[str] = None) -> None:
         message = f'Your dataset (name={dataset_name}, split={split}) is misconfigured. ' + \
+            'Please check your dataset format and make sure you can load your dataset locally.' \
+            if split is not None else f'Your dataset (name={dataset_name}) is misconfigured. ' + \
             'Please check your dataset format and make sure you can load your dataset locally.'
         super().__init__(message, dataset_name=dataset_name, split=split)
 

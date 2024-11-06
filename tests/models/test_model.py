@@ -1668,6 +1668,10 @@ def check_hf_model_equivalence(
     del expected_model_config_dict['_name_or_path']
     del new_model_config_dict['_name_or_path']
 
+    # Transformers changes this key on load from disk
+    del expected_model_config_dict['_attn_implementation_autoset']
+    del new_model_config_dict['_attn_implementation_autoset']
+
     assert expected_model_config_dict == new_model_config_dict
     assert sum(p.numel() for p in model1.parameters()
               ) == sum(p.numel() for p in model2.parameters())

@@ -69,6 +69,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         bos_token: Optional[str] = '<|endoftext|>',
         pad_token: Optional[str] = None,
         errors: str = 'replace',
+        chat_template: Optional[str] = None,
         **kwargs: Any,
     ):
         """Constructor creates a tiktoken tokenizer to use as the underlying.
@@ -90,6 +91,8 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             errors (str, optional): Paradigm to follow when decoding bytes to UTF-8. See
                 [bytes.decode](https://docs.python.org/3/library/stdtypes.html#bytes.decode) for more information.
                 Defaults to `"replace"`.
+            chat_template (Optional[str], optional): The Hugging Face chat template. Default will use the ``default_chat_template``
+                set on this class.
             kwargs (Any): Other relevant keyword arguments.
         """
         try:
@@ -178,6 +181,7 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
             bos_token=bos_token,
             pad_token=pad_token,
             errors=errors,
+            chat_template=chat_template or self.default_chat_template,
             **kwargs,
         )
 

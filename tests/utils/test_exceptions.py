@@ -63,6 +63,8 @@ def create_exception_object(
             return bool
         elif arg_type == list[dict[str, Any]]:
             return [{'key': 'value'}]
+        elif arg_type == Optional[str]:
+            return 'string_but_optional'
         raise ValueError(f'Unsupported arg type: {arg_type}')
 
     kwargs = {

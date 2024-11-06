@@ -760,11 +760,11 @@ def _validate_written_file(
             is_empty = False
             try:
                 json.loads(line)
-            except:
+            except e:
                 raise MisconfiguredHfDatasetError(
                     delta_table_name,
                     split=json_output_folder,
-                ) from ValueError('line')
+                ) from e
         if is_empty:
             raise StoragePermissionError(
                 f'Unable to download {delta_table_name}, check network permissions.',

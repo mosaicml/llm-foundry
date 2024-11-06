@@ -2302,6 +2302,8 @@ def test_generation_kwargs_dont_crash(
 )
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
 def test_model_to(pos_emb_config: dict, tie_word_embeddings: bool):
+    import time
+    time.sleep(1000)
     # test that moving the model to diff devices and dtypes in diff ways does not break the model
     if pos_emb_config['rope'] and pos_emb_config[
         'rope_impl'] == 'dail' and not is_flash_v2_installed():

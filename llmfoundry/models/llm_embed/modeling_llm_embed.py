@@ -62,7 +62,9 @@ class ContrastiveConfig:
         temperature (Union[int, float], optional): Temperature for InfoNCE Loss. Defaults to 1.
         vector_representation (str, optional): The vector representation to use. Defaults to 'avg'.
         normalize_output (bool, optional): Whether to normalize the output. Defaults to True.
-        pos_step_size (int, optional): The step size for positive samples. Defaults to 2.
+        pos_step_size (Optional[int], optional): The step size for positive samples. If None, will be inferred:
+            - For gather_in_batch_negatives=True, defaults to 2
+            - For hard negatives, inferred from batch structure (1 positive + N negatives)
         gather_in_batch_negatives (bool, optional): Whether to call all_gather on all samples in global batch
         use_legacy_gradient_passthrough (bool, optional): Whether to use the legacy gradient passthrough. Defaults to False.
         infonce_process_group_size (int, optional): The size of the process group for InfoNCE loss. Defaults to None.
@@ -70,7 +72,7 @@ class ContrastiveConfig:
     temperature: Union[int, float] = 1
     vector_representation: str = 'avg'
     normalize_output: bool = True
-    pos_step_size: int = 2
+    pos_step_size: Optional[int] = None
     gather_in_batch_negatives: bool = False
     use_legacy_gradient_passthrough: bool = False
     infonce_process_group_size: Optional[int] = None
@@ -157,10 +159,20 @@ class ContrastiveModel(HuggingFaceModel):
         self.vector_representation = contrastive_config_obj.vector_representation
         self.normalize_output = contrastive_config_obj.normalize_output
 
-        self.step_size = contrastive_config_obj.pos_step_size
         self.gather_in_batch_negatives = contrastive_config_obj.gather_in_batch_negatives
         self.use_legacy_gradient_passthrough = contrastive_config_obj.use_legacy_gradient_passthrough
+        
+        # Handle step size based on config
+        if contrastive_config_obj.pos_step_size is not None:
+            self.step_size = contrastive_config_obj.pos_step_size
+        else:
+            if self.gather_in_batch_negatives:
+                self.step_size = 2  # Default for in-batch negatives
+            else:
+                self.step_size = None  # Will be inferred from first batch
+                
         self.n_active_params = sum(p.numel() for p in self.parameters())
+
         if loss_fn == 'fused_crossentropy':
             try:
                 from flash_attn.losses.cross_entropy import \
@@ -208,6 +220,16 @@ class ContrastiveModel(HuggingFaceModel):
             model = MPTForCausalLM(MPTConfig(**self.kwargs))
             self.is_mpt = True
         return model
+    
+    def _infer_step_size(self, batch: MutableMapping) -> int:
+        """Infers the step size from batch structure.
+        
+        We expect input shape to be [batch_size, num_samples, seq_len]
+        where num_samples is (1 positive + N negatives).
+        """
+        input_shape = batch['input_ids'].shape
+        assert len(input_shape) == 3
+        return input_shape[1]
 
     def format_queries_batch(
         self,
@@ -219,6 +241,8 @@ class ContrastiveModel(HuggingFaceModel):
         Here ``n`` is the step size, which represents the number of hard
         negatives per passage.
         """
+        if self.step_size is None:
+            self.step_size = self._infer_step_size(batch)
         queries = {}
         for key in batch:
             # Select every `step_size`-th entry from the batch for the given key
@@ -237,6 +261,8 @@ class ContrastiveModel(HuggingFaceModel):
         Here ``n`` is the step size, which represents the number of hard
         negatives per passage.
         """
+        if self.step_size is None:
+            self.step_size = self._infer_step_size(batch)
         passages = {}
 
         # Index on a variable step size

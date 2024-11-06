@@ -152,6 +152,13 @@ def check_hf_tokenizer_equivalence(
     tokenizer1.__dict__['init_kwargs'].pop('vocab_file', None)
     tokenizer2.__dict__['init_kwargs'].pop('vocab_file', None)
 
+    # tokenizer.init_kwargs['merges_file'] is set when loading with AutoTokenizer.from_pretrained, but is set to
+    # None when you save and reload the tokenizer only.
+    # Otherwise, merges_file will be the path that the tokenizer was loaded from, which will just be a temporary directory for
+    # the reloaded tokenizer, so we remove it and don't compare it between the two tokenizers.
+    tokenizer1.__dict__['init_kwargs'].pop('merges_file', None)
+    tokenizer2.__dict__['init_kwargs'].pop('merges_file', None)
+
     # vocab_file will be the path that the tokenizer was loaded from, which will just be a temporary directory for
     # the reloaded tokenizer, so we remove it and don't compare it between the two tokenizers
     tokenizer1.__dict__.pop('vocab_file', None)

@@ -116,7 +116,7 @@ def test_train_gauntlet(averages: Optional[dict], tmp_path: pathlib.Path):
 
 def test_sort_callbacks():
     import time
-    time.sleep(100)
+    time.sleep(1000)
     trainer_mock = Mock()
     trainer_mock.state.callbacks = [
         CheckpointSaver(),

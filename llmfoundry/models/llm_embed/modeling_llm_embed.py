@@ -207,9 +207,9 @@ class ContrastiveModel(HuggingFaceModel):
             model = MPTForCausalLM(MPTConfig(**self.kwargs))
             self.is_mpt = True
         return model
-    
+
     def _update_step_size_if_needed(self, batch: MutableMapping) -> None:
-        """Update step size on first batch if we detect hard negatives"""
+        """Update step size on first batch if we detect hard negatives."""
         if self._first_batch_seen:
             return
 
@@ -217,8 +217,10 @@ class ContrastiveModel(HuggingFaceModel):
         if len(input_shape) == 3 and input_shape[1] > 2:
             # We have hard negatives, update step size to match
             self.step_size = input_shape[1] + 1
-            log.info(f"Detected hard negatives, updated step_size to {self.step_size}")
-            
+            log.info(
+                f'Detected hard negatives, updated step_size to {self.step_size}',
+            )
+
         self._first_batch_seen = True
 
     def format_queries_batch(

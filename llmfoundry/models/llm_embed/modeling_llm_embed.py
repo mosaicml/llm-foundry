@@ -216,6 +216,7 @@ class ContrastiveModel(HuggingFaceModel):
         print('UPDATE BATCH:', batch)
 
         input_shape = batch['input_ids'].shape
+        print('UPDATE BATCH input_ids, shape:', batch['input_ids'], batch['input_ids'].shape)
         if len(input_shape) == 3 and input_shape[1] > 2:
             # We have hard negatives, update step size to match
             self.step_size = input_shape[1]

@@ -212,6 +212,8 @@ class ContrastiveModel(HuggingFaceModel):
         """Update step size on first batch if we detect hard negatives."""
         if self._first_batch_seen:
             return
+        
+        print('UPDATE BATCH:', batch)
 
         input_shape = batch['input_ids'].shape
         if len(input_shape) == 3 and input_shape[1] > 2:

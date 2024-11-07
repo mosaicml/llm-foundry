@@ -1365,9 +1365,14 @@ def compute_loss_from_logits(
             warnings.warn(
                 VersionedDeprecationWarning(
                     message='sample_weighing_factor has been deprecated!',
-                    remove_version='0.15.0',
+                    remove_version='0.16.0',
                 ),
             )
+            if sample_weighing_factor.shape[0] > 1:
+                raise ValueError(
+                    'Sample weighing factor is not supported when batch["sample_weighing_factor"].shape[0] > 1.',
+                )
+            loss = loss * sample_weighing_factor[0].item()
 
     return loss
 

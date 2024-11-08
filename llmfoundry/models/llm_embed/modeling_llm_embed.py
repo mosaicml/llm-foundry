@@ -70,7 +70,7 @@ class ContrastiveConfig:
     vector_representation: str = 'avg'
     normalize_output: bool = True
     pos_step_size: int = -1  # keep for backwards compatibility
-    gather_in_batch_negatives: bool = False # keep for backwards compatibility
+    gather_in_batch_negatives: bool = False  # keep for backwards compatibility
     use_legacy_gradient_passthrough: bool = False
     infonce_process_group_size: Optional[int] = None
 
@@ -230,7 +230,9 @@ class ContrastiveModel(HuggingFaceModel):
         batch: MutableMapping,
         last_hidden_state: torch.Tensor,
     ) -> tuple[dict[str, torch.Tensor], torch.Tensor]:
-        assert self.step_size > 0 and (self.gather_in_batch_negatives is not None)
+        assert self.step_size > 0 and (
+            self.gather_in_batch_negatives is not None
+        )
         queries = {}
         for key in batch:
             indices = list(range(0, batch[key].size(0), self.step_size))

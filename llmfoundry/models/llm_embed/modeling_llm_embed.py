@@ -215,7 +215,7 @@ class ContrastiveModel(HuggingFaceModel):
         input_shape = batch['input_ids'].shape
         if input_shape[1] > 2:
             # We have hard negatives, batch shape is [batch, sample of query+positive passage+negative passages, tokens].
-            self.step_size = input_shape[1] - 1
+            self.step_size = input_shape[1]
             log.info(
                 f'Detected hard negatives, updated step_size to {self.step_size}',
             )

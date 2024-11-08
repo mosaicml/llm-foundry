@@ -156,6 +156,7 @@ class ContrastiveModel(HuggingFaceModel):
         self.normalize_output = contrastive_config_obj.normalize_output
 
         self.step_size = 2
+        self._first_batch_seen = False
         self.gather_in_batch_negatives = contrastive_config_obj.gather_in_batch_negatives
         self.use_legacy_gradient_passthrough = contrastive_config_obj.use_legacy_gradient_passthrough
         self.n_active_params = sum(p.numel() for p in self.parameters())
@@ -209,6 +210,9 @@ class ContrastiveModel(HuggingFaceModel):
 
     def _update_step_size_if_needed(self, batch: MutableMapping) -> None:
         """Update step size on first batch if we detect hard negatives."""
+        if self._first_batch_seen:
+            return
+
         input_shape = batch['input_ids'].shape
         if input_shape[1] > 2:
             # We have hard negatives, batch shape is [batch, sample of query+positive passage+negative passages, tokens].
@@ -216,6 +220,8 @@ class ContrastiveModel(HuggingFaceModel):
             log.info(
                 f'Detected hard negatives, updated step_size to {self.step_size}',
             )
+
+        self._first_batch_seen = True
 
     def format_queries_batch(
         self,

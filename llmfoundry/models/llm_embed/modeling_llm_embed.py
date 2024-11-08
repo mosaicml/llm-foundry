@@ -230,16 +230,13 @@ class ContrastiveModel(HuggingFaceModel):
         batch: MutableMapping,
         last_hidden_state: torch.Tensor,
     ) -> tuple[dict[str, torch.Tensor], torch.Tensor]:
-        """Format `queries` by selecting every ``n``th entry from the batch.
-
-        Here ``n`` is the step size, which represents the number of hard
-        negatives per passage.
-        """
-        assert self.step_size and (self.gather_in_batch_negatives is not None)
+        assert self.step_size > 0 and (self.gather_in_batch_negatives is not None)
         queries = {}
         for key in batch:
             indices = list(range(0, batch[key].size(0), self.step_size))
             queries[key] = batch[key][indices, :]
+
+        assert isinstance(indices, list)
         return queries, last_hidden_state[indices, :, :]
 
     def format_passages_batch(

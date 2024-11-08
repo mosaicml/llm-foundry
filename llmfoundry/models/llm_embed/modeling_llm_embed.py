@@ -233,9 +233,13 @@ class ContrastiveModel(HuggingFaceModel):
         negatives per passage.
         """
         queries = {}
+        print("Q1:", batch['input_ids'][0][0])
+        print("Q2:", batch['input_ids'][1][0])
+        print("Q3:", batch['input_ids'][2][0])
         for key in batch:
             # Select every `step_size`-th entry from the batch for the given key
             queries[key] = batch[key][0::self.step_size, :]
+            print(f'QUERY', queries['input_ids'][0:3])
 
         # Select every `step_size`-th entry from `last_hidden_state` along the batch dimension
         return queries, last_hidden_state[0::self.step_size, :, :]

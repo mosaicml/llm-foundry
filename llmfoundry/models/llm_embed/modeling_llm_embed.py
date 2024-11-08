@@ -143,7 +143,7 @@ class ContrastiveModel(HuggingFaceModel):
             tokenizer=tokenizer,
             use_logits=False,
             metrics=train_metrics,
-            eval_metrics=self.eval_metrics,  # type: ignore
+            eval_metrics=self.eval_metrics, # type: ignore
             shift_labels=False,
             allow_embedding_resizing=True,
         )
@@ -203,11 +203,9 @@ class ContrastiveModel(HuggingFaceModel):
                 load_in_8bit=self.load_in_8bit,
                 **self.kwargs,
             )
-            print(f"construct_model: Loaded pretrained model '{self.pretrained_model_name_or_path}'")
         else:
             model = MPTForCausalLM(MPTConfig(**self.kwargs))
             self.is_mpt = True
-            print("construct_model: Initialized MPTForCausalLM model")
         return model
 
     def _update_step_size_if_needed(self, batch: MutableMapping) -> None:
@@ -216,14 +214,14 @@ class ContrastiveModel(HuggingFaceModel):
             return
 
         input_shape = batch['input_ids'].shape
-        print(f"_update_step_size_if_needed: input_shape = {input_shape}")
         if input_shape[1] > 2:
             # We have hard negatives, batch shape is [batch, sample of query+positive passage+negative passages, tokens].
             self.step_size = input_shape[1]
-            print(f"Detected hard negatives, updated step_size to {self.step_size}")
+            log.info(
+                f'Detected hard negatives, updated step_size to {self.step_size}',
+            )
         else:
             self.step_size = 2
-            print(f"No hard negatives detected, set step_size to {self.step_size}")
 
     def format_queries_batch(
         self,
@@ -236,12 +234,9 @@ class ContrastiveModel(HuggingFaceModel):
         negatives per passage.
         """
         queries = {}
-        indices = list(range(0, batch['input_ids'].size(0), self.step_size))
-        print(f"format_queries_batch: indices = {indices}")
         for key in batch:
+            indices = list(range(0, batch[key].size(0), self.step_size))
             queries[key] = batch[key][indices, :]
-            print(f"queries[{key}].shape = {queries[key].shape}")
-        print(f"queries_last_hidden_state.shape = {last_hidden_state[indices, :, :].shape}")
         return queries, last_hidden_state[indices, :, :]
 
     def format_passages_batch(
@@ -256,18 +251,14 @@ class ContrastiveModel(HuggingFaceModel):
         """
         passages = {}
         num_blocks = batch['input_ids'].size(0) // self.step_size
-        print(f"format_passages_batch: num_blocks = {num_blocks}")
         index = torch.arange(
             1,
             num_blocks * self.step_size + 1,
             device=last_hidden_state.device,
         ).view(num_blocks, self.step_size)
         index = index[:, :self.step_size - 1].reshape(-1)
-        print(f"format_passages_batch: index = {index}")
         for key in batch:
             passages[key] = batch[key][index]
-            print(f"passages[{key}].shape = {passages[key].shape}")
-        print(f"passages_last_hidden_state.shape = {last_hidden_state[index, :, :].shape}")
         return passages, last_hidden_state[index, :, :]
 
     def forward(self, batch: MutableMapping) -> CausalLMOutputWithPast:
@@ -277,16 +268,12 @@ class ContrastiveModel(HuggingFaceModel):
             len(x.shape) > 2 else x
 
         for key in batch:
-            original_shape = batch[key].shape
             batch[key] = collapse_dims(batch[key])
-            print(f"forward: batch[{key}] collapsed from {original_shape} to {batch[key].shape}")
 
-        outputs = self.model(
+        return self.model(
             output_hidden_states=True,
             **batch,
         )
-        print(f"forward: outputs = {outputs}")
-        return outputs
 
     def _cat_gather(self, t: torch.Tensor, group: Any = None) -> torch.Tensor:
         """Applies an all gather operation necessary for InfoNCELoss.
@@ -302,7 +289,7 @@ class ContrastiveModel(HuggingFaceModel):
             extra_kwargs = {'group': group} if group is not None else {}
             all_tensors = all_gather(t, **extra_kwargs)
             all_tensors = torch.cat(all_tensors)
-        print(f"_cat_gather: all_tensors.shape = {all_tensors.shape}")
+
         return all_tensors
 
     def get_hidden_state(self, outputs: CausalLMOutputWithPast) -> torch.Tensor:
@@ -338,7 +325,6 @@ class ContrastiveModel(HuggingFaceModel):
             Tuple[torch.Tensor, torch.Tensor]: The encoded representations of queries and passages.
         """
         hidden_state = self.get_hidden_state(outputs)
-        print(f"_compute_scores: hidden_state.shape = {hidden_state.shape}")
         zero = self.handle_language_head(outputs)
         (
             queries_batch,
@@ -348,13 +334,9 @@ class ContrastiveModel(HuggingFaceModel):
             passages_batch,
             passages_last_hidden_state,
         ) = self.format_passages_batch(batch, hidden_state)
-        print(f"queries_last_hidden_state.shape = {queries_last_hidden_state.shape}")
-        print(f"passages_last_hidden_state.shape = {passages_last_hidden_state.shape}")
 
         query_attn_mask = queries_batch.get('attention_mask')
         passage_attn_mask = passages_batch.get('attention_mask')
-        print(f"query_attn_mask.shape = {query_attn_mask.shape}")
-        print(f"passage_attn_mask.shape = {passage_attn_mask.shape}")
         assert isinstance(query_attn_mask, torch.Tensor)
         assert isinstance(passage_attn_mask, torch.Tensor)
         if self.vector_representation == 'eos':
@@ -363,7 +345,6 @@ class ContrastiveModel(HuggingFaceModel):
                 row_indices = torch.arange(mask.shape[0])
                 flipped_mask = ~mask.bool()
                 last_true_indices = flipped_mask.int().argmax(dim=1) - 1
-                print(f"pool_fn (eos): last_true_indices = {last_true_indices}")
                 pooled_outputs = x[row_indices, last_true_indices, :]
                 return pooled_outputs
         elif self.vector_representation == 'avg':
@@ -382,13 +363,10 @@ class ContrastiveModel(HuggingFaceModel):
             passages_last_hidden_state,
             passage_attn_mask,
         )
-        print(f"q_pooled_outputs.shape = {q_pooled_outputs.shape}")
-        print(f"p_pooled_outputs.shape = {p_pooled_outputs.shape}")
 
         if self.normalize_output:
             q_pooled_outputs = F.normalize(q_pooled_outputs, dim=-1)
             p_pooled_outputs = F.normalize(p_pooled_outputs, dim=-1)
-            print("Applied normalization to pooled outputs.")
 
         # Use all_gather to include negatives across mini batch
         if self.gather_in_batch_negatives:
@@ -400,8 +378,6 @@ class ContrastiveModel(HuggingFaceModel):
                 p_pooled_outputs,
                 group=self.infonce_process_group,
             )
-            print(f"all_q_pooled_outputs.shape after all_gather = {all_q_pooled_outputs.shape}")
-            print(f"all_p_pooled_outputs.shape after all_gather = {all_p_pooled_outputs.shape}")
         else:
             all_q_pooled_outputs = q_pooled_outputs
             all_p_pooled_outputs = p_pooled_outputs
@@ -413,7 +389,6 @@ class ContrastiveModel(HuggingFaceModel):
             queries=all_q_pooled_outputs,
             passages=all_p_pooled_outputs,
         )
-        print(f"all_scores.shape = {all_scores.shape}")
         all_scores = all_scores * (1 / self.temperature) + zero
 
         all_labels = torch.arange(
@@ -424,8 +399,6 @@ class ContrastiveModel(HuggingFaceModel):
         all_labels = all_labels * (
             p_pooled_outputs.size(0) // q_pooled_outputs.size(0)
         )
-        print(f"all_labels.shape = {all_labels.shape}")
-        print(f"all_labels = {all_labels}")
 
         return all_scores, all_labels
 
@@ -436,10 +409,8 @@ class ContrastiveModel(HuggingFaceModel):
     ) -> torch.Tensor:
 
         # this calculates the inner product between query and passage pairs
-        print(f"_full_contrastive_scores: queries.shape = {queries.shape}")
-        print(f"_full_contrastive_scores: passages.shape = {passages.shape}")
         qp = torch.mm(queries, passages.t())
-        print(f"_full_contrastive_scores: qp.shape = {qp.shape}")
+
         return qp
 
     def loss(
@@ -448,9 +419,7 @@ class ContrastiveModel(HuggingFaceModel):
         batch: MutableMapping,
     ) -> torch.Tensor:
         scores, labels = self._compute_scores(batch, outputs)
-        print(f"loss: scores.shape = {scores.shape}, labels.shape = {labels.shape}")
         loss = self.loss_fn(scores, labels)
-        print(f"loss: loss = {loss.item()}")
         return loss
 
     def eval_forward(
@@ -461,7 +430,6 @@ class ContrastiveModel(HuggingFaceModel):
         if outputs is None:
             outputs = self.forward(batch)
         val_loss = self.loss(outputs, batch)
-        print(f"eval_forward: val_loss = {val_loss.item()}")
         return {'loss': val_loss, 'outputs': outputs}
 
     def flops_per_batch(self, batch: Mapping) -> int:

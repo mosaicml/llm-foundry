@@ -285,7 +285,7 @@ class ContrastiveModel(HuggingFaceModel):
             output_hidden_states=True,
             **batch,
         )
-        print(f"forward: outputs.logits.shape = {outputs.logits.shape}")
+        print(f"forward: outputs = {outputs}")
         return outputs
 
     def _cat_gather(self, t: torch.Tensor, group: Any = None) -> torch.Tensor:

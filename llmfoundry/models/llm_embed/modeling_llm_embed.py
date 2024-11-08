@@ -70,7 +70,7 @@ class ContrastiveConfig:
     vector_representation: str = 'avg'
     normalize_output: bool = True
     pos_step_size: int = -1  # keep for backwards compatibility
-    gather_in_batch_negatives: bool = False
+    gather_in_batch_negatives: bool = False # keep for backwards compatibility
     use_legacy_gradient_passthrough: bool = False
     infonce_process_group_size: Optional[int] = None
 
@@ -157,7 +157,7 @@ class ContrastiveModel(HuggingFaceModel):
         self.normalize_output = contrastive_config_obj.normalize_output
 
         self.step_size = None
-        self.gather_in_batch_negatives = contrastive_config_obj.gather_in_batch_negatives
+        self.gather_in_batch_negatives = None
         self.use_legacy_gradient_passthrough = contrastive_config_obj.use_legacy_gradient_passthrough
         self.n_active_params = sum(p.numel() for p in self.parameters())
         if loss_fn == 'fused_crossentropy':
@@ -220,8 +220,10 @@ class ContrastiveModel(HuggingFaceModel):
             log.info(
                 f'Detected hard negatives, updated step_size to {self.step_size}',
             )
+            self.gather_in_batch_negatives = False
         else:
             self.step_size = 2
+            self.gather_in_batch_negatives = True
 
     def format_queries_batch(
         self,
@@ -233,6 +235,7 @@ class ContrastiveModel(HuggingFaceModel):
         Here ``n`` is the step size, which represents the number of hard
         negatives per passage.
         """
+        assert self.step_size and (self.gather_in_batch_negatives is not None)
         queries = {}
         for key in batch:
             indices = list(range(0, batch[key].size(0), self.step_size))
@@ -249,6 +252,7 @@ class ContrastiveModel(HuggingFaceModel):
         Here ``n`` is the step size, which represents the number of hard
         negatives per passage.
         """
+        assert self.step_size and (self.gather_in_batch_negatives is not None)
         passages = {}
         num_blocks = batch['input_ids'].size(0) // self.step_size
         index = torch.arange(

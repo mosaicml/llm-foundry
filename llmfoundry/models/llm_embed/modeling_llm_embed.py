@@ -223,24 +223,31 @@ class ContrastiveModel(HuggingFaceModel):
             self.step_size = 2
 
     def format_queries_batch(
-    self,
+        self,
         batch: MutableMapping,
         last_hidden_state: torch.Tensor,
     ) -> tuple[dict[str, torch.Tensor], torch.Tensor]:
+        """Format `queries` by selecting every ``n``th entry from the batch.
+
+        Here ``n`` is the step size, which represents the number of hard
+        negatives per passage.
+        """
         queries = {}
         for key in batch:
             indices = list(range(0, batch[key].size(0), self.step_size))
             queries[key] = batch[key][indices, :]
-            print(f'Query indices: {indices}')
-            print(f'Queries[{key}]:', queries[key])
         return queries, last_hidden_state[indices, :, :]
-
 
     def format_passages_batch(
         self,
         batch: MutableMapping,
         last_hidden_state: torch.Tensor,
     ) -> tuple[dict[str, torch.Tensor], torch.Tensor]:
+        """Format `passages` by selecting every ``n``th entry from the batch.
+
+        Here ``n`` is the step size, which represents the number of hard
+        negatives per passage.
+        """
         passages = {}
         num_blocks = batch['input_ids'].size(0) // self.step_size
         index = torch.arange(
@@ -251,8 +258,6 @@ class ContrastiveModel(HuggingFaceModel):
         index = index[:, :self.step_size - 1].reshape(-1)
         for key in batch:
             passages[key] = batch[key][index]
-            print(f'Passage indices: {index.tolist()}')
-            print(f'Passages[{key}]:', passages[key])
         return passages, last_hidden_state[index, :, :]
 
     def forward(self, batch: MutableMapping) -> CausalLMOutputWithPast:

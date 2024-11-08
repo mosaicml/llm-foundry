@@ -223,51 +223,36 @@ class ContrastiveModel(HuggingFaceModel):
             self.step_size = 2
 
     def format_queries_batch(
-        self,
+    self,
         batch: MutableMapping,
         last_hidden_state: torch.Tensor,
     ) -> tuple[dict[str, torch.Tensor], torch.Tensor]:
-        """Format `queries` by selecting every ``n``th entry from the batch.
-
-        Here ``n`` is the step size, which represents the number of hard
-        negatives per passage.
-        """
         queries = {}
-        print("Q1:", batch['input_ids'][0])
-        print("Q2:", batch['input_ids'][1])
-        print("Q3:", batch['input_ids'][2])
         for key in batch:
-            # Select every `step_size`-th entry from the batch for the given key
-            queries[key] = batch[key][0::self.step_size, :]
-            print(f'QUERY', queries[key])
+            indices = list(range(0, batch[key].size(0), self.step_size))
+            queries[key] = batch[key][indices, :]
+            print(f'Query indices: {indices}')
+            print(f'Queries[{key}]:', queries[key])
+        return queries, last_hidden_state[indices, :, :]
 
-        # Select every `step_size`-th entry from `last_hidden_state` along the batch dimension
-        return queries, last_hidden_state[0::self.step_size, :, :]
 
     def format_passages_batch(
         self,
         batch: MutableMapping,
         last_hidden_state: torch.Tensor,
     ) -> tuple[dict[str, torch.Tensor], torch.Tensor]:
-        """Format `passages` by selecting every ``n``th entry from the batch.
-
-        Here ``n`` is the step size, which represents the number of hard
-        negatives per passage.
-        """
         passages = {}
-
-        # Index on a variable step size
-        index = 0
+        num_blocks = batch['input_ids'].size(0) // self.step_size
+        index = torch.arange(
+            1,
+            num_blocks * self.step_size + 1,
+            device=last_hidden_state.device,
+        ).view(num_blocks, self.step_size)
+        index = index[:, :self.step_size - 1].reshape(-1)
         for key in batch:
-            num_blocks = batch[key].size(0) // self.step_size
-            index = torch.arange(
-                1,
-                num_blocks * self.step_size + 1,
-                device=last_hidden_state.device,
-            ).view(num_blocks, self.step_size)
-            index = index[:, :self.step_size - 1].reshape(-1)
             passages[key] = batch[key][index]
-
+            print(f'Passage indices: {index.tolist()}')
+            print(f'Passages[{key}]:', passages[key])
         return passages, last_hidden_state[index, :, :]
 
     def forward(self, batch: MutableMapping) -> CausalLMOutputWithPast:

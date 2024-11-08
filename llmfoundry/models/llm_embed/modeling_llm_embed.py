@@ -209,7 +209,6 @@ class ContrastiveModel(HuggingFaceModel):
 
     def _update_step_size_if_needed(self, batch: MutableMapping) -> None:
         """Update step size on first batch if we detect hard negatives."""
-
         input_shape = batch['input_ids'].shape
         if input_shape[1] > 2:
             # We have hard negatives, batch shape is [batch, sample of query+positive passage+negative passages, tokens].

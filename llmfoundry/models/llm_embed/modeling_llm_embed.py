@@ -69,6 +69,7 @@ class ContrastiveConfig:
     temperature: Union[int, float] = 1
     vector_representation: str = 'avg'
     normalize_output: bool = True
+    pos_step_size: int = -1 # keep for backwards compatibility
     gather_in_batch_negatives: bool = False
     use_legacy_gradient_passthrough: bool = False
     infonce_process_group_size: Optional[int] = None

@@ -69,7 +69,7 @@ class ContrastiveConfig:
     temperature: Union[int, float] = 1
     vector_representation: str = 'avg'
     normalize_output: bool = True
-    pos_step_size: int = -1 #keep for backwards compatibility
+    pos_step_size: int = -1  #keep for backwards compatibility
     gather_in_batch_negatives: bool = False
     use_legacy_gradient_passthrough: bool = False
     infonce_process_group_size: Optional[int] = None
@@ -233,6 +233,7 @@ class ContrastiveModel(HuggingFaceModel):
         Here ``n`` is the step size, which represents the number of hard
         negatives per passage.
         """
+        assert self.step_size
         queries = {}
         indices = []
         for key in batch:
@@ -250,6 +251,7 @@ class ContrastiveModel(HuggingFaceModel):
         Here ``n`` is the step size, which represents the number of hard
         negatives per passage.
         """
+        assert self.step_size
         passages = {}
         num_blocks = batch['input_ids'].size(0) // self.step_size
         index = torch.arange(

@@ -1481,6 +1481,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             self.shift_labels,
             batch['labels'],
             self.loss_fn,
+            batch.get('sample_weighing_factor', None),
         )
 
         if self.config.ffn_config['ffn_type'] in ffns_with_megablocks:

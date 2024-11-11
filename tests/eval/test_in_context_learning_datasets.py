@@ -279,6 +279,7 @@ def test_update_generation_kwargs(
     hf_loading_vars = {
         'split': 'test',
         'name': 'invoker',
+        'trust_remote_code': True,
     }
     hf_parsing_map = {'context': ['quas', 'wex', 'exort'], 'answer': ['spell']}
     gen_kwargs = {'test_arg1': 1, 'test_arg2': 2}
@@ -370,6 +371,7 @@ def test_update_generation_kwargs_no_kwargs(
     hf_loading_vars = {
         'split': 'test',
         'name': 'invoker',
+        'trust_remote_code': True,
     }
     hf_parsing_map = {'context': ['quas', 'wex', 'exort'], 'answer': ['spell']}
 
@@ -459,6 +461,7 @@ def test_construct_context(
     hf_loading_vars = {
         'split': 'test',
         'name': 'invoker',
+        'trust_remote_code': True,
     }
     hf_parsing_map = {'context': ['quas', 'wex', 'exort'], 'answer': ['spell']}
 
@@ -513,6 +516,7 @@ def test_get_answer_from_example(
     hf_loading_vars = {
         'split': 'test',
         'name': 'invoker',
+        'trust_remote_code': True,
     }
     hf_parsing_map = {'context': ['quas', 'wex', 'exort'], 'answer': ['spell']}
 
@@ -552,6 +556,7 @@ def test_fix_eos_on_preamble(tmp_path: Path):
     hf_loading_vars = {
         'split': 'test',
         'name': 'invoker',
+        'trust_remote_code': True,
     }
     hf_parsing_map = {'context': ['quas', 'wex', 'exort'], 'answer': ['spell']}
 
@@ -592,6 +597,7 @@ def test_tokenize_example_with_tokenize_labels(
     hf_loading_vars = {
         'split': 'test',
         'name': 'invoker',
+        'trust_remote_code': True,
     }
     hf_parsing_map = {'context': ['quas', 'wex', 'exort'], 'answer': ['spell']}
 
@@ -658,6 +664,7 @@ def test_tokenize_example_with_no_tokenize_labels(
     hf_loading_vars = {
         'split': 'test',
         'name': 'invoker',
+        'trust_remote_code': True,
     }
     hf_parsing_map = {'context': ['quas', 'wex', 'exort'], 'answer': ['spell']}
 
@@ -2429,6 +2436,7 @@ def test_lm_spacing_dataloader(
     [{
         'split': 'test',
         'name': 'juggernaut',
+        'trust_remote_code': True,
     }],
 )
 @pytest.mark.parametrize(
@@ -2508,6 +2516,7 @@ def test_hf_dataloading_lm_dataloader(
     [{
         'split': 'test',
         'name': 'invoker',
+        'trust_remote_code': True,
     }],
 )
 @pytest.mark.parametrize(

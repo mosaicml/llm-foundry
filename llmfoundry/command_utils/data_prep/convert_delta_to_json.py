@@ -506,13 +506,16 @@ def fetch(
                 raise InsufficientPermissionsError(str(e)) from e
             elif 'UC_NOT_ENABLED' in str(e):
                 raise UCNotEnabledError() from e
-            elif 'DELTA_TABLE_NOT_FOUND' in str(e):
+            elif 'Delta table' in str(e) and "doesn't exist" in str(e):
                 err_str = str(e)
                 # Error string should be in this format:
                 # ---
                 # Error processing `catalog`.`volume_name`.`table_name`:
                 # [DELTA_TABLE_NOT_FOUND] Delta table `volume_name`.`table_name`
                 # doesn't exist.
+                # ---
+                # Error processing `catalog`.`volume_name`.`table_name`:
+                # Delta table `volume_name`.`table_name` doesn't exist.
                 # ---
                 parts = err_str.split('`')
                 if len(parts) < 7:

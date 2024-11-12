@@ -27,6 +27,7 @@ from llmfoundry.utils.exceptions import (
     FailedToCreateSQLConnectionError,
     FaultyDataPrepCluster,
     InsufficientPermissionsError,
+    MalformedUCTableError,
     StoragePermissionError,
     UCNotEnabledError,
 )
@@ -502,22 +503,18 @@ def fetch(
         from pyspark.errors import AnalysisException
 
         if isinstance(e, (AnalysisException, ServerOperationError)):
-            if 'INSUFFICIENT_PERMISSIONS' in str(e):
-                raise InsufficientPermissionsError(str(e)) from e
-            elif 'UC_NOT_ENABLED' in str(e):
+            error_message = str(e)
+            if 'INSUFFICIENT_PERMISSIONS' in error_message:
+                raise InsufficientPermissionsError(error_message) from e
+            elif 'UC_NOT_ENABLED' in error_message:
                 raise UCNotEnabledError() from e
+            elif 'UNRESOLVED_COLUMN.WITH_SUGGESTION' in error_message:
+                raise MalformedUCTableError(error_message) from e
             elif 'Delta table' in str(e) and "doesn't exist" in str(e):
-                err_str = str(e)
-                # Error string should be in this format:
-                # ---
-                # Error processing `catalog`.`volume_name`.`table_name`:
-                # [DELTA_TABLE_NOT_FOUND] Delta table `volume_name`.`table_name`
-                # doesn't exist.
-                # ---
                 # Error processing `catalog`.`volume_name`.`table_name`:
                 # Delta table `volume_name`.`table_name` doesn't exist.
                 # ---
-                parts = err_str.split('`')
+                parts = error_message.split('`')
                 if len(parts) < 7:
                     # Failed to parse error, our codebase is brittle
                     # with respect to the string representations of

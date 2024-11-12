@@ -318,7 +318,7 @@ class MalformedUCTableError(UserError):
 
     def __init__(self, message: str) -> None:
         message = message
-        super().__init__(message)
+        super().__init__(message=message)
 
 
 class ClusterDoesNotExistError(UserError):

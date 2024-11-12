@@ -313,6 +313,14 @@ class UnableToProcessPromptResponseError(
 
 
 ## Convert Delta to JSON exceptions
+class MalformedUCTableError(UserError):
+    """Error thrown when the UC table has the wrong columns."""
+
+    def __init__(self, message: str) -> None:
+        message = message
+        super().__init__(message)
+
+
 class ClusterDoesNotExistError(UserError):
     """Error thrown when the cluster does not exist."""
 

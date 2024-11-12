@@ -26,6 +26,7 @@ from llmfoundry.utils.exceptions import (
     FailedToCreateSQLConnectionError,
     FaultyDataPrepCluster,
     InsufficientPermissionsError,
+    MalformedUCTableError,
     UCNotEnabledError,
 )
 
@@ -504,6 +505,8 @@ def fetch(
                 raise InsufficientPermissionsError(str(e)) from e
             elif 'UC_NOT_ENABLED' in str(e):
                 raise UCNotEnabledError() from e
+            elif 'UNRESOLVED_COLUMN.WITH_SUGGESTION' in str(e):
+                raise MalformedUCTableError(str(e)) from e
             elif 'DELTA_TABLE_NOT_FOUND' in str(e):
                 err_str = str(e)
                 # Error string should be in this format:

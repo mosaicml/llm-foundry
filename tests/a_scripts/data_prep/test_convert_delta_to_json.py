@@ -3,6 +3,7 @@
 
 import json
 import os
+import random
 import sys
 import unittest
 from argparse import Namespace
@@ -43,17 +44,26 @@ def _mock_write_jsonl(filename: str):
 
 
 @contextmanager
-def UncreatedNamedTemporaryFile(*args: Any, **kwargs: Any):
+def UncreatedNamedTemporaryFile(suffix: str, dir: str):
     """Makes a named temporary file that isn't created."""
-    x = NamedTemporaryFile(*args, **kwargs)
+
+    class FileLike:
+
+        def __init__(self, name: str):
+            self.name = name
+
+        def cleanup(self):
+            os.remove(self.name)
 
     try:
-        x.__enter__()
-        os.remove(x.name)
-        yield x
+        short_name = random.choices([chr(x) for x in range(ord('a'), ord('z'))],
+                                    k=10) + suffix
+        path = os.path.join(dir, short_name)
+        file_like = FileLike(path)
+        yield file_like
 
     finally:
-        x.__exit__()
+        file_like.cleanup()
 
 
 class TestConvertDeltaToJsonl(unittest.TestCase):

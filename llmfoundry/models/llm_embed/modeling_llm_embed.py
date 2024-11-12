@@ -235,9 +235,8 @@ class ContrastiveModel(HuggingFaceModel):
         """
         assert self.step_size
         queries = {}
-        indices = []
+        indices = list(range(0, batch['input_ids'].size(0), self.step_size))
         for key in batch:
-            indices = list(range(0, batch[key].size(0), self.step_size))
             queries[key] = batch[key][indices, :]
         return queries, last_hidden_state[indices, :, :]
 

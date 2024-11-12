@@ -621,7 +621,8 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
     ):
         # Create a spark.AnalysisException with specific details
         analysis_exception = AnalysisException(
-            message='[DELTA_TABLE_NOT_FOUND] yada yada',
+            message=
+            "[DELTA_TABLE_NOT_FOUND] Delta table `volume_name`.`table_name` doesn't exist",
         )
 
         # Configure the fetch function to raise the AnalysisException

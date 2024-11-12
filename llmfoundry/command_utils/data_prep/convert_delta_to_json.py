@@ -508,12 +508,11 @@ def fetch(
                 raise UCNotEnabledError() from e
             elif 'UNRESOLVED_COLUMN.WITH_SUGGESTION' in error_message:
                 raise MalformedUCTableError(error_message) from e
-            elif 'DELTA_TABLE_NOT_FOUND' in error_message:
-                # Error string should be in this format:
-                # ---
+            elif 'Delta table' in str(e) and "doesn't exist" in str(e):
+                err_str = str(e)
+
                 # Error processing `catalog`.`volume_name`.`table_name`:
-                # [DELTA_TABLE_NOT_FOUND] Delta table `volume_name`.`table_name`
-                # doesn't exist.
+                # Delta table `volume_name`.`table_name` doesn't exist.
                 # ---
                 parts = error_message.split('`')
                 if len(parts) < 7:

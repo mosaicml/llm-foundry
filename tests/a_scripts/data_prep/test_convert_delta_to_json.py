@@ -104,7 +104,6 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         mock_sql_connect: Any,
     ):
         delta_table_name = 'test_table'
-        json_output_folder = '/path/to/jsonl'
         DATABRICKS_HOST = 'test_host'
         DATABRICKS_TOKEN = 'test_token'
         http_path = 'test_path'
@@ -120,6 +119,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
 
         with NamedTemporaryFile(suffix='jsonl') as tf:
             mock_combine_jsons = _mock_write_jsonl(tf.name)
+            json_output_folder, json_output_filename = os.path.split('tf.name')
             fetch_DT(
                 delta_table_name=delta_table_name,
                 json_output_folder=json_output_folder,
@@ -129,14 +129,14 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
                 DATABRICKS_TOKEN=DATABRICKS_TOKEN,
                 use_serverless=use_serverless,
                 batch_size=batch_size,
-                json_output_filename=tf.name,
+                json_output_filename=json_output_filename,
             )
         mock_sql_connect.assert_called_once_with(
             server_hostname='test_host',
             http_path='test_path',
             access_token='test_token',
         )
-        mock_makedirs.assert_called_once_with('/path/to/jsonl', exist_ok=True)
+        mock_makedirs.assert_called_once_with(json_output_folder, exist_ok=True)
         mock_fetch.assert_called_once()
         mock_combine_jsons.assert_called_once()
 
@@ -283,7 +283,6 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         mock_sql_connect: Any,
     ):
         delta_table_name = 'test_table'
-        json_output_folder = '/path/to/jsonl'
         # Execute function with http_path=None (should use dbconnect)
         http_path = None
         cluster_id = '1234'
@@ -304,6 +303,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
 
         with NamedTemporaryFile(suffix='.jsonl') as tf:
             mock_combine_jsons = _mock_write_jsonl(tf.name)
+            json_output_folder, json_output_filename = os.path.split(tf.name)
             fetch_DT(
                 delta_table_name=delta_table_name,
                 json_output_folder=json_output_folder,
@@ -312,7 +312,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
                 DATABRICKS_HOST=DATABRICKS_HOST,
                 DATABRICKS_TOKEN=DATABRICKS_TOKEN,
                 use_serverless=use_serverless,
-                json_output_filename=tf.name,
+                json_output_filename=json_output_filename,
             )
         mock_databricks_session.builder.remote.assert_called_once_with(
             host=DATABRICKS_HOST,
@@ -347,7 +347,6 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         mock_sql_connect: Any,
     ):
         delta_table_name = 'test_table'
-        json_output_folder = '/path/to/jsonl'
         # Execute function with http_path=None (should use dbconnect)
         http_path = 'test_path'
         cluster_id = '1234'
@@ -363,6 +362,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
 
         with NamedTemporaryFile(suffix='.jsonl') as tf:
             mock_combine_jsons = _mock_write_jsonl(tf.name)
+            json_output_folder, json_output_filename = os.path.split(tf.name)
             fetch_DT(
                 delta_table_name=delta_table_name,
                 json_output_folder=json_output_folder,
@@ -371,7 +371,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
                 DATABRICKS_HOST=DATABRICKS_HOST,
                 DATABRICKS_TOKEN=DATABRICKS_TOKEN,
                 use_serverless=use_serverless,
-                json_output_filename=tf.name,
+                json_output_filename=json_output_filename,
             )
 
         mock_sql_connect.assert_called_once_with(
@@ -407,7 +407,6 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         mock_sql_connect: Any,
     ):
         delta_table_name = 'test_table'
-        json_output_folder = '/path/to/jsonl'
         # Execute function with http_path=None (should use dbconnect)
         http_path = 'test_path'
         cluster_id = '1234'
@@ -423,6 +422,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
 
         with NamedTemporaryFile(suffix='.jsonl') as tf:
             mock_combine_jsons = _mock_write_jsonl(tf.name)
+            json_output_folder, json_output_filename = os.path.split(tf.name)
             fetch_DT(
                 delta_table_name=delta_table_name,
                 json_output_folder=json_output_folder,
@@ -431,7 +431,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
                 DATABRICKS_HOST=DATABRICKS_HOST,
                 DATABRICKS_TOKEN=DATABRICKS_TOKEN,
                 use_serverless=use_serverless,
-                json_output_filename=tf.name,
+                json_output_filename=json_output_filename,
             )
 
         mock_sql_connect.assert_called_once_with(
@@ -467,7 +467,6 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         mock_sql_connect: Any,
     ):
         delta_table_name = 'test_table'
-        json_output_folder = '/path/to/jsonl'
         # Execute function with http_path=None (should use dbconnect)
         http_path = 'test_path'
         cluster_id = '1234'
@@ -483,6 +482,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
 
         with NamedTemporaryFile(suffix='.jsonl') as tf:
             mock_combine_jsons = _mock_write_jsonl(tf.name)
+            json_output_folder, json_output_filename = os.path.split(tf.name)
             fetch_DT(
                 delta_table_name=delta_table_name,
                 json_output_folder=json_output_folder,
@@ -491,7 +491,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
                 DATABRICKS_HOST=DATABRICKS_HOST,
                 DATABRICKS_TOKEN=DATABRICKS_TOKEN,
                 use_serverless=use_serverless,
-                json_output_filename=tf.name,
+                json_output_filename=json_output_filename,
             )
         mock_sql_connect.assert_called_once_with(
             server_hostname='test-host',
@@ -526,7 +526,6 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         mock_sql_connect: Any,
     ):
         delta_table_name = 'test_table'
-        json_output_folder = '/path/to/jsonl'
         # Execute function with http_path=None (should use dbconnect)
         http_path = 'test_path'
         cluster_id = '1234'
@@ -539,6 +538,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
 
         with NamedTemporaryFile(suffix='.jsonl') as tf:
             mock_combine_jsons = _mock_write_jsonl(tf.name)
+            json_output_folder, json_output_filename = os.path.split(tf.name)
             fetch_DT(
                 delta_table_name=delta_table_name,
                 json_output_folder=json_output_folder,
@@ -547,7 +547,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
                 DATABRICKS_HOST=DATABRICKS_HOST,
                 DATABRICKS_TOKEN=DATABRICKS_TOKEN,
                 use_serverless=use_serverless,
-                json_output_filename=tf.name,
+                json_output_filename=json_output_filename,
             )
 
         assert not mock_sql_connect.called

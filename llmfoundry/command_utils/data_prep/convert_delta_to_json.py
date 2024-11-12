@@ -509,8 +509,6 @@ def fetch(
             elif 'UNRESOLVED_COLUMN.WITH_SUGGESTION' in error_message:
                 raise MalformedUCTableError(error_message) from e
             elif 'Delta table' in str(e) and "doesn't exist" in str(e):
-                err_str = str(e)
-
                 # Error processing `catalog`.`volume_name`.`table_name`:
                 # Delta table `volume_name`.`table_name` doesn't exist.
                 # ---

@@ -27,7 +27,6 @@ from llmfoundry.utils.exceptions import (
     FailedToCreateSQLConnectionError,
     FaultyDataPrepCluster,
     InsufficientPermissionsError,
-    MisconfiguredHfDatasetError,
     StoragePermissionError,
     UCNotEnabledError,
 )
@@ -761,7 +760,7 @@ def _validate_written_file(
             try:
                 json.loads(line)
             except Exception as e:
-                raise MisconfiguredHfDatasetError(delta_table_name) from e
+                raise ValueError(f'Line is not valid json: {line}') from e
         if is_empty:
             raise StoragePermissionError(
                 f'Unable to download {delta_table_name}, check network permissions.',

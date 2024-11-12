@@ -6,6 +6,7 @@ import os
 import sys
 import unittest
 from argparse import Namespace
+from contextlib import contextmanager
 from tempfile import NamedTemporaryFile
 from typing import Any
 from unittest.mock import MagicMock, mock_open, patch
@@ -39,6 +40,20 @@ def _mock_write_jsonl(filename: str):
             f.write(json.dumps({'prompt': 'prompt', 'response': 'response'}))
 
     return _inner
+
+
+@contextmanager
+def UncreatedNamedTemporaryFile(*args: Any, **kwargs: Any):
+    """Makes a named temporary file that isn't created."""
+    x = NamedTemporaryFile(*args, **kwargs)
+
+    try:
+        x.__enter__()
+        os.remove(x.name)
+        yield x
+
+    finally:
+        x.__exit__()
 
 
 class TestConvertDeltaToJsonl(unittest.TestCase):
@@ -110,6 +125,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         batch_size = 1000
         cluster_id = '1234'
         use_serverless = False
+        json_output_folder = '/path/to/folder'
 
         mock_cluster_get = MagicMock()
         mock_cluster_get.return_value = MagicMock(
@@ -117,7 +133,10 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )
         mock_workspace_client.return_value.clusters.get = mock_cluster_get
 
-        with NamedTemporaryFile(suffix='jsonl') as tf:
+        with UncreatedNamedTemporaryFile(
+            suffix='jsonl',
+            dir=json_output_folder,
+        ) as tf:
             mock_combine_jsons.side_effect = _mock_write_jsonl(tf.name)
             json_output_folder, json_output_filename = os.path.split('tf.name')
             fetch_DT(
@@ -289,6 +308,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         DATABRICKS_HOST = 'host'
         DATABRICKS_TOKEN = 'token'
         use_serverless = False
+        json_output_folder = '/path/to/folder'
 
         mock_cluster_response = Namespace(
             spark_version='14.1.0-scala2.12',
@@ -301,7 +321,10 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )  # Mock return value for getOrCreate
         mock_databricks_session.builder.remote.return_value = mock_remote
 
-        with NamedTemporaryFile(suffix='.jsonl') as tf:
+        with UncreatedNamedTemporaryFile(
+            suffix='.jsonl',
+            dir=json_output_folder,
+        ) as tf:
             mock_combine_jsons.side_effect = _mock_write_jsonl(tf.name)
             json_output_folder, json_output_filename = os.path.split(tf.name)
             fetch_DT(
@@ -353,6 +376,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         DATABRICKS_HOST = 'host'
         DATABRICKS_TOKEN = 'token'
         use_serverless = False
+        json_output_folder = '/path/to/folder'
 
         mock_cluster_response = Namespace(
             spark_version='13.0.0-scala2.12',
@@ -360,7 +384,10 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
-        with NamedTemporaryFile(suffix='.jsonl') as tf:
+        with UncreatedNamedTemporaryFile(
+            suffix='.jsonl',
+            dir=json_output_folder,
+        ) as tf:
             mock_combine_jsons.side_effect = _mock_write_jsonl(tf.name)
             json_output_folder, json_output_filename = os.path.split(tf.name)
             fetch_DT(
@@ -413,6 +440,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         DATABRICKS_HOST = 'host'
         DATABRICKS_TOKEN = 'token'
         use_serverless = False
+        json_output_folder = '/path/to/folder'
 
         mock_cluster_response = Namespace(
             spark_version='14.2.0-scala2.12',
@@ -420,7 +448,10 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
-        with NamedTemporaryFile(suffix='.jsonl') as tf:
+        with UncreatedNamedTemporaryFile(
+            suffix='.jsonl',
+            dir=json_output_folder,
+        ) as tf:
             mock_combine_jsons.side_effect = _mock_write_jsonl(tf.name)
             json_output_folder, json_output_filename = os.path.split(tf.name)
             fetch_DT(
@@ -473,6 +504,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         DATABRICKS_HOST = 'https://test-host'
         DATABRICKS_TOKEN = 'token'
         use_serverless = False
+        json_output_folder = '/path/to/folder'
 
         mock_cluster_response = Namespace(
             spark_version='14.2.0-scala2.12',
@@ -480,7 +512,10 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
-        with NamedTemporaryFile(suffix='.jsonl') as tf:
+        with UncreatedNamedTemporaryFile(
+            suffix='.jsonl',
+            dir=json_output_folder,
+        ) as tf:
             mock_combine_jsons.side_effect = _mock_write_jsonl(tf.name)
             json_output_folder, json_output_filename = os.path.split(tf.name)
             fetch_DT(
@@ -532,11 +567,15 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         DATABRICKS_HOST = 'https://test-host'
         DATABRICKS_TOKEN = 'token'
         use_serverless = True
+        json_output_folder = '/path/to/folder'
 
         mock_cluster_response = Namespace(spark_version='14.2.0-scala2.12')
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
-        with NamedTemporaryFile(suffix='.jsonl') as tf:
+        with UncreatedNamedTemporaryFile(
+            suffix='.jsonl',
+            dir=json_output_folder,
+        ) as tf:
             mock_combine_jsons.side_effect = _mock_write_jsonl(tf.name)
             json_output_folder, json_output_filename = os.path.split(tf.name)
             fetch_DT(

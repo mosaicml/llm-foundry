@@ -56,8 +56,9 @@ def UncreatedNamedTemporaryFile(suffix: str, dir: str):
             os.remove(self.name)
 
     try:
-        short_name = random.choices([chr(x) for x in range(ord('a'), ord('z'))],
-                                    k=10) + suffix
+        short_name = ''.join(
+            random.choices([chr(x) for x in range(ord('a'), ord('z'))], k=10),
+        ) + suffix
         path = os.path.join(dir, short_name)
         file_like = FileLike(path)
         yield file_like

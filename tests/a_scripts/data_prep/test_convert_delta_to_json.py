@@ -8,6 +8,7 @@ from typing import Any
 from unittest.mock import MagicMock, mock_open, patch
 
 import grpc
+from databricks.sql.exc import ServerOperationError
 from pyspark.errors import AnalysisException
 from pyspark.errors.exceptions.connect import SparkConnectGrpcException
 
@@ -21,7 +22,10 @@ from llmfoundry.command_utils.data_prep.convert_delta_to_json import (
     iterative_combine_jsons,
     run_query,
 )
-from llmfoundry.utils.exceptions import DeltaTableNotFoundError
+from llmfoundry.utils.exceptions import (
+    DeltaTableNotFoundError,
+    MalformedUCTableError,
+)
 
 
 class TestConvertDeltaToJsonl(unittest.TestCase):
@@ -642,6 +646,37 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
             'Please double check your delta table name',
             str(context.exception),
         )
+
+        # Verify that get_total_rows was called
+        mock_gtr.assert_called_once()
+
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.get_total_rows',
+    )
+    def test_fetch_malformed_table_error(
+        self,
+        mock_gtr: MagicMock,
+    ):
+        # Create a spark.AnalysisException with specific details
+        server_exception = ServerOperationError(
+            '[UNRESOLVED_COLUMN.WITH_SUGGESTION] yada yada',
+        )
+
+        # Configure the fetch function to raise the AnalysisException
+        mock_gtr.side_effect = server_exception
+
+        # Test inputs
+        method = 'dbsql'
+        delta_table_name = 'test_table'
+        json_output_folder = '/tmp/to/jsonl'
+
+        # Act & Assert
+        with self.assertRaises(MalformedUCTableError):
+            fetch(
+                method=method,
+                tablename=delta_table_name,
+                json_output_folder=json_output_folder,
+            )
 
         # Verify that get_total_rows was called
         mock_gtr.assert_called_once()

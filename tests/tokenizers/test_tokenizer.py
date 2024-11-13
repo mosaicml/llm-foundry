@@ -6,6 +6,7 @@ import torch
 from omegaconf import OmegaConf as om
 from transformers import AutoTokenizer
 
+from llmfoundry.data.finetuning.tasks import _DEFAULT_CHAT_TEMPLATE
 from llmfoundry.tokenizers.utils import get_date_string
 
 
@@ -114,6 +115,9 @@ def test_tokenizer_date_string(tokenizer_name: str, use_date_string: bool):
     # Manually set a chat template to test if the date_string is being used.
     if use_date_string:
         tokenizer.chat_template = "{%- if not date_string is defined %}\n    {%- set date_string = \"26 Jul 2024\" %}\n{%- endif %}\n{{- \"Today Date: \" + date_string }}\n"
+
+    if not tokenizer.chat_template:
+        tokenizer.chat_template = _DEFAULT_CHAT_TEMPLATE
 
     token_ids = tokenizer.apply_chat_template(
         messages,

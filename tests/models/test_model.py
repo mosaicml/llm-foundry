@@ -49,7 +49,10 @@ from llmfoundry.models.layers.attention import (
 )
 from llmfoundry.models.layers.blocks import MPTBlock
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM, MPTModel
-from llmfoundry.models.mpt.modeling_mpt import LlamaRotaryEmbeddingFoundry
+from llmfoundry.models.mpt.modeling_mpt import (
+    CROSS_ENTROPY_IGNORE_INDEX,
+    LlamaRotaryEmbeddingFoundry,
+)
 from llmfoundry.utils import build_tokenizer
 from llmfoundry.utils.builders import build_composer_model
 from llmfoundry.utils.config_utils import to_dict_container
@@ -625,7 +628,10 @@ def test_loss_fn():
     model_2.to(test_cfg.device)
 
     assert isinstance(model_1.loss_fn, torch.nn.CrossEntropyLoss)
-    model_2.loss_fn = FusedCrossEntropyLoss(ignore_index=-100, reduction='none')
+    model_2.loss_fn = FusedCrossEntropyLoss(
+        ignore_index=CROSS_ENTROPY_IGNORE_INDEX,
+        reduction='none',
+    )
 
     optimizer_1 = DecoupledAdamW(
         model_1.parameters(),
@@ -732,13 +738,13 @@ def test_loss_reduction(loss_fn_config: str):
     if loss_fn_config == 'fused_crossentropy':
         assert isinstance(model_1.loss_fn, FusedCrossEntropyLoss)
         model_2.loss_fn = FusedCrossEntropyLoss(
-            ignore_index=-100,
+            ignore_index=CROSS_ENTROPY_IGNORE_INDEX,
             reduction='mean',
         )
     else:
         assert isinstance(model_1.loss_fn, torch.nn.CrossEntropyLoss)
         model_2.loss_fn = torch.nn.CrossEntropyLoss(
-            ignore_index=-100,
+            ignore_index=CROSS_ENTROPY_IGNORE_INDEX,
             reduction='mean',
         )
 
@@ -1661,6 +1667,10 @@ def check_hf_model_equivalence(
     # this key just says the folder it was loaded from, which is a tmp dir during pytest
     del expected_model_config_dict['_name_or_path']
     del new_model_config_dict['_name_or_path']
+
+    # Transformers changes this key on load from disk
+    del expected_model_config_dict['_attn_implementation_autoset']
+    del new_model_config_dict['_attn_implementation_autoset']
 
     assert expected_model_config_dict == new_model_config_dict
     assert sum(p.numel() for p in model1.parameters()

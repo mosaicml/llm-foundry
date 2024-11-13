@@ -8,6 +8,9 @@ from typing import Any
 from unittest.mock import MagicMock, mock_open, patch
 
 import grpc
+from databricks.sql.exc import ServerOperationError
+from pyspark.errors import AnalysisException
+from pyspark.errors.exceptions.connect import SparkConnectGrpcException
 
 from llmfoundry.command_utils.data_prep.convert_delta_to_json import (
     FaultyDataPrepCluster,
@@ -18,6 +21,10 @@ from llmfoundry.command_utils.data_prep.convert_delta_to_json import (
     format_tablename,
     iterative_combine_jsons,
     run_query,
+)
+from llmfoundry.utils.exceptions import (
+    DeltaTableNotFoundError,
+    MalformedUCTableError,
 )
 
 
@@ -139,25 +146,24 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
 
         mock_listdir.assert_called_once_with(json_directory)
         mock_file.assert_called()
-        """
-        Diagnostic print
-        for call_args in mock_file().write.call_args_list:
-            print(call_args)
-        --------------------
-        call('{')
-        call('"key"')
-        call(': ')
-        call('"value"')
-        call('}')
-        call('\n')
-        call('{')
-        call('"key"')
-        call(': ')
-        call('"value"')
-        call('}')
-        call('\n')
-        --------------------
-        """
+        # Diagnostic print
+        # for call_args in mock_file().write.call_args_list:
+        #     print(call_args)
+        # --------------------
+        # call('{')
+        # call('"key"')
+        # call(': ')
+        # call('"value"')
+        # call('}')
+        # call('\n')
+        # call('{')
+        # call('"key"')
+        # call(': ')
+        # call('"value"')
+        # call('}')
+        # call('\n')
+        # --------------------
+
         self.assertEqual(mock_file().write.call_count, 2)
 
     @patch(
@@ -532,7 +538,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
     @patch(
         'llmfoundry.command_utils.data_prep.convert_delta_to_json.validate_and_get_cluster_info',
     )
-    def test_fetch_DT_grpc_error_handling(
+    def test_fetch_DT_catches_grpc_errors(
         self,
         mock_validate_cluster_info: MagicMock,
         mock_fetch: MagicMock,
@@ -541,44 +547,136 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         # Mock the validate_and_get_cluster_info to return test values
         mock_validate_cluster_info.return_value = ('dbconnect', None, None)
 
-        # Create a grpc.RpcError with StatusCode.INTERNAL and specific details
-        grpc_error = grpc.RpcError()
-        grpc_error.code = lambda: grpc.StatusCode.INTERNAL
-        grpc_error.details = lambda: 'Job aborted due to stage failure: Task failed due to an error.'
+        grpc_lib_error = grpc.RpcError()
+        grpc_lib_error.code = lambda: grpc.StatusCode.INTERNAL
+        grpc_lib_error.details = lambda: 'Job aborted due to stage failure: Task failed due to an error.'
 
-        # Configure the fetch function to raise the grpc.RpcError
-        mock_fetch.side_effect = grpc_error
+        error_contexts = [
+            (
+                SparkConnectGrpcException('Cannot start cluster etc...'),
+                FaultyDataPrepCluster,
+                [
+                    'The data preparation cluster you provided is terminated. Please retry with a cluster that is healthy and alive.',
+                ],
+            ),
+            (
+                SparkConnectGrpcException('cluster ... is not usable'),
+                FaultyDataPrepCluster,
+                [
+                    'The data preparation cluster you provided is not usable. Please retry with a cluster that is healthy and alive.',
+                ],
+            ),
+            (
+                grpc_lib_error,
+                FaultyDataPrepCluster,
+                [
+                    'Faulty data prep cluster, please try swapping data prep cluster: ',
+                    'Job aborted due to stage failure',
+                ],
+            ),
+        ]
 
-        # Test inputs
-        delta_table_name = 'test_table'
-        json_output_folder = '/tmp/to/jsonl'
-        http_path = None
-        cluster_id = None
-        use_serverless = False
-        DATABRICKS_HOST = 'https://test-host'
-        DATABRICKS_TOKEN = 'test-token'
+        for (
+            err_to_throw,
+            err_to_catch,
+            texts_to_check_in_error,
+        ) in error_contexts:
+            # Configure the fetch function to raise the SparkConnectGrpcException
+            mock_fetch.side_effect = err_to_throw
 
-        # Act & Assert
-        with self.assertRaises(FaultyDataPrepCluster) as context:
-            fetch_DT(
-                delta_table_name=delta_table_name,
-                json_output_folder=json_output_folder,
-                http_path=http_path,
-                cluster_id=cluster_id,
-                use_serverless=use_serverless,
-                DATABRICKS_HOST=DATABRICKS_HOST,
-                DATABRICKS_TOKEN=DATABRICKS_TOKEN,
-            )
+            # Test inputs
+            delta_table_name = 'test_table'
+            json_output_folder = '/tmp/to/jsonl'
+            http_path = None
+            cluster_id = None
+            use_serverless = False
+            DATABRICKS_HOST = 'https://test-host'
+            DATABRICKS_TOKEN = 'test-token'
 
-        # Verify that the FaultyDataPrepCluster contains the expected message
-        self.assertIn(
-            'Faulty data prep cluster, please try swapping data prep cluster: ',
-            str(context.exception),
-        )
-        self.assertIn(
-            'Job aborted due to stage failure',
-            str(context.exception),
-        )
+            # Act & Assert
+            with self.assertRaises(err_to_catch) as context:
+                fetch_DT(
+                    delta_table_name=delta_table_name,
+                    json_output_folder=json_output_folder,
+                    http_path=http_path,
+                    cluster_id=cluster_id,
+                    use_serverless=use_serverless,
+                    DATABRICKS_HOST=DATABRICKS_HOST,
+                    DATABRICKS_TOKEN=DATABRICKS_TOKEN,
+                )
+
+            # Verify that the FaultyDataPrepCluster contains the expected message
+            for text in texts_to_check_in_error:
+                self.assertIn(text, str(context.exception))
 
         # Verify that fetch was called
-        mock_fetch.assert_called_once()
+        mock_fetch.assert_called()
+
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.get_total_rows',
+    )
+    def test_fetch_nonexistent_table_error(
+        self,
+        mock_gtr: MagicMock,
+    ):
+        # Create a spark.AnalysisException with specific details
+        analysis_exception = AnalysisException(
+            message=
+            "[DELTA_TABLE_NOT_FOUND] Delta table `volume_name`.`table_name` doesn't exist",
+        )
+
+        # Configure the fetch function to raise the AnalysisException
+        mock_gtr.side_effect = analysis_exception
+
+        # Test inputs
+        method = 'dbsql'
+        delta_table_name = 'test_table'
+        json_output_folder = '/tmp/to/jsonl'
+
+        # Act & Assert
+        with self.assertRaises(DeltaTableNotFoundError) as context:
+            fetch(
+                method=method,
+                tablename=delta_table_name,
+                json_output_folder=json_output_folder,
+            )
+
+        # Verify that the DeltaTableNotFoundError contains the expected message
+        self.assertIn(
+            'Please double check your delta table name',
+            str(context.exception),
+        )
+
+        # Verify that get_total_rows was called
+        mock_gtr.assert_called_once()
+
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.get_total_rows',
+    )
+    def test_fetch_malformed_table_error(
+        self,
+        mock_gtr: MagicMock,
+    ):
+        # Create a spark.AnalysisException with specific details
+        server_exception = ServerOperationError(
+            '[UNRESOLVED_COLUMN.WITH_SUGGESTION] yada yada',
+        )
+
+        # Configure the fetch function to raise the AnalysisException
+        mock_gtr.side_effect = server_exception
+
+        # Test inputs
+        method = 'dbsql'
+        delta_table_name = 'test_table'
+        json_output_folder = '/tmp/to/jsonl'
+
+        # Act & Assert
+        with self.assertRaises(MalformedUCTableError):
+            fetch(
+                method=method,
+                tablename=delta_table_name,
+                json_output_folder=json_output_folder,
+            )
+
+        # Verify that get_total_rows was called
+        mock_gtr.assert_called_once()

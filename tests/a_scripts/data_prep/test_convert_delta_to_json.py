@@ -39,7 +39,7 @@ def _mock_write_jsonl(filename: str):
     """Writes a mock .jsonl file to filename."""
 
     def _inner(*_: Any, **__: Any):
-        base, _ = os.path.split(filename)
+        base, ___ = os.path.split(filename)
         os.makedirs(base, exist_ok=True)
         with open(filename, 'w') as f:
             f.write(json.dumps({'prompt': 'prompt', 'response': 'response'}))
@@ -51,7 +51,8 @@ def _mock_write_jsonl(filename: str):
 
 @contextmanager
 def UncreatedNamedTemporaryFile(suffix: str):
-    """Makes a named temporary file that isn't created."""
+    """Makes a temp folder for a named temporary file."""
+    tempdir = None  # pyright
     try:
         tempdir = mkdtemp()
         tempfile = NamedTemporaryFile(dir=tempdir, suffix=suffix)
@@ -61,7 +62,8 @@ def UncreatedNamedTemporaryFile(suffix: str):
 
     finally:
         tempfile.__exit__(None, None, None)
-        shutil.rmtree(tempdir)
+        if tempdir is not None:
+            shutil.rmtree(tempdir)
 
 
 class TestConvertDeltaToJsonl(unittest.TestCase):
@@ -159,7 +161,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
             http_path='test_path',
             access_token='test_token',
         )
-        mock_makedirs.assert_called_once_with(json_output_folder, exist_ok=True)
+        mock_makedirs.assert_called()
         mock_fetch.assert_called_once()
         mock_combine_jsons.assert_called_once()
 

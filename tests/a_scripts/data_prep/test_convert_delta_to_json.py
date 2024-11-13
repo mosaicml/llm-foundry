@@ -39,7 +39,7 @@ def _mock_write_jsonl(filename: str):
     """Writes a mock .jsonl file to filename."""
 
     def _inner(*_: Any, **__: Any):
-        with open(file=filename) as f:
+        with open(filename, 'w') as f:
             f.write(json.dumps({'prompt': 'prompt', 'response': 'response'}))
 
     return _inner
@@ -151,7 +151,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
             dir=json_output_folder,
         ) as tf:
             mock_combine_jsons.side_effect = _mock_write_jsonl(tf.name)
-            json_output_folder, json_output_filename = os.path.split('tf.name')
+            json_output_folder, json_output_filename = os.path.split(tf.name)
             fetch_DT(
                 delta_table_name=delta_table_name,
                 json_output_folder=json_output_folder,

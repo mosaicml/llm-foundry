@@ -29,6 +29,7 @@ from llmfoundry.utils.config_utils import (
     process_init_device,
     update_batch_size_info,
 )
+from llmfoundry.utils.consts import CROSS_ENTROPY_IGNORE_INDEX
 from llmfoundry.utils.data_prep_utils import (
     DownloadingIterable,
     merge_shard_groups,
@@ -111,4 +112,5 @@ __all__ = [
     'ExperimentalWarning',
     'experimental_function',
     'experimental_class',
+    'CROSS_ENTROPY_IGNORE_INDEX',
 ]

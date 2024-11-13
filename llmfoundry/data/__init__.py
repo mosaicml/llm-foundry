@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+from llmfoundry.data.contrastive_pairs.dataloader import build_pairs_dataloader
 from llmfoundry.data.data import (
     SUPPORTED_MDS_ENCODING_TYPES,
     ConcatTokensDataset,
@@ -38,6 +39,7 @@ from llmfoundry.registry import (
 
 dataloaders.register('text', func=build_text_dataloader)
 dataloaders.register('finetuning', func=build_finetuning_dataloader)
+dataloaders.register('contrastive_pairs', func=build_pairs_dataloader)
 
 dataset_replication_validators.register(
     'dataset_replication_validator',

@@ -52,23 +52,23 @@ classifiers = [
 ]
 
 install_requires = [
-    'mosaicml[libcloud,wandb,oci,gcs,mlflow]>=0.23.4,<0.24',
-    'mlflow>=2.14.1,<2.16',
-    'accelerate>=0.25,<0.34',  # for HF inference `device_map`
-    'transformers>=4.43.2,<4.44',
-    'mosaicml-streaming>=0.8.1,<0.9',
-    'torch>=2.3.0,<2.4',
-    'datasets>=2.19,<2.20',
+    'mosaicml[libcloud,wandb,oci,gcs,mlflow]>=0.26.0,<0.27',
+    'mlflow>=2.14.1,<2.18',
+    'accelerate>=0.25,<1.2',  # for HF inference `device_map`
+    'transformers>=4.43.2,<4.47',
+    'mosaicml-streaming>=0.9.0,<0.10',
+    'torch>=2.4.0,<2.4.1',
+    'datasets>=2.20.0,<2.21',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
     'sentencepiece==0.2.0',
     'einops==0.8.0',
     'omegaconf>=2.2.3,<3',
     'slack-sdk<4',
     'mosaicml-cli>=0.6.10,<1',
-    'onnx==1.16.2',
-    'onnxruntime==1.19.0',
+    'onnx==1.17.0',
+    'onnxruntime==1.19.2',
     'boto3>=1.21.45,<2',
-    'huggingface-hub>=0.19.0,<0.25',
+    'huggingface-hub>=0.19.0,<0.27',
     'beautifulsoup4>=4.12.2,<5',  # required for model download utils
     'tenacity>=8.2.3,<10',
     'catalogue>=2,<3',
@@ -91,45 +91,50 @@ extra_deps['dev'] = [
 ]
 
 extra_deps['databricks'] = [
-    'mosaicml[databricks]>=0.23.4,<0.24',
+    'mosaicml[databricks]>=0.26.0,<0.27',
+    'numpy<2',
     'databricks-sql-connector>=3,<4',
     'databricks-connect==14.1.0',
     'lz4>=4,<5',
 ]
 
 extra_deps['tensorboard'] = [
-    'mosaicml[tensorboard]>=0.23.4,<0.24',
+    'mosaicml[tensorboard]>=0.26.0,<0.27',
 ]
 
 # Flash 2 group kept for backwards compatibility
 extra_deps['gpu-flash2'] = [
-    'flash-attn>=2.5.8,<3',
+    'flash-attn>=2.6.3,<3',
 ]
 
 extra_deps['gpu'] = copy.deepcopy(extra_deps['gpu-flash2'])
 
 extra_deps['peft'] = [
-    'mosaicml[peft]>=0.23.4,<0.24',
+    'mosaicml[peft]>=0.26.0,<0.27',
 ]
 
 extra_deps['openai'] = [
     'openai==1.3.8',
-    'tiktoken==0.4.0',
+    'tiktoken>=0.4,<0.8.1',
 ]
 
 extra_deps['megablocks'] = [
-    'megablocks==0.5.1',
-    'grouped-gemm==0.1.4',
+    'megablocks<1.0',
+    'grouped-gemm==0.1.6',
+]
+
+extra_deps['te'] = [
+    'transformer-engine[pytorch]>=1.11.0,<1.12',
 ]
 
 extra_deps['databricks-serverless'] = {
     dep for key, deps in extra_deps.items() for dep in deps
-    if 'gpu' not in key and 'megablocks' not in key and
+    if 'gpu' not in key and 'megablocks' not in key and 'te' not in key and
     'databricks-connect' not in dep
 }
 extra_deps['all-cpu'] = {
     dep for key, deps in extra_deps.items() for dep in deps
-    if 'gpu' not in key and 'megablocks' not in key
+    if 'gpu' not in key and 'megablocks' not in key and 'te' not in key
 }
 extra_deps['all'] = {
     dep for key, deps in extra_deps.items() for dep in deps

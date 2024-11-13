@@ -1,21 +1,73 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import sys
 import unittest
 from argparse import Namespace
 from typing import Any
 from unittest.mock import MagicMock, mock_open, patch
 
+import grpc
+from databricks.sql.exc import ServerOperationError
+from pyspark.errors import AnalysisException
+from pyspark.errors.exceptions.connect import SparkConnectGrpcException
+
 from llmfoundry.command_utils.data_prep.convert_delta_to_json import (
+    FaultyDataPrepCluster,
+    InsufficientPermissionsError,
     download,
+    fetch,
     fetch_DT,
     format_tablename,
     iterative_combine_jsons,
     run_query,
 )
+from llmfoundry.utils.exceptions import (
+    DeltaTableNotFoundError,
+    MalformedUCTableError,
+)
 
 
 class TestConvertDeltaToJsonl(unittest.TestCase):
+
+    def test_run_query_dbconnect_insufficient_permissions(self):
+        error_message = (
+            '[INSUFFICIENT_PERMISSIONS] Insufficient privileges: User does not have USE SCHEMA '
+            "on Schema 'main.oogabooga'. SQLSTATE: 42501"
+        )
+
+        class MockAnalysisException(Exception):
+
+            def __init__(self, message: str):
+                self.message = message
+
+            def __str__(self):
+                return self.message
+
+        with patch.dict('sys.modules', {'pyspark.errors': MagicMock()}):
+            sys.modules[
+                'pyspark.errors'
+            ].AnalysisException = MockAnalysisException  # type: ignore
+
+            mock_spark = MagicMock()
+            mock_spark.sql.side_effect = MockAnalysisException(error_message)
+
+            with self.assertRaises(InsufficientPermissionsError) as context:
+                fetch(
+                    method='dbconnect',
+                    tablename='main.oogabooga',
+                    json_output_folder='/fake/path',
+                    batch_size=1,
+                    processes=1,
+                    sparkSession=mock_spark,
+                    dbsql=None,
+                )
+
+            self.assertEqual(
+                str(context.exception),
+                error_message,
+            )
+            mock_spark.sql.assert_called()
 
     @patch(
         'databricks.sql.connect',
@@ -94,25 +146,24 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
 
         mock_listdir.assert_called_once_with(json_directory)
         mock_file.assert_called()
-        """
-        Diagnostic print
-        for call_args in mock_file().write.call_args_list:
-            print(call_args)
-        --------------------
-        call('{')
-        call('"key"')
-        call(': ')
-        call('"value"')
-        call('}')
-        call('\n')
-        call('{')
-        call('"key"')
-        call(': ')
-        call('"value"')
-        call('}')
-        call('\n')
-        --------------------
-        """
+        # Diagnostic print
+        # for call_args in mock_file().write.call_args_list:
+        #     print(call_args)
+        # --------------------
+        # call('{')
+        # call('"key"')
+        # call(': ')
+        # call('"value"')
+        # call('}')
+        # call('\n')
+        # call('{')
+        # call('"key"')
+        # call(': ')
+        # call('"value"')
+        # call('}')
+        # call('\n')
+        # --------------------
+
         self.assertEqual(mock_file().write.call_count, 2)
 
     @patch(
@@ -229,7 +280,10 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         DATABRICKS_TOKEN = 'token'
         use_serverless = False
 
-        mock_cluster_response = Namespace(spark_version='14.1.0-scala2.12')
+        mock_cluster_response = Namespace(
+            spark_version='14.1.0-scala2.12',
+            data_security_mode='SINGLE_USER',
+        )
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
         mock_remote = MagicMock()
@@ -286,7 +340,10 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         DATABRICKS_TOKEN = 'token'
         use_serverless = False
 
-        mock_cluster_response = Namespace(spark_version='13.0.0-scala2.12')
+        mock_cluster_response = Namespace(
+            spark_version='13.0.0-scala2.12',
+            data_security_mode='SINGLE_USER',
+        )
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
         fetch_DT(
@@ -338,7 +395,10 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         DATABRICKS_TOKEN = 'token'
         use_serverless = False
 
-        mock_cluster_response = Namespace(spark_version='14.2.0-scala2.12')
+        mock_cluster_response = Namespace(
+            spark_version='14.2.0-scala2.12',
+            data_security_mode='SINGLE_USER',
+        )
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
         fetch_DT(
@@ -390,7 +450,10 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         DATABRICKS_TOKEN = 'token'
         use_serverless = False
 
-        mock_cluster_response = Namespace(spark_version='14.2.0-scala2.12')
+        mock_cluster_response = Namespace(
+            spark_version='14.2.0-scala2.12',
+            data_security_mode='SINGLE_USER',
+        )
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
         fetch_DT(
@@ -470,3 +533,150 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
             format_tablename('hyphenated-catalog.schema.test_table'),
             '`hyphenated-catalog`.`schema`.`test_table`',
         )
+
+    @patch('llmfoundry.command_utils.data_prep.convert_delta_to_json.fetch')
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.validate_and_get_cluster_info',
+    )
+    def test_fetch_DT_catches_grpc_errors(
+        self,
+        mock_validate_cluster_info: MagicMock,
+        mock_fetch: MagicMock,
+    ):
+        # Arrange
+        # Mock the validate_and_get_cluster_info to return test values
+        mock_validate_cluster_info.return_value = ('dbconnect', None, None)
+
+        grpc_lib_error = grpc.RpcError()
+        grpc_lib_error.code = lambda: grpc.StatusCode.INTERNAL
+        grpc_lib_error.details = lambda: 'Job aborted due to stage failure: Task failed due to an error.'
+
+        error_contexts = [
+            (
+                SparkConnectGrpcException('Cannot start cluster etc...'),
+                FaultyDataPrepCluster,
+                [
+                    'The data preparation cluster you provided is terminated. Please retry with a cluster that is healthy and alive.',
+                ],
+            ),
+            (
+                SparkConnectGrpcException('cluster ... is not usable'),
+                FaultyDataPrepCluster,
+                [
+                    'The data preparation cluster you provided is not usable. Please retry with a cluster that is healthy and alive.',
+                ],
+            ),
+            (
+                grpc_lib_error,
+                FaultyDataPrepCluster,
+                [
+                    'Faulty data prep cluster, please try swapping data prep cluster: ',
+                    'Job aborted due to stage failure',
+                ],
+            ),
+        ]
+
+        for (
+            err_to_throw,
+            err_to_catch,
+            texts_to_check_in_error,
+        ) in error_contexts:
+            # Configure the fetch function to raise the SparkConnectGrpcException
+            mock_fetch.side_effect = err_to_throw
+
+            # Test inputs
+            delta_table_name = 'test_table'
+            json_output_folder = '/tmp/to/jsonl'
+            http_path = None
+            cluster_id = None
+            use_serverless = False
+            DATABRICKS_HOST = 'https://test-host'
+            DATABRICKS_TOKEN = 'test-token'
+
+            # Act & Assert
+            with self.assertRaises(err_to_catch) as context:
+                fetch_DT(
+                    delta_table_name=delta_table_name,
+                    json_output_folder=json_output_folder,
+                    http_path=http_path,
+                    cluster_id=cluster_id,
+                    use_serverless=use_serverless,
+                    DATABRICKS_HOST=DATABRICKS_HOST,
+                    DATABRICKS_TOKEN=DATABRICKS_TOKEN,
+                )
+
+            # Verify that the FaultyDataPrepCluster contains the expected message
+            for text in texts_to_check_in_error:
+                self.assertIn(text, str(context.exception))
+
+        # Verify that fetch was called
+        mock_fetch.assert_called()
+
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.get_total_rows',
+    )
+    def test_fetch_nonexistent_table_error(
+        self,
+        mock_gtr: MagicMock,
+    ):
+        # Create a spark.AnalysisException with specific details
+        analysis_exception = AnalysisException(
+            message=
+            "[DELTA_TABLE_NOT_FOUND] Delta table `volume_name`.`table_name` doesn't exist",
+        )
+
+        # Configure the fetch function to raise the AnalysisException
+        mock_gtr.side_effect = analysis_exception
+
+        # Test inputs
+        method = 'dbsql'
+        delta_table_name = 'test_table'
+        json_output_folder = '/tmp/to/jsonl'
+
+        # Act & Assert
+        with self.assertRaises(DeltaTableNotFoundError) as context:
+            fetch(
+                method=method,
+                tablename=delta_table_name,
+                json_output_folder=json_output_folder,
+            )
+
+        # Verify that the DeltaTableNotFoundError contains the expected message
+        self.assertIn(
+            'Please double check your delta table name',
+            str(context.exception),
+        )
+
+        # Verify that get_total_rows was called
+        mock_gtr.assert_called_once()
+
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.get_total_rows',
+    )
+    def test_fetch_malformed_table_error(
+        self,
+        mock_gtr: MagicMock,
+    ):
+        # Create a spark.AnalysisException with specific details
+        server_exception = ServerOperationError(
+            '[UNRESOLVED_COLUMN.WITH_SUGGESTION] yada yada',
+        )
+
+        # Configure the fetch function to raise the AnalysisException
+        mock_gtr.side_effect = server_exception
+
+        # Test inputs
+        method = 'dbsql'
+        delta_table_name = 'test_table'
+        json_output_folder = '/tmp/to/jsonl'
+
+        # Act & Assert
+        with self.assertRaises(MalformedUCTableError):
+            fetch(
+                method=method,
+                tablename=delta_table_name,
+                json_output_folder=json_output_folder,
+            )
+
+        # Verify that get_total_rows was called
+        mock_gtr.assert_called_once()

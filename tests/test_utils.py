@@ -2,11 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import copy
-from typing import Any
+from typing import Any, Union
 
 import catalogue
 import pytest
+import torch
 from omegaconf import DictConfig
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.registry import config_transforms
 from llmfoundry.utils.config_utils import (
@@ -102,3 +104,49 @@ def test_logged_cfg():
         'device_eval_batch_size': 1,
     })
     assert expected_config == logged_config
+
+
+class MockTokenizer(PreTrainedTokenizerBase):
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.pad_token: str = '<pad>'
+        self.eos_token: str = '</s>'
+        self.bos_token: str = '<s>'
+        self.unk_token: str = '<unk>'
+        self._vocab_size: int = 30000
+
+    def __len__(self) -> int:
+        return self._vocab_size
+
+    def convert_tokens_to_ids(
+        self,
+        tokens: Union[str, list[str]],
+    ) -> Union[int, list[int]]:
+        return 0
+
+    @property
+    def pad_token_id(self) -> int:
+        return 0
+
+    def _batch_encode_plus(self, *args: Any,
+                           **kwargs: Any) -> dict[str, torch.Tensor]:
+        batch_texts = args[0] if args else kwargs.get(
+            'batch_text_or_text_pairs',
+            [],
+        )
+        max_length = kwargs.get('max_length', 1024)
+
+        if isinstance(batch_texts[0], list):
+            texts = [t for pair in batch_texts for t in pair]
+        else:
+            texts = batch_texts
+
+        token_ids = torch.tensor([
+            [hash(text) % 1000 + j for j in range(max_length)] for text in texts
+        ])
+
+        return {
+            'input_ids': token_ids,
+            'attention_mask': torch.ones_like(token_ids),
+        }

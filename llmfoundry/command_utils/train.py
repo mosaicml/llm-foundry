@@ -10,6 +10,7 @@ from typing import Any, Optional, Union
 import torch
 import torch.distributed
 from composer import ComposerModel, Trainer
+from composer.callbacks.checkpoint_saver import CheckpointSaver
 from composer.core.callback import Callback
 from composer.profiler import (
     JSONTraceHandler,
@@ -17,7 +18,7 @@ from composer.profiler import (
     TraceHandler,
     cyclic_schedule,
 )
-from composer.utils import dist, get_device, reproducibility
+from composer.utils import TPConfig, dist, get_device, reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
@@ -42,6 +43,7 @@ from llmfoundry.utils.builders import (
     build_save_planner,
     build_scheduler,
     build_tokenizer,
+    build_tp_strategies,
 )
 from llmfoundry.utils.config_utils import (
     TRAIN_CONFIG_KEYS,
@@ -187,6 +189,24 @@ def _initialize_dist_with_barrier(dist_timeout: Union[int, float]):
     log.debug('Barrier test passed with device.')
 
 
+def _sort_callbacks(trainer: Trainer):
+    """Sort callback so that checkpoint saving callbacks go first.
+
+    Args:
+        trainer (Trainer): Trainer object
+    """
+
+    def _sort_key(c: Callback) -> int:
+        # CheckpointSaver goes before HuggingFaceCheckpointer because the blocking time is shortest while upload is async.
+        if isinstance(c, CheckpointSaver):
+            return 1
+        if isinstance(c, HuggingFaceCheckpointer):
+            return 2
+        return 0
+
+    trainer.state.callbacks = sorted(trainer.state.callbacks, key=_sort_key)
+
+
 def train(cfg: DictConfig) -> Trainer:
     code_paths = cfg.get('code_paths', [])
     # Import any user provided code
@@ -207,6 +227,7 @@ def train(cfg: DictConfig) -> Trainer:
             # 2022-06-29 11:22:26,152: rank0[822018][MainThread]: INFO: Message here
             format=
             f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s',
+            force=True,
         )
         logging.getLogger('llmfoundry').setLevel(
             train_cfg.python_log_level.upper(),
@@ -214,6 +235,9 @@ def train(cfg: DictConfig) -> Trainer:
         logging.getLogger(__name__).setLevel(
             train_cfg.python_log_level.upper(),
         )  # Train script
+        logging.getLogger('streaming').setLevel(
+            train_cfg.python_log_level.upper(),
+        )  # Streaming module
 
     _initialize_dist_with_barrier(dist_timeout=train_cfg.dist_timeout)
 
@@ -288,8 +312,11 @@ def train(cfg: DictConfig) -> Trainer:
     eval_gauntlet_config = train_cfg.eval_gauntlet or train_cfg.eval_gauntlet_str
 
     # Optional parameters will be set to default values if not specified.
-    default_run_name: str = os.environ.get('RUN_NAME', 'llm')
-    run_name: str = train_cfg.run_name if train_cfg.run_name else default_run_name
+    run_name: Optional[
+        str] = train_cfg.run_name if train_cfg.run_name else os.environ.get(
+            'RUN_NAME',
+            None,
+        )
     is_state_dict_sharded: bool = (
         fsdp_config.get('state_dict_type', 'full') == 'sharded'
     ) if fsdp_config else False
@@ -298,8 +325,8 @@ def train(cfg: DictConfig) -> Trainer:
 
     # Enable autoresume from model checkpoints if possible
     autoresume_default: bool = False
-    if logged_cfg.get('run_name', None) is not None \
-        and train_cfg.save_folder is not None \
+    if run_name is not None and \
+        train_cfg.save_folder is not None \
         and not train_cfg.save_overwrite \
         and not train_cfg.save_weights_only:
         autoresume_default = True
@@ -310,16 +337,27 @@ def train(cfg: DictConfig) -> Trainer:
                 changing autoresume default to True...',
         )
 
-    # Warn if fsdp is enabled but user only has 1 GPU
-    if dist.get_world_size() == 1 and fsdp_config is not None:
+    # Optional tp config
+    tp_config: Optional[Union[TPConfig, dict[str, Any]]] = train_cfg.tp_config
+
+    # Warn if FSDP or TP is enabled but user only has 1 GPU
+    if dist.get_world_size(
+    ) == 1 and (fsdp_config is not None or tp_config is not None):
+        parallelism = ''
+        if fsdp_config is not None:
+            parallelism += 'FSDP'
+        if tp_config is not None:
+            parallelism += '+TP' if fsdp_config is not None else 'TP'
         warnings.warn(
-            'FSDP is not applicable for single-GPU training. Reverting to DDP.',
+            f'{parallelism} is not applicable for single-GPU training. Reverting to DDP.',
         )
         fsdp_config = None
+        tp_config = None
 
     # Initialize context
-    init_context = process_init_device(model_config, fsdp_config)
+    init_context = process_init_device(model_config, fsdp_config, tp_config)
     logged_cfg.update({'fsdp_config': fsdp_config}, merge=True)
+    logged_cfg.update({'tp_config': tp_config}, merge=True)
 
     # Build tokenizer
     log.info('Building tokenizer...')
@@ -477,11 +515,20 @@ def train(cfg: DictConfig) -> Trainer:
         name=name,
         tokenizer=tokenizer,
         init_context=init_context,
-        master_weights_dtype=model_config.get('master_weights_dtype', None),
+        master_weights_dtype=model_config.pop('master_weights_dtype', None),
         cfg=model_config,
     )
 
     _log_num_params(model, logged_cfg)
+
+    # TP config
+    if tp_config is not None:
+        strategy = tp_config.pop('strategy')
+        layer_plan = build_tp_strategies(strategy, model)
+        tp_config = TPConfig(**tp_config, layer_plan=layer_plan)
+
+    # Parallelism config
+    parallelism_config = {'fsdp': fsdp_config, 'tp': tp_config}
 
     # Optimizer
     optimizer_name: str = train_cfg.optimizer.pop('name')
@@ -527,7 +574,7 @@ def train(cfg: DictConfig) -> Trainer:
         precision=train_cfg.precision,
         algorithms=algorithms,
         device_train_microbatch_size=train_cfg.device_train_microbatch_size,
-        parallelism_config={'fsdp': fsdp_config},
+        parallelism_config=parallelism_config,
         save_folder=train_cfg.save_folder,
         save_filename=save_filename,
         save_latest_filename=save_latest_filename,
@@ -546,7 +593,11 @@ def train(cfg: DictConfig) -> Trainer:
         profiler=profiler,
         compile_config=compile_config,
         spin_dataloaders=train_cfg.spin_dataloaders,
+        accumulate_train_batch_on_tokens=train_cfg.
+        accumulate_train_batch_on_tokens,
     )
+
+    _sort_callbacks(trainer)
 
     # Optionally just save an HF checkpoint
     if train_cfg.only_hf_checkpoint:
@@ -563,7 +614,12 @@ def train(cfg: DictConfig) -> Trainer:
             )
 
         hf_checkpointer_callback = hf_checkpointer_callbacks[0]
-        hf_checkpointer_callback._save_checkpoint(trainer.state, trainer.logger)
+        hf_checkpointer_callback._save_checkpoint(
+            trainer.state,
+            trainer.logger,
+            upload_to_save_folder=True,
+            register_to_mlflow=True,
+        )
         return trainer
 
     if train_cfg.only_composer_checkpoint:

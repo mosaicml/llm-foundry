@@ -10,6 +10,7 @@ from composer.utils import dist
 from torchmetrics import Metric
 
 from llmfoundry.models.mpt import ComposerMPTCausalLM
+from llmfoundry.utils.consts import CROSS_ENTROPY_IGNORE_INDEX
 from llmfoundry.utils.warnings import experimental_class
 
 __all__ = [
@@ -33,7 +34,7 @@ class LossPerpVsContextLengthLogger(Callback):
         self,
         log_batch_interval: int,
         compute_batch_interval: int,
-        ignore_index: int = -100,
+        ignore_index: int = CROSS_ENTROPY_IGNORE_INDEX,
     ):
         if compute_batch_interval > log_batch_interval:
             raise ValueError(
@@ -69,7 +70,7 @@ class LossPerpVsContextLengthLogger(Callback):
             labels = state.batch['labels']
             if state.model.shift_labels:
                 labels[:, :-1] = labels[:, 1:].detach().clone()
-                labels[:, -1] = -100
+                labels[:, -1] = CROSS_ENTROPY_IGNORE_INDEX
             seq_parallel_world_size = getattr(
                 state.model.model.transformer,
                 'seq_parallel_world_size',

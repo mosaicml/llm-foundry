@@ -38,9 +38,6 @@ if TYPE_CHECKING:
 
 __all__ = ['BaseHuggingFaceModel']
 
-# HuggingFace hardcodes the ignore index to -100
-_HF_IGNORE_INDEX = -100
-
 log = logging.getLogger(__name__)
 
 
@@ -69,7 +66,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         config_overrides: Optional[dict[str, Any]] = None,
         use_logits: bool = True,
         shift_labels: bool = False,
-        peft_config: Optional['PeftConfig'] = None,
+        peft_config: Optional[dict[str, Any]] = None,
         allow_embedding_resizing: bool = False,
         use_train_metrics: bool = True,
         additional_train_metrics: Optional[list] = None,
@@ -91,8 +88,6 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         )
 
         model = self.transform_model(model)
-
-        self.prepare_inner_model(model, init_device)
 
         metrics, eval_metrics = self.build_metrics(
             use_train_metrics=use_train_metrics,
@@ -120,6 +115,10 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             peft_config=peft_config_object,
             should_save_peft_only=should_save_peft_only,
         )
+
+        # Prepare for FSDP needs to happen after the super init, so that any model
+        # architecture changes are completed
+        self.prepare_inner_model(self.model, init_device)
 
     def loss(self, outputs: ModelOutput, batch: Mapping):
         if self.config.use_return_dict:
@@ -354,7 +353,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
                 f'init_device="{init_device}" must be either "cpu" or "meta".',
             )
 
-        signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_completed'
+        signal_file_path = dist.get_node_signal_file_name()
         if dist.get_local_rank() == 0:
             with open(signal_file_path, 'wb') as f:
                 f.write(b'local_rank0_completed_download')

@@ -23,7 +23,7 @@ from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry import registry
-from llmfoundry.data import (
+from llmfoundry.data.data import (
     SUPPORTED_MDS_ENCODING_TYPES,
     stream_remote_local_validate,
 )
@@ -138,11 +138,6 @@ class StreamingTextDataset(StreamingDataset):
         **kwargs: Any,
     ):
 
-        if len(kwargs) > 0:
-            raise ValueError(
-                f'StreamingTextDataset() got an unexpected keyword argument: {kwargs}',
-            )
-
         if token_encoding_type not in SUPPORTED_MDS_ENCODING_TYPES:
             raise ValueError(
                 f'The token_encoding_type must be one of {SUPPORTED_MDS_ENCODING_TYPES}, but got {token_encoding_type}',
@@ -188,6 +183,7 @@ class StreamingTextDataset(StreamingDataset):
             batching_method=batching_method,
             allow_unsafe_types=allow_unsafe_types,
             replication=replication,
+            **kwargs,
         )
         self.tokenizer = tokenizer
         self.max_seq_len = max_seq_len
@@ -332,10 +328,13 @@ def build_text_dataloader(
         StreamingTextDataset,
     ).parameters
 
+    valid_base_dataset_params = inspect.signature(StreamingDataset,).parameters
+
     dataset_config_subset_for_streaming_text_dataset = {
         k: v
         for k, v in dataset_cfg.items()
-        if k in valid_streaming_text_dataset_parameters
+        if k in valid_streaming_text_dataset_parameters or
+        k in valid_base_dataset_params
     }
 
     # build dataset potentially with streams

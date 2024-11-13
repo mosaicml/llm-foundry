@@ -32,6 +32,7 @@ from llmfoundry.utils.exceptions import (
     CannotUnicodeDecodeFile,
     DatasetTooSmallError,
     InputFolderMissingDataError,
+    InputFolderNotFound,
     OutputFolderNotEmptyError,
 )
 
@@ -125,11 +126,15 @@ def get_object_names(input_folder: str) -> list[str]:
     object_store = maybe_create_object_store_from_uri(input_folder)
     if object_store is not None:
         _, _, folder_prefix = parse_uri(input_folder)
-        names = [
-            name for name in object_store.list_objects(folder_prefix)
-            if name.endswith('.txt')
-        ]
-        log.info(f'Found {len(names)} text files in remote storage')
+        try:
+            names = [
+                name for name in object_store.list_objects(folder_prefix)
+                if name.endswith('.txt')
+            ]
+            log.info(f'Found {len(names)} text files in remote storage')
+        except FileNotFoundError:
+            raise InputFolderNotFound(folder_prefix)
+
     else:
         # input_folder is a local folder
         names = [
@@ -235,41 +240,39 @@ def download_and_convert(
     object_store = maybe_create_object_store_from_uri(input_folder)
 
     # Download file_names
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        log.info(f'Created temporary directory: {tmp_dir}')
-        downloading_iter = DownloadingIterable(
-            object_names=file_names,
-            output_folder=tmp_dir,
-            object_store=object_store,
-        )
-        log.info(f'Initializing tokenizer: {tokenizer_name}')
-        tokenizer = AutoTokenizer.from_pretrained(
-            tokenizer_name,
-            trust_remote_code=trust_remote_code,
-        )
-        tokenizer.model_max_length = 5000000000  # Hack to prevent warnings from HuggingFace
+    downloading_iter = DownloadingIterable(
+        object_names=file_names,
+        output_folder=None, # Downloads to temporary files.
+        object_store=object_store,
+    )
+    log.info(f'Initializing tokenizer: {tokenizer_name}')
+    tokenizer = AutoTokenizer.from_pretrained(
+        tokenizer_name,
+        trust_remote_code=trust_remote_code,
+    )
+    tokenizer.model_max_length = 5000000000  # Hack to prevent warnings from HuggingFace
 
-        # Use the ConcatTokensDataset from LLM-foundry to concatenate sequences of tokens up
-        # to the maximum sequence length
-        dataset = ConcatTokensFromFilesDataset(
-            files=downloading_iter,
-            max_length=concat_tokens,
-            tokenizer=tokenizer,
-            eos_text=eos_text,
-            bos_text=bos_text,
-            no_wrap=no_wrap,
-        )
+    # Use the ConcatTokensDataset from LLM-foundry to concatenate sequences of tokens up
+    # to the maximum sequence length
+    dataset = ConcatTokensFromFilesDataset(
+        files=downloading_iter,
+        max_length=concat_tokens,
+        tokenizer=tokenizer,
+        eos_text=eos_text,
+        bos_text=bos_text,
+        no_wrap=no_wrap,
+    )
 
-        columns = {'tokens': 'ndarray:int32'}
+    columns = {'tokens': 'ndarray:int32'}
 
-        log.info('Converting to MDS format...')
-        with MDSWriter(
-            out=output_folder,
-            columns=columns,
-            compression=compression,
-        ) as out:
-            for sample in tqdm(dataset):
-                out.write(sample)
+    log.info('Converting to MDS format...')
+    with MDSWriter(
+        out=output_folder,
+        columns=columns,
+        compression=compression,
+    ) as out:
+        for sample in tqdm(dataset):
+            out.write(sample)
 
     log.info(f'Completed download and conversion for {len(file_names)} files')
 
@@ -478,7 +481,9 @@ def convert_text_to_mds(
     index_path = os.path.join(local_output_folder, 'index.json')
     with open(index_path, 'r') as index_file:
         if not json.load(index_file)['shards']:
-            raise DatasetTooSmallError()
+            raise DatasetTooSmallError(
+                reason='No shards were created when converting text to MDS.',
+            )
 
     # Write a done file with the args and object names
     write_done_file(local_output_folder, args_str, object_names)
@@ -510,6 +515,7 @@ def _configure_logging(logging_level: str):
     logging.basicConfig(
         format=
         f'%(asctime)s: [%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s',
+        force=True,
     )
     logging_level = logging_level.upper()
     logging.getLogger('llmfoundry').setLevel(logging_level)
@@ -552,6 +558,7 @@ def convert_text_to_mds_from_args(
     Raises:
         ValueError: If `use_tokenizer_eos` is True and `eos_text` is not None
     """
+    os.environ['WORLD_SIZE'] = '1'
     if use_tokenizer_eos:
         # Ensure that eos text is not specified twice.
         if eos_text is not None:

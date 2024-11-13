@@ -10,6 +10,7 @@ import re
 import shutil
 import tempfile
 import time
+import warnings
 from multiprocessing.context import SpawnProcess
 from pathlib import Path
 from typing import Any, Optional, Sequence, Union
@@ -18,6 +19,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from composer.core import Callback, Event, Precision, State, Time, TimeUnit
+from composer.devices import Device
 from composer.loggers import Logger, MLFlowLogger
 from composer.models import HuggingFaceModel
 from composer.utils import (
@@ -42,6 +44,7 @@ from transformers import (
 
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.models.utils import init_empty_weights
+from llmfoundry.utils.exceptions import StoragePermissionError
 from llmfoundry.utils.huggingface_hub_utils import \
     edit_files_for_hf_compatibility
 
@@ -56,6 +59,26 @@ log = logging.getLogger(__name__)
 __all__ = ['HuggingFaceCheckpointer']
 
 _LICENSE_FILE_PATTERN = re.compile(r'license(\.[a-z]+|$)', re.IGNORECASE)
+
+from contextlib import contextmanager
+
+
+@contextmanager
+def _monitor_process_saver(mlflow_logger: MLFlowLogger):
+    # Save the current monitor process
+    if hasattr(mlflow_logger, 'monitor_process'):
+        original_monitor_process = mlflow_logger.monitor_process  # type: ignore
+        mlflow_logger.monitor_process = None  # type: ignore
+    else:
+        original_monitor_process = None
+
+    try:
+        # Yield control back to the calling code
+        yield
+    finally:
+        # Restore the monitor process
+        if original_monitor_process is not None:
+            mlflow_logger.monitor_process = original_monitor_process  # type: ignore
 
 
 def _maybe_get_license_filename(
@@ -105,6 +128,91 @@ def _maybe_get_license_filename(
         return None
 
 
+def _log_model_with_multi_process(
+    mlflow_logger: MLFlowLogger,
+    python_logging_level: int,
+    transformers_model: str,
+    artifact_path: str,
+    pretrained_model_name: str,
+    registered_model_name: Optional[str],
+    await_registration_for: int,
+    mlflow_logging_config: dict[str, Any],
+):
+    """Call MLFlowLogger.log_model.
+
+    First, patch the mlflow save_model function by removing duplicate tokenizer
+    files in the model directory. Then, register the model to mlflow from a
+    child process.
+    """
+    # Setup logging for child process. This ensures that any logs from composer are surfaced.
+    if python_logging_level > 0:
+        # If logging_level is 0, then the composer logger was unset.
+        logging.basicConfig(
+            format=
+            f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s',
+            force=True,
+        )
+        logging.getLogger('composer').setLevel(python_logging_level)
+        logging.getLogger('llmfoundry').setLevel(python_logging_level)
+
+    import mlflow
+    original_save_model = mlflow.transformers.save_model
+
+    def save_model_patch(*args: Any, **kwargs: Any):
+        original_save_model(*args, **kwargs)
+        tokenizer_files = []
+        save_path = kwargs['path']
+        tokenizer_path = os.path.join(save_path, 'components', 'tokenizer')
+        if os.path.exists(tokenizer_path):
+            tokenizer_files = os.listdir(
+                os.path.join(save_path, 'components', 'tokenizer'),
+            )
+        try:
+            # Check if there are duplicate tokenizer files in the model directory and remove them.
+            for tokenizer_file_name in tokenizer_files:
+                dupe_file = os.path.isfile(
+                    os.path.join(save_path, 'model', tokenizer_file_name),
+                )
+                if dupe_file:
+                    log.debug(
+                        f'Removing duplicate tokenizer file: {tokenizer_file_name}',
+                    )
+                    os.remove(
+                        os.path.join(save_path, 'model', tokenizer_file_name),
+                    )
+            license_filename = _maybe_get_license_filename(
+                save_path,
+                pretrained_model_name,
+            )
+            if license_filename is not None:
+                mlflow_logger._mlflow_client.log_artifact(
+                    mlflow_logger._run_id,
+                    os.path.join(save_path, license_filename),
+                )
+        except Exception as e:
+            log.error(
+                f'Exception when removing duplicate tokenizer files in the model directory',
+                e,
+            )
+
+    mlflow.transformers.save_model = save_model_patch  # type: ignore
+
+    mlflow.set_tracking_uri(mlflow_logger.tracking_uri)
+    if mlflow_logger.model_registry_uri is not None:
+        mlflow.set_registry_uri(mlflow_logger.model_registry_uri)
+
+    register_model_path = f'{mlflow_logger.model_registry_prefix}.{registered_model_name}' if mlflow_logger.model_registry_prefix and registered_model_name else registered_model_name
+    mlflow_logger.log_model(
+        transformers_model=transformers_model,
+        flavor='transformers',
+        artifact_path=artifact_path,
+        registered_model_name=register_model_path,
+        run_id=mlflow_logger._run_id,
+        await_registration_for=await_registration_for,
+        **mlflow_logging_config,
+    )
+
+
 def _register_model_with_run_id_multiprocess(
     mlflow_logger: MLFlowLogger,
     composer_logging_level: int,
@@ -122,6 +230,7 @@ def _register_model_with_run_id_multiprocess(
         logging.basicConfig(
             format=
             f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s',
+            force=True,
         )
         logging.getLogger('composer').setLevel(composer_logging_level)
 
@@ -161,6 +270,10 @@ class HuggingFaceCheckpointer(Callback):
             keys ``input_example`` and ``signature``.
         flatten_imports (Sequence[str]): A sequence of import prefixes that will
             be flattened when editing MPT files.
+        final_register_only (bool): If true, only register the model in the MLFlow
+            registry on the last batch and do not save the HuggingFace checkpoint. If
+            registration fails or mlflow_registered_model_name is not set, then we will
+            fallback to saving the HuggingFace checkpoint.
     """
 
     def __init__(
@@ -173,6 +286,8 @@ class HuggingFaceCheckpointer(Callback):
         mlflow_registered_model_name: Optional[str] = None,
         mlflow_logging_config: Optional[dict] = None,
         flatten_imports: Sequence[str] = ('llmfoundry',),
+        final_register_only: bool = False,
+        register_wait_seconds: int = 7200,
     ):
         _, _, self.save_dir_format_str = parse_uri(save_folder)
         self.overwrite = overwrite
@@ -185,8 +300,19 @@ class HuggingFaceCheckpointer(Callback):
         self.flatten_imports = flatten_imports
         self.using_peft = False
 
-        # mlflow config setup
+        self.final_register_only = final_register_only
+        self.register_wait_seconds = register_wait_seconds
+
         self.mlflow_registered_model_name = mlflow_registered_model_name
+        if self.final_register_only and self.mlflow_registered_model_name is None:
+            self.final_register_only = False
+            warnings.warn(
+                'final_register_only is set to True, but mlflow_registered_model_name is not set. '
+                +
+                f'Defaulting to final_register_only=False and saving the HuggingFace checkpoint to {save_folder=}.',
+            )
+
+        # mlflow config setup
         if mlflow_logging_config is None:
             mlflow_logging_config = {}
         if self.mlflow_registered_model_name is not None:
@@ -249,7 +375,7 @@ class HuggingFaceCheckpointer(Callback):
         self.last_checkpoint_batch: Optional[Time] = None
         self.mlflow_loggers = []
 
-        self.child_processes: list[SpawnProcess] = []
+        self.register_processes: list[SpawnProcess] = []
         # Temporary save directory used by child_processes.
         self.temp_save_dir = None
 
@@ -259,7 +385,17 @@ class HuggingFaceCheckpointer(Callback):
             state,
             event,
         ) and self.last_checkpoint_batch != state.timestamp.batch:
-            self._save_checkpoint(state, logger)
+            is_last_batch = self._is_last_batch(state)
+            self._save_checkpoint(
+                state,
+                logger,
+                register_to_mlflow=(
+                    self.mlflow_registered_model_name is not None and
+                    is_last_batch
+                ),
+                upload_to_save_folder=not self.final_register_only or
+                not is_last_batch,
+            )
         elif event == Event.INIT:
             if not isinstance(state.model, HuggingFaceModel):
                 raise ValueError(
@@ -267,7 +403,16 @@ class HuggingFaceCheckpointer(Callback):
                     + f'Got {type(state.model)} instead.',
                 )
             if self.remote_ud is not None:
-                self.remote_ud.init(state, logger)
+                try:
+                    self.remote_ud.init(state, logger)
+                except PermissionError as e:
+                    if 'Client Error' in str(
+                        e,
+                    ):  # thrown from composer.utils._wrap_mlflow_exceptions
+                        raise StoragePermissionError(
+                            'Error when write to save_folder.',
+                        ) from e
+                    raise e
                 state.callbacks.append(self.remote_ud)
 
             if self.mlflow_registered_model_name is not None:
@@ -284,6 +429,7 @@ class HuggingFaceCheckpointer(Callback):
                     )
 
                 import mlflow
+                import mlflow.environment_variables
                 mlflow.environment_variables.MLFLOW_HUGGINGFACE_MODEL_MAX_SHARD_SIZE.set(
                     '1GB',
                 )
@@ -298,15 +444,28 @@ class HuggingFaceCheckpointer(Callback):
             self.using_peft = composer_model.using_peft
         elif event == Event.FIT_END:
             # Wait for all child processes spawned by the callback to finish.
-            timeout = 3600
+            timeout = self.register_wait_seconds
             wait_start = time.time()
-            while not self._all_child_processes_done():
+            while not self._all_register_processes_done(state.device):
                 wait_time = time.time() - wait_start
                 if wait_time > timeout:
                     raise TimeoutError(
                         f'Waited {wait_time} seconds for child processes to complete. Exceeded timeout of {timeout} seconds.',
                     )
                 time.sleep(2)
+
+            if self._any_register_processes_error(
+                state.device,
+            ) and self.final_register_only:
+                log.error(
+                    'An error occurred in one or more registration processes. Fallback to saving the HuggingFace checkpoint.',
+                )
+                self._save_checkpoint(
+                    state,
+                    logger,
+                    upload_to_save_folder=True,
+                    register_to_mlflow=False,
+                )
 
             # Clean up temporary save directory; all processes are done with it.
             if self.temp_save_dir is not None:
@@ -339,11 +498,22 @@ class HuggingFaceCheckpointer(Callback):
 
         return False
 
-    def _all_child_processes_done(self) -> bool:
-        not_done = any(process.is_alive() for process in self.child_processes)
-        x = torch.tensor(1 if not_done else 0).to(device='cuda')
+    def _all_register_processes_done(self, device: Device) -> bool:
+        not_done = any(
+            process.is_alive() for process in self.register_processes
+        )
+        x = device.tensor_to_device(torch.tensor(1 if not_done else 0))
         dist.all_reduce(x, reduce_operation='MAX')
         return x.item() == 0
+
+    def _any_register_processes_error(self, device: Device) -> bool:
+        has_errors = any(
+            process.exitcode is not None and process.exitcode != 0
+            for process in self.register_processes
+        )
+        x = device.tensor_to_device(torch.tensor(1 if has_errors else 0))
+        dist.all_reduce(x, reduce_operation='MAX')
+        return x.item() == 1
 
     def transform_model_and_tokenizer(
         self,
@@ -412,7 +582,21 @@ class HuggingFaceCheckpointer(Callback):
         """
         return model
 
-    def _save_checkpoint(self, state: State, logger: Logger):
+    def _save_checkpoint(
+        self,
+        state: State,
+        logger: Logger,
+        upload_to_save_folder: bool,
+        register_to_mlflow: bool,
+    ):
+        """Save a HuggingFace formatted checkpoint.
+
+        Args:
+            state (State): The training state.
+            logger (Logger): The logger.
+            upload_to_save_folder (bool): Whether to upload the HF checkpoint to the save folder.
+            register_to_mlflow (bool): Whether to register the model to MLFlow
+        """
         del logger  # unused
 
         self.last_checkpoint_batch = state.timestamp.batch
@@ -520,11 +704,13 @@ class HuggingFaceCheckpointer(Callback):
                         new_base_model_instance,
                         original_model.peft_config[active_adapter],
                     )
+                    del new_base_model_instance
                 else:
                     new_model_instance = type(original_model)(new_config)
-                    new_model_instance.generation_config.update(
-                        **original_model.generation_config.to_dict(),
-                    )
+                    if new_model_instance.generation_config is not None:
+                        new_model_instance.generation_config.update(
+                            **original_model.generation_config.to_dict(),
+                        )
 
             if hasattr(new_model_instance.config, 'use_cache'):
                 new_model_instance.config.use_cache = True
@@ -553,134 +739,202 @@ class HuggingFaceCheckpointer(Callback):
                         ].base_model_name_or_path = self.pretrained_model_name
 
             log.debug('Saving Hugging Face checkpoint to disk')
-            # This context manager casts the TE extra state in io.BytesIO format to tensor format
-            # Needed for proper hf ckpt saving.
-            context_manager = te.onnx_export(
-                True,
-            ) if is_te_imported and state.precision == Precision.AMP_FP8 else contextlib.nullcontext(
-            )
-            with context_manager:
-                new_model_instance.save_pretrained(temp_save_dir)
-            if original_tokenizer is not None:
-                assert isinstance(
-                    original_tokenizer,
-                    PreTrainedTokenizerBase,
-                )
-                original_tokenizer.save_pretrained(temp_save_dir)
 
-            # Only need to edit files for MPT because it has custom code
-            if new_model_instance.config.model_type == 'mpt':
-                log.debug('Editing MPT files for HuggingFace compatibility')
-                edit_files_for_hf_compatibility(
-                    temp_save_dir,
-                    self.flatten_imports,
+            if upload_to_save_folder:
+                # This context manager casts the TE extra state in io.BytesIO format to tensor format
+                # Needed for proper hf ckpt saving.
+                context_manager = te.onnx_export(
+                    True,
+                ) if is_te_imported and state.precision == Precision.AMP_FP8 else contextlib.nullcontext(
                 )
+                with context_manager:
+                    new_model_instance.save_pretrained(
+                        temp_save_dir,
+                        max_shard_size='1GB',
+                    )
+                if original_tokenizer is not None:
+                    assert isinstance(
+                        original_tokenizer,
+                        PreTrainedTokenizerBase,
+                    )
+                    original_tokenizer.save_pretrained(temp_save_dir)
 
-            if self.remote_ud is not None:
-                for filename in os.listdir(temp_save_dir):
-                    remote_file_name = os.path.join(save_dir, filename)
-                    remote_file_uri = self.remote_ud.remote_backend.get_uri(
-                        remote_file_name,
+                # Only need to edit files for MPT because it has custom code
+                if new_model_instance.config.model_type == 'mpt':
+                    log.debug('Editing MPT files for HuggingFace compatibility')
+                    edit_files_for_hf_compatibility(
+                        temp_save_dir,
+                        self.flatten_imports,
                     )
-                    log.info(
-                        f'Uploading HuggingFace formatted checkpoint to {remote_file_uri}',
-                    )
-                    self.remote_ud.upload_file(
-                        state=state,
-                        remote_file_name=remote_file_name,
-                        file_path=Path(os.path.join(temp_save_dir, filename)),
-                        overwrite=self.overwrite,
-                    )
+
+                if self.remote_ud is not None:
+                    for filename in os.listdir(temp_save_dir):
+                        remote_file_name = os.path.join(save_dir, filename)
+                        remote_file_uri = self.remote_ud.remote_backend.get_uri(
+                            remote_file_name,
+                        )
+                        log.info(
+                            f'Uploading HuggingFace formatted checkpoint to {remote_file_uri}',
+                        )
+                        self.remote_ud.upload_file(
+                            state=state,
+                            remote_file_name=remote_file_name,
+                            file_path=Path(
+                                os.path.join(temp_save_dir, filename),
+                            ),
+                            overwrite=self.overwrite,
+                        )
 
         dist.barrier()
 
         if dist.get_global_rank() == 0:
-            if self.mlflow_registered_model_name and self._is_last_batch(state):
+            if register_to_mlflow:
+                if self.using_peft:
 
-                new_model_instance = self.transform_model_pre_registration(
-                    new_model_instance,
-                )
-
-                components = {'model': new_model_instance}
-                if original_tokenizer is not None:
-                    components['tokenizer'] = original_tokenizer
-
-                log.debug('Logging Hugging Face model to MLFlow')
-                for i, mlflow_logger in enumerate(self.mlflow_loggers):
-                    log.debug(
-                        f'Registering model to UC at {mlflow_logger.model_registry_prefix}.{self.mlflow_registered_model_name}',
+                    # Save and register peft model to mlflow, this code path uses our older two step logic
+                    self._save_and_register_peft_model(
+                        state,
+                        new_model_instance,
+                        original_tokenizer,
+                        temp_save_dir,
                     )
-                    local_save_path = str(
-                        Path(temp_save_dir) / f'mlflow_save_{i}',
+                else:
+                    register_save_dir = os.path.join(
+                        temp_save_dir,
+                        'register_save',
                     )
-
-                    # TODO: Remove after mlflow fixes the bug that makes this necessary
-                    import mlflow
-                    mlflow.store._unity_catalog.registry.rest_store.get_feature_dependencies = lambda *args, **kwargs: ''
-                    model_saving_kwargs: dict[str, Any] = {
-                        'path': local_save_path,
-                    }
-                    if self.using_peft:
-                        model_saving_kwargs['flavor'] = 'peft'
-                        model_saving_kwargs['save_pretrained_dir'
-                                           ] = temp_save_dir
-                        model_saving_kwargs[
-                            'metadata'] = self.mlflow_logging_config['metadata']
-                    else:
-                        model_saving_kwargs['flavor'] = 'transformers'
-                        model_saving_kwargs['transformers_model'] = components
-                        model_saving_kwargs.update(self.mlflow_logging_config)
-
-                    context_manager = te.onnx_export(
-                        True,
-                    ) if is_te_imported and state.precision == Precision.AMP_FP8 else contextlib.nullcontext(
+                    assert new_model_instance is not None
+                    new_model_instance = self.transform_model_pre_registration(
+                        new_model_instance,
                     )
-                    with context_manager:
-                        # Add the pip requirements directly to avoid mlflow
-                        # attempting to run inference on the model
-                        model_saving_kwargs['pip_requirements'] = [
-                            'transformers',
-                            'torch',
-                        ]
-                        mlflow_logger.save_model(**model_saving_kwargs)
-
-                    # Upload the license file generated by mlflow during the model saving.
-                    license_filename = _maybe_get_license_filename(
-                        local_save_path,
-                        self.pretrained_model_name,
+                    new_model_instance.save_pretrained(
+                        register_save_dir,
+                        max_shard_size='1GB',
                     )
-                    if license_filename is not None:
-                        mlflow_logger._mlflow_client.log_artifact(
-                            mlflow_logger._run_id,
-                            os.path.join(local_save_path, license_filename),
-                        )
+                    if original_tokenizer:
+                        original_tokenizer.save_pretrained(register_save_dir)
 
-                    self.pre_register_edit(local_save_path,)
+                    self.pre_register_edit(register_save_dir)
 
-                    # Spawn a new process to register the model.
-                    process = SpawnProcess(
-                        target=_register_model_with_run_id_multiprocess,
-                        kwargs={
-                            'mlflow_logger':
-                                mlflow_logger,
-                            'composer_logging_level':
-                                logging.getLogger('composer').level,
-                            'model_uri':
-                                local_save_path,
-                            'name':
-                                self.mlflow_registered_model_name,
-                            'await_creation_for':
-                                3600,
-                        },
-                    )
-                    process.start()
-                    self.child_processes.append(process)
+                    for mlflow_logger in self.mlflow_loggers:
+                        if self.mlflow_registered_model_name:
+                            log.debug(
+                                f'Registering model to UC at {mlflow_logger.model_registry_prefix}.{self.mlflow_registered_model_name}',
+                            )
 
-                    # Save the temporary directory to be cleaned up later.
-                    if use_temp_dir:
-                        self.temp_save_dir = temp_save_dir
+                        # Save the monitor process to be restored after registering the model.
+                        with _monitor_process_saver(mlflow_logger):
+                            process = SpawnProcess(
+                                target=_log_model_with_multi_process,
+                                kwargs={
+                                    'mlflow_logger':
+                                        mlflow_logger,
+                                    'python_logging_level':
+                                        logging.getLogger('llmfoundry').level,
+                                    'transformers_model':
+                                        register_save_dir,
+                                    'artifact_path':
+                                        'final_model_checkpoint',
+                                    'pretrained_model_name':
+                                        self.pretrained_model_name,
+                                    'registered_model_name':
+                                        self.mlflow_registered_model_name,
+                                    'await_registration_for':
+                                        3600,
+                                    'mlflow_logging_config':
+                                        self.mlflow_logging_config,
+                                },
+                            )
+
+                            process.start()
+                            self.register_processes.append(process)
+
+                # Save the temporary directory to be cleaned up later.
+                if use_temp_dir:
+                    self.temp_save_dir = temp_save_dir
             else:
                 # Clean up the temporary directory if we don't need to register to mlflow.
                 if use_temp_dir:
                     shutil.rmtree(temp_save_dir)
         dist.barrier()
+
+    def _save_and_register_peft_model(
+        self,
+        state: State,
+        new_model_instance: Any,
+        original_tokenizer: Optional[Any],
+        save_dir: str,
+    ):
+        new_model_instance = self.transform_model_pre_registration(
+            new_model_instance,
+        )
+        components = {'model': new_model_instance}
+        if original_tokenizer is not None:
+            components['tokenizer'] = original_tokenizer
+
+        log.debug('Logging Hugging Face model to MLFlow')
+        for i, mlflow_logger in enumerate(self.mlflow_loggers):
+            log.debug(
+                f'Registering model to UC at {mlflow_logger.model_registry_prefix}.{self.mlflow_registered_model_name}',
+            )
+
+            local_save_path = str(Path(save_dir) / f'mlflow_save_{i}',)
+
+            # TODO: Remove after mlflow fixes the bug that makes this necessary
+            import mlflow
+            import mlflow.store
+            mlflow.store._unity_catalog.registry.rest_store.get_feature_dependencies = lambda *args, **kwargs: ''
+
+            model_saving_kwargs: dict[str, Any] = {
+                'path': local_save_path,
+            }
+            model_saving_kwargs['flavor'] = 'peft'
+            model_saving_kwargs['save_pretrained_dir'] = save_dir
+            model_saving_kwargs['metadata'] = self.mlflow_logging_config[
+                'metadata']
+
+            context_manager = te.onnx_export(
+                True,
+            ) if is_te_imported and state.precision == Precision.AMP_FP8 else contextlib.nullcontext(
+            )
+            with context_manager:
+                # Add the pip requirements directly to avoid mlflow
+                # attempting to run inference on the model
+                model_saving_kwargs['pip_requirements'] = [
+                    'transformers',
+                    'torch',
+                ]
+                mlflow_logger.save_model(**model_saving_kwargs)
+
+            # Upload the license file generated by mlflow during the model saving.
+            # Get and log the license file.
+            license_filename = _maybe_get_license_filename(
+                local_save_path,
+                self.pretrained_model_name,
+            )
+            if license_filename is not None:
+                mlflow_logger._mlflow_client.log_artifact(
+                    mlflow_logger._run_id,
+                    os.path.join(local_save_path, license_filename),
+                )
+
+            self.pre_register_edit(local_save_path)
+
+            with _monitor_process_saver(mlflow_logger):
+                process = SpawnProcess(
+                    target=_register_model_with_run_id_multiprocess,
+                    kwargs={
+                        'mlflow_logger':
+                            mlflow_logger,
+                        'composer_logging_level':
+                            logging.getLogger('composer').level,
+                        'model_uri':
+                            local_save_path,
+                        'name':
+                            self.mlflow_registered_model_name,
+                        'await_creation_for':
+                            3600,
+                    },
+                )
+                process.start()
+                self.register_processes.append(process)

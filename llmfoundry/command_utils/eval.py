@@ -11,7 +11,7 @@ import torch
 from composer.core import Callback
 from composer.loggers.logger_destination import LoggerDestination
 from composer.trainer import Trainer
-from composer.utils import dist, get_device, reproducibility
+from composer.utils import dist, get_device, parallelism, reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
@@ -52,7 +52,6 @@ def evaluate_model(
     device_eval_batch_size: Union[int, float],
     eval_gauntlet_config: Optional[Union[str, dict[str, Any]]],
     eval_loader_config: Optional[Union[dict[str, Any], list[dict[str, Any]]]],
-    fsdp_config: Optional[dict[str, Any]],
     loggers: list[LoggerDestination],
     python_log_level: Optional[str],
     precision: str,
@@ -62,9 +61,20 @@ def evaluate_model(
     callback_configs: Optional[dict[str, Any]],
     metadata: Optional[dict[str, str]],
     logged_config: dict[str, Any],
+    parallelism_config: Optional[dict[str, Any]] = None,
     should_log_config: bool = True,
     load_path: Optional[str] = None,
 ):
+    if parallelism_config:
+        deprecated_fsdp_args = list(
+            parallelism.FSDPConfig.__annotations__.keys(),
+        )
+        for deprecated_arg in deprecated_fsdp_args:
+            if deprecated_arg in parallelism_config:
+                raise ValueError(
+                    'parallelism_config cannot contain deprecated fsdp_config arguments.',
+                )
+
     log.info(f'Evaluating model: {model_name}')
     # Build tokenizer and model
     tokenizer_cfg = tokenizer
@@ -99,6 +109,10 @@ def evaluate_model(
             mosaicml_logger.log_metrics(metadata)
             mosaicml_logger._flush_metadata(force_flush=True)
 
+    fsdp_config = parallelism_config.get(
+        'fsdp',
+        None,
+    ) if parallelism_config else None
     if fsdp_config and model.get('load_in_8bit', False):
         raise ValueError(
             'The FSDP config block is not supported when loading ' +
@@ -146,7 +160,7 @@ def evaluate_model(
         callbacks=callbacks,
         loggers=loggers,
         precision=precision,
-        fsdp_config=fsdp_config,
+        parallelism_config=parallelism_config,
         load_path=load_path,
         load_weights_only=True,
         progress_bar=False,
@@ -233,18 +247,16 @@ def evaluate(cfg: DictConfig) -> tuple[list[Trainer], pd.DataFrame]:
         EvalConfig,
         EVAL_CONFIG_KEYS,
         transforms=[allow_toplevel_keys],
-        icl_tasks_required=True,
+        icl_tasks_required=False,
     )
 
     model_configs = eval_config.models
     eval_gauntlet_config = eval_config.eval_gauntlet or eval_config.eval_gauntlet_str
 
-    fsdp_config = eval_config.fsdp_config
-
     # Mandatory Evaluation Parameters
     icl_tasks = eval_config.icl_tasks or eval_config.icl_tasks_str
     if icl_tasks is None:
-        raise ValueError('icl_tasks must be specified in the config')
+        icl_tasks = []
 
     # Optional Evaluation Parameters with default values
     eval_loader_config = eval_config.eval_loader or eval_config.eval_loaders
@@ -260,6 +272,7 @@ def evaluate(cfg: DictConfig) -> tuple[list[Trainer], pd.DataFrame]:
             # 2022-06-29 11:22:26,152: rank0[822018][MainThread]: INFO: Message here
             format=
             f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s',
+            force=True,
         )
         logging.getLogger('llmfoundry').setLevel(
             eval_config.python_log_level.upper(),
@@ -316,9 +329,9 @@ def evaluate(cfg: DictConfig) -> tuple[list[Trainer], pd.DataFrame]:
              device_eval_batch_size=eval_config.device_eval_batch_size,
              eval_gauntlet_config=eval_gauntlet_config,
              eval_loader_config=eval_loader_config,
-             fsdp_config=fsdp_config,
              loggers=loggers,
              python_log_level=eval_config.python_log_level,
+             parallelism_config={'fsdp': eval_config.fsdp_config},
              precision=eval_config.precision,
              eval_gauntlet_df=eval_gauntlet_df,
              callback_configs=eval_config.callbacks,

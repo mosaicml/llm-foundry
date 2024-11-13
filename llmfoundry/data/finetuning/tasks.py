@@ -61,11 +61,11 @@ from llmfoundry.data import (
     stream_remote_local_validate,
 )
 from llmfoundry.data.finetuning.collator import (
-    _HF_IGNORE_INDEX,
     stitch_turns_decoder_only,
     stitch_turns_encoder_decoder,
 )
 from llmfoundry.tokenizers import get_date_string
+from llmfoundry.utils.consts import CROSS_ENTROPY_IGNORE_INDEX
 # yapf: disable
 from llmfoundry.utils.exceptions import (
     ALLOWED_MESSAGES_KEYS,
@@ -73,8 +73,11 @@ from llmfoundry.utils.exceptions import (
     ALLOWED_RESPONSE_KEYS,
     ChatTemplateError,
     ConsecutiveRepeatedChatRolesError,
+    DatasetTooSmallError,
     IncorrectMessageKeyQuantityError,
     InvalidContentTypeError,
+    InvalidConversationError,
+    InvalidDatasetError,
     InvalidExampleTypeError,
     InvalidFileExtensionError,
     InvalidLastChatMessageRoleError,
@@ -89,6 +92,7 @@ from llmfoundry.utils.exceptions import (
     UnknownExampleTypeError,
 )
 #  yapf: enable
+from llmfoundry.utils.file_utils import dist_mkdtemp
 from llmfoundry.utils.logging_utils import SpecificWarningFilter
 
 log = logging.getLogger(__name__)
@@ -104,15 +108,6 @@ _ALLOWED_ROLE_KEYS = {'role'}
 _ALLOWED_CONTENT_KEYS = {'content'}
 _ALLOWED_ROLES = {'user', 'assistant', 'system', 'tool'}
 _ALLOWED_LAST_MESSAGE_ROLES = {'assistant'}
-DOWNLOADED_FT_DATASETS_DIRPATH = os.path.abspath(
-    os.path.join(
-        os.path.realpath(__file__),
-        os.pardir,
-        os.pardir,
-        os.pardir,
-        '.downloaded_finetuning',
-    ),
-)
 SUPPORTED_EXTENSIONS = ['.csv', '.json', '.jsonl', '.parquet']
 HUGGINGFACE_FOLDER_EXTENSIONS = ['.lock', '.metadata']
 DEFAULT_TARGET_RESPONSES = 'last'
@@ -123,6 +118,15 @@ ChatFormattedDict = Mapping[str, list[dict[str, str]]]
 Example = Union[PromptResponseDict, ChatFormattedDict]
 ExampleType = Literal['prompt_response', 'chat']
 TokenizedExample = dict[str, list[dict[str, list[int]]]]
+
+_DEFAULT_CHAT_TEMPLATE = (
+    '{% for message in messages %}'
+    "{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}"
+    '{% endfor %}'
+    '{% if add_generation_prompt %}'
+    "{{ '<|im_start|>assistant\n' }}"
+    '{% endif %}'
+)
 
 
 def _get_example_type(example: Example) -> ExampleType:
@@ -173,6 +177,8 @@ def _get_key(dictionary: Mapping[str, Any], allowed_keys: set[str]):
     if not isinstance(dictionary, Mapping):
         raise InvalidExampleTypeError(str(type(dictionary)))
     desired_keys = allowed_keys.intersection(dictionary.keys())
+    if len(desired_keys) == 0:
+        raise UnknownExampleTypeError(str(set(dictionary.keys())))
     return list(desired_keys)[0]
 
 
@@ -246,17 +252,21 @@ def _slice_chat_formatted_example(
         messages_through_current_turn: list[dict[str, str]],
         conversation_through_previous_turn: str,
     ) -> tuple[str, str]:
+        chat_template = None if tokenizer.chat_template is not None else _DEFAULT_CHAT_TEMPLATE
+
         try:
             full_conversation = tokenizer.apply_chat_template(
                 messages_through_current_turn,
                 tokenize=False,
                 date_string=get_date_string(),
+                chat_template=chat_template,
             )
             prompt_with_history = tokenizer.apply_chat_template(
                 messages_through_current_turn[:-1],
                 tokenize=False,
                 add_generation_prompt=True,
                 date_string=get_date_string(),
+                chat_template=chat_template,
             )
         except Exception as e:
             raise ChatTemplateError(
@@ -267,17 +277,17 @@ def _slice_chat_formatted_example(
         if conversation_through_previous_turn != full_conversation[:len(
             conversation_through_previous_turn,
         )]:
-            raise ValueError(
+            raise InvalidConversationError(
                 f'The full conversation must start with the conversation through the previous turn. {conversation_through_previous_turn=}, {full_conversation=}',
             )
         if conversation_through_previous_turn != prompt_with_history[:len(
             conversation_through_previous_turn,
         )]:
-            raise ValueError(
+            raise InvalidConversationError(
                 f'The prompt_with_history must start with the conversation through the previous turn. {conversation_through_previous_turn=}, {prompt_with_history=}',
             )
         if prompt_with_history != full_conversation[:len(prompt_with_history)]:
-            raise ValueError(
+            raise InvalidConversationError(
                 f'prompt_with_history must be the first part of the full conversation. {prompt_with_history=}, {full_conversation=}',
             )
         prompt = prompt_with_history[len(conversation_through_previous_turn):]
@@ -504,10 +514,27 @@ def is_valid_ift_example(
     if len(input_ids) == 0:
         return False
 
-    if len([label for label in labels if label != _HF_IGNORE_INDEX]) == 0:
+    if len([label for label in labels if label != CROSS_ENTROPY_IGNORE_INDEX
+           ],) == 0:
         return False
 
     return True
+
+
+def _get_num_processes() -> int:
+    """Get the number of processes to use for dataset processing."""
+    detected_cpu_count = os.cpu_count() or 1
+    detected_cpus_with_margin = detected_cpu_count - 8
+    num_proc = max(1, detected_cpus_with_margin)
+
+    # Check if the user has set the MAX_NUM_PROC environment variable
+    # which caps the number of processes used for dataset processing.
+    if 'MAX_NUM_PROC' in os.environ:
+        max_num_proc_env = int(os.environ['MAX_NUM_PROC'])
+        if max_num_proc_env < num_proc:
+            num_proc = max_num_proc_env
+
+    return num_proc
 
 
 class StreamingFinetuningDataset(StreamingDataset):
@@ -608,11 +635,6 @@ class StreamingFinetuningDataset(StreamingDataset):
         **kwargs: Any,
     ):
 
-        if len(kwargs) > 0:
-            raise ValueError(
-                f'StreamingFinetuningDataset() got an unexpected keyword argument: {kwargs}',
-            )
-
         if token_encoding_type not in SUPPORTED_MDS_ENCODING_TYPES:
             raise ValueError(
                 f'The token_encoding_type must be one of {SUPPORTED_MDS_ENCODING_TYPES}, but got {token_encoding_type}',
@@ -653,6 +675,7 @@ class StreamingFinetuningDataset(StreamingDataset):
             batching_method=batching_method,
             allow_unsafe_types=allow_unsafe_types,
             replication=replication,
+            **kwargs,
         )
 
         self.tokenizer = tokenizer
@@ -876,7 +899,9 @@ class DatasetConstructor:
         if tokenizer is None:
             raise ValueError('A tokenizer must be provided.')
 
-        signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_data_prep_completed'
+        signal_file_path = dist.get_node_signal_file_name()
+
+        download_folder = dist_mkdtemp()
 
         # Non local rank 0 ranks will wait here for local rank 0 to finish the data processing.
         # Once local rank 0 is done, the datasets are all cached on disk, and all other ranks
@@ -903,8 +928,12 @@ class DatasetConstructor:
                 if not os.path.isdir(dataset_name):
                     # dataset_name is not a local dir path, download if needed.
                     local_dataset_dir = os.path.join(
-                        DOWNLOADED_FT_DATASETS_DIRPATH,
+                        download_folder,
                         dataset_name,
+                    )
+
+                    log.debug(
+                        f'Downloading dataset {dataset_name} to {local_dataset_dir}.',
                     )
 
                     if _is_empty_or_nonexistent(dirpath=local_dataset_dir):
@@ -959,18 +988,16 @@ class DatasetConstructor:
                     )
                 return mapping_fn(example, tokenizer)
 
-            detected_cpu_count = os.cpu_count() or 1
-            detected_cpus_with_margin = detected_cpu_count - 8
-            num_cpus_to_use = max(1, detected_cpus_with_margin)
-            if len(dataset) < num_cpus_to_use:
-                num_cpus_to_use = 1
+            num_proc = _get_num_processes()
+            if len(dataset) < num_proc:
+                num_proc = 1
 
             columns_to_remove = list(dataset[0].keys())
             tokenized_dataset = dataset.map(
                 dataset_mapper,
                 batched=False,
                 remove_columns=columns_to_remove,
-                num_proc=num_cpus_to_use,
+                num_proc=num_proc,
                 desc='Tokenizing dataset',
             )
 
@@ -982,7 +1009,7 @@ class DatasetConstructor:
                     target_responses,
                     decoder_only_format,
                 ),
-                num_proc=num_cpus_to_use,
+                num_proc=num_proc,
                 desc='Filtering out long prompts',
             )
 
@@ -992,6 +1019,12 @@ class DatasetConstructor:
                     f'Dropped {examples_removed} examples where the prompt was longer than {max_seq_len}, '
                     +
                     'the prompt or response was empty, or the response was all padding tokens.',
+                )
+            if len(filtered_dataset) == 0:
+                raise InvalidDatasetError(
+                    f'No valid examples found after filtering out prompts longer than {max_seq_len}, '
+                    +
+                    'examples with empty prompts or responses, and examples with responses that are all padding tokens.',
                 )
         except Exception as e:
             error = e
@@ -1013,7 +1046,7 @@ class DatasetConstructor:
             raise MisconfiguredHfDatasetError(
                 dataset_name=dataset_name,
                 split=split,
-            )
+            ) from error
         if error is not None:
             log.error('Error during data prep')
             raise error
@@ -1033,7 +1066,24 @@ class DatasetConstructor:
         *args: Any,
         **kwargs: Any,
     ) -> StreamingFinetuningDataset:
-        return self.streaming_dataset_class(*args, **kwargs)
+        dataset = self.streaming_dataset_class(*args, **kwargs)
+        num_canonical_nodes = dataset.num_canonical_nodes
+        num_samples = dataset.num_samples
+        if num_canonical_nodes is None:
+            num_physical_nodes = dist.get_world_size(
+            ) // dist.get_local_world_size()
+            if num_samples < num_physical_nodes:
+                raise DatasetTooSmallError(
+                    f'{num_samples=} is less than {dist.get_world_size() // dist.get_local_world_size()}, the number of physical nodes. ',
+                )
+
+        if num_canonical_nodes is not None and num_samples < num_canonical_nodes:
+            raise DatasetTooSmallError(
+                f'{num_samples=} is less than {num_canonical_nodes=}. ' +
+                'Please check your index.json file and ensure that your dataset has been written out correctly.'
+                + 'If this was intended, reduce num_canonical_nodes.',
+            )
+        return dataset
 
 
 dataset_constructor = DatasetConstructor()

@@ -165,7 +165,6 @@ def convert_finetuning_dataset(
         decoder_only_format=not encoder_decoder,
     )
 
-    tokenizer = None
     tokenizer_kwargs = tokenizer_kwargs
     tokenizer_kwargs.update({'model_max_length': max_seq_len})
     if tokenizer:
@@ -310,6 +309,7 @@ def convert_finetuning_dataset_from_args(
         ValueError: If the target settings are invalid.
         ValueError: If the output directory already contains the requested splits.
     """
+    os.environ['WORLD_SIZE'] = '1'
     if os.path.isdir(out_root) and len(
         set(os.listdir(out_root)).intersection(set(splits)),
     ) > 0:

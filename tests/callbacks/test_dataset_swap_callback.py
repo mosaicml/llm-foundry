@@ -1,15 +1,14 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from composer.callbacks import SystemMetricsMonitor
-
 from llmfoundry.utils.builders import build_callback
 
 
-def test_system_metrics_monitor_callback_builds():
+def test_dataset_swap_callback_builds():
+    kwargs = {'dataset_index': 0}
     callback = build_callback(
-        'system_metrics_monitor',
-        kwargs={},
+        'dataset_swap',
+        kwargs=kwargs,
         train_config={'train_loader': {}},
     )
-    assert isinstance(callback, SystemMetricsMonitor)
+    assert callback is not None

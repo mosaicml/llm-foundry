@@ -11,6 +11,7 @@ import transformers
 from composer import Trainer
 from peft import LoraConfig, get_peft_model
 
+from llmfoundry.models.hf.hf_causal_lm import ComposerHFCausalLM
 from llmfoundry.models.hf.hf_fsdp import prepare_hf_model_for_fsdp
 from llmfoundry.utils.builders import build_composer_model, build_tokenizer
 
@@ -29,6 +30,27 @@ def test_peft_wraps():
     prepare_hf_model_for_fsdp(mpt, 'cpu')
 
     for n, m in mpt.named_modules():
+        if 'lora' in n and 'default' in n:
+            has_parameters = any(True for _ in m.parameters())
+            has_buffers = any(True for _ in m.buffers())
+            if has_parameters or has_buffers:
+                assert m._fsdp_wrap
+
+
+def test_causal_lm_peft_wraps():
+    model = ComposerHFCausalLM(
+        tokenizer=None,
+        pretrained_model_name_or_path='mosaicml/mpt-7b',
+        pretrained=False,
+        trust_remote_code=True,
+        config_overrides={'n_layers': 2},
+        peft_config={
+            'peft_type': 'LORA',
+            'task_type': 'CAUSAL_LM',
+        },
+    )
+
+    for n, m in model.named_modules():
         if 'lora' in n and 'default' in n:
             has_parameters = any(True for _ in m.parameters())
             has_buffers = any(True for _ in m.buffers())
@@ -103,7 +125,7 @@ def test_lora_mixed_init(
     trainer = Trainer(
         model=original_model,
         device='gpu',
-        fsdp_config=fsdp_config,
+        parallelism_config={'fsdp': fsdp_config},
         train_dataloader=[],
         device_train_microbatch_size=1,
     )

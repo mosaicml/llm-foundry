@@ -1,7 +1,7 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: v0.11.0
+  git_branch: v0.14.0
   # git_commit: # OR use your commit hash
   pip_install: .[gpu]
   ssh_clone: false  # Should be true if using a private repo
@@ -9,7 +9,7 @@ integrations:
 command: |
   cd llm-foundry/scripts/
   composer eval/eval.py /mnt/config/parameters.yaml
-image: mosaicml/llm-foundry:2.3.1_cu121-latest
+image: mosaicml/llm-foundry:2.4.0_cu124-latest
 name: mpt-1b-eval
 
 compute:

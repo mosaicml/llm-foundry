@@ -12,6 +12,7 @@ from transformers import AutoTokenizer
 
 from llmfoundry.eval.metrics import InContextLearningMetric
 from llmfoundry.metrics import DEFAULT_CAUSAL_LM_EVAL_METRICS
+from llmfoundry.utils.consts import CROSS_ENTROPY_IGNORE_INDEX
 
 __all__ = ['InferenceAPIEvalWrapper']
 
@@ -92,7 +93,7 @@ class InferenceAPIEvalWrapper(ComposerModel):
         batch = self.rebatch(batch)
         self.labels = batch.pop('labels')
         self.labels[:, :-1] = self.labels[:, 1:].clone()
-        self.labels[:, -1] = -100
+        self.labels[:, -1] = CROSS_ENTROPY_IGNORE_INDEX
         if isinstance(
             metric,
             InContextLearningMetric,

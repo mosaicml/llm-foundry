@@ -7,6 +7,7 @@ import pytest
 import transformers
 
 from llmfoundry.data.finetuning.tasks import (
+    _DEFAULT_CHAT_TEMPLATE,
     _slice_chat_formatted_example,
     dataset_constructor,
     tokenize_formatted_example,
@@ -53,11 +54,21 @@ def test_tokenize_chat_example_malformed():
     }
     wrong_example_type = ['this is not a dictionary']
     wrong_messages_type = {'messages': 'this is not a list of messages'}
+    wrong_role = {
+        'messages': [{
+            'role': 'user',
+            'content': 'Hello GPT!',
+        }, {
+            'role': 'misnamed_assistant',
+            'content': 'user message not followed by an assistant label',
+        }],
+    }
     malformed_chat_examples = [
         too_few_messages,
         no_content,
         ends_with_user_role,
         no_assistant_message,
+        wrong_role,
     ]
     my_tokenizer = build_tokenizer('mosaicml/mpt-7b-8k-chat', {})
     for example in malformed_chat_examples:
@@ -293,6 +304,9 @@ def test_multi_turn_chat_slicing(
     # Manually set a chat template to test if the date_string is being used.
     if use_date_string:
         tok.chat_template = "{%- if not date_string is defined %}\n    {%- set date_string = \"26 Jul 2024\" %}\n{%- endif %}\n{{- \"Today Date: \" + date_string }}\n"
+
+    if not tok.chat_template:
+        tok.chat_template = _DEFAULT_CHAT_TEMPLATE
 
     templated_prompt_response_turns = _slice_chat_formatted_example(
         example,

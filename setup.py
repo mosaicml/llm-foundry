@@ -52,7 +52,7 @@ classifiers = [
 ]
 
 install_requires = [
-    'mosaicml[libcloud,wandb,oci,gcs,mlflow]>=0.26.0,<0.27',
+    'mosaicml[libcloud,wandb,oci,gcs,mlflow]>=0.27.0,<0.28',
     'mlflow>=2.14.1,<2.18',
     'accelerate>=0.25,<0.34',  # for HF inference `device_map`
     'transformers>=4.43.2,<4.47',
@@ -91,7 +91,7 @@ extra_deps['dev'] = [
 ]
 
 extra_deps['databricks'] = [
-    'mosaicml[databricks]>=0.26.0,<0.27',
+    'mosaicml[databricks]>=0.27.0,<0.28',
     'numpy<2',
     'databricks-sql-connector>=3,<4',
     'databricks-connect==14.1.0',
@@ -99,7 +99,7 @@ extra_deps['databricks'] = [
 ]
 
 extra_deps['tensorboard'] = [
-    'mosaicml[tensorboard]>=0.26.0,<0.27',
+    'mosaicml[tensorboard]>=0.27.0,<0.28',
 ]
 
 # Flash 2 group kept for backwards compatibility
@@ -110,7 +110,7 @@ extra_deps['gpu-flash2'] = [
 extra_deps['gpu'] = copy.deepcopy(extra_deps['gpu-flash2'])
 
 extra_deps['peft'] = [
-    'mosaicml[peft]>=0.26.0,<0.27',
+    'mosaicml[peft]>=0.27.0,<0.28',
 ]
 
 extra_deps['openai'] = [

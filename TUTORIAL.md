@@ -283,7 +283,7 @@ The purpose of this section is probably pretty self-evident. You’ve got questi
 ### I’m running into an Out-Of-Memory (OOM) error. What do I do?
 - Hardware limitations may simply prevent some training/inference configurations, but here are some steps to troubleshooting OOMs.
 - First, confirm that you are running with the `composer` launcher, e.g. `composer train/train.py ...`, and using all N GPUs? If not, you may be running into OOMs because your model is not being FSDP-sharded across N devices.
-- Second, confirm that you have turned on FSDP for model sharding. For example, YAMLs for the `train.py` script should have a `fsdp_config` section. And you need to use `fsdp_config.sharding_strategy: FULL_SHARD` to enable parameter sharding.
+- Second, confirm that you have turned on FSDP for model sharding. For example, YAMLs for the `train.py` script should have a `parallelism_config` section which you should initialize with: `{'fsdp': fsdp_config}`. Use `fsdp_config.sharding_strategy: FULL_SHARD` to enable parameter sharding.
 - Third, confirm that you are using mixed precision, for example by setting `precision: amp_bf16`.
 - If you are still seeing OOMs, reduce the `device_train_microbatch_size` or `device_eval_batch_size` which will reduce the live activation memory.
 - If OOMs persist with `device_train_microbatch_size: 1` and `device_eval_batch_size: 1`, you may need to use activation checkpointing `fsdp_config.activation_checkpointing: true` (if you are not already) and, as a last resort, activation CPU offloading `fsdp_config.activation_cpu_offload: true`.

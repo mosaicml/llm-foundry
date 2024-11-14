@@ -93,7 +93,7 @@ def _get_objs(
             test_cfg.model[k] = v
 
     # Read FSDP Config as a dict
-    fsdp_config = test_cfg.get('fsdp_config', None)
+    fsdp_config = test_cfg.get('parallelism_config', {}).get('fsdp', None)
     fsdp_config = om.to_container(
         fsdp_config,
         resolve=True,

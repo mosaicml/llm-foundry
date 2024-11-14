@@ -103,7 +103,7 @@ class TestTrainingYAMLInputs:
             'eval_first',
             'autoresume',
             'save_folder',
-            'fsdp_config',
+            'parallelism_config',
             'lora_config',
             'eval_loader',
             'icl_tasks_config',

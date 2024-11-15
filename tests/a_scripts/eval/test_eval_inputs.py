@@ -59,7 +59,7 @@ class TestHuggingFaceEvalYAMLInputs:
             'num_retries',
             'loggers',
             'eval_gauntlet',
-            'fsdp_config',
+            'parallelism_config',
             'eval_loader',
         ]
         old_cfg = copy.deepcopy(cfg)

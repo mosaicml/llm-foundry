@@ -707,6 +707,14 @@ def fetch_DT(
         if isinstance(
             e,
             spark_errors.SparkConnectGrpcException,
+        ) and 'is not Shared or Single User Cluster' in str(e):
+            raise FaultyDataPrepCluster(
+                message=
+                f'The cluster you have provided: {cluster_id} does not have data governance enabled. Please use a cluster with a data security mode other than NONE. {e}',
+            ) from e
+        if isinstance(
+            e,
+            spark_errors.SparkConnectGrpcException,
         ) and 'Cannot start cluster' in str(e):
             raise FaultyDataPrepCluster(
                 message=

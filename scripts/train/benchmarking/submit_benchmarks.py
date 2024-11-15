@@ -47,7 +47,7 @@ def parse_args():
     parser.add_argument(
         '--image',
         type=str,
-        default='mosaicml/pytorch:2.5.1_cu124-python3.11-ubuntu20.04',
+        default='mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04',
     )
     parser.add_argument(
         '--git_branch',
@@ -387,24 +387,24 @@ def mod_parameters(
     parameters['eval_interval'] = eval_interval
 
     parameters['precision'] = precision
-    parameters['parallelism_config']['fsdp']['mixed_precision'] = fsdp_config_mixed_precision
+    parameters['fsdp_config']['mixed_precision'] = fsdp_config_mixed_precision
     if fsdp_config_activation_checkpointing is not None:
-        parameters['parallelism_config']['fsdp']['activation_checkpointing'
+        parameters['fsdp_config']['activation_checkpointing'
                                  ] = fsdp_config_activation_checkpointing
     if fsdp_config_shard_strategy is not None:
-        parameters['parallelism_config']['fsdp']['sharding_strategy'
+        parameters['fsdp_config']['sharding_strategy'
                                  ] = fsdp_config_shard_strategy
     if fsdp_config_limit_all_gathers is not None:
-        parameters['parallelism_config']['fsdp']['limit_all_gathers'
+        parameters['fsdp_config']['limit_all_gathers'
                                  ] = fsdp_config_limit_all_gathers
     if fsdp_config_forward_prefetch is not None:
-        parameters['parallelism_config']['fsdp']['forward_prefetch'
+        parameters['fsdp_config']['forward_prefetch'
                                  ] = fsdp_config_forward_prefetch
     if fsdp_config_backward_prefetch is not None:
-        parameters['parallelism_config']['fsdp']['backward_prefetch'
+        parameters['fsdp_config']['backward_prefetch'
                                  ] = fsdp_config_backward_prefetch
     if activation_cpu_offload is not None:
-        parameters['parallelism_config']['fsdp']['activation_cpu_offload'
+        parameters['fsdp_config']['activation_cpu_offload'
                                  ] = activation_cpu_offload
 
     if wandb:

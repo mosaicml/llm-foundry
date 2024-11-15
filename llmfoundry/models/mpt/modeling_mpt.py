@@ -1239,8 +1239,9 @@ class MPTForCausalLM(MPTPreTrainedModel):
                 - a list of mixed integers and strings of first-n, middle-m, last-k, range-i-j
 
             An example in yaml config file:
-                fsdp_config:
-                    activation_checkpointing: true
+                parallelism_config:
+                    fsdp:
+                        activation_checkpointing: true
                 model:
                     activation_checkpointing_target:
                         {

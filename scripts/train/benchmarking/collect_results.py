@@ -129,7 +129,7 @@ def parse_run(run: msdk.Run) -> dict[str, Any]:
         run.submitted_config.parameters['precision']]
 
     gpu_type = run.gpu_type
-    fsdp_config = run.submitted_config.parameters['parallelism_config']['fsdp']
+    fsdp_config = run.submitted_config.parameters['fsdp_config']
 
     seq_len = run.submitted_config.parameters['max_seq_len']
     global_train_batch_size = run.submitted_config.parameters[

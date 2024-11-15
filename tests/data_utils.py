@@ -305,7 +305,7 @@ def gpt_tiny_cfg(dataset_name: str, device: str):
 
     if device == 'cpu':
         test_cfg.model.init_device = 'cpu'
-        test_cfg.fsdp_config = None
+        test_cfg.parallelism_config = None
         test_cfg.model.attn_config.attn_impl = 'torch'
         test_cfg.model.loss_fn = 'torch_crossentropy'
         test_cfg.precision = 'fp32'

@@ -1116,7 +1116,6 @@ def test_huggingface_conversion_callback(
     new=MockSpawnProcess,
 )
 def test_transform_model_pre_registration():
-
     class ExtendedHuggingFaceCheckpointer(HuggingFaceCheckpointer):
 
         def transform_model_pre_registration(self, model: PreTrainedModel):

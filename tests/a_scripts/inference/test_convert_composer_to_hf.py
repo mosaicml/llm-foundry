@@ -1116,7 +1116,12 @@ def test_huggingface_conversion_callback(
     new=MockSpawnProcess,
 )
 def test_transform_model_pre_registration():
+        """Test that the `transform_model_pre_registration` method is called
+    correctly."""
+
     class ExtendedHuggingFaceCheckpointer(HuggingFaceCheckpointer):
+        """Set PEFT to false before registering for testing."""
+
 
         def transform_model_pre_registration(self, model: PreTrainedModel):
             self.using_peft = False

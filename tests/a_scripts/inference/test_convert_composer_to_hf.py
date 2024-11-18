@@ -1116,7 +1116,7 @@ def test_huggingface_conversion_callback(
     new=MockSpawnProcess,
 )
 def test_transform_model_pre_registration():
-    """Test that the `transform_model_pre_registration` method is called
+    """Test `transform_model_pre_registration` method is called."""
     correctly."""
 
     class ExtendedHuggingFaceCheckpointer(HuggingFaceCheckpointer):

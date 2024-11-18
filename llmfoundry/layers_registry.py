@@ -176,6 +176,25 @@ attention_implementations = create_registry(
     description=_attention_implementations_description,
 )
 
+_flex_attention_score_mods_description = (
+    """The flex_attention_score_mods registry is used to register functions that implement flex attention score mods.
+
+    One example is 'alibi'. See attention.py for examples.
+
+    Args:
+        kwargs: Dict[str, Any]: Additional keyword arguments the implementation accepts.
+    Returns:
+        Callable[[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor], Tensor]: The score mod function (see https://github.com/pytorch/pytorch/blob/main/torch/nn/attention/flex_attention.py)
+    """
+)
+flex_attention_score_mods = create_registry(
+    'llmfoundry',
+    'flex_attention_score_mods',
+    generic_type=Callable,
+    entry_points=True,
+    description=_flex_attention_score_mods_description,
+)
+
 _param_init_fns_description = (
     """The param_init_fns registry is used to register functions that initialize parameters.
 
@@ -231,5 +250,6 @@ __all__ = [
     'ffns_with_megablocks',
     'attention_classes',
     'attention_implementations',
+    'flex_attention_score_mods',
     'fcs',
 ]

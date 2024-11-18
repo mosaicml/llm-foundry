@@ -24,6 +24,7 @@ from torch.nn.attention.flex_attention import (
 from llmfoundry.layers_registry import (
     attention_classes,
     attention_implementations,
+    flex_attention_score_mods,
 )
 from llmfoundry.models.layers.layer_builders import build_fc, build_norm
 from llmfoundry.models.utils.config_defaults import fc_type_defaults
@@ -435,15 +436,52 @@ def flash_attn_fn(
     return output, None, past_key_value
 
 
-def _noop_score_mod_fn(
-    score: torch.Tensor,
-    b: torch.Tensor,
-    h: torch.Tensor,
-    q_idx: torch.Tensor,
-    kv_idx: torch.Tensor,
-) -> torch.Tensor:
-    del b, h, q_idx, kv_idx
-    return score
+def _get_noop_score_mod_fn() -> _score_mod_signature:
+    def _noop_score_mod_fn(
+        score: torch.Tensor,
+        b: torch.Tensor,
+        h: torch.Tensor,
+        q_idx: torch.Tensor,
+        kv_idx: torch.Tensor,
+    ) -> torch.Tensor:
+        del b, h, q_idx, kv_idx
+        return score
+
+    return _noop_score_mod_fn
+
+
+def _get_alibi_score_mod_fn(alibi_slopes: torch.Tensor) -> _score_mod_signature:
+    def _alibi_score_mod_fn(
+        score: torch.Tensor,
+        b: torch.Tensor,
+        h: torch.Tensor,
+        q_idx: torch.Tensor,
+        kv_idx: torch.Tensor,
+    ) -> torch.Tensor:
+        del b
+        bias = alibi_slopes[h] * (q_idx - kv_idx)
+        return score + bias
+
+    return _alibi_score_mod_fn
+
+
+def _get_softcap_score_mod_fn(
+    attn_logit_softcapping: float,
+) -> _score_mod_signature:
+
+    def _softcap_score_fn(
+        score: torch.Tensor,
+        b: torch.Tensor,
+        h: torch.Tensor,
+        q_idx: torch.Tensor,
+        kv_idx: torch.Tensor,
+    ) -> torch.Tensor:
+        del b, h, q_idx, kv_idx
+        return attn_logit_softcapping * torch.tanh(
+            score / attn_logit_softcapping,
+        )
+
+    return _softcap_score_fn
 
 
 def _wrap_score_mod_fns(
@@ -558,36 +596,17 @@ def flex_attn_fn(
         KV_LEN=key.shape[2],
     )
 
-    score_mod = _noop_score_mod_fn
+    score_mod = flex_attention_score_mods.get('noop')()
     if alibi_slopes is not None:
-
-        def alibi_score_fn(
-            score: torch.Tensor,
-            b: torch.Tensor,
-            h: torch.Tensor,
-            q_idx: torch.Tensor,
-            kv_idx: torch.Tensor,
-        ) -> torch.Tensor:
-            del b
-            bias = alibi_slopes[h] * (q_idx - kv_idx)
-            return score + bias
-
-        score_mod = _wrap_score_mod_fns(score_mod, alibi_score_fn)
+        score_mod = _wrap_score_mod_fns(
+            score_mod,
+            flex_attention_score_mods.get('alibi')(alibi_slopes),
+        )
     if attn_logit_softcapping is not None:
-
-        def softcap_score_fn(
-            score: torch.Tensor,
-            b: torch.Tensor,
-            h: torch.Tensor,
-            q_idx: torch.Tensor,
-            kv_idx: torch.Tensor,
-        ) -> torch.Tensor:
-            del b, h, q_idx, kv_idx
-            return attn_logit_softcapping * torch.tanh(
-                score / attn_logit_softcapping,
-            )
-
-        score_mod = _wrap_score_mod_fns(score_mod, softcap_score_fn)
+        score_mod = _wrap_score_mod_fns(
+            score_mod,
+            flex_attention_score_mods.get('softcap')(attn_logit_softcapping),
+        )
 
     output = flex_attention(
         query,
@@ -1231,3 +1250,7 @@ attention_implementations.register(
     func=scaled_multihead_dot_product_attention,
 )
 attention_implementations.register('flex', func=flex_attn_fn)
+
+flex_attention_score_mods.register('noop', func=_get_noop_score_mod_fn)
+flex_attention_score_mods.register('alibi', func=_get_alibi_score_mod_fn)
+flex_attention_score_mods.register('softcap', func=_get_softcap_score_mod_fn)

@@ -1166,7 +1166,7 @@ def test_transform_model_pre_registration():
     assert tokenizer_name is not None
 
     checkpointer._save_and_register_peft_model = MagicMock()
-checkpointer.using_peft = True
+    checkpointer.using_peft = True
     checkpointer._save_checkpoint(
         state=state,
         logger=logger,

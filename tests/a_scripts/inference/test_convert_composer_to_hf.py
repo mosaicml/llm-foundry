@@ -1164,18 +1164,6 @@ def test_transform_model_pre_registration():
 
     assert model_cfg is not None
     assert tokenizer_name is not None
-    model_cfg['peft_config'] = {
-        'peft_type': 'LORA',
-        'task_type': 'CAUSAL_LM',
-        'lora_alpha': 32,
-        'lora_dropout': 0.05,
-        'r': 16,
-        'target_modules': [
-            'q_proj',
-            'k_proj',
-            'v_proj',
-        ],
-    }
 
     checkpointer._save_and_register_peft_model = MagicMock()
 

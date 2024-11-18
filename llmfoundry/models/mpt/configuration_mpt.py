@@ -272,7 +272,7 @@ class MPTConfig(PretrainedConfig):
             raise ValueError(
                 "self.attn_config['attn_pdrop'], resid_pdrop, emb_pdrop are probabilities and must be between 0 and 1",
             )
-        if self.attn_config['attn_impl'] not in ['torch', 'flash']:
+        if self.attn_config['attn_impl'] not in ['torch', 'flash', 'flex']:
             raise ValueError(
                 f"Unknown attn_impl={self.attn_config['attn_impl']}",
             )
@@ -283,7 +283,8 @@ class MPTConfig(PretrainedConfig):
                 'alibi only implemented with torch and flash (v2.4.2 or higher) attention.',
             )
         if self.attn_config['attn_uses_sequence_id'] and not (
-            self.attn_config['attn_impl'] == 'torch' or (
+            self.attn_config['attn_impl'] == 'torch' or
+            self.attn_config['attn_impl'] == 'flex' or (
                 self.attn_config['attn_impl'] == 'flash' and
                 is_flash_v2_installed(v2_version='v2.1.2')
             )

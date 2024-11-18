@@ -716,7 +716,7 @@ class MPTModel(MPTPreTrainedModel):
             self._attn_bias_initialized = True
 
         # flash will incorporate any attention_mask inside the attention module
-        if self.attn_impl == 'flash':
+        if self.attn_impl == 'flash' or self.attn_impl == 'flex':
             return self.attn_bias, attention_mask
 
         if self.attn_bias is not None:
@@ -982,6 +982,7 @@ class MPTModel(MPTPreTrainedModel):
                 output_attentions=bool(output_attentions),
                 alibi_slopes=alibi_slopes,
                 flash_attn_padding_info=flash_attn_padding_info,
+                sequence_id=sequence_id,
                 **extra_kwargs,
             )
             if presents is not None:

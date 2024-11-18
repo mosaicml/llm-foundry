@@ -165,6 +165,7 @@ class MPTBlock(nn.Module):
         prev_layer_key_value: Optional[tuple[torch.Tensor,
                                              torch.Tensor]] = None,
         key_value_states: Optional[torch.Tensor] = None,
+        sequence_id: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
         torch.Tensor, torch.Tensor]]]:
         extra_kwargs = {}
@@ -184,6 +185,7 @@ class MPTBlock(nn.Module):
                 output_attentions=output_attentions,
                 alibi_slopes=alibi_slopes,
                 flash_attn_padding_info=flash_attn_padding_info,
+                sequence_id=sequence_id,
                 **extra_kwargs,
             )
         else:
@@ -198,6 +200,7 @@ class MPTBlock(nn.Module):
                 needs_weights=output_attentions,
                 alibi_slopes=alibi_slopes,
                 flash_attn_padding_info=flash_attn_padding_info,
+                sequence_id=sequence_id,
                 **extra_kwargs,
             )
             x = x + self.resid_attn_dropout(b)
@@ -332,6 +335,7 @@ class FusedNormAttentionNorm(nn.Module):
         prev_layer_key_value: Optional[tuple[torch.Tensor,
                                              torch.Tensor]] = None,
         key_value_states: Optional[torch.Tensor] = None,
+        sequence_id: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor],
                Optional[tuple[torch.Tensor, torch.Tensor]]]:
         a = self.norm_1(x)
@@ -351,6 +355,7 @@ class FusedNormAttentionNorm(nn.Module):
             needs_weights=output_attentions,
             alibi_slopes=alibi_slopes,
             flash_attn_padding_info=flash_attn_padding_info,
+            sequence_id=sequence_id,
             **extra_kwargs,
         )
         x = x + self.resid_attn_dropout(b)

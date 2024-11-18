@@ -13,6 +13,13 @@ import transformers
 from einops import rearrange
 from packaging import version
 from torch import nn
+from torch.nn.attention.flex_attention import (
+    _score_mod_signature,
+    and_masks,
+    create_block_mask,
+    flex_attention,
+    noop_mask,
+)
 
 from llmfoundry.layers_registry import (
     attention_classes,
@@ -150,11 +157,6 @@ def scaled_multihead_dot_product_attention(
 
     attn_weight = q.matmul(k) * softmax_scale
 
-    if attn_logit_softcapping is not None:
-        attn_weight = attn_logit_softcapping * torch.tanh(
-            attn_weight / attn_logit_softcapping,
-        )
-
     if attn_bias is not None:
         # clamp to 0 necessary for torch 2.0 compile()
         _s_q = max(0, attn_bias.size(2) - s_q)
@@ -167,6 +169,11 @@ def scaled_multihead_dot_product_attention(
                 f'attn_bias (shape: {attn_bias.shape}) is expected to broadcast to shape: {attn_weight.shape}.',
             )
         attn_weight = attn_weight + attn_bias
+
+    if attn_logit_softcapping is not None:
+        attn_weight = attn_logit_softcapping * torch.tanh(
+            attn_weight / attn_logit_softcapping,
+        )
 
     min_val = torch.finfo(q.dtype).min
 
@@ -428,6 +435,173 @@ def flash_attn_fn(
     return output, None, past_key_value
 
 
+def _noop_score_mod_fn(
+    score: torch.Tensor,
+    b: torch.Tensor,
+    h: torch.Tensor,
+    q_idx: torch.Tensor,
+    kv_idx: torch.Tensor,
+) -> torch.Tensor:
+    del b, h, q_idx, kv_idx
+    return score
+
+
+def _wrap_score_mod_fns(
+    score_mod_fn_1: _score_mod_signature,
+    score_mod_fn_2: _score_mod_signature,
+) -> _score_mod_signature:
+
+    def wrapped_score_mod_fn(
+        score: torch.Tensor,
+        b: torch.Tensor,
+        h: torch.Tensor,
+        q_idx: torch.Tensor,
+        kv_idx: torch.Tensor,
+    ) -> torch.Tensor:
+        score = score_mod_fn_1(score, b, h, q_idx, kv_idx)
+        score = score_mod_fn_2(score, b, h, q_idx, kv_idx)
+        return score
+
+    return wrapped_score_mod_fn
+
+
+def flex_attn_fn(
+    query: torch.Tensor,
+    key: torch.Tensor,
+    value: torch.Tensor,
+    n_heads: int,
+    kv_n_heads: int,
+    past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
+    softmax_scale: Optional[float] = None,
+    attn_bias: Optional[torch.Tensor] = None,
+    key_padding_mask: Optional[torch.Tensor] = None,
+    is_causal: bool = False,
+    dropout_p: float = 0.0,
+    training: bool = False,
+    needs_weights: bool = False,
+    should_repeat_kv_for_gqa: Optional[bool] = True,
+    sliding_window_size: int = -1,
+    alibi_slopes: Optional[torch.Tensor] = None,
+    sequence_id: Optional[torch.Tensor] = None,
+    attn_logit_softcapping: Optional[float] = None,
+) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
+                                                                torch.Tensor]]]:
+    del training, should_repeat_kv_for_gqa
+    if attn_bias is not None:
+        raise ValueError('attn_bias should be None for flex attn.')
+    if key_padding_mask is not None:
+        raise ValueError('key_padding_mask should be None for flex attn.')
+    if dropout_p > 0.0:
+        raise NotImplementedError(f'dropout not implemented for flex attn.')
+    if needs_weights:
+        raise NotImplementedError(
+            f'needs_weights not implemented for flex attn.',
+        )
+
+    check_valid_inputs(query, key, value)
+
+    if past_key_value is not None:
+        if len(past_key_value) != 0:
+            key = torch.cat([past_key_value[0], key], dim=1)
+            value = torch.cat([past_key_value[1], value], dim=1)
+
+        past_key_value = (key, value)
+
+    enable_gqa = (n_heads != kv_n_heads)
+    query = rearrange(query, 'b s (h d) -> b h s d', h=n_heads)
+    key = rearrange(key, 'b s (h d) -> b h s d', h=kv_n_heads)
+    value = rearrange(value, 'b s (h d) -> b h s d', h=kv_n_heads)
+
+    block_mask_fn = noop_mask
+    if is_causal:
+
+        def causal_mask_fn(
+            b: torch.Tensor,
+            h: torch.Tensor,
+            q_idx: torch.Tensor,
+            kv_idx: torch.Tensor,
+        ) -> torch.Tensor:
+            del b, h
+            return q_idx >= kv_idx
+
+        block_mask_fn = and_masks(block_mask_fn, causal_mask_fn)
+    if sliding_window_size != -1:
+
+        def sliding_window_mask_fn(
+            b: torch.Tensor,
+            h: torch.Tensor,
+            q_idx: torch.Tensor,
+            kv_idx: torch.Tensor,
+        ) -> torch.Tensor:
+            del b, h
+            return q_idx - kv_idx <= sliding_window_size
+
+        block_mask_fn = and_masks(block_mask_fn, sliding_window_mask_fn)
+    if sequence_id is not None:
+
+        def sequence_id_mask_fn(
+            b: torch.Tensor,
+            h: torch.Tensor,
+            q_idx: torch.Tensor,
+            kv_idx: torch.Tensor,
+        ) -> torch.Tensor:
+            del h
+            return sequence_id[b, q_idx] == sequence_id[b, kv_idx]
+
+        block_mask_fn = and_masks(block_mask_fn, sequence_id_mask_fn)
+
+    block_mask = create_block_mask(
+        block_mask_fn,
+        B=query.shape[0],
+        H=n_heads,
+        Q_LEN=query.shape[2],
+        KV_LEN=key.shape[2],
+    )
+
+    score_mod = _noop_score_mod_fn
+    if alibi_slopes is not None:
+
+        def alibi_score_fn(
+            score: torch.Tensor,
+            b: torch.Tensor,
+            h: torch.Tensor,
+            q_idx: torch.Tensor,
+            kv_idx: torch.Tensor,
+        ) -> torch.Tensor:
+            del b
+            bias = alibi_slopes[h] * (q_idx - kv_idx)
+            return score + bias
+
+        score_mod = _wrap_score_mod_fns(score_mod, alibi_score_fn)
+    if attn_logit_softcapping is not None:
+
+        def softcap_score_fn(
+            score: torch.Tensor,
+            b: torch.Tensor,
+            h: torch.Tensor,
+            q_idx: torch.Tensor,
+            kv_idx: torch.Tensor,
+        ) -> torch.Tensor:
+            del b, h, q_idx, kv_idx
+            return attn_logit_softcapping * torch.tanh(
+                score / attn_logit_softcapping,
+            )
+
+        score_mod = _wrap_score_mod_fns(score_mod, softcap_score_fn)
+
+    output = flex_attention(
+        query,
+        key,
+        value,
+        score_mod=score_mod,
+        block_mask=block_mask,
+        scale=softmax_scale,
+        enable_gqa=enable_gqa,
+    )
+    output = rearrange(query, 'b h s d -> b s (h d)')
+    return output, None, past_key_value
+
+
 @attention_classes.register_class('grouped_query_attention')
 class GroupedQueryAttention(nn.Module):
     """Grouped Query Attention (GQA) is a generalization of Multi-head (MHA).
@@ -600,6 +774,7 @@ class GroupedQueryAttention(nn.Module):
         prev_layer_key_value: Optional[tuple[torch.Tensor,
                                              torch.Tensor]] = None,
         key_value_states: Optional[torch.Tensor] = None,
+        sequence_id: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
         torch.Tensor, torch.Tensor]]]:
         extra_kwargs = {}
@@ -623,6 +798,7 @@ class GroupedQueryAttention(nn.Module):
             attention_mask,
             alibi_slopes,
             flash_attn_padding_info,
+            sequence_id,
         )
 
         context, attn_weights, past_key_value = self.attn_fn(
@@ -819,6 +995,7 @@ class GroupedQueryAttention(nn.Module):
         attention_mask: Optional[torch.Tensor] = None,
         alibi_slopes: Optional[torch.Tensor] = None,
         flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
+        sequence_id: Optional[torch.Tensor] = None,
     ) -> dict[str, Any]:
         """Returns attention implementation specific args.
 
@@ -826,6 +1003,7 @@ class GroupedQueryAttention(nn.Module):
             attention_mask (Optional[torch.Tensor]): The attention mask.
             alibi_slopes (Optional[torch.Tensor]): The alibi slopes.
             flash_attn_padding_info (Optional[dict[str, torch.Tensor]]): The padding information, only required for flash attention.
+            sequence_id (Optional[torch.Tensor]): The sequence id for each token, only required for FlexAttention.
 
         Returns:
             extra_attn_kwargs (dict[str, Any]): Implementation specific args.
@@ -836,6 +1014,10 @@ class GroupedQueryAttention(nn.Module):
                 'alibi_slopes': alibi_slopes,
                 'flash_attn_padding_info': flash_attn_padding_info,
                 'key_padding_mask': None,
+            }
+        elif self.attn_impl == 'flex':
+            extra_attn_kwargs = {
+                'sequence_id': sequence_id,
             }
         else:
             extra_attn_kwargs = {'key_padding_mask': attention_mask}
@@ -952,7 +1134,7 @@ def attn_bias_shape(
     causal: bool,
     use_sequence_id: bool,
 ) -> Optional[tuple[int, int, int, int]]:
-    if attn_impl == 'flash':
+    if attn_impl == 'flash' or attn_impl == 'flex':
         return None
     elif attn_impl == 'torch':
         if alibi:
@@ -1048,3 +1230,4 @@ attention_implementations.register(
     'torch',
     func=scaled_multihead_dot_product_attention,
 )
+attention_implementations.register('flex', func=flex_attn_fn)

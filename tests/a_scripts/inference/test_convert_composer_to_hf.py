@@ -1121,7 +1121,6 @@ def test_transform_model_pre_registration():
     class ExtendedHuggingFaceCheckpointer(HuggingFaceCheckpointer):
         """Set PEFT to false before registering for testing."""
 
-
         def transform_model_pre_registration(self, model: PreTrainedModel):
             self.using_peft = False
             return super().transform_model_pre_registration(model)

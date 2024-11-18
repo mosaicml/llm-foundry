@@ -10,7 +10,7 @@ import shutil
 from argparse import Namespace
 from typing import Any, Callable, Optional, Union, cast
 from unittest import mock
-from unittest.mock import ANY, MagicMock, Mock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import catalogue
 import numpy as np

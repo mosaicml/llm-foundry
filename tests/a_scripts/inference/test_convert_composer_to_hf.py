@@ -1129,7 +1129,14 @@ def test_transform_model_pre_registration():
         tie_word_embeddings=None,
         precision='bfloat16',
     )
-
+    model_cfg['peft_config'] = {
+        'peft_type': 'LORA',
+        'task_type': 'CAUSAL_LM',
+        'lora_alpha': 32,
+        'lora_dropout': 0.05,
+        'r': 16,
+        'target_modules': 'all-linear',
+    }
     tokenizer = build_tokenizer(
         tokenizer_name=tokenizer_name,
         tokenizer_kwargs={},

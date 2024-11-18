@@ -1124,7 +1124,7 @@ def test_transform_model_pre_registration():
             return super().transform_model_pre_registration(model)
 
     model_cfg, tokenizer_name = _get_model_and_tokenizer(
-        model='llama2',
+        model='neo',
         max_seq_len=10,
         tie_word_embeddings=None,
         precision='bfloat16',

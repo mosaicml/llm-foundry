@@ -14,6 +14,7 @@ from einops import rearrange
 from packaging import version
 from torch import nn
 from torch.nn.attention.flex_attention import (
+    _mask_mod_signature,
     _score_mod_signature,
     and_masks,
     create_block_mask,
@@ -24,6 +25,7 @@ from torch.nn.attention.flex_attention import (
 from llmfoundry.layers_registry import (
     attention_classes,
     attention_implementations,
+    flex_attention_mask_mods,
     flex_attention_score_mods,
 )
 from llmfoundry.models.layers.layer_builders import build_fc, build_norm
@@ -503,6 +505,55 @@ def _wrap_score_mod_fns(
     return wrapped_score_mod_fn
 
 
+def _get_noop_mask_mod_fn() -> _mask_mod_signature:
+    return noop_mask
+
+
+def _get_causal_mask_mod_fn() -> _mask_mod_signature:
+    def causal_mask_fn(
+        b: torch.Tensor,
+        h: torch.Tensor,
+        q_idx: torch.Tensor,
+        kv_idx: torch.Tensor,
+    ) -> torch.Tensor:
+        del b, h
+        return q_idx >= kv_idx
+
+    return causal_mask_fn
+
+
+def _get_sliding_window_mask_mod_fn(
+    sliding_window_size: int,
+) -> _mask_mod_signature:
+
+    def sliding_window_mask_fn(
+        b: torch.Tensor,
+        h: torch.Tensor,
+        q_idx: torch.Tensor,
+        kv_idx: torch.Tensor,
+    ) -> torch.Tensor:
+        del b, h
+        return q_idx - kv_idx <= sliding_window_size
+
+    return sliding_window_mask_fn
+
+
+def _get_sequence_id_mask_mod_fn(
+    sequence_id: torch.Tensor,
+) -> _mask_mod_signature:
+
+    def sequence_id_mask_fn(
+        b: torch.Tensor,
+        h: torch.Tensor,
+        q_idx: torch.Tensor,
+        kv_idx: torch.Tensor,
+    ) -> torch.Tensor:
+        del h
+        return sequence_id[b, q_idx] == sequence_id[b, kv_idx]
+
+    return sequence_id_mask_fn
+
+
 def flex_attn_fn(
     query: torch.Tensor,
     key: torch.Tensor,
@@ -550,43 +601,22 @@ def flex_attn_fn(
     key = rearrange(key, 'b s (h d) -> b h s d', h=kv_n_heads)
     value = rearrange(value, 'b s (h d) -> b h s d', h=kv_n_heads)
 
-    block_mask_fn = noop_mask
+    block_mask_fn = flex_attention_mask_mods.get('noop')()
     if is_causal:
-
-        def causal_mask_fn(
-            b: torch.Tensor,
-            h: torch.Tensor,
-            q_idx: torch.Tensor,
-            kv_idx: torch.Tensor,
-        ) -> torch.Tensor:
-            del b, h
-            return q_idx >= kv_idx
-
-        block_mask_fn = and_masks(block_mask_fn, causal_mask_fn)
+        block_mask_fn = and_masks(
+            block_mask_fn,
+            flex_attention_mask_mods.get('causal')(),
+        )
     if sliding_window_size != -1:
-
-        def sliding_window_mask_fn(
-            b: torch.Tensor,
-            h: torch.Tensor,
-            q_idx: torch.Tensor,
-            kv_idx: torch.Tensor,
-        ) -> torch.Tensor:
-            del b, h
-            return q_idx - kv_idx <= sliding_window_size
-
-        block_mask_fn = and_masks(block_mask_fn, sliding_window_mask_fn)
+        block_mask_fn = and_masks(
+            block_mask_fn,
+            flex_attention_mask_mods.get('sliding_window')(sliding_window_size),
+        )
     if sequence_id is not None:
-
-        def sequence_id_mask_fn(
-            b: torch.Tensor,
-            h: torch.Tensor,
-            q_idx: torch.Tensor,
-            kv_idx: torch.Tensor,
-        ) -> torch.Tensor:
-            del h
-            return sequence_id[b, q_idx] == sequence_id[b, kv_idx]
-
-        block_mask_fn = and_masks(block_mask_fn, sequence_id_mask_fn)
+        block_mask_fn = and_masks(
+            block_mask_fn,
+            flex_attention_mask_mods.get('sequence_id')(sequence_id),
+        )
 
     block_mask = create_block_mask(
         block_mask_fn,
@@ -1254,3 +1284,14 @@ attention_implementations.register('flex', func=flex_attn_fn)
 flex_attention_score_mods.register('noop', func=_get_noop_score_mod_fn)
 flex_attention_score_mods.register('alibi', func=_get_alibi_score_mod_fn)
 flex_attention_score_mods.register('softcap', func=_get_softcap_score_mod_fn)
+
+flex_attention_mask_mods.register('noop', func=_get_noop_mask_mod_fn)
+flex_attention_mask_mods.register('causal', func=_get_causal_mask_mod_fn)
+flex_attention_mask_mods.register(
+    'sliding_window',
+    func=_get_sliding_window_mask_mod_fn,
+)
+flex_attention_mask_mods.register(
+    'sequence_id',
+    func=_get_sequence_id_mask_mod_fn,
+)

@@ -195,6 +195,25 @@ flex_attention_score_mods = create_registry(
     description=_flex_attention_score_mods_description,
 )
 
+_flex_attention_mask_mods_description = (
+    """The flex_attention_masks registry is used to register functions that implement flex attention mask mods.
+
+    One example is 'sequence_id'. See attention.py for examples.
+
+    Args:
+        kwargs: Dict[str, Any]: Additional keyword arguments the implementation accepts.
+    Returns:
+        Callable[[Tensor, Tensor, Tensor, Tensor], Tensor]: The mask mod function (see https://github.com/pytorch/pytorch/blob/main/torch/nn/attention/flex_attention.py)
+    """
+)
+flex_attention_mask_mods = create_registry(
+    'llmfoundry',
+    'flex_attention_mask_mods',
+    generic_type=Callable,
+    entry_points=True,
+    description=_flex_attention_mask_mods_description,
+)
+
 _param_init_fns_description = (
     """The param_init_fns registry is used to register functions that initialize parameters.
 
@@ -251,5 +270,6 @@ __all__ = [
     'attention_classes',
     'attention_implementations',
     'flex_attention_score_mods',
+    'flex_attention_mask_mods',
     'fcs',
 ]

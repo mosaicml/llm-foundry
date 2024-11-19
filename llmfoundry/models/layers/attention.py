@@ -440,128 +440,6 @@ def flash_attn_fn(
     return output, None, past_key_value
 
 
-def _get_noop_score_mod_fn() -> _score_mod_signature:
-    """Returns a no-op score mod function for flex attention."""
-
-    def _noop_score_mod_fn(
-        score: torch.Tensor,
-        b: torch.Tensor,
-        h: torch.Tensor,
-        q_idx: torch.Tensor,
-        kv_idx: torch.Tensor,
-    ) -> torch.Tensor:
-        del b, h, q_idx, kv_idx
-        return score
-
-    return _noop_score_mod_fn
-
-
-def _get_alibi_score_mod_fn(alibi_slopes: torch.Tensor) -> _score_mod_signature:
-    """Returns a flex attention score mod function for alibi positional bias."""
-
-    def _alibi_score_mod_fn(
-        score: torch.Tensor,
-        b: torch.Tensor,
-        h: torch.Tensor,
-        q_idx: torch.Tensor,
-        kv_idx: torch.Tensor,
-    ) -> torch.Tensor:
-        del b
-        bias = -alibi_slopes[h] * (q_idx - kv_idx)
-        return score + bias
-
-    return _alibi_score_mod_fn
-
-
-def _get_softcap_score_mod_fn(
-    attn_logit_softcapping: float,
-) -> _score_mod_signature:
-
-    def _softcap_score_fn(
-        score: torch.Tensor,
-        b: torch.Tensor,
-        h: torch.Tensor,
-        q_idx: torch.Tensor,
-        kv_idx: torch.Tensor,
-    ) -> torch.Tensor:
-        del b, h, q_idx, kv_idx
-        return attn_logit_softcapping * torch.tanh(
-            score / attn_logit_softcapping,
-        )
-
-    return _softcap_score_fn
-
-
-def _wrap_score_mod_fns(
-    score_mod_fn_1: _score_mod_signature,
-    score_mod_fn_2: _score_mod_signature,
-) -> _score_mod_signature:
-
-    def wrapped_score_mod_fn(
-        score: torch.Tensor,
-        b: torch.Tensor,
-        h: torch.Tensor,
-        q_idx: torch.Tensor,
-        kv_idx: torch.Tensor,
-    ) -> torch.Tensor:
-        score = score_mod_fn_1(score, b, h, q_idx, kv_idx)
-        score = score_mod_fn_2(score, b, h, q_idx, kv_idx)
-        return score
-
-    return wrapped_score_mod_fn
-
-
-def _get_noop_mask_mod_fn() -> _mask_mod_signature:
-    return noop_mask
-
-
-def _get_causal_mask_mod_fn() -> _mask_mod_signature:
-    """Returns a flex attention mask mod for causal attention masking."""
-
-    def causal_mask_fn(
-        b: torch.Tensor,
-        h: torch.Tensor,
-        q_idx: torch.Tensor,
-        kv_idx: torch.Tensor,
-    ) -> torch.Tensor:
-        del b, h
-        return q_idx >= kv_idx
-
-    return causal_mask_fn
-
-
-def _get_sliding_window_mask_mod_fn(
-    sliding_window_size: int,
-) -> _mask_mod_signature:
-
-    def sliding_window_mask_fn(
-        b: torch.Tensor,
-        h: torch.Tensor,
-        q_idx: torch.Tensor,
-        kv_idx: torch.Tensor,
-    ) -> torch.Tensor:
-        del b, h
-        return q_idx - kv_idx <= sliding_window_size
-
-    return sliding_window_mask_fn
-
-
-def _get_sequence_id_mask_mod_fn(
-    sequence_id: torch.Tensor,
-) -> _mask_mod_signature:
-
-    def sequence_id_mask_fn(
-        b: torch.Tensor,
-        h: torch.Tensor,
-        q_idx: torch.Tensor,
-        kv_idx: torch.Tensor,
-    ) -> torch.Tensor:
-        del h
-        return sequence_id[b, q_idx] == sequence_id[b, kv_idx]
-
-    return sequence_id_mask_fn
-
-
 @experimental_function('Flex Attention')
 def flex_attn_fn(
     query: torch.Tensor,
@@ -682,6 +560,57 @@ def _generate_block_mask(
     return block_mask
 
 
+def _get_noop_mask_mod_fn() -> _mask_mod_signature:
+    return noop_mask
+
+
+def _get_causal_mask_mod_fn() -> _mask_mod_signature:
+    """Returns a flex attention mask mod for causal attention masking."""
+
+    def causal_mask_fn(
+        b: torch.Tensor,
+        h: torch.Tensor,
+        q_idx: torch.Tensor,
+        kv_idx: torch.Tensor,
+    ) -> torch.Tensor:
+        del b, h
+        return q_idx >= kv_idx
+
+    return causal_mask_fn
+
+
+def _get_sliding_window_mask_mod_fn(
+    sliding_window_size: int,
+) -> _mask_mod_signature:
+
+    def sliding_window_mask_fn(
+        b: torch.Tensor,
+        h: torch.Tensor,
+        q_idx: torch.Tensor,
+        kv_idx: torch.Tensor,
+    ) -> torch.Tensor:
+        del b, h
+        return q_idx - kv_idx <= sliding_window_size
+
+    return sliding_window_mask_fn
+
+
+def _get_sequence_id_mask_mod_fn(
+    sequence_id: torch.Tensor,
+) -> _mask_mod_signature:
+
+    def sequence_id_mask_fn(
+        b: torch.Tensor,
+        h: torch.Tensor,
+        q_idx: torch.Tensor,
+        kv_idx: torch.Tensor,
+    ) -> torch.Tensor:
+        del h
+        return sequence_id[b, q_idx] == sequence_id[b, kv_idx]
+
+    return sequence_id_mask_fn
+
+
 def _generate_score_mod(
     alibi_slopes: Optional[torch.Tensor],
     attn_logit_softcapping: Optional[float],
@@ -699,6 +628,77 @@ def _generate_score_mod(
         )
 
     return score_mod
+
+
+def _wrap_score_mod_fns(
+    score_mod_fn_1: _score_mod_signature,
+    score_mod_fn_2: _score_mod_signature,
+) -> _score_mod_signature:
+
+    def wrapped_score_mod_fn(
+        score: torch.Tensor,
+        b: torch.Tensor,
+        h: torch.Tensor,
+        q_idx: torch.Tensor,
+        kv_idx: torch.Tensor,
+    ) -> torch.Tensor:
+        score = score_mod_fn_1(score, b, h, q_idx, kv_idx)
+        score = score_mod_fn_2(score, b, h, q_idx, kv_idx)
+        return score
+
+    return wrapped_score_mod_fn
+
+
+def _get_noop_score_mod_fn() -> _score_mod_signature:
+    """Returns a no-op score mod function for flex attention."""
+
+    def _noop_score_mod_fn(
+        score: torch.Tensor,
+        b: torch.Tensor,
+        h: torch.Tensor,
+        q_idx: torch.Tensor,
+        kv_idx: torch.Tensor,
+    ) -> torch.Tensor:
+        del b, h, q_idx, kv_idx
+        return score
+
+    return _noop_score_mod_fn
+
+
+def _get_alibi_score_mod_fn(alibi_slopes: torch.Tensor) -> _score_mod_signature:
+    """Returns a flex attention score mod function for alibi positional bias."""
+
+    def _alibi_score_mod_fn(
+        score: torch.Tensor,
+        b: torch.Tensor,
+        h: torch.Tensor,
+        q_idx: torch.Tensor,
+        kv_idx: torch.Tensor,
+    ) -> torch.Tensor:
+        del b
+        bias = -alibi_slopes[h] * (q_idx - kv_idx)
+        return score + bias
+
+    return _alibi_score_mod_fn
+
+
+def _get_softcap_score_mod_fn(
+    attn_logit_softcapping: float,
+) -> _score_mod_signature:
+
+    def _softcap_score_fn(
+        score: torch.Tensor,
+        b: torch.Tensor,
+        h: torch.Tensor,
+        q_idx: torch.Tensor,
+        kv_idx: torch.Tensor,
+    ) -> torch.Tensor:
+        del b, h, q_idx, kv_idx
+        return attn_logit_softcapping * torch.tanh(
+            score / attn_logit_softcapping,
+        )
+
+    return _softcap_score_fn
 
 
 @attention_classes.register_class('grouped_query_attention')

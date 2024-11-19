@@ -440,6 +440,8 @@ def flash_attn_fn(
 
 
 def _get_noop_score_mod_fn() -> _score_mod_signature:
+    """Returns a no-op score mod function for flex attention."""
+
     def _noop_score_mod_fn(
         score: torch.Tensor,
         b: torch.Tensor,
@@ -454,6 +456,8 @@ def _get_noop_score_mod_fn() -> _score_mod_signature:
 
 
 def _get_alibi_score_mod_fn(alibi_slopes: torch.Tensor) -> _score_mod_signature:
+    """Returns a flex attention score mod function for alibi positional bias."""
+
     def _alibi_score_mod_fn(
         score: torch.Tensor,
         b: torch.Tensor,
@@ -511,6 +515,8 @@ def _get_noop_mask_mod_fn() -> _mask_mod_signature:
 
 
 def _get_causal_mask_mod_fn() -> _mask_mod_signature:
+    """Returns a flex attention mask mod for causal attention masking."""
+
     def causal_mask_fn(
         b: torch.Tensor,
         h: torch.Tensor,
@@ -602,6 +608,37 @@ def flex_attn_fn(
     key = rearrange(key, 'b s (h d) -> b h s d', h=kv_n_heads)
     value = rearrange(value, 'b s (h d) -> b h s d', h=kv_n_heads)
 
+    block_mask = _generate_block_mask(
+        query,
+        key,
+        n_heads,
+        is_causal,
+        sliding_window_size,
+        sequence_id,
+    )
+    score_mod = _generate_score_mod(alibi_slopes, attn_logit_softcapping)
+
+    output = flex_attention(
+        query,
+        key,
+        value,
+        score_mod=score_mod,
+        block_mask=block_mask,
+        scale=softmax_scale,
+        enable_gqa=enable_gqa,
+    )
+    output = rearrange(output, 'b h s d -> b s (h d)')
+    return output, None, past_key_value
+
+
+def _generate_block_mask(
+    query: torch.Tensor,
+    key: torch.Tensor,
+    n_heads: int,
+    is_causal: bool,
+    sliding_window_size: int,
+    sequence_id: Optional[torch.Tensor],
+):
     block_mask_fn = flex_attention_mask_mods.get('noop')()
     if is_causal:
         block_mask_fn = and_masks(
@@ -628,8 +665,7 @@ def flex_attn_fn(
         # If sequence length is not a multiple of the default block size (for example in unit tests), we need to set the block size explicitly.
         # TODO: Confirm the hypothesis.
         warnings.warn(
-            f'The sequence length ({Q_LEN}) is not a multiple of the default block size ({_DEFAULT_SPARSE_BLOCK_SIZE}).'
-            ' Setting the block size to sequence length. This may cause unexpected behavior.',
+            f'The sequence length ({Q_LEN}) is not a multiple of the default block size ({_DEFAULT_SPARSE_BLOCK_SIZE}). Setting the block size to sequence length. This may cause unexpected behavior.',
         )
         extra_mask_kwargs['BLOCK_SIZE'] = Q_LEN
     block_mask = create_block_mask(
@@ -641,6 +677,13 @@ def flex_attn_fn(
         **extra_mask_kwargs,
     )
 
+    return block_mask
+
+
+def _generate_score_mod(
+    alibi_slopes: Optional[torch.Tensor],
+    attn_logit_softcapping: Optional[float],
+):
     score_mod = flex_attention_score_mods.get('noop')()
     if alibi_slopes is not None:
         score_mod = _wrap_score_mod_fns(
@@ -653,17 +696,7 @@ def flex_attn_fn(
             flex_attention_score_mods.get('softcap')(attn_logit_softcapping),
         )
 
-    output = flex_attention(
-        query,
-        key,
-        value,
-        score_mod=score_mod,
-        block_mask=block_mask,
-        scale=softmax_scale,
-        enable_gqa=enable_gqa,
-    )
-    output = rearrange(output, 'b h s d -> b s (h d)')
-    return output, None, past_key_value
+    return score_mod
 
 
 @attention_classes.register_class('grouped_query_attention')

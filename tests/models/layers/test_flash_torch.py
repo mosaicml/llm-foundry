@@ -453,7 +453,7 @@ def test_vs_mha(attn_impl: str, device: str = 'cuda'):
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('attn_impl', ['flash', 'torch'])
+@pytest.mark.parametrize('attn_impl', ['flash', 'torch', 'flex'])
 @pytest.mark.parametrize('n_heads', [16, 8])
 @pytest.mark.parametrize('kv_n_heads', [4, 2, 1])
 def test_grouped_attention_heads(

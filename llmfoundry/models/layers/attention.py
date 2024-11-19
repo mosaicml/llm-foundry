@@ -1081,7 +1081,9 @@ class GroupedQueryAttention(nn.Module):
             }
         elif self.attn_impl == 'flex':
             extra_attn_kwargs = {
+                'alibi_slopes': alibi_slopes,
                 'sequence_id': sequence_id,
+                'key_padding_mask': None,
             }
         else:
             extra_attn_kwargs = {'key_padding_mask': attention_mask}

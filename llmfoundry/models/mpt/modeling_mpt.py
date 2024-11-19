@@ -1365,7 +1365,7 @@ def compute_loss_from_logits(
             warnings.warn(
                 VersionedDeprecationWarning(
                     message='sample_weighing_factor has been deprecated!',
-                    remove_version='0.16.0',
+                    remove_version='0.17.0',
                 ),
             )
             if sample_weighing_factor.shape[0] > 1:

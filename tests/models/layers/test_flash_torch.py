@@ -4,6 +4,7 @@
 import pytest
 import torch
 from omegaconf import OmegaConf as om
+from packaging import version
 
 from llmfoundry.models.layers import attention
 from llmfoundry.models.layers.attention import (
@@ -100,6 +101,12 @@ def test_attn_impl(
     Includes testing with and without attn_clip_qkv, attn_qk_ln, attn_qk_gn,
     alibi, and rope.
     """
+    if (attn_impl_0 == 'flex' or attn_impl_1 == 'flex') and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.5.0'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.0.',
+        )
     alibi = pos_emb_config['alibi']
     rope = pos_emb_config['rope']
     if alibi and not (
@@ -353,6 +360,12 @@ def test_attn_impl(
 @pytest.mark.parametrize('attn_impl', ['flash', 'torch', 'flex'])
 def test_vs_mha(attn_impl: str, device: str = 'cuda'):
     """Compare diff attn_impl to torch.nn.MultiheadAttention."""
+    if attn_impl == 'flex' and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.5.0'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.0.',
+        )
     from llmfoundry.models.layers import attention
 
     cfg = om.create({
@@ -469,6 +482,12 @@ def test_grouped_attention_heads(
     device: str = 'cuda',
 ):
     """Ensure grouped_query_attention runs w/ diff n_heads & kv_n_heads."""
+    if attn_impl == 'flex' and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.5.0'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.0.',
+        )
     from llmfoundry.models.layers import attention
 
     cfg = om.create({
@@ -574,6 +593,12 @@ def test_reuse_prev_layer_kv_cache(
     device: str = 'cuda',
 ):
     """Checks reusing previous layer's kv cache."""
+    if attn_impl == 'flex' and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.5.0'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.0.',
+        )
     alibi = pos_emb_config['alibi']
     rope = pos_emb_config['rope']
 

@@ -6,6 +6,7 @@ import math
 import pytest
 import torch
 from composer.utils import reproducibility
+from packaging import version
 
 from llmfoundry.models.layers.attention import (
     attention_implementations,
@@ -173,6 +174,12 @@ def test_unfused_wqkv(attn_name: str, dim: int):
 @pytest.mark.parametrize('attn_impl', ['flash', 'torch', 'flex'])
 def test_sliding_window(sliding_window_size: int, attn_impl: str):
     # Test that sliding window attention works as expected.
+    if attn_impl == 'flex' and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.5.0'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.0.',
+        )
     dtype = torch.bfloat16
     device = 'cuda'
     d = 128

@@ -6,6 +6,7 @@ from typing import Optional
 
 import pytest
 import torch
+from packaging import version
 
 from llmfoundry.models.layers.attention import (
     attention_implementations,
@@ -29,6 +30,12 @@ from llmfoundry.models.mpt.modeling_mpt import gen_flash_attn_padding_info
 def test_gqa_kv_repetition(attn_impl: str, kv_n_heads: int):
     # Test that flash attention v2 with GQA (kv_n_heads < n_heads) works the same
     # whether we repeat the kv_n_heads explicitly or flash attention v2 handles it on its own.
+    if attn_impl == 'flex' and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.5.0'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.0.',
+        )
     d = 128
     n_heads = 8
     seqlen_1 = 6
@@ -131,6 +138,12 @@ def test_gqa_kv_repetition(attn_impl: str, kv_n_heads: int):
 @pytest.mark.parametrize('attn_impl', ['flash', 'flex'])
 def test_seq_id_masking_FA_v2(attn_impl: str):
     # Test that flash attention v2 with sequence id masking works correctly.
+    if attn_impl == 'flex' and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.5.0'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.0.',
+        )
     d = 128
     n_heads = 4
     kv_n_heads = 4
@@ -253,6 +266,12 @@ def test_seq_id_masking_FA_v2(attn_impl: str):
 @pytest.mark.parametrize('n_heads', [1, 6, 8])
 def test_alibi_bias(attn_impl: str, n_heads: int):
     # Test that sliding window attention works as expected.
+    if attn_impl == 'flex' and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.5.0'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.0.',
+        )
     dtype = torch.bfloat16
     device = 'cuda'
     d = 128
@@ -384,6 +403,12 @@ def test_attn_logit_softcapping(
     attn_logit_softcapping: Optional[float],
 ):
     # Test that attn_logit_softcapping in attention works as expected.
+    if attn_impl == 'flex' and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.5.0'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.0.',
+        )
     dtype = torch.bfloat16
     device = 'cuda'
     d = 128

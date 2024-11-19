@@ -248,7 +248,7 @@ def test_attn_impl(
     with torch.autocast(x0.device.type):
         attn_bias_0 = gen_bias(attn_impl_0)
         alibi_slopes_0 = None
-        if alibi and attn_impl_0 == 'flash':
+        if alibi and (attn_impl_0 == 'flash' or attn_impl_0 == 'flex'):
             alibi_slopes_0 = gen_slopes(
                 n_heads=cfg.n_heads,
                 alibi_bias_max=8,
@@ -292,10 +292,11 @@ def test_attn_impl(
             is_causal=True,
             flash_attn_padding_info=flash_attn_padding_info_0,
             alibi_slopes=alibi_slopes_0,
+            sequence_id=sequence_id,
         )
         attn_bias_1 = gen_bias(attn_impl_1)
         alibi_slopes_1 = None
-        if alibi and attn_impl_1 == 'flash':
+        if alibi and (attn_impl_1 == 'flash' or attn_impl_1 == 'flex'):
             alibi_slopes_1 = gen_slopes(
                 n_heads=cfg.n_heads,
                 alibi_bias_max=8,
@@ -311,6 +312,7 @@ def test_attn_impl(
             is_causal=True,
             flash_attn_padding_info=flash_attn_padding_info_1,
             alibi_slopes=alibi_slopes_1,
+            sequence_id=sequence_id,
         )
         y0 *= attention_mask.unsqueeze(-1)
         y1 *= attention_mask.unsqueeze(-1)

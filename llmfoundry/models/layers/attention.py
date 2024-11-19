@@ -462,7 +462,7 @@ def _get_alibi_score_mod_fn(alibi_slopes: torch.Tensor) -> _score_mod_signature:
         kv_idx: torch.Tensor,
     ) -> torch.Tensor:
         del b
-        bias = alibi_slopes[h] * (q_idx - kv_idx)
+        bias = -alibi_slopes[h] * (q_idx - kv_idx)
         return score + bias
 
     return _alibi_score_mod_fn

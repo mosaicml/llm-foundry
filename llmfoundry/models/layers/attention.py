@@ -13,6 +13,7 @@ import transformers
 from einops import rearrange
 from packaging import version
 from torch import nn
+from torch.nn import functional as F
 
 from llmfoundry.layers_registry import (
     attention_classes,
@@ -942,6 +943,207 @@ class MultiQueryAttention(GroupedQueryAttention):
             attn_logit_softcapping=attn_logit_softcapping,
             kv_dim=kv_dim,
         )
+
+
+@attention_classes.register_class('multilatent_attention')
+class MLAWithALiBi(nn.Module):
+
+    def __init__(
+        self,
+        d_model: int,
+        n_heads: int,
+        attn_impl: str = 'flash',
+        kv_n_heads: Optional[int] = None,
+        clip_qkv: Optional[float] = None,
+        qk_ln: bool = False,
+        softmax_scale: Optional[float] = None,
+        attn_pdrop: float = 0.0,
+        norm_eps: float = 1e-5,
+        device: Optional[str] = None,
+        bias: bool = True,
+        alibi_bias_max: int = 8,
+        q_compression_ratio: float = 0.5,  # Higher ratio for queries
+        kv_compression_ratio: float = 0.25,  # Lower ratio for key-values
+    ):
+        super().__init__()
+
+        self.d_model = d_model
+        self.n_heads = n_heads
+        self.head_dim = d_model // n_heads
+        self.kv_n_heads = kv_n_heads or n_heads
+        self.attn_impl = attn_impl
+        self.clip_qkv = clip_qkv
+        self.qk_ln = qk_ln
+
+        # ALiBi slopes
+        self.alibi_slopes = gen_slopes(
+            n_heads,
+            alibi_bias_max=alibi_bias_max,
+            device=device,
+            return_1d=True,
+        )
+
+        # Compression dimensions
+        self.q_latent_dim = int(d_model * q_compression_ratio)
+        self.kv_latent_dim = int(d_model * kv_compression_ratio)
+
+        # Down projections to latent space
+        self.q_down = nn.Linear(
+            d_model, self.q_latent_dim, bias=bias, device=device
+        )
+        self.k_down = nn.Linear(
+            d_model, self.kv_latent_dim, bias=bias, device=device
+        )
+        self.v_down = nn.Linear(
+            d_model, self.kv_latent_dim, bias=bias, device=device
+        )
+
+        # Up projections from latent space
+        self.q_up = nn.Linear(
+            self.q_latent_dim, d_model, bias=bias, device=device
+        )
+        self.k_up = nn.Linear(
+            self.kv_latent_dim,
+            self.head_dim * self.kv_n_heads,
+            bias=bias,
+            device=device
+        )
+        self.v_up = nn.Linear(
+            self.kv_latent_dim,
+            self.head_dim * self.kv_n_heads,
+            bias=bias,
+            device=device
+        )
+
+        if self.qk_ln:
+            self.q_ln = nn.LayerNorm(
+                self.q_latent_dim, eps=norm_eps, device=device
+            )
+            self.k_ln = nn.LayerNorm(
+                self.kv_latent_dim, eps=norm_eps, device=device
+            )
+
+        self.attn_dropout = nn.Dropout(attn_pdrop)
+        self.out_proj = nn.Linear(d_model, d_model, bias=bias, device=device)
+
+        # Initialize scales
+        self.softmax_scale = softmax_scale or 1.0 / math.sqrt(self.head_dim)
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
+        attn_bias: Optional[torch.Tensor] = None,
+        attention_mask: Optional[torch.Tensor] = None,
+        is_causal: bool = True,
+        needs_weights: bool = False,
+    ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
+        torch.Tensor, torch.Tensor]]]:
+        batch_size, seq_len, _ = x.shape
+
+        # Project to latent space
+        q_latent = self.q_down(x)
+        k_latent = self.k_down(x)
+        v_latent = self.v_down(x)
+
+        if self.clip_qkv:
+            q_latent = q_latent.clamp(min=-self.clip_qkv, max=self.clip_qkv)
+            k_latent = k_latent.clamp(min=-self.clip_qkv, max=self.clip_qkv)
+            v_latent = v_latent.clamp(min=-self.clip_qkv, max=self.clip_qkv)
+
+        # Apply layer norm if configured
+        if self.qk_ln:
+            q_latent = self.q_ln(q_latent)
+            k_latent = self.k_ln(k_latent)
+
+        # Handle KV cache for generation
+        if past_key_value is not None and len(past_key_value) > 0:
+            k_latent = torch.cat([past_key_value[0], k_latent], dim=1)
+            v_latent = torch.cat([past_key_value[1], v_latent], dim=1)
+
+        past_key_value = (
+            k_latent, v_latent
+        ) if past_key_value is not None else None
+
+        # Project from latent space to attention space
+        query = self.q_up(q_latent)
+        key = self.k_up(k_latent)
+        value = self.v_up(v_latent)
+
+        # Reshape for attention
+        query = query.view(batch_size, seq_len, self.n_heads, self.head_dim)
+        key = key.view(batch_size, -1, self.kv_n_heads, self.head_dim)
+        value = value.view(batch_size, -1, self.kv_n_heads, self.head_dim)
+
+        # Prepare for attention computation
+        query = query.transpose(1, 2)  # [batch, heads, seq_len, head_dim]
+        key = key.transpose(1, 2).transpose(
+            2, 3
+        )  # [batch, heads, head_dim, seq_len]
+        value = value.transpose(1, 2)  # [batch, heads, seq_len, head_dim]
+
+        # Compute attention scores
+        attn_weights = torch.matmul(query, key) * self.softmax_scale
+
+        # Add ALiBi bias
+        key_len = key.size(-1)
+        alibi_bias = self._get_alibi_bias(
+            batch_size, seq_len, key_len, query.device
+        )
+        attn_weights = attn_weights + alibi_bias
+
+        # Apply attention mask if provided
+        if attention_mask is not None:
+            attn_weights = attn_weights + attention_mask
+
+        # Apply causal mask if needed
+        if is_causal and seq_len > 1:
+            causal_mask = torch.triu(
+                torch.ones(
+                    seq_len, key_len, dtype=torch.bool, device=query.device
+                ),
+                diagonal=1,
+            )
+            attn_weights = attn_weights.masked_fill(
+                causal_mask.view(1, 1, seq_len, key_len),
+                float('-inf'),
+            )
+
+        # Softmax and dropout
+        attn_weights = F.softmax(attn_weights, dim=-1)
+        attn_weights = self.attn_dropout(attn_weights)
+
+        # Compute output
+        output = torch.matmul(attn_weights, value)
+        output = output.transpose(1, 2).contiguous()
+        output = output.view(batch_size, seq_len, -1)
+
+        # Final projection
+        output = self.out_proj(output)
+
+        if needs_weights:
+            return output, attn_weights, past_key_value
+        return output, None, past_key_value
+
+    def _get_alibi_bias(
+        self,
+        batch_size: int,
+        seq_len: int,
+        key_len: int,
+        device: torch.device,
+    ) -> torch.Tensor:
+        """Generate ALiBi attention bias."""
+        positions = torch.arange(seq_len, device=device).view(-1, 1)
+        key_positions = torch.arange(key_len, device=device).view(1, -1)
+        distance = positions - key_positions  # [seq_len, key_len]
+
+        alibi_bias = distance.view(1, 1, seq_len, key_len
+                                  ) * self.alibi_slopes.view(1, -1, 1, 1)
+
+        if batch_size > 1:
+            alibi_bias = alibi_bias.expand(batch_size, -1, -1, -1)
+
+        return alibi_bias
 
 
 def attn_bias_shape(

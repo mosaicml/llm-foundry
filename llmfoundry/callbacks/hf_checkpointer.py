@@ -784,6 +784,10 @@ class HuggingFaceCheckpointer(Callback):
 
         if dist.get_global_rank() == 0:
             if register_to_mlflow:
+                assert new_model_instance is not None
+                new_model_instance = self.transform_model_pre_registration(
+                    new_model_instance,
+                )
                 if self.using_peft:
 
                     # Save and register peft model to mlflow, this code path uses our older two step logic
@@ -797,10 +801,6 @@ class HuggingFaceCheckpointer(Callback):
                     register_save_dir = os.path.join(
                         temp_save_dir,
                         'register_save',
-                    )
-                    assert new_model_instance is not None
-                    new_model_instance = self.transform_model_pre_registration(
-                        new_model_instance,
                     )
                     new_model_instance.save_pretrained(
                         register_save_dir,
@@ -860,9 +860,6 @@ class HuggingFaceCheckpointer(Callback):
         original_tokenizer: Optional[Any],
         save_dir: str,
     ):
-        new_model_instance = self.transform_model_pre_registration(
-            new_model_instance,
-        )
         components = {'model': new_model_instance}
         if original_tokenizer is not None:
             components['tokenizer'] = original_tokenizer

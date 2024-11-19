@@ -13,6 +13,7 @@ from typing import Any, Literal, Mapping, Optional, Union
 import numpy as np
 import torch
 from composer.core import DataSpec
+from composer.utils import retry
 from streaming import Stream, StreamingDataset
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
@@ -136,6 +137,7 @@ class StreamingPairsDataset(StreamingTextDataset):
             'negative': negative_responses,
         }
 
+    @retry(BlockingIOError, num_attempts=5, initial_backoff=1.0, max_jitter=0.5)
     def __getitem__(self, idx: int) -> dict[str, list[int]]:
         sample = StreamingDataset.__getitem__(self, idx)
         text_samples = []

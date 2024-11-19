@@ -561,7 +561,7 @@ def test_grouped_query_invalid_heads():
         },
     }],
 )
-@pytest.mark.parametrize('attn_impl', ['flash', 'torch'])
+@pytest.mark.parametrize('attn_impl', ['flash', 'torch', 'flex'])
 def test_reuse_prev_layer_kv_cache(
     pos_emb_config: dict,
     attn_impl: str,
@@ -711,6 +711,7 @@ def test_reuse_prev_layer_kv_cache(
             is_causal=True,
             flash_attn_padding_info=flash_attn_padding_info,
             alibi_slopes=alibi_slopes_0,
+            sequence_id=sequence_id,
         )
         attn_bias_1 = gen_bias(attn_impl)
         alibi_slopes_1 = None
@@ -735,6 +736,7 @@ def test_reuse_prev_layer_kv_cache(
             flash_attn_padding_info=flash_attn_padding_info,
             alibi_slopes=alibi_slopes_1,
             prev_layer_key_value=prev_layer_key_value,
+            sequence_id=sequence_id,
         )
         y0 *= attention_mask.unsqueeze(-1)
         y1 *= attention_mask.unsqueeze(-1)

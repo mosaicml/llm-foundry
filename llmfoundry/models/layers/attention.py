@@ -16,6 +16,7 @@ from torch import nn
 from torch.nn.attention.flex_attention import (
     _mask_mod_signature,
     _score_mod_signature,
+    _DEFAULT_SPARSE_BLOCK_SIZE,
     and_masks,
     create_block_mask,
     flex_attention,
@@ -618,12 +619,26 @@ def flex_attn_fn(
             flex_attention_mask_mods.get('sequence_id')(sequence_id),
         )
 
+    Q_LEN=query.shape[2]
+    KV_LEN=key.shape[2]
+    extra_mask_kwargs = {}
+    assert Q_LEN == KV_LEN
+    if Q_LEN % _DEFAULT_SPARSE_BLOCK_SIZE != 0:
+        # The default block size is _DEFAULT_SPARSE_BLOCK_SIZE (https://github.com/pytorch/pytorch/blob/main/torch/nn/attention/flex_attention.py).
+        # If sequence length is not a multiple of the default block size (for example in unit tests), we need to set the block size explicitly.
+        # TODO: Confirm the hypothesis.
+        warnings.warn(
+            f'The sequence length ({Q_LEN}) is not a multiple of the default block size ({_DEFAULT_SPARSE_BLOCK_SIZE}).'
+            ' Setting the block size to sequence length. This may cause unexpected behavior.',
+        )
+        extra_mask_kwargs['BLOCK_SIZE'] = Q_LEN
     block_mask = create_block_mask(
         block_mask_fn,
         B=query.shape[0],
         H=n_heads,
-        Q_LEN=query.shape[2],
-        KV_LEN=key.shape[2],
+        Q_LEN=Q_LEN,
+        KV_LEN=KV_LEN,
+        **extra_mask_kwargs,
     )
 
     score_mod = flex_attention_score_mods.get('noop')()

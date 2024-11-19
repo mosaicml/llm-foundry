@@ -6,7 +6,6 @@
 import copy
 import math
 import warnings
-from collections import OrderedDict
 from typing import Any, Optional
 
 import torch
@@ -461,6 +460,8 @@ def flex_attn_fn(
     alibi_slopes: Optional[torch.Tensor] = None,
     sequence_id: Optional[torch.Tensor] = None,
     attn_logit_softcapping: Optional[float] = None,
+    block_mask_dict: Optional[dict[str, dict[str, Any]]] = None,
+    score_mod_dict: Optional[dict[str, dict[str, Any]]] = None,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
     del training, should_repeat_kv_for_gqa
@@ -489,7 +490,7 @@ def flex_attn_fn(
     key = rearrange(key, 'b s (h d) -> b h s d', h=kv_n_heads)
     value = rearrange(value, 'b s (h d) -> b h s d', h=kv_n_heads)
 
-    block_mask_dict = {}
+    block_mask_dict = block_mask_dict if block_mask_dict is not None else {}
     if is_causal:
         block_mask_dict['causal'] = {}
     if sliding_window_size != -1:
@@ -505,7 +506,8 @@ def flex_attn_fn(
         H=n_heads,
         block_mask_dict=block_mask_dict,
     )
-    score_mod_dict = OrderedDict()
+
+    score_mod_dict = score_mod_dict if score_mod_dict is not None else {}
     if alibi_slopes is not None:
         score_mod_dict['alibi'] = {'alibi_slopes': alibi_slopes}
     if attn_logit_softcapping is not None:
@@ -729,6 +731,7 @@ class GroupedQueryAttention(nn.Module):
         reuse_kv_layer_idx: Optional[int] = None,
         attn_logit_softcapping: Optional[float] = None,
         kv_dim: Optional[int] = None,
+        flex_attn_extra_kwargs: Optional[dict[str, Any]] = None,
     ):
         super().__init__()
 
@@ -774,6 +777,9 @@ class GroupedQueryAttention(nn.Module):
         if self.softmax_scale is None:
             self.softmax_scale = 1 / math.sqrt(self.d_model / self.n_heads)
         self.attn_dropout_p = attn_pdrop
+
+        if self.attn_impl == 'flex':
+            self.flex_attn_extra_kwargs = flex_attn_extra_kwargs if flex_attn_extra_kwargs is not None else {}
 
         if self.reuse_kv_layer_idx is not None:
             self.Wq = build_fc(
@@ -1114,6 +1120,7 @@ class GroupedQueryAttention(nn.Module):
                 'alibi_slopes': alibi_slopes,
                 'sequence_id': sequence_id,
                 'key_padding_mask': None,
+                **self.flex_attn_extra_kwargs,
             }
         else:
             extra_attn_kwargs = {'key_padding_mask': attention_mask}

@@ -170,7 +170,7 @@ def test_unfused_wqkv(attn_name: str, dim: int):
 
 @pytest.mark.gpu
 @pytest.mark.parametrize('sliding_window_size', [1, 4, 8])
-@pytest.mark.parametrize('attn_impl', ['flash', 'torch'])
+@pytest.mark.parametrize('attn_impl', ['flash', 'torch', 'flex'])
 def test_sliding_window(sliding_window_size: int, attn_impl: str):
     # Test that sliding window attention works as expected.
     dtype = torch.bfloat16

@@ -647,7 +647,7 @@ def flex_attn_fn(
         scale=softmax_scale,
         enable_gqa=enable_gqa,
     )
-    output = rearrange(query, 'b h s d -> b s (h d)')
+    output = rearrange(output, 'b h s d -> b s (h d)')
     return output, None, past_key_value
 
 

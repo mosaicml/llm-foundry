@@ -489,12 +489,13 @@ def flex_attn_fn(
     value = rearrange(value, 'b s (h d) -> b h s d', h=kv_n_heads)
 
     block_mask = _generate_block_mask(
-        query,
-        key,
-        n_heads,
-        is_causal,
-        sliding_window_size,
-        sequence_id,
+        Q_LEN=query.shape[2],
+        KV_LEN=key.shape[2],
+        B=query.shape[0],
+        H=n_heads,
+        is_causal=is_causal,
+        sliding_window_size=sliding_window_size,
+        sequence_id=sequence_id,
     )
     score_mod = _generate_score_mod(alibi_slopes, attn_logit_softcapping)
 
@@ -512,9 +513,10 @@ def flex_attn_fn(
 
 
 def _generate_block_mask(
-    query: torch.Tensor,
-    key: torch.Tensor,
-    n_heads: int,
+    Q_LEN: int,
+    KV_LEN: int,
+    B: int,
+    H: int,
     is_causal: bool,
     sliding_window_size: int,
     sequence_id: Optional[torch.Tensor],
@@ -536,8 +538,6 @@ def _generate_block_mask(
             flex_attention_mask_mods.get('sequence_id')(sequence_id),
         )
 
-    Q_LEN = query.shape[2]
-    KV_LEN = key.shape[2]
     extra_mask_kwargs = {}
     assert Q_LEN == KV_LEN
     if Q_LEN % _DEFAULT_SPARSE_BLOCK_SIZE != 0:
@@ -550,8 +550,8 @@ def _generate_block_mask(
         extra_mask_kwargs['BLOCK_SIZE'] = Q_LEN
     block_mask = create_block_mask(
         block_mask_fn,
-        B=query.shape[0],
-        H=n_heads,
+        B=B,
+        H=H,
         Q_LEN=Q_LEN,
         KV_LEN=KV_LEN,
         **extra_mask_kwargs,

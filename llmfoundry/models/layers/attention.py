@@ -6,6 +6,7 @@
 import copy
 import math
 import warnings
+from collections import OrderedDict
 from typing import Any, Optional
 
 import torch
@@ -488,16 +489,30 @@ def flex_attn_fn(
     key = rearrange(key, 'b s (h d) -> b h s d', h=kv_n_heads)
     value = rearrange(value, 'b s (h d) -> b h s d', h=kv_n_heads)
 
+    block_mask_dict = {}
+    if is_causal:
+        block_mask_dict['causal'] = {}
+    if sliding_window_size != -1:
+        block_mask_dict['sliding_window'] = {
+            'sliding_window_size': sliding_window_size,
+        }
+    if sequence_id is not None:
+        block_mask_dict['sequence_id'] = {'sequence_id': sequence_id}
     block_mask = _generate_block_mask(
         Q_LEN=query.shape[2],
         KV_LEN=key.shape[2],
         B=query.shape[0],
         H=n_heads,
-        is_causal=is_causal,
-        sliding_window_size=sliding_window_size,
-        sequence_id=sequence_id,
+        block_mask_dict=block_mask_dict,
     )
-    score_mod = _generate_score_mod(alibi_slopes, attn_logit_softcapping)
+    score_mod_dict = OrderedDict()
+    if alibi_slopes is not None:
+        score_mod_dict['alibi'] = {'alibi_slopes': alibi_slopes}
+    if attn_logit_softcapping is not None:
+        score_mod_dict['softcap'] = {
+            'attn_logit_softcapping': attn_logit_softcapping,
+        }
+    score_mod = _generate_score_mod(score_mod_dict)
 
     output = flex_attention(
         query,
@@ -517,25 +532,13 @@ def _generate_block_mask(
     KV_LEN: int,
     B: int,
     H: int,
-    is_causal: bool,
-    sliding_window_size: int,
-    sequence_id: Optional[torch.Tensor],
+    block_mask_dict: dict[str, dict[str, Any]],
 ):
     block_mask_fn = flex_attention_mask_mods.get('noop')()
-    if is_causal:
+    for mask_type, mask_kwargs in block_mask_dict.items():
         block_mask_fn = and_masks(
             block_mask_fn,
-            flex_attention_mask_mods.get('causal')(),
-        )
-    if sliding_window_size != -1:
-        block_mask_fn = and_masks(
-            block_mask_fn,
-            flex_attention_mask_mods.get('sliding_window')(sliding_window_size),
-        )
-    if sequence_id is not None:
-        block_mask_fn = and_masks(
-            block_mask_fn,
-            flex_attention_mask_mods.get('sequence_id')(sequence_id),
+            flex_attention_mask_mods.get(mask_type)(**mask_kwargs),
         )
 
     extra_mask_kwargs = {}
@@ -611,20 +614,12 @@ def _get_sequence_id_mask_mod_fn(
     return sequence_id_mask_fn
 
 
-def _generate_score_mod(
-    alibi_slopes: Optional[torch.Tensor],
-    attn_logit_softcapping: Optional[float],
-):
+def _generate_score_mod(score_mod_dict: dict[str, dict[str, Any]],):
     score_mod = flex_attention_score_mods.get('noop')()
-    if alibi_slopes is not None:
+    for mod_type, mod_kwargs in score_mod_dict.items():
         score_mod = _wrap_score_mod_fns(
             score_mod,
-            flex_attention_score_mods.get('alibi')(alibi_slopes),
-        )
-    if attn_logit_softcapping is not None:
-        score_mod = _wrap_score_mod_fns(
-            score_mod,
-            flex_attention_score_mods.get('softcap')(attn_logit_softcapping),
+            flex_attention_score_mods.get(mod_type)(**mod_kwargs),
         )
 
     return score_mod

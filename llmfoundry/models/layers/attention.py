@@ -31,6 +31,7 @@ from llmfoundry.layers_registry import (
 )
 from llmfoundry.models.layers.layer_builders import build_fc, build_norm
 from llmfoundry.models.utils.config_defaults import fc_type_defaults
+from llmfoundry.utils.warnings import experimental_function
 
 __all__ = [
     'scaled_multihead_dot_product_attention',
@@ -561,6 +562,7 @@ def _get_sequence_id_mask_mod_fn(
     return sequence_id_mask_fn
 
 
+@experimental_function('Flex Attention')
 def flex_attn_fn(
     query: torch.Tensor,
     key: torch.Tensor,

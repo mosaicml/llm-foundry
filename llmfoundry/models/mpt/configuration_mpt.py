@@ -7,6 +7,8 @@ import copy
 import warnings
 from typing import Any, Optional, Union
 
+import torch
+from packaging import version
 from transformers import PretrainedConfig
 
 from llmfoundry.layers_registry import ffns_with_megablocks
@@ -275,6 +277,12 @@ class MPTConfig(PretrainedConfig):
         if self.attn_config['attn_impl'] not in ['torch', 'flash', 'flex']:
             raise ValueError(
                 f"Unknown attn_impl={self.attn_config['attn_impl']}",
+            )
+        if self.attn_config['attn_type'] == 'flex' and version.parse(
+            torch.__version__.split('.dev')[0],
+        ) < version.parse('2.5.0'):
+            raise RuntimeError(
+                'FlexAttention is not supported in torch version {torch.__version__}<2.5.0.',
             )
         if self.attn_config['alibi'] and not check_alibi_support(
             self.attn_config['attn_impl'],

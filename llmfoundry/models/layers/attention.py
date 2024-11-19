@@ -14,9 +14,9 @@ from einops import rearrange
 from packaging import version
 from torch import nn
 from torch.nn.attention.flex_attention import (
+    _DEFAULT_SPARSE_BLOCK_SIZE,
     _mask_mod_signature,
     _score_mod_signature,
-    _DEFAULT_SPARSE_BLOCK_SIZE,
     and_masks,
     create_block_mask,
     flex_attention,
@@ -619,8 +619,8 @@ def flex_attn_fn(
             flex_attention_mask_mods.get('sequence_id')(sequence_id),
         )
 
-    Q_LEN=query.shape[2]
-    KV_LEN=key.shape[2]
+    Q_LEN = query.shape[2]
+    KV_LEN = key.shape[2]
     extra_mask_kwargs = {}
     assert Q_LEN == KV_LEN
     if Q_LEN % _DEFAULT_SPARSE_BLOCK_SIZE != 0:

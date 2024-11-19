@@ -922,7 +922,9 @@ class MPTModel(MPTPreTrainedModel):
         )
 
         alibi_slopes = None  # alibi_slopes will only be used by flash attention for ALiBi
-        if self.alibi and self.attn_impl == 'flash':
+        if self.alibi and (
+            self.attn_impl == 'flash' or self.attn_impl == 'flex'
+        ):
             alibi_slopes = gen_slopes(
                 n_heads=self.config.n_heads,
                 alibi_bias_max=self.alibi_bias_max,

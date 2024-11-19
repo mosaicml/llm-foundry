@@ -30,9 +30,13 @@ def allclose_helper(
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('attn_impl_0, attn_impl_1', [
-    ('flash', 'torch'),
-])
+@pytest.mark.parametrize(
+    'attn_impl_0, attn_impl_1',
+    [
+        ('flash', 'torch'),
+        ('flex', 'torch'),
+    ],
+)
 @pytest.mark.parametrize('clip_qkv', [True, False])
 @pytest.mark.parametrize(
     'qk_ln, qk_gn',
@@ -117,7 +121,7 @@ def test_attn_impl(
         pytest.skip('attn_uses_sequence_id requires alibi or rope.')
 
     cfg = om.create({
-        'attn_impl': 'flash',
+        'attn_impl': attn_impl_0,
         'd_model': 64,
         'n_heads': 4,
         'attn_pdrop': 0,
@@ -344,7 +348,7 @@ def test_attn_impl(
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('attn_impl', ['flash', 'torch'])
+@pytest.mark.parametrize('attn_impl', ['flash', 'torch', 'flex'])
 def test_vs_mha(attn_impl: str, device: str = 'cuda'):
     """Compare diff attn_impl to torch.nn.MultiheadAttention."""
     from llmfoundry.models.layers import attention

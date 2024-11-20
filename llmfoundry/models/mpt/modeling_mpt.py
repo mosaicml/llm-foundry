@@ -79,6 +79,8 @@ from llmfoundry.models.utils.param_init_fns import generic_param_init_fn_  # typ
 from llmfoundry.models.layers.norm import LPLayerNorm  # type: ignore
 # isort: on
 
+from llmfoundry.utils.warnings import VersionedDeprecationWarning
+
 log = logging.getLogger(__name__)
 
 CROSS_ENTROPY_IGNORE_INDEX = -100
@@ -1360,6 +1362,12 @@ def compute_loss_from_logits(
     else:
         loss = losses.sum() / (targets != loss_fn.ignore_index).sum()
         if sample_weighing_factor is not None:
+            warnings.warn(
+                VersionedDeprecationWarning(
+                    message='sample_weighing_factor has been deprecated!',
+                    remove_version='0.17.0',
+                ),
+            )
             if sample_weighing_factor.shape[0] > 1:
                 raise ValueError(
                     'Sample weighing factor is not supported when batch["sample_weighing_factor"].shape[0] > 1.',

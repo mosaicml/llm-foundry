@@ -553,13 +553,15 @@ def _generate_block_mask(
             f'The sequence length ({Q_LEN}) is not a multiple of the default block size ({_DEFAULT_SPARSE_BLOCK_SIZE}). Setting the block size to sequence length. This may cause unexpected behavior.',
         )
         extra_mask_kwargs['BLOCK_SIZE'] = Q_LEN
-    block_mask = create_block_mask(
-        block_mask_fn,
-        B=B,
-        H=H,
-        Q_LEN=Q_LEN,
-        KV_LEN=KV_LEN,
-        **extra_mask_kwargs,
+    block_mask = torch.compile(
+        create_block_mask(
+            block_mask_fn,
+            B=B,
+            H=H,
+            Q_LEN=Q_LEN,
+            KV_LEN=KV_LEN,
+            **extra_mask_kwargs,
+        ),
     )
 
     return block_mask

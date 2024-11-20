@@ -93,7 +93,7 @@ jobs:
           ${{ env.AWS_DOCKER_TAG }}
           ${{ env.AWS_LATEST_TAG }}
         build-args: |
-          BASE_IMAGE=mosaicml/pytorch:2.5.1_cu124-python3.11-ubuntu20.04-aws
+          BASE_IMAGE=mosaicml/pytorch:2.5.1_cu124-python3.11-ubuntu22.04-aws
           BRANCH_NAME=${{ env.BRANCH_NAME }}
           DEP_GROUPS=[all]
           KEEP_FOUNDRY=true
@@ -108,7 +108,7 @@ jobs:
           ${{ env.DOCKER_TAG }}
           ${{ env.LATEST_TAG }}
         build-args: |
-          BASE_IMAGE=mosaicml/pytorch:2.5.1_cu124-python3.11-ubuntu20.04
+          BASE_IMAGE=mosaicml/pytorch:2.5.1_cu124-python3.11-ubuntu22.04
           BRANCH_NAME=${{ env.BRANCH_NAME }}
           DEP_GROUPS=[all]
           KEEP_FOUNDRY=true

@@ -788,61 +788,51 @@ class HuggingFaceCheckpointer(Callback):
                 new_model_instance = self.transform_model_pre_registration(
                     new_model_instance,
                 )
-                if self.using_peft:
+                register_save_dir = os.path.join(
+                    temp_save_dir,
+                    'register_save',
+                )
+                new_model_instance.save_pretrained(
+                    register_save_dir,
+                    max_shard_size='1GB',
+                )
+                if original_tokenizer:
+                    original_tokenizer.save_pretrained(register_save_dir)
 
-                    # Save and register peft model to mlflow, this code path uses our older two step logic
-                    self._save_and_register_peft_model(
-                        state,
-                        new_model_instance,
-                        original_tokenizer,
-                        temp_save_dir,
-                    )
-                else:
-                    register_save_dir = os.path.join(
-                        temp_save_dir,
-                        'register_save',
-                    )
-                    new_model_instance.save_pretrained(
-                        register_save_dir,
-                        max_shard_size='1GB',
-                    )
-                    if original_tokenizer:
-                        original_tokenizer.save_pretrained(register_save_dir)
+                self.pre_register_edit(register_save_dir)
 
-                    self.pre_register_edit(register_save_dir)
+                for mlflow_logger in self.mlflow_loggers:
+                    if self.mlflow_registered_model_name:
+                        log.debug(
+                            f'Registering model to UC at {mlflow_logger.model_registry_prefix}.{self.mlflow_registered_model_name}',
+                        )
 
-                    for mlflow_logger in self.mlflow_loggers:
-                        if self.mlflow_registered_model_name:
-                            log.debug(
-                                f'Registering model to UC at {mlflow_logger.model_registry_prefix}.{self.mlflow_registered_model_name}',
-                            )
+                    # Save the monitor process to be restored after registering the model.
+                    with _monitor_process_saver(mlflow_logger):
+                        process = SpawnProcess(
+                            target=_log_model_with_multi_process,
+                            kwargs={
+                                'mlflow_logger':
+                                    mlflow_logger,
+                                'python_logging_level':
+                                    logging.getLogger('llmfoundry').level,
+                                'transformers_model':
+                                    register_save_dir,
+                                'artifact_path':
+                                    'final_model_checkpoint',
+                                'pretrained_model_name':
+                                    self.pretrained_model_name,
+                                'registered_model_name':
+                                    self.mlflow_registered_model_name,
+                                'await_registration_for':
+                                    3600,
+                                'mlflow_logging_config':
+                                    self.mlflow_logging_config,
+                            },
+                        )
 
-                        # Save the monitor process to be restored after registering the model.
-                        with _monitor_process_saver(mlflow_logger):
-                            process = SpawnProcess(
-                                target=_log_model_with_multi_process,
-                                kwargs={
-                                    'mlflow_logger':
-                                        mlflow_logger,
-                                    'python_logging_level':
-                                        logging.getLogger('llmfoundry').level,
-                                    'transformers_model':
-                                        register_save_dir,
-                                    'artifact_path':
-                                        'final_model_checkpoint',
-                                    'pretrained_model_name':
-                                        self.pretrained_model_name,
-                                    'registered_model_name':
-                                        self.mlflow_registered_model_name,
-                                    'await_registration_for':
-                                        3600,
-                                    'mlflow_logging_config':
-                                        self.mlflow_logging_config,
-                                },
-                            )
-
-                            process.start()
-                            self.register_processes.append(process)
+                        process.start()
+                        self.register_processes.append(process)
 
                 # Save the temporary directory to be cleaned up later.
                 if use_temp_dir:
@@ -852,81 +842,3 @@ class HuggingFaceCheckpointer(Callback):
                 if use_temp_dir:
                     shutil.rmtree(temp_save_dir)
         dist.barrier()
-
-    def _save_and_register_peft_model(
-        self,
-        state: State,
-        new_model_instance: Any,
-        original_tokenizer: Optional[Any],
-        save_dir: str,
-    ):
-        components = {'model': new_model_instance}
-        if original_tokenizer is not None:
-            components['tokenizer'] = original_tokenizer
-
-        log.debug('Logging Hugging Face model to MLFlow')
-        for i, mlflow_logger in enumerate(self.mlflow_loggers):
-            log.debug(
-                f'Registering model to UC at {mlflow_logger.model_registry_prefix}.{self.mlflow_registered_model_name}',
-            )
-
-            local_save_path = str(Path(save_dir) / f'mlflow_save_{i}',)
-
-            # TODO: Remove after mlflow fixes the bug that makes this necessary
-            import mlflow
-            import mlflow.store
-            mlflow.store._unity_catalog.registry.rest_store.get_feature_dependencies = lambda *args, **kwargs: ''
-
-            model_saving_kwargs: dict[str, Any] = {
-                'path': local_save_path,
-            }
-            model_saving_kwargs['flavor'] = 'peft'
-            model_saving_kwargs['save_pretrained_dir'] = save_dir
-            model_saving_kwargs['metadata'] = self.mlflow_logging_config[
-                'metadata']
-
-            context_manager = te.onnx_export(
-                True,
-            ) if is_te_imported and state.precision == Precision.AMP_FP8 else contextlib.nullcontext(
-            )
-            with context_manager:
-                # Add the pip requirements directly to avoid mlflow
-                # attempting to run inference on the model
-                model_saving_kwargs['pip_requirements'] = [
-                    'transformers',
-                    'torch',
-                ]
-                mlflow_logger.save_model(**model_saving_kwargs)
-
-            # Upload the license file generated by mlflow during the model saving.
-            # Get and log the license file.
-            license_filename = _maybe_get_license_filename(
-                local_save_path,
-                self.pretrained_model_name,
-            )
-            if license_filename is not None:
-                mlflow_logger._mlflow_client.log_artifact(
-                    mlflow_logger._run_id,
-                    os.path.join(local_save_path, license_filename),
-                )
-
-            self.pre_register_edit(local_save_path)
-
-            with _monitor_process_saver(mlflow_logger):
-                process = SpawnProcess(
-                    target=_register_model_with_run_id_multiprocess,
-                    kwargs={
-                        'mlflow_logger':
-                            mlflow_logger,
-                        'composer_logging_level':
-                            logging.getLogger('composer').level,
-                        'model_uri':
-                            local_save_path,
-                        'name':
-                            self.mlflow_registered_model_name,
-                        'await_creation_for':
-                            3600,
-                    },
-                )
-                process.start()
-                self.register_processes.append(process)

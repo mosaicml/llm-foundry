@@ -132,7 +132,7 @@ def write_ft_checkpoint_from_composer_checkpoint(
     # Extract the HF tokenizer
     print('#' * 30)
     print('Extracting HF Tokenizer...')
-    hf_tokenizer = get_hf_tokenizer_from_composer_state_dict( 
+    hf_tokenizer = get_hf_tokenizer_from_composer_state_dict(  # pyright: ignore
         composer_state_dict,
         trust_remote_code,
     )

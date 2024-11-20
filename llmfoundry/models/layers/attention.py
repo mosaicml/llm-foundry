@@ -499,13 +499,14 @@ def flex_attn_fn(
         }
     if sequence_id is not None:
         block_mask_dict['sequence_id'] = {'sequence_id': sequence_id}
-    block_mask = _generate_block_mask(
-        Q_LEN=query.shape[2],
-        KV_LEN=key.shape[2],
-        B=query.shape[0],
-        H=n_heads,
-        block_mask_dict=block_mask_dict,
-    )
+    # block_mask = _generate_block_mask(
+    #     Q_LEN=query.shape[2],
+    #     KV_LEN=key.shape[2],
+    #     B=query.shape[0],
+    #     H=n_heads,
+    #     block_mask_dict=block_mask_dict,
+    # )
+    block_mask = None
 
     score_mod_dict = score_mod_dict if score_mod_dict is not None else {}
     if alibi_slopes is not None:

@@ -141,7 +141,7 @@ def write_ft_checkpoint_from_composer_checkpoint(
 
     # Extract the model weights
     weights_state_dict = composer_state_dict['state']['model']
-    torch.nn.modules.utils.consume_prefix_in_state_dict_if_present(
+    torch.nn.modules.utils.consume_prefix_in_state_dict_if_present( # pyright: ignore
         weights_state_dict,
         prefix='model.',
     )

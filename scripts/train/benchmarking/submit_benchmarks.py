@@ -47,7 +47,7 @@ def parse_args():
     parser.add_argument(
         '--image',
         type=str,
-        default='mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu22.04',
+        default='mosaicml/pytorch:1.13.1_cu117-python3.10-ubuntu20.04',
     )
     parser.add_argument(
         '--git_branch',

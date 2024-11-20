@@ -213,35 +213,6 @@ def _log_model_with_multi_process(
     )
 
 
-def _register_model_with_run_id_multiprocess(
-    mlflow_logger: MLFlowLogger,
-    composer_logging_level: int,
-    model_uri: str,
-    name: str,
-    await_creation_for: int,
-):
-    """Call MLFlowLogger.register_model_with_run_id.
-
-    Used mainly to register from a child process.
-    """
-    # Setup logging for child process. This ensures that any logs from composer are surfaced.
-    if composer_logging_level > 0:
-        # If logging_level is 0, then the composer logger was unset.
-        logging.basicConfig(
-            format=
-            f'%(asctime)s: rank{dist.get_global_rank()}[%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s',
-            force=True,
-        )
-        logging.getLogger('composer').setLevel(composer_logging_level)
-
-    # Register model.
-    mlflow_logger.register_model_with_run_id(
-        model_uri=model_uri,
-        name=name,
-        await_creation_for=await_creation_for,
-    )
-
-
 class HuggingFaceCheckpointer(Callback):
     """Save a huggingface formatted checkpoint during training.
 

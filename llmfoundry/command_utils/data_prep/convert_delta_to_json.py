@@ -433,6 +433,48 @@ def get_columns_info(
     return columns, order_by, columns_str
 
 
+def handle_fetch_exception(
+    e: Exception,
+    tablename: str,
+) -> None:
+    from databricks.sql.exc import ServerOperationError
+    from pyspark.errors import AnalysisException
+
+    if isinstance(e, (AnalysisException, ServerOperationError)):
+        error_message = str(e)
+        if 'INSUFFICIENT_PERMISSIONS' in error_message:
+            raise InsufficientPermissionsError(error_message) from e
+        elif 'UC_NOT_ENABLED' in error_message:
+            raise UCNotEnabledError() from e
+        elif 'UNRESOLVED_COLUMN.WITH_SUGGESTION' in error_message:
+            raise MalformedUCTableError(error_message) from e
+        elif 'Delta table' in str(e) and "doesn't exist" in str(e):
+            # Error processing `catalog`.`volume_name`.`table_name`:
+            # Delta table `volume_name`.`table_name` doesn't exist.
+            # ---
+            parts = error_message.split('`')
+            if len(parts) < 7:
+                # Failed to parse error, our codebase is brittle
+                # with respect to the string representations of
+                # errors in the spark library.
+                catalog_name, volume_name, table_name = ['unknown'] * 3
+            else:
+                catalog_name = parts[1]
+                volume_name = parts[3]
+                table_name = parts[5]
+            raise DeltaTableNotFoundError(
+                catalog_name,
+                volume_name,
+                table_name,
+            ) from e
+
+    if isinstance(e, InsufficientPermissionsError):
+        raise
+
+    # For any other exception, raise a general error
+    raise RuntimeError(f'Error processing {tablename}: {str(e)}') from e
+
+
 def fetch(
     method: str,
     tablename: str,
@@ -499,42 +541,7 @@ def fetch(
                 )
 
     except Exception as e:
-        from databricks.sql.exc import ServerOperationError
-        from pyspark.errors import AnalysisException
-
-        if isinstance(e, (AnalysisException, ServerOperationError)):
-            error_message = str(e)
-            if 'INSUFFICIENT_PERMISSIONS' in error_message:
-                raise InsufficientPermissionsError(error_message) from e
-            elif 'UC_NOT_ENABLED' in error_message:
-                raise UCNotEnabledError() from e
-            elif 'UNRESOLVED_COLUMN.WITH_SUGGESTION' in error_message:
-                raise MalformedUCTableError(error_message) from e
-            elif 'Delta table' in str(e) and "doesn't exist" in str(e):
-                # Error processing `catalog`.`volume_name`.`table_name`:
-                # Delta table `volume_name`.`table_name` doesn't exist.
-                # ---
-                parts = error_message.split('`')
-                if len(parts) < 7:
-                    # Failed to parse error, our codebase is brittle
-                    # with respect to the string representations of
-                    # errors in the spark library.
-                    catalog_name, volume_name, table_name = ['unknown'] * 3
-                else:
-                    catalog_name = parts[1]
-                    volume_name = parts[3]
-                    table_name = parts[5]
-                raise DeltaTableNotFoundError(
-                    catalog_name,
-                    volume_name,
-                    table_name,
-                ) from e
-
-        if isinstance(e, InsufficientPermissionsError):
-            raise
-
-        # For any other exception, raise a general error
-        raise RuntimeError(f'Error processing {tablename}: {str(e)}') from e
+        handle_fetch_exception(e, tablename)
 
     finally:
         if cursor is not None:
@@ -647,6 +654,24 @@ def validate_and_get_cluster_info(
     return method, dbsql, sparkSession
 
 
+def validate_output_folder(output_folder: str) -> None:
+    obj = urllib.parse.urlparse(output_folder)
+    if obj.scheme != '':
+        raise ValueError(
+            'Check the output folder and verify it is a local path!',
+        )
+
+    if os.path.exists(output_folder):
+        if not os.path.isdir(output_folder) or os.listdir(output_folder,):
+            raise RuntimeError(
+                f'Output folder {output_folder} already exists and is not empty. Please remove it and retry.',
+            )
+
+    os.makedirs(output_folder, exist_ok=True)
+    log.info(f'Directory {output_folder} created.')
+
+
+
 def fetch_DT(
     delta_table_name: str,
     json_output_folder: str,
@@ -662,26 +687,10 @@ def fetch_DT(
     """Fetch UC Delta Table to local as jsonl."""
     log.info(f'Start .... Convert delta to json')
 
-    obj = urllib.parse.urlparse(json_output_folder)
-    if obj.scheme != '':
-        raise ValueError(
-            'Check the json_output_folder and verify it is a local path!',
-        )
-
-    if os.path.exists(json_output_folder):
-        if not os.path.isdir(json_output_folder) or os.listdir(
-            json_output_folder,
-        ):
-            raise RuntimeError(
-                f'Output folder {json_output_folder} already exists and is not empty. Please remove it and retry.',
-            )
-
-    os.makedirs(json_output_folder, exist_ok=True)
-
     if not json_output_filename.endswith('.jsonl'):
         raise ValueError('json_output_filename needs to be a jsonl file')
 
-    log.info(f'Directory {json_output_folder} created.')
+    validate_output_folder(json_output_folder)
 
     # Validate_and_get_cluster_info allows cluster_id to be None if use_serverless is True.
     method, dbsql, sparkSession = validate_and_get_cluster_info(

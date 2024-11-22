@@ -43,17 +43,16 @@ def fetch_DT_mds(
         if method == 'dbconnect' and sparkSession is not None:
             df = sparkSession.table(formatted_delta_table_name)
 
-            with open(mds_output_folder):
-                mds_kwargs = {
-                    'out': mds_output_folder,
-                    'keep_local': True,
-                    'compression': None,
-                }
-                dataframe_to_mds(
-                    df,
-                    merge_index=True,
-                    mds_kwargs=mds_kwargs,
-                )
+            mds_kwargs = {
+                'out': mds_output_folder,
+                'keep_local': True,
+                'compression': None,
+            }
+            dataframe_to_mds(
+                df,
+                merge_index=True,
+                mds_kwargs=mds_kwargs,
+            )
         else:
             raise NotImplementedError('Currently only dbconnect is supported.')
     except Exception as e:

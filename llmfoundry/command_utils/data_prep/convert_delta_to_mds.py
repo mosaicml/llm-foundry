@@ -43,6 +43,8 @@ def fetch_DT_mds(
         if method == 'dbconnect' and sparkSession is not None:
             df = sparkSession.table(formatted_delta_table_name)
 
+            print(type(df))
+
             mds_kwargs = {
                 'out': mds_output_folder,
                 'keep_local': True,

@@ -133,7 +133,7 @@ def write_huggingface_pretrained_from_composer_checkpoint(
     weights_state_dict = composer_state_dict
     if 'state' in weights_state_dict:
         weights_state_dict = weights_state_dict['state']['model']
-    torch.nn.modules.utils.consume_prefix_in_state_dict_if_present(
+    torch.nn.modules.utils.consume_prefix_in_state_dict_if_present(  # pyright: ignore
         weights_state_dict,
         prefix='model.',
     )

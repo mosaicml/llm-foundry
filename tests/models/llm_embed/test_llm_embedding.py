@@ -112,7 +112,7 @@ def build_lm_config(is_hf: bool, attn_impl: Optional[str]) -> dict[str, Any]:
             'word_embed_proj_dim': 128,
             'd_model': 128,
             'n_heads': 2,
-            'vocab_size': 128,
+            'vocab_size': 100352,
             'attn_config': {
                 'attn_impl': attn_impl,
             },
@@ -120,7 +120,7 @@ def build_lm_config(is_hf: bool, attn_impl: Optional[str]) -> dict[str, Any]:
 
 
 def build_tokenizer_config(is_hf: bool) -> dict[str, Any]:
-    return {'vocab_size': 50257 if is_hf else 128}
+    return {'vocab_size': 50257 if is_hf else 100352}
 
 
 @pytest.mark.gpu

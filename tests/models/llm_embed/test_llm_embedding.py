@@ -139,10 +139,7 @@ def test_mpt_embedding_lm(
             k: v.to('cuda') for k, v in model_inputs_batch.items()
         }
 
-    ctx = get_precision_context(
-        'amp_bf16',
-    ) if maybe_attn_impl == 'flash' else nullcontext()
-    with ctx:
+    with get_precision_context('amp_bf16'):
         outputs = model(model_inputs_batch)
 
         assert isinstance(outputs, dict)

@@ -100,10 +100,9 @@ def build_lm_config(is_hf: bool, attn_impl: Optional[str]) -> dict[str, Any]:
             'pretrained_model_name_or_path': 'facebook/opt-350m',
             'pretrained': False,
             'config_overrides': {
-                'n_embd': 2,
-                'n_head': 2,
-                'n_layer': 2,
-                'vocab_size': 50272,
+                'hidden_size': 2,
+                'num_attention_heads': 2,
+                'num_hidden_layers': 2,
             }
         }
     else:
@@ -121,7 +120,7 @@ def build_lm_config(is_hf: bool, attn_impl: Optional[str]) -> dict[str, Any]:
 
 
 def build_tokenizer_config(is_hf: bool) -> dict[str, Any]:
-    return {'vocab_size': 50257 if is_hf else 100352}
+    return {'vocab_size': 50257 if is_hf else 128}
 
 
 @pytest.mark.gpu

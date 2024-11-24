@@ -132,9 +132,7 @@ class ContrastiveModel(HuggingFaceModel):
         if tokenizer.pad_token is None:  # type: ignore
             tokenizer.pad_token = tokenizer.eos_token
 
-        print('before construct')
         model = self.construct_model()
-        print('after construct')
 
         train_metrics: list[Metric] = [
         ]  # TODO: no train metrics for embedding models yet!

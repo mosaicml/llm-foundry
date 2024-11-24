@@ -142,8 +142,9 @@ class MockTokenizer(PreTrainedTokenizerBase):
         else:
             texts = batch_texts
 
+        max_int = self._vocab_size - max_length
         token_ids = torch.tensor([
-            [hash(text) % 1000 + j for j in range(max_length)] for text in texts
+            [hash(text) % max_int + j for j in range(max_length)] for text in texts
         ])
 
         return {

@@ -96,7 +96,16 @@ def model(
 def build_lm_config(is_hf: bool, attn_impl: Optional[str]) -> dict[str, Any]:
     if is_hf:
         assert attn_impl is None
-        return {'pretrained_model_name_or_path': 'facebook/opt-350m'}
+        return {
+            'pretrained_model_name_or_path': 'facebook/opt-350m',
+            'pretrained': False,
+            'config_overrides': {
+                'n_embd': 2,
+                'n_head': 2,
+                'n_layer': 2,
+                'vocab_size': 50272,
+            }
+        }
     else:
         assert attn_impl is not None
         return {

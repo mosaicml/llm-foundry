@@ -342,7 +342,7 @@ def build_temporary_contrastive_streaming_dataset(ds_format: str):
         out=os.path.join(tempdir.name, 'train'),
         compression=None,
     ) as output_writer:
-        for i in range(10):
+        for i in range(100):
             if ds_format == 'one_query_one_response':
                 output_writer.write({
                     'text_a': f'hello {i}',

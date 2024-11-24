@@ -129,7 +129,9 @@ class ContrastiveModel(HuggingFaceModel):
         if tokenizer.pad_token is None:  # type: ignore
             tokenizer.pad_token = tokenizer.eos_token
 
+        print('before construct')
         model = self.construct_model()
+        print('after construct')
 
         train_metrics: list[Metric] = [
         ]  # TODO: no train metrics for embedding models yet!
@@ -138,6 +140,7 @@ class ContrastiveModel(HuggingFaceModel):
             ContrastiveEvalLoss(),
         ]
 
+        print('before super')
         super().__init__(
             model=model,
             tokenizer=tokenizer,
@@ -147,6 +150,7 @@ class ContrastiveModel(HuggingFaceModel):
             shift_labels=False,
             allow_embedding_resizing=True,
         )
+        print('after super')
 
         # Temperature for InfoNCELoss
         self.temperature = contrastive_config_obj.temperature
@@ -185,6 +189,7 @@ class ContrastiveModel(HuggingFaceModel):
         if contrastive_config_obj.infonce_process_group_size is not None:
             pg_size = contrastive_config_obj.infonce_process_group_size
             self.infonce_process_group = create_set_process_group(pg_size)
+        print('end constructor')
 
     def construct_model(self):
         if self.pretrained_model_name_or_path:

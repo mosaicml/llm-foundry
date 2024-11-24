@@ -134,10 +134,10 @@ def test_mpt_embedding_lm(
                                         truncation=True,
                                         max_length=msl,
                                         return_tensors='pt')
-    if isinstance(model_inputs_batch, dict):
-        model_inputs_batch = {
-            k: v.to('cuda') for k, v in model_inputs_batch.items()
-        }
+
+    model_inputs_batch = {
+        k: v.to('cuda') for k, v in model_inputs_batch.items()
+    }
 
     with get_precision_context('amp_bf16'):
         outputs = model(model_inputs_batch)

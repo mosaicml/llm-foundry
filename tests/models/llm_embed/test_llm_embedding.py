@@ -10,7 +10,7 @@ import torch
 from composer import Trainer
 from composer.core import get_precision_context
 from torch.nn.parallel import DistributedDataParallel as DDP
-from transformers import AutoConfig
+from transformers import AutoConfig, PreTrainedTokenizerBase
 from transformers.modeling_outputs import \
     BaseModelOutputWithPastAndCrossAttentions
 
@@ -121,14 +121,14 @@ def build_tokenizer_config(is_hf: bool) -> dict[str, Any]:
 def test_mpt_embedding_lm(
     is_hf: bool,
     attn_impl: str,
-    mock_tokenizer: MockTokenizer,
+    tiny_gpt2_tokenizer: PreTrainedTokenizerBase,
 ):
     maybe_attn_impl = None if is_hf else attn_impl
     lm_config = build_lm_config(is_hf, maybe_attn_impl)
 
-    model = ContrastiveModel(**lm_config, tokenizer=mock_tokenizer).to('cuda')
+    model = ContrastiveModel(**lm_config, tokenizer=tiny_gpt2_tokenizer).to('cuda')
     msl = 32
-    model_inputs_batch = mock_tokenizer([['pair 1 a', 'pair 1 b'],
+    model_inputs_batch = tiny_gpt2_tokenizer([['pair 1 a', 'pair 1 b'],
                                          ['pair 2 a', 'pair 2 b']],
                                         padding='max_length',
                                         truncation=True,

@@ -101,9 +101,9 @@ def build_lm_config(is_hf: bool, attn_impl: Optional[str]) -> dict[str, Any]:
         assert attn_impl is not None
         return {
             'num_layers': 2,
-            'word_embed_proj_dim': 768,
-            'd_model': 768,
-            'n_heads': 12,
+            'word_embed_proj_dim': 128,
+            'd_model': 128,
+            'n_heads': 2,
             'vocab_size': 100352,
             'attn_config': {
                 'attn_impl': attn_impl,

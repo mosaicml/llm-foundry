@@ -126,9 +126,7 @@ def test_mpt_embedding_lm(
     maybe_attn_impl = None if is_hf else attn_impl
     lm_config = build_lm_config(is_hf, maybe_attn_impl)
 
-    model = ContrastiveModel(**lm_config, tokenizer=mock_tokenizer).to(
-        torch.bfloat16,
-    ).to('cuda')
+    model = ContrastiveModel(**lm_config, tokenizer=mock_tokenizer).to('cuda')
     msl = 32
     model_inputs_batch = mock_tokenizer([['pair 1 a', 'pair 1 b'],
                                          ['pair 2 a', 'pair 2 b']],

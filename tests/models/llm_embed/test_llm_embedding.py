@@ -1,7 +1,6 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from contextlib import nullcontext
 from typing import Any, Optional
 from unittest.mock import patch
 
@@ -103,7 +102,7 @@ def build_lm_config(is_hf: bool, attn_impl: Optional[str]) -> dict[str, Any]:
                 'hidden_size': 2,
                 'num_attention_heads': 2,
                 'num_hidden_layers': 2,
-            }
+            },
         }
     else:
         assert attn_impl is not None
@@ -198,7 +197,8 @@ def test_contrastive_loss(
 
     with temporary_contrastive_streaming_dataset(ds_format) as data_dir:
         lm_config = build_lm_config(is_hf, maybe_attn_impl)
-        model = ContrastiveModel(**lm_config, tokenizer=mock_tokenizer).to('cuda')
+        model = ContrastiveModel(**lm_config,
+                                 tokenizer=mock_tokenizer).to('cuda')
 
         train_dataloader = build_dataloader(
             dataloader_config(data_dir, 'local'),

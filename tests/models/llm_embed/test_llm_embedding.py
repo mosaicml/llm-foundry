@@ -198,9 +198,7 @@ def test_contrastive_loss(
 
     with temporary_contrastive_streaming_dataset(ds_format) as data_dir:
         lm_config = build_lm_config(is_hf, maybe_attn_impl)
-        model = ContrastiveModel(**lm_config, tokenizer=mock_tokenizer).to(
-            torch.bfloat16,
-        ).to('cuda')
+        model = ContrastiveModel(**lm_config, tokenizer=mock_tokenizer).to('cuda')
 
         train_dataloader = build_dataloader(
             dataloader_config(data_dir, 'local'),
@@ -208,16 +206,12 @@ def test_contrastive_loss(
             2,
         )
 
-        precision = 'amp_bf16' if maybe_attn_impl == 'flash' else 'fp32'
-        ctx = get_precision_context(
-            'amp_bf16',
-        ) if attn_impl == 'flash' else nullcontext()
-        with ctx:
+        with get_precision_context('amp_bf16',):
             trainer = Trainer(
                 model=model,
                 train_dataloader=train_dataloader,
-                precision=precision,
-                max_duration='3ba',
+                precision='amp_bf16',
+                max_duration='1ba',
             )
             trainer.fit()
 

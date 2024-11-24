@@ -104,7 +104,7 @@ def build_lm_config(is_hf: bool, attn_impl: Optional[str]) -> dict[str, Any]:
             'word_embed_proj_dim': 128,
             'd_model': 128,
             'n_heads': 2,
-            'vocab_size': 100352,
+            'vocab_size': 30000,
             'attn_config': {
                 'attn_impl': attn_impl,
             },
@@ -129,11 +129,12 @@ def test_mpt_embedding_lm(
     model = ContrastiveModel(**lm_config, tokenizer=mock_tokenizer).to(
         torch.bfloat16,
     ).to('cuda')
+    msl = 32
     model_inputs_batch = mock_tokenizer([['pair 1 a', 'pair 1 b'],
                                          ['pair 2 a', 'pair 2 b']],
                                         padding='max_length',
                                         truncation=True,
-                                        max_length=128,
+                                        max_length=msl,
                                         return_tensors='pt')
     if isinstance(model_inputs_batch, dict):
         model_inputs_batch = {
@@ -156,7 +157,7 @@ def test_mpt_embedding_lm(
         proj_dim = model.model.config.word_embed_proj_dim
         assert last_hidden_state.shape == (
             4,
-            128,
+            msl,
             proj_dim,
         )  # 2 pairs * 2 texts per pair, 128 sequence length, word_embed_proj_dim dim
         assert last_hidden_state.dtype == torch.bfloat16

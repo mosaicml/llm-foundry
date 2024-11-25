@@ -114,7 +114,7 @@ class MockTokenizer(PreTrainedTokenizerBase):
         self.eos_token: str = '</s>'
         self.bos_token: str = '<s>'
         self.unk_token: str = '<unk>'
-        self._vocab_size: int = 30000
+        self._vocab_size: int = 128
 
     def __len__(self) -> int:
         return self._vocab_size

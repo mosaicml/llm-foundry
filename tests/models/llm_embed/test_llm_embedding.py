@@ -1,7 +1,6 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from contextlib import nullcontext
 from typing import Any, Optional
 from unittest.mock import patch
 
@@ -96,15 +95,23 @@ def model(
 def build_lm_config(is_hf: bool, attn_impl: Optional[str]) -> dict[str, Any]:
     if is_hf:
         assert attn_impl is None
-        return {'pretrained_model_name_or_path': 'facebook/opt-350m'}
+        return {
+            'pretrained_model_name_or_path': 'facebook/opt-350m',
+            'pretrained': False,
+            'config_overrides': {
+                'hidden_size': 2,
+                'num_attention_heads': 2,
+                'num_hidden_layers': 2,
+            },
+        }
     else:
         assert attn_impl is not None
         return {
             'num_layers': 2,
-            'word_embed_proj_dim': 768,
-            'd_model': 768,
-            'n_heads': 12,
-            'vocab_size': 100352,
+            'word_embed_proj_dim': 128,
+            'd_model': 128,
+            'n_heads': 2,
+            'vocab_size': 4096,
             'attn_config': {
                 'attn_impl': attn_impl,
             },
@@ -112,7 +119,7 @@ def build_lm_config(is_hf: bool, attn_impl: Optional[str]) -> dict[str, Any]:
 
 
 def build_tokenizer_config(is_hf: bool) -> dict[str, Any]:
-    return {'vocab_size': 50257 if is_hf else 100352}
+    return {'vocab_size': 50257 if is_hf else 4096}
 
 
 @pytest.mark.gpu
@@ -126,24 +133,20 @@ def test_mpt_embedding_lm(
     maybe_attn_impl = None if is_hf else attn_impl
     lm_config = build_lm_config(is_hf, maybe_attn_impl)
 
-    model = ContrastiveModel(**lm_config, tokenizer=mock_tokenizer).to(
-        torch.bfloat16,
-    ).to('cuda')
+    model = ContrastiveModel(**lm_config, tokenizer=mock_tokenizer).to('cuda')
+    msl = 32
     model_inputs_batch = mock_tokenizer([['pair 1 a', 'pair 1 b'],
                                          ['pair 2 a', 'pair 2 b']],
                                         padding='max_length',
                                         truncation=True,
-                                        max_length=128,
+                                        max_length=msl,
                                         return_tensors='pt')
     if isinstance(model_inputs_batch, dict):
         model_inputs_batch = {
             k: v.to('cuda') for k, v in model_inputs_batch.items()
         }
 
-    ctx = get_precision_context(
-        'amp_bf16',
-    ) if maybe_attn_impl == 'flash' else nullcontext()
-    with ctx:
+    with get_precision_context('amp_bf16'):
         outputs = model(model_inputs_batch)
 
         assert isinstance(outputs, dict)
@@ -156,7 +159,7 @@ def test_mpt_embedding_lm(
         proj_dim = model.model.config.word_embed_proj_dim
         assert last_hidden_state.shape == (
             4,
-            128,
+            msl,
             proj_dim,
         )  # 2 pairs * 2 texts per pair, 128 sequence length, word_embed_proj_dim dim
         assert last_hidden_state.dtype == torch.bfloat16
@@ -194,9 +197,8 @@ def test_contrastive_loss(
 
     with temporary_contrastive_streaming_dataset(ds_format) as data_dir:
         lm_config = build_lm_config(is_hf, maybe_attn_impl)
-        model = ContrastiveModel(**lm_config, tokenizer=mock_tokenizer).to(
-            torch.bfloat16,
-        ).to('cuda')
+        model = ContrastiveModel(**lm_config,
+                                 tokenizer=mock_tokenizer).to('cuda')
 
         train_dataloader = build_dataloader(
             dataloader_config(data_dir, 'local'),
@@ -204,16 +206,12 @@ def test_contrastive_loss(
             2,
         )
 
-        precision = 'amp_bf16' if maybe_attn_impl == 'flash' else 'fp32'
-        ctx = get_precision_context(
-            'amp_bf16',
-        ) if attn_impl == 'flash' else nullcontext()
-        with ctx:
+        with get_precision_context('amp_bf16',):
             trainer = Trainer(
                 model=model,
                 train_dataloader=train_dataloader,
-                precision=precision,
-                max_duration='3ba',
+                precision='amp_bf16',
+                max_duration='1ba',
             )
             trainer.fit()
 

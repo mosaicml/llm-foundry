@@ -53,7 +53,7 @@ classifiers = [
 
 install_requires = [
     'mosaicml[libcloud,wandb,oci,gcs,mlflow]>=0.27.0,<0.28',
-    'mlflow>=2.14.1,<2.18',
+    'mlflow>=2.14.1,<2.19',
     'accelerate>=0.25,<1.2',  # for HF inference `device_map`
     'transformers>=4.43.2,<4.47',
     'mosaicml-streaming>=0.9.0,<0.10',

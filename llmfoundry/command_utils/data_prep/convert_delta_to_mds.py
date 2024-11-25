@@ -65,7 +65,7 @@ def get_conversion_config(
         dtypes = {
             'tokens': 'ndarray',
         }
-        convert_x = lambda x: np.array(x['tokens'])
+        convert_x = lambda x: {'tokens': np.array(x['tokens'])}
     else:
         raise ValueError(
             'Unable to infer dtypes from columns and no dtypes provided.',

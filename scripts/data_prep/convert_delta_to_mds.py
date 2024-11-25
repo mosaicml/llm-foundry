@@ -33,39 +33,39 @@ if __name__ == '__main__':
         help='http_path is set then dbsql method is used',
     )
     parser.add_argument(
-        "--batch_size",
+        '--batch_size',
         required=False,
         type=int,
         default=1 << 30,
         help='row chunks to transmit a time to avoid OOM',
     )
     parser.add_argument(
-        "--processes",
+        '--processes',
         required=False,
         type=int,
         default=1,
         help='number of processes allowed to use',
     )
     parser.add_argument(
-        "--cluster_id",
+        '--cluster_id',
         required=False,
         type=str,
         help='cluster id to use for serverless',
     )
     parser.add_argument(
-        "--use_serverless",
+        '--use_serverless',
         required=False,
         action='store_true',
         help='use serverless cluster',
     )
     parser.add_argument(
-        "--dtypes",
+        '--dtypes',
         required=False,
         type=str,
         help='data types for columns',
     )
     args = parser.parse_args()
-    
+
     if args.dtypes is not None:
         args.dtypes = json.loads(args.dtypes)
 

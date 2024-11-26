@@ -462,6 +462,7 @@ def flex_attn_fn(
     attn_logit_softcapping: Optional[float] = None,
     block_mask_dict: Optional[dict[str, dict[str, Any]]] = None,
     score_mod_dict: Optional[dict[str, dict[str, Any]]] = None,
+    compiled_flex_attn: Optional[Any] = None,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
     del training, should_repeat_kv_for_gqa
@@ -516,7 +517,8 @@ def flex_attn_fn(
         }
     score_mod = _generate_score_mod(score_mod_dict)
 
-    output = flex_attention(
+    flex_attn = compiled_flex_attn if compiled_flex_attn is not None else flex_attention
+    output = flex_attn(
         query,
         key,
         value,
@@ -553,15 +555,13 @@ def _generate_block_mask(
             f'The sequence length ({Q_LEN}) is not a multiple of the default block size ({_DEFAULT_SPARSE_BLOCK_SIZE}). Setting the block size to sequence length. This may cause unexpected behavior.',
         )
         extra_mask_kwargs['BLOCK_SIZE'] = Q_LEN
-    block_mask = torch.compile(
-        create_block_mask(
-            block_mask_fn,
-            B=B,
-            H=H,
-            Q_LEN=Q_LEN,
-            KV_LEN=KV_LEN,
-            **extra_mask_kwargs,
-        ),
+    block_mask = create_block_mask(
+        block_mask_fn,
+        B=B,
+        H=H,
+        Q_LEN=Q_LEN,
+        KV_LEN=KV_LEN,
+        **extra_mask_kwargs,
     )
 
     return block_mask
@@ -738,6 +738,8 @@ class GroupedQueryAttention(nn.Module):
         super().__init__()
 
         self.attn_impl = attn_impl
+        if self.attn_impl == 'flex':
+            self.compiled_flex_attn = torch.compile(flex_attention)
         self.clip_qkv = clip_qkv
         self.qk_ln = qk_ln
         self.qk_gn = qk_gn
@@ -1122,6 +1124,7 @@ class GroupedQueryAttention(nn.Module):
                 'alibi_slopes': alibi_slopes,
                 'sequence_id': sequence_id,
                 'key_padding_mask': None,
+                'compiled_flex_attn': self.compiled_flex_attn,
                 **self.flex_attn_extra_kwargs,
             }
         else:

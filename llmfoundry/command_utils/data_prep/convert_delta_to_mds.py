@@ -60,12 +60,12 @@ def get_conversion_config(
                 np.
                 concatenate([np.array(turn['labels']) for turn in x['turns']]),
         }
-    elif 'tokens' in columns[0]:
+    elif 'concat_tokens' in columns[0]:
         logging.info('Identified CPT data')
         dtypes = {
             'tokens': 'ndarray',
         }
-        convert_x = lambda x: {'tokens': np.array(x['tokens'])}
+        convert_x = lambda x: {'tokens': np.array(x['concat_tokens'])}
     else:
         raise ValueError(
             'Unable to infer dtypes from columns and no dtypes provided.',

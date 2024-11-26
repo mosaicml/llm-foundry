@@ -491,31 +491,33 @@ def flex_attn_fn(
     key = rearrange(key, 'b s (h d) -> b h s d', h=kv_n_heads)
     value = rearrange(value, 'b s (h d) -> b h s d', h=kv_n_heads)
 
-    block_mask_dict = block_mask_dict if block_mask_dict is not None else {}
-    if is_causal:
-        block_mask_dict['causal'] = {}
-    if sliding_window_size != -1:
-        block_mask_dict['sliding_window'] = {
-            'sliding_window_size': sliding_window_size,
-        }
-    if sequence_id is not None:
-        block_mask_dict['sequence_id'] = {'sequence_id': sequence_id}
-    block_mask = _generate_block_mask(
-        Q_LEN=query.shape[2],
-        KV_LEN=key.shape[2],
-        B=query.shape[0],
-        H=n_heads,
-        block_mask_dict=block_mask_dict,
-    )
+    # block_mask_dict = block_mask_dict if block_mask_dict is not None else {}
+    # if is_causal:
+    #     block_mask_dict['causal'] = {}
+    # if sliding_window_size != -1:
+    #     block_mask_dict['sliding_window'] = {
+    #         'sliding_window_size': sliding_window_size,
+    #     }
+    # if sequence_id is not None:
+    #     block_mask_dict['sequence_id'] = {'sequence_id': sequence_id}
+    # block_mask = _generate_block_mask(
+    #     Q_LEN=query.shape[2],
+    #     KV_LEN=key.shape[2],
+    #     B=query.shape[0],
+    #     H=n_heads,
+    #     block_mask_dict=block_mask_dict,
+    # )
 
-    score_mod_dict = score_mod_dict if score_mod_dict is not None else {}
-    if alibi_slopes is not None:
-        score_mod_dict['alibi'] = {'alibi_slopes': alibi_slopes}
-    if attn_logit_softcapping is not None:
-        score_mod_dict['softcap'] = {
-            'attn_logit_softcapping': attn_logit_softcapping,
-        }
-    score_mod = _generate_score_mod(score_mod_dict)
+    # score_mod_dict = score_mod_dict if score_mod_dict is not None else {}
+    # if alibi_slopes is not None:
+    #     score_mod_dict['alibi'] = {'alibi_slopes': alibi_slopes}
+    # if attn_logit_softcapping is not None:
+    #     score_mod_dict['softcap'] = {
+    #         'attn_logit_softcapping': attn_logit_softcapping,
+    #     }
+    # score_mod = _generate_score_mod(score_mod_dict)
+    block_mask = None
+    score_mod = None
 
     flex_attn = compiled_flex_attn if compiled_flex_attn is not None else flex_attention
     output = flex_attn(

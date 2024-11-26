@@ -93,6 +93,7 @@ class ContrastiveModel(HuggingFaceModel):
         config_overrides (Optional[Dict[str, Any]], optional): Overrides for the model configuration. Defaults to None.
         load_in_8bit (bool, optional): Whether to load the model in 8-bit mode. Defaults to False.
         loss_fn (str, optional): The loss function to use (either 'torch_crossentropy' or 'fused_crossentropy'). Defaults to 'fused_crossentropy'.
+        pretrained (bool, optional): Whether to use a pretrained model when using a Hugging Face architecture. Defaults to True.
         **kwargs (Dict[str, Any]): Additional keyword arguments.
     """
 
@@ -109,9 +110,11 @@ class ContrastiveModel(HuggingFaceModel):
         config_overrides: Optional[dict[str, Any]] = None,
         load_in_8bit: bool = False,
         loss_fn: str = 'fused_crossentropy',
+        pretrained: bool = True,
         **kwargs: dict[str, Any],
     ):
         self.pretrained_model_name_or_path = pretrained_model_name_or_path
+        self.pretrained = pretrained
         self.pretrained_lora_id_or_path = pretrained_lora_id_or_path
         self.trust_remote_code = trust_remote_code
         self.init_device = init_device
@@ -191,7 +194,7 @@ class ContrastiveModel(HuggingFaceModel):
             model_class = registry.models.get('hf_causal_lm')
             model_class = cast(type[ComposerHFCausalLM], model_class)
             model = model_class.build_inner_model(
-                pretrained=True,
+                pretrained=self.pretrained,
                 pretrained_model_name_or_path=self.
                 pretrained_model_name_or_path,
                 pretrained_lora_id_or_path=self.pretrained_lora_id_or_path,

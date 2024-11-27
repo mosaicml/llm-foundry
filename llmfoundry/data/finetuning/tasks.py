@@ -1179,3 +1179,13 @@ def QA_format_preprocessor(inp: dict) -> ChatFormattedDict:
     except Exception as e:
         raise UnableToProcessPromptResponseError(inp) from e
     return {'messages': messages}
+
+
+@dataset_constructor.register('abc/msg')
+def messages_format_preprocessor(inp: dict) -> ChatFormattedDict:
+    """Convert from QA format to our chat format."""
+    try:
+        messages = inp['messages']
+    except Exception as e:
+        raise UnableToProcessPromptResponseError(inp) from e
+    return {'messages': messages}

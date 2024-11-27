@@ -863,12 +863,6 @@ class GroupedQueryAttention(nn.Module):
                     'flex_attn_config must be provided for flex attention.',
                 )
             self.flex_attn_config = flex_attn_config
-            self.compiled_flex_attention = self.flex_attn_config.pop(
-                'compiled_flex_attention',
-            )
-            self.compiled_create_block_mask = self.flex_attn_config.pop(
-                'compiled_create_block_mask',
-            )
 
     def forward(
         self,

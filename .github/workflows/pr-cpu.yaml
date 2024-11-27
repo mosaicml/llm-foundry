@@ -16,7 +16,7 @@ concurrency:
 jobs:
   pytest-cpu:
     name: ${{ matrix.name }}
-    runs-on: ubuntu-latest
+    runs-on: linux-ubuntu-latest
     container: ${{ matrix.container }}
     strategy:
       matrix:

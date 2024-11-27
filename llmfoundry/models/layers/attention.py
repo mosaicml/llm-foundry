@@ -463,6 +463,7 @@ def flex_attn_fn(
     block_mask_dict: Optional[dict[str, dict[str, Any]]] = None,
     score_mod_dict: Optional[dict[str, dict[str, Any]]] = None,
     compiled_flex_attn: Optional[Any] = None,
+    compiled_create_block_mask: Optional[Any] = None,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
     del training, should_repeat_kv_for_gqa
@@ -505,6 +506,7 @@ def flex_attn_fn(
         KV_LEN=key.shape[2],
         B=query.shape[0],
         block_mask_dict=block_mask_dict,
+        compiled_create_block_mask=compiled_create_block_mask,
     )
 
     score_mod_dict = score_mod_dict if score_mod_dict is not None else {}
@@ -535,6 +537,7 @@ def _generate_block_mask(
     KV_LEN: int,
     B: int,
     block_mask_dict: dict[str, dict[str, Any]],
+    compiled_create_block_mask: Optional[Any],
 ):
     block_mask_fn = flex_attention_mask_mods.get('noop')()
     for mask_type, mask_kwargs in block_mask_dict.items():
@@ -553,7 +556,8 @@ def _generate_block_mask(
             f'The sequence length ({Q_LEN}) is not a multiple of the default block size ({_DEFAULT_SPARSE_BLOCK_SIZE}). Setting the block size to sequence length. This may cause unexpected behavior.',
         )
         extra_mask_kwargs['BLOCK_SIZE'] = Q_LEN
-    block_mask = create_block_mask(
+    create_bm = compiled_create_block_mask if compiled_create_block_mask is not None else create_block_mask
+    block_mask = create_bm(
         block_mask_fn,
         B=B,
         H=None, # Setting this to None speeds up block mask generation, but this means the mask has to be the same across all heads.
@@ -738,6 +742,7 @@ class GroupedQueryAttention(nn.Module):
         self.attn_impl = attn_impl
         if self.attn_impl == 'flex':
             self.compiled_flex_attn = torch.compile(flex_attention)
+            self.compiled_create_block_mask = torch.compile(create_block_mask)
         self.clip_qkv = clip_qkv
         self.qk_ln = qk_ln
         self.qk_gn = qk_gn
@@ -1123,6 +1128,7 @@ class GroupedQueryAttention(nn.Module):
                 'sequence_id': sequence_id,
                 'key_padding_mask': None,
                 'compiled_flex_attn': self.compiled_flex_attn,
+                'compiled_create_block_mask': self.compiled_create_block_mask,
                 **self.flex_attn_extra_kwargs,
             }
         else:

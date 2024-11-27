@@ -620,9 +620,8 @@ def _get_sequence_id_mask_mod_fn(
     ) -> torch.Tensor:
         del h
         # Check if the query and key belong to the same sequence and the query token is not a padding token.
-        return (
-            sequence_id[b, q_idx] == sequence_id[b, kv_idx]
-        )  # & (sequence_id[b, q_idx] != -1)
+        return (sequence_id[b, q_idx]
+                == sequence_id[b, kv_idx]) & (sequence_id[b, q_idx] != -1)
 
     return sequence_id_mask_fn
 

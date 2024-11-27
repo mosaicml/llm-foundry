@@ -280,9 +280,9 @@ class MPTConfig(PretrainedConfig):
             )
         if self.attn_config['attn_type'] == 'flex' and version.parse(
             torch.__version__.split('.dev')[0],
-        ) < version.parse('2.5.0'):
+        ) < version.parse('2.6.0'):
             raise RuntimeError(
-                'FlexAttention is not supported in torch version {torch.__version__}<2.5.0.',
+                'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
             )
         if self.attn_config['alibi'] and not check_alibi_support(
             self.attn_config['attn_impl'],

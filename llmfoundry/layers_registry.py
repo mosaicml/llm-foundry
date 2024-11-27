@@ -214,6 +214,25 @@ flex_attention_mask_mods = create_registry(
     description=_flex_attention_mask_mods_description,
 )
 
+_sequence_id_transformer_registry = (
+    """The sequence_id_transformer_registry registry is used to register functions that implement sequence id transformations.
+
+    One example is 'attention_mask_in_length' in modeling_mpt.py.
+
+    Args:
+        torch.Tensor: The sequence id tensor.
+    Returns:
+        Any: The sequence id transformed.
+    """
+)
+sequence_id_transformer_registry = create_registry(
+    'llmfoundry',
+    'sequence_id_transformer_registry',
+    generic_type=Callable,
+    entry_points=True,
+    description=_sequence_id_transformer_registry,
+)
+
 _param_init_fns_description = (
     """The param_init_fns registry is used to register functions that initialize parameters.
 
@@ -271,5 +290,6 @@ __all__ = [
     'attention_implementations',
     'flex_attention_score_mods',
     'flex_attention_mask_mods',
+    'sequence_id_transformer_registry',
     'fcs',
 ]

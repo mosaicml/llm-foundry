@@ -447,6 +447,7 @@ def flex_attn_fn(
     kv_n_heads: int,
     compiled_flex_attention: Any,
     compiled_create_block_mask: Any,
+    sequence_id_transforms: dict[str, Any],
     past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
     softmax_scale: Optional[float] = None,
     attn_bias: Optional[torch.Tensor] = None,
@@ -458,7 +459,6 @@ def flex_attn_fn(
     should_repeat_kv_for_gqa: Optional[bool] = True,
     sliding_window_size: int = -1,
     alibi_slopes: Optional[torch.Tensor] = None,
-    sequence_id: Optional[torch.Tensor] = None,
     attn_logit_softcapping: Optional[float] = None,
     block_mask_dict: Optional[dict[str, dict[str, Any]]] = None,
     score_mod_dict: Optional[dict[str, dict[str, Any]]] = None,
@@ -497,14 +497,17 @@ def flex_attn_fn(
         block_mask_dict['sliding_window'] = {
             'sliding_window_size': sliding_window_size,
         }
-    if sequence_id is not None:
-        block_mask_dict['sequence_id'] = {'sequence_id': sequence_id}
+    if 'sequence_id' in sequence_id_transforms:
+        block_mask_dict['sequence_id'] = {
+            'sequence_id_transform': 'sequence_id',
+        }
     block_mask = _generate_block_mask(
         Q_LEN=query.shape[2],
         KV_LEN=key.shape[2],
         B=query.shape[0],
         block_mask_dict=block_mask_dict,
         compiled_create_block_mask=compiled_create_block_mask,
+        sequence_id_transforms=sequence_id_transforms,
     )
 
     score_mod_dict = score_mod_dict if score_mod_dict is not None else {}
@@ -535,9 +538,13 @@ def _generate_block_mask(
     B: int,
     block_mask_dict: dict[str, dict[str, Any]],
     compiled_create_block_mask: Any,
+    sequence_id_transforms: dict[str, Any],
 ):
     block_mask_fn = flex_attention_mask_mods.get('noop')()
     for mask_type, mask_kwargs in block_mask_dict.items():
+        if 'sequence_id_transform' in mask_kwargs:
+            mask_kwargs['sequence_id_transform'] = sequence_id_transforms[
+                mask_kwargs['sequence_id_transform']]
         block_mask_fn = and_masks(
             block_mask_fn,
             flex_attention_mask_mods.get(mask_type)(**mask_kwargs),
@@ -601,8 +608,9 @@ def _get_sliding_window_mask_mod_fn(
 
 
 def _get_sequence_id_mask_mod_fn(
-    sequence_id: torch.Tensor,
+    sequence_id_transform: torch.Tensor,
 ) -> _mask_mod_signature:
+    sequence_id = sequence_id_transform
 
     def sequence_id_mask_fn(
         b: torch.Tensor,
@@ -611,7 +619,9 @@ def _get_sequence_id_mask_mod_fn(
         kv_idx: torch.Tensor,
     ) -> torch.Tensor:
         del h
-        return sequence_id[b, q_idx] == sequence_id[b, kv_idx]
+        # Check if the query and key belong to the same sequence and the query token is not a padding token.
+        return (sequence_id[b, q_idx]
+                == sequence_id[b, kv_idx]) & (sequence_id[b, q_idx] != -1)
 
     return sequence_id_mask_fn
 
@@ -1107,7 +1117,7 @@ class GroupedQueryAttention(nn.Module):
             attention_mask (Optional[torch.Tensor]): The attention mask.
             alibi_slopes (Optional[torch.Tensor]): The alibi slopes.
             flash_attn_padding_info (Optional[dict[str, torch.Tensor]]): The padding information, only required for flash attention.
-            flex_attn_kwargs (Optional[dict[str, Any]]): The extra flex attn kwargs, sent from the model, includes seq ids, and compiled flex attention functions.
+            flex_attn_kwargs (Optional[dict[str, Any]]): The extra flex attn kwargs, sent from the model, includes seq id transforms and compiled flex attention functions.
 
         Returns:
             extra_attn_kwargs (dict[str, Any]): Implementation specific args.

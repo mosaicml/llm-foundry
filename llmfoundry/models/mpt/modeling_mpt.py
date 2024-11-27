@@ -28,7 +28,10 @@ from composer.utils import dist
 from tabulate import tabulate
 from torch.nn.attention.flex_attention import create_block_mask, flex_attention
 
-from llmfoundry.layers_registry import ffns_with_megablocks
+from llmfoundry.layers_registry import (
+    ffns_with_megablocks,
+    sequence_id_transformer_registry,
+)
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 
 if is_flash_v2_installed():
@@ -174,11 +177,26 @@ def gen_rotary_embedding(
     raise ValueError('rope_impl needs to be either dail or hf')
 
 
-def gen_attention_mask_in_length(
-    sequence_id: Union[None, torch.Tensor],
+def check_seq_id_attn_mask(
+    sequence_id: torch.Tensor,
     S: int,
-    attn_uses_sequence_id: bool,
-    attn_impl: str,
+    attention_mask: Union[torch.Tensor, None],
+):
+    # Check if sequence has left padding. If yes, raise an error.
+    if (attention_mask is not None
+       ) and (attention_mask[:, 0].sum() != attention_mask.shape[0]):
+        raise NotImplementedError(
+            'Left padding is not supported when attn_uses_sequence_id is set to True.',
+        )
+    if S != sequence_id.shape[-1]:
+        raise ValueError(
+            f'Sequence length ({S}) does not match length of sequences in sequence_id ({sequence_id.shape[-1]}).',
+        )
+
+
+def attn_mask_in_len_transformer(
+    sequence_id: Union[torch.Tensor, None],
+    S: int,
     attention_mask: Union[torch.Tensor, None],
 ):
     """Generates the attention mask used for sequence masking in FA v2.
@@ -191,8 +209,6 @@ def gen_attention_mask_in_length(
     Args:
         sequence_id (Union[None, torch.Tensor]): Tensor containing the sequence id for each token. Shape (batch_size, seq_len).
         S (int): Sequence length
-        attn_uses_sequence_id (bool): Whether the attention uses sequence id based masking.
-        attn_impl (str): Attention implementation. This function is only creates attention_mask_in_length for flash attention.
         attention_mask (Union[torch.Tensor, None]): Attention mask tensor of shape (batch_size, seq_len)
 
     Returns:
@@ -235,39 +251,40 @@ def gen_attention_mask_in_length(
             ```.
             (The description above is taken verbatim from https://github.com/Dao-AILab/flash-attention/blob/9356a1c0389660d7e231ff3163c1ac17d9e3824a/flash_attn/bert_padding.py#L125 .)
     """
-    attention_mask_in_length = None
-    if (sequence_id
-        is not None) and attn_uses_sequence_id and (attn_impl == 'flash'):
-        # Check if sequence has left padding. If yes, raise an error.
-        if (attention_mask is not None
-           ) and (attention_mask[:, 0].sum() != attention_mask.shape[0]):
-            raise NotImplementedError(
-                'Left padding is not supported with flash attention when attn_uses_sequence_id is set to True.',
-            )
-        if S != sequence_id.shape[-1]:
-            raise ValueError(
-                f'Sequence length ({S}) does not match length of sequences in sequence_id ({sequence_id.shape[-1]}).',
-            )
-        if attention_mask is not None:
-            # -1 is used to pad the sequence_id where attention mask is False (https://github.com/mosaicml/llm-foundry/blob/706ea7dd40ba60a98dea5f37695d143d91c98b6c/llmfoundry/data/packing.py#L249).
-            # We replace those -1 with 0 to prevent `torch.nn.functional.one_hot(sequence_id)` in the next line from failing.
-            # We apply the attention mask again after the one_hot operation.
-            sequence_id = sequence_id.masked_fill(~attention_mask, 0)
-        attention_mask_in_length = torch.nn.functional.one_hot(sequence_id)
-        if attention_mask is not None:
-            attention_mask_in_length = attention_mask_in_length.masked_fill(
-                ~attention_mask.unsqueeze(-1),
-                0,
-            )
-        attention_mask_in_length = attention_mask_in_length.sum(dim=1)
-        attention_mask_in_length = torch.nn.functional.pad(
-            attention_mask_in_length,
-            (0, S - attention_mask_in_length.shape[-1]),
-            mode='constant',
-            value=0,
+    if sequence_id is None:
+        return None
+    check_seq_id_attn_mask(sequence_id, S, attention_mask)
+    if attention_mask is not None:
+        # -1 is used to pad the sequence_id where attention mask is False (https://github.com/mosaicml/llm-foundry/blob/706ea7dd40ba60a98dea5f37695d143d91c98b6c/llmfoundry/data/packing.py#L249).
+        # We replace those -1 with 0 to prevent `torch.nn.functional.one_hot(sequence_id)` in the next line from failing.
+        # We apply the attention mask again after the one_hot operation.
+        sequence_id = sequence_id.masked_fill(~attention_mask, 0)
+    attention_mask_in_length = torch.nn.functional.one_hot(sequence_id)
+    if attention_mask is not None:
+        attention_mask_in_length = attention_mask_in_length.masked_fill(
+            ~attention_mask.unsqueeze(-1),
+            0,
         )
+    attention_mask_in_length = attention_mask_in_length.sum(dim=1)
+    attention_mask_in_length = torch.nn.functional.pad(
+        attention_mask_in_length,
+        (0, S - attention_mask_in_length.shape[-1]),
+        mode='constant',
+        value=0,
+    )
 
     return attention_mask_in_length
+
+
+def seq_id_noop_transformer(
+    sequence_id: Union[torch.Tensor, None],
+    S: int,
+    attention_mask: Union[torch.Tensor, None],
+):
+    if sequence_id is None:
+        return None
+    check_seq_id_attn_mask(sequence_id, S, attention_mask)
+    return sequence_id
 
 
 def gen_flash_attn_padding_info(
@@ -419,6 +436,16 @@ class MPTModel(MPTPreTrainedModel):
         self.shift_labels = True
 
         if self.attn_impl == 'flex':
+            sequence_id_transformers_set = set(
+                config.attn_config['flex_attn_config']
+                ['sequence_id_transformers'],
+            )
+            if self.attn_uses_sequence_id:
+                sequence_id_transformers_set.add('sequence_id')
+            self.sequence_id_transformers = {
+                name: sequence_id_transformer_registry.get(name)
+                for name in sequence_id_transformers_set
+            }
             self.compiled_flex_attention = torch.compile(flex_attention)
             self.compiled_create_block_mask = torch.compile(create_block_mask)
 
@@ -920,13 +947,24 @@ class MPTModel(MPTPreTrainedModel):
             attention_mask=attention_mask,
             sequence_id=sequence_id,
         )
-        attention_mask_in_length = gen_attention_mask_in_length(
-            sequence_id=sequence_id,
-            S=S,
-            attn_uses_sequence_id=self.attn_uses_sequence_id,
-            attn_impl=self.attn_impl,
-            attention_mask=attention_mask,
-        )
+        attention_mask_in_length = None
+        sequence_id_transforms = {}
+        if self.attn_uses_sequence_id and self.attn_impl == 'flash':
+            attention_mask_in_length = sequence_id_transformer_registry.get(
+                'attention_mask_in_length',
+            )(
+                sequence_id=sequence_id,
+                S=S,
+                attention_mask=attention_mask,
+            )
+        if self.attn_impl == 'flex':
+            for name, sequence_id_transformer in self.sequence_id_transformers.items(
+            ):
+                sequence_id_transforms[name] = sequence_id_transformer(
+                    sequence_id=sequence_id,
+                    S=S,
+                    attention_mask=attention_mask,
+                )
 
         alibi_slopes = None  # alibi_slopes will only be used by flash attention for ALiBi
         if self.alibi and (
@@ -983,8 +1021,8 @@ class MPTModel(MPTPreTrainedModel):
                 extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
             if self.attn_impl == 'flex':
                 extra_kwargs['flex_attn_kwargs'] = {
-                    'sequence_id':
-                        sequence_id if self.attn_uses_sequence_id else None,
+                    'sequence_id_transforms':
+                        sequence_id_transforms,
                     'compiled_flex_attention':
                         self.compiled_flex_attention,
                     'compiled_create_block_mask':
@@ -1557,3 +1595,13 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             self.model.config.n_layers * 2 * 2 *
             (self.model.config.d_model * (msl**2))
         )
+
+
+sequence_id_transformer_registry.register(
+    'sequence_id',
+    func=seq_id_noop_transformer,
+)
+sequence_id_transformer_registry.register(
+    'attention_mask_in_length',
+    func=attn_mask_in_len_transformer,
+)

@@ -986,7 +986,7 @@ class MPTModel(MPTPreTrainedModel):
                 output_attentions=bool(output_attentions),
                 alibi_slopes=alibi_slopes,
                 flash_attn_padding_info=flash_attn_padding_info,
-                sequence_id=sequence_id,
+                sequence_id=sequence_id if self.attn_uses_sequence_id else None,
                 **extra_kwargs,
             )
             if presents is not None:

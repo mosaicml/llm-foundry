@@ -731,7 +731,7 @@ class GroupedQueryAttention(nn.Module):
         reuse_kv_layer_idx: Optional[int] = None,
         attn_logit_softcapping: Optional[float] = None,
         kv_dim: Optional[int] = None,
-        flex_attn_extra_kwargs: Optional[dict[str, Any]] = None,
+        flex_attn_config: Optional[dict[str, Any]] = None,
     ):
         super().__init__()
 
@@ -858,15 +858,15 @@ class GroupedQueryAttention(nn.Module):
         self.out_proj._is_residual = True
 
         if self.attn_impl == 'flex':
-            if flex_attn_extra_kwargs is None:
+            if flex_attn_config is None:
                 raise ValueError(
-                    'flex_attn_extra_kwargs must be provided for flex attention.',
+                    'flex_attn_config must be provided for flex attention.',
                 )
-            self.flex_attn_extra_kwargs = flex_attn_extra_kwargs
-            self.compiled_flex_attention = self.flex_attn_extra_kwargs.pop(
+            self.flex_attn_config = flex_attn_config
+            self.compiled_flex_attention = self.flex_attn_config.pop(
                 'compiled_flex_attention',
             )
-            self.compiled_create_block_mask = self.flex_attn_extra_kwargs.pop(
+            self.compiled_create_block_mask = self.flex_attn_config.pop(
                 'compiled_create_block_mask',
             )
 
@@ -884,7 +884,7 @@ class GroupedQueryAttention(nn.Module):
         prev_layer_key_value: Optional[tuple[torch.Tensor,
                                              torch.Tensor]] = None,
         key_value_states: Optional[torch.Tensor] = None,
-        sequence_id: Optional[torch.Tensor] = None,
+        flex_attn_kwargs: Optional[dict[str, Any]] = None,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
         torch.Tensor, torch.Tensor]]]:
         extra_kwargs = {}
@@ -908,7 +908,7 @@ class GroupedQueryAttention(nn.Module):
             attention_mask,
             alibi_slopes,
             flash_attn_padding_info,
-            sequence_id,
+            flex_attn_kwargs,
         )
 
         context, attn_weights, past_key_value = self.attn_fn(
@@ -1105,7 +1105,7 @@ class GroupedQueryAttention(nn.Module):
         attention_mask: Optional[torch.Tensor] = None,
         alibi_slopes: Optional[torch.Tensor] = None,
         flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
-        sequence_id: Optional[torch.Tensor] = None,
+        flex_attn_kwargs: Optional[dict[str, Any]] = None,
     ) -> dict[str, Any]:
         """Returns attention implementation specific args.
 
@@ -1113,7 +1113,7 @@ class GroupedQueryAttention(nn.Module):
             attention_mask (Optional[torch.Tensor]): The attention mask.
             alibi_slopes (Optional[torch.Tensor]): The alibi slopes.
             flash_attn_padding_info (Optional[dict[str, torch.Tensor]]): The padding information, only required for flash attention.
-            sequence_id (Optional[torch.Tensor]): The sequence id for each token, only required for FlexAttention.
+            flex_attn_kwargs (Optional[dict[str, Any]]): The extra flex attn kwargs, sent from the model, includes seq ids, and compiled flex attention functions.
 
         Returns:
             extra_attn_kwargs (dict[str, Any]): Implementation specific args.
@@ -1126,13 +1126,15 @@ class GroupedQueryAttention(nn.Module):
                 'key_padding_mask': None,
             }
         elif self.attn_impl == 'flex':
+            if flex_attn_kwargs is None:
+                raise ValueError(
+                    'flex_attn_kwargs must be provided for flex attention.',
+                )
             extra_attn_kwargs = {
                 'alibi_slopes': alibi_slopes,
-                'sequence_id': sequence_id,
                 'key_padding_mask': None,
-                'compiled_flex_attention': self.compiled_flex_attention,
-                'compiled_create_block_mask': self.compiled_create_block_mask,
-                **self.flex_attn_extra_kwargs,
+                **flex_attn_kwargs,
+                **self.flex_attn_config,
             }
         else:
             extra_attn_kwargs = {'key_padding_mask': attention_mask}

@@ -34,7 +34,7 @@ attn_config_defaults: dict = {
         'factor': 1.0,
     },
     'kv_dim': None,
-    'flex_attn_extra_kwargs': {
+    'flex_attn_config': {
         'block_mask_dict': {},
         'score_mod_dict': {},
     },

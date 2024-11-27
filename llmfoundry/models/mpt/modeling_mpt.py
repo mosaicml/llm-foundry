@@ -514,14 +514,6 @@ class MPTModel(MPTPreTrainedModel):
         else:
             block_args_list = [block_args for _ in range(config.n_layers)]
 
-        if self.attn_impl == 'flex':
-            for block_args_i in block_args_list:
-                block_args_i['attn_config']['flex_attn_extra_kwargs'][
-                    'compiled_flex_attention'] = self.compiled_flex_attention
-                block_args_i['attn_config']['flex_attn_extra_kwargs'
-                                           ]['compiled_create_block_mask'
-                                            ] = self.compiled_create_block_mask
-
         return nn.ModuleList([
             self.block_class(
                 device=config.init_device,
@@ -989,6 +981,15 @@ class MPTModel(MPTPreTrainedModel):
             extra_kwargs = {}
             if prev_layer_key_value is not None:
                 extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
+            if self.attn_impl == 'flex':
+                extra_kwargs['flex_attn_kwargs'] = {
+                    'sequence_id':
+                        sequence_id if self.attn_uses_sequence_id else None,
+                    'compiled_flex_attention':
+                        self.compiled_flex_attention,
+                    'compiled_create_block_mask':
+                        self.compiled_create_block_mask,
+                }
             x, attn_weights, present = block(
                 x,
                 past_key_value=past_key_value,
@@ -999,7 +1000,6 @@ class MPTModel(MPTPreTrainedModel):
                 output_attentions=bool(output_attentions),
                 alibi_slopes=alibi_slopes,
                 flash_attn_padding_info=flash_attn_padding_info,
-                sequence_id=sequence_id if self.attn_uses_sequence_id else None,
                 **extra_kwargs,
             )
             if presents is not None:

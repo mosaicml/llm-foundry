@@ -504,7 +504,6 @@ def flex_attn_fn(
         Q_LEN=query.shape[2],
         KV_LEN=key.shape[2],
         B=query.shape[0],
-        H=n_heads,
         block_mask_dict=block_mask_dict,
     )
 
@@ -535,7 +534,6 @@ def _generate_block_mask(
     Q_LEN: int,
     KV_LEN: int,
     B: int,
-    H: int,
     block_mask_dict: dict[str, dict[str, Any]],
 ):
     block_mask_fn = flex_attention_mask_mods.get('noop')()
@@ -558,7 +556,7 @@ def _generate_block_mask(
     block_mask = create_block_mask(
         block_mask_fn,
         B=B,
-        H=H,
+        H=None, # Setting this to None speeds up block mask generation, but this means the mask has to be the same across all heads.
         Q_LEN=Q_LEN,
         KV_LEN=KV_LEN,
         **extra_mask_kwargs,

@@ -18,8 +18,6 @@ from torch.nn.attention.flex_attention import (
     _mask_mod_signature,
     _score_mod_signature,
     and_masks,
-    create_block_mask,
-    flex_attention,
     noop_mask,
 )
 
@@ -447,6 +445,8 @@ def flex_attn_fn(
     value: torch.Tensor,
     n_heads: int,
     kv_n_heads: int,
+    compiled_flex_attention: Any,
+    compiled_create_block_mask: Any,
     past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
     softmax_scale: Optional[float] = None,
     attn_bias: Optional[torch.Tensor] = None,
@@ -462,8 +462,6 @@ def flex_attn_fn(
     attn_logit_softcapping: Optional[float] = None,
     block_mask_dict: Optional[dict[str, dict[str, Any]]] = None,
     score_mod_dict: Optional[dict[str, dict[str, Any]]] = None,
-    compiled_flex_attn: Optional[Any] = None,
-    compiled_create_block_mask: Optional[Any] = None,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
     del training, should_repeat_kv_for_gqa
@@ -518,8 +516,7 @@ def flex_attn_fn(
         }
     score_mod = _generate_score_mod(score_mod_dict)
 
-    flex_attn = compiled_flex_attn if compiled_flex_attn is not None else flex_attention
-    output = flex_attn(
+    output = compiled_flex_attention(
         query,
         key,
         value,
@@ -537,7 +534,7 @@ def _generate_block_mask(
     KV_LEN: int,
     B: int,
     block_mask_dict: dict[str, dict[str, Any]],
-    compiled_create_block_mask: Optional[Any],
+    compiled_create_block_mask: Any,
 ):
     block_mask_fn = flex_attention_mask_mods.get('noop')()
     for mask_type, mask_kwargs in block_mask_dict.items():
@@ -556,8 +553,7 @@ def _generate_block_mask(
             f'The sequence length ({Q_LEN}) is not a multiple of the default block size ({_DEFAULT_SPARSE_BLOCK_SIZE}). Setting the block size to sequence length. This may cause unexpected behavior.',
         )
         extra_mask_kwargs['BLOCK_SIZE'] = Q_LEN
-    create_bm = compiled_create_block_mask if compiled_create_block_mask is not None else create_block_mask
-    block_mask = create_bm(
+    block_mask = compiled_create_block_mask(
         block_mask_fn,
         B=B,
         H=None, # Setting this to None speeds up block mask generation, but this means the mask has to be the same across all heads.
@@ -740,9 +736,6 @@ class GroupedQueryAttention(nn.Module):
         super().__init__()
 
         self.attn_impl = attn_impl
-        if self.attn_impl == 'flex':
-            self.compiled_flex_attn = torch.compile(flex_attention)
-            self.compiled_create_block_mask = torch.compile(create_block_mask)
         self.clip_qkv = clip_qkv
         self.qk_ln = qk_ln
         self.qk_gn = qk_gn
@@ -784,9 +777,6 @@ class GroupedQueryAttention(nn.Module):
         if self.softmax_scale is None:
             self.softmax_scale = 1 / math.sqrt(self.d_model / self.n_heads)
         self.attn_dropout_p = attn_pdrop
-
-        if self.attn_impl == 'flex':
-            self.flex_attn_extra_kwargs = flex_attn_extra_kwargs if flex_attn_extra_kwargs is not None else {}
 
         if self.reuse_kv_layer_idx is not None:
             self.Wq = build_fc(
@@ -866,6 +856,19 @@ class GroupedQueryAttention(nn.Module):
             fc_kwargs=fc_type,
         )
         self.out_proj._is_residual = True
+
+        if self.attn_impl == 'flex':
+            if flex_attn_extra_kwargs is None:
+                raise ValueError(
+                    'flex_attn_extra_kwargs must be provided for flex attention.',
+                )
+            self.flex_attn_extra_kwargs = flex_attn_extra_kwargs
+            self.compiled_flex_attention = self.flex_attn_extra_kwargs.pop(
+                'compiled_flex_attention',
+            )
+            self.compiled_create_block_mask = self.flex_attn_extra_kwargs.pop(
+                'compiled_create_block_mask',
+            )
 
     def forward(
         self,
@@ -1127,7 +1130,7 @@ class GroupedQueryAttention(nn.Module):
                 'alibi_slopes': alibi_slopes,
                 'sequence_id': sequence_id,
                 'key_padding_mask': None,
-                'compiled_flex_attn': self.compiled_flex_attn,
+                'compiled_flex_attention': self.compiled_flex_attention,
                 'compiled_create_block_mask': self.compiled_create_block_mask,
                 **self.flex_attn_extra_kwargs,
             }

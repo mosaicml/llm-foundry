@@ -26,6 +26,7 @@ import torch.nn.functional as F
 from composer.models import HuggingFaceModel
 from composer.utils import dist
 from tabulate import tabulate
+from torch.nn.attention.flex_attention import create_block_mask, flex_attention
 
 from llmfoundry.layers_registry import ffns_with_megablocks
 from llmfoundry.models.layers.attention import is_flash_v2_installed
@@ -417,6 +418,10 @@ class MPTModel(MPTPreTrainedModel):
         self.mb_args = None
         self.shift_labels = True
 
+        if self.attn_impl == 'flex':
+            self.compiled_flex_attention = torch.compile(flex_attention)
+            self.compiled_create_block_mask = torch.compile(create_block_mask)
+
         self.blocks = self.construct_blocks(config=config,)
 
         # Tag all modules in the transformer blocks with the corresponding block_idx and max_block_idx
@@ -508,6 +513,14 @@ class MPTModel(MPTPreTrainedModel):
             )
         else:
             block_args_list = [block_args for _ in range(config.n_layers)]
+
+        if self.attn_impl == 'flex':
+            for block_args_i in block_args_list:
+                block_args_i['attn_config']['flex_attn_extra_kwargs'][
+                    'compiled_flex_attention'] = self.compiled_flex_attention
+                block_args_i['attn_config']['flex_attn_extra_kwargs'
+                                           ]['compiled_create_block_mask'
+                                            ] = self.compiled_create_block_mask
 
         return nn.ModuleList([
             self.block_class(

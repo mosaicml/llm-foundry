@@ -1134,11 +1134,17 @@ class GroupedQueryAttention(nn.Module):
                 raise ValueError(
                     'flex_attn_kwargs must be provided for flex attention.',
                 )
+            args_to_exclude = {'sequence_id_transformers'}
+            flex_attn_config = {
+                name: value
+                for name, value in flex_attn_kwargs.items()
+                if name not in args_to_exclude
+            }
             extra_attn_kwargs = {
                 'alibi_slopes': alibi_slopes,
                 'key_padding_mask': None,
                 **flex_attn_kwargs,
-                **self.flex_attn_config,
+                **flex_attn_config,
             }
         else:
             extra_attn_kwargs = {'key_padding_mask': attention_mask}

@@ -743,7 +743,10 @@ class HuggingFaceCheckpointer(Callback):
                 ) if is_te_imported and state.precision == Precision.AMP_FP8 else contextlib.nullcontext(
                 )
                 with context_manager:
-                    new_model_instance.save_pretrained(temp_save_dir)
+                    new_model_instance.save_pretrained(
+                        temp_save_dir,
+                        max_shard_size='1GB',
+                    )
                 if original_tokenizer is not None:
                     assert isinstance(
                         original_tokenizer,
@@ -781,6 +784,10 @@ class HuggingFaceCheckpointer(Callback):
 
         if dist.get_global_rank() == 0:
             if register_to_mlflow:
+                assert new_model_instance is not None
+                new_model_instance = self.transform_model_pre_registration(
+                    new_model_instance,
+                )
                 if self.using_peft:
 
                     # Save and register peft model to mlflow, this code path uses our older two step logic
@@ -795,11 +802,10 @@ class HuggingFaceCheckpointer(Callback):
                         temp_save_dir,
                         'register_save',
                     )
-                    assert new_model_instance is not None
-                    new_model_instance = self.transform_model_pre_registration(
-                        new_model_instance,
+                    new_model_instance.save_pretrained(
+                        register_save_dir,
+                        max_shard_size='1GB',
                     )
-                    new_model_instance.save_pretrained(register_save_dir)
                     if original_tokenizer:
                         original_tokenizer.save_pretrained(register_save_dir)
 
@@ -854,9 +860,6 @@ class HuggingFaceCheckpointer(Callback):
         original_tokenizer: Optional[Any],
         save_dir: str,
     ):
-        new_model_instance = self.transform_model_pre_registration(
-            new_model_instance,
-        )
         components = {'model': new_model_instance}
         if original_tokenizer is not None:
             components['tokenizer'] = original_tokenizer

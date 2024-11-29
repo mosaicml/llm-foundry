@@ -1,19 +1,26 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import json
+import os
+import shutil
 import sys
 import unittest
 from argparse import Namespace
+from contextlib import contextmanager
+from tempfile import NamedTemporaryFile, mkdtemp
 from typing import Any
 from unittest.mock import MagicMock, mock_open, patch
 
 import grpc
+from databricks.sql.exc import ServerOperationError
 from pyspark.errors import AnalysisException
 from pyspark.errors.exceptions.connect import SparkConnectGrpcException
 
 from llmfoundry.command_utils.data_prep.convert_delta_to_json import (
     FaultyDataPrepCluster,
     InsufficientPermissionsError,
+    _validate_written_file,
     download,
     fetch,
     fetch_DT,
@@ -21,7 +28,42 @@ from llmfoundry.command_utils.data_prep.convert_delta_to_json import (
     iterative_combine_jsons,
     run_query,
 )
-from llmfoundry.utils.exceptions import DeltaTableNotFoundError
+from llmfoundry.utils.exceptions import (
+    DeltaTableNotFoundError,
+    MalformedUCTableError,
+    StoragePermissionError,
+)
+
+
+def _mock_write_jsonl(filename: str):
+    """Writes a mock .jsonl file to filename."""
+
+    def _inner(*_: Any, **__: Any):
+        base, ___ = os.path.split(filename)
+        os.makedirs(base, exist_ok=True)
+        with open(filename, 'w') as f:
+            f.write(json.dumps({'prompt': 'prompt', 'response': 'response'}))
+
+        assert os.path.exists(filename)
+
+    return _inner
+
+
+@contextmanager
+def UncreatedNamedTemporaryFile(suffix: str):
+    """Makes a temp folder for a named temporary file."""
+    tempdir = None  # pyright
+    try:
+        tempdir = mkdtemp()
+        tempfile = NamedTemporaryFile(dir=tempdir, suffix=suffix)
+        tempfile.__enter__()
+        os.remove(tempfile.name)
+        yield tempfile
+
+    finally:
+        tempfile.__exit__(None, None, None)
+        if tempdir is not None:
+            shutil.rmtree(tempdir)
 
 
 class TestConvertDeltaToJsonl(unittest.TestCase):
@@ -87,14 +129,12 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         mock_sql_connect: Any,
     ):
         delta_table_name = 'test_table'
-        json_output_folder = '/path/to/jsonl'
         DATABRICKS_HOST = 'test_host'
         DATABRICKS_TOKEN = 'test_token'
         http_path = 'test_path'
         batch_size = 1000
         cluster_id = '1234'
         use_serverless = False
-        json_output_filename = 'combined.jsonl'
 
         mock_cluster_get = MagicMock()
         mock_cluster_get.return_value = MagicMock(
@@ -102,28 +142,28 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )
         mock_workspace_client.return_value.clusters.get = mock_cluster_get
 
-        fetch_DT(
-            delta_table_name=delta_table_name,
-            json_output_folder=json_output_folder,
-            http_path=http_path,
-            cluster_id=cluster_id,
-            DATABRICKS_HOST=DATABRICKS_HOST,
-            DATABRICKS_TOKEN=DATABRICKS_TOKEN,
-            use_serverless=use_serverless,
-            batch_size=batch_size,
-            json_output_filename=json_output_filename,
-        )
+        with UncreatedNamedTemporaryFile(suffix='.jsonl',) as tf:
+            mock_combine_jsons.side_effect = _mock_write_jsonl(tf.name)
+            json_output_folder, json_output_filename = os.path.split(tf.name)
+            fetch_DT(
+                delta_table_name=delta_table_name,
+                json_output_folder=json_output_folder,
+                http_path=http_path,
+                cluster_id=cluster_id,
+                DATABRICKS_HOST=DATABRICKS_HOST,
+                DATABRICKS_TOKEN=DATABRICKS_TOKEN,
+                use_serverless=use_serverless,
+                batch_size=batch_size,
+                json_output_filename=json_output_filename,
+            )
         mock_sql_connect.assert_called_once_with(
             server_hostname='test_host',
             http_path='test_path',
             access_token='test_token',
         )
-        mock_makedirs.assert_called_once_with('/path/to/jsonl', exist_ok=True)
+        mock_makedirs.assert_called()
         mock_fetch.assert_called_once()
-        mock_combine_jsons.assert_called_once_with(
-            '/path/to/jsonl',
-            '/path/to/jsonl/combined.jsonl',
-        )
+        mock_combine_jsons.assert_called_once()
 
     @patch(
         'llmfoundry.command_utils.data_prep.convert_delta_to_json.os.listdir',
@@ -268,7 +308,6 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         mock_sql_connect: Any,
     ):
         delta_table_name = 'test_table'
-        json_output_folder = '/path/to/jsonl'
         # Execute function with http_path=None (should use dbconnect)
         http_path = None
         cluster_id = '1234'
@@ -287,20 +326,25 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )  # Mock return value for getOrCreate
         mock_databricks_session.builder.remote.return_value = mock_remote
 
-        fetch_DT(
-            delta_table_name=delta_table_name,
-            json_output_folder=json_output_folder,
-            http_path=http_path,
-            cluster_id=cluster_id,
-            DATABRICKS_HOST=DATABRICKS_HOST,
-            DATABRICKS_TOKEN=DATABRICKS_TOKEN,
-            use_serverless=use_serverless,
-        )
+        with UncreatedNamedTemporaryFile(suffix='.jsonl',) as tf:
+            mock_combine_jsons.side_effect = _mock_write_jsonl(tf.name)
+            json_output_folder, json_output_filename = os.path.split(tf.name)
+            fetch_DT(
+                delta_table_name=delta_table_name,
+                json_output_folder=json_output_folder,
+                http_path=http_path,
+                cluster_id=cluster_id,
+                DATABRICKS_HOST=DATABRICKS_HOST,
+                DATABRICKS_TOKEN=DATABRICKS_TOKEN,
+                use_serverless=use_serverless,
+                json_output_filename=json_output_filename,
+            )
         mock_databricks_session.builder.remote.assert_called_once_with(
             host=DATABRICKS_HOST,
             token=DATABRICKS_TOKEN,
             cluster_id=cluster_id,
         )
+        mock_combine_jsons.assert_called_once()
 
     @patch(
         'databricks.sql.connect',
@@ -328,7 +372,6 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         mock_sql_connect: Any,
     ):
         delta_table_name = 'test_table'
-        json_output_folder = '/path/to/jsonl'
         # Execute function with http_path=None (should use dbconnect)
         http_path = 'test_path'
         cluster_id = '1234'
@@ -342,20 +385,26 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
-        fetch_DT(
-            delta_table_name=delta_table_name,
-            json_output_folder=json_output_folder,
-            http_path=http_path,
-            cluster_id=cluster_id,
-            DATABRICKS_HOST=DATABRICKS_HOST,
-            DATABRICKS_TOKEN=DATABRICKS_TOKEN,
-            use_serverless=use_serverless,
-        )
+        with UncreatedNamedTemporaryFile(suffix='.jsonl',) as tf:
+            mock_combine_jsons.side_effect = _mock_write_jsonl(tf.name)
+            json_output_folder, json_output_filename = os.path.split(tf.name)
+            fetch_DT(
+                delta_table_name=delta_table_name,
+                json_output_folder=json_output_folder,
+                http_path=http_path,
+                cluster_id=cluster_id,
+                DATABRICKS_HOST=DATABRICKS_HOST,
+                DATABRICKS_TOKEN=DATABRICKS_TOKEN,
+                use_serverless=use_serverless,
+                json_output_filename=json_output_filename,
+            )
+
         mock_sql_connect.assert_called_once_with(
             server_hostname=DATABRICKS_HOST,
             http_path=http_path,
             access_token=DATABRICKS_TOKEN,
         )
+        mock_combine_jsons.assert_called_once()
 
     @patch(
         'databricks.sql.connect',
@@ -383,7 +432,6 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         mock_sql_connect: Any,
     ):
         delta_table_name = 'test_table'
-        json_output_folder = '/path/to/jsonl'
         # Execute function with http_path=None (should use dbconnect)
         http_path = 'test_path'
         cluster_id = '1234'
@@ -397,20 +445,26 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
-        fetch_DT(
-            delta_table_name=delta_table_name,
-            json_output_folder=json_output_folder,
-            http_path=http_path,
-            cluster_id=cluster_id,
-            DATABRICKS_HOST=DATABRICKS_HOST,
-            DATABRICKS_TOKEN=DATABRICKS_TOKEN,
-            use_serverless=use_serverless,
-        )
+        with UncreatedNamedTemporaryFile(suffix='.jsonl',) as tf:
+            mock_combine_jsons.side_effect = _mock_write_jsonl(tf.name)
+            json_output_folder, json_output_filename = os.path.split(tf.name)
+            fetch_DT(
+                delta_table_name=delta_table_name,
+                json_output_folder=json_output_folder,
+                http_path=http_path,
+                cluster_id=cluster_id,
+                DATABRICKS_HOST=DATABRICKS_HOST,
+                DATABRICKS_TOKEN=DATABRICKS_TOKEN,
+                use_serverless=use_serverless,
+                json_output_filename=json_output_filename,
+            )
+
         mock_sql_connect.assert_called_once_with(
             server_hostname=DATABRICKS_HOST,
             http_path=http_path,
             access_token=DATABRICKS_TOKEN,
         )
+        mock_combine_jsons.assert_called_once()
 
     @patch(
         'databricks.sql.connect',
@@ -438,7 +492,6 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         mock_sql_connect: Any,
     ):
         delta_table_name = 'test_table'
-        json_output_folder = '/path/to/jsonl'
         # Execute function with http_path=None (should use dbconnect)
         http_path = 'test_path'
         cluster_id = '1234'
@@ -452,20 +505,25 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
-        fetch_DT(
-            delta_table_name=delta_table_name,
-            json_output_folder=json_output_folder,
-            http_path=http_path,
-            cluster_id=cluster_id,
-            DATABRICKS_HOST=DATABRICKS_HOST,
-            DATABRICKS_TOKEN=DATABRICKS_TOKEN,
-            use_serverless=use_serverless,
-        )
+        with UncreatedNamedTemporaryFile(suffix='.jsonl',) as tf:
+            mock_combine_jsons.side_effect = _mock_write_jsonl(tf.name)
+            json_output_folder, json_output_filename = os.path.split(tf.name)
+            fetch_DT(
+                delta_table_name=delta_table_name,
+                json_output_folder=json_output_folder,
+                http_path=http_path,
+                cluster_id=cluster_id,
+                DATABRICKS_HOST=DATABRICKS_HOST,
+                DATABRICKS_TOKEN=DATABRICKS_TOKEN,
+                use_serverless=use_serverless,
+                json_output_filename=json_output_filename,
+            )
         mock_sql_connect.assert_called_once_with(
             server_hostname='test-host',
             http_path=http_path,
             access_token=DATABRICKS_TOKEN,
         )
+        mock_combine_jsons.assert_called_once()
 
     @patch(
         'databricks.sql.connect',
@@ -493,7 +551,6 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         mock_sql_connect: Any,
     ):
         delta_table_name = 'test_table'
-        json_output_folder = '/path/to/jsonl'
         # Execute function with http_path=None (should use dbconnect)
         http_path = 'test_path'
         cluster_id = '1234'
@@ -504,17 +561,23 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         mock_cluster_response = Namespace(spark_version='14.2.0-scala2.12')
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
-        fetch_DT(
-            delta_table_name=delta_table_name,
-            json_output_folder=json_output_folder,
-            http_path=http_path,
-            cluster_id=cluster_id,
-            DATABRICKS_HOST=DATABRICKS_HOST,
-            DATABRICKS_TOKEN=DATABRICKS_TOKEN,
-            use_serverless=use_serverless,
-        )
+        with UncreatedNamedTemporaryFile(suffix='.jsonl',) as tf:
+            mock_combine_jsons.side_effect = _mock_write_jsonl(tf.name)
+            json_output_folder, json_output_filename = os.path.split(tf.name)
+            fetch_DT(
+                delta_table_name=delta_table_name,
+                json_output_folder=json_output_folder,
+                http_path=http_path,
+                cluster_id=cluster_id,
+                DATABRICKS_HOST=DATABRICKS_HOST,
+                DATABRICKS_TOKEN=DATABRICKS_TOKEN,
+                use_serverless=use_serverless,
+                json_output_filename=json_output_filename,
+            )
+
         assert not mock_sql_connect.called
         assert not mock_databricks_session.builder.remote.called
+        mock_combine_jsons.assert_called_once()
 
     def test_format_tablename(self):
         self.assertEqual(
@@ -617,7 +680,8 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
     ):
         # Create a spark.AnalysisException with specific details
         analysis_exception = AnalysisException(
-            message='[DELTA_TABLE_NOT_FOUND] yada yada',
+            message=
+            "[DELTA_TABLE_NOT_FOUND] Delta table `volume_name`.`table_name` doesn't exist",
         )
 
         # Configure the fetch function to raise the AnalysisException
@@ -644,3 +708,91 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
 
         # Verify that get_total_rows was called
         mock_gtr.assert_called_once()
+
+    def test_fetch_DT_catches_bad_download(self):
+        with NamedTemporaryFile() as tf:
+            file_name = tf.name
+            file_folder, file_name = os.path.split(file_name)
+            with self.assertRaises(StoragePermissionError):
+                _validate_written_file(
+                    file_folder,
+                    file_name,
+                    'test_delta_table',
+                )
+
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.get_total_rows',
+    )
+    def test_fetch_malformed_table_error(
+        self,
+        mock_gtr: MagicMock,
+    ):
+        # Create a spark.AnalysisException with specific details
+        server_exception = ServerOperationError(
+            '[UNRESOLVED_COLUMN.WITH_SUGGESTION] yada yada',
+        )
+
+        # Configure the fetch function to raise the AnalysisException
+        mock_gtr.side_effect = server_exception
+
+        # Test inputs
+        method = 'dbsql'
+        delta_table_name = 'test_table'
+        json_output_folder = '/tmp/to/jsonl'
+
+        # Act & Assert
+        with self.assertRaises(MalformedUCTableError):
+            fetch(
+                method=method,
+                tablename=delta_table_name,
+                json_output_folder=json_output_folder,
+            )
+
+        # Verify that get_total_rows was called
+        mock_gtr.assert_called_once()
+
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.fetch',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.validate_and_get_cluster_info',
+    )
+    def test_non_shared_single_user_cluster_error(
+        self,
+        mock_validate_cluster_info: MagicMock,
+        mock_fetch: MagicMock,
+    ):
+        mock_validate_cluster_info.return_value = ('dbconnect', None, None)
+
+        exception_message = 'Cluster is not Shared or Single User Cluster'
+        spark_exception = SparkConnectGrpcException(exception_message)
+
+        mock_fetch.side_effect = spark_exception
+
+        # Define test inputs
+        delta_table_name = 'test_table'
+        json_output_folder = '/tmp/to/jsonl'
+        http_path = None
+        cluster_id = 'test-cluster-id'
+        use_serverless = False
+        DATABRICKS_HOST = 'https://test-host'
+        DATABRICKS_TOKEN = 'test-token'
+
+        # Act & Assert
+        with self.assertRaises(FaultyDataPrepCluster) as context:
+            fetch_DT(
+                delta_table_name=delta_table_name,
+                json_output_folder=json_output_folder,
+                http_path=http_path,
+                cluster_id=cluster_id,
+                use_serverless=use_serverless,
+                DATABRICKS_HOST=DATABRICKS_HOST,
+                DATABRICKS_TOKEN=DATABRICKS_TOKEN,
+            )
+
+        self.assertIn(
+            f'The cluster you have provided: {cluster_id} does not have data governance enabled. Please use a cluster with a data security mode other than NONE.',
+            str(context.exception),
+        )
+
+        mock_fetch.assert_called()

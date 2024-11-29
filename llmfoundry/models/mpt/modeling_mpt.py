@@ -79,6 +79,8 @@ from llmfoundry.models.utils.param_init_fns import generic_param_init_fn_  # typ
 from llmfoundry.models.layers.norm import LPLayerNorm  # type: ignore
 # isort: on
 
+from llmfoundry.utils.warnings import VersionedDeprecationWarning
+
 log = logging.getLogger(__name__)
 
 CROSS_ENTROPY_IGNORE_INDEX = -100
@@ -99,6 +101,9 @@ _ALLOWED_LLAMA_CONFIG_KEYS = {
     # Not set but llama modeling code tries to read this attribute
     'partial_rotary_factor',
 
+    # This key is accessed with a default of hidden_size / num_attention_heads
+    'head_dim',
+
     # Benign transformers attributes needed for __init__
     '_get_generation_defaults',
     'label2id',
@@ -106,6 +111,7 @@ _ALLOWED_LLAMA_CONFIG_KEYS = {
     'torch_dtype',
     'problem_type',
     '__class__',
+    '_get_global_generation_defaults',
 }
 
 
@@ -1356,6 +1362,12 @@ def compute_loss_from_logits(
     else:
         loss = losses.sum() / (targets != loss_fn.ignore_index).sum()
         if sample_weighing_factor is not None:
+            warnings.warn(
+                VersionedDeprecationWarning(
+                    message='sample_weighing_factor has been deprecated!',
+                    remove_version='0.17.0',
+                ),
+            )
             if sample_weighing_factor.shape[0] > 1:
                 raise ValueError(
                     'Sample weighing factor is not supported when batch["sample_weighing_factor"].shape[0] > 1.',

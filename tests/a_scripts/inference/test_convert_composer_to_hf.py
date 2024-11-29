@@ -152,6 +152,13 @@ def check_hf_tokenizer_equivalence(
     tokenizer1.__dict__['init_kwargs'].pop('vocab_file', None)
     tokenizer2.__dict__['init_kwargs'].pop('vocab_file', None)
 
+    # tokenizer.init_kwargs['merges_file'] is set when loading with AutoTokenizer.from_pretrained, but is set to
+    # None when you save and reload the tokenizer only.
+    # Otherwise, merges_file will be the path that the tokenizer was loaded from, which will just be a temporary directory for
+    # the reloaded tokenizer, so we remove it and don't compare it between the two tokenizers.
+    tokenizer1.__dict__['init_kwargs'].pop('merges_file', None)
+    tokenizer2.__dict__['init_kwargs'].pop('merges_file', None)
+
     # vocab_file will be the path that the tokenizer was loaded from, which will just be a temporary directory for
     # the reloaded tokenizer, so we remove it and don't compare it between the two tokenizers
     tokenizer1.__dict__.pop('vocab_file', None)
@@ -617,7 +624,7 @@ def test_huggingface_conversion_callback_interval(
 def _get_model_and_tokenizer(
     model: str,
     max_seq_len: int,
-    tie_word_embeddings: bool,
+    tie_word_embeddings: Optional[bool],
     precision: str,
 ):
     if model == 'mpt':
@@ -1101,6 +1108,76 @@ def test_huggingface_conversion_callback(
 
     dist.barrier()
     delete_transformers_cache()
+
+
+@patch('os.cpu_count', MagicMock(return_value=1))
+@patch(
+    'llmfoundry.callbacks.hf_checkpointer.SpawnProcess',
+    new=MockSpawnProcess,
+)
+def test_transform_model_pre_registration():
+    """Test `transform_model_pre_registration` method is called."""
+
+    class ExtendedHuggingFaceCheckpointer(HuggingFaceCheckpointer):
+        """Set PEFT to false before registering for testing."""
+
+        def transform_model_pre_registration(self, model: PreTrainedModel):
+            self.using_peft = False
+            return super().transform_model_pre_registration(model)
+
+    model_cfg, tokenizer_name = _get_model_and_tokenizer(
+        model='neo',
+        max_seq_len=10,
+        tie_word_embeddings=None,
+        precision='bfloat16',
+    )
+    model_cfg['peft_config'] = {
+        'peft_type': 'LORA',
+        'task_type': 'CAUSAL_LM',
+        'lora_alpha': 32,
+        'lora_dropout': 0.05,
+        'r': 16,
+        'target_modules': 'all-linear',
+    }
+    tokenizer = build_tokenizer(
+        tokenizer_name=tokenizer_name,
+        tokenizer_kwargs={},
+    )
+
+    original_model = build_composer_model(
+        model_cfg.pop('name'),
+        tokenizer=tokenizer,
+        cfg=model_cfg,
+    )
+
+    logger = MagicMock()
+    state = MagicMock()
+    state.timestamp.batch = 1
+    state.is_model_ddp = False
+    state.model = original_model
+    state.model.tokenizer = tokenizer
+
+    checkpointer = ExtendedHuggingFaceCheckpointer(
+        save_folder='test',
+        save_interval='1ba',
+    )
+    mlflow_logger_mock = _create_mlflow_logger_mock()
+    checkpointer.mlflow_loggers = [mlflow_logger_mock]  # type: ignore
+
+    assert model_cfg is not None
+    assert tokenizer_name is not None
+
+    checkpointer._save_and_register_peft_model = MagicMock()
+    checkpointer.using_peft = True
+    checkpointer._save_checkpoint(
+        state=state,
+        logger=logger,
+        upload_to_save_folder=True,
+        register_to_mlflow=True,
+    )
+
+    checkpointer._save_and_register_peft_model.assert_not_called()
+    assert mlflow_logger_mock.log_model.call_count == 1
 
 
 # TODO(GRT-2431): Refactor as enums

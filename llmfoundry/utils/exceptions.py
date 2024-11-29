@@ -313,6 +313,21 @@ class UnableToProcessPromptResponseError(
 
 
 ## Convert Delta to JSON exceptions
+class MalformedUCTableError(UserError):
+    """Error thrown when the UC table has the wrong columns."""
+
+    def __init__(self, message: str) -> None:
+        self.message = message
+        super().__init__(message)
+
+    def __reduce__(self):
+        # Return a tuple of class, a tuple of arguments, and optionally state
+        return (MalformedUCTableError, (self.message,))
+
+    def __str__(self):
+        return self.message
+
+
 class ClusterDoesNotExistError(UserError):
     """Error thrown when the cluster does not exist."""
 
@@ -394,8 +409,10 @@ class OutputFolderNotEmptyError(UserError):
 class MisconfiguredHfDatasetError(UserError):
     """Error thrown when a HuggingFace dataset is misconfigured."""
 
-    def __init__(self, dataset_name: str, split: str) -> None:
+    def __init__(self, dataset_name: str, split: Optional[str] = None) -> None:
         message = f'Your dataset (name={dataset_name}, split={split}) is misconfigured. ' + \
+            'Please check your dataset format and make sure you can load your dataset locally.' \
+            if split is not None else f'Your dataset (name={dataset_name}) is misconfigured. ' + \
             'Please check your dataset format and make sure you can load your dataset locally.'
         super().__init__(message, dataset_name=dataset_name, split=split)
 

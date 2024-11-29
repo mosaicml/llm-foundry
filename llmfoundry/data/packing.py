@@ -10,6 +10,8 @@ import torch
 from composer.utils import dist
 from transformers import PreTrainedTokenizerBase
 
+from llmfoundry.utils.consts import CROSS_ENTROPY_IGNORE_INDEX
+
 log = logging.getLogger(__name__)
 
 __all__ = [
@@ -152,7 +154,7 @@ class BinPackCollator:
 
         pad_vals = {
             'input_ids': self.pad_token_id,
-            'labels': -100,
+            'labels': CROSS_ENTROPY_IGNORE_INDEX,
             'attention_mask': 0,
             'sequence_id': -1,
         }
@@ -317,7 +319,7 @@ def _combine_in_place(
     if 'labels' in add_on:
         # Prevents the last token in example from being trained to
         # predict the first token in add_on, which would make no sense.
-        add_on['labels'][0] = -100
+        add_on['labels'][0] = CROSS_ENTROPY_IGNORE_INDEX
 
     for k in example.keys():
         if k == 'sequence_id':
@@ -512,6 +514,10 @@ def profile_packing(
     big_batch = next(iter(train_dataloader))
 
     # Cut everything down to size
+    if 'total_tokens' in big_batch:
+        del big_batch['total_tokens']
+    if 'loss_generating_tokens' in big_batch:
+        del big_batch['loss_generating_tokens']
     sizes, trimmed_examples = _trim_batch(big_batch)
 
     def profile(raw_batch_size: int) -> tuple[Optional[float], Optional[float]]:

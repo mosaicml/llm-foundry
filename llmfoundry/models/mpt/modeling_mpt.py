@@ -79,7 +79,11 @@ from llmfoundry.models.utils.param_init_fns import generic_param_init_fn_  # typ
 from llmfoundry.models.layers.norm import LPLayerNorm  # type: ignore
 # isort: on
 
+from llmfoundry.utils.warnings import VersionedDeprecationWarning
+
 log = logging.getLogger(__name__)
+
+CROSS_ENTROPY_IGNORE_INDEX = -100
 
 
 class InvalidConfigAccessError(KeyError):
@@ -97,6 +101,9 @@ _ALLOWED_LLAMA_CONFIG_KEYS = {
     # Not set but llama modeling code tries to read this attribute
     'partial_rotary_factor',
 
+    # This key is accessed with a default of hidden_size / num_attention_heads
+    'head_dim',
+
     # Benign transformers attributes needed for __init__
     '_get_generation_defaults',
     'label2id',
@@ -104,6 +111,7 @@ _ALLOWED_LLAMA_CONFIG_KEYS = {
     'torch_dtype',
     'problem_type',
     '__class__',
+    '_get_global_generation_defaults',
 }
 
 
@@ -1181,7 +1189,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
         loss = None
         if labels is not None:
             _labels = torch.roll(labels, shifts=-1)
-            _labels[:, -1] = -100
+            _labels[:, -1] = CROSS_ENTROPY_IGNORE_INDEX
             loss = F.cross_entropy(
                 logits.view(-1, logits.size(-1)),
                 _labels.to(logits.device).view(-1),
@@ -1331,7 +1339,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
 
 def get_targets(labels: torch.Tensor) -> torch.Tensor:
     targets = torch.roll(labels, shifts=-1)
-    targets[:, -1] = -100
+    targets[:, -1] = CROSS_ENTROPY_IGNORE_INDEX
     return targets
 
 
@@ -1354,6 +1362,12 @@ def compute_loss_from_logits(
     else:
         loss = losses.sum() / (targets != loss_fn.ignore_index).sum()
         if sample_weighing_factor is not None:
+            warnings.warn(
+                VersionedDeprecationWarning(
+                    message='sample_weighing_factor has been deprecated!',
+                    remove_version='0.17.0',
+                ),
+            )
             if sample_weighing_factor.shape[0] > 1:
                 raise ValueError(
                     'Sample weighing factor is not supported when batch["sample_weighing_factor"].shape[0] > 1.',
@@ -1410,7 +1424,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
                     CrossEntropyLoss as FusedCrossEntropyLoss
 
                 self.loss_fn = FusedCrossEntropyLoss(
-                    ignore_index=-100,
+                    ignore_index=CROSS_ENTROPY_IGNORE_INDEX,
                     reduction='none',
                 )
             except:
@@ -1423,7 +1437,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
                 )
         elif loss_fn_config == 'torch_crossentropy':
             self.loss_fn = nn.CrossEntropyLoss(
-                ignore_index=-100,
+                ignore_index=CROSS_ENTROPY_IGNORE_INDEX,
                 reduction='none',
             )
         else:

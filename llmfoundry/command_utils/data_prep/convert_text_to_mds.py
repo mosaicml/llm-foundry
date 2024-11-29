@@ -515,6 +515,7 @@ def _configure_logging(logging_level: str):
     logging.basicConfig(
         format=
         f'%(asctime)s: [%(process)d][%(threadName)s]: %(levelname)s: %(name)s: %(message)s',
+        force=True,
     )
     logging_level = logging_level.upper()
     logging.getLogger('llmfoundry').setLevel(logging_level)

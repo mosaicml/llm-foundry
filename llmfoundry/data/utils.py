@@ -15,8 +15,58 @@ from llmfoundry.data.finetuning.collator import Seq2SeqFinetuningCollator
 from llmfoundry.data.finetuning.dataloader import build_collate_fn
 from llmfoundry.data.packing import BinPackCollator
 from llmfoundry.data.text_data import ConcatenatedSequenceCollatorWrapper
+from llmfoundry.utils.consts import CROSS_ENTROPY_IGNORE_INDEX
 
 log = logging.getLogger(__name__)
+
+
+class LossGeneratingTokensCollatorWrapper:
+    """Collator wrapper to add loss generating token counts to batch."""
+
+    def __init__(
+        self,
+        base_collator: Callable,
+        token_counting_func: Callable[[Batch], Union[int, dict[str, int]]],
+    ):
+        self.base_collator = base_collator
+        self.token_counting_func = token_counting_func
+
+        self._token_count_batch_keys = [
+            'input_ids',
+            'attention_mask',
+            'labels',
+            'decoder_attention_mask',
+        ]
+
+    def __call__(self, examples: list[Any]) -> dict[str, torch.Tensor]:
+        batch = self.base_collator(examples)
+
+        # Add token counts to batch as a list, one for each row, so that microbatch splitting works
+        output = {
+            'total_tokens': [],
+            'loss_generating_tokens': [],
+        }
+        num_rows = batch['input_ids'].shape[0]
+        for row in range(num_rows):
+            row_batch = {}
+            for key in self._token_count_batch_keys:
+                if key in batch:
+                    row_batch[key] = batch[key][row:row + 1]
+
+            num_tokens = self.token_counting_func(row_batch)
+            if isinstance(num_tokens, dict):
+                output['total_tokens'].append(num_tokens['total'])
+                output['loss_generating_tokens'].append(
+                    num_tokens['loss_generating'],
+                )
+            else:
+                output['total_tokens'].append(num_tokens)
+                output['loss_generating_tokens'].append(num_tokens)
+
+        batch['total_tokens'] = output['total_tokens']
+        batch['loss_generating_tokens'] = output['loss_generating_tokens']
+
+        return batch
 
 
 def _validate_cfg(
@@ -83,7 +133,7 @@ def get_data_spec(
 
 def get_tokens_per_batch_func(
     decoder_only: bool = True,
-) -> Callable[[Batch], int]:
+) -> Callable[[Batch], Union[int, dict[str, int]]]:
     """Returns a callable that counts the number of tokens in a batch.
 
     Args:
@@ -95,7 +145,7 @@ def get_tokens_per_batch_func(
         Callable[[Batch], int]: A callable that counts the number of tokens in a batch.
     """
 
-    def get_num_tokens_in_batch(batch: Batch) -> int:
+    def get_num_tokens_in_batch(batch: Batch) -> Union[int, dict[str, int]]:
         if not isinstance(batch, Mapping) or (
             'attention_mask' not in batch and 'input_ids' not in batch
         ):
@@ -108,11 +158,26 @@ def get_tokens_per_batch_func(
                 'get_tokens_per_batch_func() for encoder decoder requires a batch with a decoder_attention_mask key',
             )
 
+        # Short cut if the dataloader has already calculated the number of tokens
+        if 'total_tokens' in batch and 'loss_generating_tokens' in batch:
+            return {
+                'total': sum(batch['total_tokens']),
+                'loss_generating': sum(batch['loss_generating_tokens']),
+            }
+
         # Count number of non padding tokens in batch
         if 'attention_mask' in batch:
             input_ids_tokens = int(torch.sum(batch['attention_mask']).item())
         else:
             input_ids_tokens = batch['input_ids'].numel()
+
+        loss_generating_tokens = None
+        if 'labels' in batch:
+            loss_generating_tokens = (
+                batch['labels'].shape[0] * (batch['labels'].shape[1] - 1)
+            ) - torch.count_nonzero(
+                torch.eq(batch['labels'][..., 1:], CROSS_ENTROPY_IGNORE_INDEX),
+            )
 
         # For encoder decoder models only
         decoder_input_ids_tokens = 0
@@ -121,6 +186,11 @@ def get_tokens_per_batch_func(
                 torch.sum(batch['decoder_attention_mask']).item(),
             )
 
+        if loss_generating_tokens is not None:
+            return {
+                'total': input_ids_tokens + decoder_input_ids_tokens,
+                'loss_generating': loss_generating_tokens,
+            }
         return input_ids_tokens + decoder_input_ids_tokens
 
     return get_num_tokens_in_batch
@@ -131,7 +201,8 @@ def get_text_collator(
     tokenizer: PreTrainedTokenizerBase,
     dataset_batch_size: int,
 ) -> tuple[Union[transformers.DataCollatorForLanguageModeling,
-                 ConcatenatedSequenceCollatorWrapper], int]:
+                 ConcatenatedSequenceCollatorWrapper,
+                 LossGeneratingTokensCollatorWrapper], int]:
     dataset_cfg = dataloader_cfg.get('dataset')
     assert isinstance(dataset_cfg, dict)
     eos_token_id = dataset_cfg.get('eos_token_id', None)
@@ -151,6 +222,11 @@ def get_text_collator(
             bos_token_id=bos_token_id,
         )
 
+    collate_fn = LossGeneratingTokensCollatorWrapper(
+        collate_fn,
+        get_tokens_per_batch_func(),
+    )
+
     return collate_fn, dataset_batch_size
 
 
@@ -158,5 +234,15 @@ def get_finetuning_collator(
     dataloader_cfg: dict[str, Any],
     tokenizer: PreTrainedTokenizerBase,
     dataset_batch_size: int,
-) -> tuple[Union[Seq2SeqFinetuningCollator, BinPackCollator], int]:
-    return build_collate_fn(dataloader_cfg, tokenizer, dataset_batch_size)
+) -> tuple[Union[Seq2SeqFinetuningCollator, BinPackCollator,
+                 LossGeneratingTokensCollatorWrapper], int]:
+    collate_fn, dataset_batch_size = build_collate_fn(
+        dataloader_cfg,
+        tokenizer,
+        dataset_batch_size,
+    )
+    collate_fn = LossGeneratingTokensCollatorWrapper(
+        collate_fn,
+        get_tokens_per_batch_func(),
+    )
+    return collate_fn, dataset_batch_size

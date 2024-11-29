@@ -7,6 +7,7 @@ import pytest
 import transformers
 
 from llmfoundry.data.finetuning.tasks import (
+    _DEFAULT_CHAT_TEMPLATE,
     _slice_chat_formatted_example,
     dataset_constructor,
     tokenize_formatted_example,
@@ -303,6 +304,9 @@ def test_multi_turn_chat_slicing(
     # Manually set a chat template to test if the date_string is being used.
     if use_date_string:
         tok.chat_template = "{%- if not date_string is defined %}\n    {%- set date_string = \"26 Jul 2024\" %}\n{%- endif %}\n{{- \"Today Date: \" + date_string }}\n"
+
+    if not tok.chat_template:
+        tok.chat_template = _DEFAULT_CHAT_TEMPLATE
 
     templated_prompt_response_turns = _slice_chat_formatted_example(
         example,

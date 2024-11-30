@@ -22,8 +22,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-        - name: "gpu-2.4.0-1"
-          container: mosaicml/llm-foundry:2.4.0_cu124-latest
+        - name: "gpu-2.5.1-1"
+          container: mosaicml/llm-foundry:2.5.1_cu124-latest
           markers: "gpu"
           pip_deps: "[all]"
           pytest_command: "coverage run -m pytest"
@@ -51,8 +51,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-        - name: "gpu-2.4.0-2"
-          container: mosaicml/llm-foundry:2.4.0_cu124-latest
+        - name: "gpu-2.5.1-2"
+          container: mosaicml/llm-foundry:2.5.1_cu124-latest
           markers: "gpu"
           pip_deps: "[all]"
           pytest_command: "coverage run -m pytest"
@@ -80,8 +80,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-        - name: "gpu-2.4.0-4"
-          container: mosaicml/llm-foundry:2.4.0_cu124-latest
+        - name: "gpu-2.5.1-4"
+          container: mosaicml/llm-foundry:2.5.1_cu124-latest
           markers: "gpu"
           pip_deps: "[all]"
           pytest_command: "coverage run -m pytest"

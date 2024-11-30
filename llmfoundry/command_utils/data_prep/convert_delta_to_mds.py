@@ -32,7 +32,10 @@ def get_conversion_config(
         provided_dtypes (Optional[Dict]): The provided dtypes.
     """
     if provided_dtypes is not None:
-        return provided_dtypes, lambda x: x
+        convert_x = lambda x: {
+            k: np.array(v, dtype=provided_dtypes.get(k)) for k, v in x.items()
+        }
+        return provided_dtypes, convert_x
 
     if len(columns) != 1:
         raise ValueError(

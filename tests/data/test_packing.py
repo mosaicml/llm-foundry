@@ -208,15 +208,15 @@ def test_auto_packing_with_streaming_dataloader(tmp_path: Path):
         **base_cfg,
         'dataset': {
             **base_cfg['dataset'],
-            'streams': [
-                {
+            'streams': {
+                'stream_with_remote': {
                     'remote': remote_dir,
                     'local': local_dir,
                 },
-                {
+                'stream_without_remote': {
                     'local': remote_dir,
                 },
-            ],
+            },
         },
     })
 

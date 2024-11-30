@@ -178,10 +178,9 @@ def test_auto_packing_with_streaming_dataloader(tmp_path: Path):
     local_dir = str(tmp_path / 'local')
     with MDSWriter(out=remote_dir, columns=columns, compression=None) as out:
         out.write({'prompt': 'HELLO', 'response': 'WORLD'})
-    cfg = DictConfig({
+
+    base_cfg = {
         'dataset': {
-            'remote': remote_dir,
-            'local': local_dir,
             'packing_ratio': 'auto',
             'max_seq_len': 200,
             'decoder_only_format': True,
@@ -194,28 +193,57 @@ def test_auto_packing_with_streaming_dataloader(tmp_path: Path):
         'prefetch_factor': None,
         'persistent_workers': False,
         'timeout': 0,
+    }
+
+    remote_cfg = DictConfig({
+        **base_cfg,
+        'dataset': {
+            **base_cfg['dataset'],
+            'remote': remote_dir,
+            'local': local_dir,
+        },
     })
 
-    loader = build_finetuning_dataloader(
-        **cfg,
-        tokenizer=tokenizer,
-        device_batch_size=6,
-    ).dataloader
+    streams_cfg = DictConfig({
+        **base_cfg,
+        'dataset': {
+            **base_cfg['dataset'],
+            'streams': [
+                {
+                    'remote': remote_dir,
+                    'local': local_dir,
+                },
+                {
+                    'local': remote_dir,
+                },
+            ],
+        },
+    })
 
-    batch_ix = 0
-    for _ in loader:
-        batch_ix += 1
-        if batch_ix >= 3:
-            break
+    for cfg in [remote_cfg, streams_cfg]:
+        loader = build_finetuning_dataloader(
+            **cfg,
+            tokenizer=tokenizer,
+            device_batch_size=6,
+        ).dataloader
 
-    assert isinstance(loader, DataLoader)
-    assert isinstance(loader.dataset, StreamingFinetuningDataset)
-    assert loader.dataset.packing_ratio is not None
-    assert isinstance(loader.batch_size, int)
-    assert loader.dataset.packing_ratio == int(loader.batch_size / 6)
+        batch_ix = 0
+        for _ in loader:
+            batch_ix += 1
+            if batch_ix >= 3:
+                break
 
-    state_dict = loader.dataset.state_dict(num_samples=2, from_beginning=False)
-    assert state_dict['sample_in_epoch'] == 2 * loader.dataset.packing_ratio
+        assert isinstance(loader, DataLoader)
+        assert isinstance(loader.dataset, StreamingFinetuningDataset)
+        assert loader.dataset.packing_ratio is not None
+        assert isinstance(loader.batch_size, int)
+        assert loader.dataset.packing_ratio == int(loader.batch_size / 6)
+
+        state_dict = loader.dataset.state_dict(
+            num_samples=2,
+            from_beginning=False,
+        )
+        assert state_dict['sample_in_epoch'] == 2 * loader.dataset.packing_ratio
 
 
 @pytest.mark.parametrize('packing_ratio', ['auto', 2.0])

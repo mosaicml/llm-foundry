@@ -485,6 +485,8 @@ def profile_packing(
             tmp_path_to_broadcast = tempfile.TemporaryDirectory().name
             gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
             tmp_path = gathered_paths[local_rank_zero]
+            if stream_config.get('remote') is None:
+                stream_config['remote'] = stream_config['local']
             stream_config['local'] = tmp_path
 
     # Determine the packing_ratio values we'll try

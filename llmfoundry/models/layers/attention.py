@@ -460,8 +460,8 @@ def flex_attn_fn(
     sliding_window_size: int = -1,
     alibi_slopes: Optional[torch.Tensor] = None,
     attn_logit_softcapping: Optional[float] = None,
-    block_mask_dict: Optional[dict[str, dict[str, Any]]] = None,
-    score_mod_dict: Optional[dict[str, dict[str, Any]]] = None,
+    block_mask_list: Optional[list[dict[str, Any]]] = None,
+    score_mod_list: Optional[list[dict[str, Any]]] = None,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
     del training, should_repeat_kv_for_gqa
@@ -490,34 +490,60 @@ def flex_attn_fn(
     key = rearrange(key, 'b s (h d) -> b h s d', h=kv_n_heads)
     value = rearrange(value, 'b s (h d) -> b h s d', h=kv_n_heads)
 
-    block_mask_dict = block_mask_dict if block_mask_dict is not None else {}
+    def _check_mod_list(mod_list: list[dict[str, Any]], name: str):
+        for mod in mod_list:
+            if mod['name'] == name:
+                raise ValueError(
+                    f'{name} mod should not be defined through flex attention config.',
+                )
+
+    block_mask_list = block_mask_list if block_mask_list is not None else []
     if is_causal:
-        block_mask_dict['causal'] = {}
+        _check_mod_list(block_mask_list, 'causal')
+        block_mask_list.append({'name': 'causal', 'mask_kwargs': {}})
     if sliding_window_size != -1:
-        block_mask_dict['sliding_window'] = {
-            'sliding_window_size': sliding_window_size,
-        }
+        _check_mod_list(block_mask_list, 'sliding_window')
+        block_mask_list.append({
+            'name': 'sliding_window',
+            'mask_kwargs': {
+                'sliding_window_size': sliding_window_size,
+            },
+        })
     if 'sequence_id' in sequence_id_transforms:
-        block_mask_dict['sequence_id'] = {
-            'sequence_id_transform': 'sequence_id',
-        }
+        _check_mod_list(block_mask_list, 'sequence_id')
+        block_mask_list.append({
+            'name': 'sliding_window',
+            'mask_kwargs': {
+                'sequence_id_transform': 'sequence_id',
+            },
+        })
     block_mask = _generate_block_mask(
         Q_LEN=query.shape[2],
         KV_LEN=key.shape[2],
         B=query.shape[0],
-        block_mask_dict=block_mask_dict,
+        block_mask_list=block_mask_list,
         compiled_create_block_mask=compiled_create_block_mask,
         sequence_id_transforms=sequence_id_transforms,
     )
 
-    score_mod_dict = score_mod_dict if score_mod_dict is not None else {}
+    score_mod_list = score_mod_list if score_mod_list is not None else []
     if alibi_slopes is not None:
-        score_mod_dict['alibi'] = {'alibi_slopes': alibi_slopes}
+        _check_mod_list(score_mod_list, 'alibi')
+        score_mod_list.append({
+            'name': 'alibi',
+            'mod_kwargs': {
+                'alibi_slopes': alibi_slopes,
+            },
+        })
     if attn_logit_softcapping is not None:
-        score_mod_dict['softcap'] = {
-            'attn_logit_softcapping': attn_logit_softcapping,
-        }
-    score_mod = _generate_score_mod(score_mod_dict)
+        _check_mod_list(score_mod_list, 'softcap')
+        score_mod_list.append({
+            'name': 'softcap',
+            'mod_kwargs': {
+                'attn_logit_softcapping': attn_logit_softcapping,
+            },
+        })
+    score_mod = _generate_score_mod(score_mod_list)
 
     output = compiled_flex_attention(
         query,
@@ -536,18 +562,20 @@ def _generate_block_mask(
     Q_LEN: int,
     KV_LEN: int,
     B: int,
-    block_mask_dict: dict[str, dict[str, Any]],
+    block_mask_list: list[dict[str, Any]],
     compiled_create_block_mask: Any,
     sequence_id_transforms: dict[str, Any],
 ):
     block_mask_fn = flex_attention_mask_mods.get('noop')()
-    for mask_type, mask_kwargs in block_mask_dict.items():
+    for mask_dict in block_mask_list:
+        mask_kwargs = mask_dict['mask_kwargs']
+        mask_name = mask_dict['name']
         if 'sequence_id_transform' in mask_kwargs:
             mask_kwargs['sequence_id_transform'] = sequence_id_transforms[
                 mask_kwargs['sequence_id_transform']]
         block_mask_fn = and_masks(
             block_mask_fn,
-            flex_attention_mask_mods.get(mask_type)(**mask_kwargs),
+            flex_attention_mask_mods.get(mask_name)(**mask_kwargs),
         )
 
     extra_mask_kwargs = {}
@@ -626,12 +654,14 @@ def _get_sequence_id_mask_mod_fn(
     return sequence_id_mask_fn
 
 
-def _generate_score_mod(score_mod_dict: dict[str, dict[str, Any]],):
+def _generate_score_mod(score_mod_list: list[dict[str, Any]],):
     score_mod = flex_attention_score_mods.get('noop')()
-    for mod_type, mod_kwargs in score_mod_dict.items():
+    for score_mod in score_mod_list:
+        mod_name = score_mod['name']
+        mod_kwargs = score_mod['mod_kwargs']
         score_mod = _wrap_score_mod_fns(
             score_mod,
-            flex_attention_score_mods.get(mod_type)(**mod_kwargs),
+            flex_attention_score_mods.get(mod_name)(**mod_kwargs),
         )
 
     return score_mod

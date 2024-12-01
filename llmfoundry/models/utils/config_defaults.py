@@ -36,8 +36,8 @@ attn_config_defaults: dict = {
     'kv_dim': None,
     'flex_attn_config': {
         'sequence_id_transformers': [],
-        'block_mask_dict': {},
-        'score_mod_dict': {},
+        'block_mask_list': [],
+        'score_mod_list': [],
     },
 }
 

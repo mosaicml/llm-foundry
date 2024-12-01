@@ -27,6 +27,7 @@ from llmfoundry.layers_registry import (
     module_init_fns,
     norms,
     param_init_fns,
+    sequence_id_transformer_registry,
 )
 from llmfoundry.utils.registry_utils import create_registry
 
@@ -436,6 +437,7 @@ __all__ = [
     'attention_implementations',
     'flex_attention_score_mods',
     'flex_attention_mask_mods',
+    'sequence_id_transformer_registry',
     'fcs',
     'icl_datasets',
     'config_transforms',

@@ -543,6 +543,11 @@ def flex_attn_fn(
             },
         })
     if attn_logit_softcapping is not None:
+        if int(attn_logit_softcapping) != attn_logit_softcapping:
+            raise ValueError(
+                f'FlexAttention does not support attn_logit_softcapping with float softcap temperature. Got {attn_logit_softcapping=}. Please set consider rounding it to the closest integer.',
+            )
+        attn_logit_softcapping = int(attn_logit_softcapping)
         _check_mod_list(score_mod_list, 'softcap')
         score_mod_list.append({
             'name': 'softcap',
@@ -754,7 +759,7 @@ def _get_alibi_score_mod_fn(alibi_slopes: torch.Tensor) -> _score_mod_signature:
 
 
 def _get_softcap_score_mod_fn(
-    attn_logit_softcapping: float,
+    attn_logit_softcapping: int,
 ) -> _score_mod_signature:
 
     def _softcap_score_fn(

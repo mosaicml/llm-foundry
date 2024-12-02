@@ -448,6 +448,14 @@ def test_attn_logit_softcapping(
         pytest.skip(
             'FlexAttention is not supported in torch version {torch.__version__}<2.5.0.',
         )
+    if attn_impl == 'flex' and attn_logit_softcapping is not None:
+        if int(attn_logit_softcapping) != attn_logit_softcapping:
+            pytest.skip(
+                'FlexAttention does not support attn_logit_softcapping with float softcap temperature.',
+            )
+        else:
+            attn_logit_softcapping = int(attn_logit_softcapping)
+
     dtype = torch.bfloat16
     device = 'cuda'
     d = 128

@@ -14,7 +14,6 @@ from einops import rearrange
 from packaging import version
 from torch import nn
 from torch.nn.attention.flex_attention import (
-    _DEFAULT_SPARSE_BLOCK_SIZE,
     _mask_mod_signature,
     _score_mod_signature,
     and_masks,

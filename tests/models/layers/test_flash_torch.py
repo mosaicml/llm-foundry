@@ -300,11 +300,11 @@ def test_attn_impl(
                 'compiled_flex_attention':
                     flex_attention,  # TODO: torch.compile(flex_attention) doesn't work, maybe because the data dims are too small for compiled kernels. Confirm this hypothesis.
                 'compiled_create_block_mask': torch.compile(create_block_mask),
+                'sequence_id_transforms': {},
             }
             if sequence_id is not None:
-                extra_kwargs['flex_attn_kwargs']['sequence_id_transforms'] = {
-                    'sequence_id': sequence_id,
-                }
+                extra_kwargs['flex_attn_kwargs']['sequence_id_transforms'][
+                    'sequence_id'] = sequence_id
         y0, _, _ = attn0(
             x0,
             past_key_value=None,

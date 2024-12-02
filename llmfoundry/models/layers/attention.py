@@ -586,15 +586,15 @@ def _generate_block_mask(
         )
 
     extra_mask_kwargs = {}
-    assert Q_LEN == KV_LEN
-    if Q_LEN % _DEFAULT_SPARSE_BLOCK_SIZE != 0:
-        # The default block size is _DEFAULT_SPARSE_BLOCK_SIZE (https://github.com/pytorch/pytorch/blob/main/torch/nn/attention/flex_attention.py).
-        # If sequence length is not a multiple of the default block size (for example in unit tests), we need to set the block size explicitly.
-        # TODO: Confirm the hypothesis.
-        warnings.warn(
-            f'The sequence length ({Q_LEN}) is not a multiple of the default block size ({_DEFAULT_SPARSE_BLOCK_SIZE}). Setting the block size to sequence length. This may cause unexpected behavior.',
-        )
-        extra_mask_kwargs['BLOCK_SIZE'] = Q_LEN
+    # TODO: Check if this is necessary.
+    # if Q_LEN % _DEFAULT_SPARSE_BLOCK_SIZE != 0: # And a similar test for KV_LEN
+    #     # The default block size is _DEFAULT_SPARSE_BLOCK_SIZE (https://github.com/pytorch/pytorch/blob/main/torch/nn/attention/flex_attention.py).
+    #     # If sequence length is not a multiple of the default block size (for example in unit tests), we need to set the block size explicitly.
+    #     # TODO: Confirm the hypothesis.
+    #     warnings.warn(
+    #         f'The sequence length ({Q_LEN}) is not a multiple of the default block size ({_DEFAULT_SPARSE_BLOCK_SIZE}). Setting the block size to sequence length. This may cause unexpected behavior.',
+    #     )
+    #     extra_mask_kwargs['BLOCK_SIZE'] = Q_LEN
     block_mask = compiled_create_block_mask(
         block_mask_fn,
         B=B,

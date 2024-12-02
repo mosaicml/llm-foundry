@@ -7,6 +7,7 @@ import pytest
 import torch
 from composer.utils import reproducibility
 from packaging import version
+from torch.nn.attention.flex_attention import create_block_mask, flex_attention
 
 from llmfoundry.models.layers.attention import (
     attention_implementations,
@@ -211,6 +212,13 @@ def test_sliding_window(sliding_window_size: int, attn_impl: str):
                 ),
             'should_repeat_kv_for_gqa':
                 True,
+        }
+    elif attn_impl == 'flex':
+        attn_extra_kwargs = {
+            'compiled_flex_attention':
+                flex_attention,  # TODO: torch.compile(flex_attention) doesn't work, maybe because the data dims are too small for compiled kernels. Confirm this hypothesis.
+            'compiled_create_block_mask': torch.compile(create_block_mask),
+            'sequence_id_transforms': {},
         }
 
     output_1, _, _ = attention_implementations.get(attn_impl)(

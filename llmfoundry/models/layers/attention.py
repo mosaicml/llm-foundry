@@ -519,7 +519,7 @@ def flex_attn_fn(
                 break
         if not switch_off_default_sequence_id_masking:
             block_mask_list.append({
-                'name': 'sliding_window',
+                'name': 'sequence_id',
                 'mask_kwargs': {
                     'sequence_id_transform': 'sequence_id',
                 },

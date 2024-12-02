@@ -268,7 +268,7 @@ def attn_mask_in_len_transformer(
             0,
         )
     if return_pos_in_seq:
-        return one_hot_seq_id.cumsum(dim=1).sum(dim=-1)
+        return one_hot_seq_id.cumsum(dim=1).sum(dim=-1) - 1
 
     attention_mask_in_length = one_hot_seq_id.sum(dim=1)
     attention_mask_in_length = torch.nn.functional.pad(

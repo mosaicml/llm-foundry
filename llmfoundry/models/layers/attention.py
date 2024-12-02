@@ -511,12 +511,19 @@ def flex_attn_fn(
         })
     if 'sequence_id' in sequence_id_transforms:
         _check_mod_list(block_mask_list, 'sequence_id')
-        block_mask_list.append({
-            'name': 'sliding_window',
-            'mask_kwargs': {
-                'sequence_id_transform': 'sequence_id',
-            },
-        })
+        switch_off_default_sequence_id_masking = False
+        for mod in block_mask_list:
+            if 'switch_off_default_sequence_id_masking' in mod and mod[
+                'switch_off_default_sequence_id_masking']:
+                switch_off_default_sequence_id_masking = True
+                break
+        if not switch_off_default_sequence_id_masking:
+            block_mask_list.append({
+                'name': 'sliding_window',
+                'mask_kwargs': {
+                    'sequence_id_transform': 'sequence_id',
+                },
+            })
     block_mask = _generate_block_mask(
         Q_LEN=query.shape[2],
         KV_LEN=key.shape[2],

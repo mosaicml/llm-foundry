@@ -7,6 +7,7 @@ from typing import Optional
 import pytest
 import torch
 from packaging import version
+from torch.nn.attention.flex_attention import create_block_mask, flex_attention
 
 from llmfoundry.models.layers.attention import (
     attention_implementations,
@@ -64,6 +65,13 @@ def test_gqa_kv_repetition(attn_impl: str, kv_n_heads: int):
             'should_repeat_kv_for_gqa':
                 True,
         }
+    elif attn_impl == 'flex':
+        extra_attn_kwargs = {
+            'compiled_flex_attention':
+                flex_attention,  # TODO: torch.compile(flex_attention) doesn't work, maybe because the data dims are too small for compiled kernels. Confirm this hypothesis.
+            'compiled_create_block_mask': torch.compile(create_block_mask),
+            'sequence_id_transforms': {},
+        }
 
     output_1, _, _ = attention_implementations.get(attn_impl)(
         query=query_1,
@@ -105,6 +113,14 @@ def test_gqa_kv_repetition(attn_impl: str, kv_n_heads: int):
             'should_repeat_kv_for_gqa':
                 False,
         }
+    elif attn_impl == 'flex':
+        extra_attn_kwargs = {
+            'compiled_flex_attention':
+                flex_attention,  # TODO: torch.compile(flex_attention) doesn't work, maybe because the data dims are too small for compiled kernels. Confirm this hypothesis.
+            'compiled_create_block_mask': torch.compile(create_block_mask),
+            'sequence_id_transforms': {},
+        }
+
     output_2, _, _ = attention_implementations.get(attn_impl)(
         query=query_2,
         key=key_2,
@@ -181,7 +197,14 @@ def test_seq_id_masking_FA_v2(attn_impl: str):
     if attn_impl == 'flash':
         extra_attn_kwargs['flash_attn_padding_info'] = flash_attn_padding_info_1
     elif attn_impl == 'flex':
-        extra_attn_kwargs['sequence_id'] = sequence_id
+        extra_attn_kwargs = {
+            'compiled_flex_attention':
+                flex_attention,  # TODO: torch.compile(flex_attention) doesn't work, maybe because the data dims are too small for compiled kernels. Confirm this hypothesis.
+            'compiled_create_block_mask': torch.compile(create_block_mask),
+            'sequence_id_transforms': {
+                'sequence_id': sequence_id,
+            },
+        }
     output_1, _, _ = attention_implementations.get(attn_impl)(
         query=query_1,
         key=key_1,
@@ -221,6 +244,15 @@ def test_seq_id_masking_FA_v2(attn_impl: str):
         if attn_impl == 'flash':
             extra_attn_kwargs['flash_attn_padding_info'
                              ] = flash_attn_padding_info_2
+        elif attn_impl == 'flex':
+            extra_attn_kwargs = {
+                'compiled_flex_attention':
+                    flex_attention,  # TODO: torch.compile(flex_attention) doesn't work, maybe because the data dims are too small for compiled kernels. Confirm this hypothesis.
+                'compiled_create_block_mask': torch.compile(create_block_mask),
+                'sequence_id_transforms': {
+                    'sequence_id': sequence_id,
+                },
+            }
         output_2, _, _ = attention_implementations.get(attn_impl)(
             query=query_2,
             key=key_2,
@@ -307,6 +339,13 @@ def test_alibi_bias(attn_impl: str, n_heads: int):
                 ),
             'should_repeat_kv_for_gqa':
                 True,
+        }
+    elif attn_impl == 'flex':
+        extra_attn_kwargs = {
+            'compiled_flex_attention':
+                flex_attention,  # TODO: torch.compile(flex_attention) doesn't work, maybe because the data dims are too small for compiled kernels. Confirm this hypothesis.
+            'compiled_create_block_mask': torch.compile(create_block_mask),
+            'sequence_id_transforms': {},
         }
     output_1, _, _ = attention_implementations.get(attn_impl)(
         query=query_1,
@@ -439,6 +478,13 @@ def test_attn_logit_softcapping(
                 ),
             'should_repeat_kv_for_gqa':
                 True,
+        }
+    elif attn_impl == 'flex':
+        extra_attn_kwargs = {
+            'compiled_flex_attention':
+                flex_attention,  # TODO: torch.compile(flex_attention) doesn't work, maybe because the data dims are too small for compiled kernels. Confirm this hypothesis.
+            'compiled_create_block_mask': torch.compile(create_block_mask),
+            'sequence_id_transforms': {},
         }
     output_1, _, _ = attention_implementations.get(attn_impl)(
         query=query_1,

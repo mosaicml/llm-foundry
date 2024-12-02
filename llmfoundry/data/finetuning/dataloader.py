@@ -180,6 +180,7 @@ def build_finetuning_dataloader(
         given a starting workload YAML.
     """
     dataset_cfg = dataset
+    print("🦖🦖🦖🦖 build finetuning dataloader called with dataset_cfg: ", dataset_cfg)
     is_streaming = (
         dataset_cfg.get('remote') is not None or
         dataset_cfg.get('streams') is not None

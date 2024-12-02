@@ -118,7 +118,7 @@ def test_sort_callbacks():
     trainer_mock = Mock()
     trainer_mock.state.callbacks = [
         CheckpointSaver(),
-        HuggingFaceCheckpointer('save-folder', '1ba'),
+        HuggingFaceCheckpointer(save_interval='1ba', save_folder='save-folder'),
         RunTimeoutCallback(),
     ]
     _sort_callbacks(trainer_mock)

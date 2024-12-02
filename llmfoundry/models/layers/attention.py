@@ -938,9 +938,11 @@ class GroupedQueryAttention(nn.Module):
 
         if self.attn_impl == 'flex':
             if flex_attn_config is None:
-                raise ValueError(
-                    'flex_attn_config must be provided for flex attention.',
-                )
+                flex_attn_config = {
+                    'sequence_id_transformers': [],
+                    'block_mask_list': [],
+                    'score_mod_list': [],
+                }
             self.flex_attn_config = flex_attn_config
 
     def forward(

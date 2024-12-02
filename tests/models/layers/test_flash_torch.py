@@ -5,7 +5,9 @@ import pytest
 import torch
 from omegaconf import OmegaConf as om
 from packaging import version
+from torch.nn.attention.flex_attention import create_block_mask, flex_attention
 
+from llmfoundry.layers_registry import sequence_id_transformer_registry
 from llmfoundry.models.layers import attention
 from llmfoundry.models.layers.attention import (
     check_alibi_support,
@@ -15,7 +17,6 @@ from llmfoundry.models.layers.attention import (
 from llmfoundry.models.layers.layer_builders import build_attention_layer
 from llmfoundry.models.mpt.modeling_mpt import (
     apply_sequence_id,
-    gen_attention_mask_in_length,
     gen_flash_attn_padding_info,
     gen_rotary_embedding,
 )
@@ -209,13 +210,15 @@ def test_attn_impl(
 
         return attn_bias
 
-    attention_mask_in_length_0 = gen_attention_mask_in_length(
-        sequence_id=sequence_id,
-        S=s,
-        attn_uses_sequence_id=attn_uses_sequence_id,
-        attn_impl=attn_impl_0,
-        attention_mask=attention_mask,
-    )
+    attention_mask_in_length_0 = None
+    if attn_uses_sequence_id and attn_impl_0 == 'flash':
+        attention_mask_in_length_0 = sequence_id_transformer_registry.get(
+            'attention_mask_in_length',
+        )(
+            sequence_id=sequence_id,
+            S=s,
+            attention_mask=attention_mask,
+        )
 
     flash_attn_padding_info_0 = {}
     if attn_impl_0 == 'flash':
@@ -228,13 +231,15 @@ def test_attn_impl(
             attention_mask,
         )
 
-    attention_mask_in_length_1 = gen_attention_mask_in_length(
-        sequence_id=sequence_id,
-        S=s,
-        attn_uses_sequence_id=attn_uses_sequence_id,
-        attn_impl=attn_impl_1,
-        attention_mask=attention_mask,
-    )
+    attention_mask_in_length_1 = None
+    if attn_uses_sequence_id and attn_impl_1 == 'flash':
+        attention_mask_in_length_1 = sequence_id_transformer_registry.get(
+            'attention_mask_in_length',
+        )(
+            sequence_id=sequence_id,
+            S=s,
+            attention_mask=attention_mask,
+        )
 
     flash_attn_padding_info_1 = {}
     if attn_impl_1 == 'flash':
@@ -289,7 +294,17 @@ def test_attn_impl(
                 'seq_len':
                     s,
             }
-
+        extra_kwargs = {}
+        if attn_impl_0 == 'flex':
+            extra_kwargs['flex_attn_kwargs'] = {
+                'compiled_flex_attention':
+                    flex_attention,  # TODO: torch.compile(flex_attention) doesn't work, maybe because the data dims are too small for compiled kernels. Confirm this hypothesis.
+                'compiled_create_block_mask': torch.compile(create_block_mask),
+            }
+            if sequence_id is not None:
+                extra_kwargs['flex_attn_kwargs']['sequence_id_transforms'] = {
+                    'sequence_id': sequence_id,
+                }
         y0, _, _ = attn0(
             x0,
             past_key_value=None,
@@ -299,7 +314,7 @@ def test_attn_impl(
             is_causal=True,
             flash_attn_padding_info=flash_attn_padding_info_0,
             alibi_slopes=alibi_slopes_0,
-            sequence_id=sequence_id,
+            **extra_kwargs,
         )
         attn_bias_1 = gen_bias(attn_impl_1)
         alibi_slopes_1 = None
@@ -310,6 +325,19 @@ def test_attn_impl(
                 device=torch.device(device),
                 return_1d=True,
             )
+
+        extra_kwargs = {}
+        if attn_impl_1 == 'flex':
+            extra_kwargs['flex_attn_kwargs'] = {
+                'compiled_flex_attention':
+                    flex_attention,  # TODO: torch.compile(flex_attention) doesn't work, maybe because the data dims are too small for compiled kernels. Confirm this hypothesis.
+                'compiled_create_block_mask': torch.compile(create_block_mask),
+            }
+            if sequence_id is not None:
+                extra_kwargs['flex_attn_kwargs']['sequence_id_transforms'] = {
+                    'sequence_id': sequence_id,
+                }
+
         y1, _, _ = attn1(
             x1,
             past_key_value=None,
@@ -319,7 +347,7 @@ def test_attn_impl(
             is_causal=True,
             flash_attn_padding_info=flash_attn_padding_info_1,
             alibi_slopes=alibi_slopes_1,
-            sequence_id=sequence_id,
+            **extra_kwargs,
         )
         y0 *= attention_mask.unsqueeze(-1)
         y1 *= attention_mask.unsqueeze(-1)
@@ -673,13 +701,15 @@ def test_reuse_prev_layer_kv_cache(
 
         return attn_bias
 
-    attention_mask_in_length = gen_attention_mask_in_length(
-        sequence_id=sequence_id,
-        S=s,
-        attn_uses_sequence_id=True,
-        attn_impl=attn_impl,
-        attention_mask=attention_mask,
-    )
+    attention_mask_in_length = None
+    if attn_impl == 'flash':
+        attention_mask_in_length = sequence_id_transformer_registry.get(
+            'attention_mask_in_length',
+        )(
+            sequence_id=sequence_id,
+            S=s,
+            attention_mask=attention_mask,
+        )
 
     flash_attn_padding_info = gen_flash_attn_padding_info(
         n,
@@ -732,7 +762,16 @@ def test_reuse_prev_layer_kv_cache(
                 'seq_len':
                     s,
             }
-
+        extra_kwargs = {}
+        if attn_impl == 'flex':
+            extra_kwargs['flex_attn_kwargs'] = {
+                'compiled_flex_attention':
+                    flex_attention,  # TODO: torch.compile(flex_attention) doesn't work, maybe because the data dims are too small for compiled kernels. Confirm this hypothesis.
+                'compiled_create_block_mask': torch.compile(create_block_mask),
+                'sequence_id_transforms': {
+                    'sequence_id': sequence_id,
+                },
+            }
         y0, _, prev_layer_key_value = attn0(
             x0,
             past_key_value=(),
@@ -742,7 +781,7 @@ def test_reuse_prev_layer_kv_cache(
             is_causal=True,
             flash_attn_padding_info=flash_attn_padding_info,
             alibi_slopes=alibi_slopes_0,
-            sequence_id=sequence_id,
+            **extra_kwargs,
         )
         attn_bias_1 = gen_bias(attn_impl)
         alibi_slopes_1 = None
@@ -757,6 +796,16 @@ def test_reuse_prev_layer_kv_cache(
         prev_layer_key_value = [
             t.clone().detach() for t in prev_layer_key_value
         ]
+        extra_kwargs = {}
+        if attn_impl == 'flex':
+            extra_kwargs['flex_attn_kwargs'] = {
+                'compiled_flex_attention':
+                    flex_attention,  # TODO: torch.compile(flex_attention) doesn't work, maybe because the data dims are too small for compiled kernels. Confirm this hypothesis.
+                'compiled_create_block_mask': torch.compile(create_block_mask),
+                'sequence_id_transforms': {
+                    'sequence_id': sequence_id,
+                },
+            }
         y1, _, _ = attn1(
             x1,
             past_key_value=None,
@@ -767,7 +816,7 @@ def test_reuse_prev_layer_kv_cache(
             flash_attn_padding_info=flash_attn_padding_info,
             alibi_slopes=alibi_slopes_1,
             prev_layer_key_value=prev_layer_key_value,
-            sequence_id=sequence_id,
+            **extra_kwargs,
         )
         y0 *= attention_mask.unsqueeze(-1)
         y1 *= attention_mask.unsqueeze(-1)

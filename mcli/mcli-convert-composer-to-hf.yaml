@@ -1,7 +1,7 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: v0.14.0
+  git_branch: v0.15.0
   # git_commit:  # OR use your commit hash
   pip_install: .
   ssh_clone: false  # Should be true if using a private repo
@@ -13,7 +13,7 @@ command: |
     --hf_output_path s3://bucket/folder/hf/ \
     --output_precision bf16 \
 
-image: mosaicml/llm-foundry:2.4.0_cu124-latest
+image: mosaicml/llm-foundry:2.5.1_cu124-latest
 name: convert-composer-hf
 
 compute:

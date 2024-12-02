@@ -547,6 +547,14 @@ def test_grouped_attention_heads(
                 None,
                 attention_mask,
             )
+        extra_kwargs = {}
+        if attn_impl == 'flex':
+            extra_kwargs['flex_attn_kwargs'] = {
+                'compiled_flex_attention':
+                    flex_attention,  # TODO: torch.compile(flex_attention) doesn't work, maybe because the data dims are too small for compiled kernels. Confirm this hypothesis.
+                'compiled_create_block_mask': torch.compile(create_block_mask),
+                'sequence_id_transforms': {},
+            }
         y0, _, _ = mmhsa(
             x0,
             past_key_value=None,
@@ -554,6 +562,7 @@ def test_grouped_attention_heads(
             attention_mask=attention_mask,
             is_causal=True,
             flash_attn_padding_info=flash_attn_padding_info,
+            **extra_kwargs,
         )
         y0 *= attention_mask.unsqueeze(-1)
 

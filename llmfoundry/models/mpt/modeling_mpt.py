@@ -198,6 +198,7 @@ def attn_mask_in_len_transformer(
     sequence_id: Union[torch.Tensor, None],
     S: int,
     attention_mask: Union[torch.Tensor, None],
+    return_pos_in_seq: bool = False,
 ):
     """Generates the attention mask used for sequence masking in FA v2.
 
@@ -210,6 +211,7 @@ def attn_mask_in_len_transformer(
         sequence_id (Union[None, torch.Tensor]): Tensor containing the sequence id for each token. Shape (batch_size, seq_len).
         S (int): Sequence length
         attention_mask (Union[torch.Tensor, None]): Attention mask tensor of shape (batch_size, seq_len)
+        return_pos_in_seq (bool): If True, returns the position in sequence tensor instead of attn mask in length. Default is False.
 
     Returns:
         attention_mask_in_length: (batch, seqlen), int, a nonzero number (e.g., 1, 2, 3, etc.) means length of concatenated sequence in b-th batch, and 0 means none. For example, if batch = 3 and seqlen = 6, the attention_mask_in_length is:
@@ -259,13 +261,16 @@ def attn_mask_in_len_transformer(
         # We replace those -1 with 0 to prevent `torch.nn.functional.one_hot(sequence_id)` in the next line from failing.
         # We apply the attention mask again after the one_hot operation.
         sequence_id = sequence_id.masked_fill(~attention_mask, 0)
-    attention_mask_in_length = torch.nn.functional.one_hot(sequence_id)
+    one_hot_seq_id = torch.nn.functional.one_hot(sequence_id)
     if attention_mask is not None:
-        attention_mask_in_length = attention_mask_in_length.masked_fill(
+        one_hot_seq_id = one_hot_seq_id.masked_fill(
             ~attention_mask.unsqueeze(-1),
             0,
         )
-    attention_mask_in_length = attention_mask_in_length.sum(dim=1)
+    if return_pos_in_seq:
+        return one_hot_seq_id.cumsum(dim=1).sum(dim=-1)
+
+    attention_mask_in_length = one_hot_seq_id.sum(dim=1)
     attention_mask_in_length = torch.nn.functional.pad(
         attention_mask_in_length,
         (0, S - attention_mask_in_length.shape[-1]),
@@ -274,6 +279,28 @@ def attn_mask_in_len_transformer(
     )
 
     return attention_mask_in_length
+
+
+def pos_in_seq_transformer(
+    sequence_id: Union[torch.Tensor, None],
+    S: int,
+    attention_mask: Union[torch.Tensor, None],
+):
+    return {
+        'sequence_id':
+            seq_id_noop_transformer(
+                sequence_id,
+                S,
+                attention_mask,
+            ),
+        'pos_in_seq':
+            attn_mask_in_len_transformer(
+                sequence_id,
+                S,
+                attention_mask,
+                return_pos_in_seq=True,
+            ),
+    }
 
 
 def seq_id_noop_transformer(
@@ -1604,4 +1631,8 @@ sequence_id_transformer_registry.register(
 sequence_id_transformer_registry.register(
     'attention_mask_in_length',
     func=attn_mask_in_len_transformer,
+)
+sequence_id_transformer_registry.register(
+    'pos_in_seq',
+    func=pos_in_seq_transformer,
 )

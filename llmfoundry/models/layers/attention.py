@@ -661,6 +661,33 @@ def _get_sequence_id_mask_mod_fn(
     return sequence_id_mask_fn
 
 
+def _get_local_global_mask_mod_fn(
+    sequence_id_transform: dict[str, torch.Tensor],
+    sliding_window_size: int,
+    global_window_size: int,
+) -> _mask_mod_signature:
+    sequence_id = sequence_id_transform['sequence_id']
+    pos_in_seq = sequence_id_transform['pos_in_seq']
+
+    def local_global_mask_fn(
+        b: torch.Tensor,
+        h: torch.Tensor,
+        q_idx: torch.Tensor,
+        kv_idx: torch.Tensor,
+    ) -> torch.Tensor:
+        del h
+        # Check if the query and key belong to the same sequence and the query token is not a padding token.
+
+        sequence_id_mask = (sequence_id[b, q_idx] == sequence_id[b, kv_idx]
+                           ) & (sequence_id[b, q_idx] != -1)
+        global_window_mask = (pos_in_seq[b, kv_idx] <= global_window_size)
+        sliding_window_mask = (q_idx - kv_idx <= sliding_window_size)
+
+        return sequence_id_mask & (global_window_mask | sliding_window_mask)
+
+    return local_global_mask_fn
+
+
 def _generate_score_mod(score_mod_list: list[dict[str, Any]],):
     score_mod = flex_attention_score_mods.get('noop')()
     for mod_dict in score_mod_list:
@@ -1409,4 +1436,8 @@ flex_attention_mask_mods.register(
 flex_attention_mask_mods.register(
     'sequence_id',
     func=_get_sequence_id_mask_mod_fn,
+)
+flex_attention_mask_mods.register(
+    'local_global_mask',
+    func=_get_local_global_mask_mod_fn,
 )

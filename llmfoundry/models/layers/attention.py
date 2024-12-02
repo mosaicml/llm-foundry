@@ -663,9 +663,9 @@ def _get_sequence_id_mask_mod_fn(
 
 def _generate_score_mod(score_mod_list: list[dict[str, Any]],):
     score_mod = flex_attention_score_mods.get('noop')()
-    for score_mod in score_mod_list:
-        mod_name = score_mod['name']
-        mod_kwargs = score_mod['mod_kwargs']
+    for mod_dict in score_mod_list:
+        mod_name = mod_dict['name']
+        mod_kwargs = mod_dict['mod_kwargs']
         score_mod = _wrap_score_mod_fns(
             score_mod,
             flex_attention_score_mods.get(mod_name)(**mod_kwargs),

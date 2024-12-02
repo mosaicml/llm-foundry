@@ -246,13 +246,14 @@ class HuggingFaceCheckpointer(Callback):
     """Save a huggingface formatted checkpoint during training.
 
     Args:
-        save_folder (str): Top level folder to save checkpoints to (can be a
-            URI). It is likely that this would be the same as your save_folder.
         save_interval: Union[str, int, Time]: The interval describing how often
             checkpoints should be saved. If an integer, it will be assumed to be
             in :attr:`.TimeUnit.EPOCH`. Otherwise, the unit must be either
             :attr:`.TimeUnit.EPOCH`, :attr:`.TimeUnit.BATCH`,
             :attr:`.TimeUnit.TOKEN`, or :attr:`.TimeUnit.SAMPLE`.
+        save_folder (Optional[str]): Top level folder to save checkpoints to (can be a
+            URI). It is likely that this would be the same as your save_folder. If
+            set to None, the model will be logged to MLFlow.
         huggingface_folder_name (str): Folder to save each checkpoint under (can
             be a format string). Default is ``ba{batch}``.
         precision: The precision to save the model in. Default is ``float32``.
@@ -278,8 +279,8 @@ class HuggingFaceCheckpointer(Callback):
 
     def __init__(
         self,
-        save_folder: str,
         save_interval: Union[str, int, Time],
+        save_folder: Optional[str] = None,
         huggingface_folder_name: str = 'ba{batch}',
         precision: str = 'float32',
         overwrite: bool = True,
@@ -289,7 +290,11 @@ class HuggingFaceCheckpointer(Callback):
         final_register_only: bool = False,
         register_wait_seconds: int = 7200,
     ):
-        _, _, self.save_dir_format_str = parse_uri(save_folder)
+        if save_folder is None and mlflow_registered_model_name is None:
+            raise ValueError(
+                'No `save_folder` or `mlflow_register_model_name` set. Please set at least one of them.',
+            )
+
         self.overwrite = overwrite
         self.precision = precision
         self.dtype = {
@@ -365,12 +370,20 @@ class HuggingFaceCheckpointer(Callback):
             self.save_interval,
             include_end_of_training=True,
         )
-        self.remote_ud = maybe_create_remote_uploader_downloader_from_uri(
-            save_folder,
-            loggers=[],
-        )
-        if self.remote_ud is not None:
-            self.remote_ud._num_concurrent_uploads = 4
+
+        self.save_folder = save_folder
+
+        self.remote_ud = None
+        if self.save_folder is not None:
+            _, _, self.save_dir_format_str = parse_uri(self.save_folder)
+            self.remote_ud = maybe_create_remote_uploader_downloader_from_uri(
+                self.save_folder,
+                loggers=[],
+            )
+            if self.remote_ud is not None:
+                self.remote_ud._num_concurrent_uploads = 4
+        else:
+            self.save_dir_format_str = tempfile.mkdtemp()
 
         self.last_checkpoint_batch: Optional[Time] = None
         self.mlflow_loggers = []
@@ -390,11 +403,13 @@ class HuggingFaceCheckpointer(Callback):
                 state,
                 logger,
                 register_to_mlflow=(
-                    self.mlflow_registered_model_name is not None and
-                    is_last_batch
+                    self.save_folder is None or (
+                        self.mlflow_registered_model_name is not None and
+                        is_last_batch
+                    )
                 ),
-                upload_to_save_folder=not self.final_register_only or
-                not is_last_batch,
+                upload_to_save_folder=self.save_folder is not None and
+                (not self.final_register_only or not is_last_batch),
             )
         elif event == Event.INIT:
             if not isinstance(state.model, HuggingFaceModel):
@@ -619,7 +634,7 @@ class HuggingFaceCheckpointer(Callback):
 
         # Use a temporary directory if save_dir is remote.
         use_temp_dir = self.remote_ud is not None
-        temp_save_dir = tempfile.mkdtemp() if use_temp_dir else save_dir
+        local_save_dir = tempfile.mkdtemp() if use_temp_dir else save_dir
 
         log.debug('Gathering state dict')
 
@@ -744,7 +759,7 @@ class HuggingFaceCheckpointer(Callback):
                 )
                 with context_manager:
                     new_model_instance.save_pretrained(
-                        temp_save_dir,
+                        local_save_dir,
                         max_shard_size='1GB',
                     )
                 if original_tokenizer is not None:
@@ -752,18 +767,18 @@ class HuggingFaceCheckpointer(Callback):
                         original_tokenizer,
                         PreTrainedTokenizerBase,
                     )
-                    original_tokenizer.save_pretrained(temp_save_dir)
+                    original_tokenizer.save_pretrained(local_save_dir)
 
                 # Only need to edit files for MPT because it has custom code
                 if new_model_instance.config.model_type == 'mpt':
                     log.debug('Editing MPT files for HuggingFace compatibility')
                     edit_files_for_hf_compatibility(
-                        temp_save_dir,
+                        local_save_dir,
                         self.flatten_imports,
                     )
 
                 if self.remote_ud is not None:
-                    for filename in os.listdir(temp_save_dir):
+                    for filename in os.listdir(local_save_dir):
                         remote_file_name = os.path.join(save_dir, filename)
                         remote_file_uri = self.remote_ud.remote_backend.get_uri(
                             remote_file_name,
@@ -775,7 +790,7 @@ class HuggingFaceCheckpointer(Callback):
                             state=state,
                             remote_file_name=remote_file_name,
                             file_path=Path(
-                                os.path.join(temp_save_dir, filename),
+                                os.path.join(local_save_dir, filename),
                             ),
                             overwrite=self.overwrite,
                         )
@@ -795,11 +810,11 @@ class HuggingFaceCheckpointer(Callback):
                         state,
                         new_model_instance,
                         original_tokenizer,
-                        temp_save_dir,
+                        local_save_dir,
                     )
                 else:
                     register_save_dir = os.path.join(
-                        temp_save_dir,
+                        local_save_dir,
                         'register_save',
                     )
                     new_model_instance.save_pretrained(
@@ -846,11 +861,11 @@ class HuggingFaceCheckpointer(Callback):
 
                 # Save the temporary directory to be cleaned up later.
                 if use_temp_dir:
-                    self.temp_save_dir = temp_save_dir
+                    self.temp_save_dir = local_save_dir
             else:
                 # Clean up the temporary directory if we don't need to register to mlflow.
                 if use_temp_dir:
-                    shutil.rmtree(temp_save_dir)
+                    shutil.rmtree(local_save_dir)
         dist.barrier()
 
     def _save_and_register_peft_model(

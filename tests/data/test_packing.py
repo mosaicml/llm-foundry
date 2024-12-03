@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 from unittest.mock import Mock, patch
 
 import pytest
@@ -161,17 +161,58 @@ def test_dist_auto_packing(profile_packing: Mock):
     assert packing_ratio == 2
 
 
+def get_remote_config(
+    base_cfg: dict, remote_dir: str, local_dir: str
+) -> DictConfig:
+    return DictConfig({
+        **base_cfg,
+        'dataset': {
+            **base_cfg['dataset'],
+            'remote': remote_dir,
+            'local': local_dir,
+        },
+    })
+
+
+def get_streams_config(
+    base_cfg: dict, remote_dir: str, local_dir: str
+) -> DictConfig:
+    return DictConfig({
+        **base_cfg,
+        'dataset': {
+            **base_cfg['dataset'],
+            'streams': {
+                'stream_with_remote': {
+                    'remote': remote_dir,
+                    'local': local_dir,
+                },
+                'stream_without_remote': {
+                    'local': remote_dir,
+                },
+            },
+        },
+    })
+
+
 def patched_packing_ratio(*args: Any, **kwargs: Any):
     from llmfoundry.data.packing import auto_packing_ratio
 
     return auto_packing_ratio(*args, **kwargs, num_packing_ratios=4)
 
 
+@pytest.mark.parametrize(
+    'get_config', [
+        get_remote_config,
+        get_streams_config,
+    ]
+)
 @patch(
     'llmfoundry.data.finetuning.dataloader.auto_packing_ratio',
     patched_packing_ratio,
 )
-def test_auto_packing_with_streaming_dataloader(tmp_path: Path):
+def test_auto_packing_with_streaming_dataloader(
+    get_config: Callable[[dict, str, str], DictConfig], tmp_path: Path
+):
     columns = {'prompt': 'str', 'response': 'str'}
     tokenizer = build_tokenizer('gpt2', {})
     remote_dir = str(tmp_path / 'remote')
@@ -195,55 +236,31 @@ def test_auto_packing_with_streaming_dataloader(tmp_path: Path):
         'timeout': 0,
     }
 
-    remote_cfg = DictConfig({
-        **base_cfg,
-        'dataset': {
-            **base_cfg['dataset'],
-            'remote': remote_dir,
-            'local': local_dir,
-        },
-    })
+    cfg = get_config(base_cfg, remote_dir, local_dir)
 
-    streams_cfg = DictConfig({
-        **base_cfg,
-        'dataset': {
-            **base_cfg['dataset'],
-            'streams': {
-                'stream_with_remote': {
-                    'remote': remote_dir,
-                    'local': local_dir,
-                },
-                'stream_without_remote': {
-                    'local': remote_dir,
-                },
-            },
-        },
-    })
+    loader = build_finetuning_dataloader(
+        **cfg,
+        tokenizer=tokenizer,
+        device_batch_size=6,
+    ).dataloader
 
-    for cfg in [remote_cfg, streams_cfg]:
-        loader = build_finetuning_dataloader(
-            **cfg,
-            tokenizer=tokenizer,
-            device_batch_size=6,
-        ).dataloader
+    batch_ix = 0
+    for _ in loader:
+        batch_ix += 1
+        if batch_ix >= 3:
+            break
 
-        batch_ix = 0
-        for _ in loader:
-            batch_ix += 1
-            if batch_ix >= 3:
-                break
+    assert isinstance(loader, DataLoader)
+    assert isinstance(loader.dataset, StreamingFinetuningDataset)
+    assert loader.dataset.packing_ratio is not None
+    assert isinstance(loader.batch_size, int)
+    assert loader.dataset.packing_ratio == int(loader.batch_size / 6)
 
-        assert isinstance(loader, DataLoader)
-        assert isinstance(loader.dataset, StreamingFinetuningDataset)
-        assert loader.dataset.packing_ratio is not None
-        assert isinstance(loader.batch_size, int)
-        assert loader.dataset.packing_ratio == int(loader.batch_size / 6)
-
-        state_dict = loader.dataset.state_dict(
-            num_samples=2,
-            from_beginning=False,
-        )
-        assert state_dict['sample_in_epoch'] == 2 * loader.dataset.packing_ratio
+    state_dict = loader.dataset.state_dict(
+        num_samples=2,
+        from_beginning=False,
+    )
+    assert state_dict['sample_in_epoch'] == 2 * loader.dataset.packing_ratio
 
 
 @pytest.mark.parametrize('packing_ratio', ['auto', 2.0])

@@ -162,7 +162,9 @@ def test_dist_auto_packing(profile_packing: Mock):
 
 
 def get_remote_config(
-    base_cfg: dict, remote_dir: str, local_dir: str
+    base_cfg: dict,
+    remote_dir: str,
+    local_dir: str,
 ) -> DictConfig:
     return DictConfig({
         **base_cfg,
@@ -175,7 +177,9 @@ def get_remote_config(
 
 
 def get_streams_config(
-    base_cfg: dict, remote_dir: str, local_dir: str
+    base_cfg: dict,
+    remote_dir: str,
+    local_dir: str,
 ) -> DictConfig:
     return DictConfig({
         **base_cfg,
@@ -201,17 +205,19 @@ def patched_packing_ratio(*args: Any, **kwargs: Any):
 
 
 @pytest.mark.parametrize(
-    'get_config', [
+    'get_config',
+    [
         get_remote_config,
         get_streams_config,
-    ]
+    ],
 )
 @patch(
     'llmfoundry.data.finetuning.dataloader.auto_packing_ratio',
     patched_packing_ratio,
 )
 def test_auto_packing_with_streaming_dataloader(
-    get_config: Callable[[dict, str, str], DictConfig], tmp_path: Path
+    get_config: Callable[[dict, str, str], DictConfig],
+    tmp_path: Path,
 ):
     columns = {'prompt': 'str', 'response': 'str'}
     tokenizer = build_tokenizer('gpt2', {})

@@ -411,7 +411,7 @@ class HuggingFaceCheckpointer(Callback):
                 ),
                 upload_to_save_folder=self.save_folder is not None and
                 (not self.final_register_only or not is_last_batch),
-                register=is_last_batch,
+                register=is_last_batch,  # Register only on the last batch
             )
         elif event == Event.INIT:
             if not isinstance(state.model, HuggingFaceModel):
@@ -865,7 +865,11 @@ class HuggingFaceCheckpointer(Callback):
                                     'transformers_model':
                                         register_save_dir,
                                     'artifact_path':
-                                        'final_model_checkpoint',
+                                        format_name_with_dist_and_time(
+                                            self.huggingface_folder_name_fstr,
+                                            state.run_name,
+                                            state.timestamp,
+                                        ),
                                     'pretrained_model_name':
                                         self.pretrained_model_name,
                                     'registered_model_name':

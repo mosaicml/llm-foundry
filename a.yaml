@@ -1,0 +1,104 @@
+name: llam32-finetune
+image: mosaicml/llm-foundry:2.5.1_cu124-latest
+compute:
+  gpus: 16
+  cluster: r14z3p2
+parameters:
+  seed: ${global_seed}
+  model:
+    name: hf_causal_lm
+    pretrained: true
+    init_device: mixed
+    use_auth_token: true
+    use_flash_attention_2: true
+    pretrained_model_name_or_path: meta-llama/Llama-3.1-70B-Instruct
+  run_name: null
+  callbacks:
+    lr_monitor: {}
+    speed_monitor:
+      window_size: 10
+    memory_monitor: {}
+    runtime_estimator: {}
+  optimizer:
+    lr: 5.0e-07
+    name: decoupled_lionw
+    betas:
+    - 0.9
+    - 0.95
+    weight_decay: 0
+  precision: amp_bf16
+  scheduler:
+    name: cosine_with_warmup
+    alpha_f: 0.1
+    t_warmup: 100ba
+  tokenizer:
+    name: ${tokenizer_name}
+    kwargs:
+      model_max_length: ${max_seq_len}
+  algorithms:
+    gradient_clipping:
+      clipping_type: norm
+      clipping_threshold: 1
+  eval_first: false
+  eval_loader:
+    name: finetuning
+    dataset:
+      split: test
+      hf_name: mosaicml/dolly_hhrlhf
+      shuffle: false
+      max_seq_len: ${max_seq_len}
+      allow_pad_trimming: false
+      decoder_only_format: true
+    timeout: 0
+    drop_last: true
+    pin_memory: false
+    num_workers: 8
+    prefetch_factor: 2
+    persistent_workers: true
+  fsdp_config:
+    mixed_precision: PURE
+    state_dict_type: sharded
+    limit_all_gathers: true
+    sharding_strategy: FULL_SHARD
+    activation_cpu_offload: false
+    activation_checkpointing: true
+    activation_checkpointing_reentrant: false
+  env_variables:
+    tokenizer_name: meta-llama/Llama-3.1-70B-Instruct
+    global_seed: 17
+  max_seq_len: 4096
+  max_duration: 1ep
+  progress_bar: false
+  train_loader:
+    name: finetuning
+    dataset:
+      split: train
+      hf_name: mosaicml/dolly_hhrlhf
+      shuffle: true
+      max_seq_len: ${max_seq_len}
+      allow_pad_trimming: false
+      decoder_only_format: true
+    timeout: 0
+    drop_last: true
+    pin_memory: false
+    num_workers: 8
+    prefetch_factor: 2
+    persistent_workers: true
+  eval_interval: 1ep
+  log_to_console: true
+  load_weights_only: true
+  max_split_size_mb: 512
+  console_log_interval: 1ba
+  device_eval_batch_size: 1
+  eval_subset_num_batches: -1
+  global_train_batch_size: 16
+  device_train_microbatch_size: 1
+integrations:
+- integration_type: git_repo
+  git_repo: mosaicml/llm-foundry
+  ssh_clone: false
+  git_branch: v0.15.0
+  pip_install: .[gpu]
+command: |-
+  cd llm-foundry/scripts
+  composer train/train.py /mnt/config/parameters.yaml

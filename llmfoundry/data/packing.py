@@ -474,7 +474,8 @@ def profile_packing(
 
     # If streaming dataset, use a temporary local folder for profiling
     local_rank_zero = dist.get_global_rank() - dist.get_local_rank()
-    if dataset_cfg.get('remote') is not None:
+    if dataset_cfg.get('remote'
+                      ) is not None and dataset_cfg.get('local') is None:
         tmp_path_to_broadcast = tempfile.TemporaryDirectory().name
         gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
         tmp_path = gathered_paths[local_rank_zero]

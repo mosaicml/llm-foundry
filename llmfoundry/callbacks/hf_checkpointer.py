@@ -137,6 +137,7 @@ def _log_model_with_multi_process(
     registered_model_name: Optional[str],
     await_registration_for: int,
     mlflow_logging_config: dict[str, Any],
+    register: bool,
 ):
     """Call MLFlowLogger.log_model.
 
@@ -206,7 +207,7 @@ def _log_model_with_multi_process(
         transformers_model=transformers_model,
         flavor='transformers',
         artifact_path=artifact_path,
-        registered_model_name=register_model_path,
+        registered_model_name=register_model_path if register else None,
         run_id=mlflow_logger._run_id,
         await_registration_for=await_registration_for,
         **mlflow_logging_config,
@@ -402,7 +403,7 @@ class HuggingFaceCheckpointer(Callback):
             self._save_checkpoint(
                 state,
                 logger,
-                register_to_mlflow=(
+                log_to_mlflow=(
                     self.save_folder is None or (
                         self.mlflow_registered_model_name is not None and
                         is_last_batch
@@ -410,6 +411,7 @@ class HuggingFaceCheckpointer(Callback):
                 ),
                 upload_to_save_folder=self.save_folder is not None and
                 (not self.final_register_only or not is_last_batch),
+                register=is_last_batch,
             )
         elif event == Event.INIT:
             if not isinstance(state.model, HuggingFaceModel):
@@ -472,15 +474,24 @@ class HuggingFaceCheckpointer(Callback):
             if self._any_register_processes_error(
                 state.device,
             ) and self.final_register_only:
-                log.error(
-                    'An error occurred in one or more registration processes. Fallback to saving the HuggingFace checkpoint.',
-                )
-                self._save_checkpoint(
-                    state,
-                    logger,
-                    upload_to_save_folder=True,
-                    register_to_mlflow=False,
-                )
+                if self.save_folder:
+                    log.error(
+                        'An error occurred in one or more registration processes. Fallback to saving the HuggingFace checkpoint.',
+                    )
+                    self._save_checkpoint(
+                        state,
+                        logger,
+                        upload_to_save_folder=True,
+                        log_to_mlflow=False,
+                        register=False,
+                    )
+                else:
+                    # Clean up temporary save directory and raise an error.
+                    if self.temp_save_dir is not None:
+                        shutil.rmtree(self.temp_save_dir)
+                    raise Exception(
+                        'An error occurred in one or more registration processes.',
+                    )
 
             # Clean up temporary save directory; all processes are done with it.
             if self.temp_save_dir is not None:
@@ -602,7 +613,8 @@ class HuggingFaceCheckpointer(Callback):
         state: State,
         logger: Logger,
         upload_to_save_folder: bool,
-        register_to_mlflow: bool,
+        log_to_mlflow: bool,
+        register: bool,
     ):
         """Save a HuggingFace formatted checkpoint.
 
@@ -610,9 +622,18 @@ class HuggingFaceCheckpointer(Callback):
             state (State): The training state.
             logger (Logger): The logger.
             upload_to_save_folder (bool): Whether to upload the HF checkpoint to the save folder.
-            register_to_mlflow (bool): Whether to register the model to MLFlow
+            log_to_mlflow (bool): Whether to log the model to MLFlow
+            register (bool): Whether to register the model when logging to MLFlow
+
+        Raises:
+            ValueError: If `register` is True but `log_to_mlflow` is False.
         """
         del logger  # unused
+
+        if log_to_mlflow is False and register is True:
+            raise ValueError(
+                f'Got {log_to_mlflow=} and {register=}. Cannot register the model if it is not logged.',
+            )
 
         self.last_checkpoint_batch = state.timestamp.batch
 
@@ -798,7 +819,7 @@ class HuggingFaceCheckpointer(Callback):
         dist.barrier()
 
         if dist.get_global_rank() == 0:
-            if register_to_mlflow:
+            if log_to_mlflow:
                 assert new_model_instance is not None
                 new_model_instance = self.transform_model_pre_registration(
                     new_model_instance,
@@ -853,6 +874,8 @@ class HuggingFaceCheckpointer(Callback):
                                         3600,
                                     'mlflow_logging_config':
                                         self.mlflow_logging_config,
+                                    'register':
+                                        register,
                                 },
                             )
 

@@ -56,7 +56,7 @@ install_requires = [
     'mlflow>=2.14.1,<2.19',
     'accelerate>=0.25,<1.2',  # for HF inference `device_map`
     'transformers>=4.43.2,<4.47',
-    'mosaicml-streaming>=0.9.0,<0.10',
+    'mosaicml-streaming>=0.10.0,<0.11',
     'torch>=2.5.1,<2.5.2',
     'datasets>=2.20.0,<2.21',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
@@ -114,7 +114,7 @@ extra_deps['peft'] = [
 ]
 
 extra_deps['openai'] = [
-    'openai==1.3.8',
+    'openai>=1.56.0,<2.0',
     'tiktoken>=0.4,<0.8.1',
 ]
 

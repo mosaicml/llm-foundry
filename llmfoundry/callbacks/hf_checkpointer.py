@@ -411,7 +411,8 @@ class HuggingFaceCheckpointer(Callback):
                 ),
                 upload_to_save_folder=self.save_folder is not None and
                 (not self.final_register_only or not is_last_batch),
-                register=is_last_batch,  # Register only on the last batch
+                register=self.mlflow_registered_model_name is not None and
+                is_last_batch,  # Register only on the last batch
             )
         elif event == Event.INIT:
             if not isinstance(state.model, HuggingFaceModel):

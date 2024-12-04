@@ -7,7 +7,6 @@ from omegaconf import OmegaConf as om
 from packaging import version
 from torch.nn.attention.flex_attention import create_block_mask, flex_attention
 
-from llmfoundry.layers_registry import sequence_id_transformer_registry
 from llmfoundry.models.layers import attention
 from llmfoundry.models.layers.attention import (
     check_alibi_support,
@@ -19,6 +18,7 @@ from llmfoundry.models.mpt.modeling_mpt import (
     apply_sequence_id,
     gen_flash_attn_padding_info,
     gen_rotary_embedding,
+    gen_sequence_id_info,
 )
 
 
@@ -210,15 +210,13 @@ def test_attn_impl(
 
         return attn_bias
 
-    attention_mask_in_length_0 = None
-    if attn_uses_sequence_id and attn_impl_0 == 'flash':
-        attention_mask_in_length_0 = sequence_id_transformer_registry.get(
-            'attention_mask_in_length',
-        )(
-            sequence_id=sequence_id,
-            S=s,
-            attention_mask=attention_mask,
-        )
+    attention_mask_in_length_0 = gen_sequence_id_info(
+        sequence_id=sequence_id,
+        S=s,
+        attn_uses_sequence_id=attn_uses_sequence_id,
+        attn_impl=attn_impl_0,
+        attention_mask=attention_mask,
+    )
 
     flash_attn_padding_info_0 = {}
     if attn_impl_0 == 'flash':
@@ -231,15 +229,13 @@ def test_attn_impl(
             attention_mask,
         )
 
-    attention_mask_in_length_1 = None
-    if attn_uses_sequence_id and attn_impl_1 == 'flash':
-        attention_mask_in_length_1 = sequence_id_transformer_registry.get(
-            'attention_mask_in_length',
-        )(
-            sequence_id=sequence_id,
-            S=s,
-            attention_mask=attention_mask,
-        )
+    attention_mask_in_length_1 = gen_sequence_id_info(
+        sequence_id=sequence_id,
+        S=s,
+        attn_uses_sequence_id=attn_uses_sequence_id,
+        attn_impl=attn_impl_1,
+        attention_mask=attention_mask,
+    )
 
     flash_attn_padding_info_1 = {}
     if attn_impl_1 == 'flash':
@@ -719,15 +715,13 @@ def test_reuse_prev_layer_kv_cache(
 
         return attn_bias
 
-    attention_mask_in_length = None
-    if attn_impl == 'flash':
-        attention_mask_in_length = sequence_id_transformer_registry.get(
-            'attention_mask_in_length',
-        )(
-            sequence_id=sequence_id,
-            S=s,
-            attention_mask=attention_mask,
-        )
+    attention_mask_in_length = gen_sequence_id_info(
+        sequence_id=sequence_id,
+        S=s,
+        attn_uses_sequence_id=True,
+        attn_impl=attn_impl,
+        attention_mask=attention_mask,
+    )
 
     flash_attn_padding_info = gen_flash_attn_padding_info(
         n,

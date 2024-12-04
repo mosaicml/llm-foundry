@@ -647,19 +647,6 @@ def train(cfg: DictConfig) -> Trainer:
     return trainer
 
 
-import torch
-from composer.utils import dist
-from datasets import load_dataset
-from torch.utils.data import DataLoader
-from transformers import (
-    AutoTokenizer,
-    DataCollatorForLanguageModeling,
-    PreTrainedTokenizer,
-)
-
-from llmfoundry.registry import dataloaders
-
-
 def train_from_yaml(
     yaml_path: str,
     args_list: Optional[list[str]] = None,

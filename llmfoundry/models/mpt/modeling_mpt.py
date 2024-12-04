@@ -196,7 +196,6 @@ def gen_sequence_id_info(
         attn_uses_sequence_id (bool): Whether the attention uses sequence id based masking.
         attn_impl (str): Attention implementation. This function is only creates attention_mask_in_length for flash attention.
         attention_mask (Union[torch.Tensor, None]): Attention mask tensor of shape (batch_size, seq_len)
-        return_pos_in_seq (bool): Whether to return the position in sequence tensor instead of attention mask in length.
 
     Returns:
         attention_mask_in_length: (batch, seqlen), int, a nonzero number (e.g., 1, 2, 3, etc.) means length of concatenated sequence in b-th batch, and 0 means none. For example, if batch = 3 and seqlen = 6, the attention_mask_in_length is:

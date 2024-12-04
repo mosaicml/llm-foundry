@@ -1034,6 +1034,7 @@ class MultiheadAttention(GroupedQueryAttention):
         reuse_kv_layer_idx: Optional[int] = None,
         attn_logit_softcapping: Optional[float] = None,
         kv_dim: Optional[int] = None,
+        flex_attn_mod_list: Optional[list[dict[str, Any]]] = None,
     ):
         super().__init__(
             d_model=d_model,
@@ -1055,6 +1056,7 @@ class MultiheadAttention(GroupedQueryAttention):
             reuse_kv_layer_idx=reuse_kv_layer_idx,
             attn_logit_softcapping=attn_logit_softcapping,
             kv_dim=kv_dim,
+            flex_attn_mod_list=flex_attn_mod_list,
         )
 
 
@@ -1085,6 +1087,7 @@ class MultiQueryAttention(GroupedQueryAttention):
         reuse_kv_layer_idx: Optional[int] = None,
         attn_logit_softcapping: Optional[float] = None,
         kv_dim: Optional[int] = None,
+        flex_attn_mod_list: Optional[list[dict[str, Any]]] = None,
     ):
         super().__init__(
             d_model=d_model,
@@ -1106,6 +1109,7 @@ class MultiQueryAttention(GroupedQueryAttention):
             reuse_kv_layer_idx=reuse_kv_layer_idx,
             attn_logit_softcapping=attn_logit_softcapping,
             kv_dim=kv_dim,
+            flex_attn_mod_list=flex_attn_mod_list,
         )
 
 

@@ -475,7 +475,8 @@ def flex_attn_fn(
 
     check_valid_inputs(query, key, value)
     assert key.shape[1] == value.shape[1]
-    query_offset = key.shape[1] - query.shape[1]
+    assert query.shape[1] == key.shape[1]
+    query_offset = 0
     if past_key_value is not None:
         if len(past_key_value) != 0:
             assert past_key_value[0].shape[1] == past_key_value[1].shape[1]

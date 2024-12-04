@@ -25,7 +25,7 @@ parameters:
     tokenizer_name: meta-llama/Llama-3.1-70B-Instruct
     global_seed: 17
     max_seq_len: 4096
-  
+
   max_seq_len: ${variables.max_seq_len}
   # Run Name
   run_name:  # If left blank, will be read from env var $RUN_NAME
@@ -148,7 +148,7 @@ parameters:
 #     wandb: {}
 
 #   Checkpoint to local filesystem or remote object store
-#   save_interval: 2000ba 
+#   save_interval: 2000ba
 #   save_num_checkpoints_to_keep: 1  # Important, this cleans up checkpoints saved to DISK
 #   save_folder: ./{run_name}/checkpoints
 #   save_folder: s3://my-bucket/my-folder/{run_name}/checkpoints

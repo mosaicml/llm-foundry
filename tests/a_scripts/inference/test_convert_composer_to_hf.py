@@ -553,7 +553,7 @@ def test_huggingface_conversion_callback_interval(
         mlflow_logger_mock.log_model.assert_called_with(
             transformers_model=ANY,
             flavor='transformers',
-            artifact_path=f'huggingface/{save_interval}',
+            artifact_path=f'huggingface/ba{trainer.state.timestamp.batch.value}',
             registered_model_name='dummy-registered-name',
             run_id='mlflow-run-id',
             await_registration_for=3600,

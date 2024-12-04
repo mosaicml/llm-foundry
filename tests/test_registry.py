@@ -40,6 +40,7 @@ def test_expected_registries_exist():
         'ffns',
         'ffns_with_norm',
         'ffns_with_megablocks',
+        'flex_attention_mods',
         'attention_classes',
         'attention_implementations',
         'fcs',

@@ -499,7 +499,6 @@ def flex_attn_fn(
         _check_mod_list(flex_attn_mod_list, 'causal_mask')
         flex_attn_mod_list.append({'mod_name': 'causal_mask', 'mod_kwargs': {}})
     if sliding_window_size != -1:
-        _check_mod_list(flex_attn_mod_list, 'sliding_window_mask')
         flex_attn_mod_list.append({
             'mod_name': 'sliding_window_mask',
             'mod_kwargs': {

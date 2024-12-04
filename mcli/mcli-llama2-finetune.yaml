@@ -21,9 +21,12 @@ compute:
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:
-  tokenizer_name: meta-llama/Llama-2-7b-hf
-  max_seq_len: 4096
-  global_seed: 17
+  variables:
+    tokenizer_name: meta-llama/Llama-2-7b-hf
+    global_seed: 17
+    max_seq_len: 4096
+  
+  max_seq_len: ${variables.max_seq_len}
 
   # Run Name
   run_name:  # If left blank, will be read from env var $RUN_NAME
@@ -42,9 +45,9 @@ parameters:
 
   # Tokenizer
   tokenizer:
-    name: ${tokenizer_name}
+    name: ${variables.tokenizer_name}
     kwargs:
-      model_max_length: ${max_seq_len}
+      model_max_length: ${variables.max_seq_len}
 
   # Dataloaders
   train_loader:
@@ -52,7 +55,7 @@ parameters:
     dataset:
       hf_name: mosaicml/dolly_hhrlhf
       split: train
-      max_seq_len: ${max_seq_len}
+      max_seq_len: ${variables.max_seq_len}
       allow_pad_trimming: false
       decoder_only_format: true
       shuffle: true
@@ -75,7 +78,7 @@ parameters:
     dataset:
       hf_name: mosaicml/dolly_hhrlhf
       split: test
-      max_seq_len: ${max_seq_len}
+      max_seq_len: ${variables.max_seq_len}
       allow_pad_trimming: false
       decoder_only_format: true
       # packing_ratio:
@@ -114,7 +117,7 @@ parameters:
   global_train_batch_size: 64
 
   # System
-  seed: ${global_seed}
+  seed: ${variables.global_seed}
   device_eval_batch_size: 8
   device_train_microbatch_size: auto
   precision: amp_bf16

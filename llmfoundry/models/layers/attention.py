@@ -474,9 +474,11 @@ def flex_attn_fn(
         )
 
     check_valid_inputs(query, key, value)
-
+    query_offset = 0
     if past_key_value is not None:
         if len(past_key_value) != 0:
+            assert past_key_value[0].shape[1] == past_key_value[1].shape[1]
+            query_offset = past_key_value[0].shape[1]
             key = torch.cat([past_key_value[0], key], dim=1)
             value = torch.cat([past_key_value[1], value], dim=1)
 
@@ -564,10 +566,12 @@ def flex_attn_fn(
         B=query.shape[0],
         block_mask_list=block_mask_list, # type: ignore
         compiled_create_block_mask=compiled_create_block_mask,
+        query_offset=query_offset,
         sequence_id_info=sequence_id_info,
     )
     score_mod = generate_score_mod(
         score_mod_list=score_mod_list, # type: ignore
+        query_offset=query_offset,
         sequence_id_info=sequence_id_info,
     )
 

@@ -176,23 +176,6 @@ def gen_rotary_embedding(
     raise ValueError('rope_impl needs to be either dail or hf')
 
 
-def check_seq_id_attn_mask(
-    sequence_id: torch.Tensor,
-    S: int,
-    attention_mask: Union[torch.Tensor, None],
-):
-    # Check if sequence has left padding. If yes, raise an error.
-    if (attention_mask is not None
-       ) and (attention_mask[:, 0].sum() != attention_mask.shape[0]):
-        raise NotImplementedError(
-            'Left padding is not supported when attn_uses_sequence_id is set to True.',
-        )
-    if S != sequence_id.shape[-1]:
-        raise ValueError(
-            f'Sequence length ({S}) does not match length of sequences in sequence_id ({sequence_id.shape[-1]}).',
-        )
-
-
 def gen_sequence_id_info(
     sequence_id: Union[None, torch.Tensor],
     S: int,

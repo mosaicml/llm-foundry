@@ -990,8 +990,10 @@ class MPTModel(MPTPreTrainedModel):
             if self.attn_impl == 'flex':
                 extra_kwargs['flex_attn_kwargs'] = {
                     'sequence_id_info': {
-                        'pos_in_seq': sequence_id_info,
-                        'sequence_id': sequence_id,
+                        'pos_in_seq':
+                            sequence_id_info,
+                        'sequence_id':
+                            sequence_id if self.attn_uses_sequence_id else None,
                     },
                     'compiled_flex_attention':
                         self.compiled_flex_attention,

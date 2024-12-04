@@ -104,6 +104,30 @@ class SequenceIdMaskMod(FlexAttentionMod):
         super().__init__(mod_type='mask')
 
 
+@flex_attention_mods.register('attention_mask')
+class AttentionMaskMod(FlexAttentionMod):
+
+    def _mask_mod_fn(
+        self,
+        b: torch.Tensor,
+        h: torch.Tensor,
+        q_idx: torch.Tensor,
+        kv_idx: torch.Tensor,
+        sequence_id_info: Optional[dict[str, Any]],
+    ) -> torch.Tensor:
+        del h, q_idx
+        if sequence_id_info is None:
+            raise ValueError(
+                'sequence_id_info is required for SequenceIdMaskMod',
+            )
+        attention_mask = sequence_id_info['attention_mask']
+        # Check if the query and key belong to the same sequence and the query token is not a padding token.
+        return attention_mask[b, kv_idx]
+
+    def __init__(self) -> None:
+        super().__init__(mod_type='mask')
+
+
 @flex_attention_mods.register('local_global_mask')
 class LocalGlobalMaskMod(FlexAttentionMod):
 
@@ -120,16 +144,18 @@ class LocalGlobalMaskMod(FlexAttentionMod):
             raise ValueError(
                 'sequence_id_info is required for LocalGlobalMaskMod',
             )
-        sequence_id = sequence_id_info['sequence_id']
         pos_in_seq = sequence_id_info['pos_in_seq']
         # Check if the query and key belong to the same sequence and the query token is not a padding token.
 
-        sequence_id_mask = (sequence_id[b, q_idx] == sequence_id[b, kv_idx]
-                           ) & (sequence_id[b, q_idx] != -1)
-        global_window_mask = (pos_in_seq[b, kv_idx] <= self.global_window_size)
+        if pos_in_seq is not None:
+            global_window_mask = (
+                pos_in_seq[b, kv_idx] <= self.global_window_size
+            )
+        else:
+            global_window_mask = (kv_idx <= self.global_window_size)
         sliding_window_mask = (q_idx - kv_idx <= self.sliding_window_size)
 
-        return sequence_id_mask & (global_window_mask | sliding_window_mask)
+        return global_window_mask | sliding_window_mask
 
     def __init__(
         self,
@@ -154,7 +180,7 @@ class AlibiScoreMod(FlexAttentionMod):
         sequence_id_info: Optional[dict[str, Any]],
     ) -> torch.Tensor:
         del sequence_id_info, b
-        bias = -self.alibi_slopes[h] * (q_idx - kv_idx)
+        bias = -self.alibi_slopes[h] * torch.abs(q_idx - kv_idx)
         return score + bias
 
     def __init__(self, alibi_slopes: torch.Tensor) -> None:
@@ -204,7 +230,7 @@ def generate_block_mask(
             )
         else:
             block_mask_fn = and_masks(
-                block_mask_fn, # type: ignore
+                block_mask_fn,
                 partial(block_mask.mod_fn, sequence_id_info=sequence_id_info),
             )
 
@@ -234,7 +260,7 @@ def generate_score_mod(
             )
         else:
             wrapped_score_mod = _wrap_score_mod_fns(
-                wrapped_score_mod, # type: ignore
+                wrapped_score_mod,
                 partial(score_mod.mod_fn, sequence_id_info=sequence_id_info),
             )
 

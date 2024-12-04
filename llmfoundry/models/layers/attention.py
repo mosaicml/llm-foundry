@@ -463,7 +463,9 @@ def flex_attn_fn(
     if attn_bias is not None:
         raise ValueError('attn_bias should be None for flex attn.')
     if key_padding_mask is not None:
-        raise ValueError('key_padding_mask should be None for flex attn.')
+        raise ValueError(
+            'key_padding_mask should be None for flex attn. Instead, any padding information should be sent through sequence_id_info.',
+        )
     if dropout_p > 0.0:
         raise NotImplementedError(f'dropout not implemented for flex attn.')
     if needs_weights:
@@ -505,10 +507,19 @@ def flex_attn_fn(
                 'sliding_window_size': sliding_window_size,
             },
         })
-    if 'sequence_id' in sequence_id_info:
+    if 'sequence_id' in sequence_id_info and sequence_id_info['sequence_id'
+                                                             ] is not None:
         _check_mod_list(flex_attn_mod_list, 'sequence_id_mask')
         flex_attn_mod_list.append({
             'mod_name': 'sequence_id_mask',
+            'mod_kwargs': {},
+        })
+
+    if 'attention_mask' in sequence_id_info and sequence_id_info[
+        'attention_mask'] is not None:
+        _check_mod_list(flex_attn_mod_list, 'attention_mask')
+        flex_attn_mod_list.append({
+            'mod_name': 'attention_mask',
             'mod_kwargs': {},
         })
 
@@ -995,6 +1006,12 @@ class GroupedQueryAttention(nn.Module):
                 raise ValueError(
                     'flex_attn_kwargs must be provided for flex attention.',
                 )
+            if 'sequence_id_info' not in flex_attn_kwargs:
+                raise ValueError(
+                    'sequence_id_info must be provided in flex_attn_kwargs.',
+                )
+            flex_attn_kwargs['sequence_id_info']['attention_mask'
+                                                ] = attention_mask
             extra_attn_kwargs = {
                 'alibi_slopes': alibi_slopes,
                 'key_padding_mask': None,

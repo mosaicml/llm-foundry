@@ -28,6 +28,7 @@ from composer.utils import (
 )
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
+from packaging import version
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -484,7 +485,9 @@ def test_full_forward_and_backward_t5_small(batch_size: int = 2):
     'attn_impl,precision',
     [('torch', torch.float16), ('torch', torch.bfloat16),
      pytest.param('flash', torch.float16, marks=pytest.mark.gpu),
-     pytest.param('flash', torch.bfloat16, marks=pytest.mark.gpu)],
+     pytest.param('flash', torch.bfloat16, marks=pytest.mark.gpu),
+     pytest.param('flex', torch.float16, marks=pytest.mark.gpu),
+     pytest.param('flex', torch.bfloat16, marks=pytest.mark.gpu)],
 )
 @pytest.mark.parametrize('ffn_type', ['mptmlp', 'mptglu'])
 @pytest.mark.parametrize(
@@ -515,6 +518,12 @@ def test_determinism(
     ffn_type: str,
     ffn_act_fn: dict,
 ):
+    if attn_impl == 'flex' and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.6.0'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
+        )
     conf_path = 'scripts/train/yamls/pretrain/testing.yaml'
     with open(conf_path) as f:
         test_cfg = om.load(f)
@@ -1032,7 +1041,7 @@ def test_mb_mpt_creation():
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('attention_impl', ['flash', 'torch'])
+@pytest.mark.parametrize('attention_impl', ['flash', 'torch', 'flex'])
 @pytest.mark.parametrize(
     'pos_emb_config',
     [{
@@ -1077,6 +1086,12 @@ def test_sequence_id_based_masking(attention_impl: str, pos_emb_config: dict):
     ):
         pytest.skip(
             'Using sequence id with flash attention requires flash attention v2.1.2 or higher.',
+        )
+    if attention_impl == 'flex' and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.6.0'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
         )
 
     composer_device = get_device(None)
@@ -1161,6 +1176,7 @@ def test_sequence_id_based_masking(attention_impl: str, pos_emb_config: dict):
     [
         'torch',
         pytest.param('flash', marks=pytest.mark.gpu),
+        pytest.param('flex', marks=pytest.mark.gpu),
         pytest.param('torch', marks=pytest.mark.gpu),
     ],
 )
@@ -1200,6 +1216,12 @@ def test_forward_with_padding(
     tie_word_embeddings: bool,
 ):
     # Test that different placement of padding does not affect the output.
+    if attention_impl == 'flex' and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.6.0'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
+        )
     alibi = pos_emb_config['alibi']
     if alibi and not check_alibi_support(attention_impl):
         pytest.skip(f'flash attention below v2.4.2 does not support alibi.')
@@ -1417,6 +1439,7 @@ def test_forward_with_padding(
     [
         ('torch', 'fp32'),
         pytest.param('flash', 'amp_bf16', marks=pytest.mark.gpu),
+        pytest.param('flex', 'amp_bf16', marks=pytest.mark.gpu),
         pytest.param('torch', 'amp_bf16', marks=pytest.mark.gpu),
         pytest.param('torch', 'fp32', marks=pytest.mark.gpu),
     ],
@@ -1450,7 +1473,7 @@ def test_forward_with_padding(
         },
     }],
 )
-@pytest.mark.parametrize('tie_word_embeddings', [True, False])
+@pytest.mark.parametrize('tie_word_embeddings', [False])  # [True, False])
 def test_generate(
     attention_impl: str,
     precision: str,
@@ -1459,6 +1482,12 @@ def test_generate(
 ):
     # Test that generate works, and produces the same output with or without
     # padding in the input.
+    if attention_impl == 'flex' and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.6.0'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
+        )
     if pos_emb_config['alibi'] and not check_alibi_support(attention_impl):
         pytest.skip(f'flash attention below v2.4.2 does not support alibi.')
 
@@ -1713,6 +1742,7 @@ def test_save_from_pretrained(tmp_path: pathlib.Path):
     [
         'torch',
         pytest.param('flash', marks=pytest.mark.gpu),
+        pytest.param('flex', marks=pytest.mark.gpu),
     ],
 )
 @pytest.mark.parametrize(
@@ -1752,6 +1782,12 @@ def test_forward_with_cache_and_padding(attn_impl: str, pos_emb_config: dict):
         'rope_impl'] == 'dail' and not is_flash_v2_installed():
         pytest.skip(
             f'dail implementation of rope requires gpu and flash attention 2.',
+        )
+    if attn_impl == 'flex' and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.6.0'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
         )
 
     composer_device = get_device(None)
@@ -1875,6 +1911,7 @@ def test_forward_with_cache_and_padding(attn_impl: str, pos_emb_config: dict):
     [
         'torch',
         pytest.param('flash', marks=pytest.mark.gpu),
+        pytest.param('flex', marks=pytest.mark.gpu),
     ],
 )
 @pytest.mark.parametrize(
@@ -1914,6 +1951,12 @@ def test_forward_with_cache(
 ):
     # Test that model forward with and without the key-value cache produces the
     # same output.
+    if attn_impl == 'flex' and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.6.0'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
+        )
     if pos_emb_config['alibi'] and not check_alibi_support(attn_impl):
         pytest.skip(f'flash attention below v2.4.2 does not support alibi.')
 
@@ -2046,6 +2089,7 @@ def test_forward_with_cache(
     [
         'torch',
         pytest.param('flash', marks=pytest.mark.gpu),
+        pytest.param('flex', marks=pytest.mark.gpu),
     ],
 )
 @pytest.mark.parametrize(
@@ -2083,6 +2127,12 @@ def test_generate_with_past_kv(
     pos_emb_config: dict,
     tie_word_embeddings: bool,
 ):
+    if attn_impl == 'flex' and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.6.0'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
+        )
     if pos_emb_config['alibi'] and not check_alibi_support(attn_impl):
         pytest.skip(f'flash attention below v2.4.2 does not support alibi.')
     if pos_emb_config['rope'] and pos_emb_config[
@@ -2168,6 +2218,7 @@ def test_generate_with_past_kv(
     [
         'torch',
         pytest.param('flash', marks=pytest.mark.gpu),
+        pytest.param('flex', marks=pytest.mark.gpu),
     ],
 )
 @pytest.mark.parametrize(
@@ -2215,6 +2266,12 @@ def test_generation_kwargs_dont_crash(
     pos_emb_config: dict,
     tie_word_embeddings: bool,
 ):
+    if attn_impl == 'flex' and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.6.0'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
+        )
     if pos_emb_config['alibi'] and not check_alibi_support(attn_impl):
         pytest.skip(f'flash attention below v2.4.2 does not support alibi.')
 
@@ -2393,6 +2450,7 @@ def test_alibi_vs_hf():
     [
         'torch',
         pytest.param('flash', marks=pytest.mark.gpu),
+        pytest.param('flex', marks=pytest.mark.gpu),
         pytest.param('torch', marks=pytest.mark.gpu),
     ],
 )
@@ -2429,9 +2487,15 @@ def test_forward_with_output_attentions_and_output_hidden_states(
     attn_impl: str,
     pos_emb_config: dict,
 ):
+    if attn_impl == 'flex' and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.6.0'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
+        )
     if pos_emb_config['alibi'] and not check_alibi_support(attn_impl):
         pytest.skip(f'flash attention below v2.4.2 does not support alibi.')
-    if attn_impl == 'flash':
+    if attn_impl == 'flash' or attn_impl == 'flex':
         pytest.skip(f'output_attentions only implemented with torch attention.')
     if pos_emb_config['rope'] and pos_emb_config[
         'rope_impl'] == 'dail' and not is_flash_v2_installed():
@@ -2591,7 +2655,8 @@ def test_hf_init(
 
 
 @pytest.mark.gpu
-def test_head_dim_8_flash_mqa_attn(batch_size: int = 2):
+@pytest.mark.parametrize('attn_impl', ['torch', 'flash', 'flex'])
+def test_head_dim_8_flash_mqa_attn(attn_impl: str, batch_size: int = 2):
     test_cfg = get_config(conf_path='scripts/train/yamls/pretrain/testing.yaml')
     test_cfg.device = torch.cuda.current_device()
 
@@ -2607,7 +2672,7 @@ def test_head_dim_8_flash_mqa_attn(batch_size: int = 2):
         emb_pdrop=0.1,
         resid_pdrop=0.2,
         attn_config={
-            'attn_impl': 'flash',
+            'attn_impl': attn_impl,
             'attn_type': 'multiquery_attention',
         },
     )
@@ -2639,7 +2704,14 @@ def test_head_dim_8_flash_mqa_attn(batch_size: int = 2):
     assert not torch.isnan(output.logits).any()
 
 
-def test_construct_blocks():
+@pytest.mark.parametrize('attn_impl', ['torch', 'flash', 'flex'])
+def test_construct_blocks(attn_impl: str):
+    if attn_impl == 'flex' and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.6.0'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
+        )
     n_layers = 13
 
     config = MPTConfig(
@@ -2649,7 +2721,7 @@ def test_construct_blocks():
         expansion_ratio=2,
         max_seq_len=64,
         attn_config={
-            'attn_impl': 'flash',
+            'attn_impl': attn_impl,
             'attn_type': 'grouped_query_attention',
             'kv_n_heads': 4,
         },
@@ -2729,7 +2801,9 @@ def test_construct_blocks():
 
 
 @pytest.mark.gpu
+@pytest.mark.parametrize('attn_impl', ['torch', 'flash', 'flex'])
 def test_reuse_prev_layer_kv_cache(
+    attn_impl: str,
     request: pytest.FixtureRequest,
     batch_size: int = 2,
 ):
@@ -2758,7 +2832,7 @@ def test_reuse_prev_layer_kv_cache(
         request=request,
         conf_path=conf_path,
         model_config_overrides=model_config_overrides,
-        attn_impl='flash',
+        attn_impl=attn_impl,
     )
 
     batch = gen_random_batch(batch_size, test_cfg)

@@ -478,7 +478,8 @@ def flex_attn_fn(
     if past_key_value is not None:
         if len(past_key_value) != 0:
             assert past_key_value[0].shape[1] == past_key_value[1].shape[1]
-            query_offset = past_key_value[0].shape[1]
+            query_offset = past_key_value[0].shape[1] + key.shape[
+                1] - query.shape[1]
             key = torch.cat([past_key_value[0], key], dim=1)
             value = torch.cat([past_key_value[1], value], dim=1)
 

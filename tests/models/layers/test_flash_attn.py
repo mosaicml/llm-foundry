@@ -33,9 +33,9 @@ def test_gqa_kv_repetition(attn_impl: str, kv_n_heads: int):
     # whether we repeat the kv_n_heads explicitly or flash attention v2 handles it on its own.
     if attn_impl == 'flex' and version.parse(
         torch.__version__.split('.dev')[0],
-    ) < version.parse('2.5.0'):
+    ) < version.parse('2.6.0'):
         pytest.skip(
-            'FlexAttention is not supported in torch version {torch.__version__}<2.5.0.',
+            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
         )
     d = 128
     n_heads = 8
@@ -70,7 +70,7 @@ def test_gqa_kv_repetition(attn_impl: str, kv_n_heads: int):
             'compiled_flex_attention':
                 flex_attention,  # TODO: torch.compile(flex_attention) doesn't work, maybe because the data dims are too small for compiled kernels. Confirm this hypothesis.
             'compiled_create_block_mask': torch.compile(create_block_mask),
-            'sequence_id_transforms': {},
+            'sequence_id_info': {},
         }
 
     output_1, _, _ = attention_implementations.get(attn_impl)(
@@ -118,7 +118,7 @@ def test_gqa_kv_repetition(attn_impl: str, kv_n_heads: int):
             'compiled_flex_attention':
                 flex_attention,  # TODO: torch.compile(flex_attention) doesn't work, maybe because the data dims are too small for compiled kernels. Confirm this hypothesis.
             'compiled_create_block_mask': torch.compile(create_block_mask),
-            'sequence_id_transforms': {},
+            'sequence_id_info': {},
         }
 
     output_2, _, _ = attention_implementations.get(attn_impl)(
@@ -156,9 +156,9 @@ def test_seq_id_masking_FA_v2(attn_impl: str):
     # Test that flash attention v2 with sequence id masking works correctly.
     if attn_impl == 'flex' and version.parse(
         torch.__version__.split('.dev')[0],
-    ) < version.parse('2.5.0'):
+    ) < version.parse('2.6.0'):
         pytest.skip(
-            'FlexAttention is not supported in torch version {torch.__version__}<2.5.0.',
+            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
         )
     d = 128
     n_heads = 4
@@ -201,7 +201,7 @@ def test_seq_id_masking_FA_v2(attn_impl: str):
             'compiled_flex_attention':
                 flex_attention,  # TODO: torch.compile(flex_attention) doesn't work, maybe because the data dims are too small for compiled kernels. Confirm this hypothesis.
             'compiled_create_block_mask': torch.compile(create_block_mask),
-            'sequence_id_transforms': {
+            'sequence_id_info': {
                 'sequence_id': sequence_id,
             },
         }
@@ -249,7 +249,7 @@ def test_seq_id_masking_FA_v2(attn_impl: str):
                 'compiled_flex_attention':
                     flex_attention,  # TODO: torch.compile(flex_attention) doesn't work, maybe because the data dims are too small for compiled kernels. Confirm this hypothesis.
                 'compiled_create_block_mask': torch.compile(create_block_mask),
-                'sequence_id_transforms': {
+                'sequence_id_info': {
                     'sequence_id': sequence_id,
                 },
             }
@@ -300,9 +300,9 @@ def test_alibi_bias(attn_impl: str, n_heads: int):
     # Test that sliding window attention works as expected.
     if attn_impl == 'flex' and version.parse(
         torch.__version__.split('.dev')[0],
-    ) < version.parse('2.5.0'):
+    ) < version.parse('2.6.0'):
         pytest.skip(
-            'FlexAttention is not supported in torch version {torch.__version__}<2.5.0.',
+            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
         )
     dtype = torch.bfloat16
     device = 'cuda'
@@ -345,7 +345,7 @@ def test_alibi_bias(attn_impl: str, n_heads: int):
             'compiled_flex_attention':
                 flex_attention,  # TODO: torch.compile(flex_attention) doesn't work, maybe because the data dims are too small for compiled kernels. Confirm this hypothesis.
             'compiled_create_block_mask': torch.compile(create_block_mask),
-            'sequence_id_transforms': {},
+            'sequence_id_info': {},
         }
     output_1, _, _ = attention_implementations.get(attn_impl)(
         query=query_1,
@@ -444,9 +444,9 @@ def test_attn_logit_softcapping(
     # Test that attn_logit_softcapping in attention works as expected.
     if attn_impl == 'flex' and version.parse(
         torch.__version__.split('.dev')[0],
-    ) < version.parse('2.5.0'):
+    ) < version.parse('2.6.0'):
         pytest.skip(
-            'FlexAttention is not supported in torch version {torch.__version__}<2.5.0.',
+            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
         )
     if attn_impl == 'flex' and attn_logit_softcapping is not None:
         if int(attn_logit_softcapping) != attn_logit_softcapping:
@@ -492,7 +492,7 @@ def test_attn_logit_softcapping(
             'compiled_flex_attention':
                 flex_attention,  # TODO: torch.compile(flex_attention) doesn't work, maybe because the data dims are too small for compiled kernels. Confirm this hypothesis.
             'compiled_create_block_mask': torch.compile(create_block_mask),
-            'sequence_id_transforms': {},
+            'sequence_id_info': {},
         }
     output_1, _, _ = attention_implementations.get(attn_impl)(
         query=query_1,

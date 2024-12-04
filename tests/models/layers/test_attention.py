@@ -177,9 +177,9 @@ def test_sliding_window(sliding_window_size: int, attn_impl: str):
     # Test that sliding window attention works as expected.
     if attn_impl == 'flex' and version.parse(
         torch.__version__.split('.dev')[0],
-    ) < version.parse('2.5.0'):
+    ) < version.parse('2.6.0'):
         pytest.skip(
-            'FlexAttention is not supported in torch version {torch.__version__}<2.5.0.',
+            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
         )
     dtype = torch.bfloat16
     device = 'cuda'
@@ -218,7 +218,7 @@ def test_sliding_window(sliding_window_size: int, attn_impl: str):
             'compiled_flex_attention':
                 flex_attention,  # TODO: torch.compile(flex_attention) doesn't work, maybe because the data dims are too small for compiled kernels. Confirm this hypothesis.
             'compiled_create_block_mask': torch.compile(create_block_mask),
-            'sequence_id_transforms': {},
+            'sequence_id_info': {},
         }
 
     output_1, _, _ = attention_implementations.get(attn_impl)(

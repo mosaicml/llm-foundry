@@ -450,21 +450,24 @@ def test_final_register_only(
             assert checkpointer_callback._save_checkpoint.call_count == 2
             assert checkpointer_callback._save_checkpoint.call_args_list[
                 0].kwargs == {
-                    'register_to_mlflow': True,
+                    'log_to_mlflow': True,
                     'upload_to_save_folder': False,
+                    'register': True,
                 }
             assert checkpointer_callback._save_checkpoint.call_args_list[
                 1].kwargs == {
-                    'register_to_mlflow': False,
+                    'log_to_mlflow': False,
                     'upload_to_save_folder': True,
+                    'register': False,
                 }
         else:
             # No mlflow_registry_error, so we should only register the model
             assert checkpointer_callback._save_checkpoint.call_count == 1
             assert checkpointer_callback._save_checkpoint.call_args_list[
                 0].kwargs == {
-                    'register_to_mlflow': True,
+                    'log_to_mlflow': True,
                     'upload_to_save_folder': False,
+                    'register': True,
                 }
     else:
         # No mlflow_registered_model_name, so we should only save the checkpoint
@@ -472,8 +475,9 @@ def test_final_register_only(
         assert checkpointer_callback._save_checkpoint.call_count == 1
         assert checkpointer_callback._save_checkpoint.call_args_list[
             0].kwargs == {
-                'register_to_mlflow': False,
+                'log_to_mlflow': False,
                 'upload_to_save_folder': True,
+                'register': False,
             }
 
 
@@ -549,7 +553,7 @@ def test_huggingface_conversion_callback_interval(
         mlflow_logger_mock.log_model.assert_called_with(
             transformers_model=ANY,
             flavor='transformers',
-            artifact_path='final_model_checkpoint',
+            artifact_path=f'huggingface/{save_interval}',
             registered_model_name='dummy-registered-name',
             run_id='mlflow-run-id',
             await_registration_for=3600,

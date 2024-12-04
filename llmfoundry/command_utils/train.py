@@ -619,6 +619,7 @@ def train(cfg: DictConfig) -> Trainer:
             trainer.logger,
             upload_to_save_folder=True,
             log_to_mlflow=True,
+            register=True,
         )
         return trainer
 
@@ -645,13 +646,19 @@ def train(cfg: DictConfig) -> Trainer:
     log.info('Done.')
     return trainer
 
-from llmfoundry.registry import dataloaders
+
 import torch
-from torch.utils.data import DataLoader
-from datasets import load_dataset
 from composer.utils import dist
-from transformers import PreTrainedTokenizer, AutoTokenizer
-from transformers import DataCollatorForLanguageModeling
+from datasets import load_dataset
+from torch.utils.data import DataLoader
+from transformers import (
+    AutoTokenizer,
+    DataCollatorForLanguageModeling,
+    PreTrainedTokenizer,
+)
+
+from llmfoundry.registry import dataloaders
+
 
 def train_from_yaml(
     yaml_path: str,

@@ -1178,6 +1178,7 @@ def test_transform_model_pre_registration():
         logger=logger,
         upload_to_save_folder=True,
         log_to_mlflow=True,
+        register=True,
     )
 
     checkpointer._save_and_register_peft_model.assert_not_called()
@@ -1781,4 +1782,5 @@ def test_generation_config_variants(
         logger=logger,
         upload_to_save_folder=False,
         log_to_mlflow=False,
+        register=False,
     )

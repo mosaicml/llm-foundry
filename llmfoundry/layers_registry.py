@@ -1,7 +1,7 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Callable
+from typing import Any, Callable
 
 import torch
 
@@ -176,61 +176,18 @@ attention_implementations = create_registry(
     description=_attention_implementations_description,
 )
 
-_flex_attention_score_mods_description = (
-    """The flex_attention_score_mods registry is used to register functions that implement flex attention score mods.
+_flex_attention_mods_description = (
+    """The flex_attention_mods registry is used to register classes that implement flex attention mods.
 
-    One example is 'alibi'. See attention.py for examples.
-
-    Args:
-        kwargs: Dict[str, Any]: Additional keyword arguments the implementation accepts.
-    Returns:
-        Callable[[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor], Tensor]: The score mod function (see https://github.com/pytorch/pytorch/blob/main/torch/nn/attention/flex_attention.py)
+    One example is 'CausalMaskMod'. See flex_attn_mods.py for examples.
     """
 )
-flex_attention_score_mods = create_registry(
+flex_attention_mods = create_registry(
     'llmfoundry',
-    'flex_attention_score_mods',
-    generic_type=Callable,
+    'flex_attention_mods',
+    generic_type=type[Any],
     entry_points=True,
-    description=_flex_attention_score_mods_description,
-)
-
-_flex_attention_mask_mods_description = (
-    """The flex_attention_masks registry is used to register functions that implement flex attention mask mods.
-
-    One example is 'sequence_id'. See attention.py for examples.
-
-    Args:
-        kwargs: Dict[str, Any]: Additional keyword arguments the implementation accepts.
-    Returns:
-        Callable[[Tensor, Tensor, Tensor, Tensor], Tensor]: The mask mod function (see https://github.com/pytorch/pytorch/blob/main/torch/nn/attention/flex_attention.py)
-    """
-)
-flex_attention_mask_mods = create_registry(
-    'llmfoundry',
-    'flex_attention_mask_mods',
-    generic_type=Callable,
-    entry_points=True,
-    description=_flex_attention_mask_mods_description,
-)
-
-_sequence_id_transformer_registry = (
-    """The sequence_id_transformer_registry registry is used to register functions that implement sequence id transformations.
-
-    One example is 'attention_mask_in_length' in modeling_mpt.py.
-
-    Args:
-        torch.Tensor: The sequence id tensor.
-    Returns:
-        Any: The sequence id transformed.
-    """
-)
-sequence_id_transformer_registry = create_registry(
-    'llmfoundry',
-    'sequence_id_transformer_registry',
-    generic_type=Callable,
-    entry_points=True,
-    description=_sequence_id_transformer_registry,
+    description=_flex_attention_mods_description,
 )
 
 _param_init_fns_description = (
@@ -288,8 +245,6 @@ __all__ = [
     'ffns_with_megablocks',
     'attention_classes',
     'attention_implementations',
-    'flex_attention_score_mods',
-    'flex_attention_mask_mods',
-    'sequence_id_transformer_registry',
+    'flex_attention_mods',
     'fcs',
 ]

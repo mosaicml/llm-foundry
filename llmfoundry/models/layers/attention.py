@@ -13,18 +13,15 @@ import transformers
 from einops import rearrange
 from packaging import version
 from torch import nn
-from torch.nn.attention.flex_attention import (
-    _mask_mod_signature,
-    _score_mod_signature,
-    and_masks,
-    noop_mask,
-)
 
 from llmfoundry.layers_registry import (
     attention_classes,
     attention_implementations,
-    flex_attention_mask_mods,
-    flex_attention_score_mods,
+    flex_attention_mods,
+)
+from llmfoundry.models.layers.flex_attn_utils import (
+    generate_block_mask,
+    generate_score_mod,
 )
 from llmfoundry.models.layers.layer_builders import build_fc, build_norm
 from llmfoundry.models.utils.config_defaults import fc_type_defaults
@@ -446,7 +443,8 @@ def flex_attn_fn(
     kv_n_heads: int,
     compiled_flex_attention: Any,
     compiled_create_block_mask: Any,
-    sequence_id_transforms: dict[str, Any],
+    sequence_id_info: dict[str, Any],
+    flex_attn_mod_list: Optional[list[dict[str, Any]]] = None,
     past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
     softmax_scale: Optional[float] = None,
     attn_bias: Optional[torch.Tensor] = None,
@@ -459,8 +457,6 @@ def flex_attn_fn(
     sliding_window_size: int = -1,
     alibi_slopes: Optional[torch.Tensor] = None,
     attn_logit_softcapping: Optional[float] = None,
-    block_mask_list: Optional[list[dict[str, Any]]] = None,
-    score_mod_list: Optional[list[dict[str, Any]]] = None,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
                                                                 torch.Tensor]]]:
     del training, should_repeat_kv_for_gqa
@@ -491,52 +487,36 @@ def flex_attn_fn(
 
     def _check_mod_list(mod_list: list[dict[str, Any]], name: str):
         for mod in mod_list:
-            if mod['name'] == name:
+            if mod['mod_name'] == name:
                 raise ValueError(
                     f'{name} mod should not be defined through flex attention config.',
                 )
 
-    block_mask_list = block_mask_list if block_mask_list is not None else []
+    flex_attn_mod_list = copy.deepcopy(
+        flex_attn_mod_list,
+    ) if flex_attn_mod_list is not None else []
     if is_causal:
-        _check_mod_list(block_mask_list, 'causal')
-        block_mask_list.append({'name': 'causal', 'mask_kwargs': {}})
+        _check_mod_list(flex_attn_mod_list, 'causal_mask')
+        flex_attn_mod_list.append({'mod_name': 'causal_mask', 'mod_kwargs': {}})
     if sliding_window_size != -1:
-        _check_mod_list(block_mask_list, 'sliding_window')
-        block_mask_list.append({
-            'name': 'sliding_window',
-            'mask_kwargs': {
+        _check_mod_list(flex_attn_mod_list, 'sliding_window_mask')
+        flex_attn_mod_list.append({
+            'mod_name': 'sliding_window_mask',
+            'mod_kwargs': {
                 'sliding_window_size': sliding_window_size,
             },
         })
-    if 'sequence_id' in sequence_id_transforms:
-        _check_mod_list(block_mask_list, 'sequence_id')
-        switch_off_default_sequence_id_masking = False
-        for mod in block_mask_list:
-            if 'switch_off_default_sequence_id_masking' in mod and mod[
-                'switch_off_default_sequence_id_masking']:
-                switch_off_default_sequence_id_masking = True
-                break
-        if not switch_off_default_sequence_id_masking:
-            block_mask_list.append({
-                'name': 'sequence_id',
-                'mask_kwargs': {
-                    'sequence_id_transform': 'sequence_id',
-                },
-            })
-    block_mask = _generate_block_mask(
-        Q_LEN=query.shape[2],
-        KV_LEN=key.shape[2],
-        B=query.shape[0],
-        block_mask_list=block_mask_list,
-        compiled_create_block_mask=compiled_create_block_mask,
-        sequence_id_transforms=sequence_id_transforms,
-    )
+    if 'sequence_id' in sequence_id_info:
+        _check_mod_list(flex_attn_mod_list, 'sequence_id_mask')
+        flex_attn_mod_list.append({
+            'mod_name': 'sequence_id_mask',
+            'mod_kwargs': {},
+        })
 
-    score_mod_list = score_mod_list if score_mod_list is not None else []
     if alibi_slopes is not None:
-        _check_mod_list(score_mod_list, 'alibi')
-        score_mod_list.append({
-            'name': 'alibi',
+        _check_mod_list(flex_attn_mod_list, 'alibi_score_mod')
+        flex_attn_mod_list.append({
+            'mod_name': 'alibi_score_mod',
             'mod_kwargs': {
                 'alibi_slopes': alibi_slopes,
             },
@@ -547,14 +527,39 @@ def flex_attn_fn(
                 f'FlexAttention does not support attn_logit_softcapping with float softcap temperature. Got {attn_logit_softcapping=}. Please set consider rounding it to the closest integer.',
             )
         attn_logit_softcapping = int(attn_logit_softcapping)
-        _check_mod_list(score_mod_list, 'softcap')
-        score_mod_list.append({
-            'name': 'softcap',
+        _check_mod_list(flex_attn_mod_list, 'softcap_score_mod')
+        flex_attn_mod_list.append({
+            'mod_name': 'softcap_score_mod',
             'mod_kwargs': {
                 'attn_logit_softcapping': attn_logit_softcapping,
             },
         })
-    score_mod = _generate_score_mod(score_mod_list)
+
+    flex_attn_mod_list = [
+        flex_attention_mods.get(mod['mod_name'])(**mod['mod_kwargs'])
+        for mod in flex_attn_mod_list
+    ]
+    block_mask_list = [
+        mod for mod in flex_attn_mod_list
+        if mod.mod_type == 'mask'  # type: ignore
+    ]
+    score_mod_list = [
+        mod for mod in flex_attn_mod_list
+        if mod.mod_type == 'score'  # type: ignore
+    ]
+
+    block_mask = generate_block_mask(
+        Q_LEN=query.shape[2],
+        KV_LEN=key.shape[2],
+        B=query.shape[0],
+        block_mask_list=block_mask_list, # type: ignore
+        compiled_create_block_mask=compiled_create_block_mask,
+        sequence_id_info=sequence_id_info,
+    )
+    score_mod = generate_score_mod(
+        score_mod_list=score_mod_list, # type: ignore
+        sequence_id_info=sequence_id_info,
+    )
 
     output = compiled_flex_attention(
         query,
@@ -567,213 +572,6 @@ def flex_attn_fn(
     )
     output = rearrange(output, 'b h s d -> b s (h d)')
     return output, None, past_key_value
-
-
-def _generate_block_mask(
-    Q_LEN: int,
-    KV_LEN: int,
-    B: int,
-    block_mask_list: list[dict[str, Any]],
-    compiled_create_block_mask: Any,
-    sequence_id_transforms: dict[str, Any],
-):
-    block_mask_fn = flex_attention_mask_mods.get('noop')()
-    for mask_dict in block_mask_list:
-        mask_kwargs = mask_dict['mask_kwargs']
-        mask_name = mask_dict['name']
-        if 'sequence_id_transform' in mask_kwargs:
-            mask_kwargs['sequence_id_transform'] = sequence_id_transforms[
-                mask_kwargs['sequence_id_transform']]
-        block_mask_fn = and_masks(
-            block_mask_fn,
-            flex_attention_mask_mods.get(mask_name)(**mask_kwargs),
-        )
-
-    extra_mask_kwargs = {}
-    # TODO: Check if this is necessary.
-    # if Q_LEN % _DEFAULT_SPARSE_BLOCK_SIZE != 0: # And a similar test for KV_LEN
-    #     # The default block size is _DEFAULT_SPARSE_BLOCK_SIZE (https://github.com/pytorch/pytorch/blob/main/torch/nn/attention/flex_attention.py).
-    #     # If sequence length is not a multiple of the default block size (for example in unit tests), we need to set the block size explicitly.
-    #     # TODO: Confirm the hypothesis.
-    #     warnings.warn(
-    #         f'The sequence length ({Q_LEN}) is not a multiple of the default block size ({_DEFAULT_SPARSE_BLOCK_SIZE}). Setting the block size to sequence length. This may cause unexpected behavior.',
-    #     )
-    #     extra_mask_kwargs['BLOCK_SIZE'] = Q_LEN
-    block_mask = compiled_create_block_mask(
-        block_mask_fn,
-        B=B,
-        H=None, # Setting this to None speeds up block mask generation, but this means the mask has to be the same across all heads.
-        Q_LEN=Q_LEN,
-        KV_LEN=KV_LEN,
-        **extra_mask_kwargs,
-    )
-
-    return block_mask
-
-
-def _get_noop_mask_mod_fn() -> _mask_mod_signature:
-    return noop_mask
-
-
-def _get_causal_mask_mod_fn() -> _mask_mod_signature:
-    """Returns a flex attention mask mod for causal attention masking."""
-
-    def causal_mask_fn(
-        b: torch.Tensor,
-        h: torch.Tensor,
-        q_idx: torch.Tensor,
-        kv_idx: torch.Tensor,
-    ) -> torch.Tensor:
-        del b, h
-        return q_idx >= kv_idx
-
-    return causal_mask_fn
-
-
-def _get_sliding_window_mask_mod_fn(
-    sliding_window_size: int,
-) -> _mask_mod_signature:
-
-    def sliding_window_mask_fn(
-        b: torch.Tensor,
-        h: torch.Tensor,
-        q_idx: torch.Tensor,
-        kv_idx: torch.Tensor,
-    ) -> torch.Tensor:
-        del b, h
-        return q_idx - kv_idx <= sliding_window_size
-
-    return sliding_window_mask_fn
-
-
-def _get_sequence_id_mask_mod_fn(
-    sequence_id_transform: torch.Tensor,
-) -> _mask_mod_signature:
-    sequence_id = sequence_id_transform
-
-    def sequence_id_mask_fn(
-        b: torch.Tensor,
-        h: torch.Tensor,
-        q_idx: torch.Tensor,
-        kv_idx: torch.Tensor,
-    ) -> torch.Tensor:
-        del h
-        # Check if the query and key belong to the same sequence and the query token is not a padding token.
-        return (sequence_id[b, q_idx]
-                == sequence_id[b, kv_idx]) & (sequence_id[b, q_idx] != -1)
-
-    return sequence_id_mask_fn
-
-
-def _get_local_global_mask_mod_fn(
-    sequence_id_transform: dict[str, torch.Tensor],
-    sliding_window_size: int,
-    global_window_size: int,
-) -> _mask_mod_signature:
-    sequence_id = sequence_id_transform['sequence_id']
-    pos_in_seq = sequence_id_transform['pos_in_seq']
-
-    def local_global_mask_fn(
-        b: torch.Tensor,
-        h: torch.Tensor,
-        q_idx: torch.Tensor,
-        kv_idx: torch.Tensor,
-    ) -> torch.Tensor:
-        del h
-        # Check if the query and key belong to the same sequence and the query token is not a padding token.
-
-        sequence_id_mask = (sequence_id[b, q_idx] == sequence_id[b, kv_idx]
-                           ) & (sequence_id[b, q_idx] != -1)
-        global_window_mask = (pos_in_seq[b, kv_idx] <= global_window_size)
-        sliding_window_mask = (q_idx - kv_idx <= sliding_window_size)
-
-        return sequence_id_mask & (global_window_mask | sliding_window_mask)
-
-    return local_global_mask_fn
-
-
-def _generate_score_mod(score_mod_list: list[dict[str, Any]],):
-    score_mod = flex_attention_score_mods.get('noop')()
-    for mod_dict in score_mod_list:
-        mod_name = mod_dict['name']
-        mod_kwargs = mod_dict['mod_kwargs']
-        score_mod = _wrap_score_mod_fns(
-            score_mod,
-            flex_attention_score_mods.get(mod_name)(**mod_kwargs),
-        )
-
-    return score_mod
-
-
-def _wrap_score_mod_fns(
-    score_mod_fn_1: _score_mod_signature,
-    score_mod_fn_2: _score_mod_signature,
-) -> _score_mod_signature:
-
-    def wrapped_score_mod_fn(
-        score: torch.Tensor,
-        b: torch.Tensor,
-        h: torch.Tensor,
-        q_idx: torch.Tensor,
-        kv_idx: torch.Tensor,
-    ) -> torch.Tensor:
-        score = score_mod_fn_1(score, b, h, q_idx, kv_idx)
-        score = score_mod_fn_2(score, b, h, q_idx, kv_idx)
-        return score
-
-    return wrapped_score_mod_fn
-
-
-def _get_noop_score_mod_fn() -> _score_mod_signature:
-    """Returns a no-op score mod function for flex attention."""
-
-    def _noop_score_mod_fn(
-        score: torch.Tensor,
-        b: torch.Tensor,
-        h: torch.Tensor,
-        q_idx: torch.Tensor,
-        kv_idx: torch.Tensor,
-    ) -> torch.Tensor:
-        del b, h, q_idx, kv_idx
-        return score
-
-    return _noop_score_mod_fn
-
-
-def _get_alibi_score_mod_fn(alibi_slopes: torch.Tensor) -> _score_mod_signature:
-    """Returns a flex attention score mod function for alibi positional bias."""
-
-    def _alibi_score_mod_fn(
-        score: torch.Tensor,
-        b: torch.Tensor,
-        h: torch.Tensor,
-        q_idx: torch.Tensor,
-        kv_idx: torch.Tensor,
-    ) -> torch.Tensor:
-        del b
-        bias = -alibi_slopes[h] * (q_idx - kv_idx)
-        return score + bias
-
-    return _alibi_score_mod_fn
-
-
-def _get_softcap_score_mod_fn(
-    attn_logit_softcapping: int,
-) -> _score_mod_signature:
-
-    def _softcap_score_fn(
-        score: torch.Tensor,
-        b: torch.Tensor,
-        h: torch.Tensor,
-        q_idx: torch.Tensor,
-        kv_idx: torch.Tensor,
-    ) -> torch.Tensor:
-        del b, h, q_idx, kv_idx
-        return attn_logit_softcapping * torch.tanh(
-            score / attn_logit_softcapping,
-        )
-
-    return _softcap_score_fn
 
 
 @attention_classes.register_class('grouped_query_attention')
@@ -809,7 +607,7 @@ class GroupedQueryAttention(nn.Module):
         reuse_kv_layer_idx: Optional[int] = None,
         attn_logit_softcapping: Optional[float] = None,
         kv_dim: Optional[int] = None,
-        flex_attn_config: Optional[dict[str, Any]] = None,
+        flex_attn_mod_list: Optional[list[dict[str, Any]]] = None,
     ):
         super().__init__()
 
@@ -936,13 +734,7 @@ class GroupedQueryAttention(nn.Module):
         self.out_proj._is_residual = True
 
         if self.attn_impl == 'flex':
-            if flex_attn_config is None:
-                flex_attn_config = {
-                    'sequence_id_transformers': [],
-                    'block_mask_list': [],
-                    'score_mod_list': [],
-                }
-            self.flex_attn_config = flex_attn_config
+            self.flex_attn_mod_list = flex_attn_mod_list
 
     def forward(
         self,
@@ -1204,17 +996,11 @@ class GroupedQueryAttention(nn.Module):
                 raise ValueError(
                     'flex_attn_kwargs must be provided for flex attention.',
                 )
-            args_to_exclude = {'sequence_id_transformers'}
-            flex_attn_config = {
-                name: value
-                for name, value in flex_attn_kwargs.items()
-                if name not in args_to_exclude
-            }
             extra_attn_kwargs = {
                 'alibi_slopes': alibi_slopes,
                 'key_padding_mask': None,
+                'flex_attn_mod_list': self.flex_attn_mod_list,
                 **flex_attn_kwargs,
-                **flex_attn_config,
             }
         else:
             extra_attn_kwargs = {'key_padding_mask': attention_mask}
@@ -1428,22 +1214,3 @@ attention_implementations.register(
     func=scaled_multihead_dot_product_attention,
 )
 attention_implementations.register('flex', func=flex_attn_fn)
-
-flex_attention_score_mods.register('noop', func=_get_noop_score_mod_fn)
-flex_attention_score_mods.register('alibi', func=_get_alibi_score_mod_fn)
-flex_attention_score_mods.register('softcap', func=_get_softcap_score_mod_fn)
-
-flex_attention_mask_mods.register('noop', func=_get_noop_mask_mod_fn)
-flex_attention_mask_mods.register('causal', func=_get_causal_mask_mod_fn)
-flex_attention_mask_mods.register(
-    'sliding_window',
-    func=_get_sliding_window_mask_mod_fn,
-)
-flex_attention_mask_mods.register(
-    'sequence_id',
-    func=_get_sequence_id_mask_mod_fn,
-)
-flex_attention_mask_mods.register(
-    'local_global_mask',
-    func=_get_local_global_mask_mod_fn,
-)

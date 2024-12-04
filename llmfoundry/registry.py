@@ -22,12 +22,10 @@ from llmfoundry.layers_registry import (
     ffns,
     ffns_with_megablocks,
     ffns_with_norm,
-    flex_attention_mask_mods,
-    flex_attention_score_mods,
+    flex_attention_mods,
     module_init_fns,
     norms,
     param_init_fns,
-    sequence_id_transformer_registry,
 )
 from llmfoundry.utils.registry_utils import create_registry
 
@@ -435,9 +433,7 @@ __all__ = [
     'ffns_with_megablocks',
     'attention_classes',
     'attention_implementations',
-    'flex_attention_score_mods',
-    'flex_attention_mask_mods',
-    'sequence_id_transformer_registry',
+    'flex_attention_mods',
     'fcs',
     'icl_datasets',
     'config_transforms',

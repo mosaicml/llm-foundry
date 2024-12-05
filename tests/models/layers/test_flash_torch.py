@@ -21,6 +21,12 @@ from llmfoundry.models.mpt.modeling_mpt import (
     gen_sequence_id_info,
 )
 
+compiled_flex_attention = flex_attention
+compiled_create_block_mask = create_block_mask
+if version.parse(torch.__version__.split('.dev')[0]) >= version.parse('2.6.0'):
+    compiled_flex_attention = torch.compile(flex_attention)
+    compiled_create_block_mask = torch.compile(create_block_mask)
+
 
 def allclose_helper(
     t0: torch.Tensor,
@@ -104,9 +110,9 @@ def test_attn_impl(
     """
     if (attn_impl_0 == 'flex' or attn_impl_1 == 'flex') and version.parse(
         torch.__version__.split('.dev')[0],
-    ) < version.parse('2.6.0'):
+    ) < version.parse('2.5.1'):
         pytest.skip(
-            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.1.',
         )
     alibi = pos_emb_config['alibi']
     rope = pos_emb_config['rope']
@@ -293,9 +299,8 @@ def test_attn_impl(
         extra_kwargs = {}
         if attn_impl_0 == 'flex':
             extra_kwargs['flex_attn_kwargs'] = {
-                'compiled_flex_attention':
-                    flex_attention,  # TODO: torch.compile(flex_attention) doesn't work, maybe because the data dims are too small for compiled kernels. Confirm this hypothesis.
-                'compiled_create_block_mask': torch.compile(create_block_mask),
+                'compiled_flex_attention': compiled_flex_attention,
+                'compiled_create_block_mask': compiled_create_block_mask,
                 'sequence_id_info': {},
             }
             if sequence_id is not None:
@@ -325,9 +330,8 @@ def test_attn_impl(
         extra_kwargs = {}
         if attn_impl_1 == 'flex':
             extra_kwargs['flex_attn_kwargs'] = {
-                'compiled_flex_attention':
-                    flex_attention,  # TODO: torch.compile(flex_attention) doesn't work, maybe because the data dims are too small for compiled kernels. Confirm this hypothesis.
-                'compiled_create_block_mask': torch.compile(create_block_mask),
+                'compiled_flex_attention': compiled_flex_attention,
+                'compiled_create_block_mask': compiled_create_block_mask,
             }
             if sequence_id is not None:
                 extra_kwargs['flex_attn_kwargs']['sequence_id_info'] = {
@@ -386,9 +390,9 @@ def test_vs_mha(attn_impl: str, device: str = 'cuda'):
     """Compare diff attn_impl to torch.nn.MultiheadAttention."""
     if attn_impl == 'flex' and version.parse(
         torch.__version__.split('.dev')[0],
-    ) < version.parse('2.6.0'):
+    ) < version.parse('2.5.1'):
         pytest.skip(
-            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.1.',
         )
     from llmfoundry.models.layers import attention
 
@@ -447,9 +451,8 @@ def test_vs_mha(attn_impl: str, device: str = 'cuda'):
         extra_kwargs = {}
         if attn_impl == 'flex':
             extra_kwargs['flex_attn_kwargs'] = {
-                'compiled_flex_attention':
-                    flex_attention,  # TODO: torch.compile(flex_attention) doesn't work, maybe because the data dims are too small for compiled kernels. Confirm this hypothesis.
-                'compiled_create_block_mask': torch.compile(create_block_mask),
+                'compiled_flex_attention': compiled_flex_attention,
+                'compiled_create_block_mask': compiled_create_block_mask,
                 'sequence_id_info': {},
             }
         y0, _, _ = mmhsa(
@@ -517,9 +520,9 @@ def test_grouped_attention_heads(
     """Ensure grouped_query_attention runs w/ diff n_heads & kv_n_heads."""
     if attn_impl == 'flex' and version.parse(
         torch.__version__.split('.dev')[0],
-    ) < version.parse('2.6.0'):
+    ) < version.parse('2.5.1'):
         pytest.skip(
-            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.1.',
         )
     from llmfoundry.models.layers import attention
 
@@ -555,9 +558,8 @@ def test_grouped_attention_heads(
         extra_kwargs = {}
         if attn_impl == 'flex':
             extra_kwargs['flex_attn_kwargs'] = {
-                'compiled_flex_attention':
-                    flex_attention,  # TODO: torch.compile(flex_attention) doesn't work, maybe because the data dims are too small for compiled kernels. Confirm this hypothesis.
-                'compiled_create_block_mask': torch.compile(create_block_mask),
+                'compiled_flex_attention': compiled_flex_attention,
+                'compiled_create_block_mask': compiled_create_block_mask,
                 'sequence_id_info': {},
             }
         y0, _, _ = mmhsa(
@@ -637,9 +639,9 @@ def test_reuse_prev_layer_kv_cache(
     """Checks reusing previous layer's kv cache."""
     if attn_impl == 'flex' and version.parse(
         torch.__version__.split('.dev')[0],
-    ) < version.parse('2.6.0'):
+    ) < version.parse('2.5.1'):
         pytest.skip(
-            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.1.',
         )
     alibi = pos_emb_config['alibi']
     rope = pos_emb_config['rope']
@@ -777,9 +779,8 @@ def test_reuse_prev_layer_kv_cache(
         extra_kwargs = {}
         if attn_impl == 'flex':
             extra_kwargs['flex_attn_kwargs'] = {
-                'compiled_flex_attention':
-                    flex_attention,  # TODO: torch.compile(flex_attention) doesn't work, maybe because the data dims are too small for compiled kernels. Confirm this hypothesis.
-                'compiled_create_block_mask': torch.compile(create_block_mask),
+                'compiled_flex_attention': compiled_flex_attention,
+                'compiled_create_block_mask': compiled_create_block_mask,
                 'sequence_id_info': {
                     'sequence_id': sequence_id,
                 },
@@ -811,9 +812,8 @@ def test_reuse_prev_layer_kv_cache(
         extra_kwargs = {}
         if attn_impl == 'flex':
             extra_kwargs['flex_attn_kwargs'] = {
-                'compiled_flex_attention':
-                    flex_attention,  # TODO: torch.compile(flex_attention) doesn't work, maybe because the data dims are too small for compiled kernels. Confirm this hypothesis.
-                'compiled_create_block_mask': torch.compile(create_block_mask),
+                'compiled_flex_attention': compiled_flex_attention,
+                'compiled_create_block_mask': compiled_create_block_mask,
                 'sequence_id_info': {
                     'sequence_id': sequence_id,
                 },

@@ -20,7 +20,7 @@ class FlexAttentionMod(ABC):
         q_idx: torch.Tensor,
         kv_idx: torch.Tensor,
         query_offset: int,
-        sequence_id_info: Optional[dict[str, Any]],
+        sequence_id_info: Optional[dict[str, torch.Tensor]],
     ) -> torch.Tensor:
         del sequence_id_info, query_offset, b, h, q_idx, kv_idx
         raise NotImplementedError
@@ -33,7 +33,7 @@ class FlexAttentionMod(ABC):
         q_idx: torch.Tensor,
         kv_idx: torch.Tensor,
         query_offset: int,
-        sequence_id_info: Optional[dict[str, Any]],
+        sequence_id_info: Optional[dict[str, torch.Tensor]],
     ) -> torch.Tensor:
         del sequence_id_info, query_offset, score, b, h, q_idx, kv_idx
         raise NotImplementedError
@@ -54,7 +54,7 @@ class CausalMaskMod(FlexAttentionMod):
         q_idx: torch.Tensor,
         kv_idx: torch.Tensor,
         query_offset: int,
-        sequence_id_info: Optional[dict[str, Any]],
+        sequence_id_info: Optional[dict[str, torch.Tensor]],
     ) -> torch.Tensor:
         del sequence_id_info, b, h
         q_idx = q_idx + query_offset
@@ -74,7 +74,7 @@ class SlidingWindowMaskMod(FlexAttentionMod):
         q_idx: torch.Tensor,
         kv_idx: torch.Tensor,
         query_offset: int,
-        sequence_id_info: Optional[dict[str, Any]],
+        sequence_id_info: Optional[dict[str, torch.Tensor]],
     ) -> torch.Tensor:
         del sequence_id_info, b, h
         q_idx = q_idx + query_offset
@@ -95,7 +95,7 @@ class SequenceIdMaskMod(FlexAttentionMod):
         q_idx: torch.Tensor,
         kv_idx: torch.Tensor,
         query_offset: int,
-        sequence_id_info: Optional[dict[str, Any]],
+        sequence_id_info: Optional[dict[str, torch.Tensor]],
     ) -> torch.Tensor:
         del h
         q_idx = q_idx + query_offset
@@ -122,7 +122,7 @@ class AttentionMaskMod(FlexAttentionMod):
         q_idx: torch.Tensor,
         kv_idx: torch.Tensor,
         query_offset: int,
-        sequence_id_info: Optional[dict[str, Any]],
+        sequence_id_info: Optional[dict[str, torch.Tensor]],
     ) -> torch.Tensor:
         del h, q_idx, query_offset
         if sequence_id_info is None:
@@ -147,7 +147,7 @@ class LocalGlobalMaskMod(FlexAttentionMod):
         q_idx: torch.Tensor,
         kv_idx: torch.Tensor,
         query_offset: int,
-        sequence_id_info: Optional[dict[str, Any]],
+        sequence_id_info: Optional[dict[str, torch.Tensor]],
     ) -> torch.Tensor:
         del h
         q_idx = q_idx + query_offset
@@ -189,7 +189,7 @@ class AlibiScoreMod(FlexAttentionMod):
         q_idx: torch.Tensor,
         kv_idx: torch.Tensor,
         query_offset: int,
-        sequence_id_info: Optional[dict[str, Any]],
+        sequence_id_info: Optional[dict[str, torch.Tensor]],
     ) -> torch.Tensor:
         del sequence_id_info, b
         q_idx = q_idx + query_offset
@@ -212,7 +212,7 @@ class SoftcapScoreMod(FlexAttentionMod):
         q_idx: torch.Tensor,
         kv_idx: torch.Tensor,
         query_offset: int,
-        sequence_id_info: Optional[dict[str, Any]],
+        sequence_id_info: Optional[dict[str, torch.Tensor]],
     ) -> torch.Tensor:
         del sequence_id_info, query_offset, b, h, q_idx, kv_idx
         return self.attn_logit_softcapping * torch.tanh(
@@ -231,7 +231,7 @@ def generate_block_mask(
     block_mask_list: Optional[list[FlexAttentionMod]],
     compiled_create_block_mask: Any,
     query_offset: int,
-    sequence_id_info: Optional[dict[str, Any]],
+    sequence_id_info: Optional[dict[str, torch.Tensor]],
 ):
     if block_mask_list is None:
         return None
@@ -267,8 +267,8 @@ def generate_block_mask(
 
 def generate_score_mod(
     score_mod_list: Optional[list[FlexAttentionMod]],
-    query_offset: int,
-    sequence_id_info: Optional[dict[str, Any]],
+    query_offset: torch.Tensor,
+    sequence_id_info: Optional[dict[str, torch.Tensor]],
 ):
     if score_mod_list is None:
         return None

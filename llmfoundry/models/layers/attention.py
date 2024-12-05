@@ -443,7 +443,7 @@ def flex_attn_fn(
     kv_n_heads: int,
     compiled_flex_attention: Any,
     compiled_create_block_mask: Any,
-    sequence_id_info: dict[str, Any],
+    sequence_id_info: Optional[dict[str, torch.Tensor]],
     flex_attn_mod_list: Optional[list[dict[str, Any]]] = None,
     past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
     softmax_scale: Optional[float] = None,
@@ -511,15 +511,15 @@ def flex_attn_fn(
                 'sliding_window_size': sliding_window_size,
             },
         })
-    if 'sequence_id' in sequence_id_info and sequence_id_info['sequence_id'
-                                                             ] is not None:
+    if sequence_id_info is not None and 'sequence_id' in sequence_id_info and sequence_id_info[
+        'sequence_id'] is not None:
         _check_mod_list(flex_attn_mod_list, 'sequence_id_mask')
         flex_attn_mod_list.append({
             'mod_name': 'sequence_id_mask',
             'mod_kwargs': {},
         })
 
-    if 'attention_mask' in sequence_id_info and sequence_id_info[
+    if sequence_id_info is not None and 'attention_mask' in sequence_id_info and sequence_id_info[
         'attention_mask'] is not None:
         _check_mod_list(flex_attn_mod_list, 'attention_mask')
         flex_attn_mod_list.append({
@@ -573,7 +573,7 @@ def flex_attn_fn(
     )
     score_mod = generate_score_mod(
         score_mod_list=score_mod_list, # type: ignore
-        query_offset=query_offset,
+        query_offset=torch.tensor(query_offset, device=query.device),
         sequence_id_info=sequence_id_info,
     )
 

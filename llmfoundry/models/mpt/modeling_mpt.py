@@ -23,7 +23,6 @@ from typing import (
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from composer.docs.source import conf
 from composer.models import HuggingFaceModel
 from composer.utils import dist
 from tabulate import tabulate

@@ -37,6 +37,7 @@ from torch.distributed.checkpoint.state_dict import (
 )
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from transformers import (
+    AutoModel,
     PretrainedConfig,
     PreTrainedModel,
     PreTrainedTokenizerBase,
@@ -137,6 +138,7 @@ def _log_model_with_multi_process(
     registered_model_name: Optional[str],
     await_registration_for: int,
     mlflow_logging_config: dict[str, Any],
+    is_peft: bool = False,
 ):
     """Call MLFlowLogger.log_model.
 
@@ -201,9 +203,16 @@ def _log_model_with_multi_process(
     if mlflow_logger.model_registry_uri is not None:
         mlflow.set_registry_uri(mlflow_logger.model_registry_uri)
 
+    if is_peft:
+        transformers_in_memory_model = AutoModel.from_pretrained(
+            transformers_model,
+        )
+    else:
+        transformers_in_memory_model = None
+
     register_model_path = f'{mlflow_logger.model_registry_prefix}.{registered_model_name}' if mlflow_logger.model_registry_prefix and registered_model_name else registered_model_name
     mlflow_logger.log_model(
-        transformers_model=transformers_model,
+        transformers_model=transformers_in_memory_model or transformers_model,
         flavor='transformers',
         artifact_path=artifact_path,
         registered_model_name=register_model_path,

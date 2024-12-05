@@ -280,8 +280,8 @@ class HuggingFaceCheckpointer(Callback):
 
     def __init__(
         self,
+        save_folder: Optional[str],
         save_interval: Union[str, int, Time],
-        save_folder: Optional[str] = None,
         huggingface_folder_name: str = 'ba{batch}',
         precision: str = 'float32',
         overwrite: bool = True,

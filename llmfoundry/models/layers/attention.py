@@ -476,7 +476,7 @@ def flex_attn_fn(
     check_valid_inputs(query, key, value)
     assert key.shape[1] == value.shape[1]
     assert query.shape[1] == key.shape[1]
-    query_offset = 0
+    query_offset = torch.tensor(0, device=query.device)
     if past_key_value is not None:
         if len(past_key_value) != 0:
             assert past_key_value[0].shape[1] == past_key_value[1].shape[1]
@@ -573,7 +573,7 @@ def flex_attn_fn(
     )
     score_mod = generate_score_mod(
         score_mod_list=score_mod_list, # type: ignore
-        query_offset=torch.tensor(query_offset, device=query.device),
+        query_offset=query_offset,
         sequence_id_info=sequence_id_info,
     )
 

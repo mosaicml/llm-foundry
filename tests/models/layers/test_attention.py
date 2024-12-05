@@ -16,6 +16,12 @@ from llmfoundry.models.layers.attention import (
 from llmfoundry.models.layers.layer_builders import build_attention_layer
 from llmfoundry.models.mpt.modeling_mpt import gen_flash_attn_padding_info
 
+compiled_flex_attention = flex_attention
+compiled_create_block_mask = create_block_mask
+if version.parse(torch.__version__.split('.dev')[0]) >= version.parse('2.6.0'):
+    compiled_flex_attention = torch.compile(flex_attention)
+    compiled_create_block_mask = torch.compile(create_block_mask)
+
 
 @pytest.mark.parametrize(
     'attn_name',
@@ -177,9 +183,9 @@ def test_sliding_window(sliding_window_size: int, attn_impl: str):
     # Test that sliding window attention works as expected.
     if attn_impl == 'flex' and version.parse(
         torch.__version__.split('.dev')[0],
-    ) < version.parse('2.6.0'):
+    ) < version.parse('2.5.1'):
         pytest.skip(
-            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.1.',
         )
     dtype = torch.bfloat16
     device = 'cuda'
@@ -215,9 +221,8 @@ def test_sliding_window(sliding_window_size: int, attn_impl: str):
         }
     elif attn_impl == 'flex':
         attn_extra_kwargs = {
-            'compiled_flex_attention':
-                flex_attention,  # TODO: torch.compile(flex_attention) doesn't work, maybe because the data dims are too small for compiled kernels. Confirm this hypothesis.
-            'compiled_create_block_mask': torch.compile(create_block_mask),
+            'compiled_flex_attention': compiled_flex_attention,
+            'compiled_create_block_mask': compiled_create_block_mask,
             'sequence_id_info': {},
         }
 

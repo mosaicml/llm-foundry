@@ -58,6 +58,10 @@ from llmfoundry.utils import build_tokenizer
 from llmfoundry.utils.builders import build_composer_model
 from llmfoundry.utils.config_utils import to_dict_container
 
+FLEX_ATTN_COMPILE = version.parse(
+    torch.__version__.split('.dev')[0],
+) >= version.parse('2.6.0')
+
 
 def get_config(
     conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml',
@@ -83,6 +87,7 @@ def _get_objs(
     conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml',
     model_config_overrides: Optional[dict] = None,
     attn_impl: str = 'torch',
+    flex_attn_compile: bool = FLEX_ATTN_COMPILE,
 ):
     warnings.filterwarnings(
         action='ignore',
@@ -112,6 +117,7 @@ def _get_objs(
     test_cfg.precision = 'amp_bf16' if is_gpu else 'fp32'
     test_cfg.model.attn_config = {
         'attn_impl': attn_impl,
+        'flex_attn_compile': flex_attn_compile,
     }
     test_cfg.model.init_device = device
     test_cfg.device = device
@@ -520,9 +526,9 @@ def test_determinism(
 ):
     if attn_impl == 'flex' and version.parse(
         torch.__version__.split('.dev')[0],
-    ) < version.parse('2.6.0'):
+    ) < version.parse('2.5.1'):
         pytest.skip(
-            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.1.',
         )
     conf_path = 'scripts/train/yamls/pretrain/testing.yaml'
     with open(conf_path) as f:
@@ -530,7 +536,7 @@ def test_determinism(
 
     test_cfg.model.attn_config = {
         'attn_impl': attn_impl,
-        'flex_attn_compile': False,
+        'flex_attn_compile': FLEX_ATTN_COMPILE,
     }
     if hasattr(test_cfg.model, 'ffn_config'):
         test_cfg.model.ffn_config['ffn_type'] = ffn_type
@@ -1090,9 +1096,9 @@ def test_sequence_id_based_masking(attention_impl: str, pos_emb_config: dict):
         )
     if attention_impl == 'flex' and version.parse(
         torch.__version__.split('.dev')[0],
-    ) < version.parse('2.6.0'):
+    ) < version.parse('2.5.1'):
         pytest.skip(
-            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.1.',
         )
 
     composer_device = get_device(None)
@@ -1109,6 +1115,7 @@ def test_sequence_id_based_masking(attention_impl: str, pos_emb_config: dict):
         attn_config={
             'attn_impl': attention_impl,
             'attn_uses_sequence_id': True,
+            'flex_attn_compile': FLEX_ATTN_COMPILE,
             **pos_emb_config,
         },
         init_config={
@@ -1219,9 +1226,9 @@ def test_forward_with_padding(
     # Test that different placement of padding does not affect the output.
     if attention_impl == 'flex' and version.parse(
         torch.__version__.split('.dev')[0],
-    ) < version.parse('2.6.0'):
+    ) < version.parse('2.5.1'):
         pytest.skip(
-            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.1.',
         )
     alibi = pos_emb_config['alibi']
     if alibi and not check_alibi_support(attention_impl):
@@ -1247,6 +1254,7 @@ def test_forward_with_padding(
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': attention_impl,
+            'flex_attn_compile': FLEX_ATTN_COMPILE,
             **pos_emb_config,
         },
         init_config={
@@ -1474,7 +1482,7 @@ def test_forward_with_padding(
         },
     }],
 )
-@pytest.mark.parametrize('tie_word_embeddings', [False])  # [True, False])
+@pytest.mark.parametrize('tie_word_embeddings', [True, False])
 def test_generate(
     attention_impl: str,
     precision: str,
@@ -1485,9 +1493,9 @@ def test_generate(
     # padding in the input.
     if attention_impl == 'flex' and version.parse(
         torch.__version__.split('.dev')[0],
-    ) < version.parse('2.6.0'):
+    ) < version.parse('2.5.1'):
         pytest.skip(
-            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.1.',
         )
     if pos_emb_config['alibi'] and not check_alibi_support(attention_impl):
         pytest.skip(f'flash attention below v2.4.2 does not support alibi.')
@@ -1513,6 +1521,7 @@ def test_generate(
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': attention_impl,
+            'flex_attn_compile': FLEX_ATTN_COMPILE,
             **pos_emb_config,
         },
         tie_word_embeddings=tie_word_embeddings,
@@ -1786,9 +1795,9 @@ def test_forward_with_cache_and_padding(attn_impl: str, pos_emb_config: dict):
         )
     if attn_impl == 'flex' and version.parse(
         torch.__version__.split('.dev')[0],
-    ) < version.parse('2.6.0'):
+    ) < version.parse('2.5.1'):
         pytest.skip(
-            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.1.',
         )
 
     composer_device = get_device(None)
@@ -1804,7 +1813,7 @@ def test_forward_with_cache_and_padding(attn_impl: str, pos_emb_config: dict):
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': attn_impl,
-            'flex_attn_compile': False,
+            'flex_attn_compile': FLEX_ATTN_COMPILE,
             **pos_emb_config,
         },
         use_cache=True,
@@ -1955,9 +1964,9 @@ def test_forward_with_cache(
     # same output.
     if attn_impl == 'flex' and version.parse(
         torch.__version__.split('.dev')[0],
-    ) < version.parse('2.6.0'):
+    ) < version.parse('2.5.1'):
         pytest.skip(
-            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.1.',
         )
     if pos_emb_config['alibi'] and not check_alibi_support(attn_impl):
         pytest.skip(f'flash attention below v2.4.2 does not support alibi.')
@@ -1981,7 +1990,7 @@ def test_forward_with_cache(
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': attn_impl,
-            'flex_attn_compile': False,
+            'flex_attn_compile': FLEX_ATTN_COMPILE,
             **pos_emb_config,
         },
         use_cache=True,
@@ -2132,9 +2141,9 @@ def test_generate_with_past_kv(
 ):
     if attn_impl == 'flex' and version.parse(
         torch.__version__.split('.dev')[0],
-    ) < version.parse('2.6.0'):
+    ) < version.parse('2.5.1'):
         pytest.skip(
-            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.1.',
         )
     if pos_emb_config['alibi'] and not check_alibi_support(attn_impl):
         pytest.skip(f'flash attention below v2.4.2 does not support alibi.')
@@ -2157,7 +2166,7 @@ def test_generate_with_past_kv(
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': attn_impl,
-            'flex_attn_compile': False,
+            'flex_attn_compile': FLEX_ATTN_COMPILE,
             **pos_emb_config,
         },
         use_cache=True,
@@ -2272,9 +2281,9 @@ def test_generation_kwargs_dont_crash(
 ):
     if attn_impl == 'flex' and version.parse(
         torch.__version__.split('.dev')[0],
-    ) < version.parse('2.6.0'):
+    ) < version.parse('2.5.1'):
         pytest.skip(
-            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.1.',
         )
     if pos_emb_config['alibi'] and not check_alibi_support(attn_impl):
         pytest.skip(f'flash attention below v2.4.2 does not support alibi.')
@@ -2300,7 +2309,7 @@ def test_generation_kwargs_dont_crash(
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': attn_impl,
-            'flex_attn_compile': False,
+            'flex_attn_compile': FLEX_ATTN_COMPILE,
             **pos_emb_config,
         },
         use_cache=True,
@@ -2494,9 +2503,9 @@ def test_forward_with_output_attentions_and_output_hidden_states(
 ):
     if attn_impl == 'flex' and version.parse(
         torch.__version__.split('.dev')[0],
-    ) < version.parse('2.6.0'):
+    ) < version.parse('2.5.1'):
         pytest.skip(
-            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.1.',
         )
     if pos_emb_config['alibi'] and not check_alibi_support(attn_impl):
         pytest.skip(f'flash attention below v2.4.2 does not support alibi.')
@@ -2523,7 +2532,7 @@ def test_forward_with_output_attentions_and_output_hidden_states(
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': attn_impl,
-            'flex_attn_compile': False,
+            'flex_attn_compile': FLEX_ATTN_COMPILE,
             **pos_emb_config,
         },
         use_cache=True,
@@ -2665,9 +2674,9 @@ def test_hf_init(
 def test_head_dim_8_flash_mqa_attn(attn_impl: str, batch_size: int = 2):
     if attn_impl == 'flex' and version.parse(
         torch.__version__.split('.dev')[0],
-    ) < version.parse('2.6.0'):
+    ) < version.parse('2.5.1'):
         pytest.skip(
-            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.1.',
         )
     test_cfg = get_config(conf_path='scripts/train/yamls/pretrain/testing.yaml')
     test_cfg.device = torch.cuda.current_device()
@@ -2685,7 +2694,7 @@ def test_head_dim_8_flash_mqa_attn(attn_impl: str, batch_size: int = 2):
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': attn_impl,
-            'flex_attn_compile': False,
+            'flex_attn_compile': FLEX_ATTN_COMPILE,
             'attn_type': 'multiquery_attention',
         },
     )
@@ -2721,9 +2730,9 @@ def test_head_dim_8_flash_mqa_attn(attn_impl: str, batch_size: int = 2):
 def test_construct_blocks(attn_impl: str):
     if attn_impl == 'flex' and version.parse(
         torch.__version__.split('.dev')[0],
-    ) < version.parse('2.6.0'):
+    ) < version.parse('2.5.1'):
         pytest.skip(
-            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.1.',
         )
     n_layers = 13
 
@@ -2735,7 +2744,7 @@ def test_construct_blocks(attn_impl: str):
         max_seq_len=64,
         attn_config={
             'attn_impl': attn_impl,
-            'flex_attn_compile': False,
+            'flex_attn_compile': FLEX_ATTN_COMPILE,
             'attn_type': 'grouped_query_attention',
             'kv_n_heads': 4,
         },
@@ -2823,9 +2832,9 @@ def test_reuse_prev_layer_kv_cache(
 ):
     if attn_impl == 'flex' and version.parse(
         torch.__version__.split('.dev')[0],
-    ) < version.parse('2.6.0'):
+    ) < version.parse('2.5.1'):
         pytest.skip(
-            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.1.',
         )
     conf_path = 'scripts/train/yamls/pretrain/testing.yaml'
     model_config_overrides = {
@@ -2853,6 +2862,7 @@ def test_reuse_prev_layer_kv_cache(
         conf_path=conf_path,
         model_config_overrides=model_config_overrides,
         attn_impl=attn_impl,
+        flex_attn_compile=FLEX_ATTN_COMPILE,
     )
 
     batch = gen_random_batch(batch_size, test_cfg)

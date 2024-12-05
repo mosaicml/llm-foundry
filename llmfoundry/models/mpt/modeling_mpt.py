@@ -25,6 +25,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from composer.models import HuggingFaceModel
 from composer.utils import dist
+from packaging import version
 from tabulate import tabulate
 from torch.nn.attention.flex_attention import create_block_mask, flex_attention
 
@@ -423,7 +424,11 @@ class MPTModel(MPTPreTrainedModel):
         self.mb_args = None
         self.shift_labels = True
 
-        flex_attn_compile = config.attn_config.pop('flex_attn_compile', False)
+        flex_attn_compile = config.attn_config.pop(
+            'flex_attn_compile',
+            version.parse(torch.__version__.split('.dev')[0]) >=
+            version.parse('2.6.0'),
+        )
         if self.attn_impl == 'flex':
             self.compiled_flex_attention = torch.compile(
                 flex_attention,

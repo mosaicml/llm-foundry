@@ -6,7 +6,12 @@ from functools import partial
 from typing import Any, Optional
 
 import torch
-from torch.nn.attention.flex_attention import _score_mod_signature, and_masks
+from packaging import version
+from torch.nn.attention.flex_attention import (
+    _DEFAULT_SPARSE_BLOCK_SIZE,
+    _score_mod_signature,
+    and_masks,
+)
 
 from llmfoundry.layers_registry import flex_attention_mods
 
@@ -19,7 +24,7 @@ class FlexAttentionMod(ABC):
         h: torch.Tensor,
         q_idx: torch.Tensor,
         kv_idx: torch.Tensor,
-        query_offset: int,
+        query_offset: torch.Tensor,
         sequence_id_info: Optional[dict[str, torch.Tensor]],
     ) -> torch.Tensor:
         del sequence_id_info, query_offset, b, h, q_idx, kv_idx
@@ -32,7 +37,7 @@ class FlexAttentionMod(ABC):
         h: torch.Tensor,
         q_idx: torch.Tensor,
         kv_idx: torch.Tensor,
-        query_offset: int,
+        query_offset: torch.Tensor,
         sequence_id_info: Optional[dict[str, torch.Tensor]],
     ) -> torch.Tensor:
         del sequence_id_info, query_offset, score, b, h, q_idx, kv_idx
@@ -53,7 +58,7 @@ class CausalMaskMod(FlexAttentionMod):
         h: torch.Tensor,
         q_idx: torch.Tensor,
         kv_idx: torch.Tensor,
-        query_offset: int,
+        query_offset: torch.Tensor,
         sequence_id_info: Optional[dict[str, torch.Tensor]],
     ) -> torch.Tensor:
         del sequence_id_info, b, h
@@ -73,7 +78,7 @@ class SlidingWindowMaskMod(FlexAttentionMod):
         h: torch.Tensor,
         q_idx: torch.Tensor,
         kv_idx: torch.Tensor,
-        query_offset: int,
+        query_offset: torch.Tensor,
         sequence_id_info: Optional[dict[str, torch.Tensor]],
     ) -> torch.Tensor:
         del sequence_id_info, b, h
@@ -94,7 +99,7 @@ class SequenceIdMaskMod(FlexAttentionMod):
         h: torch.Tensor,
         q_idx: torch.Tensor,
         kv_idx: torch.Tensor,
-        query_offset: int,
+        query_offset: torch.Tensor,
         sequence_id_info: Optional[dict[str, torch.Tensor]],
     ) -> torch.Tensor:
         del h
@@ -121,7 +126,7 @@ class AttentionMaskMod(FlexAttentionMod):
         h: torch.Tensor,
         q_idx: torch.Tensor,
         kv_idx: torch.Tensor,
-        query_offset: int,
+        query_offset: torch.Tensor,
         sequence_id_info: Optional[dict[str, torch.Tensor]],
     ) -> torch.Tensor:
         del h, q_idx, query_offset
@@ -146,7 +151,7 @@ class LocalGlobalMaskMod(FlexAttentionMod):
         h: torch.Tensor,
         q_idx: torch.Tensor,
         kv_idx: torch.Tensor,
-        query_offset: int,
+        query_offset: torch.Tensor,
         sequence_id_info: Optional[dict[str, torch.Tensor]],
     ) -> torch.Tensor:
         del h
@@ -188,7 +193,7 @@ class AlibiScoreMod(FlexAttentionMod):
         h: torch.Tensor,
         q_idx: torch.Tensor,
         kv_idx: torch.Tensor,
-        query_offset: int,
+        query_offset: torch.Tensor,
         sequence_id_info: Optional[dict[str, torch.Tensor]],
     ) -> torch.Tensor:
         del sequence_id_info, b
@@ -211,7 +216,7 @@ class SoftcapScoreMod(FlexAttentionMod):
         h: torch.Tensor,
         q_idx: torch.Tensor,
         kv_idx: torch.Tensor,
-        query_offset: int,
+        query_offset: torch.Tensor,
         sequence_id_info: Optional[dict[str, torch.Tensor]],
     ) -> torch.Tensor:
         del sequence_id_info, query_offset, b, h, q_idx, kv_idx
@@ -230,7 +235,7 @@ def generate_block_mask(
     B: int,
     block_mask_list: Optional[list[FlexAttentionMod]],
     compiled_create_block_mask: Any,
-    query_offset: int,
+    query_offset: torch.Tensor,
     sequence_id_info: Optional[dict[str, torch.Tensor]],
 ):
     if block_mask_list is None:
@@ -254,12 +259,18 @@ def generate_block_mask(
                 ),
             )
 
+    extra_args = {}
+    if version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.6.0') and Q_LEN % _DEFAULT_SPARSE_BLOCK_SIZE != 0:
+        extra_args['BLOCK_SIZE'] = Q_LEN
     block_mask = compiled_create_block_mask(
         block_mask_fn,
         B=B,
         H=None, # Setting this to None speeds up block mask generation, but this means the mask has to be the same across all heads.
         Q_LEN=Q_LEN,
         KV_LEN=KV_LEN,
+        **extra_args,
     )
 
     return block_mask

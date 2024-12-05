@@ -291,11 +291,6 @@ class HuggingFaceCheckpointer(Callback):
         final_register_only: bool = False,
         register_wait_seconds: int = 7200,
     ):
-        if save_folder is None and mlflow_registered_model_name is None:
-            raise ValueError(
-                'No `save_folder` or `mlflow_register_model_name` set. Please set at least one of them.',
-            )
-
         self.overwrite = overwrite
         self.precision = precision
         self.dtype = {
@@ -400,18 +395,15 @@ class HuggingFaceCheckpointer(Callback):
             event,
         ) and self.last_checkpoint_batch != state.timestamp.batch:
             is_last_batch = self._is_last_batch(state)
+            should_log = len(self.mlflow_loggers) > 0
+            can_register = self.mlflow_registered_model_name is not None
             self._save_checkpoint(
                 state,
                 logger,
-                log_to_mlflow=(
-                    self.save_folder is None or (
-                        self.mlflow_registered_model_name is not None and
-                        is_last_batch
-                    )
-                ),
+                log_to_mlflow=should_log,
                 upload_to_save_folder=self.save_folder is not None and
                 (not self.final_register_only or not is_last_batch),
-                register=self.mlflow_registered_model_name is not None and
+                register=can_register and
                 is_last_batch,  # Register only on the last batch
             )
         elif event == Event.INIT:
@@ -433,7 +425,7 @@ class HuggingFaceCheckpointer(Callback):
                     raise e
                 state.callbacks.append(self.remote_ud)
 
-            if self.mlflow_registered_model_name is not None:
+            if self.mlflow_registered_model_name is not None or self.save_folder is None:
                 self.mlflow_loggers = [
                     logger_destination
                     for logger_destination in logger.destinations
@@ -441,9 +433,9 @@ class HuggingFaceCheckpointer(Callback):
                 ]
                 if len(self.mlflow_loggers) == 0:
                     raise ValueError(
-                        f'`mlflow_registered_model_name` was set, but no `MLFlowLogger` was found in the `logger.destinations` list. '
+                        f'Got {self.mlflow_registered_model_name=} and {self.save_folder}, but no `MLFlowLogger` was found in the `logger.destinations` list. '
                         +
-                        'Please add an `MLFlowLogger` or set `mlflow_registered_model_name` to `None`.',
+                        'Please add an `MLFlowLogger` or set `mlflow_registered_model_name` to `None` and set `save_folder`',
                     )
 
                 import mlflow
@@ -477,7 +469,7 @@ class HuggingFaceCheckpointer(Callback):
             ) and self.final_register_only:
                 if self.save_folder:
                     log.error(
-                        'An error occurred in one or more registration processes. Fallback to saving the HuggingFace checkpoint.',
+                        f'An error occurred in one or more registration processes. Fallback to saving the HuggingFace checkpoint to {self.save_folder}',
                     )
                     self._save_checkpoint(
                         state,
@@ -487,11 +479,15 @@ class HuggingFaceCheckpointer(Callback):
                         register=False,
                     )
                 else:
-                    # Clean up temporary save directory and raise an error.
-                    if self.temp_save_dir is not None:
-                        shutil.rmtree(self.temp_save_dir)
-                    raise Exception(
-                        'An error occurred in one or more registration processes.',
+                    log.error(
+                        f'An error occurred in one or more registration processes. Fallback to logging the HuggingFace checkpoint',
+                    )
+                    self._save_checkpoint(
+                        state,
+                        logger,
+                        upload_to_save_folder=True,
+                        log_to_mlflow=True,
+                        register=False,
                     )
 
             # Clean up temporary save directory; all processes are done with it.

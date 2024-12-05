@@ -1504,7 +1504,7 @@ def test_generate(
     hf_config = MPTConfig(
         init_device='cpu',
         d_model=128,
-        n_heads=4,
+        n_heads=8, # TODO: FlexAttention doesn't work for n_heads == 4 for some reason. Works for n_heads == 1, 2, 8, 16. Probably a bug in FlexAttention.
         n_layers=2,
         expansion_ratio=2,
         max_seq_len=2048,

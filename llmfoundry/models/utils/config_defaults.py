@@ -35,6 +35,7 @@ attn_config_defaults: dict = {
     },
     'kv_dim': None,
     'flex_attn_mod_list': [],
+    'flex_attn_compile': True,
 }
 
 init_config_defaults: dict = {

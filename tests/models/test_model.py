@@ -530,6 +530,7 @@ def test_determinism(
 
     test_cfg.model.attn_config = {
         'attn_impl': attn_impl,
+        'flex_attn_compile': False,
     }
     if hasattr(test_cfg.model, 'ffn_config'):
         test_cfg.model.ffn_config['ffn_type'] = ffn_type
@@ -1803,6 +1804,7 @@ def test_forward_with_cache_and_padding(attn_impl: str, pos_emb_config: dict):
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': attn_impl,
+            'flex_attn_compile': False,
             **pos_emb_config,
         },
         use_cache=True,
@@ -1979,6 +1981,7 @@ def test_forward_with_cache(
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': attn_impl,
+            'flex_attn_compile': False,
             **pos_emb_config,
         },
         use_cache=True,
@@ -2154,6 +2157,7 @@ def test_generate_with_past_kv(
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': attn_impl,
+            'flex_attn_compile': False,
             **pos_emb_config,
         },
         use_cache=True,
@@ -2296,6 +2300,7 @@ def test_generation_kwargs_dont_crash(
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': attn_impl,
+            'flex_attn_compile': False,
             **pos_emb_config,
         },
         use_cache=True,
@@ -2518,6 +2523,7 @@ def test_forward_with_output_attentions_and_output_hidden_states(
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': attn_impl,
+            'flex_attn_compile': False,
             **pos_emb_config,
         },
         use_cache=True,
@@ -2657,6 +2663,12 @@ def test_hf_init(
 @pytest.mark.gpu
 @pytest.mark.parametrize('attn_impl', ['torch', 'flash', 'flex'])
 def test_head_dim_8_flash_mqa_attn(attn_impl: str, batch_size: int = 2):
+    if attn_impl == 'flex' and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.6.0'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
+        )
     test_cfg = get_config(conf_path='scripts/train/yamls/pretrain/testing.yaml')
     test_cfg.device = torch.cuda.current_device()
 
@@ -2673,6 +2685,7 @@ def test_head_dim_8_flash_mqa_attn(attn_impl: str, batch_size: int = 2):
         resid_pdrop=0.2,
         attn_config={
             'attn_impl': attn_impl,
+            'flex_attn_compile': False,
             'attn_type': 'multiquery_attention',
         },
     )
@@ -2722,6 +2735,7 @@ def test_construct_blocks(attn_impl: str):
         max_seq_len=64,
         attn_config={
             'attn_impl': attn_impl,
+            'flex_attn_compile': False,
             'attn_type': 'grouped_query_attention',
             'kv_n_heads': 4,
         },
@@ -2807,6 +2821,12 @@ def test_reuse_prev_layer_kv_cache(
     request: pytest.FixtureRequest,
     batch_size: int = 2,
 ):
+    if attn_impl == 'flex' and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.6.0'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
+        )
     conf_path = 'scripts/train/yamls/pretrain/testing.yaml'
     model_config_overrides = {
         'block_overrides': {

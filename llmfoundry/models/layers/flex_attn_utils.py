@@ -246,7 +246,7 @@ def generate_block_mask(
             )
         else:
             block_mask_fn = and_masks(
-                block_mask_fn,
+                block_mask_fn, # type: ignore
                 partial(
                     block_mask.mod_fn,
                     query_offset=query_offset,
@@ -282,7 +282,7 @@ def generate_score_mod(
             )
         else:
             wrapped_score_mod = _wrap_score_mod_fns(
-                wrapped_score_mod,
+                wrapped_score_mod, # type: ignore
                 partial(
                     score_mod.mod_fn,
                     query_offset=query_offset,

@@ -23,6 +23,7 @@ from typing import (
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from composer.docs.source import conf
 from composer.models import HuggingFaceModel
 from composer.utils import dist
 from tabulate import tabulate
@@ -424,8 +425,12 @@ class MPTModel(MPTPreTrainedModel):
         self.shift_labels = True
 
         if self.attn_impl == 'flex':
-            self.compiled_flex_attention = torch.compile(flex_attention)
-            self.compiled_create_block_mask = torch.compile(create_block_mask)
+            self.compiled_flex_attention = torch.compile(
+                flex_attention,
+            ) if config.attn_config['flex_attn_compile'] else flex_attention
+            self.compiled_create_block_mask = torch.compile(
+                create_block_mask,
+            ) if config.attn_config['flex_attn_compile'] else create_block_mask
 
         self.blocks = self.construct_blocks(config=config,)
 

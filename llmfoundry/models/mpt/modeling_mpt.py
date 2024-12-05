@@ -423,7 +423,7 @@ class MPTModel(MPTPreTrainedModel):
         self.mb_args = None
         self.shift_labels = True
 
-        flex_attn_compile = config.attn_config.pop('flex_attn_compile')
+        flex_attn_compile = config.attn_config.pop('flex_attn_compile', False)
         if self.attn_impl == 'flex':
             self.compiled_flex_attention = torch.compile(
                 flex_attention,

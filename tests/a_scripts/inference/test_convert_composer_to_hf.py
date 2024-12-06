@@ -482,7 +482,7 @@ def test_final_register_only(
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('log_to_mlflow', [True, False])
+@pytest.mark.parametrize('register_to_mlflow', [True, False])
 @pytest.mark.parametrize('hf_save_folder', [True, False])
 @pytest.mark.parametrize(
     'hf_save_interval,save_interval,max_duration,expected_hf_checkpoints,expected_normal_checkpoints',
@@ -495,7 +495,7 @@ def test_final_register_only(
 )
 def test_huggingface_conversion_callback_interval(
     tmp_path: pathlib.Path,
-    log_to_mlflow: bool,
+    register_to_mlflow: bool,
     hf_save_folder: bool,
     hf_save_interval: str,
     save_interval: str,
@@ -522,7 +522,7 @@ def test_huggingface_conversion_callback_interval(
         save_interval=hf_save_interval,
         precision=precision_str,
         mlflow_registered_model_name='dummy-registered-name'
-        if log_to_mlflow else None,
+        if register_to_mlflow else None,
     )
 
     original_model = build_tiny_mpt()
@@ -546,19 +546,19 @@ def test_huggingface_conversion_callback_interval(
         max_duration=max_duration,
         callbacks=[checkpointer_callback],
         loggers=[mlflow_logger_mock]
-        if log_to_mlflow or not hf_save_folder else [],
+        if register_to_mlflow or not hf_save_folder else [],
         optimizers=optimizer,
         save_latest_filename=None,
     )
     trainer.fit()
 
-    if hf_save_folder and not log_to_mlflow:
+    if hf_save_folder and not register_to_mlflow:
         assert checkpointer_callback.transform_model_pre_registration.call_count == 0
         assert checkpointer_callback.pre_register_edit.call_count == 0
         assert mlflow_logger_mock.log_model.call_count == 0
     else:
         expected_call_count = 1 if hf_save_folder else expected_hf_checkpoints
-        expected_registered_model_name = 'dummy-registered-name' if log_to_mlflow else None
+        expected_registered_model_name = 'dummy-registered-name' if register_to_mlflow else None
         assert mlflow_logger_mock.log_model.call_count == expected_call_count
         mlflow_logger_mock.log_model.assert_called_with(
             transformers_model=ANY,

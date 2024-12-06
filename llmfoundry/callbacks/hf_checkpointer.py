@@ -328,8 +328,7 @@ class HuggingFaceCheckpointer(Callback):
         }
         is_chat = mlflow_logging_config['task'].endswith('chat') or (
             mlflow_logging_config['metadata'] is not None and
-            mlflow_logging_config['metadata'].get('task',
-                                                    '').endswith('chat')
+            mlflow_logging_config['metadata'].get('task', '').endswith('chat')
         )
         if is_chat:
             default_input_example = {
@@ -395,8 +394,10 @@ class HuggingFaceCheckpointer(Callback):
             event,
         ) and self.last_checkpoint_batch != state.timestamp.batch:
             is_last_batch = self._is_last_batch(state)
-            register = self.mlflow_registered_model_name is not None and is_last_batch # Register only on the last batch
-            upload_to_save_folder = self.save_folder is not None and (not self.final_register_only or not is_last_batch)
+            register = self.mlflow_registered_model_name is not None and is_last_batch  # Register only on the last batch
+            upload_to_save_folder = self.save_folder is not None and (
+                not self.final_register_only or not is_last_batch
+            )
             self._save_checkpoint(
                 state,
                 logger,

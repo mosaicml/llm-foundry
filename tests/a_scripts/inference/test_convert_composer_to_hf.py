@@ -517,7 +517,8 @@ def test_huggingface_conversion_callback_interval(
     batches_per_epoch = math.ceil(dataset_size / device_batch_size)
 
     checkpointer_callback = HuggingFaceCheckpointer(
-        save_folder=os.path.join(tmp_path, 'checkpoints') if hf_save_folder else None,
+        save_folder=os.path.join(tmp_path, 'checkpoints')
+        if hf_save_folder else None,
         save_interval=hf_save_interval,
         precision=precision_str,
         mlflow_registered_model_name='dummy-registered-name'
@@ -544,7 +545,8 @@ def test_huggingface_conversion_callback_interval(
         save_interval=save_interval,
         max_duration=max_duration,
         callbacks=[checkpointer_callback],
-        loggers=[mlflow_logger_mock] if log_to_mlflow or not hf_save_folder else [],
+        loggers=[mlflow_logger_mock]
+        if log_to_mlflow or not hf_save_folder else [],
         optimizers=optimizer,
         save_latest_filename=None,
     )

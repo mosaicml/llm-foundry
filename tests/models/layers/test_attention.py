@@ -6,6 +6,8 @@ import math
 import pytest
 import torch
 from composer.utils import reproducibility
+from packaging import version
+from torch.nn.attention.flex_attention import create_block_mask, flex_attention
 
 from llmfoundry.models.layers.attention import (
     attention_implementations,
@@ -13,6 +15,12 @@ from llmfoundry.models.layers.attention import (
 )
 from llmfoundry.models.layers.layer_builders import build_attention_layer
 from llmfoundry.models.mpt.modeling_mpt import gen_flash_attn_padding_info
+
+compiled_flex_attention = flex_attention
+compiled_create_block_mask = create_block_mask
+if version.parse(torch.__version__.split('.dev')[0]) >= version.parse('2.6.0'):
+    compiled_flex_attention = torch.compile(flex_attention)
+    compiled_create_block_mask = torch.compile(create_block_mask)
 
 
 @pytest.mark.parametrize(
@@ -170,14 +178,20 @@ def test_unfused_wqkv(attn_name: str, dim: int):
 
 @pytest.mark.gpu
 @pytest.mark.parametrize('sliding_window_size', [1, 4, 8])
-@pytest.mark.parametrize('attn_impl', ['flash', 'torch'])
+@pytest.mark.parametrize('attn_impl', ['flash', 'torch', 'flex'])
 def test_sliding_window(sliding_window_size: int, attn_impl: str):
     # Test that sliding window attention works as expected.
+    if attn_impl == 'flex' and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.5.1'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.1.',
+        )
     dtype = torch.bfloat16
     device = 'cuda'
     d = 128
     n_heads = 8
-    seqlen_1 = 8
+    seqlen_1 = 8 if attn_impl != 'flex' else 128  # FlexAttention requires seqlen to be a multiple of 128 (to compute gradients I think). More info: https://pytorch.org/blog/flexattention/#limitations-and-future-work
     bsz = 2
 
     query_1 = torch.randn(bsz, seqlen_1,
@@ -204,6 +218,12 @@ def test_sliding_window(sliding_window_size: int, attn_impl: str):
                 ),
             'should_repeat_kv_for_gqa':
                 True,
+        }
+    elif attn_impl == 'flex':
+        attn_extra_kwargs = {
+            'compiled_flex_attention': compiled_flex_attention,
+            'compiled_create_block_mask': compiled_create_block_mask,
+            'sequence_id_info': {},
         }
 
     output_1, _, _ = attention_implementations.get(attn_impl)(

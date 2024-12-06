@@ -137,6 +137,7 @@ def _log_model_with_multi_process(
     registered_model_name: Optional[str],
     await_registration_for: int,
     mlflow_logging_config: dict[str, Any],
+    register: bool,
 ):
     """Call MLFlowLogger.log_model.
 
@@ -206,7 +207,7 @@ def _log_model_with_multi_process(
         transformers_model=transformers_model,
         flavor='transformers',
         artifact_path=artifact_path,
-        registered_model_name=register_model_path,
+        registered_model_name=register_model_path if register else None,
         run_id=mlflow_logger._run_id,
         await_registration_for=await_registration_for,
         **mlflow_logging_config,
@@ -246,13 +247,14 @@ class HuggingFaceCheckpointer(Callback):
     """Save a huggingface formatted checkpoint during training.
 
     Args:
-        save_folder (str): Top level folder to save checkpoints to (can be a
-            URI). It is likely that this would be the same as your save_folder.
         save_interval: Union[str, int, Time]: The interval describing how often
             checkpoints should be saved. If an integer, it will be assumed to be
             in :attr:`.TimeUnit.EPOCH`. Otherwise, the unit must be either
             :attr:`.TimeUnit.EPOCH`, :attr:`.TimeUnit.BATCH`,
             :attr:`.TimeUnit.TOKEN`, or :attr:`.TimeUnit.SAMPLE`.
+        save_folder (Optional[str]): Top level folder to save checkpoints to (can be a
+            URI). It is likely that this would be the same as your save_folder. If
+            set to None, the model will be logged to MLFlow.
         huggingface_folder_name (str): Folder to save each checkpoint under (can
             be a format string). Default is ``ba{batch}``.
         precision: The precision to save the model in. Default is ``float32``.
@@ -278,7 +280,7 @@ class HuggingFaceCheckpointer(Callback):
 
     def __init__(
         self,
-        save_folder: str,
+        save_folder: Optional[str],
         save_interval: Union[str, int, Time],
         huggingface_folder_name: str = 'ba{batch}',
         precision: str = 'float32',
@@ -289,7 +291,6 @@ class HuggingFaceCheckpointer(Callback):
         final_register_only: bool = False,
         register_wait_seconds: int = 7200,
     ):
-        _, _, self.save_dir_format_str = parse_uri(save_folder)
         self.overwrite = overwrite
         self.precision = precision
         self.dtype = {
@@ -315,32 +316,31 @@ class HuggingFaceCheckpointer(Callback):
         # mlflow config setup
         if mlflow_logging_config is None:
             mlflow_logging_config = {}
-        if self.mlflow_registered_model_name is not None:
-            # Both the metadata and the task are needed in order for mlflow
-            # and databricks optimized model serving to work
-            passed_metadata = mlflow_logging_config.get('metadata', {})
-            mlflow_logging_config['metadata'] = passed_metadata
-            mlflow_logging_config.setdefault('task', 'llm/v1/completions')
 
+        # Both the metadata and the task are needed in order for mlflow
+        # and databricks optimized model serving to work
+        passed_metadata = mlflow_logging_config.get('metadata', {})
+        mlflow_logging_config['metadata'] = passed_metadata
+        mlflow_logging_config.setdefault('task', 'llm/v1/completions')
+
+        default_input_example = {
+            'prompt': np.array(['What is Machine Learning?']),
+        }
+        is_chat = mlflow_logging_config['task'].endswith('chat') or (
+            mlflow_logging_config['metadata'] is not None and
+            mlflow_logging_config['metadata'].get('task', '').endswith('chat')
+        )
+        if is_chat:
             default_input_example = {
-                'prompt': np.array(['What is Machine Learning?']),
+                'messages': [{
+                    'role': 'user',
+                    'content': 'What is Machine Learning?',
+                }],
             }
-            is_chat = mlflow_logging_config['task'].endswith('chat') or (
-                mlflow_logging_config['metadata'] is not None and
-                mlflow_logging_config['metadata'].get('task',
-                                                      '').endswith('chat')
-            )
-            if is_chat:
-                default_input_example = {
-                    'messages': [{
-                        'role': 'user',
-                        'content': 'What is Machine Learning?',
-                    }],
-                }
-            mlflow_logging_config.setdefault(
-                'input_example',
-                default_input_example,
-            )
+        mlflow_logging_config.setdefault(
+            'input_example',
+            default_input_example,
+        )
 
         self.mlflow_logging_config = mlflow_logging_config
         if 'metadata' in self.mlflow_logging_config:
@@ -365,12 +365,20 @@ class HuggingFaceCheckpointer(Callback):
             self.save_interval,
             include_end_of_training=True,
         )
-        self.remote_ud = maybe_create_remote_uploader_downloader_from_uri(
-            save_folder,
-            loggers=[],
-        )
-        if self.remote_ud is not None:
-            self.remote_ud._num_concurrent_uploads = 4
+
+        self.save_folder = save_folder
+
+        self.remote_ud = None
+        if self.save_folder is not None:
+            _, _, self.save_dir_format_str = parse_uri(self.save_folder)
+            self.remote_ud = maybe_create_remote_uploader_downloader_from_uri(
+                self.save_folder,
+                loggers=[],
+            )
+            if self.remote_ud is not None:
+                self.remote_ud._num_concurrent_uploads = 4
+        else:
+            self.save_dir_format_str = tempfile.mkdtemp()
 
         self.last_checkpoint_batch: Optional[Time] = None
         self.mlflow_loggers = []
@@ -386,15 +394,16 @@ class HuggingFaceCheckpointer(Callback):
             event,
         ) and self.last_checkpoint_batch != state.timestamp.batch:
             is_last_batch = self._is_last_batch(state)
+            register = self.mlflow_registered_model_name is not None and is_last_batch  # Register only on the last batch
+            upload_to_save_folder = self.save_folder is not None and (
+                not self.final_register_only or not is_last_batch
+            )
             self._save_checkpoint(
                 state,
                 logger,
-                register_to_mlflow=(
-                    self.mlflow_registered_model_name is not None and
-                    is_last_batch
-                ),
-                upload_to_save_folder=not self.final_register_only or
-                not is_last_batch,
+                log_to_mlflow=register or not upload_to_save_folder,
+                upload_to_save_folder=upload_to_save_folder,
+                register=register,
             )
         elif event == Event.INIT:
             if not isinstance(state.model, HuggingFaceModel):
@@ -415,7 +424,7 @@ class HuggingFaceCheckpointer(Callback):
                     raise e
                 state.callbacks.append(self.remote_ud)
 
-            if self.mlflow_registered_model_name is not None:
+            if self.mlflow_registered_model_name is not None or self.save_folder is None:
                 self.mlflow_loggers = [
                     logger_destination
                     for logger_destination in logger.destinations
@@ -423,9 +432,9 @@ class HuggingFaceCheckpointer(Callback):
                 ]
                 if len(self.mlflow_loggers) == 0:
                     raise ValueError(
-                        f'`mlflow_registered_model_name` was set, but no `MLFlowLogger` was found in the `logger.destinations` list. '
+                        f'Got {self.mlflow_registered_model_name=} and {self.save_folder=}, but no `MLFlowLogger` was found in the `logger.destinations` list. '
                         +
-                        'Please add an `MLFlowLogger` or set `mlflow_registered_model_name` to `None`.',
+                        'Please add an `MLFlowLogger` or set `mlflow_registered_model_name` to `None` and set `save_folder`',
                     )
 
                 import mlflow
@@ -457,15 +466,28 @@ class HuggingFaceCheckpointer(Callback):
             if self._any_register_processes_error(
                 state.device,
             ) and self.final_register_only:
-                log.error(
-                    'An error occurred in one or more registration processes. Fallback to saving the HuggingFace checkpoint.',
-                )
-                self._save_checkpoint(
-                    state,
-                    logger,
-                    upload_to_save_folder=True,
-                    register_to_mlflow=False,
-                )
+                if self.save_folder:
+                    log.error(
+                        f'An error occurred in one or more registration processes. Fallback to saving the HuggingFace checkpoint to {self.save_folder}',
+                    )
+                    self._save_checkpoint(
+                        state,
+                        logger,
+                        upload_to_save_folder=True,
+                        log_to_mlflow=False,
+                        register=False,
+                    )
+                else:
+                    log.error(
+                        f'An error occurred in one or more registration processes. Fallback to logging the HuggingFace checkpoint',
+                    )
+                    self._save_checkpoint(
+                        state,
+                        logger,
+                        upload_to_save_folder=True,
+                        log_to_mlflow=True,
+                        register=False,
+                    )
 
             # Clean up temporary save directory; all processes are done with it.
             if self.temp_save_dir is not None:
@@ -555,7 +577,7 @@ class HuggingFaceCheckpointer(Callback):
         return copied_config
 
     def pre_register_edit(self, local_save_path: str):
-        """Edit the model before registering with MLflow.
+        """Edit the model before registering or logging with MLflow.
 
         This allows a subclass to modify the model before registering with MLflow. The base class implementation will
         make no modifications.
@@ -569,7 +591,7 @@ class HuggingFaceCheckpointer(Callback):
         self,
         model: PreTrainedModel,
     ) -> PreTrainedModel:
-        """Transform the model before registering with MLflow.
+        """Transform the model before registering or logging with MLflow.
 
         This allows a subclass to modify the model before registering with MLflow. The base class implementation will
         make no modifications.
@@ -587,7 +609,8 @@ class HuggingFaceCheckpointer(Callback):
         state: State,
         logger: Logger,
         upload_to_save_folder: bool,
-        register_to_mlflow: bool,
+        log_to_mlflow: bool,
+        register: bool,
     ):
         """Save a HuggingFace formatted checkpoint.
 
@@ -595,9 +618,18 @@ class HuggingFaceCheckpointer(Callback):
             state (State): The training state.
             logger (Logger): The logger.
             upload_to_save_folder (bool): Whether to upload the HF checkpoint to the save folder.
-            register_to_mlflow (bool): Whether to register the model to MLFlow
+            log_to_mlflow (bool): Whether to log the model to MLFlow
+            register (bool): Whether to register the model when logging to MLFlow
+
+        Raises:
+            ValueError: If `register` is True but `log_to_mlflow` is False.
         """
         del logger  # unused
+
+        if log_to_mlflow is False and register is True:
+            raise ValueError(
+                f'Got {log_to_mlflow=} and {register=}. Cannot register the model if it is not logged.',
+            )
 
         self.last_checkpoint_batch = state.timestamp.batch
 
@@ -619,7 +651,7 @@ class HuggingFaceCheckpointer(Callback):
 
         # Use a temporary directory if save_dir is remote.
         use_temp_dir = self.remote_ud is not None
-        temp_save_dir = tempfile.mkdtemp() if use_temp_dir else save_dir
+        local_save_dir = tempfile.mkdtemp() if use_temp_dir else save_dir
 
         log.debug('Gathering state dict')
 
@@ -744,7 +776,7 @@ class HuggingFaceCheckpointer(Callback):
                 )
                 with context_manager:
                     new_model_instance.save_pretrained(
-                        temp_save_dir,
+                        local_save_dir,
                         max_shard_size='1GB',
                     )
                 if original_tokenizer is not None:
@@ -752,18 +784,18 @@ class HuggingFaceCheckpointer(Callback):
                         original_tokenizer,
                         PreTrainedTokenizerBase,
                     )
-                    original_tokenizer.save_pretrained(temp_save_dir)
+                    original_tokenizer.save_pretrained(local_save_dir)
 
                 # Only need to edit files for MPT because it has custom code
                 if new_model_instance.config.model_type == 'mpt':
                     log.debug('Editing MPT files for HuggingFace compatibility')
                     edit_files_for_hf_compatibility(
-                        temp_save_dir,
+                        local_save_dir,
                         self.flatten_imports,
                     )
 
                 if self.remote_ud is not None:
-                    for filename in os.listdir(temp_save_dir):
+                    for filename in os.listdir(local_save_dir):
                         remote_file_name = os.path.join(save_dir, filename)
                         remote_file_uri = self.remote_ud.remote_backend.get_uri(
                             remote_file_name,
@@ -775,7 +807,7 @@ class HuggingFaceCheckpointer(Callback):
                             state=state,
                             remote_file_name=remote_file_name,
                             file_path=Path(
-                                os.path.join(temp_save_dir, filename),
+                                os.path.join(local_save_dir, filename),
                             ),
                             overwrite=self.overwrite,
                         )
@@ -783,7 +815,7 @@ class HuggingFaceCheckpointer(Callback):
         dist.barrier()
 
         if dist.get_global_rank() == 0:
-            if register_to_mlflow:
+            if log_to_mlflow:
                 assert new_model_instance is not None
                 new_model_instance = self.transform_model_pre_registration(
                     new_model_instance,
@@ -795,11 +827,11 @@ class HuggingFaceCheckpointer(Callback):
                         state,
                         new_model_instance,
                         original_tokenizer,
-                        temp_save_dir,
+                        local_save_dir,
                     )
                 else:
                     register_save_dir = os.path.join(
-                        temp_save_dir,
+                        local_save_dir,
                         'register_save',
                     )
                     new_model_instance.save_pretrained(
@@ -829,7 +861,11 @@ class HuggingFaceCheckpointer(Callback):
                                     'transformers_model':
                                         register_save_dir,
                                     'artifact_path':
-                                        'final_model_checkpoint',
+                                        format_name_with_dist_and_time(
+                                            self.huggingface_folder_name_fstr,
+                                            state.run_name,
+                                            state.timestamp,
+                                        ),
                                     'pretrained_model_name':
                                         self.pretrained_model_name,
                                     'registered_model_name':
@@ -838,6 +874,8 @@ class HuggingFaceCheckpointer(Callback):
                                         3600,
                                     'mlflow_logging_config':
                                         self.mlflow_logging_config,
+                                    'register':
+                                        register,
                                 },
                             )
 
@@ -846,11 +884,11 @@ class HuggingFaceCheckpointer(Callback):
 
                 # Save the temporary directory to be cleaned up later.
                 if use_temp_dir:
-                    self.temp_save_dir = temp_save_dir
+                    self.temp_save_dir = local_save_dir
             else:
                 # Clean up the temporary directory if we don't need to register to mlflow.
                 if use_temp_dir:
-                    shutil.rmtree(temp_save_dir)
+                    shutil.rmtree(local_save_dir)
         dist.barrier()
 
     def _save_and_register_peft_model(

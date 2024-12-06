@@ -7,8 +7,11 @@ import typing
 import pytest
 from composer.core import Callback
 
-from llmfoundry.callbacks.async_eval_callback import AsyncEval
-from llmfoundry.callbacks.curriculum_learning_callback import CurriculumLearning
+from llmfoundry.callbacks import (
+    AsyncEval,
+    CurriculumLearning,
+    HuggingFaceCheckpointer,
+)
 from llmfoundry.interfaces.callback_with_config import CallbackWithConfig
 from llmfoundry.registry import callbacks, callbacks_with_config
 from llmfoundry.utils.builders import build_callback
@@ -20,6 +23,7 @@ primitive_types = {int, float, str, bool, dict, list}
 skip_callbacks = [
     AsyncEval,
     CurriculumLearning,
+    HuggingFaceCheckpointer,
 ]
 
 

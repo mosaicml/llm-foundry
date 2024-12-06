@@ -316,32 +316,32 @@ class HuggingFaceCheckpointer(Callback):
         # mlflow config setup
         if mlflow_logging_config is None:
             mlflow_logging_config = {}
-        if self.mlflow_registered_model_name is not None:
-            # Both the metadata and the task are needed in order for mlflow
-            # and databricks optimized model serving to work
-            passed_metadata = mlflow_logging_config.get('metadata', {})
-            mlflow_logging_config['metadata'] = passed_metadata
-            mlflow_logging_config.setdefault('task', 'llm/v1/completions')
 
+        # Both the metadata and the task are needed in order for mlflow
+        # and databricks optimized model serving to work
+        passed_metadata = mlflow_logging_config.get('metadata', {})
+        mlflow_logging_config['metadata'] = passed_metadata
+        mlflow_logging_config.setdefault('task', 'llm/v1/completions')
+
+        default_input_example = {
+            'prompt': np.array(['What is Machine Learning?']),
+        }
+        is_chat = mlflow_logging_config['task'].endswith('chat') or (
+            mlflow_logging_config['metadata'] is not None and
+            mlflow_logging_config['metadata'].get('task',
+                                                    '').endswith('chat')
+        )
+        if is_chat:
             default_input_example = {
-                'prompt': np.array(['What is Machine Learning?']),
+                'messages': [{
+                    'role': 'user',
+                    'content': 'What is Machine Learning?',
+                }],
             }
-            is_chat = mlflow_logging_config['task'].endswith('chat') or (
-                mlflow_logging_config['metadata'] is not None and
-                mlflow_logging_config['metadata'].get('task',
-                                                      '').endswith('chat')
-            )
-            if is_chat:
-                default_input_example = {
-                    'messages': [{
-                        'role': 'user',
-                        'content': 'What is Machine Learning?',
-                    }],
-                }
-            mlflow_logging_config.setdefault(
-                'input_example',
-                default_input_example,
-            )
+        mlflow_logging_config.setdefault(
+            'input_example',
+            default_input_example,
+        )
 
         self.mlflow_logging_config = mlflow_logging_config
         if 'metadata' in self.mlflow_logging_config:
@@ -431,7 +431,7 @@ class HuggingFaceCheckpointer(Callback):
                 ]
                 if len(self.mlflow_loggers) == 0:
                     raise ValueError(
-                        f'Got {self.mlflow_registered_model_name=} and {self.save_folder}, but no `MLFlowLogger` was found in the `logger.destinations` list. '
+                        f'Got {self.mlflow_registered_model_name=} and {self.save_folder=}, but no `MLFlowLogger` was found in the `logger.destinations` list. '
                         +
                         'Please add an `MLFlowLogger` or set `mlflow_registered_model_name` to `None` and set `save_folder`',
                     )

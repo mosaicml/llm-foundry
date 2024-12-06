@@ -508,7 +508,8 @@ def flex_attn_fn(
         flex_attn_mod_list.append({
             'mod_name': 'sliding_window_mask',
             'mod_kwargs': {
-                'sliding_window_size': sliding_window_size,
+                'sliding_window_size':
+                    torch.tensor(sliding_window_size, device=query.device),
             },
         })
     if sequence_id_info is not None and 'sequence_id' in sequence_id_info and sequence_id_info[

@@ -83,9 +83,9 @@ class SlidingWindowMaskMod(FlexAttentionMod):
     ) -> torch.Tensor:
         del sequence_id_info, b, h
         q_idx = q_idx + query_offset
-        return q_idx - kv_idx <= self.sliding_window_size
+        return torch.abs(q_idx - kv_idx) <= self.sliding_window_size
 
-    def __init__(self, sliding_window_size: int) -> None:
+    def __init__(self, sliding_window_size: torch.Tensor) -> None:
         super().__init__(mod_type='mask')
         self.sliding_window_size = sliding_window_size
 

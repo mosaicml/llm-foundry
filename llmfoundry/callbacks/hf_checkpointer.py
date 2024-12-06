@@ -395,16 +395,14 @@ class HuggingFaceCheckpointer(Callback):
             event,
         ) and self.last_checkpoint_batch != state.timestamp.batch:
             is_last_batch = self._is_last_batch(state)
-            should_log = len(self.mlflow_loggers) > 0
-            can_register = self.mlflow_registered_model_name is not None
+            register = self.mlflow_registered_model_name is not None and is_last_batch # Register only on the last batch
+            upload_to_save_folder = self.save_folder is not None and (not self.final_register_only or not is_last_batch)
             self._save_checkpoint(
                 state,
                 logger,
-                log_to_mlflow=should_log,
-                upload_to_save_folder=self.save_folder is not None and
-                (not self.final_register_only or not is_last_batch),
-                register=can_register and
-                is_last_batch,  # Register only on the last batch
+                log_to_mlflow=register or not upload_to_save_folder,
+                upload_to_save_folder=upload_to_save_folder,
+                register=register,
             )
         elif event == Event.INIT:
             if not isinstance(state.model, HuggingFaceModel):
@@ -578,7 +576,7 @@ class HuggingFaceCheckpointer(Callback):
         return copied_config
 
     def pre_register_edit(self, local_save_path: str):
-        """Edit the model before registering with MLflow.
+        """Edit the model before registering or logging with MLflow.
 
         This allows a subclass to modify the model before registering with MLflow. The base class implementation will
         make no modifications.
@@ -592,7 +590,7 @@ class HuggingFaceCheckpointer(Callback):
         self,
         model: PreTrainedModel,
     ) -> PreTrainedModel:
-        """Transform the model before registering with MLflow.
+        """Transform the model before registering or logging with MLflow.
 
         This allows a subclass to modify the model before registering with MLflow. The base class implementation will
         make no modifications.

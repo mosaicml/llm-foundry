@@ -43,26 +43,19 @@ def get_conversion_config(
         )
 
     if 'turns' in columns[0]:
-        logging.info('Identified IFT data')
+        logging.info('Identified IFT/CHAT data')
         dtypes = {
             'input_ids': 'ndarray',
             'attention_mask': 'ndarray',
             'labels': 'ndarray',
         }
-        convert_x = lambda x: {
-            # join the turns into a single array
-            'input_ids':
-                np.concatenate([
-                    np.array(turn['input_ids']) for turn in x['turns']
-                ]),
-            'attention_mask':
-                np.concatenate([
-                    np.array(turn['attention_mask']) for turn in x['turns']
-                ]),
-            'labels':
-                np.
-                concatenate([np.array(turn['labels']) for turn in x['turns']]),
-        }
+        convert_x = lambda x: (
+            ValueError('More than one turn found') if len(x['turns']) > 1 else {
+                'input_ids': np.array(x['turns'][0]['input_ids']),
+                'attention_mask': np.array(x['turns'][0]['attention_mask']),
+                'labels': np.array(x['turns'][0]['labels']),
+            }
+        )
     elif 'concat_tokens' in columns[0]:
         logging.info('Identified CPT data')
         dtypes = {

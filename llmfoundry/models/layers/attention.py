@@ -545,7 +545,8 @@ def flex_attn_fn(
         flex_attn_mod_list.append({
             'mod_name': 'softcap_score_mod',
             'mod_kwargs': {
-                'attn_logit_softcapping': attn_logit_softcapping,
+                'attn_logit_softcapping':
+                    torch.tensor(attn_logit_softcapping, device=query.device),
             },
         })
 

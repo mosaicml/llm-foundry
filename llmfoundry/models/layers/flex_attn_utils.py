@@ -224,7 +224,7 @@ class SoftcapScoreMod(FlexAttentionMod):
             score / self.attn_logit_softcapping,
         )
 
-    def __init__(self, attn_logit_softcapping: int) -> None:
+    def __init__(self, attn_logit_softcapping: torch.Tensor) -> None:
         super().__init__(mod_type='score')
         self.attn_logit_softcapping = attn_logit_softcapping
 

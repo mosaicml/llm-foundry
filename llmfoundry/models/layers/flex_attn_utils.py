@@ -110,8 +110,7 @@ class SequenceIdMaskMod(FlexAttentionMod):
             )
         sequence_id = sequence_id_info['sequence_id']
         # Check if the query and key belong to the same sequence and the query token is not a padding token.
-        return (sequence_id[b, q_idx]
-                == sequence_id[b, kv_idx]) & (sequence_id[b, kv_idx] != -1)
+        return (sequence_id[b, q_idx] == sequence_id[b, kv_idx])
 
     def __init__(self) -> None:
         super().__init__(mod_type='mask')

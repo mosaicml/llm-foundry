@@ -808,6 +808,8 @@ class HuggingFaceCheckpointer(Callback):
                                     3600,
                                 'mlflow_logging_config':
                                     self.mlflow_logging_config,
+                                'is_peft':
+                                    self.using_peft,
                             },
                         )
 

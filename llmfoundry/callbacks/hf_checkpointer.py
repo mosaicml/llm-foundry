@@ -562,23 +562,7 @@ class HuggingFaceCheckpointer(Callback):
         """
         return model
 
-    def _save_checkpoint(
-        self,
-        state: State,
-        logger: Logger,
-        upload_to_save_folder: bool,
-        register_to_mlflow: bool,
-    ):
-        """Save a HuggingFace formatted checkpoint.
-
-        Args:
-            state (State): The training state.
-            logger (Logger): The logger.
-            upload_to_save_folder (bool): Whether to upload the HF checkpoint to the save folder.
-            register_to_mlflow (bool): Whether to register the model to MLFlow
-        """
-        del logger  # unused
-
+    def _get_hf_model(self, state: State):
         self.last_checkpoint_batch = state.timestamp.batch
 
         log.info('Saving HuggingFace formatted checkpoint')
@@ -587,19 +571,6 @@ class HuggingFaceCheckpointer(Callback):
         CONFIG_MAPPING._extra_content['mpt'] = MPTConfig
         MPTConfig.register_for_auto_class()
         MPTForCausalLM.register_for_auto_class('AutoModelForCausalLM')
-
-        save_dir = format_name_with_dist_and_time(
-            str(
-                Path(self.save_dir_format_str) /
-                self.huggingface_folder_name_fstr,
-            ),
-            state.run_name,
-            state.timestamp,
-        )
-
-        # Use a temporary directory if save_dir is remote.
-        use_temp_dir = self.remote_ud is not None
-        temp_save_dir = tempfile.mkdtemp() if use_temp_dir else save_dir
 
         log.debug('Gathering state dict')
 
@@ -715,6 +686,106 @@ class HuggingFaceCheckpointer(Callback):
 
             log.debug('Saving Hugging Face checkpoint to disk')
 
+        return new_model_instance, original_tokenizer
+
+    def _register_hf_model(
+        self,
+        state: State,
+        temp_save_dir: str,
+        original_tokenizer: PreTrainedTokenizerBase,
+        use_temp_dir: bool,
+    ):
+        assert new_model_instance is not None
+        new_model_instance = self.transform_model_pre_registration(
+            new_model_instance,
+        )
+        register_save_dir = os.path.join(
+            temp_save_dir,
+            'register_save',
+        )
+        new_model_instance.save_pretrained(
+            register_save_dir,
+            max_shard_size='1GB',
+        )
+        if original_tokenizer:
+            original_tokenizer.save_pretrained(register_save_dir)
+
+        self.pre_register_edit(register_save_dir)
+
+        for mlflow_logger in self.mlflow_loggers:
+            if self.mlflow_registered_model_name:
+                log.debug(
+                    f'Registering model to UC at {mlflow_logger.model_registry_prefix}.{self.mlflow_registered_model_name}',
+                )
+
+            # Save the monitor process to be restored after registering the model.
+            with _monitor_process_saver(mlflow_logger):
+                process = SpawnProcess(
+                    target=_log_model_with_multi_process,
+                    kwargs={
+                        'mlflow_logger':
+                            mlflow_logger,
+                        'python_logging_level':
+                            logging.getLogger('llmfoundry').level,
+                        'transformers_model':
+                            register_save_dir,
+                        'artifact_path':
+                            'final_model_checkpoint',
+                        'pretrained_model_name':
+                            self.pretrained_model_name,
+                        'registered_model_name':
+                            self.mlflow_registered_model_name,
+                        'await_registration_for':
+                            3600,
+                        'mlflow_logging_config':
+                            self.mlflow_logging_config,
+                        'is_peft':
+                            self.using_peft,
+                    },
+                )
+
+                process.start()
+                self.register_processes.append(process)
+
+        # Save the temporary directory to be cleaned up later.
+        if use_temp_dir:
+            self.temp_save_dir = temp_save_dir
+
+    def _save_checkpoint(
+        self,
+        state: State,
+        logger: Logger,
+        upload_to_save_folder: bool,
+        register_to_mlflow: bool,
+    ):
+        """Save a HuggingFace formatted checkpoint.
+
+        Args:
+            state (State): The training state.
+            logger (Logger): The logger.
+            upload_to_save_folder (bool): Whether to upload the HF checkpoint to the save folder.
+            register_to_mlflow (bool): Whether to register the model to MLFlow
+        """
+        del logger  # unused
+
+        save_dir = format_name_with_dist_and_time(
+            str(
+                Path(self.save_dir_format_str) /
+                self.huggingface_folder_name_fstr,
+            ),
+            state.run_name,
+            state.timestamp,
+        )
+
+        # Use a temporary directory if save_dir is remote.
+        use_temp_dir = self.remote_ud is not None
+        temp_save_dir = tempfile.mkdtemp() if use_temp_dir else save_dir
+
+        new_model_instance, original_tokenizer = self._get_hf_model(state)
+
+        dist.barrier()
+
+        if dist.get_global_rank() == 0:
             if upload_to_save_folder:
                 # This context manager casts the TE extra state in io.BytesIO format to tensor format
                 # Needed for proper hf ckpt saving.
@@ -764,61 +835,12 @@ class HuggingFaceCheckpointer(Callback):
 
         if dist.get_global_rank() == 0:
             if register_to_mlflow:
-                assert new_model_instance is not None
-                new_model_instance = self.transform_model_pre_registration(
-                    new_model_instance,
-                )
-                register_save_dir = os.path.join(
+                self._register_hf_model(
+                    state,
                     temp_save_dir,
-                    'register_save',
+                    original_tokenizer,
+                    use_temp_dir,
                 )
-                new_model_instance.save_pretrained(
-                    register_save_dir,
-                    max_shard_size='1GB',
-                )
-                if original_tokenizer:
-                    original_tokenizer.save_pretrained(register_save_dir)
-
-                self.pre_register_edit(register_save_dir)
-
-                for mlflow_logger in self.mlflow_loggers:
-                    if self.mlflow_registered_model_name:
-                        log.debug(
-                            f'Registering model to UC at {mlflow_logger.model_registry_prefix}.{self.mlflow_registered_model_name}',
-                        )
-
-                    # Save the monitor process to be restored after registering the model.
-                    with _monitor_process_saver(mlflow_logger):
-                        process = SpawnProcess(
-                            target=_log_model_with_multi_process,
-                            kwargs={
-                                'mlflow_logger':
-                                    mlflow_logger,
-                                'python_logging_level':
-                                    logging.getLogger('llmfoundry').level,
-                                'transformers_model':
-                                    register_save_dir,
-                                'artifact_path':
-                                    'final_model_checkpoint',
-                                'pretrained_model_name':
-                                    self.pretrained_model_name,
-                                'registered_model_name':
-                                    self.mlflow_registered_model_name,
-                                'await_registration_for':
-                                    3600,
-                                'mlflow_logging_config':
-                                    self.mlflow_logging_config,
-                                'is_peft':
-                                    self.using_peft,
-                            },
-                        )
-
-                        process.start()
-                        self.register_processes.append(process)
-
-                # Save the temporary directory to be cleaned up later.
-                if use_temp_dir:
-                    self.temp_save_dir = temp_save_dir
             else:
                 # Clean up the temporary directory if we don't need to register to mlflow.
                 if use_temp_dir:

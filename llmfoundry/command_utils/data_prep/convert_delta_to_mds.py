@@ -100,8 +100,8 @@ def convert_delta_to_mds_from_args(
             tokenizer=None,
             tokenizer_kwargs=None,
             max_seq_len=-1,
-            target_prompts='',
-            target_responses='',
+            target_prompts='none',
+            target_responses='all',
             encoder_decoder=False,
         )
 

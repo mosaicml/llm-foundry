@@ -89,7 +89,7 @@ def convert_delta_to_mds_from_args(
         convert_finetuning_dataset_from_args(
             dataset='json',
             data_subset=None,
-            splits=[''],
+            splits=['train'],
             preprocessor=None,
             data_files=[json_full_filepath],
             skip_preprocessing=True,

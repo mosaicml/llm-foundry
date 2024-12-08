@@ -417,6 +417,18 @@ class MisconfiguredHfDatasetError(UserError):
         super().__init__(message, dataset_name=dataset_name, split=split)
 
 
+class BadDatasetSplitError(UserError):
+    """Error thrown when a HuggingFace dataset is misconfigured."""
+
+    def __init__(self, dataset_name: str, split: Optional[str] = None) -> None:
+        reg = r"^\\w+(\\.\\w+)*$"
+        message = f'Your dataset (name={dataset_name}, split={split}) has an invalid split. ' + \
+            f'Please check your split name to make sure it matches the pattern "{reg}"' \
+            if split is not None else f'Your dataset (name={dataset_name}) is misconfigured. ' + \
+            f'Please check your split name to make sure it matches the pattern "{reg}"'
+        super().__init__(message, dataset_name=dataset_name, split=split)
+
+
 class InvalidDatasetError(UserError):
     """Error thrown when a dataset contains no valid samples for training."""
 

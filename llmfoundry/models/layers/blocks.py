@@ -51,7 +51,6 @@ class MPTBlock(nn.Module):
     ):
         if attn_config is None:
             attn_config = attn_config_defaults
-            attn_config.pop('flex_attn_compile', None)
 
         if ffn_config is None:
             self.ffn_config: dict[str, Any] = {

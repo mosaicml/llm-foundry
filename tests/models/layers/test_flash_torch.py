@@ -13,6 +13,7 @@ from llmfoundry.models.layers.attention import (
     gen_slopes,
     is_flash_v2_installed,
 )
+from llmfoundry.models.layers.flex_attn_utils import FLEX_ATTN_COMPILE
 from llmfoundry.models.layers.layer_builders import build_attention_layer
 from llmfoundry.models.mpt.modeling_mpt import (
     apply_sequence_id,
@@ -23,7 +24,7 @@ from llmfoundry.models.mpt.modeling_mpt import (
 
 compiled_flex_attention = flex_attention
 compiled_create_block_mask = create_block_mask
-if version.parse(torch.__version__.split('.dev')[0]) >= version.parse('2.6.0'):
+if FLEX_ATTN_COMPILE:
     compiled_flex_attention = torch.compile(flex_attention)
     compiled_create_block_mask = torch.compile(create_block_mask)
 
@@ -301,6 +302,7 @@ def test_attn_impl(
             extra_kwargs['flex_attn_kwargs'] = {
                 'compiled_flex_attention': compiled_flex_attention,
                 'compiled_create_block_mask': compiled_create_block_mask,
+                'flex_attn_compile': FLEX_ATTN_COMPILE,
                 'sequence_id_info': {},
             }
             if sequence_id is not None:
@@ -332,6 +334,7 @@ def test_attn_impl(
             extra_kwargs['flex_attn_kwargs'] = {
                 'compiled_flex_attention': compiled_flex_attention,
                 'compiled_create_block_mask': compiled_create_block_mask,
+                'flex_attn_compile': FLEX_ATTN_COMPILE,
             }
             if sequence_id is not None:
                 extra_kwargs['flex_attn_kwargs']['sequence_id_info'] = {
@@ -453,6 +456,7 @@ def test_vs_mha(attn_impl: str, device: str = 'cuda'):
             extra_kwargs['flex_attn_kwargs'] = {
                 'compiled_flex_attention': compiled_flex_attention,
                 'compiled_create_block_mask': compiled_create_block_mask,
+                'flex_attn_compile': FLEX_ATTN_COMPILE,
                 'sequence_id_info': {},
             }
         y0, _, _ = mmhsa(
@@ -560,6 +564,7 @@ def test_grouped_attention_heads(
             extra_kwargs['flex_attn_kwargs'] = {
                 'compiled_flex_attention': compiled_flex_attention,
                 'compiled_create_block_mask': compiled_create_block_mask,
+                'flex_attn_compile': FLEX_ATTN_COMPILE,
                 'sequence_id_info': {},
             }
         y0, _, _ = mmhsa(
@@ -781,6 +786,7 @@ def test_reuse_prev_layer_kv_cache(
             extra_kwargs['flex_attn_kwargs'] = {
                 'compiled_flex_attention': compiled_flex_attention,
                 'compiled_create_block_mask': compiled_create_block_mask,
+                'flex_attn_compile': FLEX_ATTN_COMPILE,
                 'sequence_id_info': {
                     'sequence_id': sequence_id,
                 },
@@ -814,6 +820,7 @@ def test_reuse_prev_layer_kv_cache(
             extra_kwargs['flex_attn_kwargs'] = {
                 'compiled_flex_attention': compiled_flex_attention,
                 'compiled_create_block_mask': compiled_create_block_mask,
+                'flex_attn_compile': FLEX_ATTN_COMPILE,
                 'sequence_id_info': {
                     'sequence_id': sequence_id,
                 },

@@ -1,6 +1,7 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import warnings
 from abc import ABC
 from functools import partial
 from typing import Any, Optional
@@ -12,6 +13,10 @@ from torch.nn.attention.flex_attention import (
     _score_mod_signature,
     and_masks,
 )
+
+FLEX_ATTN_COMPILE = version.parse(
+    torch.__version__.split('.dev')[0],
+) >= version.parse('2.6.0')
 
 from llmfoundry.layers_registry import flex_attention_mods
 
@@ -236,6 +241,7 @@ def generate_block_mask(
     compiled_create_block_mask: Any,
     query_offset: torch.Tensor,
     sequence_id_info: Optional[dict[str, torch.Tensor]],
+    flex_attn_compile: bool,
 ):
     if block_mask_list is None:
         return None
@@ -259,10 +265,14 @@ def generate_block_mask(
             )
 
     extra_args = {}
-    if version.parse(
-        torch.__version__.split('.dev')[0],
-    ) < version.parse('2.6.0') and Q_LEN % _DEFAULT_SPARSE_BLOCK_SIZE != 0:
-        extra_args['BLOCK_SIZE'] = Q_LEN
+    if (Q_LEN % _DEFAULT_SPARSE_BLOCK_SIZE !=
+        0) or (KV_LEN % _DEFAULT_SPARSE_BLOCK_SIZE != 0):
+        if flex_attn_compile:
+            warnings.warn(
+                f'Q_LEN and KV_LEN must be divisible by {_DEFAULT_SPARSE_BLOCK_SIZE}. The results might be incorrect.',
+            )
+        else:
+            extra_args['BLOCK_SIZE'] = (Q_LEN, KV_LEN)
     block_mask = compiled_create_block_mask(
         block_mask_fn,
         B=B,

@@ -18,11 +18,12 @@ from llmfoundry.models.layers.attention import (
     is_flash_v2_installed,
     scaled_multihead_dot_product_attention,
 )
+from llmfoundry.models.layers.flex_attn_utils import FLEX_ATTN_COMPILE
 from llmfoundry.models.mpt.modeling_mpt import gen_flash_attn_padding_info
 
 compiled_flex_attention = flex_attention
 compiled_create_block_mask = create_block_mask
-if version.parse(torch.__version__.split('.dev')[0]) >= version.parse('2.6.0'):
+if FLEX_ATTN_COMPILE:
     compiled_flex_attention = torch.compile(flex_attention)
     compiled_create_block_mask = torch.compile(create_block_mask)
 
@@ -75,6 +76,7 @@ def test_gqa_kv_repetition(attn_impl: str, kv_n_heads: int):
         extra_attn_kwargs = {
             'compiled_flex_attention': compiled_flex_attention,
             'compiled_create_block_mask': compiled_create_block_mask,
+            'flex_attn_compile': FLEX_ATTN_COMPILE,
             'sequence_id_info': {},
         }
 
@@ -122,6 +124,7 @@ def test_gqa_kv_repetition(attn_impl: str, kv_n_heads: int):
         extra_attn_kwargs = {
             'compiled_flex_attention': compiled_flex_attention,
             'compiled_create_block_mask': compiled_create_block_mask,
+            'flex_attn_compile': FLEX_ATTN_COMPILE,
             'sequence_id_info': {},
         }
 
@@ -164,10 +167,10 @@ def test_seq_id_masking_FA_v2(attn_impl: str):
         pytest.skip(
             'FlexAttention is not supported in torch version {torch.__version__}<2.5.1.',
         )
-    d = 128
+    d = 128  # Compiled FlexAttention works for d=16 with seqlen=6, but not for d=128 with seqlen=6. For seqlen=128, all d's in [16, 32, 64, 128, 256] work. Probably because this is not yet fixed: https://pytorch.org/blog/flexattention/#limitations-and-future-work
     n_heads = 4
     kv_n_heads = 4
-    seqlen_1 = 6
+    seqlen_1 = 128
     bsz = 2
 
     query_1 = torch.randn(bsz, seqlen_1, n_heads * d).to(torch.bfloat16).cuda()
@@ -183,11 +186,13 @@ def test_seq_id_masking_FA_v2(attn_impl: str):
         (3, 5),
         (5, 6),
     ]  # Each batch has 3 sequences of length 3, 2, and 1 respectively.
-    attention_mask_in_length_1 = torch.tensor([[3, 2, 1, 0, 0, 0],
-                                               [3, 2, 1, 0, 0,
-                                                0]]).to(torch.int64).cuda()
-    sequence_id = torch.tensor([[0, 0, 0, 1, 1, 2], [0, 0, 0, 1, 1,
-                                                     2]]).to(torch.int64).cuda()
+    attention_mask_in_length_1 = torch.tensor([
+        [3, 2, 1] + [0] * (seqlen_1 - 3),
+        [3, 2, 1] + [0] * (seqlen_1 - 3),
+    ]).to(torch.int64).cuda()
+    sequence_id = torch.tensor([[0, 0, 0, 1, 1, 2] + [-1] *
+                                (seqlen_1 - 6), [0, 0, 0, 1, 1, 2] + [-1] *
+                                (seqlen_1 - 6)],).to(torch.int64).cuda()
 
     flash_attn_padding_info_1 = gen_flash_attn_padding_info(
         bsz,
@@ -204,6 +209,7 @@ def test_seq_id_masking_FA_v2(attn_impl: str):
         extra_attn_kwargs = {
             'compiled_flex_attention': compiled_flex_attention,
             'compiled_create_block_mask': compiled_create_block_mask,
+            'flex_attn_compile': FLEX_ATTN_COMPILE,
             'sequence_id_info': {
                 'sequence_id': sequence_id,
             },
@@ -243,22 +249,10 @@ def test_seq_id_masking_FA_v2(attn_impl: str):
             None,
             None,
         )
-        extra_attn_kwargs = {}
-        if attn_impl == 'flash':
-            extra_attn_kwargs['flash_attn_padding_info'
-                             ] = flash_attn_padding_info_2
-        elif attn_impl == 'flex':
-            extra_attn_kwargs = {
-                'compiled_flex_attention': compiled_flex_attention,
-                'compiled_create_block_mask': compiled_create_block_mask,
-                'sequence_id_info': {
-                    'sequence_id':
-                        torch.tensor([[0] * (seq_range[1] - seq_range[0]), [0] *
-                                      (seq_range[1] - seq_range[0])],).to(
-                                          torch.int64,
-                                      ).cuda(),
-                },
-            }
+        attn_impl = 'flash'
+        extra_attn_kwargs = {
+            'flash_attn_padding_info': flash_attn_padding_info_2,
+        }
         output_2, _, _ = attention_implementations.get(attn_impl)(
             query=query_2,
             key=key_2,
@@ -277,7 +271,7 @@ def test_seq_id_masking_FA_v2(attn_impl: str):
         )
 
         output_2.sum().backward()
-        assert torch.allclose(
+        torch.testing.assert_close(
             output_1[:, seq_range[0]:seq_range[1], :],
             output_2,
         )
@@ -354,6 +348,7 @@ def test_alibi_bias(attn_impl: str, n_heads: int):
         extra_attn_kwargs = {
             'compiled_flex_attention': compiled_flex_attention,
             'compiled_create_block_mask': compiled_create_block_mask,
+            'flex_attn_compile': FLEX_ATTN_COMPILE,
             'sequence_id_info': {},
         }
     output_1, _, _ = attention_implementations.get(attn_impl)(
@@ -500,6 +495,7 @@ def test_attn_logit_softcapping(
         extra_attn_kwargs = {
             'compiled_flex_attention': compiled_flex_attention,
             'compiled_create_block_mask': compiled_create_block_mask,
+            'flex_attn_compile': FLEX_ATTN_COMPILE,
             'sequence_id_info': {},
         }
     output_1, _, _ = attention_implementations.get(attn_impl)(

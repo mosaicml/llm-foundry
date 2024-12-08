@@ -13,12 +13,13 @@ from llmfoundry.models.layers.attention import (
     attention_implementations,
     scaled_multihead_dot_product_attention,
 )
+from llmfoundry.models.layers.flex_attn_utils import FLEX_ATTN_COMPILE
 from llmfoundry.models.layers.layer_builders import build_attention_layer
 from llmfoundry.models.mpt.modeling_mpt import gen_flash_attn_padding_info
 
 compiled_flex_attention = flex_attention
 compiled_create_block_mask = create_block_mask
-if version.parse(torch.__version__.split('.dev')[0]) >= version.parse('2.6.0'):
+if FLEX_ATTN_COMPILE:
     compiled_flex_attention = torch.compile(flex_attention)
     compiled_create_block_mask = torch.compile(create_block_mask)
 
@@ -223,6 +224,7 @@ def test_sliding_window(sliding_window_size: int, attn_impl: str):
         attn_extra_kwargs = {
             'compiled_flex_attention': compiled_flex_attention,
             'compiled_create_block_mask': compiled_create_block_mask,
+            'flex_attn_compile': FLEX_ATTN_COMPILE,
             'sequence_id_info': {},
         }
 

@@ -20,6 +20,7 @@ from llmfoundry.layers_registry import (
     flex_attention_mods,
 )
 from llmfoundry.models.layers.flex_attn_utils import (
+    FLEX_ATTN_COMPILE,
     generate_block_mask,
     generate_score_mod,
 )
@@ -444,6 +445,7 @@ def flex_attn_fn(
     compiled_flex_attention: Any,
     compiled_create_block_mask: Any,
     sequence_id_info: Optional[dict[str, torch.Tensor]],
+    flex_attn_compile: bool,
     flex_attn_mod_list: Optional[list[dict[str, Any]]] = None,
     past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
     softmax_scale: Optional[float] = None,
@@ -572,6 +574,7 @@ def flex_attn_fn(
         compiled_create_block_mask=compiled_create_block_mask,
         query_offset=query_offset,
         sequence_id_info=sequence_id_info,
+        flex_attn_compile=flex_attn_compile,
     )
     score_mod = generate_score_mod(
         score_mod_list=score_mod_list, # type: ignore
@@ -626,6 +629,7 @@ class GroupedQueryAttention(nn.Module):
         attn_logit_softcapping: Optional[float] = None,
         kv_dim: Optional[int] = None,
         flex_attn_mod_list: Optional[list[dict[str, Any]]] = None,
+        flex_attn_compile: bool = FLEX_ATTN_COMPILE,
     ):
         super().__init__()
 
@@ -753,6 +757,7 @@ class GroupedQueryAttention(nn.Module):
 
         if self.attn_impl == 'flex':
             self.flex_attn_mod_list = flex_attn_mod_list
+            self.flex_attn_compile = flex_attn_compile
 
     def forward(
         self,
@@ -1024,6 +1029,7 @@ class GroupedQueryAttention(nn.Module):
                 'alibi_slopes': alibi_slopes,
                 'key_padding_mask': None,
                 'flex_attn_mod_list': self.flex_attn_mod_list,
+                'flex_attn_compile': self.flex_attn_compile,
                 **flex_attn_kwargs,
             }
         else:
@@ -1059,6 +1065,7 @@ class MultiheadAttention(GroupedQueryAttention):
         attn_logit_softcapping: Optional[float] = None,
         kv_dim: Optional[int] = None,
         flex_attn_mod_list: Optional[list[dict[str, Any]]] = None,
+        flex_attn_compile: bool = FLEX_ATTN_COMPILE,
     ):
         super().__init__(
             d_model=d_model,
@@ -1081,6 +1088,7 @@ class MultiheadAttention(GroupedQueryAttention):
             attn_logit_softcapping=attn_logit_softcapping,
             kv_dim=kv_dim,
             flex_attn_mod_list=flex_attn_mod_list,
+            flex_attn_compile=flex_attn_compile,
         )
 
 
@@ -1112,6 +1120,7 @@ class MultiQueryAttention(GroupedQueryAttention):
         attn_logit_softcapping: Optional[float] = None,
         kv_dim: Optional[int] = None,
         flex_attn_mod_list: Optional[list[dict[str, Any]]] = None,
+        flex_attn_compile: bool = FLEX_ATTN_COMPILE,
     ):
         super().__init__(
             d_model=d_model,
@@ -1134,6 +1143,7 @@ class MultiQueryAttention(GroupedQueryAttention):
             attn_logit_softcapping=attn_logit_softcapping,
             kv_dim=kv_dim,
             flex_attn_mod_list=flex_attn_mod_list,
+            flex_attn_compile=flex_attn_compile,
         )
 
 

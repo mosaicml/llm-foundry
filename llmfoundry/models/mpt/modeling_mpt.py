@@ -25,7 +25,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from composer.models import HuggingFaceModel
 from composer.utils import dist
-from packaging import version
 from tabulate import tabulate
 from torch.nn.attention.flex_attention import create_block_mask, flex_attention
 
@@ -33,6 +32,7 @@ from llmfoundry.layers_registry import (
     ffns_with_megablocks,
 )
 from llmfoundry.models.layers.attention import is_flash_v2_installed
+from llmfoundry.models.layers.flex_attn_utils import FLEX_ATTN_COMPILE
 
 if is_flash_v2_installed():
     try:  # This try...except is needed because transformers requires it despite the 'if' statement above
@@ -424,10 +424,9 @@ class MPTModel(MPTPreTrainedModel):
         self.mb_args = None
         self.shift_labels = True
 
-        flex_attn_compile = config.attn_config.pop(
+        flex_attn_compile = config.attn_config.get(
             'flex_attn_compile',
-            version.parse(torch.__version__.split('.dev')[0]) >=
-            version.parse('2.6.0'),
+            FLEX_ATTN_COMPILE,
         )
         if self.attn_impl == 'flex':
             self.compiled_flex_attention = torch.compile(

@@ -336,6 +336,7 @@ def build_finetuning_dataloader(
             replication_factor if replication_factor > 1 else None,
             rank=dist.get_global_rank() //
             replication_factor if replication_factor > 1 else None,
+            seed=dataset_cfg.get('shuffle_seed', 0),
         )
 
     assert streaming_dataset is not None  # for pyright

@@ -11,36 +11,36 @@ command: |
   export HF_HUB_ENABLE_HF_TRANSFER=1
   composer train/train.py /mnt/config/parameters.yaml
 image: mosaicml/llm-foundry:2.5.1_cu124-latest
-name: llama2-finetune
+name: llama3.1-70b-finetune
 
 compute:
   # Note: Finetuning the 70b model requires at least 16x80GB GPUs
-  gpus: 8  # Number of GPUs to use
+  gpus: 16  # Number of GPUs to use
   ## These configurations are optional
   # cluster: TODO # Name of the cluster to use for this run
-  # gpu_type: a100_80gb # Type of GPU to use. We use a100_80gb in our experiments
+  # gpu_type: h100_80gb # Type of GPU to use. We use h100_80gb in our experiments
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:
   variables:
-    tokenizer_name: meta-llama/Llama-2-7b-hf
+    tokenizer_name: meta-llama/Llama-3.1-70B-Instruct
     global_seed: 17
     max_seq_len: 4096
 
   max_seq_len: ${variables.max_seq_len}
-
   # Run Name
   run_name:  # If left blank, will be read from env var $RUN_NAME
 
   max_split_size_mb: 512
+  dist_timeout: 3600  # set to avoid NCCL timeouts
 
   # Model
   model:
     name: hf_causal_lm
     init_device: mixed
-    pretrained_model_name_or_path: meta-llama/Llama-2-7b-hf
+    pretrained_model_name_or_path: meta-llama/Llama-3.1-70B-Instruct
     pretrained: true
-    # Note: you must have set the HF_TOKEN environment variable and have access to the llama2 models
+    # Note: you must have set the HF_TOKEN environment variable and have access to the llama3 models
     use_auth_token: true
     use_flash_attention_2: true
 
@@ -49,7 +49,6 @@ parameters:
     name: ${variables.tokenizer_name}
     kwargs:
       model_max_length: ${variables.max_seq_len}
-
   # Dataloaders
   train_loader:
     name: finetuning
@@ -115,16 +114,17 @@ parameters:
   eval_first: false
   eval_interval: 1ep
   eval_subset_num_batches: -1
-  global_train_batch_size: 64
+  global_train_batch_size: 16
 
   # System
   seed: ${variables.global_seed}
-  device_eval_batch_size: 8
-  device_train_microbatch_size: auto
+  device_eval_batch_size: 1
+  device_train_microbatch_size: 1
   precision: amp_bf16
 
   # FSDP
   fsdp_config:
+    state_dict_type: sharded  # Note: we enable sharded checkpointing to avoid GPU OOM
     sharding_strategy: FULL_SHARD
     mixed_precision: PURE
     activation_checkpointing: true

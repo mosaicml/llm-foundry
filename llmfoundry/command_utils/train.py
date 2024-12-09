@@ -646,7 +646,7 @@ def train(cfg: DictConfig) -> Trainer:
         msg = str(e)
         if 'The max_duration' in msg and 'is less than or equal to the elapsed training duration' in msg and train_cfg.run_is_retry:
             log.info(
-                'Training is already complete and detected retry. Skipping training and saving checkpoint.'
+                'Training is already complete and detected retry. Skipping training and saving checkpoint.',
             )
             trainer.save_checkpoint_to_save_folder()
 
@@ -655,13 +655,13 @@ def train(cfg: DictConfig) -> Trainer:
             ]
             if len(hf_checkpointer_callbacks) == 0:
                 log.info(
-                    'No HuggingFaceCheckpointer callback found. Skipping HF checkpoint.'
+                    'No HuggingFaceCheckpointer callback found. Skipping HF checkpoint.',
                 )
                 return trainer
             if len(hf_checkpointer_callbacks) > 1:
                 raise ValueError(
                     'Multiple HuggingFaceCheckpointer callbacks found, but only_hf_checkpoint was set to True. Please remove all but one HuggingFaceCheckpointer.',
-                )
+                ) from e
 
             hf_checkpointer_callback = hf_checkpointer_callbacks[0]
             hf_checkpointer_callback._save_checkpoint(

@@ -450,21 +450,24 @@ def test_final_register_only(
             assert checkpointer_callback._save_checkpoint.call_count == 2
             assert checkpointer_callback._save_checkpoint.call_args_list[
                 0].kwargs == {
-                    'register_to_mlflow': True,
+                    'log_to_mlflow': True,
                     'upload_to_save_folder': False,
+                    'register': True,
                 }
             assert checkpointer_callback._save_checkpoint.call_args_list[
                 1].kwargs == {
-                    'register_to_mlflow': False,
+                    'log_to_mlflow': False,
                     'upload_to_save_folder': True,
+                    'register': False,
                 }
         else:
             # No mlflow_registry_error, so we should only register the model
             assert checkpointer_callback._save_checkpoint.call_count == 1
             assert checkpointer_callback._save_checkpoint.call_args_list[
                 0].kwargs == {
-                    'register_to_mlflow': True,
+                    'log_to_mlflow': True,
                     'upload_to_save_folder': False,
+                    'register': True,
                 }
     else:
         # No mlflow_registered_model_name, so we should only save the checkpoint
@@ -472,13 +475,15 @@ def test_final_register_only(
         assert checkpointer_callback._save_checkpoint.call_count == 1
         assert checkpointer_callback._save_checkpoint.call_args_list[
             0].kwargs == {
-                'register_to_mlflow': False,
+                'log_to_mlflow': False,
                 'upload_to_save_folder': True,
+                'register': False,
             }
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('log_to_mlflow', [True, False])
+@pytest.mark.parametrize('register_to_mlflow', [True, False])
+@pytest.mark.parametrize('hf_save_folder', [True, False])
 @pytest.mark.parametrize(
     'hf_save_interval,save_interval,max_duration,expected_hf_checkpoints,expected_normal_checkpoints',
     [('3ba', '2ba', '4ba', 2, 2), ('1dur', '2ba', '1ep', 1, 2)],
@@ -490,7 +495,8 @@ def test_final_register_only(
 )
 def test_huggingface_conversion_callback_interval(
     tmp_path: pathlib.Path,
-    log_to_mlflow: bool,
+    register_to_mlflow: bool,
+    hf_save_folder: bool,
     hf_save_interval: str,
     save_interval: str,
     max_duration: str,
@@ -511,11 +517,12 @@ def test_huggingface_conversion_callback_interval(
     batches_per_epoch = math.ceil(dataset_size / device_batch_size)
 
     checkpointer_callback = HuggingFaceCheckpointer(
-        save_folder=os.path.join(tmp_path, 'checkpoints'),
+        save_folder=os.path.join(tmp_path, 'checkpoints')
+        if hf_save_folder else None,
         save_interval=hf_save_interval,
         precision=precision_str,
         mlflow_registered_model_name='dummy-registered-name'
-        if log_to_mlflow else None,
+        if register_to_mlflow else None,
     )
 
     original_model = build_tiny_mpt()
@@ -538,19 +545,26 @@ def test_huggingface_conversion_callback_interval(
         save_interval=save_interval,
         max_duration=max_duration,
         callbacks=[checkpointer_callback],
-        loggers=[mlflow_logger_mock] if log_to_mlflow else [],
+        loggers=[mlflow_logger_mock]
+        if register_to_mlflow or not hf_save_folder else [],
         optimizers=optimizer,
         save_latest_filename=None,
     )
     trainer.fit()
 
-    if log_to_mlflow:
-        assert mlflow_logger_mock.log_model.call_count == 1
+    if hf_save_folder and not register_to_mlflow:
+        assert checkpointer_callback.transform_model_pre_registration.call_count == 0
+        assert checkpointer_callback.pre_register_edit.call_count == 0
+        assert mlflow_logger_mock.log_model.call_count == 0
+    else:
+        expected_call_count = 1 if hf_save_folder else expected_hf_checkpoints
+        expected_registered_model_name = 'dummy-registered-name' if register_to_mlflow else None
+        assert mlflow_logger_mock.log_model.call_count == expected_call_count
         mlflow_logger_mock.log_model.assert_called_with(
             transformers_model=ANY,
             flavor='transformers',
-            artifact_path='final_model_checkpoint',
-            registered_model_name='dummy-registered-name',
+            artifact_path=f'huggingface/ba{trainer.state.timestamp.batch.value}',
+            registered_model_name=expected_registered_model_name,
             run_id='mlflow-run-id',
             await_registration_for=3600,
             metadata=ANY,
@@ -559,64 +573,61 @@ def test_huggingface_conversion_callback_interval(
                 'prompt': np.array(['What is Machine Learning?']),
             },
         )
-        assert checkpointer_callback.transform_model_pre_registration.call_count == 1
-        assert checkpointer_callback.pre_register_edit.call_count == 1
-        assert mlflow_logger_mock.log_model.call_count == 1
-    else:
-        assert checkpointer_callback.transform_model_pre_registration.call_count == 0
-        assert checkpointer_callback.pre_register_edit.call_count == 0
-        assert mlflow_logger_mock.log_model.call_count == 0
+        assert checkpointer_callback.transform_model_pre_registration.call_count == expected_call_count
+        assert checkpointer_callback.pre_register_edit.call_count == expected_call_count
+        assert mlflow_logger_mock.log_model.call_count == expected_call_count
 
     normal_checkpoints = [
         name for name in os.listdir(os.path.join(tmp_path, 'checkpoints'))
         if name != 'huggingface'
     ]
-
-    huggingface_checkpoints = list(
-        os.listdir(os.path.join(tmp_path, 'checkpoints', 'huggingface')),
-    )
     assert len(normal_checkpoints) == expected_normal_checkpoints
-    assert len(huggingface_checkpoints) == expected_hf_checkpoints
 
-    # Load the last huggingface checkpoint
-    loaded_model = transformers.AutoModelForCausalLM.from_pretrained(
-        os.path.join(
-            tmp_path,
-            'checkpoints',
-            'huggingface',
-            f'ba{batches_per_epoch}',
-        ),
-        trust_remote_code=True,
-    )
+    if hf_save_folder:
+        huggingface_checkpoints = list(
+            os.listdir(os.path.join(tmp_path, 'checkpoints', 'huggingface')),
+        )
+        assert len(huggingface_checkpoints) == expected_hf_checkpoints
 
-    # Check that the loaded model has the correct precision, and then set it back
-    # to the original for the equivalence check
-    assert loaded_model.config.torch_dtype == precision
-    loaded_model.config.torch_dtype = original_model.model.config.torch_dtype
+        # Load the last huggingface checkpoint
+        loaded_model = transformers.AutoModelForCausalLM.from_pretrained(
+            os.path.join(
+                tmp_path,
+                'checkpoints',
+                'huggingface',
+                f'ba{batches_per_epoch}',
+            ),
+            trust_remote_code=True,
+        )
 
-    # Check that we have correctly set these attributes, and then set them back
-    # to the original for the equivalence check
-    assert loaded_model.config.attn_config['attn_impl'] == 'torch'
-    assert loaded_model.config.init_device == 'cpu'
-    loaded_model.config.attn_config[
-        'attn_impl'] = original_model.model.config.attn_config['attn_impl']
-    loaded_model.config.init_device = original_model.model.config.init_device
+        # Check that the loaded model has the correct precision, and then set it back
+        # to the original for the equivalence check
+        assert loaded_model.config.torch_dtype == precision
+        loaded_model.config.torch_dtype = original_model.model.config.torch_dtype
 
-    loaded_tokenizer = transformers.AutoTokenizer.from_pretrained(
-        os.path.join(
-            tmp_path,
-            'checkpoints',
-            'huggingface',
-            f'ba{batches_per_epoch}',
-        ),
-        trust_remote_code=True,
-    )
+        # Check that we have correctly set these attributes, and then set them back
+        # to the original for the equivalence check
+        assert loaded_model.config.attn_config['attn_impl'] == 'torch'
+        assert loaded_model.config.init_device == 'cpu'
+        loaded_model.config.attn_config[
+            'attn_impl'] = original_model.model.config.attn_config['attn_impl']
+        loaded_model.config.init_device = original_model.model.config.init_device
 
-    check_hf_model_equivalence(
-        trainer.state.model.model.to(precision),
-        loaded_model,
-    )
-    check_hf_tokenizer_equivalence(mpt_tokenizer, loaded_tokenizer)
+        loaded_tokenizer = transformers.AutoTokenizer.from_pretrained(
+            os.path.join(
+                tmp_path,
+                'checkpoints',
+                'huggingface',
+                f'ba{batches_per_epoch}',
+            ),
+            trust_remote_code=True,
+        )
+
+        check_hf_model_equivalence(
+            trainer.state.model.model.to(precision),
+            loaded_model,
+        )
+        check_hf_tokenizer_equivalence(mpt_tokenizer, loaded_tokenizer)
 
     delete_transformers_cache()
 
@@ -1173,7 +1184,8 @@ def test_transform_model_pre_registration():
         state=state,
         logger=logger,
         upload_to_save_folder=True,
-        register_to_mlflow=True,
+        log_to_mlflow=True,
+        register=True,
     )
 
     checkpointer._save_and_register_peft_model.assert_not_called()
@@ -1776,5 +1788,6 @@ def test_generation_config_variants(
         state=state,
         logger=logger,
         upload_to_save_folder=False,
-        register_to_mlflow=False,
+        log_to_mlflow=False,
+        register=False,
     )

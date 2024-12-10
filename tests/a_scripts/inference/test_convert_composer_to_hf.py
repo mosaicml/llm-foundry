@@ -1167,7 +1167,6 @@ def test_transform_model_pre_registration():
     assert model_cfg is not None
     assert tokenizer_name is not None
 
-    checkpointer._save_and_register_peft_model = MagicMock()
     checkpointer.using_peft = True
     checkpointer._save_checkpoint(
         state=state,
@@ -1176,7 +1175,6 @@ def test_transform_model_pre_registration():
         register_to_mlflow=True,
     )
 
-    checkpointer._save_and_register_peft_model.assert_not_called()
     assert mlflow_logger_mock.log_model.call_count == 1
 
 

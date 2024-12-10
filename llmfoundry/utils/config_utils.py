@@ -187,6 +187,7 @@ class TrainConfig:
 
     # Resumption
     autoresume: bool = False
+    run_is_retry: bool = False
 
     # Profiling
     profiler: Optional[dict[str, Any]] = None

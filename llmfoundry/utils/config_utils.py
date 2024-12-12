@@ -6,6 +6,7 @@ import copy
 import logging
 import math
 import os
+import re
 import warnings
 from dataclasses import dataclass, fields
 from typing import (
@@ -21,12 +22,14 @@ from typing import (
 import mlflow
 from composer.loggers import Logger
 from composer.utils import dist, parse_uri
+from exceptions import UCNotFoundError
 from mlflow.data import (
     delta_dataset_source,
     http_dataset_source,
     huggingface_dataset_source,
     uc_volume_dataset_source,
 )
+from mlflow.exceptions import MlflowException
 from omegaconf import MISSING, DictConfig, ListConfig, MissingMandatoryValue
 from omegaconf import OmegaConf as om
 from transformers import PretrainedConfig
@@ -788,13 +791,23 @@ def log_dataset_uri(cfg: dict[str, Any]) -> None:
 
     # Map data source types to their respective MLFlow DataSource.
     for dataset_type, path, split in data_paths:
-
         if dataset_type in dataset_source_mapping:
             source_class = dataset_source_mapping[dataset_type]
             if dataset_type == 'delta_table':
                 source = source_class(delta_table_name=path)
             elif dataset_type == 'hf' or dataset_type == 'uc_volume':
-                source = source_class(path=path)
+                try:
+                    source = source_class(path=path)
+                except MlflowException as e:
+                    error_str = str(e)
+                    match = re.search(
+                        r'MlflowException:\s+(.*?)\s+does not exist in Databricks Unified Catalog\.',
+                        error_str,
+                    )
+                    if match:
+                        uc_path = match.group(1)
+                        raise UCNotFoundError(uc_path)
+                    raise
             else:
                 source = source_class(url=path)
         else:

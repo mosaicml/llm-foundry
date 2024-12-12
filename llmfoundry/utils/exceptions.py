@@ -33,6 +33,7 @@ __all__ = [
     'StoragePermissionError',
     'UCNotEnabledError',
     'DeltaTableNotFoundError',
+    'UCNotFoundError',
 ]
 
 ALLOWED_RESPONSE_KEYS = {'response', 'completion'}
@@ -584,4 +585,18 @@ class DeltaTableNotFoundError(UserError):
             catalog_name=catalog_name,
             volume_name=volume_name,
             table_name=table_name,
+        )
+
+
+class UCNotFoundError(UserError):
+    """Error thrown when the UC passed in training doesn't exist."""
+
+    def __init__(
+        self,
+        path: str,
+    ) -> None:
+        message = f'Your data path {path} does not exist. Please double check your UC path'
+        super().__init__(
+            message=message,
+            path=path,
         )

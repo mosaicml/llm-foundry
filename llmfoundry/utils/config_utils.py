@@ -22,7 +22,6 @@ from typing import (
 import mlflow
 from composer.loggers import Logger
 from composer.utils import dist, parse_uri
-from exceptions import UCNotFoundError
 from mlflow.data import (
     delta_dataset_source,
     http_dataset_source,
@@ -37,6 +36,7 @@ from transformers import PretrainedConfig
 from llmfoundry.layers_registry import ffns_with_megablocks
 from llmfoundry.models.utils import init_empty_weights
 from llmfoundry.registry import config_transforms
+from llmfoundry.utils.exceptions import UCNotFoundError
 
 log = logging.getLogger(__name__)
 
@@ -706,6 +706,8 @@ def _process_data_source(
         true_split (str): The split of the dataset to be added (i.e. train or eval)
         data_paths (List[Tuple[str, str, str]]): A list of tuples formatted as (data type, path, split)
     """
+    if source_dataset_path:
+        source_dataset_path = re.sub(r'/+', '/', source_dataset_path)
     # Check for Delta table
     if source_dataset_path and len(source_dataset_path.split('.')) == 3:
         data_paths.append(('delta_table', source_dataset_path, true_split))

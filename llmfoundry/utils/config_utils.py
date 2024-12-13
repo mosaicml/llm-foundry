@@ -28,7 +28,6 @@ from mlflow.data import (
     huggingface_dataset_source,
     uc_volume_dataset_source,
 )
-from mlflow.exceptions import MlflowException
 from omegaconf import MISSING, DictConfig, ListConfig, MissingMandatoryValue
 from omegaconf import OmegaConf as om
 from transformers import PretrainedConfig
@@ -36,7 +35,6 @@ from transformers import PretrainedConfig
 from llmfoundry.layers_registry import ffns_with_megablocks
 from llmfoundry.models.utils import init_empty_weights
 from llmfoundry.registry import config_transforms
-from llmfoundry.utils.exceptions import UCNotFoundError
 
 log = logging.getLogger(__name__)
 
@@ -798,18 +796,7 @@ def log_dataset_uri(cfg: dict[str, Any]) -> None:
             if dataset_type == 'delta_table':
                 source = source_class(delta_table_name=path)
             elif dataset_type == 'hf' or dataset_type == 'uc_volume':
-                try:
-                    source = source_class(path=path)
-                except MlflowException as e:
-                    error_str = str(e)
-                    match = re.search(
-                        r'MlflowException:\s+(.*?)\s+does not exist in Databricks Unified Catalog\.',
-                        error_str,
-                    )
-                    if match:
-                        uc_path = match.group(1)
-                        raise UCNotFoundError(uc_path)
-                    raise
+                source = source_class(path=path)
             else:
                 source = source_class(url=path)
         else:

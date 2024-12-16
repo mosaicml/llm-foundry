@@ -27,8 +27,7 @@ def test_build_inner_model_fsdp():
     assert model.fsdp_wrap_fn(model.model.layers[0])
 
 
-@pytest.mark.parametrize('trainable', [True, False])
-def test_pretrained_peft_trainable(trainable: bool):
+def test_pretrained_peft_trainable():
     model = BaseHuggingFaceModel.build_inner_model(
         pretrained_model_name_or_path='facebook/opt-350m',
         pretrained_lora_id_or_path='ybelkada/opt-350m-lora',
@@ -40,15 +39,10 @@ def test_pretrained_peft_trainable(trainable: bool):
         load_in_8bit=False,
         pretrained=True,
         prepare_for_fsdp=True,
-        peft_is_trainable=trainable,
     )
 
     assert isinstance(model, PeftModel)
 
     n_trainable, n_all = model.get_nb_trainable_parameters()
     assert n_all > 0
-
-    if trainable:
-        assert n_trainable > 0
-    else:
-        assert n_trainable == 0
+    assert n_trainable > 0

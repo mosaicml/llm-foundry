@@ -72,7 +72,6 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         additional_train_metrics: Optional[list] = None,
         additional_eval_metrics: Optional[list] = None,
         should_save_peft_only: bool = True,
-        peft_is_trainable: bool = False,
     ):
         config_overrides = config_overrides or {}
 
@@ -86,7 +85,6 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             config_overrides=config_overrides,
             load_in_8bit=load_in_8bit,
             pretrained=pretrained,
-            peft_is_trainable=peft_is_trainable,
         )
 
         model = self.transform_model(model)
@@ -209,7 +207,6 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         pretrained: bool,
         model_cls: Optional[Union[_BaseAutoModelClass, PreTrainedModel]] = None,
         prepare_for_fsdp: bool = False,
-        peft_is_trainable: bool = False,
     ) -> Union[PreTrainedModel, 'PeftModel']:
         """Builds the inner model for the ComposerHFCausalLM.
 
@@ -225,7 +222,6 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             pretrained (bool): Whether the model is pretrained.
             model_cls (Union[Type, Type[PreTrainedModel]]): Kept for backwards compatibility.
             prepare_for_fsdp (bool, optional): Kept for backwards compatilbility.
-            peft_is_trainable (bool): Whether loaded PEFT adapters are trainable. Default: ``False``.
 
         Returns:
             Union[PreTrainedModel, 'PeftModel']: The built inner model.
@@ -396,7 +392,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             model = PeftModelForCausalLM.from_pretrained(
                 model,
                 pretrained_lora_id_or_path,
-                is_trainable=peft_is_trainable,
+                is_trainable=True,
             )
 
         if prepare_for_fsdp:

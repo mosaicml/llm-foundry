@@ -54,7 +54,6 @@ class ComposerHFCausalLM(BaseHuggingFaceModel):
         init_device (str, optional): Which device to initialize the model on. Default: ``'cpu'``.
         use_flash_attention_2 (bool, optional): Whether to use flash-attention 2. Default: ``False``.
         tokenizer (PreTrainedTokenizer): The tokenizer that the model will use.
-        peft_is_trainable (bool): Whether loaded PEFT adapters are trainable. Default: ``False``.
     """
 
     model_cls: Union[_BaseAutoModelClass,
@@ -80,7 +79,6 @@ class ComposerHFCausalLM(BaseHuggingFaceModel):
         additional_train_metrics: Optional[list] = None,
         additional_eval_metrics: Optional[list] = None,
         should_save_peft_only: bool = True,
-        peft_is_trainable: bool = False,
     ):
         super().__init__(
             pretrained_model_name_or_path,
@@ -100,5 +98,4 @@ class ComposerHFCausalLM(BaseHuggingFaceModel):
             additional_train_metrics=additional_train_metrics,
             additional_eval_metrics=additional_eval_metrics,
             should_save_peft_only=should_save_peft_only,
-            peft_is_trainable=peft_is_trainable,
         )

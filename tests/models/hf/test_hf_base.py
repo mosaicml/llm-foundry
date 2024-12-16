@@ -1,7 +1,6 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-import pytest
 from peft import PeftModel
 
 from llmfoundry.models.hf.hf_base import BaseHuggingFaceModel

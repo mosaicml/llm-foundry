@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-from llmfoundry.models.hf.hf_base import BaseHuggingFaceModel
 from peft import PeftModel
+
+from llmfoundry.models.hf.hf_base import BaseHuggingFaceModel
 
 
 def test_build_inner_model_fsdp():

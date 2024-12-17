@@ -840,8 +840,10 @@ class HuggingFaceCheckpointer(Callback):
             assert new_model_instance is not None
             if register_to_mlflow:
                 self._register_hf_model(
-                    temp_save_dir, original_tokenizer, use_temp_dir,
-                    new_model_instance
+                    temp_save_dir,
+                    original_tokenizer,
+                    use_temp_dir,
+                    new_model_instance,
                 )
             else:
                 # Clean up the temporary directory if we don't need to register to mlflow.

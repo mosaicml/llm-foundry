@@ -620,8 +620,7 @@ class HuggingFaceCheckpointer(Callback):
         hooks = []
         for _, module in state_dict_model.named_modules():
             hooks.append(
-                module._register_state_dict_hook(tensor_hook),
-            )
+                module._register_state_dict_hook(tensor_hook),)
 
         state_dict = get_model_state_dict(
             state_dict_model,

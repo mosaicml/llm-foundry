@@ -1163,7 +1163,7 @@ def shareGPT_format_preprocessor(inp: dict) -> ChatFormattedDict:
     return {'messages': messages}
 
 
-@dataset_constructor.register('abc/def')
+@dataset_constructor.register('qa_format')
 def QA_format_preprocessor(inp: dict) -> ChatFormattedDict:
     """Convert from QA format to our chat format."""
     try:
@@ -1181,7 +1181,7 @@ def QA_format_preprocessor(inp: dict) -> ChatFormattedDict:
     return {'messages': messages}
 
 
-@dataset_constructor.register('abc/msg')
+@dataset_constructor.register('messages_format')
 def messages_format_preprocessor(inp: dict) -> ChatFormattedDict:
     """Convert from QA format to our chat format."""
     try:

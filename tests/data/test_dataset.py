@@ -8,8 +8,10 @@ from unittest import mock
 import pytest
 
 from llmfoundry.data.finetuning.tasks import (
+    QA_format_preprocessor,
     _get_num_processes,
     dataset_constructor,
+    messages_format_preprocessor,
 )
 from llmfoundry.utils.exceptions import DatasetTooSmallError
 
@@ -60,3 +62,48 @@ def test_finetuning_streaming_dataset_too_small(
                 new=MockDataset,
             ):
                 dataset_constructor.build_from_streaming()
+
+
+def test_QA_format_preprocessor():
+    inp = {
+        'Q': 'What is the capital of France?',
+        'A': 'Paris',
+        'meta': {
+            'a': 'b',
+        },
+    }
+
+    expected_messages = [{
+        'role': 'user',
+        'content': 'What is the capital of France?',
+    }, {
+        'role': 'assistant',
+        'content': 'Paris',
+    }]
+    output = QA_format_preprocessor(inp)
+    assert len(output) == 1
+    assert 'messages' in output
+    for i, message in enumerate(output['messages']):
+        expected_message = expected_messages[i]
+        for k, v in message.items():
+            assert k in expected_message
+            assert v == expected_message[k]
+
+
+def test_messages_format_preprocessor():
+    messages = [{
+        'role': 'user',
+        'content': 'What is the capital of France?',
+    }, {
+        'role': 'assistant',
+        'content': 'Paris',
+    }]
+    inp = {
+        'messages': messages,
+        'other_key': 'other_value',
+    }
+
+    output = messages_format_preprocessor(inp)
+    assert len(output) == 1
+    assert 'messages' in output
+    assert output['messages'] == messages

@@ -788,6 +788,7 @@ class HuggingFaceCheckpointer(Callback):
         dist.barrier()
 
         if dist.get_global_rank() == 0:
+            assert new_model_instance is not None
             if upload_to_save_folder:
                 # This context manager casts the TE extra state in io.BytesIO format to tensor format
                 # Needed for proper hf ckpt saving.

@@ -71,6 +71,7 @@ from llmfoundry.utils.exceptions import (
     ALLOWED_MESSAGES_KEYS,
     ALLOWED_PROMPT_KEYS,
     ALLOWED_RESPONSE_KEYS,
+    BadDatasetSplitError,
     ChatTemplateError,
     ConsecutiveRepeatedChatRolesError,
     DatasetTooSmallError,
@@ -1044,6 +1045,14 @@ class DatasetConstructor:
         if isinstance(error, hf_exceptions.DatasetGenerationError):
             log.error('Huggingface DatasetGenerationError during data prep.')
             raise MisconfiguredHfDatasetError(
+                dataset_name=dataset_name,
+                split=split,
+            ) from error
+        elif isinstance(error, ValueError) and 'Split name should match' in str(
+            error,
+        ):
+            log.error('Huggingface split ValueError during data prep.')
+            raise BadDatasetSplitError(
                 dataset_name=dataset_name,
                 split=split,
             ) from error

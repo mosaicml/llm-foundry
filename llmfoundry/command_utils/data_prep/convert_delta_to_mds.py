@@ -124,7 +124,7 @@ def convert_delta_to_mds_from_args(
     logging.info(f'Fetching data from Delta Table {delta_table_name}...')
 
     with tempfile.TemporaryDirectory() as json_out_folder:
-        json_out_filename = 'temp.jsonl'
+        json_out_filename = 'train.jsonl'
         json_full_filepath = os.path.join(json_out_folder, json_out_filename)
         try:
             fetch_DT(

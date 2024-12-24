@@ -842,7 +842,6 @@ class DatasetConstructor:
         self,
         dataset_name: str,
         split: str,
-        config_name: str = 'default',
         safe_load: bool = False,
         max_seq_len: int = 2048,
         mapping_fn: Callable = tokenize_formatted_example,
@@ -979,7 +978,6 @@ class DatasetConstructor:
             dataset = hf_datasets.load_dataset(
                 dataset_name,
                 split=split,
-                config_name=config_name,
                 **hf_kwargs,
             )
 

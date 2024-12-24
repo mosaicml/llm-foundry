@@ -15,7 +15,7 @@ name: llama3.1-70b-finetune
 
 compute:
   # Note: Finetuning the 70b model requires at least 16x80GB GPUs
-  gpus: 32  # Number of GPUs to use
+  gpus: 128  # Number of GPUs to use
   ## These configurations are optional
   # cluster: TODO # Name of the cluster to use for this run
   # gpu_type: h100_80gb # Type of GPU to use. We use h100_80gb in our experiments
@@ -27,8 +27,8 @@ parameters:
     global_seed: 17
     max_seq_len: 4096
     lr: 5.0e-7
-    num_epochs: 1
-    config_name: small
+    num_epochs: 5
+    config_name: large
     model_name: meta-llama/Llama-3.1-70B-Instruct
     run_name: model_${variables.model_name}_dataset_${variables.config_name}_num_epochs_${variables.num_epochs}_lr_${variables.lr}
     group_name: initial_finetune
@@ -61,7 +61,7 @@ parameters:
       hf_name: j316chuck/chess_rl
       split: train
       hf_kwargs:
-        config_name: ${variables.config_name}
+        data_dir: ${variables.config_name}
       max_seq_len: ${variables.max_seq_len}
       allow_pad_trimming: false
       decoder_only_format: true
@@ -88,10 +88,10 @@ parameters:
       max_seq_len: ${variables.max_seq_len}
       allow_pad_trimming: false
       decoder_only_format: true
-      # packing_ratio:
+      packing_ratio: auto
       shuffle: false
       hf_kwargs:
-        config_name: ${variables.config_name}
+        data_dir: ${variables.config_name}
     drop_last: true
     num_workers: 8
     pin_memory: false
@@ -121,14 +121,14 @@ parameters:
 
   max_duration: ${variables.num_epochs}ep
   eval_first: false
-  eval_interval: 1ep
-  eval_subset_num_batches: -1
-  global_train_batch_size: 32
+  eval_interval: 10ba
+  eval_subset_num_batches: 1
+  global_train_batch_size: 256
 
   # System
   seed: ${variables.global_seed}
-  device_eval_batch_size: 1
-  device_train_microbatch_size: 1
+  device_eval_batch_size: 2
+  device_train_microbatch_size: 2
   precision: amp_bf16
 
   # FSDP

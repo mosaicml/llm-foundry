@@ -50,6 +50,7 @@ _ALLOWED_DATASET_KEYS = {
     'auto_packing_replication',
     'max_leftover_bins_to_keep',
     'pad_to_longest',
+    'config_name',
 }
 
 
@@ -283,8 +284,6 @@ def build_finetuning_dataloader(
                 split=split,
             )
             split = split.replace('-', '_')
-        config_name = dataset_cfg.get('config_name', 'default')
-        log.info("Config name %s", config_name)
         # Get the preprocessing function.
         proto_preprocessing_fn = dataset_cfg.get('preprocessing_fn')
         if isinstance(proto_preprocessing_fn, (dict, DictConfig)):

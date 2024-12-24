@@ -3,7 +3,7 @@ integrations:
   git_repo: j316chuck/llm-foundry
   git_branch: chuck/rl
   # git_commit: # OR use your commit hash
-  pip_install: --force-reinstall .[gpu]
+  pip_install: .[gpu]
   ssh_clone: false  # Should be true if using a private repo
 
 command: |

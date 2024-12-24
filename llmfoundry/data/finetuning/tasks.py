@@ -842,6 +842,7 @@ class DatasetConstructor:
         self,
         dataset_name: str,
         split: str,
+        config_name: str = 'default',
         safe_load: bool = False,
         max_seq_len: int = 2048,
         mapping_fn: Callable = tokenize_formatted_example,
@@ -862,6 +863,7 @@ class DatasetConstructor:
                 to use. Can also be a remote http(s) directory or object store bucket
                 containing the file {split}.jsonl in the format (prompt, response),
                 in which case the builder will create a HuggingFace dataset.
+            config_name (str): The name of the HuggingFace dataset config name / subset to use.
             split (str): The split of the HuggingFace dataset.
             safe_load (bool, optional): Whether to enforce safe loading of the dataset.
                 If `None`, will default to not applying any safe loading.
@@ -977,7 +979,7 @@ class DatasetConstructor:
             dataset = hf_datasets.load_dataset(
                 dataset_name,
                 split=split,
-                config_name='small',
+                config_name=config_name,
                 **hf_kwargs,
             )
 

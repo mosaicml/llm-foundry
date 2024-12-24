@@ -297,10 +297,12 @@ def build_finetuning_dataloader(
             )
 
         # Take the constructor args from above, minus args that have been created separately
+        config_name = dataset_cfg.get('config_name', 'default')
         dataset_constructor_args = {
             k: v
             for k, v in dataset_cfg.items()
-            if k not in {'split', 'preprocessing_fn'}
+            if k in dataset_constructor_keys and
+            k not in {'split', 'preprocessing_fn'}
         }
         log.info("Dataset constructor args %s", dataset_constructor_args)
         streaming_dataset = dataset_constructor.build_from_hf(
@@ -308,6 +310,7 @@ def build_finetuning_dataloader(
             split=split,
             preprocessing_fn=preprocessing_fn,
             tokenizer=tokenizer,
+            config_name=config_name,
             **dataset_constructor_args,
         )
 

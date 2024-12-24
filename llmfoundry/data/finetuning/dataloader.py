@@ -283,6 +283,7 @@ def build_finetuning_dataloader(
                 split=split,
             )
             split = split.replace('-', '_')
+        config_name = dataset_cfg.get('config_name', 'default')
 
         # Get the preprocessing function.
         proto_preprocessing_fn = dataset_cfg.get('preprocessing_fn')
@@ -307,6 +308,7 @@ def build_finetuning_dataloader(
         streaming_dataset = dataset_constructor.build_from_hf(
             dataset_name=dataset_name_or_path,
             split=split,
+            config_name=config_name,
             preprocessing_fn=preprocessing_fn,
             tokenizer=tokenizer,
             **dataset_constructor_args,

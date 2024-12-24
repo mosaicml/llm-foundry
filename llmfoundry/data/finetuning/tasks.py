@@ -973,7 +973,8 @@ class DatasetConstructor:
                         dataset_name,
                         SUPPORTED_EXTENSIONS,
                     )
-            log.info("HF kwargs", hf_kwargs)
+            log.info("Hello Chuck")
+            log.info("HF kwargs %s", str(**hf_kwargs))
             dataset = hf_datasets.load_dataset(
                 dataset_name,
                 split=split,

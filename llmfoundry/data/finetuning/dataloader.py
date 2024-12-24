@@ -284,7 +284,7 @@ def build_finetuning_dataloader(
             )
             split = split.replace('-', '_')
         config_name = dataset_cfg.get('config_name', 'default')
-
+        log.info("Config name %s", config_name)
         # Get the preprocessing function.
         proto_preprocessing_fn = dataset_cfg.get('preprocessing_fn')
         if isinstance(proto_preprocessing_fn, (dict, DictConfig)):
@@ -304,7 +304,8 @@ def build_finetuning_dataloader(
             if k in dataset_constructor_keys and
             k not in {'split', 'preprocessing_fn'}
         }
-        log.info("Data constructer args", **dataset_constructor_args)
+        log.info("Good bye Chuck")
+        log.info("Data constructer args %s", str(**dataset_constructor_args))
         streaming_dataset = dataset_constructor.build_from_hf(
             dataset_name=dataset_name_or_path,
             split=split,

@@ -973,7 +973,7 @@ class DatasetConstructor:
                         dataset_name,
                         SUPPORTED_EXTENSIONS,
                     )
-
+            print("HF kwargs", hf_kwargs)
             dataset = hf_datasets.load_dataset(
                 dataset_name,
                 split=split,

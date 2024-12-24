@@ -28,9 +28,9 @@ parameters:
     max_seq_len: 4096
     lr: 5.0e-7
     num_epochs: 1
-    data_subset: small
+    config_name: small
     model_name: meta-llama/Llama-3.1-70B-Instruct
-    run_name: model_${variables.model_name}_dataset_${variables.data_subset}_num_epochs_${variables.num_epochs}_lr_${variables.lr}
+    run_name: model_${variables.model_name}_dataset_${variables.config_name}_num_epochs_${variables.num_epochs}_lr_${variables.lr}
     group_name: initial_finetune
   max_seq_len: ${variables.max_seq_len}
   # Run Name
@@ -60,7 +60,7 @@ parameters:
     dataset:
       hf_name: j316chuck/chess_rl
       split: train
-      data_subset: ${variables.data_subset}
+      config_name: ${variables.config_name}
       max_seq_len: ${variables.max_seq_len}
       allow_pad_trimming: false
       decoder_only_format: true
@@ -84,7 +84,7 @@ parameters:
     dataset:
       hf_name: j316chuck/chess_rl
       split: validation
-      config_name: ${variables.data_subset}
+      config_name: ${variables.config_name}
       max_seq_len: ${variables.max_seq_len}
       allow_pad_trimming: false
       decoder_only_format: true

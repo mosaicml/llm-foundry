@@ -310,7 +310,6 @@ def build_finetuning_dataloader(
             split=split,
             preprocessing_fn=preprocessing_fn,
             tokenizer=tokenizer,
-            config_name=config_name,
             **dataset_constructor_args,
         )
 

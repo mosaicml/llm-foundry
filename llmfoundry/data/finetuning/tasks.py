@@ -976,6 +976,7 @@ class DatasetConstructor:
             dataset = hf_datasets.load_dataset(
                 dataset_name,
                 split=split,
+                config_name='small'
                 **hf_kwargs,
             )
 

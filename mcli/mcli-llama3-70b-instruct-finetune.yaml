@@ -156,7 +156,7 @@ parameters:
   loggers:
     wandb: 
       project: chess-rl
-      name: model_${variables.model_name}_dataset_${variables.data_subset}_num_epochs_${variables.num_epochs}_lr_${variables.lr}
+      name: model_${variables.model_name}_dataset_${variables.config_name}_num_epochs_${variables.num_epochs}_lr_${variables.lr}
       group: ${variables.group_name}
 
 #   Checkpoint to local filesystem or remote object store

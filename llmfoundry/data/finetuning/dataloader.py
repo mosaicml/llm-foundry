@@ -50,7 +50,6 @@ _ALLOWED_DATASET_KEYS = {
     'auto_packing_replication',
     'max_leftover_bins_to_keep',
     'pad_to_longest',
-    'config_name',
 }
 
 
@@ -300,7 +299,7 @@ def build_finetuning_dataloader(
         dataset_constructor_args = {
             k: v
             for k, v in dataset_cfg.items()
-            if (k in dataset_constructor_keys or k in {'config_name'}) and
+            if k in dataset_constructor_keys and
             k not in {'split', 'preprocessing_fn'}
         }
         log.info("Dataset constructor args %s", dataset_constructor_args)

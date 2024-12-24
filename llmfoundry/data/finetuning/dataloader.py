@@ -300,7 +300,7 @@ def build_finetuning_dataloader(
         dataset_constructor_args = {
             k: v
             for k, v in dataset_cfg.items()
-            if k in dataset_constructor_keys.union(extraneous_keys) and
+            if (k in dataset_constructor_keys or k in {'config_name'}) and
             k not in {'split', 'preprocessing_fn'}
         }
         log.info("Dataset constructor args %s", dataset_constructor_args)

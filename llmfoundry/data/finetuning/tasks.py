@@ -862,7 +862,6 @@ class DatasetConstructor:
                 to use. Can also be a remote http(s) directory or object store bucket
                 containing the file {split}.jsonl in the format (prompt, response),
                 in which case the builder will create a HuggingFace dataset.
-            config_name (str): The name of the HuggingFace dataset config name / subset to use.
             split (str): The split of the HuggingFace dataset.
             safe_load (bool, optional): Whether to enforce safe loading of the dataset.
                 If `None`, will default to not applying any safe loading.

@@ -1,7 +1,7 @@
 integrations:
 - integration_type: git_repo
-  git_repo: mosaicml/llm-foundry
-  git_branch: v0.15.0
+  git_repo: j316chuck/llm-foundry
+  git_branch: chuck/rl
   # git_commit: # OR use your commit hash
   pip_install: .[gpu]
   ssh_clone: false  # Should be true if using a private repo
@@ -15,7 +15,7 @@ name: llama3.1-70b-finetune
 
 compute:
   # Note: Finetuning the 70b model requires at least 16x80GB GPUs
-  gpus: 16  # Number of GPUs to use
+  gpus: 32  # Number of GPUs to use
   ## These configurations are optional
   # cluster: TODO # Name of the cluster to use for this run
   # gpu_type: h100_80gb # Type of GPU to use. We use h100_80gb in our experiments
@@ -26,10 +26,15 @@ parameters:
     tokenizer_name: meta-llama/Llama-3.1-70B-Instruct
     global_seed: 17
     max_seq_len: 4096
-
+    lr: 5.0e-7
+    num_epochs: 1
+    data_subset: small
+    model_name: meta-llama/Llama-3.1-70B-Instruct
+    run_name: model_${variables.model_name}_dataset_${variables.data_subset}_num_epochs_${variables.num_epochs}_lr_${variables.lr}
+    group_name: initial_finetune
   max_seq_len: ${variables.max_seq_len}
   # Run Name
-  run_name:  # If left blank, will be read from env var $RUN_NAME
+  run_name: ${variables.run_name}
 
   max_split_size_mb: 512
   dist_timeout: 3600  # set to avoid NCCL timeouts
@@ -38,7 +43,7 @@ parameters:
   model:
     name: hf_causal_lm
     init_device: mixed
-    pretrained_model_name_or_path: meta-llama/Llama-3.1-70B-Instruct
+    pretrained_model_name_or_path: ${variables.model_name}
     pretrained: true
     # Note: you must have set the HF_TOKEN environment variable and have access to the llama3 models
     use_auth_token: true
@@ -53,19 +58,20 @@ parameters:
   train_loader:
     name: finetuning
     dataset:
-      hf_name: mosaicml/dolly_hhrlhf
+      hf_name: j316chuck/chess_rl
       split: train
+      config_name: ${variables.data_subset}
       max_seq_len: ${variables.max_seq_len}
       allow_pad_trimming: false
       decoder_only_format: true
       shuffle: true
+      packing_ratio: auto
       # # Use packing_ratio: 'auto' to automatically profile and select the highest observed packing ratio with
       # # zero waste. In practice, this may result in > 0 waste because profiling is done on only a portion
       # # of the dataset.
       # # Or use `python llmfoundry/scripts/misc/profile_packing.py --yaml-path /path/to/this/yaml/ ...`
       # # to profile this run's optimal packing_ratio as it depends on GPU count,
       # # batch size, sequence length
-      # packing_ratio: auto
     drop_last: true
     num_workers: 8
     pin_memory: false
@@ -76,8 +82,9 @@ parameters:
   eval_loader:
     name: finetuning
     dataset:
-      hf_name: mosaicml/dolly_hhrlhf
-      split: test
+      hf_name: j316chuck/chess_rl
+      split: validation
+      config_name: ${variables.data_subset}
       max_seq_len: ${variables.max_seq_len}
       allow_pad_trimming: false
       decoder_only_format: true
@@ -99,7 +106,7 @@ parameters:
   # Note: You may want to change learning rate, betas, weight decay
   optimizer:
     name: decoupled_lionw
-    lr: 5.0e-7
+    lr: ${variables.lr}
     betas:
     - 0.9
     - 0.95
@@ -110,11 +117,11 @@ parameters:
       clipping_type: norm
       clipping_threshold: 1.0
 
-  max_duration: 1ep
+  max_duration: ${variables.num_epochs}ep
   eval_first: false
   eval_interval: 1ep
   eval_subset_num_batches: -1
-  global_train_batch_size: 16
+  global_train_batch_size: 32
 
   # System
   seed: ${variables.global_seed}
@@ -146,14 +153,17 @@ parameters:
 
   load_weights_only: true  # Only load the weights, not the optimizer state, LR schedule, etc
 
-#   loggers:
-#     wandb: {}
+  loggers:
+    wandb: 
+      project: chess-rl
+      name: model_${variables.model_name}_dataset_${variables.data_subset}_num_epochs_${variables.num_epochs}_lr_${variables.lr}
+      group: ${variables.group_name}
 
 #   Checkpoint to local filesystem or remote object store
-#   save_interval: 2000ba
-#   save_num_checkpoints_to_keep: 1  # Important, this cleans up checkpoints saved to DISK
+  save_interval: 1ep
+  save_num_checkpoints_to_keep: 1  # Important, this cleans up checkpoints saved to DISK
 #   save_folder: ./{run_name}/checkpoints
-#   save_folder: s3://my-bucket/my-folder/{run_name}/checkpoints
+  save_folder: oci://mosaicml-internal-checkpoints/chuck/chess_rl/${variables.group_name}/checkpoints/${variables.run_name}
 
 #   Load from local filesystem or remote object store
 #   load_path: ./gpt-1b/checkpoints/latest-rank{rank}.pt

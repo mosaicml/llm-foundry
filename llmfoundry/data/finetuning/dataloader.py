@@ -179,8 +179,6 @@ def build_finetuning_dataloader(
         padding/waste rates for different `cfg.dataset.packing_ratio` choices,
         given a starting workload YAML.
     """
-    print(f"🚨🚨🚨 build_finetuning_dataloader was called with the following arguments: tokenizer={tokenizer}, device_batch_size={device_batch_size}, dataset={dataset}, num_workers={num_workers}, drop_last={drop_last}, pin_memory={pin_memory}, prefetch_factor={prefetch_factor}, persistent_workers={persistent_workers}, timeout={timeout}")
-
     dataset_cfg = dataset
     is_streaming = (
         dataset_cfg.get('remote') is not None or

@@ -8,6 +8,7 @@ import math
 import os
 import warnings
 from dataclasses import dataclass, fields
+from pathlib import Path
 from typing import (
     Any,
     Callable,
@@ -704,6 +705,8 @@ def _process_data_source(
         true_split (str): The split of the dataset to be added (i.e. train or eval)
         data_paths (List[Tuple[str, str, str]]): A list of tuples formatted as (data type, path, split)
     """
+    if source_dataset_path:
+        source_dataset_path = str(Path(source_dataset_path))
     # Check for Delta table
     if source_dataset_path and len(source_dataset_path.split('.')) == 3:
         data_paths.append(('delta_table', source_dataset_path, true_split))
@@ -789,7 +792,6 @@ def log_dataset_uri(cfg: dict[str, Any]) -> None:
 
     # Map data source types to their respective MLFlow DataSource.
     for dataset_type, path, split in data_paths:
-
         if dataset_type in dataset_source_mapping:
             source_class = dataset_source_mapping[dataset_type]
             if dataset_type == 'delta_table':

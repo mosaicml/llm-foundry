@@ -392,6 +392,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             model = PeftModelForCausalLM.from_pretrained(
                 model,
                 pretrained_lora_id_or_path,
+                is_trainable=True,
             )
 
         if prepare_for_fsdp:

@@ -165,11 +165,14 @@ class MPTBlock(nn.Module):
         prev_layer_key_value: Optional[tuple[torch.Tensor,
                                              torch.Tensor]] = None,
         key_value_states: Optional[torch.Tensor] = None,
+        x_prev: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
         torch.Tensor, torch.Tensor]]]:
         extra_kwargs = {}
         if prev_layer_key_value is not None:
             extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
+        if x_prev is not None:
+            extra_kwargs['x_prev'] = x_prev
         if key_value_states is not None:
             extra_kwargs['key_value_states'] = key_value_states
 
@@ -332,12 +335,15 @@ class FusedNormAttentionNorm(nn.Module):
         prev_layer_key_value: Optional[tuple[torch.Tensor,
                                              torch.Tensor]] = None,
         key_value_states: Optional[torch.Tensor] = None,
+        x_prev: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor],
                Optional[tuple[torch.Tensor, torch.Tensor]]]:
         a = self.norm_1(x)
         extra_kwargs = {}
         if prev_layer_key_value is not None:
             extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
+        if x_prev is not None:
+            extra_kwargs['x_prev'] = x_prev
         if key_value_states is not None:
             extra_kwargs['key_value_states'] = key_value_states
 

@@ -626,6 +626,15 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
                 ],
             ),
             (
+                SparkConnectGrpcException(
+                    'do not have permission to attach to cluster etc...',
+                ),
+                FaultyDataPrepCluster,
+                [
+                    'You do not have permission to attach to the data preparation cluster you provided.',
+                ],
+            ),
+            (
                 grpc_lib_error,
                 FaultyDataPrepCluster,
                 [

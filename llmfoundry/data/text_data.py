@@ -105,6 +105,9 @@ class StreamingTextDataset(StreamingDataset):
         replication (int, optional): Determines how many consecutive devices will receive the same
             samples. Useful for training with tensor or sequence parallelism, where multiple
             devices need to see the same partition of the dataset. Defaults to ``None``.
+        stream_name (str): The name of the Stream to use which is registered in
+            streaming.base.stream.streams_registry. Defaults to ``stream``.
+        stream_config (dict[str, Any]): Additional arguments to pass to the Stream constructor.
     """
 
     def __init__(
@@ -135,6 +138,8 @@ class StreamingTextDataset(StreamingDataset):
         batching_method: str = 'random',
         allow_unsafe_types: bool = False,
         replication: Optional[int] = None,
+        stream_name: str = 'stream',
+        stream_config: Optional[dict[str, Any]] = None,
         **kwargs: Any,
     ):
 
@@ -183,6 +188,8 @@ class StreamingTextDataset(StreamingDataset):
             batching_method=batching_method,
             allow_unsafe_types=allow_unsafe_types,
             replication=replication,
+            stream_name=stream_name,
+            stream_config=stream_config,
             **kwargs,
         )
         self.tokenizer = tokenizer

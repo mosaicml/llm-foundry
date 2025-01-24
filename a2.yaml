@@ -1,0 +1,153 @@
+name: composer-mpt-13b-checkpoint-resume
+parent_name: composer-regression-tests-runner-JqmMax
+image: mosaicml/llm-foundry:release_v0.13.1
+scheduling:
+  priority: high
+compute:
+  gpus: 24
+  cluster: r15z4p1
+parameters:
+  seed: ${variables.global_seed}
+  model:
+    name: mpt_causal_lm
+    d_model: 5120
+    n_heads: 40
+    n_layers: 40
+    vocab_size: 50368
+    attn_config:
+      attn_impl: flash
+    init_device: meta
+    max_seq_len: ${max_seq_len}
+    expansion_ratio: 4
+  loggers:
+    # mlflow:
+    #   tags:
+    #     group: 2025-01-23-22-28-15-refs/heads/main
+    #   experiment_name: /Shared/Runtime/regression-testing/composer
+    #   log_duplicated_metric_every_n_steps: 0
+  callbacks:
+    lr_monitor: {}
+    speed_monitor:
+      window_size: 10
+    memory_monitor: {}
+    runtime_estimator: {}
+    dataset_swap:
+      dataset_index: 1
+  # load_path: oci://mosaicml-internal-checkpoints/checkpoint_testing/13b-dense-fsdp-fullshard-hsdp-adam-shardedckpt/ep0-ba25/ep0-ba25
+  optimizer:
+    lr: 0.0001
+    eps: 1.0e-08
+    name: decoupled_adamw
+    betas:
+    - 0.9
+    - 0.95
+    weight_decay: 0
+  precision: amp_bf16
+  scheduler:
+    name: cosine_with_warmup
+    alpha_f: 0.1
+    t_warmup: 2ba
+  tokenizer:
+    name: EleutherAI/gpt-neox-20b
+    kwargs:
+      model_max_length: ${max_seq_len}
+  variables:
+    global_seed: 17
+    test_suite_tag: user_ethan-tang_data_tag_None_date_2025-01-23-22-27-51
+  algorithms:
+    gradient_clipping:
+      clipping_type: norm
+      clipping_threshold: 1
+  autoresume: false
+  eval_first: false
+  fsdp_config:
+    verbose: false
+    mixed_precision: PURE
+    state_dict_type: sharded
+    use_orig_params: false
+    forward_prefetch: true
+    backward_prefetch: BACKWARD_PRE
+    limit_all_gathers: true
+    sharding_strategy: HYBRID_SHARD
+    activation_cpu_offload: false
+    activation_checkpointing: true
+    data_parallel_shard_degree: 8
+    data_parallel_replicate_degree: 3
+    activation_checkpointing_reentrant: false
+  max_seq_len: 32768
+  save_folder: oci://mosaicml-internal-checkpoints/checkpoint_testing/13b-dense-fsdp-fullshard-hsdp-adam-shardedckpt
+  max_duration: 50ba
+  progress_bar: false
+  train_loader:
+    name: text
+    dataset:
+      shuffle: true
+      streams:
+        cc:
+          local: /mnt/data/datasets/cc
+          split: null
+          remote: dbfs:/Volumes/datasets/saaketh/quantization/llama3_1_final_cc_32k
+          proportion: 0.05
+        hq:
+          local: /mnt/data/datasets/hq
+          split: null
+          remote: dbfs:/Volumes/datasets/saaketh/quantization/llama3_1_final_hq_32k
+          proportion: 0.35
+        code:
+          local: /mnt/data/datasets/code
+          split: null
+          remote: dbfs:/Volumes/datasets/saaketh/quantization/llama3_1_final_code_32k
+          proportion: 0.35
+        fineweb:
+          local: /mnt/data/dataset/fineweb/
+          split: null
+          remote: dbfs:/Volumes/datasets/saaketh/quantization/llama3_1_final_fineweb_32k
+          proportion: 0.25
+      cache_limit: 20tb
+      max_seq_len: ${max_seq_len}
+      eos_token_id: 128001
+      shuffle_algo: py1e
+      shuffle_seed: ${seed}
+      download_timeout: 360
+      shuffle_block_size: 25000
+      num_canonical_nodes: 4
+    drop_last: true
+    num_workers: 8
+  eval_interval: 0
+  save_filename: ep{epoch}-ba{batch}/rank{rank}.pt
+  save_interval: 25ba
+  log_to_console: true
+  save_overwrite: true
+  python_log_level: DEBUG
+  console_log_interval: 1ba
+  device_eval_batch_size: 1
+  global_train_batch_size: 48
+  device_train_microbatch_size: 1
+  save_num_checkpoints_to_keep: 1
+integrations:
+# - integration_type: git_repo
+#   path: /workspace/streaming
+#   git_repo: mosaicml/streaming
+#   git_branch: v0.7.6
+#   pip_install: .[dev]
+- integration_type: git_repo
+  path: /workspace/llm-foundry
+  git_repo: mosaicml/llm-foundry
+  ssh_clone: true
+  git_branch: chuck/test_callback_load
+  pip_install: .[gpu]
+- integration_type: git_repo
+  path: /workspace/composer
+  git_repo: mosaicml/composer
+  git_branch: main
+  pip_install: .[dev]
+env_variables:
+  TQDM_DISABLE: 1
+  NCCL_DEBUG: INFO
+  CUDA_MODULE_LOADING: LAZY
+  PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+  key: value
+command: |-
+  cd /workspace
+  cd llm-foundry/scripts
+  composer train/train.py /mnt/config/parameters.yaml || (echo "Command failed - killing python" && pkill python && exit 1)

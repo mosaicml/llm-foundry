@@ -712,6 +712,11 @@ class HuggingFaceCheckpointer(Callback):
                             **original_model.generation_config.to_dict(),
                         )
 
+            if hasattr(new_model_instance.config, 'use_cache'):
+                new_model_instance.config.use_cache = True
+            if hasattr(new_model_instance.generation_config, 'use_cache'):
+                new_model_instance.generation_config.use_cache = True
+
             # Then load the state dict in with "assign" so that the state dict
             # is loaded properly even though the model is initially on meta device.
             new_model_instance.load_state_dict(state_dict, assign=True)

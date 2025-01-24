@@ -37,8 +37,6 @@ from torch.distributed.checkpoint.state_dict import (
 )
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from transformers import (
-    AutoModel,
-    pipeline,
     PretrainedConfig,
     PreTrainedModel,
     PreTrainedTokenizerBase,
@@ -134,6 +132,7 @@ def _log_model_with_multi_process(
     mlflow_logger: MLFlowLogger,
     python_logging_level: int,
     transformers_model: str,
+    tokenizer: PreTrainedTokenizerBase,
     artifact_path: str,
     pretrained_model_name: str,
     registered_model_name: Optional[str],
@@ -205,11 +204,10 @@ def _log_model_with_multi_process(
         mlflow.set_registry_uri(mlflow_logger.model_registry_uri)
 
     if is_peft:
-        transformers_in_memory_model = pipeline(
-            model=AutoModel.from_pretrained(
-                transformers_model,
-            )
-        )
+        transformers_in_memory_model = {
+            'model': transformers_model,
+            'tokenizer': tokenizer,
+        }
     else:
         transformers_in_memory_model = None
 
@@ -746,6 +744,8 @@ class HuggingFaceCheckpointer(Callback):
                             self.mlflow_logging_config,
                         'is_peft':
                             self.using_peft,
+                        'tokenizer':
+                            original_tokenizer
                     },
                 )
 

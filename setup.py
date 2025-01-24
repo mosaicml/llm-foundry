@@ -56,9 +56,9 @@ install_requires = [
     'mlflow>=2.14.1,<2.19',
     'accelerate>=0.25,<1.2',  # for HF inference `device_map`
     'transformers>=4.43.2,<4.47',
-    'mosaicml-streaming>=0.10.0,<0.11',
+    'mosaicml-streaming>=0.11.0,<0.12',
     'torch>=2.5.1,<2.5.2',
-    'datasets>=2.20.0,<3.2',
+    'datasets>=2.20.0,<3.3',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
     'sentencepiece==0.2.0',
     'einops==0.8.0',
@@ -79,7 +79,7 @@ install_requires = [
 extra_deps = {}
 
 extra_deps['dev'] = [
-    'coverage[toml]==7.6.4',
+    'coverage[toml]==7.6.10',
     'pre-commit>=3.4.0,<4',
     'pytest>=7.2.1,<9',
     'pytest_codeblocks>=0.16.1,<0.18',

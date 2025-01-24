@@ -601,6 +601,9 @@ class StreamingFinetuningDataset(StreamingDataset):
         replication (int, optional): Determines how many consecutive devices will receive the same
             samples. Useful for training with tensor or sequence parallelism, where multiple
             devices need to see the same partition of the dataset. Defaults to ``None``.
+        stream_name (str): The name of the Stream to use which is registered in
+            streaming.base.stream.streams_registry. Defaults to ``stream``.
+        stream_config (dict[str, Any]): Additional arguments to pass to the Stream constructor.
     """
 
     def __init__(
@@ -632,6 +635,8 @@ class StreamingFinetuningDataset(StreamingDataset):
         allow_unsafe_types: bool = False,
         replication: Optional[int] = None,
         packing_ratio: Optional[float] = None,
+        stream_name: str = 'stream',
+        stream_config: Optional[dict[str, Any]] = None,
         **kwargs: Any,
     ):
 
@@ -675,6 +680,8 @@ class StreamingFinetuningDataset(StreamingDataset):
             batching_method=batching_method,
             allow_unsafe_types=allow_unsafe_types,
             replication=replication,
+            stream_name=stream_name,
+            stream_config=stream_config,
             **kwargs,
         )
 
@@ -1158,6 +1165,34 @@ def shareGPT_format_preprocessor(inp: dict) -> ChatFormattedDict:
             role: str = role_map.get(message['from'], message['from'])
             content: str = message['value']
             messages.append({'role': role, 'content': content})
+    except Exception as e:
+        raise UnableToProcessPromptResponseError(inp) from e
+    return {'messages': messages}
+
+
+@dataset_constructor.register('math-ai/StackMathQA')
+def QA_format_preprocessor(inp: dict) -> ChatFormattedDict:
+    """Convert from QA format to our chat format."""
+    try:
+        Q = inp['Q']
+        A = inp['A']
+        messages: list[dict[str, str]] = [{
+            'role': 'user',
+            'content': Q,
+        }, {
+            'role': 'assistant',
+            'content': A,
+        }]
+    except Exception as e:
+        raise UnableToProcessPromptResponseError(inp) from e
+    return {'messages': messages}
+
+
+@dataset_constructor.register('AI-MO/NuminaMath-CoT')
+def messages_format_preprocessor(inp: dict) -> ChatFormattedDict:
+    """Convert from QA format to our chat format."""
+    try:
+        messages = inp['messages']
     except Exception as e:
         raise UnableToProcessPromptResponseError(inp) from e
     return {'messages': messages}

@@ -619,9 +619,7 @@ class HuggingFaceCheckpointer(Callback):
 
         hooks = []
         for _, module in state_dict_model.named_modules():
-            hooks.append(
-                module._register_state_dict_hook(tensor_hook),
-            )
+            hooks.append(module._register_state_dict_hook(tensor_hook),)
 
         state_dict = get_model_state_dict(
             state_dict_model,
@@ -840,8 +838,10 @@ class HuggingFaceCheckpointer(Callback):
             assert new_model_instance is not None
             if register_to_mlflow:
                 self._register_hf_model(
-                    temp_save_dir, original_tokenizer, use_temp_dir,
-                    new_model_instance
+                    temp_save_dir,
+                    original_tokenizer,
+                    use_temp_dir,
+                    new_model_instance,
                 )
             else:
                 # Clean up the temporary directory if we don't need to register to mlflow.

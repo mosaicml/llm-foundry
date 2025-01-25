@@ -37,6 +37,7 @@ from torch.distributed.checkpoint.state_dict import (
 )
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from transformers import (
+    AutoModel,
     PretrainedConfig,
     PreTrainedModel,
     PreTrainedTokenizerBase,
@@ -205,7 +206,7 @@ def _log_model_with_multi_process(
 
     if is_peft:
         transformers_in_memory_model = {
-            'model': transformers_model,
+            'model': AutoModel.from_pretrained(transformers_model),
             'tokenizer': tokenizer,
         }
     else:

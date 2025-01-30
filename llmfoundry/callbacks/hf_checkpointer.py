@@ -610,9 +610,7 @@ class HuggingFaceCheckpointer(Callback):
 
         hooks = []
         for _, module in state_dict_model.named_modules():
-            hooks.append(
-                module._register_state_dict_hook(tensor_hook),
-            )
+            hooks.append(module._register_state_dict_hook(tensor_hook),)
 
         state_dict = get_model_state_dict(
             state_dict_model,
@@ -722,7 +720,7 @@ class HuggingFaceCheckpointer(Callback):
                             logging.getLogger('llmfoundry').level,
                         'transformers_model': {
                             'model': new_model_instance,
-                            'tokenizer': original_tokenizer
+                            'tokenizer': original_tokenizer,
                         } if self.using_peft else register_save_dir,
                         'artifact_path':
                             'final_model_checkpoint',
@@ -831,7 +829,8 @@ class HuggingFaceCheckpointer(Callback):
             assert new_model_instance is not None
             if self.using_peft:
                 model_name = self.mlflow_logging_config.get('metadata', {}).get(
-                    'pretrained_model_name', None
+                    'pretrained_model_name',
+                    None,
                 )
                 if model_name is not None:
                     new_model_instance.name_or_path = model_name

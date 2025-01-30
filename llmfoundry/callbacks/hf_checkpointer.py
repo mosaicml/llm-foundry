@@ -830,11 +830,13 @@ class HuggingFaceCheckpointer(Callback):
         if dist.get_global_rank() == 0:
             assert new_model_instance is not None
             if self.using_peft:
-                model_name = self.mlflow_logging_config['metadata'][
-                    'pretrained_model_name']
-                new_model_instance.name_or_path = model_name
-                new_model_instance.model.name_or_path = model_name
-                new_model_instance.base_model.name_or_path = model_name
+                model_name = self.mlflow_logging_config.get('metadata', {}).get(
+                    'pretrained_model_name', None
+                )
+                if model_name is not None:
+                    new_model_instance.name_or_path = model_name
+                    new_model_instance.model.name_or_path = model_name
+                    new_model_instance.base_model.name_or_path = model_name
             if register_to_mlflow:
                 self._register_hf_model(
                     temp_save_dir,

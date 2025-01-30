@@ -1360,7 +1360,7 @@ def compute_loss_from_logits(
     else:
         loss = losses.sum() / (targets != loss_fn.ignore_index).sum()
         if sample_weighing_factor is not None:
-            raise ValueError('sample_weighing_factor has been deprecated!')
+            raise ValueError('sample_weighing_factor has been discontinued!')
 
     return loss
 

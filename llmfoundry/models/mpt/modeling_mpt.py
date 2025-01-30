@@ -1346,7 +1346,6 @@ def compute_loss_from_logits(
     shift_labels: bool,
     labels: torch.Tensor,
     loss_fn: nn.Module,
-    sample_weighing_factor: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
     targets = get_targets(labels) if shift_labels else labels
 
@@ -1359,8 +1358,6 @@ def compute_loss_from_logits(
         loss = losses.sum()
     else:
         loss = losses.sum() / (targets != loss_fn.ignore_index).sum()
-        if sample_weighing_factor is not None:
-            raise ValueError('sample_weighing_factor has been discontinued!')
 
     return loss
 
@@ -1469,7 +1466,6 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             self.shift_labels,
             batch['labels'],
             self.loss_fn,
-            batch.get('sample_weighing_factor', None),
         )
 
         if self.config.ffn_config['ffn_type'] in ffns_with_megablocks:

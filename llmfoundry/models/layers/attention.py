@@ -459,6 +459,7 @@ class GroupedQueryAttention(nn.Module):
         bias: bool = True,
         sliding_window_size: int = -1,
         reuse_kv_layer_idx: Optional[int] = None,
+        reuse_kv_x_layer_idx: Optional[int] = None,
         attn_logit_softcapping: Optional[float] = None,
         kv_dim: Optional[int] = None,
     ):
@@ -474,7 +475,17 @@ class GroupedQueryAttention(nn.Module):
         self.n_heads = n_heads
         self.kv_n_heads = kv_n_heads
         self.sliding_window_size = sliding_window_size
+        if reuse_kv_x_layer_idx is not None:
+            if reuse_kv_layer_idx is not None:
+                raise ValueError(
+                    'Only one of reuse_kv_layer_idx and reuse_kv_x_layer_idx can be set.',
+                )
+            if self.fused_qkv:
+                raise ValueError(
+                    'reuse_kv_x_layer_idx is not supported with fused_qkv.',
+                )
         self.reuse_kv_layer_idx = reuse_kv_layer_idx
+        self.reuse_kv_x_layer_idx = reuse_kv_x_layer_idx
         self.attn_logit_softcapping = attn_logit_softcapping
 
         self.kv_dim = kv_dim if kv_dim is not None else self.d_model
@@ -600,11 +611,14 @@ class GroupedQueryAttention(nn.Module):
         prev_layer_key_value: Optional[tuple[torch.Tensor,
                                              torch.Tensor]] = None,
         key_value_states: Optional[torch.Tensor] = None,
+        x_prev: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
         torch.Tensor, torch.Tensor]]]:
         extra_kwargs = {}
         if prev_layer_key_value is not None:
             extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
+        if x_prev is not None:
+            extra_kwargs['x_prev'] = x_prev
         query, key, value = self.get_qkv(
             x=x,
             key_value_states=key_value_states,
@@ -648,6 +662,7 @@ class GroupedQueryAttention(nn.Module):
     def get_qkv(
         self,
         x: torch.Tensor,
+        x_prev: Optional[torch.Tensor] = None,
         prev_layer_key_value: Optional[tuple[torch.Tensor,
                                              torch.Tensor]] = None,
         key_value_states: Optional[torch.Tensor] = None,
@@ -656,6 +671,7 @@ class GroupedQueryAttention(nn.Module):
 
         Args:
             x (torch.Tensor): The input query tensor.
+            x_prev (Optional[torch.Tensor]): The input tensor for the previous layer.
             prev_layer_key_value  (Optional[Tuple[torch.Tensor, torch.Tensor]]): The key value of the previous layer.
             key_value_states (Optional[torch.Tensor]): The input tensor for keys and values.
 
@@ -709,11 +725,22 @@ class GroupedQueryAttention(nn.Module):
         else:
             query = self.Wq(x)
             if key_value_states is not None:
+                if self.reuse_kv_x_layer_idx is not None:
+                    raise NotImplementedError(
+                        'reuse_kv_x_layer_idx is not supported with key_value_states.',
+                    )
                 key = self.Wk(key_value_states)
                 value = self.Wv(key_value_states)
             else:
-                key = self.Wk(x)
-                value = self.Wv(x)
+                kv_input = x
+                if self.reuse_kv_x_layer_idx is not None:
+                    if x_prev is None:
+                        raise ValueError(
+                            'x_prev is None, cannot reuse_prev_layer_x.',
+                        )
+                    kv_input = x_prev
+                key = self.Wk(kv_input)
+                value = self.Wv(kv_input)
 
             if self.clip_qkv:
                 query = query.clamp(min=-self.clip_qkv, max=self.clip_qkv)

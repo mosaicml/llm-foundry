@@ -430,6 +430,7 @@ def calculate_batch_size_info(
     int, Literal['auto']]]:
 
     world_size = dist.get_world_size()
+    print(f"🚨🚨🚨 world_size: {world_size}")
     if world_size % data_replication_degree != 0:
         raise ValueError(
             f'World size {world_size} is not divisible by data replication degree {data_replication_degree}.',
@@ -458,6 +459,10 @@ def calculate_batch_size_info(
         )
     else:
         raise ValueError(f'Not sure how to parse {device_microbatch_size=}')
+    
+    print(f"🚨🚨🚨 device_batch_size: {device_batch_size}")
+    print(f"🚨🚨🚨 device_microbatch_size: {device_microbatch_size}")
+    print(f"🚨🚨🚨 device_grad_accum: {device_grad_accum}")
 
     return device_batch_size, device_microbatch_size, device_grad_accum
 

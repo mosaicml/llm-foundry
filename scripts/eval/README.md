@@ -196,7 +196,7 @@ Below is a complete YAML section that works with the TriviaQA dataset in [`scrip
 
 >
     label: triviaqa
-    dataset_uri: local_data/triviaqa.jsonl
+    dataset_uri: eval/local_data/world_knowledge/triviaqa.jsonl
     num_fewshot:
     - 0
     - 1
@@ -240,7 +240,7 @@ Below is a YAML section that works with the Lambada OpenAI dataset in [`scripts/
 
 >
     label: lambada_openai
-    dataset_uri: local_data/lambada_openai.jsonl
+    dataset_uri: eval/local_data/language_understanding/lambada_openai.jsonl
     num_fewshot:
     - 0
     batch_size: 4
@@ -284,7 +284,7 @@ Below is a YAML section that works with the HellaSwag dataset in [`scripts/eval/
 
 >
     label: hellaswag
-    dataset_uri: local_data/hellaswag.jsonl # ADD YOUR OWN DATASET URI
+    dataset_uri: eval/local_data/language_understanding/hellaswag.jsonl
     num_fewshot:
     - 0
     - 1
@@ -330,7 +330,7 @@ Below is a YAML section that works with the Winograd dataset in [`scripts/eval/l
 
 >
     label: winograd
-    dataset_uri: local_data/winograd_wsc.jsonl
+    dataset_uri: eval/local_data/language_understanding/winograd_wsc.jsonl
     num_fewshot:
     - 0
     - 1

@@ -1534,7 +1534,6 @@ def build_icl_dataloader(
             sampler=sampler,
             collate_fn=dataset.collate_fn,
         ),
-        device_transforms=None,
         get_num_samples_in_batch=dataset.get_num_samples_in_batch,
         split_batch=dataset.split_batch,
     )

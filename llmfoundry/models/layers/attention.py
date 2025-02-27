@@ -399,7 +399,7 @@ def flash_attn_fn(
             v2_version='v2.6.2',
         ) and attn_logit_softcapping is not None:
             extra_attn_kwargs['softcap'] = attn_logit_softcapping
-        output_unpad = flash_attn_interface.flash_attn_varlen_func(
+        output_unpad, *_ = flash_attn_interface.flash_attn_varlen_func(
             q=query_unpad,
             k=key_unpad,
             v=value_unpad,

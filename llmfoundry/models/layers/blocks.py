@@ -231,7 +231,7 @@ class MPTBlock(nn.Module):
         if not self.use_pad_tok_in_ffn and attention_mask is not None:
             assert unpad_input is not None
             attention_mask = self.slice_attention_mask(attention_mask, seq_len)
-            m, indices, _, _ = unpad_input(m, attention_mask)
+            m, indices, _, _, _ = unpad_input(m, attention_mask)
         n = self.ffn(m)
         if not self.use_pad_tok_in_ffn and attention_mask is not None:
             assert pad_input is not None

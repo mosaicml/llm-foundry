@@ -25,7 +25,9 @@ def test_init_hfhub_mpt(
     composer_device = get_device(device)
 
     if device == 'gpu' and attn_impl == 'flash':
-        pytest.xfail(f'{attn_impl=} on {device=} is not supported for MPT models.')
+        pytest.xfail(
+            f'{attn_impl=} on {device=} is not supported for MPT models.',
+        )
     composer_device = get_device(device)
 
     model = build_tiny_hf_mpt(

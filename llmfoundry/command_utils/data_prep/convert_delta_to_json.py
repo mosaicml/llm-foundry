@@ -530,6 +530,9 @@ def fetch(
                     table_name,
                 ) from e
 
+        elif isinstance(e, spark_errors.SparkConnectGrpcException):
+            raise
+
         if isinstance(e, InsufficientPermissionsError):
             raise
 
@@ -737,14 +740,6 @@ def fetch_DT(
             raise FaultyDataPrepCluster(
                 message=
                 f'You do not have permission to attach to the data preparation cluster you provided. {e}',
-            ) from e
-        if isinstance(
-            e,
-            spark_errors.SparkConnectGrpcException,
-        ) and 'is not Shared or Single User' in str(e):
-            raise FaultyDataPrepCluster(
-                message=
-                f'The cluster you are using is not a shared or single-user cluster. {e}',
             ) from e
         if isinstance(e, grpc.RpcError) and e.code(
         ) == grpc.StatusCode.INTERNAL and 'Job aborted due to stage failure' in e.details(

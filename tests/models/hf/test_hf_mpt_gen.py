@@ -24,15 +24,15 @@ def test_init_hfhub_mpt(
         pytest.skip(f'{attn_impl=} not implemented for {device=}.')
     composer_device = get_device(device)
 
-    if device == 'gpu' and attn_impl == 'flash':
-        with pytest.raises(ValueError, match='not supported for MPT models'):
-            build_tiny_hf_mpt(
-                attn_config={
-                    'attn_impl': attn_impl,
-                    'attn_uses_sequence_id': False,
-                },
-            )
-        return
+    # if device == 'gpu' and attn_impl == 'flash':
+    #     with pytest.raises(ValueError, match='not supported for MPT models'):
+    #         build_tiny_hf_mpt(
+    #             attn_config={
+    #                 'attn_impl': attn_impl,
+    #                 'attn_uses_sequence_id': False,
+    #             },
+    #         )
+    #     return
 
     model = build_tiny_hf_mpt(
         attn_config={

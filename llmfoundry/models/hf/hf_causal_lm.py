@@ -80,6 +80,15 @@ class ComposerHFCausalLM(BaseHuggingFaceModel):
         additional_eval_metrics: Optional[list] = None,
         should_save_peft_only: bool = True,
     ):
+        if pretrained_model_name_or_path.startswith('mosaicml/mpt') and use_flash_attention_2:
+            import torch
+            if torch.cuda.is_available() and (init_device == 'gpu' or init_device == 'mixed'):
+                import importlib.metadata
+                flash_version = importlib.metadata.version('flash-attn')
+                version_tuple = tuple(map(int, flash_version.split('.')))
+                
+                if version_tuple > (2, 6):
+                    raise ValueError(f"Flash Attention version {flash_version} (>2.6) is not supported for MPT models on GPU. Please use version 2.6 or earlier.")
         super().__init__(
             pretrained_model_name_or_path,
             tokenizer=tokenizer,

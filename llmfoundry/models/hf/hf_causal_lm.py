@@ -80,20 +80,34 @@ class ComposerHFCausalLM(BaseHuggingFaceModel):
         additional_eval_metrics: Optional[list] = None,
         should_save_peft_only: bool = True,
     ):
-        if pretrained_model_name_or_path.startswith(
-            'mosaicml/mpt',
-        ) and use_flash_attention_2:
-            import torch
-            if torch.cuda.is_available(
-            ) and (init_device == 'gpu' or init_device == 'mixed'):
-                import importlib.metadata
-                flash_version = importlib.metadata.version('flash-attn')
-                version_tuple = tuple(map(int, flash_version.split('.')))
+        is_mpt_model = pretrained_model_name_or_path.startswith('mosaicml/mpt')
 
-                if version_tuple > (2, 6):
-                    raise ValueError(
-                        f'Flash Attention version {flash_version} (>2.6) is not supported for MPT models on GPU. Please use version 2.6 or earlier.',
-                    )
+        # Check for attn_impl in config_overrides
+        is_flash_requested = use_flash_attention_2
+        if config_overrides and 'attn_config' in config_overrides:
+            attn_config = config_overrides.get('attn_config', {})
+            if isinstance(attn_config,
+                          dict) and attn_config.get('attn_impl') == 'flash':
+                is_flash_requested = True
+
+        # Check FA version if installed and requested
+        if is_flash_requested:
+            import importlib.metadata
+            flash_version = importlib.metadata.version('flash-attn')
+            version_tuple = tuple(map(int, flash_version.split('.')))
+
+            if version_tuple > (2, 6) and is_mpt_model:
+                raise ValueError(
+                    f'Flash Attention version {flash_version} (>2.6) is not supported with MPT models. '
+                    'Please use Flash Attention version 2.6 or earlier, or use a different attention implementation.',
+                )
+            elif version_tuple > (2, 6):
+                import warnings
+                warnings.warn(
+                    f'Flash Attention version {flash_version} (>2.6) may cause compatibility issues with some models. '
+                    'Version 2.6 or earlier is recommended for maximum compatibility.',
+                )
+
         super().__init__(
             pretrained_model_name_or_path,
             tokenizer=tokenizer,

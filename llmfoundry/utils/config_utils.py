@@ -458,7 +458,7 @@ def calculate_batch_size_info(
         )
     else:
         raise ValueError(f'Not sure how to parse {device_microbatch_size=}')
-    
+
     return device_batch_size, device_microbatch_size, device_grad_accum
 
 

@@ -8,6 +8,7 @@ from composer.utils import dist
 from transformers import AutoModel
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
+from llmfoundry.models.consts import _MASTER_WEIGHTS_PRECISION
 from llmfoundry.models.llm_embed.modeling_llm_embed import ContrastiveModel
 
 
@@ -22,7 +23,7 @@ class FinetuneEmbeddingModel(ContrastiveModel):
                 self.pretrained_model_name_or_path,
                 trust_remote_code=self.trust_remote_code,
                 use_auth_token=self.use_auth_token,
-                torch_dtype='float32',
+                torch_dtype=_MASTER_WEIGHTS_PRECISION,
                 **self.kwargs,
             )
 

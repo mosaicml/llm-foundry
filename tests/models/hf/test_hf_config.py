@@ -247,6 +247,7 @@ def test_nested_override():
     # Ensure the other values still exist and are not set back to their defaults
     assert model.config.ffn_config.moe_num_experts == 16
 
+
 def test_simple_dtype():
     model_cfg = {
         'name': 'hf_causal_lm',
@@ -270,6 +271,7 @@ def test_simple_dtype():
 
     # Make sure that HF has not cast the parameters to bf16
     assert next(model.parameters()).dtype == torch.float32
+
 
 @pytest.mark.gpu
 def test_use_flash():

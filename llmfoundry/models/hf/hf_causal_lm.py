@@ -97,7 +97,8 @@ class ComposerHFCausalLM(BaseHuggingFaceModel):
             if version.parse(flash_version) > version.parse('2.6.9'):
                 raise ValueError(
                     f'Flash Attention version {flash_version} (>2.6) is not supported with MPT models. '
-                    + 'Please use Flash Attention version 2.6 or earlier, or use a different attention implementation.',
+                    +
+                    'Please use Flash Attention version 2.6 or earlier, or use a different attention implementation.',
                 )
 
         super().__init__(

@@ -25,6 +25,7 @@ from transformers import (
 from transformers.models.auto.auto_factory import _BaseAutoModelClass
 from transformers.utils.generic import ModelOutput
 
+from llmfoundry.models.consts import _MASTER_WEIGHTS_PRECISION
 from llmfoundry.models.hf.hf_fsdp import (
     hf_get_init_device,
     prepare_hf_model_for_fsdp,
@@ -151,6 +152,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             trust_remote_code=trust_remote_code,
             use_auth_token=use_auth_token,
             attn_implementation=attn_implementation,
+            torch_dtype=_MASTER_WEIGHTS_PRECISION,
             use_cache=
             False,  # Necessary due to https://github.com/huggingface/transformers/issues/28056
         )

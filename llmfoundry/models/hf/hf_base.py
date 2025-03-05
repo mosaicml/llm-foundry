@@ -151,6 +151,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             trust_remote_code=trust_remote_code,
             use_auth_token=use_auth_token,
             attn_implementation=attn_implementation,
+            torch_dtype='float32',
             use_cache=
             False,  # Necessary due to https://github.com/huggingface/transformers/issues/28056
         )

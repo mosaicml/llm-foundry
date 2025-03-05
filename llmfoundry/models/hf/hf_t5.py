@@ -88,6 +88,7 @@ class ComposerHFT5(BaseHuggingFaceModel):
             pretrained_model_name_or_path,
             trust_remote_code=trust_remote_code,
             use_auth_token=use_auth_token,
+            torch_dtype='float32',
         )
 
         # set config overrides

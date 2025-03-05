@@ -22,6 +22,7 @@ class FinetuneEmbeddingModel(ContrastiveModel):
                 self.pretrained_model_name_or_path,
                 trust_remote_code=self.trust_remote_code,
                 use_auth_token=self.use_auth_token,
+                torch_dtype='float32',
                 **self.kwargs,
             )
 

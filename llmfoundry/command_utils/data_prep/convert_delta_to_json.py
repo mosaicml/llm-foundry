@@ -501,6 +501,7 @@ def fetch(
     except Exception as e:
         from databricks.sql.exc import ServerOperationError
         from pyspark.errors import AnalysisException
+        import pyspark.errors.exceptions.connect as spark_errors
 
         if isinstance(e, (AnalysisException, ServerOperationError)):
             error_message = str(e)
@@ -529,6 +530,9 @@ def fetch(
                     volume_name,
                     table_name,
                 ) from e
+
+        elif isinstance(e, spark_errors.SparkConnectGrpcException):
+            raise
 
         if isinstance(e, InsufficientPermissionsError):
             raise

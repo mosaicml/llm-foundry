@@ -268,7 +268,6 @@ def check_hf_tokenizer_equivalence(
     t1_dict = tokenizer1.__dict__
     t2_dict = tokenizer2.__dict__
     
-    # Now do the actual assertion
     assert t1_dict == t2_dict, "Tokenizer dictionaries are not equal"
 
 

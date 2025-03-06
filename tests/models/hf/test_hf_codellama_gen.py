@@ -6,6 +6,7 @@ from composer.core.precision import get_precision_context
 from composer.utils import get_device
 from transformers import PreTrainedTokenizerBase
 
+
 @pytest.mark.gpu
 @pytest.mark.parametrize('device', ['cpu', 'gpu'])
 @pytest.mark.parametrize('attn_impl', ['flash', 'torch'])
@@ -26,9 +27,9 @@ def test_init_hfhub_codellama(
             'num_hidden_layers': 2,
             'hidden_size': 32,
             'intermediate_size': 64,
-        }
+        },
     }
-    
+
     from llmfoundry.utils.builders import build_composer_model
     model = build_composer_model(
         name='hf_causal_lm',
@@ -43,7 +44,8 @@ def test_init_hfhub_codellama(
     ):
         _ = model.generate(
             composer_device.tensor_to_device(
-                tiny_llama_tokenizer('def hello_world():', return_tensors='pt')['input_ids'],
+                tiny_llama_tokenizer('def hello_world():',
+                                     return_tensors='pt')['input_ids'],
             ),
             max_new_tokens=2,
         )

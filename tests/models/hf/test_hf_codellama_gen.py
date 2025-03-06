@@ -53,7 +53,7 @@ def test_init_hfhub_codellama_cpu(
     tiny_llama_tokenizer: PreTrainedTokenizerBase,
 ):
     """CPU-only version of the test for convenience."""
-    test_init_hfhub_llama(
+    test_init_hfhub_codellama(
         device='cpu',
         attn_impl='torch',
         tiny_llama_tokenizer=tiny_llama_tokenizer,

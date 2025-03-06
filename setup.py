@@ -79,7 +79,7 @@ install_requires = [
 extra_deps = {}
 
 extra_deps['dev'] = [
-    'coverage[toml]==7.6.10',
+    'coverage[toml]==7.6.12',
     'pre-commit>=3.4.0,<4',
     'pytest>=7.2.1,<9',
     'pytest_codeblocks>=0.16.1,<0.18',

@@ -219,14 +219,22 @@ def check_hf_tokenizer_equivalence(
         attr2 = tokenizer2.__dict__.pop('_' + special_token_attr, None)
         if attr1 is None and attr2 is None:
             continue
-            
+
         # Handle the case when the attribute is an AddedToken object
-        attr_value1 = attr1 if isinstance(attr1, str) else attr1.content if hasattr(attr1, 'content') else str(attr1)
-        attr_value2 = attr2 if isinstance(attr2, str) else attr2.content if hasattr(attr2, 'content') else str(attr2)
+        attr_value1 = attr1 if isinstance(
+            attr1,
+            str,
+        ) else attr1.content if hasattr(attr1, 'content') else str(attr1)
+        attr_value2 = attr2 if isinstance(
+            attr2,
+            str,
+        ) else attr2.content if hasattr(attr2, 'content') else str(attr2)
         assert attr_value1 == attr_value2
 
     if 'extra_special_tokens' in tokenizer2.init_kwargs and 'extra_special_tokens' not in tokenizer1.init_kwargs:
-        print("Ignoring 'extra_special_tokens' in tokenizer2 init_kwargs as it was added by the transformers library during save/load")
+        print(
+            "Ignoring 'extra_special_tokens' in tokenizer2 init_kwargs as it was added by the transformers library during save/load",
+        )
         init_kwargs2 = dict(tokenizer2.init_kwargs)
         init_kwargs2.pop('extra_special_tokens')
         tokenizer2.init_kwargs = init_kwargs2
@@ -236,16 +244,16 @@ def check_hf_tokenizer_equivalence(
         # Create a copy of the special tokens map to avoid modifying the original
         tokenizer1_map = dict(tokenizer1.__dict__['_special_tokens_map'])
         tokenizer2_map = dict(tokenizer2.__dict__['_special_tokens_map'])
-        
+
         # Convert any AddedToken objects to strings
         for key in list(tokenizer1_map.keys()):
             if hasattr(tokenizer1_map[key], 'content'):
                 tokenizer1_map[key] = tokenizer1_map[key].content
-            
+
         for key in list(tokenizer2_map.keys()):
             if hasattr(tokenizer2_map[key], 'content'):
                 tokenizer2_map[key] = tokenizer2_map[key].content
-        
+
         tokenizer1.__dict__['_special_tokens_map'] = tokenizer1_map
         tokenizer2.__dict__['_special_tokens_map'] = tokenizer2_map
 
@@ -254,21 +262,27 @@ def check_hf_tokenizer_equivalence(
         # Process tokenizer1's added_tokens_decoder
         added_tokens_decoder1 = {}
         for idx, token in tokenizer1.__dict__['_added_tokens_decoder'].items():
-            added_tokens_decoder1[idx] = str(token) if hasattr(token, 'content') else token
-        
+            added_tokens_decoder1[idx] = str(token) if hasattr(
+                token,
+                'content',
+            ) else token
+
         # Process tokenizer2's added_tokens_decoder
         added_tokens_decoder2 = {}
         for idx, token in tokenizer2.__dict__['_added_tokens_decoder'].items():
-            added_tokens_decoder2[idx] = str(token) if hasattr(token, 'content') else token
-        
+            added_tokens_decoder2[idx] = str(token) if hasattr(
+                token,
+                'content',
+            ) else token
+
         tokenizer1.__dict__['_added_tokens_decoder'] = added_tokens_decoder1
         tokenizer2.__dict__['_added_tokens_decoder'] = added_tokens_decoder2
-    
+
     # Final comparison of dictionaries
     t1_dict = tokenizer1.__dict__
     t2_dict = tokenizer2.__dict__
-    
-    assert t1_dict == t2_dict, "Tokenizer dictionaries are not equal"
+
+    assert t1_dict == t2_dict, 'Tokenizer dictionaries are not equal'
 
 
 def remove_moe_world_size(config: MPTConfig):

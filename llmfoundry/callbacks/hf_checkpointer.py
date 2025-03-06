@@ -523,6 +523,7 @@ class HuggingFaceCheckpointer(Callback):
             copied_config.init_device = 'cpu'
             if 'moe_world_size' in getattr(copied_config, 'ffn_config', {}):
                 copied_config.ffn_config['moe_world_size'] = 1
+        copied_config.torch_dtype = self.dtype
         return copied_config
 
     def pre_register_edit(self, local_save_path: str):

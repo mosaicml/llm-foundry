@@ -237,11 +237,6 @@ def check_hf_tokenizer_equivalence(
         tokenizer1_map = dict(tokenizer1.__dict__['_special_tokens_map'])
         tokenizer2_map = dict(tokenizer2.__dict__['_special_tokens_map'])
         
-        # Debug: Print special tokens maps before conversion
-        print("\nSpecial tokens maps before conversion:")
-        print(f"Tokenizer 1: {tokenizer1_map}")
-        print(f"Tokenizer 2: {tokenizer2_map}")
-        
         # Convert any AddedToken objects to strings
         for key in list(tokenizer1_map.keys()):
             if hasattr(tokenizer1_map[key], 'content'):
@@ -251,26 +246,11 @@ def check_hf_tokenizer_equivalence(
             if hasattr(tokenizer2_map[key], 'content'):
                 tokenizer2_map[key] = tokenizer2_map[key].content
         
-        # Debug: Print special tokens maps after conversion
-        print("\nSpecial tokens maps after conversion:")
-        print(f"Tokenizer 1: {tokenizer1_map}")
-        print(f"Tokenizer 2: {tokenizer2_map}")
-        
         tokenizer1.__dict__['_special_tokens_map'] = tokenizer1_map
         tokenizer2.__dict__['_special_tokens_map'] = tokenizer2_map
 
     # Debug added_tokens_decoder
     if '_added_tokens_decoder' in tokenizer1.__dict__ and '_added_tokens_decoder' in tokenizer2.__dict__:
-        print("\nAdded tokens decoder before conversion:")
-        print(f"Tokenizer 1 keys: {list(tokenizer1.__dict__['_added_tokens_decoder'].keys())}")
-        print(f"Tokenizer 2 keys: {list(tokenizer2.__dict__['_added_tokens_decoder'].keys())}")
-        
-        # Check if there are AddedToken objects in added_tokens_decoder
-        has_added_token1 = any(hasattr(token, 'content') for token in tokenizer1.__dict__['_added_tokens_decoder'].values())
-        has_added_token2 = any(hasattr(token, 'content') for token in tokenizer2.__dict__['_added_tokens_decoder'].values())
-        print(f"Tokenizer 1 has AddedToken objects in added_tokens_decoder: {has_added_token1}")
-        print(f"Tokenizer 2 has AddedToken objects in added_tokens_decoder: {has_added_token2}")
-        
         # Process tokenizer1's added_tokens_decoder
         added_tokens_decoder1 = {}
         for idx, token in tokenizer1.__dict__['_added_tokens_decoder'].items():
@@ -287,52 +267,6 @@ def check_hf_tokenizer_equivalence(
     # Final comparison of dictionaries
     t1_dict = tokenizer1.__dict__
     t2_dict = tokenizer2.__dict__
-    
-    # Debug: Find differences in the dictionaries
-    if t1_dict != t2_dict:
-        print("\nTokenizer __dict__ differences:")
-        t1_keys = set(t1_dict.keys())
-        t2_keys = set(t2_dict.keys())
-        
-        # Keys in t1 but not in t2
-        only_in_t1 = t1_keys - t2_keys
-        if only_in_t1:
-            print(f"Keys only in tokenizer 1: {only_in_t1}")
-        
-        # Keys in t2 but not in t1
-        only_in_t2 = t2_keys - t1_keys
-        if only_in_t2:
-            print(f"Keys only in tokenizer 2: {only_in_t2}")
-        
-        # Keys in both but with different values
-        common_keys = t1_keys.intersection(t2_keys)
-        different_values = [k for k in common_keys if t1_dict[k] != t2_dict[k]]
-        if different_values:
-            print(f"Keys with different values: {different_values}")
-            for key in different_values:
-                if key == 'init_kwargs':
-                    # Special handling for init_kwargs
-                    init_kwargs1 = t1_dict[key]
-                    init_kwargs2 = t2_dict[key]
-                    init_keys1 = set(init_kwargs1.keys())
-                    init_keys2 = set(init_kwargs2.keys())
-                    
-                    print(f"\nInit kwargs differences:")
-                    print(f"Keys only in tokenizer 1 init_kwargs: {init_keys1 - init_keys2}")
-                    print(f"Keys only in tokenizer 2 init_kwargs: {init_keys2 - init_keys1}")
-                    
-                    common_init_keys = init_keys1.intersection(init_keys2)
-                    different_init_values = [k for k in common_init_keys if init_kwargs1[k] != init_kwargs2[k]]
-                    if different_init_values:
-                        print(f"Init kwargs with different values: {different_init_values}")
-                        for init_key in different_init_values:
-                            print(f"\nKey: {init_key}")
-                            print(f"Tokenizer 1 value: {init_kwargs1[init_key]}")
-                            print(f"Tokenizer 2 value: {init_kwargs2[init_key]}")
-                else:
-                    print(f"\nKey: {key}")
-                    print(f"Tokenizer 1 value: {t1_dict[key]}")
-                    print(f"Tokenizer 2 value: {t2_dict[key]}")
     
     # Now do the actual assertion
     assert t1_dict == t2_dict, "Tokenizer dictionaries are not equal"

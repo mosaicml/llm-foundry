@@ -351,6 +351,142 @@ class HuggingFaceCheckpointer(Callback):
         # Temporary save directory used by child_processes.
         self.temp_save_dir = None
 
+    def run_event(self, event: Event, state: State, logger: Logger) -> None:
+        # The interval scheduler handles only returning True for the appropriate events
+        if state.get_elapsed_duration() is not None and self.check_interval(
+            state,
+            event,
+        ) and self.last_checkpoint_batch != state.timestamp.batch:
+            is_last_batch = self._is_last_batch(state)
+            self._save_checkpoint(
+                state,
+                logger,
+                register_to_mlflow=(
+                    self.mlflow_registered_model_name is not None and
+                    is_last_batch
+                ),
+                upload_to_save_folder=not self.final_register_only or
+                not is_last_batch,
+            )
+        elif event == Event.INIT:
+            if not isinstance(state.model, HuggingFaceModel):
+                raise ValueError(
+                    f'`HuggingFaceCheckpointer` is only compatible with `HuggingFaceModel`s. '
+                    + f'Got {type(state.model)} instead.',
+                )
+            if self.remote_ud is not None:
+                try:
+                    self.remote_ud.init(state, logger)
+                except PermissionError as e:
+                    if 'Client Error' in str(
+                        e,
+                    ):  # thrown from composer.utils._wrap_mlflow_exceptions
+                        raise StoragePermissionError(
+                            'Error when write to save_folder.',
+                        ) from e
+                    raise e
+                state.callbacks.append(self.remote_ud)
+
+            if self.mlflow_registered_model_name is not None:
+                self.mlflow_loggers = [
+                    logger_destination
+                    for logger_destination in logger.destinations
+                    if isinstance(logger_destination, MLFlowLogger)
+                ]
+                if len(self.mlflow_loggers) == 0:
+                    raise ValueError(
+                        f'`mlflow_registered_model_name` was set, but no `MLFlowLogger` was found in the `logger.destinations` list. '
+                        +
+                        'Please add an `MLFlowLogger` or set `mlflow_registered_model_name` to `None`.',
+                    )
+
+                import mlflow
+                import mlflow.environment_variables
+                mlflow.environment_variables.MLFLOW_HUGGINGFACE_MODEL_MAX_SHARD_SIZE.set(
+                    '1GB',
+                )
+
+            # Check if the model is using PEFT
+            if state.is_model_ddp:
+                composer_model = state.model.module
+            elif isinstance(state.model.model, FSDP):
+                composer_model = state.model
+            else:
+                composer_model = state.model
+            self.using_peft = composer_model.using_peft
+        elif event == Event.FIT_END:
+            # Wait for all child processes spawned by the callback to finish.
+            timeout = self.register_wait_seconds
+            wait_start = time.time()
+            while not self._all_register_processes_done(state.device):
+                wait_time = time.time() - wait_start
+                if wait_time > timeout:
+                    raise TimeoutError(
+                        f'Waited {wait_time} seconds for child processes to complete. Exceeded timeout of {timeout} seconds.',
+                    )
+                time.sleep(2)
+
+            if self._any_register_processes_error(
+                state.device,
+            ) and self.final_register_only:
+                log.error(
+                    'An error occurred in one or more registration processes. Fallback to saving the HuggingFace checkpoint.',
+                )
+                self._save_checkpoint(
+                    state,
+                    logger,
+                    upload_to_save_folder=True,
+                    register_to_mlflow=False,
+                )
+
+            # Clean up temporary save directory; all processes are done with it.
+            if self.temp_save_dir is not None:
+                shutil.rmtree(self.temp_save_dir)
+
+    def _is_last_batch(self, state: State):
+        elapsed_duration = state.get_elapsed_duration()
+        if elapsed_duration is not None and elapsed_duration >= 1.0:
+            return True
+
+        assert state.max_duration is not None  # for pyright
+
+        epoch_complete = state.dataloader_len == state.timestamp.batch_in_epoch
+        second_to_last_epoch = state.max_duration.unit == TimeUnit.EPOCH and (
+            state.timestamp.epoch == state.max_duration.value - 1
+        )
+        # If the save interval is specified as exactly the same number of batches as the total duration,
+        # but the max duration is specified in epochs, we need a special case to identify we are on the last batch
+        # and should write the mlflow checkpoint. This should occur on the last batch of the final epoch.
+        if self.save_interval.unit == TimeUnit.BATCH and second_to_last_epoch and epoch_complete:
+            return True
+
+        # If the save interval is specified as 1dur, and the max duration is in epoch units
+        # we need a special case to identify we are on the last batch and should write the mlflow checkpoint
+        if self.save_interval.unit == TimeUnit.DURATION and self.save_interval.value == 1 and state.max_duration.unit == TimeUnit.EPOCH:
+            assert state.dataloader_len is not None  # for pyright
+            return int(state.timestamp.batch) % math.ceil(
+                state.max_duration.value * state.dataloader_len,
+            ) == 0
+
+        return False
+
+    def _all_register_processes_done(self, device: Device) -> bool:
+        not_done = any(
+            process.is_alive() for process in self.register_processes
+        )
+        x = device.tensor_to_device(torch.tensor(1 if not_done else 0))
+        dist.all_reduce(x, reduce_operation='MAX')
+        return x.item() == 0
+
+    def _any_register_processes_error(self, device: Device) -> bool:
+        has_errors = any(
+            process.exitcode is not None and process.exitcode != 0
+            for process in self.register_processes
+        )
+        x = device.tensor_to_device(torch.tensor(1 if has_errors else 0))
+        dist.all_reduce(x, reduce_operation='MAX')
+        return x.item() == 1
+
     def transform_model_and_tokenizer(
         self,
         model: PreTrainedModel,

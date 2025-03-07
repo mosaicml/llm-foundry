@@ -646,6 +646,8 @@ def test_huggingface_conversion_callback_interval(
         ),
         trust_remote_code=True,
     )
+    print(f"DEBUG TEST: Loaded model's torch_dtype: {loaded_model.config.torch_dtype}, type: {type(loaded_model.config.torch_dtype)}")
+    print(f"DEBUG TEST: Expected precision: {precision}, type: {type(precision)}")
 
     # Check that the loaded model has the correct precision, and then set it back
     # to the original for the equivalence check

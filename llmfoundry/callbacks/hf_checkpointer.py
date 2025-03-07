@@ -748,21 +748,18 @@ class HuggingFaceCheckpointer(Callback):
             self.temp_save_dir = temp_save_dir
 
     def _save_checkpoint(
-        self,
-        state: State,
-        logger: Logger,
-        upload_to_save_folder: bool,
-        register_to_mlflow: bool,
-    ):
-        """Save a HuggingFace formatted checkpoint.
-
-        Args:
-            state (State): The training state.
-            logger (Logger): The logger.
-            upload_to_save_folder (bool): Whether to upload the HF checkpoint to the save folder.
-            register_to_mlflow (bool): Whether to register the model to MLFlow
-        """
+    self,
+    state: State,
+    logger: Logger,
+    upload_to_save_folder: bool,
+    register_to_mlflow: bool,
+):
+        """Save a HuggingFace formatted checkpoint."""
         del logger  # unused
+        
+        print("DEBUG: Starting _save_checkpoint")
+        print(f"DEBUG: self.precision: {self.precision}")
+        print(f"DEBUG: self.dtype: {self.dtype}, type: {type(self.dtype)}")
 
         save_dir = format_name_with_dist_and_time(
             str(
@@ -772,20 +769,28 @@ class HuggingFaceCheckpointer(Callback):
             state.run_name,
             state.timestamp,
         )
+        print(f"DEBUG: save_dir: {save_dir}")
 
         # Use a temporary directory if save_dir is remote.
         use_temp_dir = self.remote_ud is not None
         temp_save_dir = tempfile.mkdtemp() if use_temp_dir else save_dir
+        print(f"DEBUG: temp_save_dir: {temp_save_dir}")
 
         new_model_instance, original_tokenizer = self._get_hf_model(state)
+        print(f"DEBUG: After _get_hf_model")
 
         dist.barrier()
 
         if dist.get_global_rank() == 0:
             assert new_model_instance is not None
             
-            # Ensure torch_dtype is set correctly in the model config
-            new_model_instance.config.torch_dtype = self.dtype
+            print(f"DEBUG: new_model_instance.config.torch_dtype: {new_model_instance.config.torch_dtype}, type: {type(new_model_instance.config.torch_dtype)}")
+            
+            # Additional check to ensure torch_dtype is set correctly
+            if getattr(new_model_instance.config, "torch_dtype", None) != self.dtype:
+                print(f"DEBUG: torch_dtype mismatch detected before saving. Setting to {self.dtype}")
+                new_model_instance.config.torch_dtype = self.dtype
+                print(f"DEBUG: After setting, new_model_instance.config.torch_dtype: {new_model_instance.config.torch_dtype}")
             
             if upload_to_save_folder:
                 # This context manager casts the TE extra state in io.BytesIO format to tensor format
@@ -795,13 +800,23 @@ class HuggingFaceCheckpointer(Callback):
                 ) if is_te_imported and state.precision == Precision.AMP_FP8 else contextlib.nullcontext(
                 )
                 
+                print(f"DEBUG: Before saving model")
                 with context_manager:
-                    # NOTE: Save the model WITHOUT using config_dict to override the config
-                    # This ensures the model saves with the correct dtype already set above
+                    # Save the model with the proper torch_dtype configuration
+                    config_dict = new_model_instance.config.to_dict()
+                    print(f"DEBUG: config_dict before: {config_dict.get('torch_dtype')}")
+                    
+                    # Try fixing by explicitly setting config_dict to use precision
+                    config_dict["torch_dtype"] = self.precision
+                    print(f"DEBUG: config_dict after: {config_dict.get('torch_dtype')}")
+                    
+                    # Save with explicit config override
                     new_model_instance.save_pretrained(
                         temp_save_dir,
                         max_shard_size='1GB',
+                        config_dict=config_dict,
                     )
+                    print(f"DEBUG: After saving model")
                     
                 if original_tokenizer is not None:
                     assert isinstance(
@@ -809,6 +824,28 @@ class HuggingFaceCheckpointer(Callback):
                         PreTrainedTokenizerBase,
                     )
                     original_tokenizer.save_pretrained(temp_save_dir)
+                    print(f"DEBUG: After saving tokenizer")
+
+                # Examine the saved config file
+                config_path = os.path.join(temp_save_dir, "config.json")
+                if os.path.exists(config_path):
+                    try:
+                        with open(config_path, "r") as f:
+                            saved_config = json.load(f)
+                        
+                        print(f"DEBUG: Saved config.json torch_dtype: {saved_config.get('torch_dtype')}")
+                        print(f"DEBUG: Type of torch_dtype in json: {type(saved_config.get('torch_dtype'))}")
+                        
+                    except Exception as e:
+                        print(f"DEBUG: Error checking config.json: {e}")
+
+                # Only need to edit files for MPT because it has custom code
+                if new_model_instance.config.model_type == 'mpt':
+                    print(f"DEBUG: Editing MPT files for HuggingFace compatibility")
+                    edit_files_for_hf_compatibility(
+                        temp_save_dir,
+                        self.flatten_imports,
+                    )
 
                 # Create a tiny custom file that we'll use when loading to fix the dtype
                 # This will be detected and used by AutoModelForCausalLM.from_pretrained

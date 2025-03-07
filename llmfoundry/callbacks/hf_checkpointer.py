@@ -3,6 +3,7 @@
 
 import contextlib
 import copy
+import json
 import logging
 import math
 import os
@@ -504,6 +505,8 @@ class HuggingFaceCheckpointer(Callback):
             Tuple[PreTrainedModel, PreTrainedTokenizerBase]: The transformed model and tokenizer.
         """
         model.config.torch_dtype = self.dtype
+        if hasattr(model.config, "__dict__") and "torch_dtype" not in model.config.__dict__:
+            model.config.__dict__["torch_dtype"] = self.dtype
         return model, tokenizer
 
     def transform_config(
@@ -519,6 +522,7 @@ class HuggingFaceCheckpointer(Callback):
             The transformed model config.
         """
         copied_config = copy.deepcopy(original_config)
+        copied_config.torch_dtype = self.dtype
         if copied_config.model_type == 'mpt':
             copied_config.attn_config['attn_impl'] = 'torch'
             copied_config.init_device = 'cpu'
@@ -779,6 +783,12 @@ class HuggingFaceCheckpointer(Callback):
 
         if dist.get_global_rank() == 0:
             assert new_model_instance is not None
+            
+            # Additional check to ensure torch_dtype is set correctly
+            if getattr(new_model_instance.config, "torch_dtype", None) != self.dtype:
+                log.warning(f"torch_dtype mismatch detected before saving. Setting to {self.dtype}")
+                new_model_instance.config.torch_dtype = self.dtype
+            
             if upload_to_save_folder:
                 # This context manager casts the TE extra state in io.BytesIO format to tensor format
                 # Needed for proper hf ckpt saving.
@@ -787,16 +797,39 @@ class HuggingFaceCheckpointer(Callback):
                 ) if is_te_imported and state.precision == Precision.AMP_FP8 else contextlib.nullcontext(
                 )
                 with context_manager:
+                    # Save the model with the proper torch_dtype configuration
+                    config_dict = new_model_instance.config.to_dict()
+                    config_dict["torch_dtype"] = str(self.dtype).split(".")[-1]  # Convert torch.dtype to string name
+                    
+                    # Save with explicit config override
                     new_model_instance.save_pretrained(
                         temp_save_dir,
                         max_shard_size='1GB',
+                        config_dict=config_dict,
                     )
+                    
                 if original_tokenizer is not None:
                     assert isinstance(
                         original_tokenizer,
                         PreTrainedTokenizerBase,
                     )
                     original_tokenizer.save_pretrained(temp_save_dir)
+
+                # Verify torch_dtype is correctly saved in config.json
+                config_path = os.path.join(temp_save_dir, "config.json")
+                if os.path.exists(config_path):
+                    try:
+                        with open(config_path, "r") as f:
+                            saved_config = json.load(f)
+                        
+                        if "torch_dtype" not in saved_config:
+                            log.warning("torch_dtype not found in saved config.json, adding it manually")
+                            saved_config["torch_dtype"] = str(self.dtype).split(".")[-1]
+                            
+                            with open(config_path, "w") as f:
+                                json.dump(saved_config, f, indent=2)
+                    except Exception as e:
+                        log.warning(f"Error checking/updating config.json: {e}")
 
                 # Only need to edit files for MPT because it has custom code
                 if new_model_instance.config.model_type == 'mpt':

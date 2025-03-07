@@ -504,9 +504,9 @@ class HuggingFaceCheckpointer(Callback):
         Returns:
             Tuple[PreTrainedModel, PreTrainedTokenizerBase]: The transformed model and tokenizer.
         """
-        # Explicitly set the torch_dtype in the model config to match the intended precision
         model.config.torch_dtype = self.dtype
-        
+        if hasattr(model.config, "__dict__") and "torch_dtype" not in model.config.__dict__:
+            model.config.__dict__["torch_dtype"] = self.dtype
         return model, tokenizer
 
     def transform_config(
@@ -522,16 +522,12 @@ class HuggingFaceCheckpointer(Callback):
             The transformed model config.
         """
         copied_config = copy.deepcopy(original_config)
-        
-        # Ensure torch_dtype is set correctly in the config
         copied_config.torch_dtype = self.dtype
-        
         if copied_config.model_type == 'mpt':
             copied_config.attn_config['attn_impl'] = 'torch'
             copied_config.init_device = 'cpu'
             if 'moe_world_size' in getattr(copied_config, 'ffn_config', {}):
                 copied_config.ffn_config['moe_world_size'] = 1
-                
         return copied_config
 
     def pre_register_edit(self, local_save_path: str):
@@ -640,10 +636,6 @@ class HuggingFaceCheckpointer(Callback):
             new_config = self.transform_config(
                 original_config=original_model.config,
             )
-            
-            # Explicitly make sure torch_dtype is set to the correct value
-            log.info(f"Setting torch_dtype in config to {self.dtype}")
-            new_config.torch_dtype = self.dtype
 
             log.debug(f'Creating new model instance')
 
@@ -794,7 +786,7 @@ class HuggingFaceCheckpointer(Callback):
             
             # Additional check to ensure torch_dtype is set correctly
             if getattr(new_model_instance.config, "torch_dtype", None) != self.dtype:
-                log.warning(f"torch_dtype mismatch detected in config before saving. Expected {self.dtype}, got {new_model_instance.config.torch_dtype}")
+                log.warning(f"torch_dtype mismatch detected before saving. Setting to {self.dtype}")
                 new_model_instance.config.torch_dtype = self.dtype
             
             if upload_to_save_folder:
@@ -805,10 +797,15 @@ class HuggingFaceCheckpointer(Callback):
                 ) if is_te_imported and state.precision == Precision.AMP_FP8 else contextlib.nullcontext(
                 )
                 with context_manager:
-                    # Save the model (will also save the config.json file)
+                    # Save the model with the proper torch_dtype configuration
+                    config_dict = new_model_instance.config.to_dict()
+                    config_dict["torch_dtype"] = str(self.dtype).split(".")[-1]  # Convert torch.dtype to string name
+                    
+                    # Save with explicit config override
                     new_model_instance.save_pretrained(
                         temp_save_dir,
                         max_shard_size='1GB',
+                        config_dict=config_dict,
                     )
                     
                 if original_tokenizer is not None:
@@ -818,26 +815,21 @@ class HuggingFaceCheckpointer(Callback):
                     )
                     original_tokenizer.save_pretrained(temp_save_dir)
 
-                # Create a special generation_config.json file to override settings
-                import json
-
-                # Fix for the test case - directly modify the config.json file
+                # Verify torch_dtype is correctly saved in config.json
                 config_path = os.path.join(temp_save_dir, "config.json")
                 if os.path.exists(config_path):
                     try:
-                        import json
                         with open(config_path, "r") as f:
                             saved_config = json.load(f)
-                        if 'torch_dtype' in saved_config:
-                            # Map the precision string to the expected format for the tests
-                            saved_config['torch_dtype'] = self.dtype
                         
-                        with open(config_path, "w") as f:
-                            json.dump(saved_config, f, indent=2)
+                        if "torch_dtype" not in saved_config:
+                            log.warning("torch_dtype not found in saved config.json, adding it manually")
+                            saved_config["torch_dtype"] = str(self.dtype).split(".")[-1]
                             
-                        log.info(f"Updated torch_dtype in config.json to {self.dtype}")
+                            with open(config_path, "w") as f:
+                                json.dump(saved_config, f, indent=2)
                     except Exception as e:
-                        log.warning(f"Error updating config.json: {e}")
+                        log.warning(f"Error checking/updating config.json: {e}")
 
                 # Only need to edit files for MPT because it has custom code
                 if new_model_instance.config.model_type == 'mpt':

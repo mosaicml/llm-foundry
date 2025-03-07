@@ -523,7 +523,6 @@ class HuggingFaceCheckpointer(Callback):
             copied_config.init_device = 'cpu'
             if 'moe_world_size' in getattr(copied_config, 'ffn_config', {}):
                 copied_config.ffn_config['moe_world_size'] = 1
-        copied_config.torch_dtype = self.dtype
         return copied_config
 
     def pre_register_edit(self, local_save_path: str):
@@ -552,6 +551,7 @@ class HuggingFaceCheckpointer(Callback):
         Returns:
             PreTrainedModel: The transformed model.
         """
+        model.config.torch_dtype = self.dtype
         return model
 
     def _get_hf_model(self, state: State):

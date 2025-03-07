@@ -503,6 +503,7 @@ class HuggingFaceCheckpointer(Callback):
         Returns:
             Tuple[PreTrainedModel, PreTrainedTokenizerBase]: The transformed model and tokenizer.
         """
+        model.config.torch_dtype = self.dtype
         return model, tokenizer
 
     def transform_config(
@@ -551,7 +552,6 @@ class HuggingFaceCheckpointer(Callback):
         Returns:
             PreTrainedModel: The transformed model.
         """
-        model.config.torch_dtype = self.dtype
         return model
 
     def _get_hf_model(self, state: State):

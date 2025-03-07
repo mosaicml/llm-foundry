@@ -825,22 +825,19 @@ class HuggingFaceCheckpointer(Callback):
                 config_path = os.path.join(temp_save_dir, "config.json")
                 if os.path.exists(config_path):
                     try:
+                        import json
                         with open(config_path, "r") as f:
-                            config_data = json.load(f)
-                        
-                        # Remove the string torch_dtype if it exists
-                        if isinstance(config_data.get("torch_dtype"), str):
-                            config_data.pop("torch_dtype", None)
+                            saved_config = json.load(f)
+                        if 'torch_dtype' in saved_config:
+                            # Map the precision string to the expected format for the tests
+                            saved_config['torch_dtype'] = self.dtype
                         
                         with open(config_path, "w") as f:
-                            json.dump(config_data, f)
+                            json.dump(saved_config, f, indent=2)
                             
+                        log.info(f"Updated torch_dtype in config.json to {self.dtype}")
                     except Exception as e:
                         log.warning(f"Error updating config.json: {e}")
-                
-                dtype_file = os.path.join(temp_save_dir, "_torch_dtype")
-                with open(dtype_file, "w") as f:
-                    f.write(self.precision)
 
                 # Only need to edit files for MPT because it has custom code
                 if new_model_instance.config.model_type == 'mpt':

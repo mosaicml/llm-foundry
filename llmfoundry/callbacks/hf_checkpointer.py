@@ -353,6 +353,7 @@ class HuggingFaceCheckpointer(Callback):
 
     def run_event(self, event: Event, state: State, logger: Logger) -> None:
         # The interval scheduler handles only returning True for the appropriate events
+        print(f"DEBUG: run_event called with event={event}")
         if state.get_elapsed_duration() is not None and self.check_interval(
             state,
             event,
@@ -444,6 +445,7 @@ class HuggingFaceCheckpointer(Callback):
                 shutil.rmtree(self.temp_save_dir)
 
     def _is_last_batch(self, state: State):
+        print(f"DEBUG: _is_last_batch called for batch {state.timestamp.batch}")
         elapsed_duration = state.get_elapsed_duration()
         if elapsed_duration is not None and elapsed_duration >= 1.0:
             return True
@@ -471,6 +473,7 @@ class HuggingFaceCheckpointer(Callback):
         return False
 
     def _all_register_processes_done(self, device: Device) -> bool:
+        print(f"DEBUG: _all_register_processes_done called")
         not_done = any(
             process.is_alive() for process in self.register_processes
         )
@@ -479,6 +482,7 @@ class HuggingFaceCheckpointer(Callback):
         return x.item() == 0
 
     def _any_register_processes_error(self, device: Device) -> bool:
+        print(f"DEBUG: _any_register_processes_error called")
         has_errors = any(
             process.exitcode is not None and process.exitcode != 0
             for process in self.register_processes
@@ -504,6 +508,7 @@ class HuggingFaceCheckpointer(Callback):
         Returns:
             Tuple[PreTrainedModel, PreTrainedTokenizerBase]: The transformed model and tokenizer.
         """
+        print(f"DEBUG: transform_model_and_tokenizer called")
         model.config.torch_dtype = self.dtype
         if hasattr(model.config, "__dict__") and "torch_dtype" not in model.config.__dict__:
             model.config.__dict__["torch_dtype"] = self.dtype
@@ -521,6 +526,7 @@ class HuggingFaceCheckpointer(Callback):
         Returns:
             The transformed model config.
         """
+        print(f"DEBUG: transform_config called")
         copied_config = copy.deepcopy(original_config)
         copied_config.torch_dtype = self.dtype
         if copied_config.model_type == 'mpt':
@@ -539,6 +545,7 @@ class HuggingFaceCheckpointer(Callback):
         Args:
             local_save_path (str): The path to the model to be transformed.
         """
+        print(f"DEBUG: pre_register_edit called")
         pass
 
     def transform_model_pre_registration(
@@ -556,9 +563,11 @@ class HuggingFaceCheckpointer(Callback):
         Returns:
             PreTrainedModel: The transformed model.
         """
+        print(f"DEBUG: transform_model_pre_registration called")
         return model
 
     def _get_hf_model(self, state: State):
+        print(f"DEBUG: _get_hf_model called")
         self.last_checkpoint_batch = state.timestamp.batch
 
         log.info('Saving HuggingFace formatted checkpoint')
@@ -691,6 +700,7 @@ class HuggingFaceCheckpointer(Callback):
         use_temp_dir: bool,
         new_model_instance: PreTrainedModel,
     ):
+        print(f"DEBUG: _register_hf_model called")
         assert new_model_instance is not None
         new_model_instance = self.transform_model_pre_registration(
             new_model_instance,
@@ -755,6 +765,7 @@ class HuggingFaceCheckpointer(Callback):
     register_to_mlflow: bool,
 ):
         """Save a HuggingFace formatted checkpoint."""
+        print(f"DEBUG: _save_checkpoint called")
         del logger  # unused
         
         print("DEBUG: Starting _save_checkpoint")

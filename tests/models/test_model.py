@@ -52,6 +52,7 @@ from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM, MPTModel
 from llmfoundry.models.mpt.modeling_mpt import (
     CROSS_ENTROPY_IGNORE_INDEX,
     LlamaRotaryEmbeddingFoundry,
+    PartialLlamaConfig,
 )
 from llmfoundry.utils import build_tokenizer
 from llmfoundry.utils.builders import build_composer_model
@@ -2933,22 +2934,21 @@ def test_hf_rotary_child_class_builds():
     value = torch.rand([bsz, num_heads, max_seq_len, rope_head_dim])
     position_ids = torch.Tensor([
         list(range(max_seq_len)),
-    ] * bsz)
+    ] * bsz).long()
 
-    rot_emb_mp = LlamaRotaryEmbeddingFoundry(
-        rope_head_dim,
-        max_seq_len,
-        rope_theta,
-        device='cpu',
+    # Create config for both classes
+    partial_config = PartialLlamaConfig(
+        rope_scaling={'rope_type': 'default'},
+        rope_theta=rope_theta,
+        max_position_embeddings=max_seq_len,
+        hidden_size=rope_head_dim * num_heads,
+        num_attention_heads=num_heads,
     )
-    cos_mp, sin_mp = rot_emb_mp(value, position_ids)
 
-    rot_emb = LlamaRotaryEmbedding(
-        rope_head_dim,
-        max_seq_len,
-        rope_theta,
-        device='cpu',
-    )
+    rot_emb_mp = LlamaRotaryEmbeddingFoundry(config=partial_config)
+    cos_mp, sin_mp = rot_emb_mp(x=value, position_ids=position_ids)
+
+    rot_emb = LlamaRotaryEmbedding(config=partial_config)
     cos, sin = rot_emb(value, position_ids)
 
     assert torch.all(cos == cos_mp)

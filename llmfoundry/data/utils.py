@@ -211,7 +211,7 @@ def get_text_collator(
     collate_fn = transformers.DataCollatorForLanguageModeling(
         tokenizer=tokenizer,
         mlm=mlm_probability is not None,
-        mlm_probability=mlm_probability,
+        mlm_probability=mlm_probability if mlm_probability else 0,
     )
 
     if (eos_token_id is not None) or (bos_token_id is not None):

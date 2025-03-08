@@ -1,0 +1,44 @@
+integrations:
+- integration_type: git_repo
+  git_repo: mosaicml/llm-foundry
+  git_branch: v0.16.0
+  # git_commit:  # OR use your commit hash
+  pip_install: .[gpu]
+  ssh_clone: false  # Should be true if using a private repo
+
+# We are fetching, converting, and training on the 'val' split
+# as it is small and quick to get going for this demo.
+# For real training runs, follow the instructions in `llm-foundry/scripts/train/README.md`
+# to convert and host the full 'train' dataset.
+command: |
+  cd llm-foundry/scripts
+  python data_prep/convert_dataset_hf.py \
+    --dataset allenai/c4 --data_subset en \
+    --out_root ./my-copy-c4 --splits train_small val_small \
+    --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
+  composer train/train.py train/yamls/pretrain/mpt-1b.yaml \
+    train_loader.dataset.split=train_small \
+    eval_loader.dataset.split=val_small \
+    max_duration=100ba \
+    eval_interval=0 \
+    callbacks.hf_checkpointer.save_interval=1ep \
+    callbacks.hf_checkpointer.save_folder='dbfs:/databricks/mlflow-tracking/{mlflow_experiment_id}/{mlflow_run_id}/artifacts/{run_name}/checkpoints' \
+    callbacks.hf_checkpointer.mlflow_registered_model_name='boweny-llama2-finetune' \
+    load_weights_only=True \
+    loggers.mlflow.experiment_name='/Users/bowen.yang@databricks.com/llama2-finetune' \
+    loggers.mlflow.tracking_uri='databricks' \
+    loggers.mlflow.model_registry_uri='databricks-uc' \
+    loggers.mlflow.model_registry_prefix='mosaic_catalog.test-schema'
+
+image: mosaicml/llm-foundry:2.5.1_cu124-latest
+name: mpt-1b-gpus-8
+
+compute:
+  gpus: 8  # Number of GPUs to use
+  cluster: r4z14p1
+  gpu_type: h100_80gb
+
+
+# The below is injected as a YAML file: /mnt/config/parameters.yaml
+# but is not used in this example.
+parameters: {}

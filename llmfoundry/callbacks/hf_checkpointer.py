@@ -3,7 +3,6 @@
 
 import contextlib
 import copy
-import json
 import logging
 import math
 import os
@@ -353,7 +352,6 @@ class HuggingFaceCheckpointer(Callback):
 
     def run_event(self, event: Event, state: State, logger: Logger) -> None:
         # The interval scheduler handles only returning True for the appropriate events
-        print(f"DEBUG: run_event called with event={event}")
         if state.get_elapsed_duration() is not None and self.check_interval(
             state,
             event,
@@ -445,7 +443,6 @@ class HuggingFaceCheckpointer(Callback):
                 shutil.rmtree(self.temp_save_dir)
 
     def _is_last_batch(self, state: State):
-        print(f"DEBUG: _is_last_batch called for batch {state.timestamp.batch}")
         elapsed_duration = state.get_elapsed_duration()
         if elapsed_duration is not None and elapsed_duration >= 1.0:
             return True
@@ -473,7 +470,6 @@ class HuggingFaceCheckpointer(Callback):
         return False
 
     def _all_register_processes_done(self, device: Device) -> bool:
-        print(f"DEBUG: _all_register_processes_done called")
         not_done = any(
             process.is_alive() for process in self.register_processes
         )
@@ -482,7 +478,6 @@ class HuggingFaceCheckpointer(Callback):
         return x.item() == 0
 
     def _any_register_processes_error(self, device: Device) -> bool:
-        print(f"DEBUG: _any_register_processes_error called")
         has_errors = any(
             process.exitcode is not None and process.exitcode != 0
             for process in self.register_processes
@@ -508,10 +503,6 @@ class HuggingFaceCheckpointer(Callback):
         Returns:
             Tuple[PreTrainedModel, PreTrainedTokenizerBase]: The transformed model and tokenizer.
         """
-        print(f"DEBUG: transform_model_and_tokenizer called")
-        model.config.torch_dtype = self.dtype
-        if hasattr(model.config, "__dict__") and "torch_dtype" not in model.config.__dict__:
-            model.config.__dict__["torch_dtype"] = self.dtype
         return model, tokenizer
 
     def transform_config(
@@ -526,9 +517,7 @@ class HuggingFaceCheckpointer(Callback):
         Returns:
             The transformed model config.
         """
-        print(f"DEBUG: transform_config called")
         copied_config = copy.deepcopy(original_config)
-        copied_config.torch_dtype = self.dtype
         if copied_config.model_type == 'mpt':
             copied_config.attn_config['attn_impl'] = 'torch'
             copied_config.init_device = 'cpu'
@@ -545,7 +534,6 @@ class HuggingFaceCheckpointer(Callback):
         Args:
             local_save_path (str): The path to the model to be transformed.
         """
-        print(f"DEBUG: pre_register_edit called")
         pass
 
     def transform_model_pre_registration(
@@ -563,11 +551,9 @@ class HuggingFaceCheckpointer(Callback):
         Returns:
             PreTrainedModel: The transformed model.
         """
-        print(f"DEBUG: transform_model_pre_registration called")
         return model
 
     def _get_hf_model(self, state: State):
-        print(f"DEBUG: _get_hf_model called")
         self.last_checkpoint_batch = state.timestamp.batch
 
         log.info('Saving HuggingFace formatted checkpoint')
@@ -700,7 +686,6 @@ class HuggingFaceCheckpointer(Callback):
         use_temp_dir: bool,
         new_model_instance: PreTrainedModel,
     ):
-        print(f"DEBUG: _register_hf_model called")
         assert new_model_instance is not None
         new_model_instance = self.transform_model_pre_registration(
             new_model_instance,
@@ -758,19 +743,21 @@ class HuggingFaceCheckpointer(Callback):
             self.temp_save_dir = temp_save_dir
 
     def _save_checkpoint(
-    self,
-    state: State,
-    logger: Logger,
-    upload_to_save_folder: bool,
-    register_to_mlflow: bool,
-):
-        """Save a HuggingFace formatted checkpoint."""
-        print(f"DEBUG: _save_checkpoint called")
+        self,
+        state: State,
+        logger: Logger,
+        upload_to_save_folder: bool,
+        register_to_mlflow: bool,
+    ):
+        """Save a HuggingFace formatted checkpoint.
+
+        Args:
+            state (State): The training state.
+            logger (Logger): The logger.
+            upload_to_save_folder (bool): Whether to upload the HF checkpoint to the save folder.
+            register_to_mlflow (bool): Whether to register the model to MLFlow
+        """
         del logger  # unused
-        
-        print("DEBUG: Starting _save_checkpoint")
-        print(f"DEBUG: self.precision: {self.precision}")
-        print(f"DEBUG: self.dtype: {self.dtype}, type: {type(self.dtype)}")
 
         save_dir = format_name_with_dist_and_time(
             str(
@@ -780,29 +767,17 @@ class HuggingFaceCheckpointer(Callback):
             state.run_name,
             state.timestamp,
         )
-        print(f"DEBUG: save_dir: {save_dir}")
 
         # Use a temporary directory if save_dir is remote.
         use_temp_dir = self.remote_ud is not None
         temp_save_dir = tempfile.mkdtemp() if use_temp_dir else save_dir
-        print(f"DEBUG: temp_save_dir: {temp_save_dir}")
 
         new_model_instance, original_tokenizer = self._get_hf_model(state)
-        print(f"DEBUG: After _get_hf_model")
 
         dist.barrier()
 
         if dist.get_global_rank() == 0:
             assert new_model_instance is not None
-            
-            print(f"DEBUG: new_model_instance.config.torch_dtype: {new_model_instance.config.torch_dtype}, type: {type(new_model_instance.config.torch_dtype)}")
-            
-            # Additional check to ensure torch_dtype is set correctly
-            if getattr(new_model_instance.config, "torch_dtype", None) != self.dtype:
-                print(f"DEBUG: torch_dtype mismatch detected before saving. Setting to {self.dtype}")
-                new_model_instance.config.torch_dtype = self.dtype
-                print(f"DEBUG: After setting, new_model_instance.config.torch_dtype: {new_model_instance.config.torch_dtype}")
-            
             if upload_to_save_folder:
                 # This context manager casts the TE extra state in io.BytesIO format to tensor format
                 # Needed for proper hf ckpt saving.
@@ -810,58 +785,17 @@ class HuggingFaceCheckpointer(Callback):
                     True,
                 ) if is_te_imported and state.precision == Precision.AMP_FP8 else contextlib.nullcontext(
                 )
-                
-                print(f"DEBUG: Before saving model")
                 with context_manager:
-                    # Save the model with the proper torch_dtype configuration
-                    config_dict = new_model_instance.config.to_dict()
-                    print(f"DEBUG: config_dict before: {config_dict.get('torch_dtype')}")
-                    
-                    # Try fixing by explicitly setting config_dict to use precision
-                    config_dict["torch_dtype"] = self.precision
-                    print(f"DEBUG: config_dict after: {config_dict.get('torch_dtype')}")
-                    
-                    # Save with explicit config override
                     new_model_instance.save_pretrained(
                         temp_save_dir,
                         max_shard_size='1GB',
-                        config_dict=config_dict,
                     )
-                    print(f"DEBUG: After saving model")
-                    
                 if original_tokenizer is not None:
                     assert isinstance(
                         original_tokenizer,
                         PreTrainedTokenizerBase,
                     )
                     original_tokenizer.save_pretrained(temp_save_dir)
-                    print(f"DEBUG: After saving tokenizer")
-
-                # Examine the saved config file
-                config_path = os.path.join(temp_save_dir, "config.json")
-                if os.path.exists(config_path):
-                    try:
-                        with open(config_path, "r") as f:
-                            saved_config = json.load(f)
-                        
-                        print(f"DEBUG: Saved config.json torch_dtype: {saved_config.get('torch_dtype')}")
-                        print(f"DEBUG: Type of torch_dtype in json: {type(saved_config.get('torch_dtype'))}")
-                        
-                    except Exception as e:
-                        print(f"DEBUG: Error checking config.json: {e}")
-
-                # Only need to edit files for MPT because it has custom code
-                if new_model_instance.config.model_type == 'mpt':
-                    print(f"DEBUG: Editing MPT files for HuggingFace compatibility")
-                    edit_files_for_hf_compatibility(
-                        temp_save_dir,
-                        self.flatten_imports,
-                    )
-
-                # Create a tiny custom file that we'll use when loading to fix the dtype
-                # This will be detected and used by AutoModelForCausalLM.from_pretrained
-                with open(os.path.join(temp_save_dir, "pytorch_dtype.txt"), "w") as f:
-                    f.write(self.precision)  # Use the original precision string
 
                 # Only need to edit files for MPT because it has custom code
                 if new_model_instance.config.model_type == 'mpt':
@@ -889,8 +823,10 @@ class HuggingFaceCheckpointer(Callback):
                             overwrite=self.overwrite,
                         )
 
-            dist.barrier()
+        dist.barrier()
 
+        if dist.get_global_rank() == 0:
+            assert new_model_instance is not None
             if self.using_peft:
                 model_name = self.mlflow_logging_config.get('metadata', {}).get(
                     'pretrained_model_name',

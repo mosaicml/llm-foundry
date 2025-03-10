@@ -289,7 +289,7 @@ def test_use_flash():
         tokenizer=None,  # type: ignore
     )
 
-    from transformers.models.clip.modeling_clip import (
+    from transformers.models.llama.modeling_llama import (
         LlamaAttention,
     )
     flash_attn_class = LlamaAttention

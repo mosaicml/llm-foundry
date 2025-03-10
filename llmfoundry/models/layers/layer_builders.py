@@ -100,12 +100,19 @@ def build_attention_layer(
     )
 
 
+from custom_layers import BandMatrix  # Adjust the import path based on the actual location of custom_layers.py
+from llmfoundry.layers_registry import fcs
+
 def build_fc(
     name: str,
     in_features: int,
     out_features: int,
     fc_kwargs: dict[str, Any],
 ):
+    if name == 'BandMatrix':
+        bandwidth = fc_kwargs.get('bandwidth', 5)  # Default bandwidth, adjust as needed
+        return BandMatrix(in_features, out_features, bandwidth)
+
     kwargs = {
         'in_features': in_features,
         'out_features': out_features,

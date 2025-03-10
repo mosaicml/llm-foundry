@@ -248,6 +248,31 @@ def test_nested_override():
     assert model.config.ffn_config.moe_num_experts == 16
 
 
+def test_simple_dtype():
+    model_cfg = {
+        'name': 'hf_causal_lm',
+        'pretrained_model_name_or_path': 'codellama/CodeLlama-7b-hf',
+        'config_overrides': {
+            'num_hidden_layers': 2,
+            'hidden_size': 32,
+            'intermediate_size': 64,
+        },
+        'pretrained': False,
+        'init_device': 'cpu',
+        'use_flash_attention_2': False,
+    }
+
+    name = model_cfg.pop('name')
+    model = build_composer_model(
+        name=name,
+        cfg=model_cfg,
+        tokenizer=None,  # type: ignore
+    )
+
+    # Make sure that HF has not cast the parameters to bf16
+    assert next(model.parameters()).dtype == torch.float32
+
+
 @pytest.mark.gpu
 def test_use_flash():
     model_cfg = {

@@ -303,9 +303,7 @@ def test_use_flash():
         attention_attr,
     )
     assert isinstance(attention_layer, flash_attn_class)
-
-    # Make sure that HF has not cast the parameters to bf16
-    assert next(model.parameters()).dtype == torch.float32
+    assert next(model.parameters()).dtype == torch.bfloat16
 
 
 @pytest.mark.skip(

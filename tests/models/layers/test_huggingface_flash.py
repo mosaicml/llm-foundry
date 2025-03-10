@@ -34,7 +34,7 @@ def test_flash2(model_name: str, use_flash_attention_2: bool, init_device: str):
         from transformers.models.llama.modeling_llama import (
             LlamaAttention,
         )
-        flash_attn_class = LlamaAttention # transformers 4.49.0 has baked FA2 into FA
+        flash_attn_class = LlamaAttention  # transformers 4.49.0 has baked FA2 into FA
         attention_layers_attr = 'model.model.layers'
         attention_attr = 'self_attn'
     else:

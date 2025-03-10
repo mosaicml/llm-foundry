@@ -648,7 +648,6 @@ def train(cfg: DictConfig) -> Trainer:
             log.info(
                 'Training is already complete and detected retry. Skipping training and saving checkpoint.',
             )
-            trainer.save_checkpoint_to_save_folder()
 
             hf_checkpointer_callbacks = [
                 c for c in callbacks if isinstance(c, HuggingFaceCheckpointer)

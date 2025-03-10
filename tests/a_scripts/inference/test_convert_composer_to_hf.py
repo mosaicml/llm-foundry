@@ -1486,7 +1486,6 @@ def test_mptmoe_huggingface_conversion_callback(
     device_batch_size = 1
     dataset_size = 2
     precision_str = 'float32'
-    precision = torch.float32
     batches_per_epoch = math.ceil(dataset_size / (device_batch_size * 2))
 
     checkpointer_callback = HuggingFaceCheckpointer(

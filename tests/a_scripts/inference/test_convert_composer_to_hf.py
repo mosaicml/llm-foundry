@@ -1677,7 +1677,7 @@ def test_mptmoe_huggingface_conversion_callback(
 
             # Check that the loaded model has the correct precision, and then set it back
             # to the original for the equivalence check
-            assert loaded_model.config.torch_dtype == precision
+            assert loaded_model.config.torch_dtype == precision_str
             loaded_model.config.torch_dtype = original_model.model.config.torch_dtype
 
             loaded_tokenizer = transformers.AutoTokenizer.from_pretrained(

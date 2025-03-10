@@ -290,9 +290,9 @@ def test_use_flash():
     )
 
     from transformers.models.clip.modeling_clip import (
-        CLIPFlashAttention2,
+        LlamaAttention,
     )
-    flash_attn_class = CLIPFlashAttention2
+    flash_attn_class = LlamaAttention
     attention_layers_attr = 'model.model.layers'
     attention_attr = 'self_attn'
 

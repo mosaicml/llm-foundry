@@ -17,6 +17,7 @@ from transformers import (
 from transformers.models.auto.auto_factory import _BaseAutoModelClass
 
 from llmfoundry.metrics import DEFAULT_ENC_DEC_METRICS
+from llmfoundry.models.consts import _MASTER_WEIGHTS_PRECISION
 from llmfoundry.models.hf.hf_base import BaseHuggingFaceModel
 from llmfoundry.utils.warnings import experimental_class
 
@@ -88,6 +89,7 @@ class ComposerHFT5(BaseHuggingFaceModel):
             pretrained_model_name_or_path,
             trust_remote_code=trust_remote_code,
             use_auth_token=use_auth_token,
+            torch_dtype=_MASTER_WEIGHTS_PRECISION,
         )
 
         # set config overrides

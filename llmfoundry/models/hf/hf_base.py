@@ -228,13 +228,11 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         Returns:
             Union[PreTrainedModel, 'PeftModel']: The built inner model.
         """
-        if not trust_remote_code and pretrained_model_name_or_path.startswith(
+        if pretrained_model_name_or_path.startswith(
             'mosaicml/mpt',
         ):
             raise ValueError(
-                'trust_remote_code must be set to True for MPT models. Without this, the MPT model code will come from the transformers library, '
-                +
-                'which is significantly slower and not compatible with the LLM foundry training code, rather than the code release by MosaicML.',
+                'MPT models are no longer supported by LLM Foundry due to transformer version v4.49.0 incompatibilities'
             )
         # Resolve "mixed" init device to either "cpu" or "meta"
         resolved_init_device = hf_get_init_device(init_device)

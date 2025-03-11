@@ -228,13 +228,13 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         Returns:
             Union[PreTrainedModel, 'PeftModel']: The built inner model.
         """
-        if pretrained_model_name_or_path.startswith(
-            'mosaicml/mpt',
-        ):
+        if pretrained_model_name_or_path.startswith('mosaicml/mpt',):
             raise ValueError(
-                'The MPT series of models on the Hugging Face Hub is no longer supported by LLM Foundry. ' +
-                'Please use an older version of LLM Foundry (<0.18) or use a different model. '  +
-                'Please open a GitHub issue and we can help you downgrade or work around the issue.'
+                'The MPT series of models on the Hugging Face Hub is no longer supported by LLM Foundry. '
+                +
+                'Please use an older version of LLM Foundry (<0.18) or use a different model. '
+                +
+                'Please open a GitHub issue and we can help you downgrade or work around the issue.',
             )
         # Resolve "mixed" init device to either "cpu" or "meta"
         resolved_init_device = hf_get_init_device(init_device)

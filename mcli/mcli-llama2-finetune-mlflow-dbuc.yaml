@@ -152,9 +152,9 @@ parameters:
 
   loggers:
       mlflow:
-          experiment_name: /Users/bowen.yang@databricks.com/llama2-finetune-3
+          experiment_name: /Users/bowen.yang@databricks.com/llama2-finetune-4
           tracking_uri: databricks
-          model_registry_prefix: mosaic-test.test-data
+          model_registry_prefix: main.bowenyang
           model_registry_uri: databricks-uc
   
 #   loggers:

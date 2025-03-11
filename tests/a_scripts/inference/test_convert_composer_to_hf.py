@@ -253,21 +253,6 @@ def check_hf_tokenizer_equivalence(
                 if hasattr(token_map2[key], 'content'):
                     token_map2[key] = token_map2[key].content
 
-            # Additional special processing for _added_tokens_decoder
-            if dict_map_key == '_added_tokens_decoder':
-                # Additional token content processing for both tokenizers
-                for idx, token in tokenizer1.__dict__['_added_tokens_decoder'
-                                                     ].items():
-                    if hasattr(token, 'content'):
-                        tokenizer1.__dict__['_added_tokens_decoder'][
-                            idx] = token.content
-
-                for idx, token in tokenizer2.__dict__['_added_tokens_decoder'
-                                                     ].items():
-                    if hasattr(token, 'content'):
-                        tokenizer2.__dict__['_added_tokens_decoder'][
-                            idx] = token.content
-
     # Final comparison of dictionaries
     t1_dict = tokenizer1.__dict__
     t2_dict = tokenizer2.__dict__

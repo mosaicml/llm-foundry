@@ -175,7 +175,7 @@ def test_hf_config_override(
 def test_rope_scaling_override():
     model_cfg = {
         'name': 'hf_causal_lm',
-        'pretrained_model_name_or_path': 'meta-llama/Llama-2-7b-hf',
+        'pretrained_model_name_or_path': 'meta-llama/Llama-3.1-70B-Instruct',
         'config_overrides': {
             'num_hidden_layers': 2,
             'hidden_size': 32,

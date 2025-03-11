@@ -786,7 +786,7 @@ def _get_model_and_tokenizer(
             )
         model_cfg = {
             'name': 'hf_causal_lm',
-            'pretrained_model_name_or_path': 'meta-llama/Llama-2-7b-hf',
+            'pretrained_model_name_or_path': 'meta-llama/Llama-3.1-70B-Instruct',
             'config_overrides': {
                 'num_hidden_layers': 2,
                 'hidden_size': 32,
@@ -796,7 +796,7 @@ def _get_model_and_tokenizer(
             'pretrained': False,
             'init_device': 'cpu',
         }
-        tokenizer_name = 'meta-llama/Llama-2-7b-hf'
+        tokenizer_name = 'meta-llama/Llama-3.1-70B-Instruct'
     else:
         raise ValueError(f'Unknown model {model}')
     return model_cfg, tokenizer_name

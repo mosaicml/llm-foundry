@@ -7,7 +7,7 @@ run_name:  # If left blank, will be read from env var $COMPOSER_RUN_NAME
 # Model
 model:
   name: hf_causal_lm
-  pretrained_model_name_or_path: meta-llama/Llama-2-7b
+  pretrained_model_name_or_path: meta-llama/Llama-3.1-70B-Instruct
   pretrained: true  # false: only use the architecture; true: initialize with pretrained weights
   config_overrides:
     max_seq_len: ${max_seq_len}
@@ -20,7 +20,7 @@ model:
 
 # Tokenizer
 tokenizer:
-  name: meta-llama/Llama-2-7b
+  name: meta-llama/Llama-3.1-70B-Instruct
   kwargs:
     model_max_length: ${max_seq_len}
 

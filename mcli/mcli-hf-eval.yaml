@@ -28,16 +28,16 @@ parameters:
 
   models:
   -
-    model_name: meta-llama/Llama-3.1-70B-Instruct
+    model_name: meta-llama/Meta-Llama-3-8B
     # Tokenizer
     tokenizer:
-      name: meta-llama/Llama-3.1-70B-Instruct
+      name: meta-llama/Meta-Llama-3-8B
       kwargs:
         model_max_length: ${max_seq_len}
 
     model:
       name: hf_causal_lm
-      pretrained_model_name_or_path: meta-llama/Llama-3.1-70B-Instruct
+      pretrained_model_name_or_path: meta-llama/Meta-Llama-3-8B
       init_device: mixed
       pretrained: true
       # Note: you must have set the HF_TOKEN environment variable and have access to the llama2 models

@@ -12,7 +12,7 @@ run_name: ${variables.run_name}
 model:
   name: hf_causal_lm
   pretrained: true
-  pretrained_model_name_or_path: meta-llama/Llama-3.1-70B-Instruct
+  pretrained_model_name_or_path: meta-llama/Meta-Llama-3-8B
   config_overrides:
     max_seq_len: ${variables.max_seq_len}
     attn_config:
@@ -24,7 +24,7 @@ model:
 
 # Tokenizer
 tokenizer:
-  name: meta-llama/Llama-3.1-70B-Instruct
+  name: meta-llama/Meta-Llama-3-8B
   kwargs:
     model_max_length: ${variables.max_seq_len}
 

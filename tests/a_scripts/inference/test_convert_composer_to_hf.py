@@ -231,6 +231,7 @@ def check_hf_tokenizer_equivalence(
         ) else attr2.content if hasattr(attr2, 'content') else str(attr2)
         assert attr_value1 == attr_value2
 
+    # Ignore 'extra_special_tokens' as it was added by the transformers library during save/load",
     if 'extra_special_tokens' in tokenizer2.init_kwargs and 'extra_special_tokens' not in tokenizer1.init_kwargs:
         tokenizer2.init_kwargs.pop('extra_special_tokens')
 

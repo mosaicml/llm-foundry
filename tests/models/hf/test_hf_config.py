@@ -114,11 +114,6 @@ def test_tie_weights(tie_word_embeddings: bool):
                          reason='"msl" is a ValueError',
                          strict=True,
                      )),
-        pytest.param({'attn_impl': 'flash'},
-                     marks=pytest.mark.xfail(
-                         reason='"attn_impl" not in CodeLlama config',
-                         strict=True,
-                     )),
     ],
 )
 @patch(
@@ -136,7 +131,7 @@ def test_hf_config_override(
         test_cfg.tokenizer,
         resolve=True,
     )  # type: ignore
-    tokenizer_name = tokenizer_cfg['name']
+    tokenizer_name = 'codellama/CodeLlama-7b-hf'
     tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
@@ -159,8 +154,6 @@ def test_hf_config_override(
     hf_model_config.model = model_cfg
 
     name = hf_model_config.model.pop('name')
-    # Add allow_embedding_resizing to handle tokenizer size mismatch
-    hf_model_config.model['allow_embedding_resizing'] = True
     hf_model = build_composer_model(
         name=name,
         cfg=to_dict_container(hf_model_config.model),

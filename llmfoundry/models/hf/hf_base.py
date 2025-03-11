@@ -234,7 +234,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
                 +
                 'Please use an older version of LLM Foundry (<0.18) or use a different model. '
                 +
-                'Please open a GitHub issue and we can help you downgrade or work around the issue.',
+                'Please open a GitHub issue if this is a problem for you and we can help you downgrade or work around the issue.',
             )
         # Resolve "mixed" init device to either "cpu" or "meta"
         resolved_init_device = hf_get_init_device(init_device)

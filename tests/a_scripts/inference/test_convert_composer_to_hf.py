@@ -329,6 +329,50 @@ def check_hf_model_equivalence(
         if not just_lora or 'lora' in n1:
             assert torch.equal(p1.cpu(), p2.cpu())
 
+def check_safetensors_precision(
+    model_path: str,
+    model: torch.nn.Module,
+    expected_precision: torch.dtype,
+    tolerance: float = 0.2
+):
+    """Verify that the safetensors files in model_path have the expected size based on precision.
+    
+    Args:
+        model_path: Path to the directory containing the safetensors files
+        model: The original model to count parameters from
+        expected_precision: The expected precision (torch.float32, torch.bfloat16, etc.)
+        tolerance: Allowed deviation from expected file size (as a ratio)
+    
+    Returns:
+        bool: True if the safetensors files have the expected size, False otherwise
+    """
+    import os
+    import glob
+    
+    total_params = sum(p.numel() for p in model.parameters())
+    # Determine expected bytes per parameter based on precision
+    bytes_per_param = {
+        torch.float32: 4,
+        torch.float16: 2,
+        torch.bfloat16: 2,
+        torch.int8: 1,
+    }.get(expected_precision, 4)
+    
+    expected_size = total_params * bytes_per_param
+    
+    safetensors_files = glob.glob(os.path.join(model_path, "*.safetensors"))
+    if not safetensors_files:
+        # If no safetensors files found, check pytorch_model.bin
+        safetensors_files = glob.glob(os.path.join(model_path, "pytorch_model*.bin"))
+        
+    if not safetensors_files:
+        return False
+    
+    total_size = sum(os.path.getsize(f) for f in safetensors_files)
+    size_ratio = total_size / expected_size
+    
+    is_correct_size = (1.0 - tolerance) <= size_ratio <= (1.0 + tolerance)
+    return is_correct_size
 
 # TODO(GRT-2435): Change to fixture
 def delete_transformers_cache():
@@ -634,14 +678,25 @@ def test_huggingface_conversion_callback_interval(
     assert len(normal_checkpoints) == expected_normal_checkpoints
     assert len(huggingface_checkpoints) == expected_hf_checkpoints
 
+    # Get path to the last checkpoint
+    checkpoint_path = os.path.join(
+        tmp_path,
+        'checkpoints',
+        'huggingface',
+        f'ba{batches_per_epoch}',
+    )
+    
+    # Verify the safetensors file size matches the expected precision
+    is_size_correct = check_safetensors_precision(
+        model_path=checkpoint_path,
+        model=trainer.state.model.model,
+        expected_precision=precision
+    )
+    assert is_size_correct, f"Safetensors file size doesn't match expected precision {precision_str}"
+
     # Load the last huggingface checkpoint
     loaded_model = transformers.AutoModelForCausalLM.from_pretrained(
-        os.path.join(
-            tmp_path,
-            'checkpoints',
-            'huggingface',
-            f'ba{batches_per_epoch}',
-        ),
+        checkpoint_path,
         trust_remote_code=True,
         torch_dtype=precision,
     )
@@ -660,14 +715,15 @@ def test_huggingface_conversion_callback_interval(
     loaded_model.config.init_device = original_model.model.config.init_device
 
     loaded_tokenizer = transformers.AutoTokenizer.from_pretrained(
-        os.path.join(
-            tmp_path,
-            'checkpoints',
-            'huggingface',
-            f'ba{batches_per_epoch}',
-        ),
+        checkpoint_path,
         trust_remote_code=True,
     )
+
+    # Also check that at least one parameter has the expected precision
+    for param_name, param in loaded_model.named_parameters():
+        assert param.dtype == precision, \
+            f"Parameter {param_name} has dtype {param.dtype}, expected {precision}"
+        break
 
     check_hf_model_equivalence(
         trainer.state.model.model.to(precision),

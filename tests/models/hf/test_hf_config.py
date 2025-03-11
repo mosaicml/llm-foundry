@@ -28,7 +28,7 @@ from llmfoundry.utils.config_utils import (
 
 
 def test_remote_code_false_mpt(
-    conf_path: str = 'scripts/train/yamls/finetune/mpt-7b_dolly_sft.yaml',
+    conf_path: str = 'scripts/train/yamls/finetune/llama-3-8b_dolly_sft.yaml',
 ):
     with open(conf_path) as f:
         test_cfg = om.load(f)

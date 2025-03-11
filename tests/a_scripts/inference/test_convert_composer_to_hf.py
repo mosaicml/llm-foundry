@@ -255,15 +255,6 @@ def check_hf_tokenizer_equivalence(
 
             # Additional special processing for _added_tokens_decoder
             if dict_map_key == '_added_tokens_decoder':
-                # Process tokenizer2's added_tokens_decoder
-                added_tokens_decoder2 = {}
-                for idx, token in tokenizer2.__dict__['_added_tokens_decoder'
-                                                     ].items():
-                    added_tokens_decoder2[idx] = str(token) if hasattr(
-                        token,
-                        'content',
-                    ) else token
-
                 # Additional token content processing for both tokenizers
                 for idx, token in tokenizer1.__dict__['_added_tokens_decoder'
                                                      ].items():
@@ -355,7 +346,8 @@ def check_safetensors_precision(
         torch.float16: 2,
         torch.bfloat16: 2,
         torch.int8: 1,
-    }.get(expected_precision, 4)
+    }.get(expected_precision)
+    assert bytes_per_param
 
     expected_size = total_params * bytes_per_param
 

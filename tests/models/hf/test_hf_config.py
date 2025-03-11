@@ -299,10 +299,6 @@ def test_use_flash():
     assert next(model.parameters()).dtype == torch.bfloat16
 
 
-@pytest.mark.skip(
-    reason=
-    'Skipping due to DeepSpeed Pydantic validation issues in dependencies',
-)
 def test_generation_config(tmp_path: Path):
     # Create a small llama model to edit and save.
     config = AutoConfig.from_pretrained('codellama/CodeLlama-7b-hf')

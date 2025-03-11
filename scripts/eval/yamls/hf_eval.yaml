@@ -23,16 +23,17 @@ models:
       model_max_length: ${variables.max_seq_len}
 # # if you are evaluating more than one model, list them all as YAML blocks without variable interpolation
 # -
-#   model_name: mosaicml/mpt-7b
+#   model_name: meta-llama/Llama-2-7b
 #   model:
 #     name: hf_causal_lm
-#     pretrained_model_name_or_path: mosaicml/mpt-7b
+#     pretrained_model_name_or_path: meta-llama/Llama-2-7b
 #     init_device: cpu
 #     pretrained: true
 #     config_overrides:
 #       max_seq_len: ${variables.max_seq_len}
+#     use_auth_token: true
 #   tokenizer:
-#     name: mosaicml/mpt-7b
+#     name: meta-llama/Llama-2-7b
 #     kwargs:
 #       model_max_length: ${variables.max_seq_len}
 

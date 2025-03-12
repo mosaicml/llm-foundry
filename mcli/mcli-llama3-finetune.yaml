@@ -40,7 +40,7 @@ parameters:
     init_device: mixed
     pretrained_model_name_or_path: meta-llama/Meta-Llama-3-8B
     pretrained: true
-    # Note: you must have set the HF_TOKEN environment variable and have access to the llama2 models
+    # Note: you must have set the HF_TOKEN environment variable and have access to the llama3 models
     use_auth_token: true
     use_flash_attention_2: true
 

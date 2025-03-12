@@ -12,19 +12,18 @@ run_name: ${variables.run_name}
 model:
   name: hf_causal_lm
   pretrained: true
-  pretrained_model_name_or_path: meta-llama/Meta-Llama-3-8B
+  pretrained_model_name_or_path: mosaicml/mpt-7b
   config_overrides:
     max_seq_len: ${variables.max_seq_len}
     attn_config:
       attn_impl: flash
       # Set this to `true` if using `train_loader.dataset.packing_ratio` below
       attn_uses_sequence_id: false
-  # Note: you must have set the HF_TOKEN environment variable and have access to the llama2 models
-  use_auth_token: true
+  use_auth_token: false
 
 # Tokenizer
 tokenizer:
-  name: meta-llama/Meta-Llama-3-8B
+  name: mosaicml/mpt-7b
   kwargs:
     model_max_length: ${variables.max_seq_len}
 

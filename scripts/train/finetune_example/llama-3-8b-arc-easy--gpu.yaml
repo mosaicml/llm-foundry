@@ -15,7 +15,7 @@ model:
       attn_impl: flash
       # Set this to `true` if using `train_loader.dataset.packing_ratio` below
       attn_uses_sequence_id: false
-  # Note: you must have set the HF_TOKEN environment variable and have access to the llama2 models
+  # Note: you must have set the HF_TOKEN environment variable and have access to the llama3 models
   use_auth_token: true
 
 # Tokenizer

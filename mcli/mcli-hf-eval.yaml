@@ -40,7 +40,7 @@ parameters:
       pretrained_model_name_or_path: meta-llama/Meta-Llama-3-8B
       init_device: mixed
       pretrained: true
-      # Note: you must have set the HF_TOKEN environment variable and have access to the llama2 models
+      # Note: you must have set the HF_TOKEN environment variable and have access to the llama3 models
       use_auth_token: true
 
   # FSDP config for model sharding

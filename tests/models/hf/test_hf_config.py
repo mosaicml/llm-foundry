@@ -55,7 +55,8 @@ def test_remote_code_false_mpt(
 
     with pytest.raises(
         ValueError,
-        match='trust_remote_code must be set to True for MPT models.',
+        match=
+        'The MPT series of models on the Hugging Face Hub is no longer supported by LLM Foundry',
     ):
         name = test_cfg.model.pop('name')
         _ = build_composer_model(
@@ -96,37 +97,22 @@ def test_tie_weights(tie_word_embeddings: bool):
     'model_cfg_overrides',
     [
         {
-            'max_seq_len': 1024,
+            'max_position_embeddings': 2048,
         },
         {
-            'attn_config': {
-                'attn_pdrop': 1.0,
-            },
+            'attention_dropout': 0.1,
         },
         {
-            'init_config': {
-                'emb_init_std': 5,
-            },
+            'initializer_range': 0.02,
         },
         {
-            'max_seq_len': 1024,
-            'attn_config': {
-                'attn_pdrop': 1.0,
-            },
-            'init_config': {
-                'emb_init_std': 5,
-            },
+            'max_position_embeddings': 2048,
+            'attention_dropout': 0.1,
+            'initializer_range': 0.02,
         },
         pytest.param({'msl': 1024},
                      marks=pytest.mark.xfail(
                          reason='"msl" is a ValueError',
-                         strict=True,
-                     )),
-        pytest.param({'attn_config': {
-            'attn_iml': 'flash',
-        }},
-                     marks=pytest.mark.xfail(
-                         reason='"attn_impl" mispelled',
                          strict=True,
                      )),
     ],
@@ -146,13 +132,14 @@ def test_hf_config_override(
         test_cfg.tokenizer,
         resolve=True,
     )  # type: ignore
-    tokenizer_name = tokenizer_cfg['name']
+    tokenizer_name = 'codellama/CodeLlama-7b-hf'
     tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
     tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
     tiny_overrides = {
-        'n_layers': 2,
-        'd_model': 128,
+        'num_hidden_layers': 2,
+        'hidden_size': 128,
+        'intermediate_size': 256,  # Added for CodeLlama
     }
 
     model_cfg_overrides.update(tiny_overrides)
@@ -161,7 +148,7 @@ def test_hf_config_override(
     hf_model_config = deepcopy(test_cfg)
     model_cfg = om.create({
         'name': 'hf_causal_lm',
-        'pretrained_model_name_or_path': 'mosaicml/mpt-7b',
+        'pretrained_model_name_or_path': 'codellama/CodeLlama-7b-hf',
         'pretrained': False,
         'config_overrides': model_cfg_overrides,
     })
@@ -189,7 +176,7 @@ def test_hf_config_override(
 def test_rope_scaling_override():
     model_cfg = {
         'name': 'hf_causal_lm',
-        'pretrained_model_name_or_path': 'meta-llama/Llama-2-7b-hf',
+        'pretrained_model_name_or_path': 'meta-llama/Meta-Llama-3-8B',
         'config_overrides': {
             'num_hidden_layers': 2,
             'hidden_size': 32,
@@ -248,6 +235,31 @@ def test_nested_override():
     assert model.config.ffn_config.moe_num_experts == 16
 
 
+def test_simple_dtype():
+    model_cfg = {
+        'name': 'hf_causal_lm',
+        'pretrained_model_name_or_path': 'codellama/CodeLlama-7b-hf',
+        'config_overrides': {
+            'num_hidden_layers': 2,
+            'hidden_size': 32,
+            'intermediate_size': 64,
+        },
+        'pretrained': False,
+        'init_device': 'cpu',
+        'use_flash_attention_2': False,
+    }
+
+    name = model_cfg.pop('name')
+    model = build_composer_model(
+        name=name,
+        cfg=model_cfg,
+        tokenizer=None,  # type: ignore
+    )
+
+    # Make sure that HF has not cast the parameters to bf16
+    assert next(model.parameters()).dtype == torch.float32
+
+
 @pytest.mark.gpu
 def test_use_flash():
     model_cfg = {
@@ -272,9 +284,9 @@ def test_use_flash():
     )
 
     from transformers.models.llama.modeling_llama import (
-        LlamaFlashAttention2,
+        LlamaAttention,
     )
-    flash_attn_class = LlamaFlashAttention2
+    flash_attn_class = LlamaAttention
     attention_layers_attr = 'model.model.layers'
     attention_attr = 'self_attn'
 
@@ -285,9 +297,7 @@ def test_use_flash():
         attention_attr,
     )
     assert isinstance(attention_layer, flash_attn_class)
-
-    # Make sure that HF has not cast the parameters to bf16
-    assert next(model.parameters()).dtype == torch.float32
+    assert next(model.parameters()).dtype == torch.bfloat16
 
 
 def test_generation_config(tmp_path: Path):
@@ -299,6 +309,7 @@ def test_generation_config(tmp_path: Path):
             'num_hidden_layers': 2,
             'hidden_size': 32,
             'intermediate_size': 64,
+            'vocab_size': 32016,
         },
     )
     model = AutoModelForCausalLM.from_config(config)

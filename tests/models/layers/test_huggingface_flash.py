@@ -33,9 +33,8 @@ def test_flash2(model_name: str, use_flash_attention_2: bool, init_device: str):
         tokenizer_name = 'codellama/CodeLlama-7b-hf'
         from transformers.models.llama.modeling_llama import (
             LlamaAttention,
-            LlamaFlashAttention2,
         )
-        flash_attn_class = LlamaFlashAttention2 if use_flash_attention_2 else LlamaAttention
+        flash_attn_class = LlamaAttention  # transformers 4.49.0 has baked FA2 into FA
         attention_layers_attr = 'model.model.layers'
         attention_attr = 'self_attn'
     else:

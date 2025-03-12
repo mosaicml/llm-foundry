@@ -28,19 +28,20 @@ parameters:
 
   models:
   -
-    model_name: mosaicml/mpt-7b-instruct
+    model_name: meta-llama/Meta-Llama-3-8B
     # Tokenizer
     tokenizer:
-      name: EleutherAI/gpt-neox-20b
+      name: meta-llama/Meta-Llama-3-8B
       kwargs:
         model_max_length: ${max_seq_len}
 
     model:
       name: hf_causal_lm
-      pretrained_model_name_or_path: mosaicml/mpt-7b-instruct
+      pretrained_model_name_or_path: meta-llama/Meta-Llama-3-8B
       init_device: mixed
       pretrained: true
-      use_auth_token: false
+      # Note: you must have set the HF_TOKEN environment variable and have access to the llama3 models
+      use_auth_token: true
 
   # FSDP config for model sharding
   fsdp_config:

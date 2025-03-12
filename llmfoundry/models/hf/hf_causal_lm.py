@@ -80,27 +80,6 @@ class ComposerHFCausalLM(BaseHuggingFaceModel):
         additional_eval_metrics: Optional[list] = None,
         should_save_peft_only: bool = True,
     ):
-        is_mpt_model = pretrained_model_name_or_path.startswith('mosaicml/mpt')
-        # Check for attn_impl in config_overrides
-        is_flash_requested = use_flash_attention_2
-        if config_overrides and 'attn_config' in config_overrides:
-            attn_config = config_overrides.get('attn_config', {})
-            if isinstance(attn_config,
-                          dict) and attn_config.get('attn_impl') == 'flash':
-                is_flash_requested = True
-
-        if is_mpt_model and is_flash_requested:
-            import importlib.metadata
-
-            from packaging import version
-            flash_version = importlib.metadata.version('flash-attn')
-            if version.parse(flash_version) > version.parse('2.6.9'):
-                raise ValueError(
-                    f'Flash Attention version {flash_version} (>2.6) is not supported with MPT models. '
-                    +
-                    'Please use Flash Attention version 2.6 or earlier, or use a different attention implementation.',
-                )
-
         super().__init__(
             pretrained_model_name_or_path,
             tokenizer=tokenizer,

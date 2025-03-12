@@ -62,7 +62,7 @@ jobs:
           STAGING_REPO="mosaicml/ci-staging"
           # GHCR_STAGING_REPO="ghcr.io/databricks-mosaic/ci-staging"
           # GHCR_IMAGE_TAG="${GHCR_STAGING_REPO}:${{matrix.name}}-${GIT_SHA}"
-          IMAGE_TAG="${STAGING_REPO}:${{matrix.name}}-${GIT_SHA},#${GHCR_IMAGE_TAG}"
+          IMAGE_TAG="${STAGING_REPO}:${{matrix.name}}-${GIT_SHA}"#,${GHCR_IMAGE_TAG}
           IMAGE_CACHE="${STAGING_REPO}:${{matrix.name}}-buildcache"
         else
           # Triggered by push or workflow_dispatch event
@@ -70,7 +70,7 @@ jobs:
           PROD_REPO="mosaicml/llm-foundry"
           # GHCR_PROD_REPO="ghcr.io/databricks-mosaic/llm-foundry"
           # GHCR_IMAGE_TAG="${GHCR_PROD_REPO}:${{matrix.name}}-${GIT_SHA},${GHCR_PROD_REPO}:${{matrix.name}}-latest"
-          IMAGE_TAG="${PROD_REPO}:${{matrix.name}}-${GIT_SHA},${PROD_REPO}:${{matrix.name}}-latest,#${GHCR_IMAGE_TAG}"
+          IMAGE_TAG="${PROD_REPO}:${{matrix.name}}-${GIT_SHA},${PROD_REPO}:${{matrix.name}}-latest",#${GHCR_IMAGE_TAG}
           IMAGE_CACHE="${PROD_REPO}:${{matrix.name}}-buildcache"
         fi
 

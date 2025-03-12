@@ -55,7 +55,7 @@ def test_remote_code_false_mpt(
 
     with pytest.raises(
         ValueError,
-        match='trust_remote_code must be set to True for MPT models.',
+        match='The MPT series of models on the Hugging Face Hub is no longer supported by LLM Foundry',
     ):
         name = test_cfg.model.pop('name')
         _ = build_composer_model(

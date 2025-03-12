@@ -40,12 +40,12 @@ jobs:
         username: ${{ secrets.DOCKER_HUB_USERNAME }}
         password: ${{ secrets.DOCKER_HUB_PASSWORD }}
 
-    - name: Login to GHCR
-      uses: docker/login-action@v2
-      with:
-        username: ${{ secrets.GHCR_USERNAME }}
-        password: ${{ secrets.GHCR_TOKEN }}
-        registry: ghcr.io
+    # - name: Login to GHCR
+    #   uses: docker/login-action@v2
+    #   with:
+    #     username: ${{ secrets.GHCR_USERNAME }}
+    #     password: ${{ secrets.GHCR_TOKEN }}
+    #     registry: ghcr.io
 
     - name: Calculate Docker Image Variables
       run: |
@@ -60,17 +60,17 @@ jobs:
         if [ "${{ github.event_name }}" == "pull_request" ]; then
           echo "Triggered by pull_request event."
           STAGING_REPO="mosaicml/ci-staging"
-          GHCR_STAGING_REPO="ghcr.io/databricks-mosaic/ci-staging"
-          GHCR_IMAGE_TAG="${GHCR_STAGING_REPO}:${{matrix.name}}-${GIT_SHA}"
-          IMAGE_TAG="${STAGING_REPO}:${{matrix.name}}-${GIT_SHA},${GHCR_IMAGE_TAG}"
+          # GHCR_STAGING_REPO="ghcr.io/databricks-mosaic/ci-staging"
+          # GHCR_IMAGE_TAG="${GHCR_STAGING_REPO}:${{matrix.name}}-${GIT_SHA}"
+          IMAGE_TAG="${STAGING_REPO}:${{matrix.name}}-${GIT_SHA}"
           IMAGE_CACHE="${STAGING_REPO}:${{matrix.name}}-buildcache"
         else
           # Triggered by push or workflow_dispatch event
           echo "Triggered by ${{ github.event_name }} event, releasing to prod"
           PROD_REPO="mosaicml/llm-foundry"
-          GHCR_PROD_REPO="ghcr.io/databricks-mosaic/llm-foundry"
-          GHCR_IMAGE_TAG="${GHCR_PROD_REPO}:${{matrix.name}}-${GIT_SHA},${GHCR_PROD_REPO}:${{matrix.name}}-latest"
-          IMAGE_TAG="${PROD_REPO}:${{matrix.name}}-${GIT_SHA},${PROD_REPO}:${{matrix.name}}-latest,${GHCR_IMAGE_TAG}"
+          # GHCR_PROD_REPO="ghcr.io/databricks-mosaic/llm-foundry"
+          # GHCR_IMAGE_TAG="${GHCR_PROD_REPO}:${{matrix.name}}-${GIT_SHA},${GHCR_PROD_REPO}:${{matrix.name}}-latest"
+          IMAGE_TAG="${PROD_REPO}:${{matrix.name}}-${GIT_SHA},${PROD_REPO}:${{matrix.name}}-latest"
           IMAGE_CACHE="${PROD_REPO}:${{matrix.name}}-buildcache"
         fi
 

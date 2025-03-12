@@ -15,16 +15,18 @@ run_name:  # If left blank, will be read from env var $COMPOSER_RUN_NAME
 model:
   name: hf_causal_lm
   pretrained: true
-  pretrained_model_name_or_path: mosaicml/mpt-7b
+  pretrained_model_name_or_path: meta-llama/Meta-Llama-3-8B
   config_overrides:
     max_seq_len: ${variables.max_seq_len}
     attn_config:
       attn_impl: flash
       attn_uses_sequence_id: false
+  # Note: you must have set the HF_TOKEN environment variable and have access to the llama3 models
+  use_auth_token: true
 
 # Tokenizer
 tokenizer:
-  name: mosaicml/mpt-7b
+  name: meta-llama/Meta-Llama-3-8B
   kwargs:
     model_max_length: ${variables.max_seq_len}
 

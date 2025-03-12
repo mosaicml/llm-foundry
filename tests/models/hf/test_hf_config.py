@@ -55,7 +55,8 @@ def test_remote_code_false_mpt(
 
     with pytest.raises(
         ValueError,
-        match='The MPT series of models on the Hugging Face Hub is no longer supported by LLM Foundry',
+        match=
+        'The MPT series of models on the Hugging Face Hub is no longer supported by LLM Foundry',
     ):
         name = test_cfg.model.pop('name')
         _ = build_composer_model(

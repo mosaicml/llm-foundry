@@ -19,6 +19,7 @@ from llmfoundry.command_utils.data_prep.convert_delta_to_json import (
 if TYPE_CHECKING:
     from databricks.sql.client import Cursor
     from pyspark.sql import SparkSession
+    from pyspark.sql.types import Row
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,10 @@ def validate_columns_in_table(
 
         # Get the actual column names
         assert result
+
+        # Assert typing
+        assert isinstance(result, list)
+        assert all(isinstance(row, 'Row') for row in result)
         actual_columns = [row.asDict()['col_name'] for row in result]
 
         missing_required = set(required_columns) - set(actual_columns)

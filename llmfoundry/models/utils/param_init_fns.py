@@ -490,8 +490,8 @@ def _megablocks_sparse_mlp_generic_param_init_fn_(
     expert_process_group_size, rank = 1, 0
     if module.expert_parallel_group is not None:
         expert_process_group_size = int(
-            module.expert_parallel_group.size(),
-        )  # type: ignore
+            module.expert_parallel_group.size(), # type: ignore
+        )
         rank = int(module.expert_parallel_group.rank())  # type: ignore
 
     hidden_size = int(module.hidden_size)  # type: ignore
@@ -560,8 +560,8 @@ def _megablocks_sparse_glu_generic_param_init_fn_(
     expert_process_group_size, rank = 1, 0
     if module.expert_parallel_group is not None:
         expert_process_group_size = int(
-            module.expert_parallel_group.size(),
-        )  # type: ignore
+            module.expert_parallel_group.size(), # type: ignore
+        )
         rank = int(module.expert_parallel_group.rank())  # type: ignore
 
     hidden_size = int(module.hidden_size)  # type: ignore
@@ -606,8 +606,8 @@ def _megablocks_mlp_generic_param_init_fn_(
     expert_process_group_size, rank = 1, 0
     if module.expert_parallel_group is not None:
         expert_process_group_size = int(
-            module.expert_parallel_group.size(),
-        )  # type: ignore
+            module.expert_parallel_group.size(), # type: ignore
+        )
         rank = int(module.expert_parallel_group.rank())  # type: ignore
 
     _init_fn_ = _flip_fan_mode(init_fn_)

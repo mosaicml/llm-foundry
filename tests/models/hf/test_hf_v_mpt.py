@@ -77,15 +77,19 @@ def test_compare_hf_v_mpt(
         cfg=to_dict_container(hf_cfg.model),
         tokenizer=tokenizer,
     ).to(device)
+
+    assert isinstance(hf_model.model, torch.nn.Module)
+    assert isinstance(hf_model.model.config, torch.nn.Module)
+
     hf_n_params = sum(p.numel() for p in hf_model.parameters())
 
     hf_model.model.config.embd_pdrop = dropout
-    hf_model.model.transformer.drop.p = dropout
+    hf_model.model.transformer.drop.p = dropout # type: ignore
 
     hf_model.model.config.resid_pdrop = dropout
-    for b in hf_model.model.transformer.h:
+    for b in hf_model.model.transformer.h: # type: ignore
         b.mlp.dropout.p = dropout
-    for b in hf_model.model.transformer.h:
+    for b in hf_model.model.transformer.h: # type: ignore
         b.attn.resid_dropout.p = dropout
 
     # in mosaic gpt, attn_dropout is integrated into the FlashMHA kernel
@@ -93,7 +97,7 @@ def test_compare_hf_v_mpt(
     # regardless of if rng is seeded
     # attn_dropout must be set to 0 for numerical comparisons.
     hf_model.model.config.attn_pdrop = 0.0
-    for b in hf_model.model.transformer.h:
+    for b in hf_model.model.transformer.h: # type: ignore
         b.attn.attn_dropout.p = 0.0
 
     # get mosaic 125m config
@@ -144,13 +148,13 @@ def test_compare_hf_v_mpt(
     batch = {}
     batch['input_ids'] = torch.randint(
         low=0,
-        high=model_cfg.vocab_size,
-        size=(batch_size, model_cfg.max_seq_len),
+        high=model_cfg.vocab_size, # type: ignore
+        size=(batch_size, model_cfg.max_seq_len), # type: ignore
     ).to(device)
     batch['labels'] = torch.randint(
         low=0,
-        high=model_cfg.vocab_size,
-        size=(batch_size, model_cfg.max_seq_len),
+        high=model_cfg.vocab_size, # type: ignore
+        size=(batch_size, model_cfg.max_seq_len), # type: ignore
     ).to(device)
     kpm = None
     if no_attn_mask:
@@ -158,12 +162,12 @@ def test_compare_hf_v_mpt(
             _ = batch.pop('attention_mask')
     else:
         batch['attention_mask'] = torch.ones(
-            size=(batch_size, model_cfg.max_seq_len),
+            size=(batch_size, model_cfg.max_seq_len), # type: ignore
             dtype=torch.int64,
         ).to(device)
         # mask out some tokens
         assert mask_val is not None
-        batch['attention_mask'][:, model_cfg.max_seq_len // 2:] = mask_val
+        batch['attention_mask'][:, model_cfg.max_seq_len // 2:] = mask_val # type: ignore
         kpm = batch['attention_mask'].view(*batch['attention_mask'].shape, 1)
 
     hf_model.train()

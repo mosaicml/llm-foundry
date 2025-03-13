@@ -395,6 +395,7 @@ def attach_ffn_mb_args(
         expert_parallel_group (ProcessGroup): The expert parallel process group.
         args (megablocks.layers.arguments.Arguments): The arguments for MegaBlocks.
     """
+    assert isinstance(ffn, dMoE)
     ffn.experts.mlp.hidden_size = args.ffn_hidden_size
     ffn.experts.mlp.expert_parallel_group = expert_parallel_group
 
@@ -437,6 +438,7 @@ def set_ffn_device_mesh(
         ValueError: If the device mesh is not 2D or 3D.
     """
     if moe_world_size > 1:
+        assert isinstance(ffn, dMoE)
         expert_mesh = device_mesh['expert_parallel']
         expert_placements: list[Placement] = [Shard(0)]
         # Register in two loops as you cannot overwrite parameters while iterating over named_parameters()
@@ -464,6 +466,7 @@ def moe_fused_init_setup(ffn: nn.Module,):
     Args:
         ffn (nn.Module): The FFN module.
     """
+    assert isinstance(ffn, dMoE)
     ffn.experts.mlp._stack_dim = 0
 
 
@@ -523,6 +526,7 @@ def dmoe_fused_init_setup(
         args (megablocks.layers.arguments.Arguments): The arguments for MegaBlocks.
         moe_world_size (int): The MoE world size.
     """
+    assert isinstance(ffn, dMoE)
     n_exp = min(1, args.moe_num_experts // moe_world_size)
     ffn.experts.mlp._fused = (
         0,

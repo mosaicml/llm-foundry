@@ -16,7 +16,6 @@ from transformers import (
     PretrainedConfig,
     PreTrainedModel,
 )
-
 from llmfoundry.models.hf.hf_fsdp import rgetattr
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils import build_tokenizer
@@ -198,8 +197,8 @@ def test_rope_scaling_override():
         tokenizer=None,  # type: ignore
     )
     # This would error if the config isn't parsed into a proper dictionary
-    model.get_metadata()
-    assert model.config.rope_scaling == {'type': 'dynamic', 'factor': 0.5}
+    model.get_metadata() # type: ignore
+    assert model.config.rope_scaling == {'type': 'dynamic', 'factor': 0.5} # type: ignore
 
 
 @pytest.mark.skipif(
@@ -228,11 +227,11 @@ def test_nested_override():
     )
 
     # The value we changed
-    assert model.config.ffn_config.ffn_hidden_size == 500
+    assert model.config.ffn_config.ffn_hidden_size == 500 # type: ignore
     # Ensure we still have a config, and haven't replaced it with a dictionary
-    assert isinstance(model.config.ffn_config, PretrainedConfig)
+    assert isinstance(model.config.ffn_config, PretrainedConfig) # type: ignore
     # Ensure the other values still exist and are not set back to their defaults
-    assert model.config.ffn_config.moe_num_experts == 16
+    assert model.config.ffn_config.moe_num_experts == 16 # type: ignore
 
 
 def test_simple_dtype():
@@ -291,7 +290,7 @@ def test_use_flash():
     attention_attr = 'self_attn'
 
     # check that it actually used flash attention 2
-    assert model.model.config._attn_implementation == ('flash_attention_2')
+    assert model.model.config._attn_implementation == ('flash_attention_2') # type: ignore
     attention_layer = rgetattr(
         rgetattr(model, attention_layers_attr)[0],
         attention_attr,
@@ -349,7 +348,7 @@ def test_generation_config(tmp_path: Path):
     inner_model = model.model
 
     assert isinstance(inner_model, PreTrainedModel)
-    assert inner_model.generation_config is not None
+    assert inner_model.generation_config is not None # type: ignore
 
     # save_pretrained and reloading with hf_causal_lm should use the bos_token_id we set from earlier.
-    assert inner_model.generation_config.bos_token_id == new_bos_token_id
+    assert inner_model.generation_config.bos_token_id == new_bos_token_id # type: ignore

@@ -4,6 +4,7 @@
 import contextlib
 
 import pytest
+import torch
 from composer.core.precision import get_precision_context
 
 from llmfoundry.models.hf.hf_fsdp import rgetattr
@@ -62,6 +63,9 @@ def test_flash2(model_name: str, use_flash_attention_2: bool, init_device: str):
             cfg=model_cfg,
             tokenizer=tokenizer,
         )
+        # Asserting types
+        assert isinstance(model.model, torch.nn.Module)
+        assert isinstance(model.model.config, torch.nn.Module)
 
         # check that it actually used flash attention 2
         assert model.model.config._attn_implementation == (

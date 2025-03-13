@@ -236,7 +236,7 @@ def run_query(
             raise ValueError(f'cursor cannot be None if using method dbsql')
         cursor.execute(query)
         if collect:
-            return cursor.fetchall()
+            return cursor.fetchall() # type: ignore
     elif method == 'dbconnect':
         if spark == None:
             raise ValueError(f'sparkSession is required for dbconnect')
@@ -738,12 +738,12 @@ def fetch_DT(
                 message=
                 f'You do not have permission to attach to the data preparation cluster you provided. {e}',
             ) from e
-        if isinstance(e, grpc.RpcError) and e.code(
-        ) == grpc.StatusCode.INTERNAL and 'Job aborted due to stage failure' in e.details(
-        ):
+        if isinstance(e, grpc.RpcError) and \
+            e.code() == grpc.StatusCode.INTERNAL and # type: ignore
+            'Job aborted due to stage failure' in e.details(): # type: ignore
             raise FaultyDataPrepCluster(
                 message=
-                f'Faulty data prep cluster, please try swapping data prep cluster: {e.details()}',
+                f'Faulty data prep cluster, please try swapping data prep cluster: {e.details()}', # type: ignore
             ) from e
         raise e
 

@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from typing import Union
+import torch
 
 import pytest
 from composer import Trainer
@@ -63,6 +64,13 @@ def test_fsdp_act_checkpoint(
     )
 
     assert trainer.state.fsdp_enabled
+
+    # Asserting that all of these are modules and not Tensors
+    assert isinstance(trainer.state.model.model, torch.nn.Module)
+    assert isinstance(trainer.state.model.model._fsdp_wrapped_module, torch.nn.Module)
+    assert isinstance(trainer.state.model.model._fsdp_wrapped_module.transformer, torch.nn.Module)
+    assert isinstance(trainer.state.model.model._fsdp_wrapped_module.transformer.blocks, torch.nn.ModuleList)
+
     if not activation_checkpointing:
         assert not isinstance(
             trainer.state.model.model._fsdp_wrapped_module.transformer.
@@ -78,7 +86,7 @@ def test_fsdp_act_checkpoint(
     ] or activation_checkpointing_target == 'grouped_query_attention':
         assert isinstance(
             trainer.state.model.model._fsdp_wrapped_module.transformer.
-            blocks[0]._fsdp_wrapped_module.attn,
+            blocks[0]._fsdp_wrapped_module.attn, # type: ignore
             CheckpointWrapper,
         )
     elif activation_checkpointing_target == {
@@ -87,17 +95,17 @@ def test_fsdp_act_checkpoint(
     }:
         assert isinstance(
             trainer.state.model.model._fsdp_wrapped_module.transformer.
-            blocks[0]._fsdp_wrapped_module.attn,
+            blocks[0]._fsdp_wrapped_module.attn, # type: ignore
             CheckpointWrapper,
         )
         assert isinstance(
             trainer.state.model.model._fsdp_wrapped_module.transformer.
-            blocks[1]._fsdp_wrapped_module,
+            blocks[1]._fsdp_wrapped_module, # type: ignore
             CheckpointWrapper,
         )
         assert isinstance(
             trainer.state.model.model._fsdp_wrapped_module.transformer.
-            blocks[2]._fsdp_wrapped_module.attn,
+            blocks[2]._fsdp_wrapped_module.attn, # type: ignore
             CheckpointWrapper,
         )
     else:

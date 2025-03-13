@@ -312,9 +312,9 @@ def test_attention_mechanism(
                        device=input_ids.device).unsqueeze(0)
 
     with get_precision_context(test_cfg.precision):
-        tok_emb = model.model.transformer.wte(input_ids) # type: ignore
-        pos_emb = model.model.transformer.wpe(pos) # type: ignore
-        x = model.model.transformer.emb_drop(tok_emb + pos_emb) # type: ignore
+        tok_emb = model.model.transformer.wte(input_ids)  # type: ignore
+        pos_emb = model.model.transformer.wpe(pos)  # type: ignore
+        x = model.model.transformer.emb_drop(tok_emb + pos_emb)  # type: ignore
 
         # basically the attention mask should be a tensor shape (bsz, seqlen, seqlen)
         # wih -inf along the upper triangle as well as wherever there are any pad tokens
@@ -336,7 +336,7 @@ def test_attention_mechanism(
             attention_mask=attention_mask,
         )
 
-        for block in model.model.transformer.blocks: # type: ignore
+        for block in model.model.transformer.blocks:  # type: ignore
             a = block.norm_1(x)
             b, attention_weights, _ = block.attn(
                 a,
@@ -400,7 +400,7 @@ def test_full_forward_and_backward_gpt2_small(batch_size: int = 2):
     )
 
     # set vocab size using model num_embeddings
-    neo_cfg.model.vocab_size = model.model.transformer.wte.num_embeddings # type: ignore
+    neo_cfg.model.vocab_size = model.model.transformer.wte.num_embeddings  # type: ignore
     batch = gen_random_batch(batch_size, neo_cfg)
 
     assert batch['input_ids'].shape == torch.Size([
@@ -777,7 +777,7 @@ def test_loss_reduction(loss_fn_config: str):
         loss_1 = model_1.loss(output_1, batch)
 
         # Loss for model_2 gets reduced within the loss_fn, so we handle it separately
-        targets = model_2.get_targets(batch) # type: ignore
+        targets = model_2.get_targets(batch)  # type: ignore
         loss_2 = model_2.loss_fn(
             output_2.logits.view(-1, output_2.logits.size(-1)),
             targets.view(-1),
@@ -2707,27 +2707,39 @@ def test_construct_blocks():
 
     assert len(block_list) == n_layers
 
-    assert block_list[0].attn.sliding_window_size == -1 # type: ignore
-    assert block_list[0].attn.reuse_kv_layer_idx is None # type: ignore
+    assert block_list[0].attn.sliding_window_size == -1  # type: ignore
+    assert block_list[0].attn.reuse_kv_layer_idx is None  # type: ignore
 
     for layer_offset in [1, 7]:
-        assert block_list[layer_offset].attn.sliding_window_size == 1024 # type: ignore
-        assert block_list[layer_offset].attn.reuse_kv_layer_idx is None # type: ignore
-        assert block_list[layer_offset + 1].attn.sliding_window_size == 1024 # type: ignore
+        assert block_list[layer_offset
+                         ].attn.sliding_window_size == 1024  # type: ignore
+        assert block_list[layer_offset
+                         ].attn.reuse_kv_layer_idx is None  # type: ignore
         assert block_list[layer_offset +
-                          1].attn.reuse_kv_layer_idx == layer_offset # type: ignore
+                          1].attn.sliding_window_size == 1024  # type: ignore
+        assert block_list[
+            layer_offset +
+            1].attn.reuse_kv_layer_idx == layer_offset  # type: ignore
 
-        assert block_list[layer_offset + 2].attn.sliding_window_size == 1024 # type: ignore
-        assert block_list[layer_offset + 2].attn.reuse_kv_layer_idx is None # type: ignore
-        assert block_list[layer_offset + 3].attn.sliding_window_size == 1024 # type: ignore
         assert block_list[layer_offset +
-                          3].attn.reuse_kv_layer_idx == layer_offset + 2 # type: ignore
-        assert block_list[layer_offset + 4].attn.sliding_window_size == 1024 # type: ignore
+                          2].attn.sliding_window_size == 1024  # type: ignore
         assert block_list[layer_offset +
-                          4].attn.reuse_kv_layer_idx == layer_offset + 2 # type: ignore
+                          2].attn.reuse_kv_layer_idx is None  # type: ignore
+        assert block_list[layer_offset +
+                          3].attn.sliding_window_size == 1024  # type: ignore
+        assert block_list[
+            layer_offset +
+            3].attn.reuse_kv_layer_idx == layer_offset + 2  # type: ignore
+        assert block_list[layer_offset +
+                          4].attn.sliding_window_size == 1024  # type: ignore
+        assert block_list[
+            layer_offset +
+            4].attn.reuse_kv_layer_idx == layer_offset + 2  # type: ignore
 
-        assert block_list[layer_offset + 5].attn.sliding_window_size == -1 # type: ignore
-        assert block_list[layer_offset + 5].attn.reuse_kv_layer_idx == 0 # type: ignore
+        assert block_list[layer_offset +
+                          5].attn.sliding_window_size == -1  # type: ignore
+        assert block_list[layer_offset +
+                          5].attn.reuse_kv_layer_idx == 0  # type: ignore
 
 
 @pytest.mark.gpu
@@ -2778,7 +2790,9 @@ def test_reuse_prev_layer_kv_cache(
             prev_layer_key_value_dict[b_idx] = kwargs['prev_layer_key_value']
         return b_forward(*args, **kwargs)
 
-    for b_idx, block in enumerate(model.model.transformer.blocks): # type: ignore
+    for b_idx, block in enumerate(
+        model.model.transformer.blocks,  # type: ignore
+    ):
         block.forward = partial(mock_forward, block.forward, b_idx)
 
     with get_precision_context(test_cfg.precision):

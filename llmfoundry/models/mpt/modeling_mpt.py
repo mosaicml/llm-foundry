@@ -1264,12 +1264,12 @@ class MPTForCausalLM(MPTPreTrainedModel):
         act_ckpt_mod_to_blocks = build_act_ckpt_mod_to_blocks(
             act_ckpt_target,
             MPTBlock,
-            module.max_block_idx, # type: ignore
+            module.max_block_idx,  # type: ignore
         )
 
         check_mapping_blocks_overlap(
             act_ckpt_mod_to_blocks,
-            module.max_block_idx, # type: ignore
+            module.max_block_idx,  # type: ignore
         )
 
         for k in act_ckpt_mod_to_blocks.keys():
@@ -1356,10 +1356,11 @@ def compute_loss_from_logits(
         targets.view(-1),
     )
 
-    if torch.all(targets == loss_fn.ignore_index): # type: ignore
+    if torch.all(targets == loss_fn.ignore_index):  # type: ignore
         loss = losses.sum()
     else:
-        loss = losses.sum() / (targets != loss_fn.ignore_index).sum() # type: ignore
+        loss = losses.sum() / (targets !=
+                               loss_fn.ignore_index).sum()  # type: ignore
 
     return loss
 

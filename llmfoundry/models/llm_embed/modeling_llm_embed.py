@@ -48,7 +48,7 @@ class ContrastiveEvalLoss(Metric):
         if loss.device != self.loss.device:
             loss = loss.to(self.loss.device)
         self.loss += loss
-        self.total += 1 # type: ignore
+        self.total += 1  # type: ignore
 
     def compute(self):
         assert isinstance(self.loss, torch.Tensor)

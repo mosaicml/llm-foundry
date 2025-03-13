@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from typing import Union
-import torch
 
 import pytest
+import torch
 from composer import Trainer
 from composer.utils import get_device
 from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import \
@@ -67,9 +67,18 @@ def test_fsdp_act_checkpoint(
 
     # Asserting that all of these are modules and not Tensors
     assert isinstance(trainer.state.model.model, torch.nn.Module)
-    assert isinstance(trainer.state.model.model._fsdp_wrapped_module, torch.nn.Module)
-    assert isinstance(trainer.state.model.model._fsdp_wrapped_module.transformer, torch.nn.Module)
-    assert isinstance(trainer.state.model.model._fsdp_wrapped_module.transformer.blocks, torch.nn.ModuleList)
+    assert isinstance(
+        trainer.state.model.model._fsdp_wrapped_module,
+        torch.nn.Module,
+    )
+    assert isinstance(
+        trainer.state.model.model._fsdp_wrapped_module.transformer,
+        torch.nn.Module,
+    )
+    assert isinstance(
+        trainer.state.model.model._fsdp_wrapped_module.transformer.blocks,
+        torch.nn.ModuleList,
+    )
 
     if not activation_checkpointing:
         assert not isinstance(

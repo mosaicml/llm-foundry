@@ -97,8 +97,8 @@ class LossPerpVsContextLengthLogger(Callback):
                 sequence_id,
                 labels,
                 logits,
-                seq_parallel_world_size, # type: ignore
-                seq_parallel_rank, # type: ignore
+                seq_parallel_world_size,  # type: ignore
+                seq_parallel_rank,  # type: ignore
             )
 
             self.loss_perp_v_len.update(

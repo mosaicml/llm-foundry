@@ -973,7 +973,7 @@ def _assert_checkpoint_equivalence(
         # to the original for the equivalence check
         if peft_config is None:
             assert loaded_model.config.torch_dtype == precision
-            loaded_model.config.torch_dtype = original_model.model.config.torch_dtype # type: ignore
+            loaded_model.config.torch_dtype = original_model.model.config.torch_dtype  # type: ignore
 
         if model == 'mpt':
             # Check that we have correctly set these attributes, and then set them back
@@ -981,9 +981,10 @@ def _assert_checkpoint_equivalence(
             assert loaded_model.config.attn_config['attn_impl'] == 'torch'
             assert loaded_model.config.init_device == 'cpu'
             loaded_model.config.attn_config[
-                'attn_impl'] = original_model.model.config.attn_config[ # type: ignore
-                    'attn_impl']
-            loaded_model.config.init_device = original_model.model.config.init_device # type: ignore
+                'attn_impl'
+            ] = original_model.model.config.attn_config[  # type: ignore
+                'attn_impl']
+            loaded_model.config.init_device = original_model.model.config.init_device  # type: ignore
 
         loaded_tokenizer = transformers.AutoTokenizer.from_pretrained(
             os.path.join(
@@ -1714,7 +1715,7 @@ def test_mptmoe_huggingface_conversion_callback(
             # Check that the loaded model has the correct precision, and then set it back
             # to the original for the equivalence check
             assert loaded_model.config.torch_dtype == precision_str
-            loaded_model.config.torch_dtype = original_model.model.config.torch_dtype # type: ignore
+            loaded_model.config.torch_dtype = original_model.model.config.torch_dtype  # type: ignore
 
             loaded_tokenizer = transformers.AutoTokenizer.from_pretrained(
                 os.path.join(
@@ -1795,7 +1796,7 @@ def test_mpt_convert_simple(
         cfg=model_cfg,
     )
 
-    original_model.model.save_pretrained(str(tmp_path)) # type: ignore
+    original_model.model.save_pretrained(str(tmp_path))  # type: ignore
 
     edit_files_for_hf_compatibility(str(tmp_path))
 

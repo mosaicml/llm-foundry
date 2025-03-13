@@ -395,9 +395,8 @@ def attach_ffn_mb_args(
         expert_parallel_group (ProcessGroup): The expert parallel process group.
         args (megablocks.layers.arguments.Arguments): The arguments for MegaBlocks.
     """
-    assert isinstance(ffn, dMoE)
-    ffn.experts.mlp.hidden_size = args.ffn_hidden_size
-    ffn.experts.mlp.expert_parallel_group = expert_parallel_group
+    ffn.experts.mlp.hidden_size = args.ffn_hidden_size  # type: ignore
+    ffn.experts.mlp.expert_parallel_group = expert_parallel_group  # type: ignore
 
 
 def get_fsdp_submesh_2d(device_mesh: DeviceMesh):
@@ -438,24 +437,29 @@ def set_ffn_device_mesh(
         ValueError: If the device mesh is not 2D or 3D.
     """
     if moe_world_size > 1:
-        assert isinstance(ffn, dMoE)
         expert_mesh = device_mesh['expert_parallel']
         expert_placements: list[Placement] = [Shard(0)]
         # Register in two loops as you cannot overwrite parameters while iterating over named_parameters()
-        dtensorified_params = [(
-            name,
-            dtensorify_param(
-                param=parameter,
-                mesh=expert_mesh,
-                placements=expert_placements,
-            ),
-        ) for name, parameter in ffn.experts.mlp.named_parameters()]
+        dtensorified_params = [
+            (
+                name,
+                dtensorify_param(
+                    param=parameter,
+                    mesh=expert_mesh,
+                    placements=expert_placements,
+                ),
+            ) for name, parameter in \
+                ffn.experts.mlp.named_parameters()  # type: ignore
+        ]
         for name, dtensorified_param in dtensorified_params:
-            ffn.experts.mlp.register_parameter(name, dtensorified_param)
+            ffn.experts.mlp.register_parameter(  # type: ignore
+                name,
+                dtensorified_param,
+            )
 
         submesh = get_fsdp_submesh(device_mesh)
 
-        ffn.experts._fsdp_kwargs_dict = {
+        ffn.experts._fsdp_kwargs_dict = {  # type: ignore
             'device_mesh': submesh,
         }
 
@@ -466,8 +470,7 @@ def moe_fused_init_setup(ffn: nn.Module,):
     Args:
         ffn (nn.Module): The FFN module.
     """
-    assert isinstance(ffn, dMoE)
-    ffn.experts.mlp._stack_dim = 0
+    ffn.experts.mlp._stack_dim = 0  # type: ignore
 
 
 def build_mb_moe(
@@ -526,11 +529,10 @@ def dmoe_fused_init_setup(
         args (megablocks.layers.arguments.Arguments): The arguments for MegaBlocks.
         moe_world_size (int): The MoE world size.
     """
-    assert isinstance(ffn, dMoE)
     n_exp = min(1, args.moe_num_experts // moe_world_size)
-    ffn.experts.mlp._fused = (
+    ffn.experts.mlp._fused = (  # type: ignore
         0,
-        [(n + 1) * args.ffn_hidden_size for n in range(n_exp - 1)],
+        [(n + 1) * args.ffn_hidden_size for n in range(n_exp - 1)],  # type: ignore
     )
 
 

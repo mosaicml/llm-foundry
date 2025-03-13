@@ -17,6 +17,12 @@ jobs:
     strategy:
       matrix:
         include:
+        - name: "2.5.1_cu124"
+          base_image: mosaicml/pytorch:2.5.1_cu124-python3.11-ubuntu22.04
+          dep_groups: "[all]"
+        - name: "2.5.1_cu124_aws"
+          base_image: mosaicml/pytorch:2.5.1_cu124-python3.11-ubuntu22.04-aws
+          dep_groups: "[all]"
         - name: "2.6.0_cu124"
           base_image: mosaicml/pytorch:2.6.0_cu124-python3.11-ubuntu22.04
           dep_groups: "[all]"

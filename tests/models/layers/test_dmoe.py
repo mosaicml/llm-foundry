@@ -97,7 +97,6 @@ def test_dmoe(
     common_args = {
         'hidden_size': hidden_size,
         'ffn_hidden_size': hidden_size,
-        'mlp_impl': 'grouped',
         'moe_top_k': moe_top_k,
         'activation_fn': partial(F.gelu, approximate='none'),
         'moe_jitter_eps': 0.0,  # Disable randomiztion
@@ -122,6 +121,7 @@ def test_dmoe(
         'fp16': fp16,
         'bf16': bf16,
         'init_method': partial(torch.nn.init.uniform_, a=-1.0, b=1.0),
+        'mlp_impl': 'grouped',
     }
     device_mesh = None
     if moe_world_size > 1:

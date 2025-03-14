@@ -569,19 +569,34 @@ class HuggingFaceCheckpointer(Callback):
 
         log.debug('Gathering state dict')
 
-        assert isinstance(state.model.module, HuggingFaceModel)
-        assert isinstance(state.model.module.model, PreTrainedModel)
-        assert isinstance(state.model.module.tokenizer, PreTrainedTokenizerBase)
-
         if state.is_model_ddp:
+            # Type assertions for DDP case
+            assert isinstance(state.model, HuggingFaceModel)
+            assert isinstance(state.model.module, HuggingFaceModel)
+            assert isinstance(state.model.module.model, PreTrainedModel)
+            assert isinstance(
+                state.model.module.tokenizer,
+                PreTrainedTokenizerBase,
+            )
+
             original_model: PreTrainedModel = state.model.module.model
             state_dict_model = state.model.module.model
             original_tokenizer = state.model.module.tokenizer
         elif isinstance(state.model.model, FSDP):
+            # Type assertions for FSDP case
+            assert isinstance(state.model, HuggingFaceModel)
+            assert isinstance(state.model.model.module, PreTrainedModel)
+            assert isinstance(state.model.tokenizer, PreTrainedTokenizerBase)
+
             original_model: PreTrainedModel = state.model.model.module
-            state_dict_model = state.model.model
+            state_dict_model = state.model.model.module
             original_tokenizer = state.model.tokenizer
         else:
+            # Type assertions for base case
+            assert isinstance(state.model, HuggingFaceModel)
+            assert isinstance(state.model.model, PreTrainedModel)
+            assert isinstance(state.model.tokenizer, PreTrainedTokenizerBase)
+
             original_model: PreTrainedModel = state.model.model
             state_dict_model = state.model.model
             original_tokenizer = state.model.tokenizer

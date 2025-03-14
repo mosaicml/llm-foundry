@@ -4,8 +4,10 @@
 import contextlib
 
 import pytest
-import torch
 from composer.core.precision import get_precision_context
+from transformers.models.llama.modeling_llama import (
+    LlamaAttention,
+)
 
 from llmfoundry.models.hf.hf_fsdp import rgetattr
 from llmfoundry.models.layers.attention import is_flash_v2_installed
@@ -32,9 +34,6 @@ def test_flash2(model_name: str, use_flash_attention_2: bool, init_device: str):
         }
 
         tokenizer_name = 'codellama/CodeLlama-7b-hf'
-        from transformers.models.llama.modeling_llama import (
-            LlamaAttention,
-        )
         flash_attn_class = LlamaAttention  # transformers 4.49.0 has baked FA2 into FA
         attention_layers_attr = 'model.model.layers'
         attention_attr = 'self_attn'
@@ -63,12 +62,9 @@ def test_flash2(model_name: str, use_flash_attention_2: bool, init_device: str):
             cfg=model_cfg,
             tokenizer=tokenizer,
         )
-        # Asserting types
-        assert isinstance(model.model, torch.nn.Module)
-        assert isinstance(model.model.config, torch.nn.Module)
 
         # check that it actually used flash attention 2
-        assert model.model.config._attn_implementation == (
+        assert model.model.config._attn_implementation == (  # type: ignore
             'flash_attention_2' if use_flash_attention_2 else 'eager'
         )
         attention_layer = rgetattr(

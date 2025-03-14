@@ -366,8 +366,7 @@ def _fsdp_wrap_fn(
 ) -> bool:
     # FSDP Wrap function for MPT Models
     if hasattr(module, '_fsdp_kwargs_dict'):
-        assert isinstance(module._fsdp_kwargs_dict, bool)
-        return module._fsdp_kwargs_dict
+        return module._fsdp_kwargs_dict  # type: ignore
     return isinstance(module, MPTBlock)
 
 

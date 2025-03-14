@@ -138,11 +138,11 @@ extra_deps['all-cpu'] = {
 }
 extra_deps['all'] = {
     dep for key, deps in extra_deps.items() for dep in deps
-    if key not in {'gpu-flash2', 'all-cpu'}
+    if key not in {'gpu-flash2', 'all-cpu', 'te'}
 }
 extra_deps['all-flash2'] = {
     dep for key, deps in extra_deps.items() for dep in deps
-    if key not in {'gpu', 'all', 'all-cpu'}
+    if key not in {'gpu', 'all', 'all-cpu', 'te'}
 }
 
 setup(

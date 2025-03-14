@@ -416,7 +416,6 @@ class HuggingFaceCheckpointer(Callback):
             assert isinstance(composer_model, HuggingFaceModel)
             assert hasattr(composer_model, 'using_peft')
             self.using_peft = composer_model.using_peft
-
         elif event == Event.FIT_END:
             # Wait for all child processes spawned by the callback to finish.
             timeout = self.register_wait_seconds

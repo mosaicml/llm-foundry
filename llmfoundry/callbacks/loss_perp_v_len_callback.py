@@ -71,7 +71,6 @@ class LossPerpVsContextLengthLogger(Callback):
             if state.model.shift_labels:
                 labels[:, :-1] = labels[:, 1:].detach().clone()
                 labels[:, -1] = CROSS_ENTROPY_IGNORE_INDEX
-
             seq_parallel_world_size = getattr(
                 state.model.model.transformer, # type: ignore
                 'seq_parallel_world_size',

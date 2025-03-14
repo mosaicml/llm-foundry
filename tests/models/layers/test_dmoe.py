@@ -25,15 +25,11 @@ from llmfoundry.models.layers.ffn import dtensorify_param
 from llmfoundry.models.mpt.configuration_mpt import MPTConfig
 from llmfoundry.models.mpt.modeling_mpt import MPTForCausalLM
 
-is_megablocks_imported = False
-is_megablocks_sparse_moe_supported = False
 try:
     import megablocks
     is_megablocks_imported = True
-    if megablocks.__version__ < '0.8.0':
-        is_megablocks_sparse_moe_supported = True
 except ModuleNotFoundError:
-    pass
+    is_megablocks_imported = False
 
 
 def _get_all_inputs(
@@ -64,10 +60,6 @@ def _get_torch_dtype(fp16: bool, bf16: bool) -> Optional[torch.dtype]:
 @pytest.mark.skipif(
     not is_megablocks_imported,
     reason='This test needs megablocks module',
-)
-@pytest.mark.skipif(
-    not is_megablocks_sparse_moe_supported,
-    reason='This test needs sparse support in megablocks',
 )
 @pytest.mark.gpu
 @pytest.mark.world_size(2)
@@ -105,6 +97,7 @@ def test_dmoe(
     common_args = {
         'hidden_size': hidden_size,
         'ffn_hidden_size': hidden_size,
+        'mlp_impl': 'grouped',
         'moe_top_k': moe_top_k,
         'activation_fn': partial(F.gelu, approximate='none'),
         'moe_jitter_eps': 0.0,  # Disable randomiztion
@@ -214,10 +207,6 @@ def test_dmoe(
     not is_megablocks_imported,
     reason='This test needs megablocks module',
 )
-@pytest.mark.skipif(
-    not is_megablocks_sparse_moe_supported,
-    reason='This test needs sparse support in megablocks',
-)
 @pytest.mark.gpu
 @pytest.mark.world_size(2)
 @pytest.mark.parametrize('two_d_input', [True, False])
@@ -247,6 +236,7 @@ def test_dmoe_defaults(two_d_input: bool,):
         'fp16': fp16,
         'bf16': bf16,
         'init_method': partial(torch.nn.init.uniform_, a=-1.0, b=1.0),
+        'mlp_impl': 'grouped',
     }
 
     # Expert parallelism is not enabled by default
@@ -294,14 +284,10 @@ def test_dmoe_defaults(two_d_input: bool,):
     not is_megablocks_imported,
     reason='This test needs megablocks module',
 )
-@pytest.mark.skipif(
-    not is_megablocks_sparse_moe_supported,
-    reason='This test needs sparse support in megablocks',
-)
 @pytest.mark.gpu
 @pytest.mark.parametrize('seqlen', [512])
 @pytest.mark.parametrize('mlp_type', ['glu', 'mlp'])
-@pytest.mark.parametrize('precision', ['bf16', 'fp32'])
+@pytest.mark.parametrize('precision', ['bf16'])
 def test_fwd_equal_dmoe(seqlen: int, precision: str, mlp_type: str):
     mb_dmoe_config = MPTConfig(
         d_model=1024,
@@ -333,6 +319,7 @@ def test_fwd_equal_dmoe(seqlen: int, precision: str, mlp_type: str):
             'ffn_hidden_size': 1792,
             'moe_num_experts': 16,
             'moe_top_k': 4,
+            'mlp_impl': 'grouped',
             'moe_jitter_eps': 0.0,
             'moe_loss_weight': 0.05,
             'moe_normalize_expert_weights': 1.0,

@@ -48,14 +48,6 @@ from llmfoundry.utils.config_utils import process_init_device, to_dict_container
 from scripts.inference.convert_composer_to_hf import convert_composer_to_hf
 from tests.data_utils import make_tiny_ft_dataset
 
-is_megablocks_sparse_moe_supported = False
-try:
-    import megablocks
-    if megablocks.__version__ < '0.8.0':
-        is_megablocks_sparse_moe_supported = True
-except ImportError:
-    pass
-
 _OPTIMIZER_CFG = lambda: {
     'name': 'decoupled_adamw',
     'lr': 6e-4,
@@ -764,6 +756,7 @@ def _get_model_and_tokenizer(
                 'moe_top_k': 2,
                 'moe_world_size': 1,
                 'uniform_expert_assignment': False,
+                'mlp_impl': 'grouped'
             },
             'max_seq_len': max_seq_len,
             'vocab_size': 50368,
@@ -1285,10 +1278,7 @@ def test_transform_model_pre_registration():
 @pytest.mark.parametrize(
     'model,tie_word_embeddings',
     [('mpt', True), ('mpt', False),
-     pytest.param('mptmoe', None, marks=[pytest.mark.gpu, pytest.mark.skipif(
-        not is_megablocks_sparse_moe_supported,
-        reason='This test needs sparse support in megablocks',
-     )]), ('neo', None),
+     pytest.param('mptmoe', None, marks=pytest.mark.gpu), ('neo', None),
      ('llama2', None)],
 )
 def test_convert_and_generate(
@@ -1410,10 +1400,7 @@ def test_convert_and_generate(
         'scripts/train/yamls/pretrain/testing.yaml',
         pytest.param(
             'scripts/train/yamls/pretrain/testing-moe.yaml',
-            marks=[pytest.mark.gpu, pytest.mark.skipif(
-                not is_megablocks_sparse_moe_supported,
-                reason='This test needs sparse support in megablocks',
-            )],
+            marks=pytest.mark.gpu,
         ),
     ],
 )

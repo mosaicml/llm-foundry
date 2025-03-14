@@ -305,8 +305,6 @@ def build_torch_dmoe(
 
     fc_type = kwargs.pop('fc_type', None)
     del fc_type  # Unused
-    mlp_impl = kwargs.pop('mlp_impl', None)
-    del mlp_impl  # Unused
 
     if len(kwargs) > 0:
         raise ValueError(f'Invalid arguments to torch dmoe: {kwargs}.')

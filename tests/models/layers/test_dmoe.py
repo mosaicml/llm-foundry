@@ -342,6 +342,7 @@ def test_fwd_equal_dmoe(seqlen: int, precision: str, mlp_type: str):
     del torch_dmoe_config.ffn_config['fc_type']
     del torch_dmoe_config.ffn_config['moe_loss_weight']
     del torch_dmoe_config.ffn_config['return_bias']
+    del torch_dmoe_config.ffn_config['mlp_impl']
 
     mb_dmoe_model = MPTForCausalLM(
         mb_dmoe_config,

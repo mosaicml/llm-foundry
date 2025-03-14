@@ -756,7 +756,7 @@ def _get_model_and_tokenizer(
                 'moe_top_k': 2,
                 'moe_world_size': 1,
                 'uniform_expert_assignment': False,
-                'mlp_impl': 'grouped'
+                'mlp_impl': 'grouped',
             },
             'max_seq_len': max_seq_len,
             'vocab_size': 50368,

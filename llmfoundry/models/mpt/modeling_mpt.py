@@ -954,18 +954,14 @@ class MPTModel(MPTPreTrainedModel):
 
         layer_kv_cache_dict = {}
         for b_idx, block in enumerate(self.blocks):
-            # Added some assert statements
-            assert isinstance(block, torch.nn.Module)
-            assert isinstance(block.norm_attn_norm, torch.nn.Module)
-            attn_block = block.norm_attn_norm.attn if self.blocks_fuse_norm_attn_norm else block.attn
-            assert isinstance(attn_block, torch.nn.Module)
+            attn_block = block.norm_attn_norm.attn if self.blocks_fuse_norm_attn_norm else block.attn  # type: ignore
             if attn_block.reuse_kv_layer_idx is not None:  # type: ignore
-                if attn_block.reuse_kv_layer_idx not in layer_kv_cache_dict:
+                if attn_block.reuse_kv_layer_idx not in layer_kv_cache_dict:  # type: ignore
                     raise KeyError(
-                        f'kv cache for layer {block.reuse_kv_layer_idx} not found in {layer_kv_cache_dict=}.',
+                        f'kv cache for layer {block.reuse_kv_layer_idx} not found in {layer_kv_cache_dict=}.',  # type: ignore
                     )
                 prev_layer_key_value = layer_kv_cache_dict[
-                    attn_block.reuse_kv_layer_idx]
+                    attn_block.reuse_kv_layer_idx]  # type: ignore
             else:
                 prev_layer_key_value = None
             if output_hidden_states:

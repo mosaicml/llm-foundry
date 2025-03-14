@@ -7,6 +7,7 @@ import pytest
 import torch
 from composer.utils import reproducibility
 from omegaconf import OmegaConf as om
+from transformers import GPT2Config
 
 from llmfoundry.utils.builders import build_composer_model, build_tokenizer
 from llmfoundry.utils.config_utils import to_dict_container
@@ -79,14 +80,14 @@ def test_compare_hf_v_mpt(
     ).to(device)
 
     assert isinstance(hf_model.model, torch.nn.Module)
-    assert isinstance(hf_model.model.config, torch.nn.Module)
+    assert isinstance(hf_model.model.config, GPT2Config)
 
     hf_n_params = sum(p.numel() for p in hf_model.parameters())
 
-    hf_model.model.config.embd_pdrop = dropout
+    hf_model.model.config.embd_pdrop = dropout  # type: ignore
     hf_model.model.transformer.drop.p = dropout  # type: ignore
 
-    hf_model.model.config.resid_pdrop = dropout
+    hf_model.model.config.resid_pdrop = dropout  # type: ignore
     for b in hf_model.model.transformer.h:  # type: ignore
         b.mlp.dropout.p = dropout
     for b in hf_model.model.transformer.h:  # type: ignore
@@ -96,7 +97,7 @@ def test_compare_hf_v_mpt(
     # and will therefore generate different drop idx when compared to nn.Dropout
     # regardless of if rng is seeded
     # attn_dropout must be set to 0 for numerical comparisons.
-    hf_model.model.config.attn_pdrop = 0.0
+    hf_model.model.config.attn_pdrop = 0.0  # type: ignore
     for b in hf_model.model.transformer.h:  # type: ignore
         b.attn.attn_dropout.p = 0.0
 
@@ -110,19 +111,19 @@ def test_compare_hf_v_mpt(
     model_cfg.attn_impl = attn_impl
     model_cfg.alibi = alibi
     # modify cfg for HF GPT2 compatibility
-    model_cfg.max_seq_len = hf_model.model.config.n_ctx
+    model_cfg.max_seq_len = hf_model.model.config.n_ctx  # type: ignore
     model_cfg.init_device = device
-    model_cfg.vocab_size = hf_model.model.config.vocab_size
+    model_cfg.vocab_size = hf_model.model.config.vocab_size  # type: ignore
     # set dropout prob
-    model_cfg.resid_pdrop = hf_model.model.config.resid_pdrop
-    model_cfg.emb_pdrop = hf_model.model.config.embd_pdrop
+    model_cfg.resid_pdrop = hf_model.model.config.resid_pdrop  # type: ignore
+    model_cfg.emb_pdrop = hf_model.model.config.embd_pdrop  # type: ignore
     # attn_dropout is integrated into the FlashMHA kernel
     # given this, it will generate different drop idx when compared to nn.Dropout
     # regardless of if rng is seeded.
-    model_cfg.attn_pdrop = hf_model.model.config.attn_pdrop
-    model_cfg.n_layers = hf_model.model.config.n_layer
-    model_cfg.d_model = hf_model.model.config.n_embd
-    model_cfg.n_heads = hf_model.model.config.n_head
+    model_cfg.attn_pdrop = hf_model.model.config.attn_pdrop  # type: ignore
+    model_cfg.n_layers = hf_model.model.config.n_layer  # type: ignore
+    model_cfg.d_model = hf_model.model.config.n_embd  # type: ignore
+    model_cfg.n_heads = hf_model.model.config.n_head  # type: ignore
 
     # Build Model
     print('Initializing model...')

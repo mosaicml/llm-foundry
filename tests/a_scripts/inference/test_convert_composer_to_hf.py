@@ -1438,7 +1438,7 @@ def test_convert_and_generate_meta(
     sd = torch.load(
         os.path.join(tmp_path_gathered, 'checkpoint.pt'),
         map_location='cpu',
-        weights_only=True,
+        weights_only=False,
     )
     sd['state']['integrations']['huggingface']['model']['config']['content'][
         'init_device'] = 'meta'

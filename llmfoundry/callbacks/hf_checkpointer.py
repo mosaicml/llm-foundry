@@ -589,7 +589,7 @@ class HuggingFaceCheckpointer(Callback):
             assert isinstance(state.model.tokenizer, PreTrainedTokenizerBase)
 
             original_model: PreTrainedModel = state.model.model.module
-            state_dict_model = state.model.model.module
+            state_dict_model = state.model.model
             original_tokenizer = state.model.tokenizer
         else:
             # Type assertions for base case

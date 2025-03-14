@@ -5,9 +5,6 @@ import contextlib
 
 import pytest
 from composer.core.precision import get_precision_context
-from transformers.models.llama.modeling_llama import (
-    LlamaAttention,
-)
 
 from llmfoundry.models.hf.hf_fsdp import rgetattr
 from llmfoundry.models.layers.attention import is_flash_v2_installed
@@ -34,6 +31,9 @@ def test_flash2(model_name: str, use_flash_attention_2: bool, init_device: str):
         }
 
         tokenizer_name = 'codellama/CodeLlama-7b-hf'
+        from transformers.models.llama.modeling_llama import (
+            LlamaAttention,
+        )
         flash_attn_class = LlamaAttention  # transformers 4.49.0 has baked FA2 into FA
         attention_layers_attr = 'model.model.layers'
         attention_attr = 'self_attn'

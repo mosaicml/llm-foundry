@@ -1,0 +1,103 @@
+variables:
+  data_local: /data/streaming/c4_2048
+  data_remote:  # If blank, files must be present in data_local
+  max_seq_len: 2048
+  global_seed: 17
+  model_name: meta-llama/Meta-Llama-3.1-8B
+  tokenizer_name: meta-llama/Meta-Llama-3.1-8B
+  # Run Name
+  run_name:  # If left blank, will be read from env var $RUN_NAME
+
+max_seq_len: ${variables.max_seq_len}
+run_name: ${variables.run_name}
+
+save_folder: null
+
+# Model
+model:
+  name: hf_causal_lm
+  init_device: meta
+  pretrained_model_name_or_path: ${variables.model_name}
+  pretrained: false
+  # Note: you must have set the HF_TOKEN environment variable and have access to the llama2 models
+  use_auth_token: true
+  use_flash_attention_2: true
+  config_overrides:
+    torch_dtype: bfloat16
+
+# Tokenizer
+tokenizer:
+  name: ${variables.tokenizer_name}
+  kwargs:
+    model_max_length: ${variables.max_seq_len}
+
+# Dataloaders
+train_loader:
+  name: text
+  dataset:
+    local: ${variables.data_local}
+    remote: ${variables.data_remote}
+    split: train_small
+    shuffle: true
+    max_seq_len: ${variables.max_seq_len}
+    shuffle_seed: ${variables.global_seed}
+  pin_memory: true
+  prefetch_factor: 2
+  persistent_workers: true
+  drop_last: true
+  num_workers: 8
+
+# Optimization
+scheduler:
+  name: cosine_with_warmup
+  t_warmup: 100ba
+  alpha_f: 0.1
+
+optimizer:
+  name: decoupled_adamw
+  lr: 6.0e-4
+  betas:
+  - 0.9
+  - 0.95
+  eps: 1.0e-08
+  weight_decay: 0.0
+
+algorithms:
+  gradient_clipping:
+    clipping_type: norm
+    clipping_threshold: 1.0
+
+max_duration: 50ba
+eval_interval: 100ba
+eval_first: false
+global_train_batch_size: 8
+
+# System
+seed: ${variables.global_seed}
+device_train_microbatch_size: 1
+precision: amp_bf16
+dist_timeout: 6000
+expandable_segments: true
+
+# FSDP
+fsdp_config:
+  mixed_precision: PURE
+  state_dict_type: sharded
+  limit_all_gathers: true
+  sharding_strategy: FULL_SHARD
+  backward_prefetch: BACKWARD_PRE
+  activation_cpu_offload: false
+  activation_checkpointing: false
+  activation_checkpointing_reentrant: false
+
+# Logging
+progress_bar: false
+log_to_console: true
+console_log_interval: 1ba
+
+callbacks:
+  speed_monitor:
+    window_size: 10
+  lr_monitor: {}
+  memory_monitor: {}
+  runtime_estimator: {}

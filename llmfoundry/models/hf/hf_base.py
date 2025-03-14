@@ -10,6 +10,8 @@ import os
 import warnings
 from typing import TYPE_CHECKING, Any, Mapping, Optional, Union
 
+import torch
+
 import transformers
 from composer.models.huggingface import HuggingFaceModel, peft_installed
 from composer.utils import dist
@@ -36,6 +38,11 @@ from llmfoundry.utils.config_utils import set_config_overrides
 
 if TYPE_CHECKING:
     from peft import PeftConfig, PeftModel
+
+try:
+    import transformer_engine.pytorch as te
+except:
+    te = None
 
 __all__ = ['BaseHuggingFaceModel']
 
@@ -436,5 +443,33 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         # so that the (possible) embedding resizing doesn't destroy them
         prepare_hf_model_for_fsdp(model, init_device)
 
+        def _is_normalization_layer(module):
+            """Check if the module is a normalization layer based on its class name."""
+            return 'norm' in module.__class__.__name__.lower()
+
+        def _custom_param_init_fn(module):
+            """Custom parameter initialization function for the model's modules.
+            Args:
+                module: The module to initialize.
+            """
+            if te is not None:
+                # Initialize transformer engine modules
+                if isinstance(module, (te.LayerNormMLP, te.LayerNormLinear, te.Linear)):
+                    module.reset_parameters(defer_init=False)
+                    return
+
+            # Use the model's default initialization method
+            model._init_weights(module)
+
+            # Initialize any modules that were skipped in model._init_weights
+            if hasattr(module, 'weight') and module.weight is not None:
+                if torch.isnan(module.weight).any():
+                    # Log a warning if a non-normalization layer is initialized with ones
+                    if not _is_normalization_layer(module):
+                        log.warning(
+                            f'{module.__class__.__name__} is unitialized after model._init_weights. Initializing with ones.',
+                        )
+                    torch.nn.init.ones_(module.weight)
+
         # This provides support for meta initialization when using FSDP
-        model.param_init_fn = lambda module: model._init_weights(module)
+        model.param_init_fn = lambda module: _custom_param_init_fn(module)

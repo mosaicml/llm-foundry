@@ -58,6 +58,13 @@ from llmfoundry.utils import build_tokenizer
 from llmfoundry.utils.builders import build_composer_model
 from llmfoundry.utils.config_utils import to_dict_container
 
+is_megablocks_sparse_moe_supported = False
+try:
+    import megablocks
+    if megablocks.__version__ < '0.8.0':
+        is_megablocks_sparse_moe_supported = True
+except ImportError:
+    pass
 
 def get_config(
     conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml',
@@ -286,7 +293,10 @@ def test_invalid_inputs_embeds_input_ids_combinations(
         'scripts/train/yamls/pretrain/testing.yaml',
         pytest.param(
             'scripts/train/yamls/pretrain/testing-moe.yaml',
-            marks=pytest.mark.gpu,
+            marks=[pytest.mark.gpu, pytest.mark.skipif(
+                not is_megablocks_sparse_moe_supported,
+                reason='This test needs sparse support in megablocks',
+            )],
         ),
     ],
 )
@@ -1000,7 +1010,10 @@ def test_mpt_creation(
         assert block.resid_attn_dropout.p == 0.2
         assert block.resid_ffn_dropout.p == 0.2
 
-
+@pytest.mark.skipif(
+    not is_megablocks_sparse_moe_supported,
+    reason='This test needs sparse support in megablocks',
+)
 @pytest.mark.gpu
 def test_mb_mpt_creation():
     # Test that the config constructs the model as expected.

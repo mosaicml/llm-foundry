@@ -119,7 +119,7 @@ extra_deps['openai'] = [
 ]
 
 extra_deps['megablocks'] = [
-    'megablocks @ git+https://github.com/databricks/megablocks.git@v0.8.0#egg=megablocks',
+    'megablocks<1.0',
     'grouped-gemm==0.1.6',
 ]
 

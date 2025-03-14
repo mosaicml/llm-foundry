@@ -21,6 +21,13 @@ from llmfoundry.models.mpt.modeling_mpt import (
 
 EOS_TOKEN_ID = 0
 
+is_megablocks_sparse_moe_supported = False
+try:
+    import megablocks
+    if megablocks.__version__ < '0.8.0':
+        is_megablocks_sparse_moe_supported = True
+except ImportError:
+    pass
 
 class MockMPTForCausalLM(MPTForCausalLM):
     """Class that overrides the forward of MPTForCausalLM."""
@@ -163,6 +170,10 @@ def test_mpt_generate_callback(
     trainer.logger.log_table.assert_called_once()
 
 
+@pytest.mark.skipif(
+    not is_megablocks_sparse_moe_supported,
+    reason='This test needs sparse support in megablocks',
+)
 @pytest.mark.gpu
 @pytest.mark.parametrize('device', ['cpu', 'gpu'])
 @pytest.mark.parametrize('attn_impl', ['flash', 'torch'])

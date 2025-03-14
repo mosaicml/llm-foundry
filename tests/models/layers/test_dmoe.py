@@ -25,11 +25,15 @@ from llmfoundry.models.layers.ffn import dtensorify_param
 from llmfoundry.models.mpt.configuration_mpt import MPTConfig
 from llmfoundry.models.mpt.modeling_mpt import MPTForCausalLM
 
+is_megablocks_imported = False
+is_megablocks_sparse_moe_supported = False
 try:
     import megablocks
     is_megablocks_imported = True
+    if megablocks.__version__ < '0.8.0':
+        is_megablocks_sparse_moe_supported = True
 except ModuleNotFoundError:
-    is_megablocks_imported = False
+    pass
 
 
 def _get_all_inputs(
@@ -60,6 +64,10 @@ def _get_torch_dtype(fp16: bool, bf16: bool) -> Optional[torch.dtype]:
 @pytest.mark.skipif(
     not is_megablocks_imported,
     reason='This test needs megablocks module',
+)
+@pytest.mark.skipif(
+    not is_megablocks_sparse_moe_supported,
+    reason='This test needs sparse support in megablocks',
 )
 @pytest.mark.gpu
 @pytest.mark.world_size(2)
@@ -206,6 +214,10 @@ def test_dmoe(
     not is_megablocks_imported,
     reason='This test needs megablocks module',
 )
+@pytest.mark.skipif(
+    not is_megablocks_sparse_moe_supported,
+    reason='This test needs sparse support in megablocks',
+)
 @pytest.mark.gpu
 @pytest.mark.world_size(2)
 @pytest.mark.parametrize('two_d_input', [True, False])
@@ -281,6 +293,10 @@ def test_dmoe_defaults(two_d_input: bool,):
 @pytest.mark.skipif(
     not is_megablocks_imported,
     reason='This test needs megablocks module',
+)
+@pytest.mark.skipif(
+    not is_megablocks_sparse_moe_supported,
+    reason='This test needs sparse support in megablocks',
 )
 @pytest.mark.gpu
 @pytest.mark.parametrize('seqlen', [512])

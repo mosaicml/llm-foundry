@@ -26,9 +26,13 @@ import torch.nn.functional as F
 from composer.models import HuggingFaceModel
 from composer.utils import dist
 from tabulate import tabulate
+from torch.nn.attention.flex_attention import create_block_mask, flex_attention
 
-from llmfoundry.layers_registry import ffns_with_megablocks
+from llmfoundry.layers_registry import (
+    ffns_with_megablocks,
+)
 from llmfoundry.models.layers.attention import is_flash_v2_installed
+from llmfoundry.models.layers.flex_attn_utils import FLEX_ATTN_COMPILE
 
 if is_flash_v2_installed():
     try:  # This try...except is needed because transformers requires it despite the 'if' statement above
@@ -171,7 +175,7 @@ def gen_rotary_embedding(
     raise ValueError('rope_impl needs to be either dail or hf')
 
 
-def gen_attention_mask_in_length(
+def gen_sequence_id_info(
     sequence_id: Union[None, torch.Tensor],
     S: int,
     attn_uses_sequence_id: bool,
@@ -232,9 +236,9 @@ def gen_attention_mask_in_length(
             ```.
             (The description above is taken verbatim from https://github.com/Dao-AILab/flash-attention/blob/9356a1c0389660d7e231ff3163c1ac17d9e3824a/flash_attn/bert_padding.py#L125 .)
     """
-    attention_mask_in_length = None
-    if (sequence_id
-        is not None) and attn_uses_sequence_id and (attn_impl == 'flash'):
+    if (sequence_id is not None) and attn_uses_sequence_id and (
+        attn_impl == 'flash' or attn_impl == 'flex'
+    ):
         # Check if sequence has left padding. If yes, raise an error.
         if (attention_mask is not None
            ) and (attention_mask[:, 0].sum() != attention_mask.shape[0]):
@@ -250,21 +254,24 @@ def gen_attention_mask_in_length(
             # We replace those -1 with 0 to prevent `torch.nn.functional.one_hot(sequence_id)` in the next line from failing.
             # We apply the attention mask again after the one_hot operation.
             sequence_id = sequence_id.masked_fill(~attention_mask, 0)
-        attention_mask_in_length = torch.nn.functional.one_hot(sequence_id)
+        sequence_id_one_hot = torch.nn.functional.one_hot(sequence_id)
         if attention_mask is not None:
-            attention_mask_in_length = attention_mask_in_length.masked_fill(
+            sequence_id_one_hot = sequence_id_one_hot.masked_fill(
                 ~attention_mask.unsqueeze(-1),
                 0,
             )
-        attention_mask_in_length = attention_mask_in_length.sum(dim=1)
+        if attn_impl == 'flex':
+            return sequence_id_one_hot.cumsum(dim=1).sum(dim=-1) - 1
+        attention_mask_in_length = sequence_id_one_hot.sum(dim=1)
         attention_mask_in_length = torch.nn.functional.pad(
             attention_mask_in_length,
             (0, S - attention_mask_in_length.shape[-1]),
             mode='constant',
             value=0,
         )
+        return attention_mask_in_length
 
-    return attention_mask_in_length
+    return None
 
 
 def gen_flash_attn_padding_info(
@@ -414,6 +421,18 @@ class MPTModel(MPTPreTrainedModel):
         self.emb_drop = nn.Dropout(config.emb_pdrop)
         self.mb_args = None
         self.shift_labels = True
+
+        flex_attn_compile = config.attn_config.get(
+            'flex_attn_compile',
+            FLEX_ATTN_COMPILE,
+        )
+        if self.attn_impl == 'flex':
+            self.compiled_flex_attention = torch.compile(
+                flex_attention,
+            ) if flex_attn_compile else flex_attention
+            self.compiled_create_block_mask = torch.compile(
+                create_block_mask,
+            ) if flex_attn_compile else create_block_mask
 
         self.blocks = self.construct_blocks(config=config,)
 
@@ -716,7 +735,7 @@ class MPTModel(MPTPreTrainedModel):
             self._attn_bias_initialized = True
 
         # flash will incorporate any attention_mask inside the attention module
-        if self.attn_impl == 'flash':
+        if self.attn_impl == 'flash' or self.attn_impl == 'flex':
             return self.attn_bias, attention_mask
 
         if self.attn_bias is not None:
@@ -913,7 +932,8 @@ class MPTModel(MPTPreTrainedModel):
             attention_mask=attention_mask,
             sequence_id=sequence_id,
         )
-        attention_mask_in_length = gen_attention_mask_in_length(
+
+        sequence_id_info = gen_sequence_id_info(
             sequence_id=sequence_id,
             S=S,
             attn_uses_sequence_id=self.attn_uses_sequence_id,
@@ -922,7 +942,9 @@ class MPTModel(MPTPreTrainedModel):
         )
 
         alibi_slopes = None  # alibi_slopes will only be used by flash attention for ALiBi
-        if self.alibi and self.attn_impl == 'flash':
+        if self.alibi and (
+            self.attn_impl == 'flash' or self.attn_impl == 'flex'
+        ):
             alibi_slopes = gen_slopes(
                 n_heads=self.config.n_heads,
                 alibi_bias_max=self.alibi_bias_max,
@@ -947,7 +969,7 @@ class MPTModel(MPTPreTrainedModel):
                 S,
                 past_position,
                 x.device,
-                attention_mask_in_length,
+                sequence_id_info,
                 attention_mask,
             )
 
@@ -972,6 +994,19 @@ class MPTModel(MPTPreTrainedModel):
             extra_kwargs = {}
             if prev_layer_key_value is not None:
                 extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
+            if self.attn_impl == 'flex':
+                extra_kwargs['flex_attn_kwargs'] = {
+                    'sequence_id_info': {
+                        'pos_in_seq':
+                            sequence_id_info,
+                        'sequence_id':
+                            sequence_id if self.attn_uses_sequence_id else None,
+                    },
+                    'compiled_flex_attention':
+                        self.compiled_flex_attention,
+                    'compiled_create_block_mask':
+                        self.compiled_create_block_mask,
+                }
             x, attn_weights, present = block(
                 x,
                 past_key_value=past_key_value,

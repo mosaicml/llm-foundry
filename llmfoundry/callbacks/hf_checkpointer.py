@@ -412,6 +412,9 @@ class HuggingFaceCheckpointer(Callback):
                 composer_model = state.model
             else:
                 composer_model = state.model
+
+            assert isinstance(composer_model, HuggingFaceModel)
+            assert hasattr(composer_model, 'using_peft')
             self.using_peft = composer_model.using_peft
         elif event == Event.FIT_END:
             # Wait for all child processes spawned by the callback to finish.
@@ -566,17 +569,17 @@ class HuggingFaceCheckpointer(Callback):
         log.debug('Gathering state dict')
 
         if state.is_model_ddp:
-            original_model: PreTrainedModel = state.model.module.model
-            state_dict_model = state.model.module.model
-            original_tokenizer = state.model.module.tokenizer
+            original_model: PreTrainedModel = state.model.module.model  # type: ignore
+            state_dict_model = state.model.module.model  # type: ignore
+            original_tokenizer = state.model.module.tokenizer  # type: ignore
         elif isinstance(state.model.model, FSDP):
-            original_model: PreTrainedModel = state.model.model.module
-            state_dict_model = state.model.model
-            original_tokenizer = state.model.tokenizer
+            original_model: PreTrainedModel = state.model.model.module  # type: ignore
+            state_dict_model = state.model.model  # type: ignore
+            original_tokenizer = state.model.tokenizer  # type: ignore
         else:
-            original_model: PreTrainedModel = state.model.model
-            state_dict_model = state.model.model
-            original_tokenizer = state.model.tokenizer
+            original_model: PreTrainedModel = state.model.model  # type: ignore
+            state_dict_model = state.model.model  # type: ignore
+            original_tokenizer = state.model.tokenizer  # type: ignore
 
         cpu_offload = True
 
@@ -609,6 +612,9 @@ class HuggingFaceCheckpointer(Callback):
             return state_dict
 
         hooks = []
+
+        assert isinstance(state_dict_model, nn.Module)
+
         for _, module in state_dict_model.named_modules():
             hooks.append(module._register_state_dict_hook(tensor_hook),)
 
@@ -790,12 +796,14 @@ class HuggingFaceCheckpointer(Callback):
                         temp_save_dir,
                         max_shard_size='1GB',
                     )
-                if original_tokenizer is not None:
+                if original_tokenizer is not None:  # type: ignore
                     assert isinstance(
                         original_tokenizer,
                         PreTrainedTokenizerBase,
                     )
-                    original_tokenizer.save_pretrained(temp_save_dir)
+                    original_tokenizer.save_pretrained( # type: ignore
+                        temp_save_dir,
+                    )
 
                 # Only need to edit files for MPT because it has custom code
                 if new_model_instance.config.model_type == 'mpt':

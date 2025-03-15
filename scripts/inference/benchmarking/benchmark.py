@@ -73,6 +73,7 @@ def main(config: DictConfig):
         cfg=config.model,
     )
     model = composer_model.model
+    assert isinstance(model, torch.nn.Module)
     model.eval()
 
     if config.use_deepspeed:
@@ -115,7 +116,7 @@ def main(config: DictConfig):
                         start_time = time.time()
                     with torch.no_grad():
                         with autocast_context:
-                            model.generate(
+                            model.generate( # type: ignore
                                 batch,
                                 max_new_tokens=output_length,
                                 use_cache=config.use_cache,

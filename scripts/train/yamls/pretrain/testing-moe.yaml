@@ -18,6 +18,7 @@ model:
   ffn_config:
     ffn_type: mb_dmoe
     memory_optimized_mlp: true
+    mlp_impl: grouped
     moe_lbl_in_fp32: false
     moe_loss_weight: 0.01
     moe_num_experts: 4

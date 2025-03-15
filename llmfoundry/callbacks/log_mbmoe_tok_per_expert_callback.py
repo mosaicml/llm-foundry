@@ -81,7 +81,7 @@ class MegaBlocksMoE_TokPerExpert(Callback):
                 )
             for module in state.model.modules():
                 if isinstance(module, (MoE, dMoE)):
-                    self.topk = module.experts.args.moe_top_k
+                    self.topk = module.experts.args.moe_top_k  # type: ignore
                     return
 
             raise RuntimeError(

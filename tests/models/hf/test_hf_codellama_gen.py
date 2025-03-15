@@ -42,7 +42,7 @@ def test_init_hfhub_codellama(
     with get_precision_context(
         'amp_bf16' if composer_device.name == 'gpu' else 'fp32',
     ):
-        _ = model.generate(
+        _ = model.generate( # type: ignore
             composer_device.tensor_to_device(
                 tiny_llama_tokenizer('def hello_world():',
                                      return_tensors='pt')['input_ids'],

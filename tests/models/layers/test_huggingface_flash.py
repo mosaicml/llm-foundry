@@ -64,7 +64,7 @@ def test_flash2(model_name: str, use_flash_attention_2: bool, init_device: str):
         )
 
         # check that it actually used flash attention 2
-        assert model.model.config._attn_implementation == (
+        assert model.model.config._attn_implementation == (  # type: ignore
             'flash_attention_2' if use_flash_attention_2 else 'eager'
         )
         attention_layer = rgetattr(

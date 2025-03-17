@@ -14,11 +14,11 @@ run_name: ${variables.run_name}
 save_folder: null
 
 code_paths:
-  - te_hf_llama_example.py
+- te_hf_llama_example.py
 
 # Model
 model:
-  name: hf_causal_lm_te # custom class registered in te_hf_llama_example.py
+  name: hf_causal_lm_te  # custom class registered in te_hf_llama_example.py
   init_device: meta
   pretrained_model_name_or_path: ${variables.model_name}
   pretrained: false

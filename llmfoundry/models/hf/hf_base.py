@@ -11,10 +11,10 @@ import warnings
 from typing import TYPE_CHECKING, Any, Mapping, Optional, Union
 
 import torch
-
 import transformers
 from composer.models.huggingface import HuggingFaceModel, peft_installed
 from composer.utils import dist
+from torch import nn
 from torchmetrics import Metric
 from transformers import (
     AutoConfig,
@@ -443,18 +443,22 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         # so that the (possible) embedding resizing doesn't destroy them
         prepare_hf_model_for_fsdp(model, init_device)
 
-        def _is_normalization_layer(module):
-            """Check if the module is a normalization layer based on its class name."""
+        def _is_normalization_layer(module: nn.Module):
+            """Checks if the module is a normalization layer based on name."""
             return 'norm' in module.__class__.__name__.lower()
 
-        def _custom_param_init_fn(module):
+        def _custom_param_init_fn(module: nn.Module):
             """Custom parameter initialization function for the model's modules.
+
             Args:
                 module: The module to initialize.
             """
             if te is not None:
                 # Initialize transformer engine modules
-                if isinstance(module, (te.LayerNormMLP, te.LayerNormLinear, te.Linear)):
+                if isinstance(
+                    module,
+                    (te.LayerNormMLP, te.LayerNormLinear, te.Linear),
+                ):
                     module.reset_parameters(defer_init=False)
                     return
 

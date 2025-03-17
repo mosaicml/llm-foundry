@@ -1,19 +1,17 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-import torch
 import pytest
-
+import torch
 from composer import Trainer
 
-from llmfoundry.utils.builders import build_tokenizer
 from llmfoundry.models.hf.hf_causal_lm import ComposerHFCausalLM
+from llmfoundry.utils.builders import build_tokenizer
 
 
 @pytest.mark.gpu
 @pytest.mark.world_size(2)
 def test_hf_meta_init_fsdp():
-
     fsdp_config = {
         'sharding_strategy': 'FULL_SHARD',
         'mixed_precision': 'PURE',
@@ -57,4 +55,6 @@ def test_hf_meta_init_fsdp():
 
     # Check for NaN weights
     for name, param in trainer.state.model.model.named_parameters():
-        assert not torch.isnan(param).any(), f"NaN detected in parameter: {name}"
+        assert not torch.isnan(
+            param,
+        ).any(), f'NaN detected in parameter: {name}'

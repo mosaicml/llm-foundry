@@ -1,5 +1,5 @@
 variables:
-  data_local: /data/streaming/c4_2048
+  data_local: ./my-copy-c4
   data_remote:  # If blank, files must be present in data_local
   max_seq_len: 2048
   global_seed: 17
@@ -22,8 +22,6 @@ model:
   # Note: you must have set the HF_TOKEN environment variable and have access to the llama2 models
   use_auth_token: true
   use_flash_attention_2: true
-  config_overrides:
-    torch_dtype: bfloat16
 
 # Tokenizer
 tokenizer:

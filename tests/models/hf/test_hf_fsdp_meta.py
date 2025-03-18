@@ -12,6 +12,10 @@ from llmfoundry.utils.builders import build_tokenizer
 @pytest.mark.gpu
 @pytest.mark.world_size(2)
 def test_hf_meta_init_fsdp():
+    # Use deterministic mode to ensure uninitialized weights are filled with NaNs
+    torch.use_deterministic_algorithms(False)
+    torch.utils.deterministic.fill_uninitialized_memory = True
+
     fsdp_config = {
         'sharding_strategy': 'FULL_SHARD',
         'mixed_precision': 'PURE',

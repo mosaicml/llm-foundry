@@ -465,15 +465,12 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             # Use the model's default initialization method
             model._init_weights(module)
 
-            # Initialize any modules that were skipped in model._init_weights
-            if hasattr(module, 'weight') and module.weight is not None:
-                if torch.isnan(module.weight).any():
-                    # Log a warning if a non-normalization layer is initialized with ones
-                    if not _is_normalization_layer(module):
-                        log.warning(
-                            f'{module.__class__.__name__} is unitialized after model._init_weights. Initializing with ones.',
-                        )
-                    torch.nn.init.ones_(module.weight)
+            # Initialize normalization modules that are skipped in model._init_weights
+            if _is_normalization_layer(module) and hasattr(
+                module,
+                'weight',
+            ) and module.weight is not None:
+                torch.nn.init.ones_(module.weight)
 
         # This provides support for meta initialization when using FSDP
         model.param_init_fn = lambda module: _custom_param_init_fn(module)

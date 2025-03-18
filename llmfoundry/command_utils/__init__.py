@@ -15,6 +15,9 @@ from llmfoundry.command_utils.data_prep.convert_delta_to_json import (
     convert_delta_to_json_from_args,
     fetch_DT,
 )
+from llmfoundry.command_utils.data_prep.convert_delta_to_mds import (
+    convert_delta_to_mds_from_args,
+)
 from llmfoundry.command_utils.data_prep.convert_finetuning_dataset import (
     convert_finetuning_dataset,
     convert_finetuning_dataset_from_args,

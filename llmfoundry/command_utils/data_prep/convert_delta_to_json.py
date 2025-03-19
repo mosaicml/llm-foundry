@@ -385,6 +385,7 @@ def fetch_data(
         ans = run_query(query, method, cursor, sparkSession, collect=True)
         if ans is None:
             raise RuntimeError(f'Got empty results with {query}')
+
         records = [r.asDict() for r in ans]  # pyright: ignore
         pdf = pd.DataFrame.from_dict(records)
 
@@ -630,7 +631,9 @@ def validate_and_get_cluster_info(
 
             else:
                 if not cluster_id:
-                    raise ValueError('cluster_id is needed for dbconnect.',)
+                    raise ValueError(
+                        'cluster_id is needed for dbconnect.',
+                    )
                 sparkSession = DatabricksSession.builder.remote(
                     host=databricks_host,
                     token=databricks_token,

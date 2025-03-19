@@ -593,14 +593,16 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
             '`hyphenated-catalog`.`schema`.`test_table`',
         )
 
-    @patch('llmfoundry.command_utils.data_prep.convert_delta_to_json.fetch')
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.get_total_rows'
+    )
     @patch(
         'llmfoundry.command_utils.data_prep.convert_delta_to_json.validate_and_get_cluster_info',
     )
     def test_fetch_DT_catches_grpc_errors(
         self,
+        mock_get_total_rows: MagicMock,
         mock_validate_cluster_info: MagicMock,
-        mock_fetch: MagicMock,
     ):
         # Arrange
         # Mock the validate_and_get_cluster_info to return test values
@@ -650,7 +652,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
             texts_to_check_in_error,
         ) in error_contexts:
             # Configure the fetch function to raise the SparkConnectGrpcException
-            mock_fetch.side_effect = err_to_throw
+            mock_get_total_rows.side_effect = err_to_throw
 
             # Test inputs
             delta_table_name = 'test_table'
@@ -678,7 +680,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
                 self.assertIn(text, str(context.exception))
 
         # Verify that fetch was called
-        mock_fetch.assert_called()
+        mock_get_total_rows.assert_called()
 
     @patch(
         'llmfoundry.command_utils.data_prep.convert_delta_to_json.get_total_rows',

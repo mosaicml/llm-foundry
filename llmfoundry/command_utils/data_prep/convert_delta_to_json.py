@@ -385,7 +385,6 @@ def fetch_data(
         ans = run_query(query, method, cursor, sparkSession, collect=True)
         if ans is None:
             raise RuntimeError(f'Got empty results with {query}')
-
         records = [r.asDict() for r in ans]  # pyright: ignore
         pdf = pd.DataFrame.from_dict(records)
 

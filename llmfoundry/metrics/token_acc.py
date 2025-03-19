@@ -58,6 +58,9 @@ class TokenAccuracy(Metric):
         masked_target = target[mask]
         masked_preds = preds[mask]
 
+        assert isinstance(self.correct_tokens, torch.Tensor)
+        assert isinstance(self.total_tokens, torch.Tensor)
+
         # Update correct and total counts
         self.correct_tokens += torch.sum(masked_preds == masked_target)
         self.total_tokens += masked_target.numel()
@@ -68,4 +71,6 @@ class TokenAccuracy(Metric):
         Returns:
             The mean accuracy across all tokens as a :class:`~torch.Tensor`.
         """
+        assert isinstance(self.correct_tokens, torch.Tensor)
+        assert isinstance(self.total_tokens, torch.Tensor)
         return self.correct_tokens.float() / self.total_tokens

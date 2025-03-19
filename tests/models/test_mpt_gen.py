@@ -191,6 +191,7 @@ def test_gen_mpt_moe(
             'moe_top_k': 2,
             'moe_world_size': 1,
             'uniform_expert_assignment': False,
+            'mlp_impl': 'grouped',
         },
     )
     model = composer_device.module_to_device(model)

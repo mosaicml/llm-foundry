@@ -195,6 +195,9 @@ class InContextLearningGenerationExactMatchAccuracy(InContextLearningMetric):
             metric_result_dict['cleaned_output'].append(cleaned_final_answer)
             metric_result_dict['cleaned_label'].append(cleaned_sample_labels)
 
+            assert isinstance(self.correct, Tensor)
+            assert isinstance(self.total, Tensor)
+
             if any(
                 cleaned_final_answer.startswith(label)
                 for label in cleaned_sample_labels
@@ -273,6 +276,9 @@ class InContextLearningLMAccuracy(InContextLearningMetric):
             metric_result_dict['label'].append(cont_tok_targ)
             metric_result_dict['output'].append(cont_tok_pred)
 
+            assert isinstance(self.correct, Tensor)
+            assert isinstance(self.total, Tensor)
+
             correct = (cont_tok_pred == cont_tok_targ).all().int()
             self.correct += correct
             metric_result_dict['result'].append(int(correct))
@@ -329,6 +335,9 @@ class InContextLearningMultipleChoiceAccuracy(InContextLearningMetric):
         }
 
     def update(self, batch: dict, outputs: torch.Tensor, labels: torch.Tensor):
+
+        assert isinstance(self.correct, Tensor)
+        assert isinstance(self.total, Tensor)
 
         perplexities = []
         for batch_idx, cont_idx in enumerate(batch['continuation_indices']):
@@ -475,6 +484,9 @@ class InContextLearningMCExpectedCalibrationError(
 
     def update(self, batch: dict, outputs: torch.Tensor, labels: torch.Tensor):
 
+        assert isinstance(self.bucket_correct, Tensor)
+        assert isinstance(self.bucket_totals, Tensor)
+
         outputs = torch.softmax(outputs, dim=2)
         probabilities = []
         for batch_idx, cont_idx in enumerate(batch['continuation_indices']):
@@ -530,6 +542,9 @@ class InContextLearningLMExpectedCalibrationError(
     full_state_update = False
 
     def update(self, batch: dict, outputs: torch.Tensor, labels: torch.Tensor):
+
+        assert isinstance(self.bucket_correct, Tensor)
+        assert isinstance(self.bucket_totals, Tensor)
 
         outputs = torch.softmax(outputs, dim=2)
         for batch_idx, cont_idx in enumerate(batch['continuation_indices']):

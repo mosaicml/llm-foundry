@@ -534,6 +534,9 @@ def fetch(
         elif isinstance(e, spark_errors.SparkConnectGrpcException):
             raise
 
+        elif isinstance(e, grpc.RpcError):
+            raise
+
         if isinstance(e, InsufficientPermissionsError):
             raise
 

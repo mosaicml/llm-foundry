@@ -55,9 +55,9 @@ install_requires = [
     'mosaicml[libcloud,wandb,oci,gcs,mlflow]>=0.29.0,<0.30',
     'mlflow>=2.14.1,<2.19',
     'accelerate>=0.25,<1.4',  # for HF inference `device_map`
-    'transformers>=4.43.2,<4.47',
+    'transformers>=v4.49.0,<4.50',
     'mosaicml-streaming>=0.11.0,<0.12',
-    'torch>=2.5.1,<2.5.2',
+    'torch>=2.6.0,<2.6.1',
     'datasets>=3.3.2,<3.4',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
     'sentencepiece==0.2.0',
@@ -104,7 +104,7 @@ extra_deps['tensorboard'] = [
 
 # Flash 2 group kept for backwards compatibility
 extra_deps['gpu-flash2'] = [
-    'flash-attn==2.6.3',
+    'flash-attn==2.7.4.post1',
 ]
 
 extra_deps['gpu'] = copy.deepcopy(extra_deps['gpu-flash2'])
@@ -138,11 +138,11 @@ extra_deps['all-cpu'] = {
 }
 extra_deps['all'] = {
     dep for key, deps in extra_deps.items() for dep in deps
-    if key not in {'gpu-flash2', 'all-cpu'}
+    if key not in {'gpu-flash2', 'all-cpu', 'te'}
 }
 extra_deps['all-flash2'] = {
     dep for key, deps in extra_deps.items() for dep in deps
-    if key not in {'gpu', 'all', 'all-cpu'}
+    if key not in {'gpu', 'all', 'all-cpu', 'te'}
 }
 
 setup(

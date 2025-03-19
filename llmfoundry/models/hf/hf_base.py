@@ -443,9 +443,8 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         # so that the (possible) embedding resizing doesn't destroy them
         prepare_hf_model_for_fsdp(model, init_device)
 
-        def _is_normalization_layer(module: nn.Module):
-            """Checks if the module is a normalization layer based on name."""
-            return 'norm' in module.__class__.__name__.lower()
+        # Define explicitly which layers should be initialized with ones (skipped by model._init_weights)
+        EXPLICIT_INIT_ONES_NAMES = ['LlamaRMSNorm', 'Qwen2RMSNorm']
 
         def _custom_param_init_fn(module: nn.Module):
             """Custom parameter initialization function for the model's modules.
@@ -465,12 +464,15 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             # Use the model's default initialization method
             model._init_weights(module)
 
-            # Initialize normalization modules that are skipped in model._init_weights
-            if _is_normalization_layer(module) and hasattr(
-                module,
-                'weight',
-            ) and module.weight is not None:
-                torch.nn.init.ones_(module.weight)
+            # Initialize modules that are skipped in model._init_weights
+            if hasattr(module, 'weight') and module.weight is not None:
+                if module.__class__.__name__ in EXPLICIT_INIT_ONES_NAMES:
+                    torch.nn.init.ones_(module.weight)
+                elif torch.isnan(module.weight).any():
+                    # Log a warning if a layer is left uninitialized and contains NaN values
+                    log.warning(
+                        f'{module.__class__.__name__} weight contains NaN values after model._init_weights call.',
+                    )
 
         # This provides support for meta initialization when using FSDP
         model.param_init_fn = lambda module: _custom_param_init_fn(module)

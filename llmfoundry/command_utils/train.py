@@ -644,7 +644,7 @@ def train(cfg: DictConfig) -> Trainer:
         trainer.fit()
     except ValueError as e:
         msg = str(e)
-        if 'The max_duration' in msg and 'is less than or equal to the elapsed training duration' in msg and train_cfg.run_is_retry:
+        if 'The max_duration' in msg and 'is less than or equal to the elapsed training duration' in msg and train_cfg.run_is_retryable:
             log.info(
                 'Training is already complete and detected retry. Skipping training and saving checkpoint.',
             )

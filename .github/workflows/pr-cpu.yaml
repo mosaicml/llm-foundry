@@ -21,9 +21,9 @@ jobs:
     strategy:
       matrix:
         include:
-        - name: "cpu-2.5.1"
+        - name: "cpu-2.6.0"
           pip_deps: "[all-cpu]"
-          container: mosaicml/pytorch:2.5.1_cpu-python3.11-ubuntu22.04
+          container: mosaicml/pytorch:2.6.0_cpu-python3.11-ubuntu22.04
           markers: "not gpu"
           pytest_command: "coverage run -m pytest"
     steps:

@@ -72,11 +72,11 @@ class LossPerpVsContextLengthLogger(Callback):
                 labels[:, :-1] = labels[:, 1:].detach().clone()
                 labels[:, -1] = CROSS_ENTROPY_IGNORE_INDEX
             seq_parallel_world_size = getattr(
-                state.model.model.transformer,
+                state.model.model.transformer, # type: ignore
                 'seq_parallel_world_size',
                 1,
             )
-            seq_parallel_rank = state.model.model.transformer.seq_parallel_rank if seq_parallel_world_size > 1 else 0
+            seq_parallel_rank = state.model.model.transformer.seq_parallel_rank if seq_parallel_world_size > 1 else 0  # type: ignore
 
             if isinstance(state.outputs, Mapping):
                 logits = state.outputs['logits']  # type: ignore
@@ -96,8 +96,8 @@ class LossPerpVsContextLengthLogger(Callback):
                 sequence_id,
                 labels,
                 logits,
-                seq_parallel_world_size,
-                seq_parallel_rank,
+                seq_parallel_world_size,  # type: ignore
+                seq_parallel_rank,  # type: ignore
             )
 
             self.loss_perp_v_len.update(

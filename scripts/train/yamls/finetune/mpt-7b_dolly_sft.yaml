@@ -19,6 +19,7 @@ model:
       attn_impl: flash
       # Set this to `true` if using `train_loader.dataset.packing_ratio` below
       attn_uses_sequence_id: false
+  use_auth_token: false
 
 # Tokenizer
 tokenizer:

@@ -142,7 +142,7 @@ def _extract_links_from_html(html: str):
         list[str]: A list of links to download.
     """
     soup = BeautifulSoup(html, 'html.parser')
-    links = [a['href'] for a in soup.find_all('a')]
+    links = [a['href'] for a in soup.find_all('a')]  # type: ignore
     return links
 
 
@@ -208,7 +208,7 @@ def _recursive_download(
         _recursive_download(
             session,
             base_url,
-            urljoin(path, child_link),
+            urljoin(path, child_link),  # type: ignore
             save_dir,
             ignore_cert=ignore_cert,
         )

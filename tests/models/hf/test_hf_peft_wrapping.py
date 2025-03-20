@@ -17,19 +17,15 @@ from llmfoundry.utils.builders import build_composer_model, build_tokenizer
 
 
 def test_peft_wraps():
-    mpt_cfg = transformers.AutoConfig.from_pretrained(
-        'mosaicml/mpt-7b',
-        n_layers=2,
-        trust_remote_code=True,
+    codellama_cfg = transformers.AutoConfig.from_pretrained(
+        'codellama/CodeLlama-7b-hf',
+        num_hidden_layers=2,
     )
-    mpt = transformers.AutoModelForCausalLM.from_config(
-        mpt_cfg,
-        trust_remote_code=True,
-    )
-    mpt = get_peft_model(mpt, LoraConfig())
-    prepare_hf_model_for_fsdp(mpt, 'cpu')
+    codellama = transformers.AutoModelForCausalLM.from_config(codellama_cfg,)
+    codellama = get_peft_model(codellama, LoraConfig())
+    prepare_hf_model_for_fsdp(codellama, 'cpu')
 
-    for n, m in mpt.named_modules():
+    for n, m in codellama.named_modules():
         if 'lora' in n and 'default' in n:
             has_parameters = any(True for _ in m.parameters())
             has_buffers = any(True for _ in m.buffers())
@@ -40,10 +36,9 @@ def test_peft_wraps():
 def test_causal_lm_peft_wraps():
     model = ComposerHFCausalLM(
         tokenizer=None,
-        pretrained_model_name_or_path='mosaicml/mpt-7b',
+        pretrained_model_name_or_path='codellama/CodeLlama-7b-hf',
         pretrained=False,
-        trust_remote_code=True,
-        config_overrides={'n_layers': 2},
+        config_overrides={'num_hidden_layers': 2},
         peft_config={
             'peft_type': 'LORA',
             'task_type': 'CAUSAL_LM',
@@ -131,9 +126,13 @@ def test_lora_mixed_init(
     )
 
     model = trainer.state.model
-    underlying_model = model.model.base_model.model
-    lora_A = underlying_model.model.layers[0].self_attn.q_proj.lora_A['default']
-    lora_B = underlying_model.model.layers[0].self_attn.q_proj.lora_B['default']
+    underlying_model = model.model.base_model.model  # type: ignore
+    lora_A = underlying_model.model.layers[  # type: ignore
+        0].self_attn.q_proj.lora_A[  # type: ignore
+            'default']
+    lora_B = underlying_model.model.layers[  # type: ignore
+        0].self_attn.q_proj.lora_B[  # type: ignore
+            'default']
 
     assert (lora_A.weight == 1).all()
     assert (lora_B.weight == 0).all()

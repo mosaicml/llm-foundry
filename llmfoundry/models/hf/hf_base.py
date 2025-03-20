@@ -443,7 +443,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         # so that the (possible) embedding resizing doesn't destroy them
         prepare_hf_model_for_fsdp(model, init_device)
 
-        # Define explicitly which layers should be initialized with ones (skipped by model._init_weights)
+        # Define explicitly which layers should be initialized with ones (these are known to be skipped by the underlying Hugging Face model._init_weights)
         EXPLICIT_INIT_ONES_NAMES = ['LlamaRMSNorm', 'Qwen2RMSNorm']
 
         def _custom_param_init_fn(module: nn.Module):

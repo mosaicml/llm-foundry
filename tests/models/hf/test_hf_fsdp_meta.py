@@ -81,3 +81,11 @@ def test_hf_meta_init_fsdp():
             assert not torch.isnan(
                 param,
             ).any(), f'NaN detected in parameter: {name}'
+
+        # Check that the LlamaRMSNorm layers are initialized with ones
+        for name, module in trainer.state.model.model.named_modules():
+            if module.__class__.__name__ == 'LlamaRMSNorm':
+                assert torch.allclose(
+                    module.weight,
+                    torch.ones_like(module.weight),
+                ), f'LlamaRMSNorm layer {name} not initialized with ones: {module.weight}'

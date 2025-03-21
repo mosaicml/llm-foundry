@@ -502,6 +502,7 @@ def fetch(
         from databricks.sql.exc import ServerOperationError
         from pyspark.errors import AnalysisException
         import pyspark.errors.exceptions.connect as spark_errors
+        import grpc
 
         if isinstance(e, (AnalysisException, ServerOperationError)):
             error_message = str(e)

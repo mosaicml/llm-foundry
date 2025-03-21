@@ -601,8 +601,8 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
     )
     def test_fetch_DT_catches_grpc_errors(
         self,
-        mock_get_total_rows: MagicMock,
         mock_validate_cluster_info: MagicMock,
+        mock_get_total_rows: MagicMock,
     ):
         # Arrange
         # Mock the validate_and_get_cluster_info to return test values

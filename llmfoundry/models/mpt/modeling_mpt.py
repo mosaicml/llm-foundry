@@ -366,7 +366,7 @@ def _fsdp_wrap_fn(
 ) -> bool:
     # FSDP Wrap function for MPT Models
     if hasattr(module, '_fsdp_kwargs_dict'):
-        return module._fsdp_kwargs_dict
+        return module._fsdp_kwargs_dict  # type: ignore
     return isinstance(module, MPTBlock)
 
 
@@ -953,14 +953,14 @@ class MPTModel(MPTPreTrainedModel):
 
         layer_kv_cache_dict = {}
         for b_idx, block in enumerate(self.blocks):
-            attn_block = block.norm_attn_norm.attn if self.blocks_fuse_norm_attn_norm else block.attn
-            if attn_block.reuse_kv_layer_idx is not None:
-                if attn_block.reuse_kv_layer_idx not in layer_kv_cache_dict:
+            attn_block = block.norm_attn_norm.attn if self.blocks_fuse_norm_attn_norm else block.attn  # type: ignore
+            if attn_block.reuse_kv_layer_idx is not None:  # type: ignore
+                if attn_block.reuse_kv_layer_idx not in layer_kv_cache_dict:  # type: ignore
                     raise KeyError(
-                        f'kv cache for layer {block.reuse_kv_layer_idx} not found in {layer_kv_cache_dict=}.',
+                        f'kv cache for layer {block.reuse_kv_layer_idx} not found in {layer_kv_cache_dict=}.',  # type: ignore
                     )
                 prev_layer_key_value = layer_kv_cache_dict[
-                    attn_block.reuse_kv_layer_idx]
+                    attn_block.reuse_kv_layer_idx]  # type: ignore
             else:
                 prev_layer_key_value = None
             if output_hidden_states:
@@ -1262,12 +1262,12 @@ class MPTForCausalLM(MPTPreTrainedModel):
         act_ckpt_mod_to_blocks = build_act_ckpt_mod_to_blocks(
             act_ckpt_target,
             MPTBlock,
-            module.max_block_idx,
+            module.max_block_idx,  # type: ignore
         )
 
         check_mapping_blocks_overlap(
             act_ckpt_mod_to_blocks,
-            module.max_block_idx,
+            module.max_block_idx,  # type: ignore
         )
 
         for k in act_ckpt_mod_to_blocks.keys():
@@ -1354,10 +1354,11 @@ def compute_loss_from_logits(
         targets.view(-1),
     )
 
-    if torch.all(targets == loss_fn.ignore_index):
+    if torch.all(targets == loss_fn.ignore_index):  # type: ignore
         loss = losses.sum()
     else:
-        loss = losses.sum() / (targets != loss_fn.ignore_index).sum()
+        loss = losses.sum() / (targets !=
+                               loss_fn.ignore_index).sum()  # type: ignore
 
     return loss
 

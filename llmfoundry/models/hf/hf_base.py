@@ -458,7 +458,10 @@ class BaseHuggingFaceModel(HuggingFaceModel):
                     module,
                     (te.LayerNormMLP, te.LayerNormLinear, te.Linear),
                 ):
-                    module.reset_parameters(defer_init=False)
+                    if hasattr(module, 'reset_parameters') and callable(
+                        module.reset_parameters,
+                    ):
+                        module.reset_parameters(defer_init=False)
                     return
 
             # Use the model's default initialization method
@@ -466,13 +469,15 @@ class BaseHuggingFaceModel(HuggingFaceModel):
 
             # Initialize modules that are skipped in model._init_weights
             if hasattr(module, 'weight') and module.weight is not None:
-                if module.__class__.__name__ in EXPLICIT_INIT_ONES_NAMES:
-                    torch.nn.init.ones_(module.weight)
-                elif torch.isnan(module.weight).any():
-                    # Log a warning if a layer is left uninitialized and contains NaN values
-                    log.warning(
-                        f'{module.__class__.__name__} weight contains NaN values after model._init_weights call.',
-                    )
+                weight = module.weight
+                if isinstance(weight, torch.Tensor):
+                    if module.__class__.__name__ in EXPLICIT_INIT_ONES_NAMES:
+                        torch.nn.init.ones_(weight)
+                    elif torch.isnan(weight).any():
+                        # Log a warning if a layer is left uninitialized and contains NaN values
+                        log.warning(
+                            f'{module.__class__.__name__} weight contains NaN values after model._init_weights call.',
+                        )
 
         # This provides support for meta initialization when using FSDP
         model.param_init_fn = lambda module: _custom_param_init_fn(module)

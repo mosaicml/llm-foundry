@@ -594,7 +594,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )
 
     @patch(
-        'llmfoundry.command_utils.data_prep.convert_delta_to_json.get_total_rows'
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.get_total_rows',
     )
     @patch(
         'llmfoundry.command_utils.data_prep.convert_delta_to_json.validate_and_get_cluster_info',

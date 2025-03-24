@@ -446,7 +446,6 @@ if __name__ == '__main__':
         print(f'Reading {args.split} split from {args.local_path}')
 
     cfg = {
-        'name': 'text',
         'dataset': {
             'local': args.local_path,
             'remote': args.remote_path,

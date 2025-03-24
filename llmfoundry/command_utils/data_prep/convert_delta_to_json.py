@@ -500,7 +500,9 @@ def fetch(
 
     except Exception as e:
         from databricks.sql.exc import ServerOperationError
+        import grpc
         from pyspark.errors import AnalysisException
+        import pyspark.errors.exceptions.connect as spark_errors
 
         if isinstance(e, (AnalysisException, ServerOperationError)):
             error_message = str(e)
@@ -529,6 +531,12 @@ def fetch(
                     volume_name,
                     table_name,
                 ) from e
+
+        elif isinstance(e, spark_errors.SparkConnectGrpcException):
+            raise
+
+        elif isinstance(e, grpc.RpcError):
+            raise
 
         if isinstance(e, InsufficientPermissionsError):
             raise
@@ -623,7 +631,9 @@ def validate_and_get_cluster_info(
 
             else:
                 if not cluster_id:
-                    raise ValueError('cluster_id is needed for dbconnect.',)
+                    raise ValueError(
+                        'cluster_id is needed for dbconnect.',
+                    )
                 sparkSession = DatabricksSession.builder.remote(
                     host=databricks_host,
                     token=databricks_token,

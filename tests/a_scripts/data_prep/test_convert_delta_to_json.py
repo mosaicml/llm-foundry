@@ -839,7 +839,9 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         mock_table = MagicMock()
         mock_session.table.return_value = mock_table
         mock_validate_cluster_info.return_value = (
-            'dbconnect', None, mock_session
+            'dbconnect',
+            None,
+            mock_session,
         )
         mock_table.collect_cf.return_value = (MagicMock(), None, None)
 

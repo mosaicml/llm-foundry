@@ -29,6 +29,7 @@ from llmfoundry.utils.exceptions import (
     InsufficientPermissionsError,
     MalformedUCTableError,
     StoragePermissionError,
+    TableDownloadError,
     UCNotEnabledError,
 )
 
@@ -531,18 +532,18 @@ def fetch(
                     volume_name,
                     table_name,
                 ) from e
-
-        elif isinstance(e, spark_errors.SparkConnectGrpcException):
-            raise
-
-        elif isinstance(e, grpc.RpcError):
-            raise
-
-        if isinstance(e, InsufficientPermissionsError):
+        elif isinstance(
+            e,
+            (
+                spark_errors.SparkConnectGrpcException,
+                grpc.RpcError,
+                InsufficientPermissionsError,
+            ),
+        ):
             raise
 
         # For any other exception, raise a general error
-        raise RuntimeError(f'Error processing {tablename}: {str(e)}') from e
+        raise TableDownloadError(tablename, str(e))
 
     finally:
         if cursor is not None:

@@ -293,7 +293,10 @@ class BinPackCollator:
         # Cut everything down to size
         sizes, trimmed_examples = [], []
         for idx in range(batch['attention_mask'].shape[0]):
-            size, trimmed_example = BinPackCollator._extract_trim_batch_idx(batch, idx)
+            size, trimmed_example = BinPackCollator._extract_trim_batch_idx(
+                batch,
+                idx,
+            )
             sizes.append(size)
             trimmed_examples.append(trimmed_example)
         return sizes, trimmed_examples
@@ -308,7 +311,9 @@ class BinPackCollator:
         keep = example['attention_mask'] == 1
         size = int(keep.sum())
         trim_example = {k: v[keep] for k, v in example.items()}
-        trim_example['sequence_id'] = torch.zeros_like(trim_example['input_ids'])
+        trim_example['sequence_id'] = torch.zeros_like(
+            trim_example['input_ids'],
+        )
 
         return size, trim_example
 
@@ -359,8 +364,8 @@ def auto_packing_ratio(
     tokenizer: PreTrainedTokenizerBase,
     device_batch_size: int,
     num_packing_ratios: int = 20,
-    max_ratio: float = None,
-    packing_collator: object = BinPackCollator,
+    max_ratio: float = 0,
+    packing_collator: type[BinPackCollator] = BinPackCollator,
     inner_collator: Callable = lambda x: x,
 ) -> float:
     """Find a packing ratio that minimizes padding with zero waste.
@@ -402,7 +407,7 @@ def auto_packing_ratio(
         return 1
 
     min_ratio = 1
-    if max_ratio is None:
+    if max_ratio == 0:
         max_ratio = max_seq_len / 100
     elif max_ratio <= min_ratio:
         raise ValueError(f'{max_ratio=} must be >{min_ratio=}')
@@ -447,8 +452,8 @@ def profile_packing(
     max_ratio: float,
     num_packing_ratios: int,
     device_batch_size: int,
-    packing_collator: BinPackCollator,
-    inner_collator: Callable,
+    packing_collator: type[BinPackCollator] = BinPackCollator,
+    inner_collator: Callable = lambda x: x,
 ) -> Iterable[tuple[float, Optional[float], Optional[float]]]:
     """Generator function that profiles example packing across packing ratios.
 
@@ -537,7 +542,7 @@ def profile_packing(
         del big_batch['total_tokens']
     if 'loss_generating_tokens' in big_batch:
         del big_batch['loss_generating_tokens']
-    
+
     sizes, trimmed_examples = packing_collator._trim_batch(big_batch)
 
     def profile(raw_batch_size: int) -> tuple[Optional[float], Optional[float]]:

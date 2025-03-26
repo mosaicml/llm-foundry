@@ -106,7 +106,7 @@ class BinPackCollator:
                 'sequence_id',
             ]
         # Cut everything down to size
-        sizes, trimmed_examples = _trim_batch(batch)
+        sizes, trimmed_examples = BinPackCollator._trim_batch(batch)
         packed_batch = self._pack_trimmed_examples(trimmed_examples, sizes)
         assert packed_batch is not None
         return packed_batch
@@ -142,7 +142,6 @@ class BinPackCollator:
 
         if self._is_profiling:
             return None
-
         # Re-pad to max_seq_len and batch
         batch = self._convert_to_batch(packed_examples)
         return batch
@@ -279,37 +278,39 @@ class BinPackCollator:
             bin_sizes[:num_bins],
         ), sum(sizes), sorted_bins[num_bins:]
 
+    @staticmethod
+    def _trim_batch(
+        batch: dict[str, torch.Tensor],
+    ) -> tuple[list[int], list[dict[str, torch.Tensor]]]:
+        """Trims padding off all examples in batch.
 
-def _trim_batch(
-    batch: dict[str, torch.Tensor],
-) -> tuple[list[int], list[dict[str, torch.Tensor]]]:
-    """Trims padding off all examples in batch.
+        Args:
+            batch (Dict[str, torch.Tensor]): Batch of padded data with tensors as values.
 
-    Args:
-        batch (Dict[str, torch.Tensor]): Batch of padded data with tensors as values.
+        Returns:
+            A tuple with unpadded lengths of examples and a list of each trimmed example from the batch.
+        """
+        # Cut everything down to size
+        sizes, trimmed_examples = [], []
+        for idx in range(batch['attention_mask'].shape[0]):
+            size, trimmed_example = BinPackCollator._extract_trim_batch_idx(batch, idx)
+            sizes.append(size)
+            trimmed_examples.append(trimmed_example)
+        return sizes, trimmed_examples
 
-    Returns:
-        A tuple with unpadded lengths of examples and a list of each trimmed example from the batch.
-    """
-    # Cut everything down to size
-    sizes, trimmed_examples = [], []
-    for idx in range(batch['attention_mask'].shape[0]):
-        size, trimmed_example = _extract_trim_batch_idx(batch, idx)
-        sizes.append(size)
-        trimmed_examples.append(trimmed_example)
-    return sizes, trimmed_examples
+    @staticmethod
+    def _extract_trim_batch_idx(
+        batch: dict[str, torch.Tensor],
+        idx: int,
+    ) -> tuple[int, dict[str, torch.Tensor]]:
+        example = {k: v[idx] for k, v in batch.items()}
 
+        keep = example['attention_mask'] == 1
+        size = int(keep.sum())
+        trim_example = {k: v[keep] for k, v in example.items()}
+        trim_example['sequence_id'] = torch.zeros_like(trim_example['input_ids'])
 
-def _extract_trim_batch_idx(batch: dict[str, torch.Tensor],
-                            idx: int) -> tuple[int, dict[str, torch.Tensor]]:
-    example = {k: v[idx] for k, v in batch.items()}
-
-    keep = example['attention_mask'] == 1
-    size = int(keep.sum())
-    trim_example = {k: v[keep] for k, v in example.items()}
-    trim_example['sequence_id'] = torch.zeros_like(trim_example['input_ids'])
-
-    return size, trim_example
+        return size, trim_example
 
 
 def _combine_in_place(
@@ -358,6 +359,9 @@ def auto_packing_ratio(
     tokenizer: PreTrainedTokenizerBase,
     device_batch_size: int,
     num_packing_ratios: int = 20,
+    max_ratio: float = None,
+    packing_collator: object = BinPackCollator,
+    inner_collator: Callable = lambda x: x,
 ) -> float:
     """Find a packing ratio that minimizes padding with zero waste.
 
@@ -375,6 +379,9 @@ def auto_packing_ratio(
         tokenizer (PreTrainedTokenizerBase): The tokenizer for profiling.
         device_batch_size (int): The size of the batches (number of examples) per device.
         num_packing_ratios (int): The number of packing ratios to try.
+        max_ratio (float): The largest packing ratio to try. Must be larger than `min_ratio`.
+        packing_collator (BinPackCollator): The collator to use for packing.
+        inner_collator (Callable): The inner collator to use by the packing collator.
 
     Returns:
         A packing ratio that minimizes padding while maintaining zero waste.
@@ -395,7 +402,10 @@ def auto_packing_ratio(
         return 1
 
     min_ratio = 1
-    max_ratio = max_seq_len / 100
+    if max_ratio is None:
+        max_ratio = max_seq_len / 100
+    elif max_ratio <= min_ratio:
+        raise ValueError(f'{max_ratio=} must be >{min_ratio=}')
     profiling_results = profile_packing(
         dataloader_cfg=dataloader_cfg,
         tokenizer=tokenizer,
@@ -403,6 +413,8 @@ def auto_packing_ratio(
         max_ratio=max_ratio,
         num_packing_ratios=num_packing_ratios,
         device_batch_size=device_batch_size,
+        packing_collator=packing_collator,
+        inner_collator=inner_collator,
     )
 
     # Obtain the maximum packing_ratio/minimum padding that has no waste.
@@ -435,6 +447,8 @@ def profile_packing(
     max_ratio: float,
     num_packing_ratios: int,
     device_batch_size: int,
+    packing_collator: BinPackCollator,
+    inner_collator: Callable,
 ) -> Iterable[tuple[float, Optional[float], Optional[float]]]:
     """Generator function that profiles example packing across packing ratios.
 
@@ -445,6 +459,8 @@ def profile_packing(
         max_ratio (float): Largest packing_ratio to test. Must be larger than `min_ratio`.
         num_packing_ratios (int): Number of packing_ratio values (spaced between `min_ratio` and `max_ratio`) to try.
         device_batch_size (int): The size of the batches (number of examples) per device.
+        packing_collator (BinPackCollator): The collator to use for packing.
+        inner_collator (Callable): The inner collator to use by the packing collator.
 
     Returns:
         An iterable of tuples of packing ratio, padding, and waste, sorted by smallest to largest packing ratio.
@@ -521,15 +537,16 @@ def profile_packing(
         del big_batch['total_tokens']
     if 'loss_generating_tokens' in big_batch:
         del big_batch['loss_generating_tokens']
-    sizes, trimmed_examples = _trim_batch(big_batch)
+    
+    sizes, trimmed_examples = packing_collator._trim_batch(big_batch)
 
     def profile(raw_batch_size: int) -> tuple[Optional[float], Optional[float]]:
         # Copy trimmed examples so that the dicts are not shared between profiling runs.
         trimmed_examples_copy = [te.copy() for te in trimmed_examples]
 
         # Create the packing collator.
-        packer = BinPackCollator(
-            collator=lambda x: x,
+        packer = packing_collator(
+            collator=inner_collator,
             target_batch_size=device_batch_size,
             max_seq_len=max_seq_len,
             pad_token_id=0,  # <-- Doesn't need to be correct for profiling

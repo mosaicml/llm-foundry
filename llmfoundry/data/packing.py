@@ -106,7 +106,7 @@ class BinPackCollator:
                 'sequence_id',
             ]
         # Cut everything down to size
-        sizes, trimmed_examples = BinPackCollator._trim_batch(batch)
+        sizes, trimmed_examples = self._trim_batch(batch)
         packed_batch = self._pack_trimmed_examples(trimmed_examples, sizes)
         assert packed_batch is not None
         return packed_batch

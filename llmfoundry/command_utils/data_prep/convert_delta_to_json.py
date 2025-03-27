@@ -29,6 +29,7 @@ from llmfoundry.utils.exceptions import (
     InsufficientPermissionsError,
     MalformedUCTableError,
     StoragePermissionError,
+    TableDownloadError,
     UCNotEnabledError,
 )
 
@@ -499,6 +500,8 @@ def fetch(
                 )
 
     except Exception as e:
+        import grpc
+        import pyspark.errors.exceptions.connect as spark_errors
         from databricks.sql.exc import ServerOperationError
         from pyspark.errors import AnalysisException
 
@@ -529,12 +532,18 @@ def fetch(
                     volume_name,
                     table_name,
                 ) from e
-
-        if isinstance(e, InsufficientPermissionsError):
+        elif isinstance(
+            e,
+            (
+                spark_errors.SparkConnectGrpcException,
+                grpc.RpcError,
+                InsufficientPermissionsError,
+            ),
+        ):
             raise
 
         # For any other exception, raise a general error
-        raise RuntimeError(f'Error processing {tablename}: {str(e)}') from e
+        raise TableDownloadError(tablename, str(e))
 
     finally:
         if cursor is not None:

@@ -278,8 +278,9 @@ class BinPackCollator:
             bin_sizes[:num_bins],
         ), sum(sizes), sorted_bins[num_bins:]
 
-    @staticmethod
+    @classmethod
     def _trim_batch(
+        cls,
         batch: dict[str, torch.Tensor],
     ) -> tuple[list[int], list[dict[str, torch.Tensor]]]:
         """Trims padding off all examples in batch.
@@ -293,7 +294,7 @@ class BinPackCollator:
         # Cut everything down to size
         sizes, trimmed_examples = [], []
         for idx in range(batch['attention_mask'].shape[0]):
-            size, trimmed_example = BinPackCollator._extract_trim_batch_idx(
+            size, trimmed_example = cls._extract_trim_batch_idx(
                 batch,
                 idx,
             )
@@ -301,8 +302,9 @@ class BinPackCollator:
             trimmed_examples.append(trimmed_example)
         return sizes, trimmed_examples
 
-    @staticmethod
+    @classmethod
     def _extract_trim_batch_idx(
+        cls,
         batch: dict[str, torch.Tensor],
         idx: int,
     ) -> tuple[int, dict[str, torch.Tensor]]:
@@ -364,7 +366,7 @@ def auto_packing_ratio(
     tokenizer: PreTrainedTokenizerBase,
     device_batch_size: int,
     num_packing_ratios: int = 20,
-    max_ratio: float = 0,
+    max_ratio: Optional[float] = None,
     packing_collator: type[BinPackCollator] = BinPackCollator,
     inner_collator: Callable = lambda x: x,
 ) -> float:
@@ -384,7 +386,7 @@ def auto_packing_ratio(
         tokenizer (PreTrainedTokenizerBase): The tokenizer for profiling.
         device_batch_size (int): The size of the batches (number of examples) per device.
         num_packing_ratios (int): The number of packing ratios to try.
-        max_ratio (float): The largest packing ratio to try. Must be larger than `min_ratio`.
+        max_ratio (Optional[float]): The largest packing ratio to try. Must be larger than `min_ratio`.
         packing_collator (BinPackCollator): The collator to use for packing.
         inner_collator (Callable): The inner collator to use by the packing collator.
 
@@ -407,10 +409,11 @@ def auto_packing_ratio(
         return 1
 
     min_ratio = 1
-    if max_ratio == 0:
+    if max_ratio is None:
         max_ratio = max_seq_len / 100
     elif max_ratio <= min_ratio:
         raise ValueError(f'{max_ratio=} must be >{min_ratio=}')
+    assert isinstance(max_ratio, float)
     profiling_results = profile_packing(
         dataloader_cfg=dataloader_cfg,
         tokenizer=tokenizer,

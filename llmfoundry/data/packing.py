@@ -367,7 +367,7 @@ def auto_packing_ratio(
     device_batch_size: int,
     num_packing_ratios: int = 20,
     max_ratio: Optional[float] = None,
-    packing_collator: type[BinPackCollator] = BinPackCollator,
+    packing_collator_cls: type[BinPackCollator] = BinPackCollator,
     inner_collator: Callable = lambda x: x,
 ) -> float:
     """Find a packing ratio that minimizes padding with zero waste.
@@ -387,7 +387,8 @@ def auto_packing_ratio(
         device_batch_size (int): The size of the batches (number of examples) per device.
         num_packing_ratios (int): The number of packing ratios to try.
         max_ratio (Optional[float]): The largest packing ratio to try. Must be larger than `min_ratio`.
-        packing_collator (BinPackCollator): The collator to use for packing.
+            Defaults to max_seq_len / 100.
+        packing_collator_cls (BinPackCollator): The collator class to use for packing.
         inner_collator (Callable): The inner collator to use by the packing collator.
 
     Returns:
@@ -421,7 +422,7 @@ def auto_packing_ratio(
         max_ratio=max_ratio,
         num_packing_ratios=num_packing_ratios,
         device_batch_size=device_batch_size,
-        packing_collator=packing_collator,
+        packing_collator_cls=packing_collator_cls,
         inner_collator=inner_collator,
     )
 
@@ -455,7 +456,7 @@ def profile_packing(
     max_ratio: float,
     num_packing_ratios: int,
     device_batch_size: int,
-    packing_collator: type[BinPackCollator] = BinPackCollator,
+    packing_collator_cls: type[BinPackCollator] = BinPackCollator,
     inner_collator: Callable = lambda x: x,
 ) -> Iterable[tuple[float, Optional[float], Optional[float]]]:
     """Generator function that profiles example packing across packing ratios.
@@ -467,7 +468,7 @@ def profile_packing(
         max_ratio (float): Largest packing_ratio to test. Must be larger than `min_ratio`.
         num_packing_ratios (int): Number of packing_ratio values (spaced between `min_ratio` and `max_ratio`) to try.
         device_batch_size (int): The size of the batches (number of examples) per device.
-        packing_collator (BinPackCollator): The collator to use for packing.
+        packing_collator_cls (BinPackCollator): The collator class to use for packing.
         inner_collator (Callable): The inner collator to use by the packing collator.
 
     Returns:
@@ -546,14 +547,14 @@ def profile_packing(
     if 'loss_generating_tokens' in big_batch:
         del big_batch['loss_generating_tokens']
 
-    sizes, trimmed_examples = packing_collator._trim_batch(big_batch)
+    sizes, trimmed_examples = packing_collator_cls._trim_batch(big_batch)
 
     def profile(raw_batch_size: int) -> tuple[Optional[float], Optional[float]]:
         # Copy trimmed examples so that the dicts are not shared between profiling runs.
         trimmed_examples_copy = [te.copy() for te in trimmed_examples]
 
         # Create the packing collator.
-        packer = packing_collator(
+        packer = packing_collator_cls(
             collator=inner_collator,
             target_batch_size=device_batch_size,
             max_seq_len=max_seq_len,

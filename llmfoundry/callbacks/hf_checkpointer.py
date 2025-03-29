@@ -217,8 +217,7 @@ def _log_model_with_multi_process(
         )
     except Exception as e:
         log.error(
-            f'Exception when registering model {mlflow_logger.model_registry_prefix}.{registered_model_name} to MLflow: {e}',
-            e,
+            f'Exception when registering model {mlflow_logger.model_registry_prefix}.{registered_model_name} to MLflow: {str(e)}'
         )
         log.warning("Retrying without registration")
         # Retry without registration

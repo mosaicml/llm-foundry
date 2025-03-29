@@ -432,7 +432,8 @@ class HuggingFaceCheckpointer(Callback):
                 state.device,
             ) and self.final_register_only:
                 log.error(
-                    'An error occurred in one or more registration processes. The model should still be logged to' +
+                    'An error occurred in one or more registration processes. The model should still be logged to'
+                    +
                     'the Mlflow artifacts, but will need to be registered manually',
                 )
 

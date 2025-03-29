@@ -432,13 +432,8 @@ class HuggingFaceCheckpointer(Callback):
                 state.device,
             ) and self.final_register_only:
                 log.error(
-                    'An error occurred in one or more registration processes. Fallback to saving the HuggingFace checkpoint.',
-                )
-                self._save_checkpoint(
-                    state,
-                    logger,
-                    upload_to_save_folder=True,
-                    register_to_mlflow=False,
+                    'An error occurred in one or more registration processes. The model should still be logged to' +
+                    'the Mlflow artifacts, but will need to be registered manually',
                 )
 
             # Clean up temporary save directory; all processes are done with it.

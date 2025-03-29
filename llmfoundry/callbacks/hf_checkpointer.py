@@ -202,15 +202,34 @@ def _log_model_with_multi_process(
         mlflow.set_registry_uri(mlflow_logger.model_registry_uri)
 
     register_model_path = f'{mlflow_logger.model_registry_prefix}.{registered_model_name}' if mlflow_logger.model_registry_prefix and registered_model_name else registered_model_name
-    mlflow_logger.log_model(
-        transformers_model=transformers_model,
-        flavor='transformers',
-        artifact_path=artifact_path,
-        registered_model_name=register_model_path,
-        run_id=mlflow_logger._run_id,
-        await_registration_for=await_registration_for,
-        **mlflow_logging_config,
-    )
+    
+    try:
+        # DO NOT MERGE JUST FOR TESTING
+        raise Exception('Testing MLFlow registration failure')
+        mlflow_logger.log_model(
+            transformers_model=transformers_model,
+            flavor='transformers',
+            artifact_path=artifact_path,
+            registered_model_name=register_model_path,
+            run_id=mlflow_logger._run_id,
+            await_registration_for=await_registration_for,
+            **mlflow_logging_config,
+        )
+    except Exception as e:
+        log.error(
+            f'Exception when registering model {mlflow_logger.model_registry_prefix}.{registered_model_name} to MLflow: {e}',
+            e,
+        )
+        log.warning("Retrying without registration")
+        # Retry without registration
+        mlflow_logger.log_model(
+            transformers_model=transformers_model,
+            flavor='transformers',
+            artifact_path=artifact_path,
+            run_id=mlflow_logger._run_id,
+            await_registration_for=await_registration_for,
+            **mlflow_logging_config,
+        )
 
 
 class HuggingFaceCheckpointer(Callback):

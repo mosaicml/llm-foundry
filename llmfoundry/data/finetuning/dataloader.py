@@ -480,9 +480,10 @@ def _validate_config(
             if value is not None:
                 discovered_illegal_keys.append('`' + key + '`')
         if discovered_illegal_keys:
+            discovered_illegal_keys_str = ', '.join(discovered_illegal_keys)
             raise ValueError(
                 'The dataset config sets a value for `remote` as well as the ' +\
-                f'following keys: {", ".join(discovered_illegal_keys)}.\n' +\
+                f'following keys: {discovered_illegal_keys_str}.\n' +\
                 'Those keys are used when building from a HuggingFace dataset, but ' +\
                 'setting `remote` instructs the dataset to build from a streaming dataset.',
             )

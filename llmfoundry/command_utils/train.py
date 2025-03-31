@@ -82,7 +82,8 @@ def validate_config(train_config: TrainConfig):
         if loader['name'] == 'text':
             if train_config.model['name'] == 'hf_t5':
                 raise ValueError(
-                    'Model type hf_t5 is not supported when using the \"text\" dataloader. Only finetuning is supported.')
+                    'Model type hf_t5 is not supported when using the \"text\" dataloader. Only finetuning is supported.',
+                )
 
     if train_config.icl_tasks is not None or train_config.icl_tasks_str is not None:
         if train_config.model['name'] == 'hf_t5':

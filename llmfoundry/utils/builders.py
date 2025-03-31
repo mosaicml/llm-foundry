@@ -616,7 +616,7 @@ def build_icl_evaluators(
                 pad_tok_id = tokenizer.eos_token_id
             else:
                 pad_tok_id = tokenizer.pad_token_id
-            
+
             icl_cfg_label = icl_cfg['label']
             label = f'{icl_cfg_label}/{num_fewshot}-shot'
             metric_names = list(icl_cfg['metric_names'])

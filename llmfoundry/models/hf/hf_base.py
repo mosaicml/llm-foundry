@@ -10,9 +10,11 @@ import os
 import warnings
 from typing import TYPE_CHECKING, Any, Mapping, Optional, Union
 
+import torch
 import transformers
 from composer.models.huggingface import HuggingFaceModel, peft_installed
 from composer.utils import dist
+from torch import nn
 from torchmetrics import Metric
 from transformers import (
     AutoConfig,
@@ -36,6 +38,11 @@ from llmfoundry.utils.config_utils import set_config_overrides
 
 if TYPE_CHECKING:
     from peft import PeftConfig, PeftModel
+
+try:
+    import transformer_engine.pytorch as te
+except:
+    te = None
 
 __all__ = ['BaseHuggingFaceModel']
 
@@ -436,5 +443,41 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         # so that the (possible) embedding resizing doesn't destroy them
         prepare_hf_model_for_fsdp(model, init_device)
 
+        # Define explicitly which layers should be initialized with ones (these are known to be skipped by the underlying Hugging Face model._init_weights)
+        EXPLICIT_INIT_ONES_NAMES = ['LlamaRMSNorm', 'Qwen2RMSNorm']
+
+        def _custom_param_init_fn(module: nn.Module):
+            """Custom parameter initialization function for the model's modules.
+
+            Args:
+                module: The module to initialize.
+            """
+            if te is not None:
+                # Initialize transformer engine modules
+                if isinstance(
+                    module,
+                    (te.LayerNormMLP, te.LayerNormLinear, te.Linear),
+                ):
+                    if hasattr(module, 'reset_parameters') and callable(
+                        module.reset_parameters,
+                    ):
+                        module.reset_parameters(defer_init=False)
+                    return
+
+            # Use the model's default initialization method
+            model._init_weights(module)
+
+            # Initialize modules that are skipped in model._init_weights
+            if hasattr(module, 'weight') and module.weight is not None:
+                weight = module.weight
+                if isinstance(weight, torch.Tensor):
+                    if module.__class__.__name__ in EXPLICIT_INIT_ONES_NAMES:
+                        torch.nn.init.ones_(weight)
+                    elif torch.isnan(weight).any():
+                        # Log a warning if a layer is left uninitialized and contains NaN values
+                        log.warning(
+                            f'{module.__class__.__name__} weight contains NaN values after model._init_weights call.',
+                        )
+
         # This provides support for meta initialization when using FSDP
-        model.param_init_fn = lambda module: model._init_weights(module)
+        model.param_init_fn = lambda module: _custom_param_init_fn(module)

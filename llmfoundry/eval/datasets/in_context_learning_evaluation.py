@@ -720,7 +720,8 @@ class InContextLearningGenerationTaskWithAnswersDataset(
             str: The answer in from the example with chain of thought and delimiter if needed
         """
         if self.has_cot:
-            return f'{example["chain_of_thought"]}{self.cot_delimiter}{example[self.answer_key]}'
+            example_cot = example['chain_of_thought']
+            return f'{example_cot}{self.cot_delimiter}{example[self.answer_key]}'
         else:
             return example[self.answer_key]
 
@@ -761,8 +762,9 @@ class InContextLearningGenerationTaskWithAnswersDataset(
             ] + list(example.get('aliases', []))
             for answer in all_answers:
                 if self.has_cot:
+                    example_cot = example['chain_of_thought']
                     response = (
-                        f'{example["chain_of_thought"]}{self.cot_delimiter}{answer}'
+                        f'{example_cot}{self.cot_delimiter}{answer}'
                     )
                 else:
                     response = answer

@@ -592,7 +592,7 @@ class MPTModel(MPTPreTrainedModel):
         if override_attn_config['reuse_kv_layer_idx'] >= 0:
             reuse_kv_layer_idx = override_attn_config['reuse_kv_layer_idx']
             raise ValueError(
-                f'The relative index of kv layer to reuse, {reuse_kv_layer_idx}, should be negative.',
+                f'The relative index of kv layer to reuse, {reuse_kv_layer_idx=}, should be negative.',
             )
         reuse_kv_layer_idx = b_idx + override_attn_config['reuse_kv_layer_idx']
         if reuse_kv_layer_idx < 0:

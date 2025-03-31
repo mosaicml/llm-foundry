@@ -477,7 +477,8 @@ class MPTModel(MPTPreTrainedModel):
                     module.use_bias = False
 
         log.debug(self)
-        log.debug(f'Using {self.config.init_config["name"]} initialization.')
+        init_config_name = self.config.init_config['name']
+        log.debug(f'Using {init_config_name} initialization.')
 
     @property
     def block_class(self) -> type[MPTBlock]:
@@ -589,8 +590,9 @@ class MPTModel(MPTPreTrainedModel):
     ) -> int:
         override_attn_config = override_config['attn_config']
         if override_attn_config['reuse_kv_layer_idx'] >= 0:
+            reuse_kv_layer_idx = override_attn_config['reuse_kv_layer_idx']
             raise ValueError(
-                f'The relative index of kv layer to reuse, {override_attn_config["reuse_kv_layer_idx"]=}, should be negative.',
+                f'The relative index of kv layer to reuse, {reuse_kv_layer_idx}, should be negative.',
             )
         reuse_kv_layer_idx = b_idx + override_attn_config['reuse_kv_layer_idx']
         if reuse_kv_layer_idx < 0:

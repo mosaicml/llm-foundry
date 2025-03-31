@@ -589,8 +589,9 @@ def build_icl_evaluators(
                     'InContextLearningGenerationExactMatchAccuracy',
                 ]
             else:
+                icl_task_type = icl_cfg['icl_task_type']
                 raise ValueError(
-                    f'No metric_names defined, unable to build default metrics for icl_task_type={icl_cfg["icl_task_type"]}.',
+                    f'No metric_names defined, unable to build default metrics for icl_task_type={icl_task_type}.',
                 )
 
         if 'max_seq_len' not in icl_cfg:
@@ -615,11 +616,12 @@ def build_icl_evaluators(
                 pad_tok_id = tokenizer.eos_token_id
             else:
                 pad_tok_id = tokenizer.pad_token_id
-
-            label = f'{icl_cfg["label"]}/{num_fewshot}-shot'
+            
+            icl_cfg_label = icl_cfg['label']
+            label = f'{icl_cfg_label}/{num_fewshot}-shot'
             metric_names = list(icl_cfg['metric_names'])
             # TODO: fix Composer bug when copying local paths and destination exists
-            destination_path = f'{destination_dir}/{icl_cfg["label"]}-{num_fewshot}.jsonl'
+            destination_path = f'{destination_dir}/{icl_cfg_label}-{num_fewshot}.jsonl'
             if dist.get_local_rank() == 0 and os.path.exists(destination_path):
                 os.remove(destination_path)
             dist.barrier()

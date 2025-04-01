@@ -462,7 +462,7 @@ def get_tokenizer_fixture_by_name(
         'codellama/CodeLlama-7b-hf': 'tiny_codellama_tokenizer',
         'facebook/opt-125m': 'tiny_opt_tokenizer',
         'EleutherAI/gpt-neox-20b': 'tiny_neox_tokenizer',
-        'EleutherAI/gpt-neo-125m': 'tiny_neo_tokenizer',
+        'EleutherAI/gpt-neo-125M': 'tiny_neo_tokenizer',
         't5-base': 'tiny_t5_tokenizer',
         'google-bert/bert-base-uncased': 'tiny_bert_tokenizer',
         'mosaicml/mpt-7b': 'tiny_mpt_tokenizer',

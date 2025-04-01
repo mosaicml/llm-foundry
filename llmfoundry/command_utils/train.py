@@ -1,5 +1,6 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
+import copy
 import gc
 import logging
 import os
@@ -331,8 +332,8 @@ def train(cfg: DictConfig) -> Trainer:
 
     # Initialize context
     init_context = process_init_device(model_config, fsdp_config, tp_config)
-    logged_cfg.update({'fsdp_config': fsdp_config}, merge=True)
-    logged_cfg.update({'tp_config': tp_config}, merge=True)
+    logged_cfg.update({'fsdp_config': copy.deepcopy(fsdp_config)}, merge=True)
+    logged_cfg.update({'tp_config': copy.deepcopy(tp_config)}, merge=True)
 
     if fsdp_config is not None:
         if 'load_planner' in fsdp_config:

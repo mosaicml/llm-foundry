@@ -218,7 +218,7 @@ def test_init(
 
 @pytest.mark.parametrize('log_output_text', [True, False])
 def test_eval_output_logging_lm(
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: transformers.AutoTokenizer,
     log_output_text: bool,
 ):
     # this test simulates an unrolled version of the eval loop occurring twice
@@ -238,12 +238,12 @@ def test_eval_output_logging_lm(
 
     for _ in range(2):
         state.update_curr_eval(
-            MockDataLoader(tiny_gpt2_tokenizer),
+            MockDataLoader(tiny_gpt2_with_pad_tokenizer),
             'lm_acc',
         )
         mock_lm_computation(
             state.eval_metrics['lm_acc']['InContextLearningLMAccuracy()'],
-            tiny_gpt2_tokenizer,
+            tiny_gpt2_with_pad_tokenizer,
             state,
         )
         state.metric_outputs['metric_name'] = [
@@ -363,7 +363,7 @@ def test_eval_output_logging_lm(
 
 
 def test_eval_output_logging_mc(
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: transformers.AutoTokenizer,
 ):
     # this test simulates an unrolled version of the eval loop occurring twice
     state = MockState()
@@ -381,13 +381,13 @@ def test_eval_output_logging_mc(
     eval_output_logging.init(mock.Mock(model=MockHFModel()), logger)
     for _ in range(2):
         state.update_curr_eval(
-            MockDataLoader(tiny_gpt2_tokenizer),
+            MockDataLoader(tiny_gpt2_with_pad_tokenizer),
             'mc_acc',
         )
         mock_mc_computation(
             state.eval_metrics['mc_acc']
             ['InContextLearningMultipleChoiceAccuracy()'],
-            tiny_gpt2_tokenizer,
+            tiny_gpt2_with_pad_tokenizer,
             state,
         )
         state.metric_outputs['metric_name'] = [

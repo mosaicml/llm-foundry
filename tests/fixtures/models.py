@@ -305,9 +305,11 @@ def _session_tiny_bert_config():  # type: ignore
 def _session_tiny_gpt2_tokenizer():  # type: ignore
     return tiny_gpt2_tokenizer_helper()
 
+
 @pytest.fixture(scope='session')
 def _session_tiny_gpt2_with_pad_tokenizer():  # type: ignore
     return tiny_gpt2_tokenizer_helper(add_pad=True)
+
 
 @pytest.fixture(scope='session')
 def _session_tiny_llama_tokenizer():  # type: ignore
@@ -396,9 +398,13 @@ def tiny_codellama_wt_config(_session_tiny_codellama_wt_config):  # type: ignore
 def tiny_gpt2_tokenizer(_session_tiny_gpt2_tokenizer):  # type: ignore
     return copy.deepcopy(_session_tiny_gpt2_tokenizer)
 
+
 @pytest.fixture
-def tiny_gpt2_with_pad_tokenizer(_session_tiny_gpt2_with_pad_tokenizer):  # type: ignore
+def tiny_gpt2_with_pad_tokenizer(
+    _session_tiny_gpt2_with_pad_tokenizer  # type: ignore
+):
     return copy.deepcopy(_session_tiny_gpt2_with_pad_tokenizer)
+
 
 @pytest.fixture
 def tiny_llama_tokenizer(_session_tiny_llama_tokenizer):  # type: ignore

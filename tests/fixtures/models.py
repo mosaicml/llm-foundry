@@ -167,6 +167,7 @@ def tiny_llama_tokenizer_helper():
     )
     return hf_tokenizer
 
+
 def tiny_codellama_tokenizer_helper():
     transformers = pytest.importorskip('transformers')
 
@@ -174,6 +175,7 @@ def tiny_codellama_tokenizer_helper():
         'codellama/CodeLlama-7b-hf',
     )
     return hf_tokenizer
+
 
 def tiny_opt_tokenizer_helper():
     transformers = pytest.importorskip('transformers')
@@ -232,6 +234,7 @@ def _session_tiny_codellama_model(  # type: ignore
 ):  # type: ignore
     return causal_lm_model_helper(_session_tiny_codellama_config)
 
+
 @pytest.fixture(scope='session')
 def _session_tiny_codellama_wt_model(  # type: ignore
     _session_tiny_codellama_config,  # type: ignore
@@ -254,9 +257,11 @@ def _session_tiny_opt_config():  # type: ignore
 def _session_tiny_codellama_config():  # type: ignore
     return tiny_codellama_config_helper()
 
+
 @pytest.fixture(scope='session')
 def _session_tiny_codellama_wt_config():  # type: ignore
     return tiny_codellama_config_helper(tie_word_embeddings=True)
+
 
 @pytest.fixture(scope='session')
 def _session_tiny_bert_config():  # type: ignore
@@ -272,6 +277,7 @@ def _session_tiny_gpt2_tokenizer():  # type: ignore
 @pytest.fixture(scope='session')
 def _session_tiny_llama_tokenizer():  # type: ignore
     return tiny_llama_tokenizer_helper()
+
 
 @pytest.fixture(scope='session')
 def _session_tiny_codellama_tokenizer():  # type: ignore
@@ -313,6 +319,7 @@ def tiny_opt_model(_session_tiny_opt_model):  # type: ignore
 def tiny_codellama_model(_session_tiny_codellama_model):  # type: ignore
     return copy.deepcopy(_session_tiny_codellama_model)
 
+
 @pytest.fixture
 def tiny_codellama_wt_model(_session_tiny_codellama_wt_model):  # type: ignore
     return copy.deepcopy(_session_tiny_codellama_wt_model)
@@ -327,6 +334,7 @@ def tiny_bert_model(_session_tiny_bert_model):  # type: ignore
 @pytest.fixture
 def tiny_bert_config(_session_tiny_bert_config):  # type: ignore
     return copy.deepcopy(_session_tiny_bert_config)
+
 
 @pytest.fixture
 def tiny_codellama_wt_config(_session_tiny_codellama_wt_config):  # type: ignore

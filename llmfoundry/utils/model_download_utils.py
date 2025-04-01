@@ -316,7 +316,8 @@ def download_from_oras(
         return cmd
 
     cmd_without_creds = get_oras_cmd()
-    log.info(f'CMD for oras cli to run: {" ".join(cmd_without_creds)}')
+    oras_cli_command = ' '.join(cmd_without_creds)
+    log.info(f'CMD for oras cli to run: {oras_cli_command}')
     cmd_to_run = get_oras_cmd(
         username=secrets['username'],
         password=secrets['password'],

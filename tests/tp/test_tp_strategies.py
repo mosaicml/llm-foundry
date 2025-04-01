@@ -150,14 +150,12 @@ def get_loss_array(trainer: Trainer):
 @pytest.mark.world_size(4)
 @pytest.mark.parametrize('tp_degree', [2])
 @pytest.mark.parametrize('tp_strategy', ['ffn'])
-def test_tp_train(tp_degree: int, tp_strategy: str, tmp_path: Path):
+def test_tp_train(
+    tp_degree: int, tp_strategy: str, tmp_path: Path, tiny_c4_dataset_path
+):
     """Test that we can train with FSDP-TP."""
-    tp_dataset_name = create_c4_dataset_xxsmall(tmp_path)
-
-    tp_dataset_name = dist.all_gather_object(tp_dataset_name)[0]
-
     # Train model with TP and get loss
-    tp_cfg = get_cfg(pathlib.Path(tp_dataset_name), tp_strategy, tp_degree)
+    tp_cfg = get_cfg(pathlib.Path(tiny_c4_dataset_path), tp_strategy, tp_degree)
     tp_trainer = train(tp_cfg)
     tp_trainer.close()
     tp_loss = get_loss_array(tp_trainer)
@@ -176,11 +174,10 @@ def test_tp_train(tp_degree: int, tp_strategy: str, tmp_path: Path):
 
 
 @pytest.mark.gpu
-def test_tp_train_with_one_gpu(tmp_path: Path):
+def test_tp_train_with_one_gpu(tmp_path: Path, tiny_c4_dataset_path):
     """Test that when we have one GPU, we train DDP and not FSDP-TP."""
     # Make `train_cfg`` with a tensor parallelism strategy
-    dataset_name = create_c4_dataset_xxsmall(tmp_path)
-    train_cfg = gpt_tiny_cfg(dataset_name, 'gpu')
+    train_cfg = gpt_tiny_cfg(tiny_c4_dataset_path, 'gpu')
     train_cfg.tp_config = {'strategy': 'ffn'}
 
     # Expect a warning

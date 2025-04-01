@@ -12,7 +12,22 @@ from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.data.finetuning.dataloader import build_finetuning_dataloader
-from tests.data_utils import make_tiny_ft_dataset
+from tests.data_utils import create_c4_dataset_xxsmall, make_tiny_ft_dataset
+
+@fixture(scope="session")
+def session_temp_dir(tmp_path_factory):
+    temp_dir = tmp_path_factory.mktemp("my_session_dir")
+    return temp_dir
+
+@fixture(scope='session')
+def tiny_c4_dataset_path(session_temp_dir: Path) -> Path:
+    c4_dir = None
+    if dist.get_global_rank() == 0:
+        c4_dir = create_c4_dataset_xxsmall(session_temp_dir)
+
+    c4_dir = dist.all_gather_object(c4_dir)[0]
+
+    return c4_dir
 
 
 @fixture

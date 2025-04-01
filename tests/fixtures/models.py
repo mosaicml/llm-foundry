@@ -75,17 +75,22 @@ def build_tiny_hf_mpt(
     return build
 
 
-def tiny_gpt2_model_helper(config):  # type: ignore
+## MODEL HELPERS ##
+def causal_lm_model_helper(config):  # type: ignore
     transformers = pytest.importorskip('transformers')
 
     return transformers.AutoModelForCausalLM.from_config(config)
 
 
-@pytest.fixture(scope='session')
-def _session_tiny_gpt2_model(_session_tiny_gpt2_config):  # type: ignore
-    return tiny_gpt2_model_helper(_session_tiny_gpt2_config)
+def masked_lm_model_helper(config):  # type: ignore
+    transformers = pytest.importorskip('transformers')
+
+    return transformers.AutoModelForMaskedLM.from_config(
+        config,
+    )  # type: ignore (thirdparty)
 
 
+## CONFIG HELPERS ##
 def tiny_gpt2_config_helper():
     transformers = pytest.importorskip('transformers')
 
@@ -96,85 +101,6 @@ def tiny_gpt2_config_helper():
         'vocab_size': 50258,  # 50257 + 1 for pad token
     }
     return transformers.AutoConfig.from_pretrained('gpt2', **tiny_overrides)
-
-
-@pytest.fixture(scope='session')
-def _session_tiny_gpt2_config():  # type: ignore
-    return tiny_gpt2_config_helper()
-
-
-def tiny_gpt2_tokenizer_helper():
-    transformers = pytest.importorskip('transformers')
-
-    hf_tokenizer = transformers.AutoTokenizer.from_pretrained('gpt2')
-    hf_tokenizer.add_special_tokens({'pad_token': '[PAD]'})
-    return hf_tokenizer
-
-
-@pytest.fixture
-def tiny_gpt2_model(_session_tiny_gpt2_model):  # type: ignore
-    return copy.deepcopy(_session_tiny_gpt2_model)
-
-
-@pytest.fixture(scope='session')
-def _session_tiny_gpt2_tokenizer():  # type: ignore
-    return tiny_gpt2_tokenizer_helper()
-
-
-@pytest.fixture
-def tiny_gpt2_tokenizer(_session_tiny_gpt2_tokenizer):  # type: ignore
-    return copy.deepcopy(_session_tiny_gpt2_tokenizer)
-
-
-def tiny_llama_tokenizer_helper():
-    transformers = pytest.importorskip('transformers')
-
-    hf_tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'huggyllama/llama-7b',
-        use_fast=False,
-    )
-    return hf_tokenizer
-
-
-@pytest.fixture(scope='session')
-def _session_tiny_llama_tokenizer():  # type: ignore
-    return tiny_llama_tokenizer_helper()
-
-
-@pytest.fixture
-def tiny_llama_tokenizer(_session_tiny_llama_tokenizer):  # type: ignore
-    return copy.deepcopy(_session_tiny_llama_tokenizer)
-
-
-def tiny_opt_tokenizer_helper():
-    transformers = pytest.importorskip('transformers')
-
-    hf_tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'facebook/opt-125m',
-    )
-    hf_tokenizer.add_special_tokens({'pad_token': '[PAD]'})
-    return hf_tokenizer
-
-
-def tiny_opt_model_helper(config):  # type: ignore
-    transformers = pytest.importorskip('transformers')
-
-    return transformers.AutoModelForCausalLM.from_config(config)
-
-
-@pytest.fixture(scope='session')
-def _session_tiny_opt_tokenizer():  # type: ignore
-    return tiny_opt_tokenizer_helper()
-
-
-@pytest.fixture(scope='session')
-def _session_tiny_opt_config():  # type: ignore
-    return tiny_opt_config_helper()
-
-
-@pytest.fixture(scope='session')
-def _session_tiny_opt_model(_session_tiny_opt_config):  # type: ignore
-    return tiny_opt_model_helper(_session_tiny_opt_config)
 
 
 def tiny_opt_config_helper():
@@ -192,47 +118,6 @@ def tiny_opt_config_helper():
     )
 
 
-@pytest.fixture
-def tiny_opt_tokenizer(_session_tiny_opt_tokenizer):  # type: ignore
-    return copy.deepcopy(_session_tiny_opt_tokenizer)
-
-
-@pytest.fixture
-def tiny_opt_model(_session_tiny_opt_model):  # type: ignore
-    return copy.deepcopy(_session_tiny_opt_model)
-
-
-def tiny_neox_tokenizer_helper():
-    transformers = pytest.importorskip('transformers')
-
-    hf_tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'EleutherAI/gpt-neox-20b',
-        model_max_length=2048,
-    )
-    return hf_tokenizer
-
-
-@pytest.fixture(scope='session')
-def _session_tiny_neox_tokenizer():  # type: ignore
-    return tiny_neox_tokenizer_helper()
-
-
-@pytest.fixture
-def tiny_neox_tokenizer(_session_tiny_neox_tokenizer):  # type: ignore
-    return copy.deepcopy(_session_tiny_neox_tokenizer)
-
-
-def tiny_gpt2_model_helper(config):  # type: ignore
-    transformers = pytest.importorskip('transformers')
-
-    return transformers.AutoModelForCausalLM.from_config(config)
-
-
-@pytest.fixture(scope='session')
-def _session_tiny_gpt2_model(_session_tiny_gpt2_config):  # type: ignore
-    return tiny_gpt2_model_helper(_session_tiny_gpt2_config)
-
-
 def tiny_codellama_config_helper():
     transformers = pytest.importorskip('transformers')
 
@@ -246,72 +131,6 @@ def tiny_codellama_config_helper():
         'codellama/CodeLlama-7b-hf',
         **tiny_overrides,
     )
-
-
-@pytest.fixture(scope='session')
-def _session_tiny_codellama_config():  # type: ignore
-    return tiny_codellama_config_helper()
-
-
-def tiny_codellama_model_helper(config):  # type: ignore
-    transformers = pytest.importorskip('transformers')
-
-    return transformers.AutoModelForCausalLM.from_config(config)
-
-
-@pytest.fixture(scope='session')
-def _session_tiny_codellama_model(  # type: ignore
-    _session_tiny_codellama_config,  # type: ignore
-):  # type: ignore
-    return tiny_codellama_model_helper(_session_tiny_codellama_config)
-
-
-@pytest.fixture
-def tiny_codellama_model(_session_tiny_codellama_model):  # type: ignore
-    return copy.deepcopy(_session_tiny_codellama_model)
-
-
-def tiny_t5_tokenizer_helper():
-    transformers = pytest.importorskip('transformers')
-
-    hf_tokenizer = transformers.AutoTokenizer.from_pretrained('t5-base',)
-    return hf_tokenizer
-
-
-@pytest.fixture(scope='session')
-def _session_tiny_t5_tokenizer():  # type: ignore
-    return tiny_t5_tokenizer_helper()
-
-
-@pytest.fixture
-def tiny_t5_tokenizer(_session_tiny_t5_tokenizer):  # type: ignore
-    return copy.deepcopy(_session_tiny_t5_tokenizer)
-
-
-def tiny_bert_model_helper(config):  # type: ignore
-    transformers = pytest.importorskip('transformers')
-
-    return transformers.AutoModelForMaskedLM.from_config(
-        config,
-    )  # type: ignore (thirdparty)
-
-
-@pytest.fixture(scope='session')
-def _session_tiny_bert_model(_session_tiny_bert_config):  # type: ignore
-    return tiny_bert_model_helper(_session_tiny_bert_config)
-
-
-def tiny_bert_tokenizer_helper():
-    transformers = pytest.importorskip('transformers')
-
-    return transformers.AutoTokenizer.from_pretrained(
-        'google-bert/bert-base-uncased',
-    )
-
-
-@pytest.fixture(scope='session')
-def _session_tiny_bert_tokenizer():  # type: ignore
-    return tiny_bert_tokenizer_helper()
 
 
 def tiny_bert_config_helper():
@@ -329,9 +148,149 @@ def tiny_bert_config_helper():
     )
 
 
+## TOKENIZER HELPERS ##
+def tiny_gpt2_tokenizer_helper():
+    transformers = pytest.importorskip('transformers')
+
+    hf_tokenizer = transformers.AutoTokenizer.from_pretrained('gpt2')
+    hf_tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+    return hf_tokenizer
+
+
+def tiny_llama_tokenizer_helper():
+    transformers = pytest.importorskip('transformers')
+
+    hf_tokenizer = transformers.AutoTokenizer.from_pretrained(
+        'huggyllama/llama-7b',
+        use_fast=False,
+    )
+    return hf_tokenizer
+
+
+def tiny_opt_tokenizer_helper():
+    transformers = pytest.importorskip('transformers')
+
+    hf_tokenizer = transformers.AutoTokenizer.from_pretrained(
+        'facebook/opt-125m',
+    )
+    hf_tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+    return hf_tokenizer
+
+
+def tiny_neox_tokenizer_helper():
+    transformers = pytest.importorskip('transformers')
+
+    hf_tokenizer = transformers.AutoTokenizer.from_pretrained(
+        'EleutherAI/gpt-neox-20b',
+        model_max_length=2048,
+    )
+    return hf_tokenizer
+
+
+def tiny_t5_tokenizer_helper():
+    transformers = pytest.importorskip('transformers')
+
+    hf_tokenizer = transformers.AutoTokenizer.from_pretrained('t5-base',)
+    return hf_tokenizer
+
+
+def tiny_bert_tokenizer_helper():
+    transformers = pytest.importorskip('transformers')
+
+    return transformers.AutoTokenizer.from_pretrained(
+        'google-bert/bert-base-uncased',
+    )
+
+
+## SESSION MODELS ##
+@pytest.fixture(scope='session')
+def _session_tiny_gpt2_model(_session_tiny_gpt2_config):  # type: ignore
+    return causal_lm_model_helper(_session_tiny_gpt2_config)
+
+
+@pytest.fixture(scope='session')
+def _session_tiny_opt_model(_session_tiny_opt_config):  # type: ignore
+    return causal_lm_model_helper(_session_tiny_opt_config)
+
+
+@pytest.fixture(scope='session')
+def _session_tiny_bert_model(_session_tiny_bert_config):  # type: ignore
+    return masked_lm_model_helper(_session_tiny_bert_config)
+
+
+@pytest.fixture(scope='session')
+def _session_tiny_codellama_model(  # type: ignore
+    _session_tiny_codellama_config,  # type: ignore
+):  # type: ignore
+    return causal_lm_model_helper(_session_tiny_codellama_config)
+
+
+## SESSION CONFIGS ##
+@pytest.fixture(scope='session')
+def _session_tiny_gpt2_config():  # type: ignore
+    return tiny_gpt2_config_helper()
+
+
+@pytest.fixture(scope='session')
+def _session_tiny_opt_config():  # type: ignore
+    return tiny_opt_config_helper()
+
+
+@pytest.fixture(scope='session')
+def _session_tiny_codellama_config():  # type: ignore
+    return tiny_codellama_config_helper()
+
+
 @pytest.fixture(scope='session')
 def _session_tiny_bert_config():  # type: ignore
     return tiny_bert_config_helper()
+
+
+## SESSION TOKENIZERS ##
+@pytest.fixture(scope='session')
+def _session_tiny_gpt2_tokenizer():  # type: ignore
+    return tiny_gpt2_tokenizer_helper()
+
+
+@pytest.fixture(scope='session')
+def _session_tiny_llama_tokenizer():  # type: ignore
+    return tiny_llama_tokenizer_helper()
+
+
+@pytest.fixture(scope='session')
+def _session_tiny_opt_tokenizer():  # type: ignore
+    return tiny_opt_tokenizer_helper()
+
+
+@pytest.fixture(scope='session')
+def _session_tiny_neox_tokenizer():  # type: ignore
+    return tiny_neox_tokenizer_helper()
+
+
+@pytest.fixture(scope='session')
+def _session_tiny_t5_tokenizer():  # type: ignore
+    return tiny_t5_tokenizer_helper()
+
+
+@pytest.fixture(scope='session')
+def _session_tiny_bert_tokenizer():  # type: ignore
+    return tiny_bert_tokenizer_helper()
+
+
+## MODEL FIXTURES ##
+@pytest.fixture
+def tiny_gpt2_model(_session_tiny_gpt2_model):  # type: ignore
+    return copy.deepcopy(_session_tiny_gpt2_model)
+
+
+@pytest.fixture
+def tiny_opt_model(_session_tiny_opt_model):  # type: ignore
+    return copy.deepcopy(_session_tiny_opt_model)
+
+
+@pytest.fixture
+def tiny_codellama_model(_session_tiny_codellama_model):  # type: ignore
+    return copy.deepcopy(_session_tiny_codellama_model)
 
 
 @pytest.fixture
@@ -339,11 +298,38 @@ def tiny_bert_model(_session_tiny_bert_model):  # type: ignore
     return copy.deepcopy(_session_tiny_bert_model)
 
 
-@pytest.fixture
-def tiny_bert_tokenizer(_session_tiny_bert_tokenizer):  # type: ignore
-    return copy.deepcopy(_session_tiny_bert_tokenizer)
-
-
+## CONFIG FIXTURES ##
 @pytest.fixture
 def tiny_bert_config(_session_tiny_bert_config):  # type: ignore
     return copy.deepcopy(_session_tiny_bert_config)
+
+
+## TOKENIZER FIXTURES ##
+@pytest.fixture
+def tiny_gpt2_tokenizer(_session_tiny_gpt2_tokenizer):  # type: ignore
+    return copy.deepcopy(_session_tiny_gpt2_tokenizer)
+
+
+@pytest.fixture
+def tiny_llama_tokenizer(_session_tiny_llama_tokenizer):  # type: ignore
+    return copy.deepcopy(_session_tiny_llama_tokenizer)
+
+
+@pytest.fixture
+def tiny_opt_tokenizer(_session_tiny_opt_tokenizer):  # type: ignore
+    return copy.deepcopy(_session_tiny_opt_tokenizer)
+
+
+@pytest.fixture
+def tiny_neox_tokenizer(_session_tiny_neox_tokenizer):  # type: ignore
+    return copy.deepcopy(_session_tiny_neox_tokenizer)
+
+
+@pytest.fixture
+def tiny_t5_tokenizer(_session_tiny_t5_tokenizer):  # type: ignore
+    return copy.deepcopy(_session_tiny_t5_tokenizer)
+
+
+@pytest.fixture
+def tiny_bert_tokenizer(_session_tiny_bert_tokenizer):  # type: ignore
+    return copy.deepcopy(_session_tiny_bert_tokenizer)

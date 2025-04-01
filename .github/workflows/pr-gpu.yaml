@@ -39,7 +39,7 @@ jobs:
         pip_deps: ${{ matrix.pip_deps }}
         pytest_command: ${{ matrix.pytest_command }}
         pytest_markers: ${{ matrix.markers }}
-        python_version: 3.9
+        python_version: 3.10
         gpu_num: 1
         mcloud_api_key: ${{ secrets.MCLOUD_API_KEY }}
         ci_repo_gpu_test_ref: ${{ matrix.ci_repo_gpu_test_ref }}
@@ -68,7 +68,7 @@ jobs:
         pip_deps: ${{ matrix.pip_deps }}
         pytest_command: ${{ matrix.pytest_command }}
         pytest_markers: ${{ matrix.markers }}
-        python_version: 3.9
+        python_version: 3.10
         gpu_num: 2
         mcloud_api_key: ${{ secrets.MCLOUD_API_KEY }}
         ci_repo_gpu_test_ref: ${{ matrix.ci_repo_gpu_test_ref }}
@@ -97,7 +97,7 @@ jobs:
         pip_deps: ${{ matrix.pip_deps }}
         pytest_command: ${{ matrix.pytest_command }}
         pytest_markers: ${{ matrix.markers }}
-        python_version: 3.9
+        python_version: 3.10
         gpu_num: 4
         mcloud_api_key: ${{ secrets.MCLOUD_API_KEY }}
         ci_repo_gpu_test_ref: ${{ matrix.ci_repo_gpu_test_ref }}

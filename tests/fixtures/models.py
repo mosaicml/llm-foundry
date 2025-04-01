@@ -435,3 +435,22 @@ def tiny_mpt_tokenizer(_session_tiny_mpt_tokenizer):  # type: ignore
 @pytest.fixture
 def tiny_mpt_chat_tokenizer(_session_tiny_mpt_chat_tokenizer):  # type: ignore
     return copy.deepcopy(_session_tiny_mpt_chat_tokenizer)
+
+
+## GETTERS ##
+def get_tokenizer_fixture_by_name(
+    request: pytest.FixtureRequest, name: str
+) -> PreTrainedTokenizerBase:
+    name_to_fixture_name = {
+        'gpt2': 'tiny_gpt2_tokenizer',
+        'huggyllama/llama-7b': 'tiny_llama_tokenizer',
+        'codellama/CodeLlama-7b-hf': 'tiny_codellama_tokenizer',
+        'facebook/opt-125m': 'tiny_opt_tokenizer',
+        'EleutherAI/gpt-neox-20b': 'tiny_neox_tokenizer',
+        'EleutherAI/gpt-neo-125m': 'tiny_neo_tokenizer',
+        't5-base': 'tiny_t5_tokenizer',
+        'google-bert/bert-base-uncased': 'tiny_bert_tokenizer',
+        'mosaicml/mpt-7b': 'tiny_mpt_tokenizer',
+        'mosaicml/mpt-7b-8k-chat': 'tiny_mpt_chat_tokenizer',
+    }
+    return request.getfixturevalue(name_to_fixture_name[name])

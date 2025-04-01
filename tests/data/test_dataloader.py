@@ -62,6 +62,7 @@ from tests.data_utils import (
     make_tiny_conversation_ft_dataset,
     make_tiny_ft_dataset,
 )
+from tests.fixtures.models import get_tokenizer_fixture_by_name
 from tests.test_utils import generate_exclusive_test_params
 
 
@@ -247,12 +248,7 @@ def test_correct_padding(
         'predownload': 3000,
     })
 
-    if tokenizer_name == 'gpt2':
-        tokenizer = request.getfixturevalue('tiny_gpt2_tokenizer')
-    elif tokenizer_name == 'facebook/opt-125m':
-        tokenizer = request.getfixturevalue('tiny_opt_tokenizer')
-    else:
-        raise ValueError('Unknown tokenizer name')
+    tokenizer = get_tokenizer_fixture_by_name(request, tokenizer_name)
 
     # Dataloaders
     test_cfg.eval_loader.pop('name')
@@ -394,12 +390,7 @@ def test_finetuning_dataloader(
 
     cfg = om.create(cfg)
 
-    if tokenizer_name == 'gpt2':
-        tokenizer = request.getfixturevalue('tiny_gpt2_tokenizer')
-    elif tokenizer_name == 't5-base':
-        tokenizer = request.getfixturevalue('tiny_opt_tokenizer')
-    else:
-        raise ValueError('Unknown tokenizer name')
+    tokenizer = get_tokenizer_fixture_by_name(request, tokenizer_name)
 
     device_batch_size = 2
 

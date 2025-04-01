@@ -46,6 +46,7 @@ from llmfoundry.utils.builders import (
 from llmfoundry.utils.config_utils import process_init_device, to_dict_container
 from scripts.inference.convert_composer_to_hf import convert_composer_to_hf
 from tests.data_utils import make_tiny_ft_dataset
+from tests.fixtures.models import get_tokenizer_fixture_by_name
 
 _OPTIMIZER_CFG = lambda: {
     'name': 'decoupled_adamw',
@@ -1104,14 +1105,7 @@ def test_huggingface_conversion_callback(
 
     dataloader_cfg = om.create(dataloader_cfg)
 
-    if tokenizer_name == 'EleutherAI/gpt-neox-20b':
-        tokenizer = request.getfixturevalue('tiny_neox_tokenizer')
-    elif tokenizer_name == 'EleutherAI/gpt-neo-125M':
-        tokenizer = request.getfixturevalue('tiny_neo_tokenizer')
-    elif tokenizer_name == 'meta-llama/Llama-2-7b-hf':
-        tokenizer = request.getfixturevalue('tiny_llama_tokenizer')
-    else:
-        raise ValueError(f'Unknown tokenizer {tokenizer_name}.')
+    tokenizer = get_tokenizer_fixture_by_name(request, tokenizer_name)
 
     dataloader_cfg.pop('name')
     train_dataloader = build_finetuning_dataloader(
@@ -1222,14 +1216,7 @@ def test_transform_model_pre_registration(request: pytest.FixtureRequest):
         'r': 16,
         'target_modules': 'all-linear',
     }
-    if tokenizer_name == 'EleutherAI/gpt-neox-20b':
-        tokenizer = request.getfixturevalue('tiny_neox_tokenizer')
-    elif tokenizer_name == 'EleutherAI/gpt-neo-125M':
-        tokenizer = request.getfixturevalue('tiny_neo_tokenizer')
-    elif tokenizer_name == 'meta-llama/Llama-2-7b-hf':
-        tokenizer = request.getfixturevalue('tiny_llama_tokenizer')
-    else:
-        raise ValueError(f'Unknown tokenizer {tokenizer_name}.')
+    tokenizer = get_tokenizer_fixture_by_name(request, tokenizer_name)
 
     original_model = build_composer_model(
         model_cfg.pop('name'),

@@ -160,7 +160,7 @@ def test_tp_train(
     tp_dataset_name = dist.all_gather_object(tiny_text_dataset_path)[0]
 
     # Train model with TP and get loss
-    tp_cfg = get_cfg(pathlib.Path(tp_dataset_name), None, None)
+    tp_cfg = get_cfg(pathlib.Path(tp_dataset_name), tp_strategy, tp_degree)
     tp_trainer = train(tp_cfg)
     tp_trainer.close()
     tp_loss = get_loss_array(tp_trainer)

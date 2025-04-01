@@ -1123,7 +1123,7 @@ def test_token_counting_func(
     model_max_length: int,
     padding_side: str,
     add_decoder_input_ids: bool,
-    tiny_gpt2_tokenizer
+    tiny_gpt2_tokenizer,
 ):
     gptt = tiny_gpt2_tokenizer
     gptt.pad_token_id = pad_token_id
@@ -1179,6 +1179,7 @@ def test_token_counting_func_dataloader_setting(
     model_max_length: int,
     padding_side: str,
     monkeypatch: pytest.MonkeyPatch,
+    tiny_gpt2_tokenizer,
 ):
     gptt = tiny_gpt2_tokenizer
     gptt.pad_token_id = pad_token_id if pad_token_id is not None else gptt.eos_token_id

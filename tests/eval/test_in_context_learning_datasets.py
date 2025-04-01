@@ -393,7 +393,10 @@ def test_update_generation_kwargs_no_kwargs(
     assert not 'generation_kwargs' in dl.base_batch
 
 
-def test_update_generation_kwargs_no_kwargs_qa_dataset(tmp_path: Path, tiny_opt_tokenizer):
+def test_update_generation_kwargs_no_kwargs_qa_dataset(
+    tmp_path: Path,
+    tiny_opt_tokenizer,
+):
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/triviaqa_small.jsonl'
 
@@ -417,7 +420,10 @@ def test_update_generation_kwargs_no_kwargs_qa_dataset(tmp_path: Path, tiny_opt_
     assert len(dl.base_batch['generation_kwargs']) == 4
 
 
-def test_update_generation_kwargs_with_kwargs_qa_dataset(tmp_path: Path, tiny_opt_tokenizer):
+def test_update_generation_kwargs_with_kwargs_qa_dataset(
+    tmp_path: Path,
+    tiny_opt_tokenizer,
+):
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/triviaqa_small.jsonl'
 

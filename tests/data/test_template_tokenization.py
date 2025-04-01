@@ -208,8 +208,8 @@ def test_tokenize_instruct_example_malformed():
             tokenize_formatted_example(example, MagicMock())
 
 
-def test_tokenize_instruct_example_well_formed():
-    tokenizer = transformers.AutoTokenizer.from_pretrained('gpt2')
+def test_tokenize_instruct_example_well_formed(tiny_gpt2_tokenizer):
+    tokenizer = tiny_gpt2_tokenizer
 
     for prompt_key in ALLOWED_PROMPT_KEYS:
         for response_key in ALLOWED_RESPONSE_KEYS:

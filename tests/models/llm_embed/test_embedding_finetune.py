@@ -123,8 +123,8 @@ def test_flops_per_batch(model: FinetuneEmbeddingModel) -> None:
     assert flops > 0
 
 
-def test_get_attribute(model: FinetuneEmbeddingModel) -> None:
-    config: AutoConfig = AutoConfig.from_pretrained('bert-base-uncased')
+def test_get_attribute(model: FinetuneEmbeddingModel, tiny_bert_config) -> None:
+    config = tiny_bert_config
     config.hidden_size = 768
     config.d_model = 1024
     config.n_embd = 512

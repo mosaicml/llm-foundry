@@ -1603,6 +1603,7 @@ def test_generate_with_device_map(
     tmp_path: pathlib.Path,
     world_size: int,
     tie_word_embeddings: bool,
+    tiny_neox_tokenizer,
 ):
     if not torch.cuda.device_count() >= world_size:
         pytest.skip(f'This test requires {world_size} GPUs.')
@@ -1629,7 +1630,6 @@ def test_generate_with_device_map(
     from transformers.models.auto.configuration_auto import CONFIG_MAPPING
     CONFIG_MAPPING._extra_content['mpt'] = MPTConfig
     AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)
-    tokenizer = AutoTokenizer.from_pretrained('EleutherAI/gpt-neox-20b')
 
     device_map = {
         'transformer.wte': 0,
@@ -1644,7 +1644,7 @@ def test_generate_with_device_map(
     pipe = pipeline(
         'text-generation',
         model=save_path,
-        tokenizer=tokenizer,
+        tokenizer=tiny_neox_tokenizer,
         torch_dtype=torch.bfloat16,
         trust_remote_code=True,
         device_map=device_map,

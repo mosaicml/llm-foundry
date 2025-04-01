@@ -393,13 +393,11 @@ def test_update_generation_kwargs_no_kwargs(
     assert not 'generation_kwargs' in dl.base_batch
 
 
-def test_update_generation_kwargs_no_kwargs_qa_dataset(tmp_path: Path):
+def test_update_generation_kwargs_no_kwargs_qa_dataset(tmp_path: Path, tiny_opt_tokenizer):
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/triviaqa_small.jsonl'
 
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'facebook/opt-125m',
-    )  # type: ignore reportUnboundVariable
+    tokenizer = tiny_opt_tokenizer
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
@@ -419,13 +417,11 @@ def test_update_generation_kwargs_no_kwargs_qa_dataset(tmp_path: Path):
     assert len(dl.base_batch['generation_kwargs']) == 4
 
 
-def test_update_generation_kwargs_with_kwargs_qa_dataset(tmp_path: Path):
+def test_update_generation_kwargs_with_kwargs_qa_dataset(tmp_path: Path, tiny_opt_tokenizer):
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/triviaqa_small.jsonl'
 
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'facebook/opt-125m',
-    )  # type: ignore reportUnboundVariable
+    tokenizer = tiny_opt_tokenizer
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
@@ -714,13 +710,11 @@ def test_tokenize_example_with_no_tokenize_labels(
     assert type(tokenized_example['answer']) == str
 
 
-def test_qa_set_cot_no_cot(tmp_path: Path):
+def test_qa_set_cot_no_cot(tmp_path: Path, tiny_opt_tokenizer):
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/triviaqa_small.jsonl'
 
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'facebook/opt-125m',
-    )  # type: ignore reportUnboundVariable
+    tokenizer = tiny_opt_tokenizer
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
@@ -739,13 +733,11 @@ def test_qa_set_cot_no_cot(tmp_path: Path):
     assert not dl.has_cot
 
 
-def test_qa_set_cot_has_cot(tmp_path: Path):
+def test_qa_set_cot_has_cot(tmp_path: Path, tiny_opt_tokenizer):
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/gsm8k_small.jsonl'
 
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'facebook/opt-125m',
-    )  # type: ignore reportUnboundVariable
+    tokenizer = tiny_opt_tokenizer
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)

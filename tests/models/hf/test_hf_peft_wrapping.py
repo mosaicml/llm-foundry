@@ -16,13 +16,8 @@ from llmfoundry.models.hf.hf_fsdp import prepare_hf_model_for_fsdp
 from llmfoundry.utils.builders import build_composer_model, build_tokenizer
 
 
-def test_peft_wraps():
-    codellama_cfg = transformers.AutoConfig.from_pretrained(
-        'codellama/CodeLlama-7b-hf',
-        num_hidden_layers=2,
-    )
-    codellama = transformers.AutoModelForCausalLM.from_config(codellama_cfg,)
-    codellama = get_peft_model(codellama, LoraConfig())
+def test_peft_wraps(tiny_codellama_model):
+    codellama = get_peft_model(tiny_codellama_model, LoraConfig())
     prepare_hf_model_for_fsdp(codellama, 'cpu')
 
     for n, m in codellama.named_modules():

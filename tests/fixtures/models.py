@@ -200,3 +200,129 @@ def tiny_opt_tokenizer(_session_tiny_opt_tokenizer):  # type: ignore
 @pytest.fixture
 def tiny_opt_model(_session_tiny_opt_model):  # type: ignore
     return copy.deepcopy(_session_tiny_opt_model)
+
+def tiny_neox_tokenizer_helper():
+    transformers = pytest.importorskip('transformers')
+
+    hf_tokenizer = transformers.AutoTokenizer.from_pretrained(
+        'EleutherAI/gpt-neox-20b',
+    )
+    hf_tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+    return hf_tokenizer
+
+@pytest.fixture(scope='session')
+def _session_tiny_neox_tokenizer():  # type: ignore
+    return tiny_neox_tokenizer_helper()
+
+@pytest.fixture
+def tiny_neox_tokenizer(_session_tiny_neox_tokenizer):  # type: ignore
+    return copy.deepcopy(_session_tiny_neox_tokenizer)
+
+def tiny_gpt2_model_helper(config):  # type: ignore
+    transformers = pytest.importorskip('transformers')
+
+    return transformers.AutoModelForCausalLM.from_config(config)
+
+
+@pytest.fixture(scope='session')
+def _session_tiny_gpt2_model(_session_tiny_gpt2_config):  # type: ignore
+    return tiny_gpt2_model_helper(_session_tiny_gpt2_config)
+
+
+def tiny_codellama_config_helper():
+    transformers = pytest.importorskip('transformers')
+
+    tiny_overrides = {
+        'num_hidden_layers': 2,
+        'hidden_size': 32,
+        'intermediate_size': 64,
+        'vocab_size': 32016,
+    }
+    return transformers.AutoConfig.from_pretrained('codellama/CodeLlama-7b-hf', **tiny_overrides)
+
+
+@pytest.fixture(scope='session')
+def _session_tiny_codellama_config():  # type: ignore
+    return tiny_codellama_config_helper()
+
+def tiny_codellama_model_helper(config):  # type: ignore
+    transformers = pytest.importorskip('transformers')
+
+    return transformers.AutoModelForCausalLM.from_config(config)
+
+@pytest.fixture(scope='session')
+def _session_tiny_codellama_model(_session_tiny_codellama_config):  # type: ignore
+    return tiny_codellama_model_helper(_session_tiny_codellama_config)
+
+@pytest.fixture
+def tiny_codellama_model(_session_tiny_codellama_model):  # type: ignore
+    return copy.deepcopy(_session_tiny_codellama_model)
+
+def tiny_t5_tokenizer_helper():
+    transformers = pytest.importorskip('transformers')
+
+    hf_tokenizer = transformers.AutoTokenizer.from_pretrained(
+        't5-base',
+    )
+    return hf_tokenizer
+
+@pytest.fixture(scope='session')
+def _session_tiny_t5_tokenizer():  # type: ignore
+    return tiny_t5_tokenizer_helper()
+
+@pytest.fixture
+def tiny_t5_tokenizer(_session_tiny_t5_tokenizer):  # type: ignore
+    return copy.deepcopy(_session_tiny_t5_tokenizer)
+
+def tiny_bert_model_helper(config):
+    transformers = pytest.importorskip('transformers')
+
+    return transformers.AutoModelForMaskedLM.from_config(config)  # type: ignore (thirdparty)
+
+
+@pytest.fixture(scope='session')
+def _session_tiny_bert_model(_session_tiny_bert_config):  # type: ignore
+    return tiny_bert_model_helper(_session_tiny_bert_config)
+
+
+def tiny_bert_tokenizer_helper():
+    transformers = pytest.importorskip('transformers')
+
+    return transformers.AutoTokenizer.from_pretrained('google-bert/bert-base-uncased')
+
+
+@pytest.fixture(scope='session')
+def _session_tiny_bert_tokenizer():  # type: ignore
+    return tiny_bert_tokenizer_helper()
+
+
+def tiny_bert_config_helper():
+    transformers = pytest.importorskip('transformers')
+    tiny_overrides = {
+        'hidden_size': 128,
+        'num_attention_heads': 2,
+        'num_hidden_layers': 2,
+        'intermediate_size': 512,
+        'attn_implementation': 'eager',
+    }
+    return transformers.AutoConfig.from_pretrained('google-bert/bert-base-uncased', **tiny_overrides)
+
+
+@pytest.fixture(scope='session')
+def _session_tiny_bert_config():  # type: ignore
+    return tiny_bert_config_helper()
+
+
+@pytest.fixture
+def tiny_bert_model(_session_tiny_bert_model):
+    return copy.deepcopy(_session_tiny_bert_model)
+
+
+@pytest.fixture
+def tiny_bert_tokenizer(_session_tiny_bert_tokenizer):
+    return copy.deepcopy(_session_tiny_bert_tokenizer)
+
+
+@pytest.fixture
+def tiny_bert_config(_session_tiny_bert_config):
+    return copy.deepcopy(_session_tiny_bert_config)

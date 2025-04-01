@@ -30,6 +30,7 @@ from llmfoundry.utils.registry_utils import construct_from_registry
 def test_loss_perp_v_len_callback(
     shift_labels: bool,
     monkeypatch: pytest.MonkeyPatch,
+    tiny_gpt2_tokenizer
 ):
     try:
         from flash_attn.losses.cross_entropy import CrossEntropyLoss as FusedCrossEntropyLoss  # type: ignore # isort: skip
@@ -40,7 +41,7 @@ def test_loss_perp_v_len_callback(
 
     model_max_length = 12
 
-    gptt = transformers.AutoTokenizer.from_pretrained('gpt2')
+    gptt = tiny_gpt2_tokenizer
     gptt.pad_token_id = gptt.eos_token_id
     gptt.model_max_length = model_max_length
     gptt.padding_side = 'right'

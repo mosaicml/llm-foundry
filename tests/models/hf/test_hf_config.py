@@ -305,35 +305,22 @@ def test_use_flash():
     assert next(model.parameters()).dtype == torch.bfloat16
 
 
-def test_generation_config(tmp_path: Path):
-    # Create a small llama model to edit and save.
-    config = AutoConfig.from_pretrained('codellama/CodeLlama-7b-hf')
-    set_config_overrides(
-        config,
-        config_overrides={
-            'num_hidden_layers': 2,
-            'hidden_size': 32,
-            'intermediate_size': 64,
-            'vocab_size': 32016,
-        },
-    )
-    model = AutoModelForCausalLM.from_config(config)
-
-    assert isinstance(model, PreTrainedModel)
-    assert model.generation_config is not None
+def test_generation_config(tmp_path: Path, tiny_codellama_model):
+    assert isinstance(tiny_codellama_model, PreTrainedModel)
+    assert tiny_codellama_model.generation_config is not None
 
     new_bos_token_id = 100
 
     # Set the bos_token_id to something else
-    model.generation_config.bos_token_id = new_bos_token_id
+    tiny_codellama_model.generation_config.bos_token_id = new_bos_token_id
 
     # Generation config and model config no longer match
-    assert model.generation_config.bos_token_id != model.config.bos_token_id
+    assert tiny_codellama_model.generation_config.bos_token_id != tiny_codellama_model.config.bos_token_id
 
     save_dir = tmp_path / 'model'
 
     # Save the model.
-    model.save_pretrained(save_dir)
+    tiny_codellama_model.save_pretrained(save_dir)
 
     # Now load the model from the save directory and check that the bos_token_id is the same as what we set.
     model_cfg = {

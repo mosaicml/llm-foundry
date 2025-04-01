@@ -187,6 +187,7 @@ def build_mock_ft_streaming_dataset(
 def test_correct_padding(
     tokenizer_name: str,
     pretokenize: bool,
+    request: pytest.FixtureRequest,
     batch_size: int = 4,
 ):
     if tokenizer_name == 'gpt2' and not pretokenize:
@@ -246,10 +247,12 @@ def test_correct_padding(
         'predownload': 3000,
     })
 
-    tokenizer = build_tokenizer(
-        tokenizer_name=tokenizer_name,
-        tokenizer_kwargs={},
-    )
+    if tokenizer_name == 'gpt2':
+        tokenizer = request.getfixturevalue('tiny_gpt2_tokenizer')
+    elif tokenizer_name == 'facebook/opt-125m':
+        tokenizer = request.getfixturevalue('tiny_opt_tokenizer')
+    else:
+        raise ValueError('Unknown tokenizer name')
 
     # Dataloaders
     test_cfg.eval_loader.pop('name')
@@ -305,7 +308,7 @@ def test_sequence_id_wrapper(
         raise NotImplementedError()
 
 
-def test_invalid_jsonl_data():
+def test_invalid_jsonl_data(tiny_gpt2_tokenizer: PreTrainedTokenizerBase):
     max_seq_len = 2
     decoder_only_format = True
     packing_ratio = 'auto'
@@ -330,10 +333,7 @@ def test_invalid_jsonl_data():
 
     cfg = om.create(cfg)
 
-    tokenizer = build_tokenizer(
-        tokenizer_name='gpt2',
-        tokenizer_kwargs={'model_max_length': max_seq_len},
-    )
+    tokenizer = tiny_gpt2_tokenizer
 
     device_batch_size = 2
 
@@ -358,6 +358,7 @@ def test_finetuning_dataloader(
     decoder_only_format: bool,
     allow_pad_trimming: bool,
     packing_ratio: Optional[Union[float, Literal['auto']]],
+    request: pytest.FixtureRequest,
 ):
     if (decoder_only_format is False) and (packing_ratio is not None):
         pytest.xfail('packing_ratio only supported for decoder-only format.')
@@ -393,10 +394,12 @@ def test_finetuning_dataloader(
 
     cfg = om.create(cfg)
 
-    tokenizer = build_tokenizer(
-        tokenizer_name=tokenizer_name,
-        tokenizer_kwargs={'model_max_length': max_seq_len},
-    )
+    if tokenizer_name == 'gpt2':
+        tokenizer = request.getfixturevalue('tiny_gpt2_tokenizer')
+    elif tokenizer_name == 't5-base':
+        tokenizer = request.getfixturevalue('tiny_opt_tokenizer')
+    else:
+        raise ValueError('Unknown tokenizer name')
 
     device_batch_size = 2
 
@@ -432,6 +435,7 @@ def test_finetuning_dataloader_safe_load(
     hf_revision: Optional[str],
     expectation: ContextManager,
     tmp_path: pathlib.Path,
+    tiny_gpt2_tokenizer: PreTrainedTokenizerBase,
 ):
     # Clear the folder
     cfg = DictConfig({
@@ -454,7 +458,7 @@ def test_finetuning_dataloader_safe_load(
         'timeout': 0,
     })
 
-    tokenizer = build_tokenizer('gpt2', {})
+    tokenizer = tiny_gpt2_tokenizer
 
     with patch('llmfoundry.utils.file_utils.tempfile.mkdtemp', return_value=str(tmp_path)), patch('os.cpu_count', return_value=1):
         with expectation:
@@ -536,8 +540,7 @@ def test_finetuning_dataloader_small_data(
 
 
 @pytest.mark.parametrize('split', ['train', 'custom', 'data'])
-def test_finetuning_dataloader_custom_split(tmp_path: pathlib.Path, split: str):
-    tokenizer_name = 'gpt2'
+def test_finetuning_dataloader_custom_split(tmp_path: pathlib.Path, split: str, tiny_gpt2_tokenizer: PreTrainedTokenizerBase):
     max_seq_len = 2048
     tiny_dataset_folder_path = str(tmp_path)
     tiny_dataset_path = os.path.join(
@@ -568,10 +571,7 @@ def test_finetuning_dataloader_custom_split(tmp_path: pathlib.Path, split: str):
 
     cfg = om.create(cfg)
 
-    tokenizer = build_tokenizer(
-        tokenizer_name=tokenizer_name,
-        tokenizer_kwargs={'model_max_length': max_seq_len},
-    )
+    tokenizer = tiny_gpt2_tokenizer
 
     _ = build_finetuning_dataloader(
         tokenizer=tokenizer,
@@ -590,8 +590,7 @@ def mock_get_file(path: str, destination: str, overwrite: bool = False):
 
 
 @pytest.mark.parametrize('split', ['train', 'custom', 'custom-dash', 'data'])
-def test_finetuning_dataloader_custom_split_remote(split: str):
-    tokenizer_name = 'gpt2'
+def test_finetuning_dataloader_custom_split_remote(split: str, tiny_gpt2_tokenizer: PreTrainedTokenizerBase):
     max_seq_len = 2048
 
     cfg = {
@@ -614,10 +613,7 @@ def test_finetuning_dataloader_custom_split_remote(split: str):
 
     cfg = om.create(cfg)
 
-    tokenizer = build_tokenizer(
-        tokenizer_name=tokenizer_name,
-        tokenizer_kwargs={'model_max_length': max_seq_len},
-    )
+    tokenizer = tiny_gpt2_tokenizer
 
     # Mock get_file to avoid downloading the file
     with patch(
@@ -649,15 +645,11 @@ def test_finetuning_dataloader_streaming(
     backwards_compatibility_mode: bool,
     use_bytes: bool,
     tmp_path: pathlib.Path,
+    tiny_gpt2_tokenizer: PreTrainedTokenizerBase,
 ):
     clean_stale_shared_memory()
 
-    max_seq_len = 2048
-
-    tokenizer = build_tokenizer(
-        tokenizer_name='gpt2',
-        tokenizer_kwargs={'model_max_length': max_seq_len},
-    )
+    tokenizer = tiny_gpt2_tokenizer
 
     streams_config = {'streams': {}}
     num_streams = 2
@@ -837,18 +829,15 @@ def test_malformed_data(
     add_too_many_example_keys: bool,
     add_unknown_example_type: bool,
     tmp_path: pathlib.Path,
+    tiny_mpt_tokenizer: PreTrainedTokenizerBase,
 ):
-    tokenizer_name = 'mosaicml/mpt-7b'
     max_seq_len = 2048
     dataset_size = 5
     device_batch_size = 5
     tiny_dataset_folder_path = tmp_path
     tiny_dataset_path = str(tiny_dataset_folder_path / 'train.jsonl')
 
-    tokenizer = build_tokenizer(
-        tokenizer_name=tokenizer_name,
-        tokenizer_kwargs={'model_max_length': max_seq_len},
-    )
+    tokenizer = tiny_mpt_tokenizer
     tokenizer.add_special_tokens({
         'pad_token': '<pad>',
         'bos_token': '<bos>',
@@ -950,18 +939,15 @@ def test_malformed_conversation_data(
     add_invalid_content_type: bool,
     add_invalid_role: bool,
     add_not_alternating_roles: bool,
+    tiny_mpt_tokenizer: PreTrainedTokenizerBase,
 ):
-    tokenizer_name = 'mosaicml/mpt-7b'
     max_seq_len = 2048
     dataset_size = 5
     device_batch_size = 5
     tiny_dataset_folder_path = tmp_path
     tiny_dataset_path = str(tiny_dataset_folder_path / 'train.jsonl')
 
-    tokenizer = build_tokenizer(
-        tokenizer_name=tokenizer_name,
-        tokenizer_kwargs={'model_max_length': max_seq_len},
-    )
+    tokenizer = tiny_mpt_tokenizer
     tokenizer.add_special_tokens({
         'pad_token': '<pad>',
         'bos_token': '<bos>',
@@ -1353,18 +1339,15 @@ def test_sharegpt_format(
     add_invalid_content_type: bool,
     add_invalid_role: bool,
     add_not_alternating_roles: bool,
+    tiny_mpt_tokenizer: PreTrainedTokenizerBase,
 ):
-    tokenizer_name = 'mosaicml/mpt-7b'
     max_seq_len = 2048
     dataset_size = 5
     device_batch_size = 5
     tiny_dataset_folder_path = tmp_path
     tiny_dataset_path = str(tiny_dataset_folder_path / 'train.jsonl')
 
-    tokenizer = build_tokenizer(
-        tokenizer_name=tokenizer_name,
-        tokenizer_kwargs={'model_max_length': max_seq_len},
-    )
+    tokenizer = tiny_mpt_tokenizer
     tokenizer.add_special_tokens({
         'pad_token': '<pad>',
         'bos_token': '<bos>',
@@ -1434,8 +1417,7 @@ def test_sharegpt_format(
             **cfg,
         ).dataloader
 
-def test_ft_dataloader_with_extra_keys():
-    max_seq_len = 2
+def test_ft_dataloader_with_extra_keys(tiny_gpt2_tokenizer: PreTrainedTokenizerBase):
     cfg = {
         'dataset': {
             'remote': '/remote',
@@ -1461,11 +1443,7 @@ def test_ft_dataloader_with_extra_keys():
 
     cfg = om.create(cfg)
 
-    tokenizer = build_tokenizer(
-        tokenizer_name='gpt2',
-        tokenizer_kwargs={'model_max_length': max_seq_len},
-    )
-
+    tokenizer = tiny_gpt2_tokenizer
     device_batch_size = 2
 
     mock_stat = MagicMock()
@@ -1516,7 +1494,7 @@ def test_ft_dataloader_with_extra_keys():
 
 # TODO: Change this back to xfail after figuring out why it caused CI to hang
 @pytest.mark.skip
-def test_text_dataloader_with_extra_keys():
+def test_text_dataloader_with_extra_keys(tiny_gpt2_tokenizer: PreTrainedTokenizerBase):
     max_seq_len = 1024
     cfg = {
         'dataset': {
@@ -1540,10 +1518,7 @@ def test_text_dataloader_with_extra_keys():
 
     cfg = om.create(cfg)
 
-    tokenizer = build_tokenizer(
-        tokenizer_name='gpt2',
-        tokenizer_kwargs={'model_max_length': max_seq_len},
-    )
+    tokenizer = tiny_gpt2_tokenizer
 
     device_batch_size = 2
 

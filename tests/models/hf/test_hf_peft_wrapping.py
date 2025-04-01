@@ -9,11 +9,11 @@ import pytest
 import torch
 from composer import Trainer
 from peft import LoraConfig, get_peft_model
-from transformers import PreTrainedModel
+from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
 from llmfoundry.models.hf.hf_causal_lm import ComposerHFCausalLM
 from llmfoundry.models.hf.hf_fsdp import prepare_hf_model_for_fsdp
-from llmfoundry.utils.builders import build_composer_model, build_tokenizer
+from llmfoundry.utils.builders import build_composer_model
 
 
 def test_peft_wraps(tiny_codellama_model: PreTrainedModel):
@@ -71,6 +71,7 @@ def test_lora_mixed_init(
     peft_config: Optional[dict],
     tmp_path: pathlib.Path,
     init_device: str,
+    tiny_codellama_tokenizer: PreTrainedTokenizerBase,
 ):
     model_cfg = {
         'name': 'hf_causal_lm',
@@ -100,10 +101,7 @@ def test_lora_mixed_init(
         'sync_module_states': True,
     }
 
-    tokenizer = build_tokenizer(
-        tokenizer_name=tokenizer_name,
-        tokenizer_kwargs={'model_max_length': 32},
-    )
+    tokenizer = tiny_codellama_tokenizer
 
     name = model_cfg.pop('name')
     original_model = build_composer_model(

@@ -13,11 +13,11 @@ from omegaconf import OmegaConf as om
 from transformers import (
     PretrainedConfig,
     PreTrainedModel,
+    PreTrainedTokenizerBase,
 )
 
 from llmfoundry.models.hf.hf_fsdp import rgetattr
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
-from llmfoundry.utils import build_tokenizer
 from llmfoundry.utils.builders import build_composer_model
 from llmfoundry.utils.config_utils import (
     to_dict_container,
@@ -25,6 +25,7 @@ from llmfoundry.utils.config_utils import (
 
 
 def test_remote_code_false_mpt(
+    tiny_mpt_tokenizer: PreTrainedTokenizerBase,
     conf_path: str = 'scripts/train/yamls/finetune/mpt-7b_dolly_sft.yaml',
 ):
     with open(conf_path) as f:
@@ -42,13 +43,7 @@ def test_remote_code_false_mpt(
     test_cfg.device = device
     test_cfg.precision = 'fp16'
 
-    tokenizer_cfg: dict[str, Any] = om.to_container(
-        test_cfg.tokenizer,
-        resolve=True,
-    )  # type: ignore
-    tokenizer_name = tokenizer_cfg['name']
-    tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
-    tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
+    tokenizer = tiny_mpt_tokenizer
 
     with pytest.raises(
         ValueError,
@@ -120,18 +115,13 @@ def test_tie_weights(tie_word_embeddings: bool):
 )
 def test_hf_config_override(
     model_cfg_overrides: dict[str, Any],
+    tiny_codellama_tokenizer: PreTrainedTokenizerBase,
     conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml',
 ):
     with open(conf_path) as f:
         test_cfg = om.load(f)
 
-    tokenizer_cfg: dict[str, Any] = om.to_container(
-        test_cfg.tokenizer,
-        resolve=True,
-    )  # type: ignore
-    tokenizer_name = 'codellama/CodeLlama-7b-hf'
-    tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
-    tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
+    tokenizer = tiny_codellama_tokenizer
 
     tiny_overrides = {
         'num_hidden_layers': 2,

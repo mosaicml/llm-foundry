@@ -10,7 +10,7 @@ from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.models.hf.hf_causal_lm import ComposerHFCausalLM
 from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
-from llmfoundry.utils.builders import build_composer_model, build_tokenizer
+from llmfoundry.utils.builders import build_composer_model
 
 
 def _build_model(config: dict[str, Any], tokenizer: PreTrainedTokenizerBase):
@@ -24,8 +24,10 @@ def _build_model(config: dict[str, Any], tokenizer: PreTrainedTokenizerBase):
 
 
 @fixture
-def mpt_tokenizer():
-    return build_tokenizer('EleutherAI/gpt-neox-20b', {})
+def mpt_tokenizer(
+    tiny_neox_tokenizer: PreTrainedTokenizerBase,
+) -> PreTrainedTokenizerBase:
+    return tiny_neox_tokenizer
 
 
 @fixture
@@ -197,6 +199,16 @@ def tiny_neox_tokenizer_helper():
     return hf_tokenizer
 
 
+def tiny_neo_tokenizer_helper():
+    transformers = pytest.importorskip('transformers')
+
+    hf_tokenizer = transformers.AutoTokenizer.from_pretrained(
+        'EleutherAI/gpt-neo-125m',
+        model_max_length=2048,
+    )
+    return hf_tokenizer
+
+
 def tiny_t5_tokenizer_helper():
     transformers = pytest.importorskip('transformers')
 
@@ -209,6 +221,24 @@ def tiny_bert_tokenizer_helper():
 
     return transformers.AutoTokenizer.from_pretrained(
         'google-bert/bert-base-uncased',
+    )
+
+
+def tiny_mpt_tokenizer_helper():
+    transformers = pytest.importorskip('transformers')
+
+    return transformers.AutoTokenizer.from_pretrained(
+        'mosaicml/mpt-7b',
+        model_max_length=2048,
+    )
+
+
+def tiny_mpt_chat_tokenizer_helper():
+    transformers = pytest.importorskip('transformers')
+
+    return transformers.AutoTokenizer.from_pretrained(
+        'mosaicml/mpt-7b-8k-chat',
+        model_max_length=2048,
     )
 
 
@@ -295,6 +325,11 @@ def _session_tiny_neox_tokenizer():  # type: ignore
 
 
 @pytest.fixture(scope='session')
+def _session_tiny_neo_tokenizer():  # type: ignore
+    return tiny_neo_tokenizer_helper()
+
+
+@pytest.fixture(scope='session')
 def _session_tiny_t5_tokenizer():  # type: ignore
     return tiny_t5_tokenizer_helper()
 
@@ -302,6 +337,16 @@ def _session_tiny_t5_tokenizer():  # type: ignore
 @pytest.fixture(scope='session')
 def _session_tiny_bert_tokenizer():  # type: ignore
     return tiny_bert_tokenizer_helper()
+
+
+@pytest.fixture(scope='session')
+def _session_tiny_mpt_tokenizer():  # type: ignore
+    return tiny_mpt_tokenizer_helper()
+
+
+@pytest.fixture(scope='session')
+def _session_tiny_mpt_chat_tokenizer():  # type: ignore
+    return tiny_mpt_chat_tokenizer_helper()
 
 
 ## MODEL FIXTURES ##
@@ -368,6 +413,11 @@ def tiny_neox_tokenizer(_session_tiny_neox_tokenizer):  # type: ignore
 
 
 @pytest.fixture
+def tiny_neo_tokenizer(_session_tiny_neo_tokenizer):  # type: ignore
+    return copy.deepcopy(_session_tiny_neo_tokenizer)
+
+
+@pytest.fixture
 def tiny_t5_tokenizer(_session_tiny_t5_tokenizer):  # type: ignore
     return copy.deepcopy(_session_tiny_t5_tokenizer)
 
@@ -375,3 +425,13 @@ def tiny_t5_tokenizer(_session_tiny_t5_tokenizer):  # type: ignore
 @pytest.fixture
 def tiny_bert_tokenizer(_session_tiny_bert_tokenizer):  # type: ignore
     return copy.deepcopy(_session_tiny_bert_tokenizer)
+
+
+@pytest.fixture
+def tiny_mpt_tokenizer(_session_tiny_mpt_tokenizer):  # type: ignore
+    return copy.deepcopy(_session_tiny_mpt_tokenizer)
+
+
+@pytest.fixture
+def tiny_mpt_chat_tokenizer(_session_tiny_mpt_chat_tokenizer):  # type: ignore
+    return copy.deepcopy(_session_tiny_mpt_chat_tokenizer)

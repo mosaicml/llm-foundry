@@ -486,8 +486,8 @@ def test_finetuning_dataloader_small_data(
     dataset_size: int,
     device_batch_size: int,
     drop_last: bool,
+    tiny_gpt2_tokenizer: PreTrainedTokenizerBase,
 ):
-    tokenizer_name = 'gpt2'
     max_seq_len = 2048
     tiny_dataset_folder_path = os.path.join(os.getcwd(), 'test-ift-data-small')
     tiny_dataset_path = os.path.join(tiny_dataset_folder_path, 'train.jsonl')
@@ -517,11 +517,6 @@ def test_finetuning_dataloader_small_data(
 
     cfg = om.create(cfg)
 
-    tokenizer = build_tokenizer(
-        tokenizer_name=tokenizer_name,
-        tokenizer_kwargs={'model_max_length': max_seq_len},
-    )
-
     error_context = contextlib.nullcontext()
     if (dist.get_world_size() * device_batch_size > dataset_size) and drop_last:
         error_context = pytest.raises(
@@ -531,7 +526,7 @@ def test_finetuning_dataloader_small_data(
 
     with error_context:
         _ = build_finetuning_dataloader(
-            tokenizer=tokenizer,
+            tokenizer=tiny_gpt2_tokenizer,
             device_batch_size=device_batch_size,
             **cfg,
         )

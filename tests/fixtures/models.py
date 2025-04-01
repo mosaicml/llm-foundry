@@ -439,7 +439,8 @@ def tiny_mpt_chat_tokenizer(_session_tiny_mpt_chat_tokenizer):  # type: ignore
 
 ## GETTERS ##
 def get_tokenizer_fixture_by_name(
-    request: pytest.FixtureRequest, name: str
+    request: pytest.FixtureRequest,
+    name: str,
 ) -> PreTrainedTokenizerBase:
     name_to_fixture_name = {
         'gpt2': 'tiny_gpt2_tokenizer',

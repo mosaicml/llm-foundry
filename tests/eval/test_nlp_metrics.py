@@ -30,7 +30,7 @@ def test_in_context_learning_lm_accuracy(
     for context, continuation in zip(contexts, continuations):
         start = len(tiny_gpt2_with_pad_tokenizer(context)['input_ids'])
         end = start + len(
-            tiny_gpt2_with_pad_tokenizer(continuation)['input_ids']
+            tiny_gpt2_with_pad_tokenizer(continuation)['input_ids'],
         )
         cont_idxs.append(torch.tensor(list(range(start, end))))
 
@@ -116,7 +116,7 @@ def test_in_context_learning_mc_accuracy(
     for context, continuation in zip(contexts, continuations):
         start = len(tiny_gpt2_with_pad_tokenizer(context)['input_ids'])
         end = start + len(
-            tiny_gpt2_with_pad_tokenizer(continuation)['input_ids']
+            tiny_gpt2_with_pad_tokenizer(continuation)['input_ids'],
         )
         cont_idxs.append(torch.tensor(list(range(start, end))))
 

@@ -311,12 +311,15 @@ def test_stop_sequences_criteria(
     tiny_gpt2_with_pad_tokenizer: transformers.AutoTokenizer,
 ):
     eos_criteria = MultiTokenEOSCriteria(
-        '\n\n', tiny_gpt2_with_pad_tokenizer, 2
+        '\n\n',
+        tiny_gpt2_with_pad_tokenizer,
+        2,
     )
     seq1 = tiny_gpt2_with_pad_tokenizer('Dogs are furry')['input_ids']
     seq2 = tiny_gpt2_with_pad_tokenizer('Dogs are furry\n\n')['input_ids']
-    seq1 = [tiny_gpt2_with_pad_tokenizer.pad_token_id
-           ] * (len(seq2) - len(seq1)) + seq1
+    seq1 = [
+        tiny_gpt2_with_pad_tokenizer.pad_token_id,
+    ] * (len(seq2) - len(seq1)) + seq1
     input_ids = torch.LongTensor([seq1, seq2])
     assert not eos_criteria(
         input_ids,
@@ -324,7 +327,9 @@ def test_stop_sequences_criteria(
     )  # pyright: ignore[reportGeneralTypeIssues]
 
     eos_criteria = MultiTokenEOSCriteria(
-        '\n\n', tiny_gpt2_with_pad_tokenizer, 2
+        '\n\n',
+        tiny_gpt2_with_pad_tokenizer,
+        2,
     )
     seq1 = tiny_gpt2_with_pad_tokenizer('Dogs are furry\n\n')['input_ids']
     seq2 = tiny_gpt2_with_pad_tokenizer('Dogs are furry\n\n')['input_ids']

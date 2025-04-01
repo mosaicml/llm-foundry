@@ -401,7 +401,7 @@ def tiny_gpt2_tokenizer(_session_tiny_gpt2_tokenizer):  # type: ignore
 
 @pytest.fixture
 def tiny_gpt2_with_pad_tokenizer(
-    _session_tiny_gpt2_with_pad_tokenizer  # type: ignore
+    _session_tiny_gpt2_with_pad_tokenizer,  # type: ignore
 ):
     return copy.deepcopy(_session_tiny_gpt2_with_pad_tokenizer)
 

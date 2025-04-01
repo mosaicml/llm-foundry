@@ -763,9 +763,7 @@ class InContextLearningGenerationTaskWithAnswersDataset(
             for answer in all_answers:
                 if self.has_cot:
                     example_cot = example['chain_of_thought']
-                    response = (
-                        f'{example_cot}{self.cot_delimiter}{answer}'
-                    )
+                    response = (f'{example_cot}{self.cot_delimiter}{answer}')
                 else:
                     response = answer
                 tokenized_response = self.tokenizer(response)['input_ids']

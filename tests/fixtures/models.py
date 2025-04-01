@@ -118,7 +118,7 @@ def tiny_opt_config_helper():
     )
 
 
-def tiny_codellama_config_helper():
+def tiny_codellama_config_helper(tie_word_embeddings: bool = False):
     transformers = pytest.importorskip('transformers')
 
     tiny_overrides = {
@@ -126,6 +126,7 @@ def tiny_codellama_config_helper():
         'hidden_size': 32,
         'intermediate_size': 64,
         'vocab_size': 32016,
+        'tie_word_embeddings': tie_word_embeddings,
     }
     return transformers.AutoConfig.from_pretrained(
         'codellama/CodeLlama-7b-hf',
@@ -166,6 +167,13 @@ def tiny_llama_tokenizer_helper():
     )
     return hf_tokenizer
 
+def tiny_codellama_tokenizer_helper():
+    transformers = pytest.importorskip('transformers')
+
+    hf_tokenizer = transformers.AutoTokenizer.from_pretrained(
+        'codellama/CodeLlama-7b-hf',
+    )
+    return hf_tokenizer
 
 def tiny_opt_tokenizer_helper():
     transformers = pytest.importorskip('transformers')
@@ -224,6 +232,12 @@ def _session_tiny_codellama_model(  # type: ignore
 ):  # type: ignore
     return causal_lm_model_helper(_session_tiny_codellama_config)
 
+@pytest.fixture(scope='session')
+def _session_tiny_codellama_wt_model(  # type: ignore
+    _session_tiny_codellama_config,  # type: ignore
+):  # type: ignore
+    return causal_lm_model_helper(_session_tiny_codellama_wt_config)
+
 
 ## SESSION CONFIGS ##
 @pytest.fixture(scope='session')
@@ -240,6 +254,9 @@ def _session_tiny_opt_config():  # type: ignore
 def _session_tiny_codellama_config():  # type: ignore
     return tiny_codellama_config_helper()
 
+@pytest.fixture(scope='session')
+def _session_tiny_codellama_wt_config():  # type: ignore
+    return tiny_codellama_config_helper(tie_word_embeddings=True)
 
 @pytest.fixture(scope='session')
 def _session_tiny_bert_config():  # type: ignore
@@ -255,6 +272,10 @@ def _session_tiny_gpt2_tokenizer():  # type: ignore
 @pytest.fixture(scope='session')
 def _session_tiny_llama_tokenizer():  # type: ignore
     return tiny_llama_tokenizer_helper()
+
+@pytest.fixture(scope='session')
+def _session_tiny_codellama_tokenizer():  # type: ignore
+    return tiny_codellama_tokenizer_helper()
 
 
 @pytest.fixture(scope='session')
@@ -292,6 +313,10 @@ def tiny_opt_model(_session_tiny_opt_model):  # type: ignore
 def tiny_codellama_model(_session_tiny_codellama_model):  # type: ignore
     return copy.deepcopy(_session_tiny_codellama_model)
 
+@pytest.fixture
+def tiny_codellama_wt_model(_session_tiny_codellama_wt_model):  # type: ignore
+    return copy.deepcopy(_session_tiny_codellama_wt_model)
+
 
 @pytest.fixture
 def tiny_bert_model(_session_tiny_bert_model):  # type: ignore
@@ -303,6 +328,10 @@ def tiny_bert_model(_session_tiny_bert_model):  # type: ignore
 def tiny_bert_config(_session_tiny_bert_config):  # type: ignore
     return copy.deepcopy(_session_tiny_bert_config)
 
+@pytest.fixture
+def tiny_codellama_wt_config(_session_tiny_codellama_wt_config):  # type: ignore
+    return copy.deepcopy(_session_tiny_codellama_wt_config)
+
 
 ## TOKENIZER FIXTURES ##
 @pytest.fixture
@@ -313,6 +342,11 @@ def tiny_gpt2_tokenizer(_session_tiny_gpt2_tokenizer):  # type: ignore
 @pytest.fixture
 def tiny_llama_tokenizer(_session_tiny_llama_tokenizer):  # type: ignore
     return copy.deepcopy(_session_tiny_llama_tokenizer)
+
+
+@pytest.fixture
+def tiny_codellama_tokenizer(_session_tiny_codellama_tokenizer):  # type: ignore
+    return copy.deepcopy(_session_tiny_codellama_tokenizer)
 
 
 @pytest.fixture

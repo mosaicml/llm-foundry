@@ -21,6 +21,7 @@ from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from streaming import MDSWriter
 from streaming.base.util import clean_stale_shared_memory
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.command_utils import convert_dataset_hf
 from llmfoundry.command_utils.data_prep.convert_finetuning_dataset import \
@@ -1123,7 +1124,7 @@ def test_token_counting_func(
     model_max_length: int,
     padding_side: str,
     add_decoder_input_ids: bool,
-    tiny_gpt2_tokenizer,
+    tiny_gpt2_tokenizer: PreTrainedTokenizerBase,
 ):
     gptt = tiny_gpt2_tokenizer
     gptt.pad_token_id = pad_token_id
@@ -1179,7 +1180,7 @@ def test_token_counting_func_dataloader_setting(
     model_max_length: int,
     padding_side: str,
     monkeypatch: pytest.MonkeyPatch,
-    tiny_gpt2_tokenizer,
+    tiny_gpt2_tokenizer: PreTrainedTokenizerBase,
 ):
     gptt = tiny_gpt2_tokenizer
     gptt.pad_token_id = pad_token_id if pad_token_id is not None else gptt.eos_token_id

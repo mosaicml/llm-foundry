@@ -11,8 +11,6 @@ import pytest
 import torch
 from omegaconf import OmegaConf as om
 from transformers import (
-    AutoConfig,
-    AutoModelForCausalLM,
     PretrainedConfig,
     PreTrainedModel,
 )
@@ -22,7 +20,6 @@ from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils import build_tokenizer
 from llmfoundry.utils.builders import build_composer_model
 from llmfoundry.utils.config_utils import (
-    set_config_overrides,
     to_dict_container,
 )
 
@@ -305,7 +302,10 @@ def test_use_flash():
     assert next(model.parameters()).dtype == torch.bfloat16
 
 
-def test_generation_config(tmp_path: Path, tiny_codellama_model):
+def test_generation_config(
+    tmp_path: Path,
+    tiny_codellama_model: PreTrainedModel,
+):
     assert isinstance(tiny_codellama_model, PreTrainedModel)
     assert tiny_codellama_model.generation_config is not None
 

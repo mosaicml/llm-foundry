@@ -7,16 +7,16 @@ from unittest.mock import patch
 
 import pytest
 import torch
-import transformers
 from composer import Trainer
 from peft import LoraConfig, get_peft_model
+from transformers import PreTrainedModel
 
 from llmfoundry.models.hf.hf_causal_lm import ComposerHFCausalLM
 from llmfoundry.models.hf.hf_fsdp import prepare_hf_model_for_fsdp
 from llmfoundry.utils.builders import build_composer_model, build_tokenizer
 
 
-def test_peft_wraps(tiny_codellama_model):
+def test_peft_wraps(tiny_codellama_model: PreTrainedModel):
     codellama = get_peft_model(tiny_codellama_model, LoraConfig())
     prepare_hf_model_for_fsdp(codellama, 'cpu')
 

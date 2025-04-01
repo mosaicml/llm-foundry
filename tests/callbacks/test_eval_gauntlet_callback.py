@@ -9,7 +9,7 @@ import pytest
 import torch
 from composer.core import State
 from composer.loggers import InMemoryLogger, Logger
-from transformers import AutoTokenizer
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.eval.metrics.nlp import InContextLearningLMAccuracy
 from llmfoundry.utils.builders import build_icl_data_and_gauntlet
@@ -59,7 +59,10 @@ class MockLogger(Logger):
         'core_average': ['world_knowledge', 'language_understanding'],
     }, None],
 )
-def test_gauntlet_callback(averages: Optional[dict], tiny_neox_tokenizer):
+def test_gauntlet_callback(
+    averages: Optional[dict],
+    tiny_neox_tokenizer: PreTrainedTokenizerBase,
+):
     icl_task_config = om.OmegaConf.create(
         """
             - label: jeopardy_small

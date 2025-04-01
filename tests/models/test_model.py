@@ -30,9 +30,9 @@ from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from transformers import (
     AutoModelForCausalLM,
-    AutoTokenizer,
     PreTrainedModel,
     PreTrainedTokenizer,
+    PreTrainedTokenizerBase,
     PreTrainedTokenizerFast,
     pipeline,
 )
@@ -1603,7 +1603,7 @@ def test_generate_with_device_map(
     tmp_path: pathlib.Path,
     world_size: int,
     tie_word_embeddings: bool,
-    tiny_neox_tokenizer,
+    tiny_neox_tokenizer: PreTrainedTokenizerBase,
 ):
     if not torch.cuda.device_count() >= world_size:
         pytest.skip(f'This test requires {world_size} GPUs.')

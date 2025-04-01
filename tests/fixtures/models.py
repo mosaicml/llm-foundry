@@ -260,8 +260,8 @@ def tiny_codellama_model_helper(config):  # type: ignore
 
 
 @pytest.fixture(scope='session')
-def _session_tiny_codellama_model(
-    _session_tiny_codellama_config,
+def _session_tiny_codellama_model(  # type: ignore
+    _session_tiny_codellama_config,  # type: ignore
 ):  # type: ignore
     return tiny_codellama_model_helper(_session_tiny_codellama_config)
 
@@ -288,7 +288,7 @@ def tiny_t5_tokenizer(_session_tiny_t5_tokenizer):  # type: ignore
     return copy.deepcopy(_session_tiny_t5_tokenizer)
 
 
-def tiny_bert_model_helper(config):
+def tiny_bert_model_helper(config):  # type: ignore
     transformers = pytest.importorskip('transformers')
 
     return transformers.AutoModelForMaskedLM.from_config(
@@ -335,15 +335,15 @@ def _session_tiny_bert_config():  # type: ignore
 
 
 @pytest.fixture
-def tiny_bert_model(_session_tiny_bert_model):
+def tiny_bert_model(_session_tiny_bert_model):  # type: ignore
     return copy.deepcopy(_session_tiny_bert_model)
 
 
 @pytest.fixture
-def tiny_bert_tokenizer(_session_tiny_bert_tokenizer):
+def tiny_bert_tokenizer(_session_tiny_bert_tokenizer):  # type: ignore
     return copy.deepcopy(_session_tiny_bert_tokenizer)
 
 
 @pytest.fixture
-def tiny_bert_config(_session_tiny_bert_config):
+def tiny_bert_config(_session_tiny_bert_config):  # type: ignore
     return copy.deepcopy(_session_tiny_bert_config)

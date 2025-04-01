@@ -4,8 +4,8 @@
 from unittest.mock import patch
 
 import pytest
-import transformers
 from omegaconf import DictConfig, ListConfig
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.models.inference_api_wrapper import (
     FMAPICasualLMEvalWrapper,
@@ -89,7 +89,10 @@ def mock_create(**kwargs: dict[str, str]):
         return MockCompletion(' ')
 
 
-def test_causal_fmapi_wrapper(tmp_path: str, tiny_gpt2_tokenizer):
+def test_causal_fmapi_wrapper(
+    tmp_path: str,
+    tiny_gpt2_tokenizer: PreTrainedTokenizerBase,
+):
     # patch block_until_ready
     with patch.object(FMAPIEvalInterface, 'block_until_ready') as mock:
 
@@ -128,7 +131,10 @@ def test_causal_fmapi_wrapper(tmp_path: str, tiny_gpt2_tokenizer):
             assert acc == 0.5
 
 
-def test_chat_fmapi_wrapper(tmp_path: str, tiny_gpt2_tokenizer):
+def test_chat_fmapi_wrapper(
+    tmp_path: str,
+    tiny_gpt2_tokenizer: PreTrainedTokenizerBase,
+):
     with patch.object(FMAPIEvalInterface, 'block_until_ready') as mock:
         _ = pytest.importorskip('openai')
 

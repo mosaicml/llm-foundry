@@ -2,14 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-import transformers
 from omegaconf import OmegaConf
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.models.hf.hf_t5 import ComposerHFT5
 from llmfoundry.utils.warnings import ExperimentalWarning
 
 
-def test_experimental_hf_t5(tiny_t5_tokenizer):
+def test_experimental_hf_t5(tiny_t5_tokenizer: PreTrainedTokenizerBase):
     cfg = OmegaConf.create({
         'pretrained_model_name_or_path': 't5-base',
         'config_overrides': {

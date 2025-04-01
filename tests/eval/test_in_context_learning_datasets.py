@@ -17,6 +17,7 @@ from composer.models import HuggingFaceModel
 from composer.trainer import Trainer
 from composer.utils import dist, reproducibility
 from torch.utils.data import DataLoader
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.eval.datasets import (
     InContextLearningDataset,
@@ -395,7 +396,7 @@ def test_update_generation_kwargs_no_kwargs(
 
 def test_update_generation_kwargs_no_kwargs_qa_dataset(
     tmp_path: Path,
-    tiny_opt_tokenizer,
+    tiny_opt_tokenizer: PreTrainedTokenizerBase,
 ):
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/triviaqa_small.jsonl'
@@ -422,7 +423,7 @@ def test_update_generation_kwargs_no_kwargs_qa_dataset(
 
 def test_update_generation_kwargs_with_kwargs_qa_dataset(
     tmp_path: Path,
-    tiny_opt_tokenizer,
+    tiny_opt_tokenizer: PreTrainedTokenizerBase,
 ):
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/triviaqa_small.jsonl'
@@ -716,7 +717,10 @@ def test_tokenize_example_with_no_tokenize_labels(
     assert type(tokenized_example['answer']) == str
 
 
-def test_qa_set_cot_no_cot(tmp_path: Path, tiny_opt_tokenizer):
+def test_qa_set_cot_no_cot(
+    tmp_path: Path,
+    tiny_opt_tokenizer: PreTrainedTokenizerBase,
+):
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/triviaqa_small.jsonl'
 
@@ -739,7 +743,10 @@ def test_qa_set_cot_no_cot(tmp_path: Path, tiny_opt_tokenizer):
     assert not dl.has_cot
 
 
-def test_qa_set_cot_has_cot(tmp_path: Path, tiny_opt_tokenizer):
+def test_qa_set_cot_has_cot(
+    tmp_path: Path,
+    tiny_opt_tokenizer: PreTrainedTokenizerBase,
+):
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/gsm8k_small.jsonl'
 
@@ -1362,7 +1369,7 @@ def test_schema_task_dataloader_sentpiece_tokenizer(
 @pytest.mark.parametrize('dataset_uri', ['lambada_small.jsonl'])
 @pytest.mark.parametrize('num_fewshot', [0, 1])
 def test_lm_task_dataloader_opt_tokenizer(
-    tiny_opt_tokenizer: transformers.AutoTokenizer,
+    tiny_opt_tokenizer: PreTrainedTokenizerBase,
     dataset_uri: str,
     num_fewshot: int,
     tmp_path: Path,
@@ -1415,7 +1422,7 @@ def test_lm_task_dataloader_opt_tokenizer(
 @pytest.mark.parametrize('dataset_uri', ['piqa_small.jsonl'])
 @pytest.mark.parametrize('num_fewshot', [0, 1])
 def test_mc_task_dataloader_opt_tokenizer(
-    tiny_opt_tokenizer: transformers.AutoTokenizer,
+    tiny_opt_tokenizer: PreTrainedTokenizerBase,
     dataset_uri: str,
     num_fewshot: int,
     tmp_path: Path,
@@ -1480,7 +1487,7 @@ def test_mc_task_dataloader_opt_tokenizer(
 @pytest.mark.parametrize('dataset_uri', ['piqa_small.jsonl'])
 @pytest.mark.parametrize('num_fewshot', [0, 1])
 def test_mc_split_batch(
-    tiny_opt_tokenizer: transformers.AutoTokenizer,
+    tiny_opt_tokenizer: PreTrainedTokenizerBase,
     dataset_uri: str,
     num_fewshot: int,
     tmp_path: Path,
@@ -1561,7 +1568,7 @@ def test_mc_split_batch(
 
 @pytest.mark.parametrize('dataset_uri', ['triviaqa_small.jsonl'])
 def test_qa_split_batch(
-    tiny_opt_tokenizer: transformers.AutoTokenizer,
+    tiny_opt_tokenizer: PreTrainedTokenizerBase,
     dataset_uri: str,
     tmp_path: Path,
 ):
@@ -2131,7 +2138,7 @@ def test_mc_task_evaluation(
 @pytest.mark.gpu
 @pytest.mark.world_size(2)
 def test_qa_task_evaluation_opt_tokenizer(
-    tiny_opt_tokenizer: transformers.AutoTokenizer,
+    tiny_opt_tokenizer: PreTrainedTokenizerBase,
     tiny_opt_model: transformers.AutoModelForCausalLM,
     num_fewshot: int,
     dataset_uri: str,
@@ -2194,7 +2201,7 @@ def test_qa_task_evaluation_opt_tokenizer(
 )
 @pytest.mark.filterwarnings(r'ignore:Cannot split .* of length.*:UserWarning')
 def test_qa_task_evaluation_with_cot_opt_tokenizer(
-    tiny_opt_tokenizer: transformers.AutoTokenizer,
+    tiny_opt_tokenizer: PreTrainedTokenizerBase,
     tiny_opt_model: transformers.AutoModelForCausalLM,
     num_fewshot: int,
     dataset_uri: str,

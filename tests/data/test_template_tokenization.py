@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 import transformers
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.data.finetuning.tasks import (
     _DEFAULT_CHAT_TEMPLATE,
@@ -208,7 +209,9 @@ def test_tokenize_instruct_example_malformed():
             tokenize_formatted_example(example, MagicMock())
 
 
-def test_tokenize_instruct_example_well_formed(tiny_gpt2_tokenizer):
+def test_tokenize_instruct_example_well_formed(
+    tiny_gpt2_tokenizer: PreTrainedTokenizerBase,
+):
     tokenizer = tiny_gpt2_tokenizer
 
     for prompt_key in ALLOWED_PROMPT_KEYS:

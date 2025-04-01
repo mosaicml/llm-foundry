@@ -152,11 +152,13 @@ def tiny_bert_config_helper():
 
 
 ## TOKENIZER HELPERS ##
-def tiny_gpt2_tokenizer_helper():
+def tiny_gpt2_tokenizer_helper(add_pad: bool = False):
     transformers = pytest.importorskip('transformers')
 
     hf_tokenizer = transformers.AutoTokenizer.from_pretrained('gpt2')
-    hf_tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+
+    if add_pad:
+        hf_tokenizer.add_special_tokens({'pad_token': '[PAD]'})
     return hf_tokenizer
 
 
@@ -303,6 +305,9 @@ def _session_tiny_bert_config():  # type: ignore
 def _session_tiny_gpt2_tokenizer():  # type: ignore
     return tiny_gpt2_tokenizer_helper()
 
+@pytest.fixture(scope='session')
+def _session_tiny_gpt2_with_pad_tokenizer():  # type: ignore
+    return tiny_gpt2_tokenizer_helper(add_pad=True)
 
 @pytest.fixture(scope='session')
 def _session_tiny_llama_tokenizer():  # type: ignore
@@ -391,6 +396,9 @@ def tiny_codellama_wt_config(_session_tiny_codellama_wt_config):  # type: ignore
 def tiny_gpt2_tokenizer(_session_tiny_gpt2_tokenizer):  # type: ignore
     return copy.deepcopy(_session_tiny_gpt2_tokenizer)
 
+@pytest.fixture
+def tiny_gpt2_with_pad_tokenizer(_session_tiny_gpt2_with_pad_tokenizer):  # type: ignore
+    return copy.deepcopy(_session_tiny_gpt2_with_pad_tokenizer)
 
 @pytest.fixture
 def tiny_llama_tokenizer(_session_tiny_llama_tokenizer):  # type: ignore

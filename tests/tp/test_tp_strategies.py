@@ -147,7 +147,7 @@ def get_loss_array(trainer: Trainer):
 
 
 @pytest.mark.gpu
-@pytest.mark.world_size(2)
+@pytest.mark.world_size(4)
 @pytest.mark.parametrize('tp_degree', [2])
 @pytest.mark.parametrize('tp_strategy', ['ffn'])
 def test_tp_train(

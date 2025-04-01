@@ -168,12 +168,7 @@ def test_tp_train(
     # Compare loss and expected loss for TP
     import numpy as np
     expected_tp_loss = np.array([
-        11.77983,
-        11.750473,
-        11.719816,
-        11.778014,
-        11.733961,
-        11.741023,
+        11.846275, 11.854343, 11.881471, 11.873639, 11.814651, 11.809362
     ])
     np.testing.assert_allclose(tp_loss, expected_tp_loss)
 

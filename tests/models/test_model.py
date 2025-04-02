@@ -30,9 +30,9 @@ from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from transformers import (
     AutoModelForCausalLM,
-    AutoTokenizer,
     PreTrainedModel,
     PreTrainedTokenizer,
+    PreTrainedTokenizerBase,
     PreTrainedTokenizerFast,
     pipeline,
 )
@@ -54,7 +54,6 @@ from llmfoundry.models.mpt.modeling_mpt import (
     LlamaRotaryEmbeddingFoundry,
     PartialLlamaConfig,
 )
-from llmfoundry.utils import build_tokenizer
 from llmfoundry.utils.builders import build_composer_model
 from llmfoundry.utils.config_utils import to_dict_container
 
@@ -67,15 +66,6 @@ def get_config(
     with open(conf_path) as f:
         test_cfg = om.load(f)
     return cast(DictConfig, test_cfg)
-
-
-def _load_tokenizer_cfg(cfg: Union[dict[str, Any], DictConfig]) -> dict:
-    if isinstance(cfg, DictConfig):
-        config = to_dict_container(cfg)
-    else:
-        assert isinstance(cfg, dict)
-        config = cfg
-    return config
 
 
 def _get_objs(
@@ -120,11 +110,7 @@ def _get_objs(
     test_cfg.device_eval_batch_size = 2
     test_cfg.device_train_microbatch_size = 2
 
-    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
-    tokenizer = build_tokenizer(
-        test_cfg.tokenizer.name,
-        tokenizer_cfg.get('kwargs', {}),
-    )
+    tokenizer = request.getfixturevalue('tiny_neox_tokenizer')
 
     name = test_cfg.model.pop('name')
     model = build_composer_model(
@@ -358,7 +344,10 @@ def test_attention_mechanism(
             x = x + block.resid_ffn_dropout(n)
 
 
-def test_full_forward_and_backward_gpt2_small(batch_size: int = 2):
+def test_full_forward_and_backward_gpt2_small(
+    tiny_gpt2_tokenizer: PreTrainedTokenizerBase,
+    batch_size: int = 2,
+):
     warnings.filterwarnings(
         action='ignore',
         message='Torchmetrics v0.9 introduced a new argument class property',
@@ -372,11 +361,7 @@ def test_full_forward_and_backward_gpt2_small(batch_size: int = 2):
     neo_cfg.max_seq_len = 256
     neo_cfg.model.name = 'hf_causal_lm'
 
-    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(neo_cfg.tokenizer)
-    tokenizer = build_tokenizer(
-        neo_cfg.tokenizer.name,
-        tokenizer_cfg.get('kwargs', {}),
-    )
+    tokenizer = tiny_gpt2_tokenizer
 
     name = neo_cfg.model.pop('name')
     model = build_composer_model(
@@ -418,7 +403,10 @@ def test_full_forward_and_backward_gpt2_small(batch_size: int = 2):
     assert not torch.equal(original_params, updated_params)
 
 
-def test_full_forward_and_backward_t5_small(batch_size: int = 2):
+def test_full_forward_and_backward_t5_small(
+    tiny_t5_tokenizer: PreTrainedTokenizerBase,
+    batch_size: int = 2,
+):
     warnings.filterwarnings(
         action='ignore',
         message='Torchmetrics v0.9 introduced a new argument class property',
@@ -431,11 +419,7 @@ def test_full_forward_and_backward_t5_small(batch_size: int = 2):
     t5_cfg.device = device
     t5_cfg.max_seq_len = 16
 
-    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(t5_cfg.tokenizer)
-    tokenizer = build_tokenizer(
-        t5_cfg.tokenizer.name,
-        tokenizer_cfg.get('kwargs', {}),
-    )
+    tokenizer = tiny_t5_tokenizer
 
     name = t5_cfg.model.pop('name')
     model = build_composer_model(
@@ -515,6 +499,7 @@ def test_determinism(
     precision: torch.dtype,
     ffn_type: str,
     ffn_act_fn: dict,
+    tiny_neox_tokenizer: PreTrainedTokenizerBase,
 ):
     conf_path = 'scripts/train/yamls/pretrain/testing.yaml'
     with open(conf_path) as f:
@@ -531,11 +516,7 @@ def test_determinism(
     test_cfg.model.init_device = 'cuda:0'
     test_cfg.device = 'cuda:0'
 
-    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
-    tokenizer = build_tokenizer(
-        test_cfg.tokenizer.name,
-        tokenizer_cfg.get('kwargs', {}),
-    )
+    tokenizer = tiny_neox_tokenizer
 
     name = test_cfg.model.pop('name')
     model_1 = build_composer_model(
@@ -582,7 +563,7 @@ def test_determinism(
 
 
 @pytest.mark.gpu
-def test_loss_fn():
+def test_loss_fn(tiny_neox_tokenizer: PreTrainedTokenizerBase):
     """Tests the Fused CrossEntropy vs torch.nn.CrossEntropy loss function.
 
     We provide non-zero tolerances to account for small numerics differences
@@ -611,11 +592,7 @@ def test_loss_fn():
         'init_std': 0.02,
     }
 
-    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
-    tokenizer = build_tokenizer(
-        test_cfg.tokenizer.name,
-        tokenizer_cfg.get('kwargs', {}),
-    )
+    tokenizer = tiny_neox_tokenizer
 
     name = test_cfg.model.pop('name')
     model_1 = build_composer_model(
@@ -687,7 +664,10 @@ def test_loss_fn():
     'loss_fn_config',
     ['torch_crossentropy', 'fused_crossentropy'],
 )
-def test_loss_reduction(loss_fn_config: str):
+def test_loss_reduction(
+    loss_fn_config: str,
+    tiny_neox_tokenizer: PreTrainedTokenizerBase,
+):
     """Tests the Fused CrossEntropy vs torch.nn.CrossEntropy loss function.
 
     We provide non-zero tolerances to account for small numerics differences
@@ -718,11 +698,7 @@ def test_loss_reduction(loss_fn_config: str):
         'init_std': 0.02,
     }
 
-    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
-    tokenizer = build_tokenizer(
-        test_cfg.tokenizer.name,
-        tokenizer_cfg.get('kwargs', {}),
-    )
+    tokenizer = tiny_neox_tokenizer
 
     name = test_cfg.model.pop('name')
     model_1 = build_composer_model(
@@ -814,7 +790,10 @@ def test_loss_reduction(loss_fn_config: str):
         },
     ],
 )
-def test_opt_wrapping(peft_config: Optional[dict[str, str]]):
+def test_opt_wrapping(
+    peft_config: Optional[dict[str, str]],
+    tiny_opt_tokenizer: PreTrainedTokenizerBase,
+):
     if peft_config is not None:
         _ = pytest.importorskip('peft')
 
@@ -831,11 +810,7 @@ def test_opt_wrapping(peft_config: Optional[dict[str, str]]):
     if peft_config is not None:
         conf['model']['peft_config'] = peft_config
 
-    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(conf['tokenizer'])
-    tokenizer = build_tokenizer(
-        conf['tokenizer']['name'],
-        tokenizer_cfg.get('kwargs', {}),
-    )
+    tokenizer = tiny_opt_tokenizer
 
     conf['model'].pop('name')
     model = ComposerHFCausalLM(**conf['model'], tokenizer=tokenizer)
@@ -865,14 +840,8 @@ def test_lora_id():
 
     config = DictConfig(conf)
 
-    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(config.tokenizer)
-    tokenizer = build_tokenizer(
-        config.tokenizer.name,
-        tokenizer_cfg.get('kwargs', {}),
-    )
-
     config.model.pop('name')
-    model = ComposerHFCausalLM(**config.model, tokenizer=tokenizer)
+    model = ComposerHFCausalLM(**config.model, tokenizer=None)  # type: ignore
 
     assert isinstance(model.model, peft.PeftModelForCausalLM)
 
@@ -1603,6 +1572,7 @@ def test_generate_with_device_map(
     tmp_path: pathlib.Path,
     world_size: int,
     tie_word_embeddings: bool,
+    tiny_neox_tokenizer: PreTrainedTokenizerBase,
 ):
     if not torch.cuda.device_count() >= world_size:
         pytest.skip(f'This test requires {world_size} GPUs.')
@@ -1629,7 +1599,6 @@ def test_generate_with_device_map(
     from transformers.models.auto.configuration_auto import CONFIG_MAPPING
     CONFIG_MAPPING._extra_content['mpt'] = MPTConfig
     AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)
-    tokenizer = AutoTokenizer.from_pretrained('EleutherAI/gpt-neox-20b')
 
     device_map = {
         'transformer.wte': 0,
@@ -1644,7 +1613,7 @@ def test_generate_with_device_map(
     pipe = pipeline(
         'text-generation',
         model=save_path,
-        tokenizer=tokenizer,
+        tokenizer=tiny_neox_tokenizer,
         torch_dtype=torch.bfloat16,
         trust_remote_code=True,
         device_map=device_map,
@@ -2496,6 +2465,7 @@ def test_hf_init(
     tmp_path: pathlib.Path,
     init_device: str,
     world_size: int,
+    tiny_neox_tokenizer: PreTrainedTokenizerBase,
     batch_size: int = 1,
 ):
     if not torch.cuda.device_count() >= world_size:
@@ -2553,11 +2523,7 @@ def test_hf_init(
             trust_remote_code=True,
         )
 
-    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
-    tokenizer = build_tokenizer(
-        test_cfg.tokenizer.name,
-        tokenizer_cfg.get('kwargs', {}),
-    )
+    tokenizer = tiny_neox_tokenizer
 
     optimizer = DecoupledAdamW(
         model.parameters(),
@@ -2593,7 +2559,10 @@ def test_hf_init(
 
 
 @pytest.mark.gpu
-def test_head_dim_8_flash_mqa_attn(batch_size: int = 2):
+def test_head_dim_8_flash_mqa_attn(
+    tiny_neox_tokenizer: PreTrainedTokenizerBase,
+    batch_size: int = 2,
+):
     test_cfg = get_config(conf_path='scripts/train/yamls/pretrain/testing.yaml')
     test_cfg.device = torch.cuda.current_device()
 
@@ -2615,11 +2584,7 @@ def test_head_dim_8_flash_mqa_attn(batch_size: int = 2):
     )
     test_cfg.device = torch.cuda.current_device()
 
-    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
-    tokenizer = build_tokenizer(
-        test_cfg.tokenizer.name,
-        tokenizer_cfg.get('kwargs', {}),
-    )
+    tokenizer = tiny_neox_tokenizer
 
     mpt = MPTForCausalLM(hf_config)
 

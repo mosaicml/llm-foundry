@@ -5,7 +5,6 @@ from unittest.mock import MagicMock
 
 import pytest
 import torch
-import transformers
 from composer.core import State
 from composer.core.precision import get_precision_context
 from composer.devices import DeviceGPU
@@ -13,6 +12,7 @@ from composer.loggers import Logger
 from composer.utils import get_device
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry import registry
 from llmfoundry.callbacks.loss_perp_v_len_callback import LossPerpVLen
@@ -30,6 +30,7 @@ from llmfoundry.utils.registry_utils import construct_from_registry
 def test_loss_perp_v_len_callback(
     shift_labels: bool,
     monkeypatch: pytest.MonkeyPatch,
+    tiny_gpt2_tokenizer: PreTrainedTokenizerBase,
 ):
     try:
         from flash_attn.losses.cross_entropy import CrossEntropyLoss as FusedCrossEntropyLoss  # type: ignore # isort: skip
@@ -40,7 +41,7 @@ def test_loss_perp_v_len_callback(
 
     model_max_length = 12
 
-    gptt = transformers.AutoTokenizer.from_pretrained('gpt2')
+    gptt = tiny_gpt2_tokenizer
     gptt.pad_token_id = gptt.eos_token_id
     gptt.model_max_length = model_max_length
     gptt.padding_side = 'right'

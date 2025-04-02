@@ -7,9 +7,9 @@ import pytest
 import torch
 from composer.utils import reproducibility
 from omegaconf import OmegaConf as om
-from transformers import GPT2Config
+from transformers import GPT2Config, PreTrainedTokenizerBase
 
-from llmfoundry.utils.builders import build_composer_model, build_tokenizer
+from llmfoundry.utils.builders import build_composer_model
 from llmfoundry.utils.config_utils import to_dict_container
 
 
@@ -31,6 +31,7 @@ def test_compare_hf_v_mpt(
     alibi: bool,
     mask_val: Optional[int],
     no_attn_mask: bool,
+    tiny_gpt2_tokenizer: PreTrainedTokenizerBase,
 ):
     warnings.filterwarnings(
         action='ignore',
@@ -64,13 +65,7 @@ def test_compare_hf_v_mpt(
     })
 
     # get hf gpt2 model
-    print(hf_cfg)
-    tokenizer_name = hf_cfg.tokenizer['name']
-    tokenizer_kwargs = hf_cfg.tokenizer.get('kwargs', {})
-    tokenizer = build_tokenizer(
-        tokenizer_name=tokenizer_name,
-        tokenizer_kwargs=tokenizer_kwargs,
-    )
+    tokenizer = tiny_gpt2_tokenizer
     name = hf_cfg.model.pop('name')
     hf_cfg.model.pop('device')
     hf_model = build_composer_model(

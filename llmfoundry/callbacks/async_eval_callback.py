@@ -179,9 +179,9 @@ def validate_eval_run_config(
             found_unsupported.add(key)
 
     if found_unsupported:
+        unsupported_keys = ', '.join(found_unsupported)
         raise ValueError(
-            f'Unsupported eval run config keys found: {", ".join(found_unsupported)}'
-            + f'. Supported keys: {supported_keys}',
+            f'Unsupported eval run config keys found: {unsupported_keys}. Supported keys: {supported_keys}',
         )
 
     return run_config

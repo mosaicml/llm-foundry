@@ -4,7 +4,7 @@
 import pytest
 import torch
 from omegaconf import OmegaConf as om
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 from llmfoundry.data.finetuning.tasks import _DEFAULT_CHAT_TEMPLATE
 from llmfoundry.tokenizers.utils import get_date_string
@@ -16,7 +16,7 @@ def get_config(conf_path: str = 'scripts/train/yamls/pretrain/mpt-125m.yaml'):
     return test_cfg
 
 
-def test_load_tokenizer():
+def test_load_tokenizer(tiny_neox_tokenizer: PreTrainedTokenizerBase):
     test_cfg = get_config(
         conf_path='scripts/train/yamls/pretrain/mpt-125m.yaml',
     )
@@ -30,10 +30,7 @@ def test_load_tokenizer():
     tokenizer_kwargs = resolved_om_tokenizer_config.get(  # type: ignore
         'kwargs', {})
     tokenizer_name = resolved_om_tokenizer_config['name']  # type: ignore
-    tokenizer = AutoTokenizer.from_pretrained(
-        tokenizer_name,
-        **tokenizer_kwargs,
-    )
+    tokenizer = tiny_neox_tokenizer
     tokenizer.pad_token = tokenizer.eos_token
     assert tokenizer.vocab_size == 50254
     assert tokenizer.name_or_path == 'EleutherAI/gpt-neox-20b'

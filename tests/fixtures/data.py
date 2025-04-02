@@ -1,18 +1,45 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
+import os
+import random
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+import numpy as np
 from composer.utils import dist
 from omegaconf import DictConfig
 from pytest import fixture
+from streaming import MDSWriter
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.data.finetuning.dataloader import build_finetuning_dataloader
 from tests.data_utils import make_tiny_ft_dataset
+
+
+@fixture()
+def tiny_text_dataset_path(tmp_path: Path) -> Path:
+    rng = random.Random(42)
+    out_dir = tmp_path / 'test-text-data'
+    columns = {'tokens': 'ndarray:int32'}
+    for split in ['train', 'val']:
+        with MDSWriter(
+            columns=columns,
+            out=os.path.join(out_dir, split),
+            compression=None,
+        ) as out:
+            for _ in range(100):
+                tokens = np.array(
+                    rng.sample(range(0, 100), 100),
+                    dtype=np.int32,
+                )
+                sample = {
+                    'tokens': tokens,
+                }
+                out.write(sample)
+
+    return out_dir
 
 
 @fixture

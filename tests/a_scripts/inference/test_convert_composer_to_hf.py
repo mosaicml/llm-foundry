@@ -42,11 +42,11 @@ from llmfoundry.utils import edit_files_for_hf_compatibility
 from llmfoundry.utils.builders import (
     build_composer_model,
     build_optimizer,
-    build_tokenizer,
 )
 from llmfoundry.utils.config_utils import process_init_device, to_dict_container
 from scripts.inference.convert_composer_to_hf import convert_composer_to_hf
 from tests.data_utils import make_tiny_ft_dataset
+from tests.fixtures.models import get_tokenizer_fixture_by_name
 
 _OPTIMIZER_CFG = lambda: {
     'name': 'decoupled_adamw',
@@ -1040,6 +1040,7 @@ def test_huggingface_conversion_callback(
     expected_normal_checkpoints: int,
     trainer_precision: str,
     peft_config: Optional[dict],
+    request: pytest.FixtureRequest,
 ):
     if model == 'mptmoe' and fsdp_state_dict_type is None:
         pytest.skip('mptmoe requires FSDP')
@@ -1104,10 +1105,7 @@ def test_huggingface_conversion_callback(
 
     dataloader_cfg = om.create(dataloader_cfg)
 
-    tokenizer = build_tokenizer(
-        tokenizer_name=tokenizer_name,
-        tokenizer_kwargs={'model_max_length': max_seq_len},
-    )
+    tokenizer = get_tokenizer_fixture_by_name(request, tokenizer_name)
 
     dataloader_cfg.pop('name')
     train_dataloader = build_finetuning_dataloader(
@@ -1194,7 +1192,7 @@ def test_huggingface_conversion_callback(
     'llmfoundry.callbacks.hf_checkpointer.SpawnProcess',
     new=MockSpawnProcess,
 )
-def test_transform_model_pre_registration():
+def test_transform_model_pre_registration(request: pytest.FixtureRequest):
     """Test `transform_model_pre_registration` method is called."""
 
     class ExtendedHuggingFaceCheckpointer(HuggingFaceCheckpointer):
@@ -1218,10 +1216,7 @@ def test_transform_model_pre_registration():
         'r': 16,
         'target_modules': 'all-linear',
     }
-    tokenizer = build_tokenizer(
-        tokenizer_name=tokenizer_name,
-        tokenizer_kwargs={},
-    )
+    tokenizer = get_tokenizer_fixture_by_name(request, tokenizer_name)
 
     original_model = build_composer_model(
         model_cfg.pop('name'),
@@ -1491,6 +1486,7 @@ def test_mptmoe_huggingface_conversion_callback(
     tmp_path: pathlib.Path,
     num_experts: int,
     sharding_strategy: str,
+    tiny_neox_tokenizer: PreTrainedTokenizerBase,
     hf_save_interval: str = '1ba',
     save_interval: str = '1ba',
     max_duration: str = '1ba',
@@ -1605,10 +1601,7 @@ def test_mptmoe_huggingface_conversion_callback(
 
     dataloader_cfg = om.create(dataloader_cfg)
 
-    tokenizer = build_tokenizer(
-        tokenizer_name=tokenizer_name,
-        tokenizer_kwargs={'model_max_length': max_seq_len},
-    )
+    tokenizer = tiny_neox_tokenizer
 
     train_dataloader = build_finetuning_dataloader(
         **dataloader_cfg,

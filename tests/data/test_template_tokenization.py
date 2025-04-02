@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 import transformers
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.data.finetuning.tasks import (
     _DEFAULT_CHAT_TEMPLATE,
@@ -13,7 +14,6 @@ from llmfoundry.data.finetuning.tasks import (
     tokenize_formatted_example,
 )
 from llmfoundry.tokenizers import get_date_string
-from llmfoundry.utils.builders import build_tokenizer
 from llmfoundry.utils.exceptions import (
     ALLOWED_PROMPT_KEYS,
     ALLOWED_RESPONSE_KEYS,
@@ -23,7 +23,9 @@ from llmfoundry.utils.exceptions import (
 )
 
 
-def test_tokenize_chat_example_malformed():
+def test_tokenize_chat_example_malformed(
+    tiny_mpt_chat_tokenizer: PreTrainedTokenizerBase,
+):
     no_content = {'messages': [{'role': 'user'}]}
     too_few_messages = {
         'messages': [{
@@ -70,7 +72,7 @@ def test_tokenize_chat_example_malformed():
         no_assistant_message,
         wrong_role,
     ]
-    my_tokenizer = build_tokenizer('mosaicml/mpt-7b-8k-chat', {})
+    my_tokenizer = tiny_mpt_chat_tokenizer
     for example in malformed_chat_examples:
         with pytest.raises(Exception):
             tokenize_formatted_example(
@@ -91,7 +93,9 @@ def test_tokenize_chat_example_malformed():
         )
 
 
-def test_tokenize_chat_example_well_formed():
+def test_tokenize_chat_example_well_formed(
+    tiny_mpt_chat_tokenizer: PreTrainedTokenizerBase,
+):
     chat_examples = [
         {
             'messages': [{
@@ -158,7 +162,7 @@ Nice to hear that.<|im_end|>
         }],
     ]
 
-    chat_tokenizer = build_tokenizer('mosaicml/mpt-7b-8k-chat', {})
+    chat_tokenizer = tiny_mpt_chat_tokenizer
     assert len(expected) == len(
         chat_examples,
     )  # if we add a new example, zip shouldn't fail silently
@@ -208,8 +212,10 @@ def test_tokenize_instruct_example_malformed():
             tokenize_formatted_example(example, MagicMock())
 
 
-def test_tokenize_instruct_example_well_formed():
-    tokenizer = transformers.AutoTokenizer.from_pretrained('gpt2')
+def test_tokenize_instruct_example_well_formed(
+    tiny_gpt2_tokenizer: PreTrainedTokenizerBase,
+):
+    tokenizer = tiny_gpt2_tokenizer
 
     for prompt_key in ALLOWED_PROMPT_KEYS:
         for response_key in ALLOWED_RESPONSE_KEYS:

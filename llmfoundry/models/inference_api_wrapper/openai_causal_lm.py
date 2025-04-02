@@ -62,8 +62,9 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
 
         else:
             # Using a custom base URL, where the API key may not be required
+            custom_url_tag = '' if api_key is not None else ' (no API key set)'
             log.info(
-                f'Making request to custom base URL: {base_url}{"" if api_key is not None else " (no API key set)"}',
+                f'Making request to custom base URL: {base_url}{custom_url_tag}',
             )
             api_key = 'placeholder'  # This cannot be None
 

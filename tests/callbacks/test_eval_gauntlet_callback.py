@@ -9,7 +9,7 @@ import pytest
 import torch
 from composer.core import State
 from composer.loggers import InMemoryLogger, Logger
-from transformers import AutoTokenizer
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.eval.metrics.nlp import InContextLearningLMAccuracy
 from llmfoundry.utils.builders import build_icl_data_and_gauntlet
@@ -59,7 +59,10 @@ class MockLogger(Logger):
         'core_average': ['world_knowledge', 'language_understanding'],
     }, None],
 )
-def test_gauntlet_callback(averages: Optional[dict]):
+def test_gauntlet_callback(
+    averages: Optional[dict],
+    tiny_neox_tokenizer: PreTrainedTokenizerBase,
+):
     icl_task_config = om.OmegaConf.create(
         """
             - label: jeopardy_small
@@ -100,12 +103,11 @@ def test_gauntlet_callback(averages: Optional[dict]):
 
     if averages is not None:
         eval_gauntlet_config.averages = averages
-    tokenizer = AutoTokenizer.from_pretrained('EleutherAI/gpt-neox-20b')
 
     # test loading functionality
     _, _, eval_gauntlet_callback = build_icl_data_and_gauntlet([
         to_dict_container(c) for c in icl_task_config_list
-    ], to_dict_container(eval_gauntlet_config), tokenizer, 4, 1024, 1)
+    ], to_dict_container(eval_gauntlet_config), tiny_neox_tokenizer, 4, 1024, 1)
     assert eval_gauntlet_callback is not None
     state = MockState(eval_gauntlet_callback.logger_keys)
     logger = MockLogger(state)

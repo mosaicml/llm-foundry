@@ -147,14 +147,16 @@ class EvalOutputLogging(Callback):
     def eval_end(self, state: State, logger: Logger) -> None:
         list_of_rows = all_gather_object(self.rows)
         rows = [row for rows in list_of_rows for row in rows]
-        for dest_logger in logger.destinations:
-            if not isinstance(dest_logger, ConsoleLogger):
-                dest_logger.log_table(
-                    self.columns,
-                    rows,
-                    name=self.name,
-                    step=state.timestamp.batch.value,
-                )
+        # Only log if we have columns and a name
+        if self.columns is not None and self.name is not None and rows:
+            for dest_logger in logger.destinations:
+                if not isinstance(dest_logger, ConsoleLogger):
+                    dest_logger.log_table(
+                        self.columns,
+                        rows,
+                        name=self.name,
+                        step=state.timestamp.batch.value,
+                    )
 
         self.rows = []
         self.name = None

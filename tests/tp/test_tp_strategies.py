@@ -141,8 +141,9 @@ def get_cfg(
 
 def get_loss_array(trainer: Trainer):
     logger = trainer.logger.destinations[0]
-    loss_array = logger.get_timeseries('loss/train/total')['loss/train/total'
-                                                          ]  # type: ignore
+    loss_array = logger.get_timeseries( # type: ignore
+        'loss/train/total',
+    )['loss/train/total']
     return loss_array
 
 

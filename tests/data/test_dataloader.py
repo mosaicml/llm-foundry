@@ -1611,4 +1611,4 @@ def test_tokenizer_none(build_fn: Callable):
     }
 
     with pytest.raises(ValueError, match='Tokenizer is required'):
-        _ = build_fn(**params)
+        _ = build_fn(tokenizer=None, **params)

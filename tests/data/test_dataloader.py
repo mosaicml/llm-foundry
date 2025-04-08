@@ -26,9 +26,9 @@ from llmfoundry.command_utils import convert_dataset_hf
 from llmfoundry.command_utils.data_prep.convert_finetuning_dataset import \
     get_columns_and_format
 from llmfoundry.data import (
-    build_pairs_dataloader,
     build_dataloader,
     build_finetuning_dataloader,
+    build_pairs_dataloader,
 )
 from llmfoundry.data.finetuning.collator import (
     validate_target_settings,
@@ -1601,13 +1601,13 @@ def test_text_dataloader_with_extra_keys():
 
 @pytest.mark.parametrize(
         'build_fn',
-        [build_finetuning_dataloader, build_text_dataloader, build_pairs_dataloader]) 
+        [build_finetuning_dataloader, build_text_dataloader, build_pairs_dataloader])
 def test_tokenizer_none(build_fn: Callable):
     params = {
-        "device_batch_size": 2,
-        "dataset": {},
-        "num_workers": 0,
-        "drop_last": False,
+        'device_batch_size': 2,
+        'dataset': {},
+        'num_workers': 0,
+        'drop_last': False,
     }
 
     with pytest.raises(ValueError, match='Tokenizer is required'):

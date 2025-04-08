@@ -2648,5 +2648,5 @@ def test_icl_no_tokenizer():
             tokenizer=None,
             device_eval_batch_size=2,
             icl_seq_len=128,
-            icl_subset_num_batches=2
+            icl_subset_num_batches=2,
         )

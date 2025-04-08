@@ -10,6 +10,7 @@ from typing import Optional
 from unittest.mock import patch
 
 import datasets as hf_datasets
+import pytest
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from streaming import MDSWriter
@@ -229,9 +230,12 @@ def make_tiny_conversation_ft_dataset(
 
 
 def create_c4_dataset_xxsmall(
-    path: Path, tiny_text_hf_dataset: hf_datasets.Dataset
+    path: Path,
+    request: pytest.FixtureRequest,
 ) -> str:
     """Creates a small mocked version of the C4 dataset."""
+    tiny_text_hf_dataset = request.getfixturevalue('tiny_text_hf_dataset')
+
     with patch('datasets.load_dataset') as mock_load_dataset:
         mock_load_dataset.return_value = tiny_text_hf_dataset
 

@@ -6,8 +6,8 @@ from typing import Any, Callable
 
 import pytest
 from pytest import fixture
+from tenacity import retry, stop_after_attempt, wait_fixed
 from transformers import PreTrainedTokenizerBase
-from tenacity import retry, wait_fixed, stop_after_attempt
 
 from llmfoundry.models.hf.hf_causal_lm import ComposerHFCausalLM
 from llmfoundry.models.mpt.modeling_mpt import ComposerMPTCausalLM
@@ -109,6 +109,7 @@ def tiny_gpt2_config_helper():
     }
     return transformers.AutoConfig.from_pretrained('gpt2', **tiny_overrides)
 
+
 @retry(
     wait=wait_fixed(5),
     stop=stop_after_attempt(1),
@@ -126,6 +127,7 @@ def tiny_opt_config_helper():
         'facebook/opt-125m',
         **tiny_overrides,
     )
+
 
 @retry(
     wait=wait_fixed(5),
@@ -145,6 +147,7 @@ def tiny_codellama_config_helper(tie_word_embeddings: bool = False):
         'codellama/CodeLlama-7b-hf',
         **tiny_overrides,
     )
+
 
 @retry(
     wait=wait_fixed(5),
@@ -179,6 +182,7 @@ def tiny_gpt2_tokenizer_helper(add_pad: bool = False):
         hf_tokenizer.add_special_tokens({'pad_token': '[PAD]'})
     return hf_tokenizer
 
+
 @retry(
     wait=wait_fixed(5),
     stop=stop_after_attempt(1),
@@ -192,6 +196,7 @@ def tiny_llama_tokenizer_helper():
     )
     return hf_tokenizer
 
+
 @retry(
     wait=wait_fixed(5),
     stop=stop_after_attempt(1),
@@ -203,6 +208,7 @@ def tiny_codellama_tokenizer_helper():
         'codellama/CodeLlama-7b-hf',
     )
     return hf_tokenizer
+
 
 @retry(
     wait=wait_fixed(5),
@@ -217,6 +223,7 @@ def tiny_opt_tokenizer_helper():
     hf_tokenizer.add_special_tokens({'pad_token': '[PAD]'})
     return hf_tokenizer
 
+
 @retry(
     wait=wait_fixed(5),
     stop=stop_after_attempt(1),
@@ -229,6 +236,7 @@ def tiny_neox_tokenizer_helper():
         model_max_length=2048,
     )
     return hf_tokenizer
+
 
 @retry(
     wait=wait_fixed(5),
@@ -243,6 +251,7 @@ def tiny_neo_tokenizer_helper():
     )
     return hf_tokenizer
 
+
 @retry(
     wait=wait_fixed(5),
     stop=stop_after_attempt(1),
@@ -252,6 +261,7 @@ def tiny_t5_tokenizer_helper():
 
     hf_tokenizer = transformers.AutoTokenizer.from_pretrained('t5-base',)
     return hf_tokenizer
+
 
 @retry(
     wait=wait_fixed(5),
@@ -264,6 +274,7 @@ def tiny_bert_tokenizer_helper():
         'google-bert/bert-base-uncased',
     )
 
+
 @retry(
     wait=wait_fixed(5),
     stop=stop_after_attempt(1),
@@ -275,6 +286,7 @@ def tiny_mpt_tokenizer_helper():
         'mosaicml/mpt-7b',
         model_max_length=2048,
     )
+
 
 @retry(
     wait=wait_fixed(5),

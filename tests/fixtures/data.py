@@ -46,7 +46,8 @@ def tiny_text_dataset_path(tmp_path: Path) -> Path:
 @fixture
 def tiny_text_hf_dataset():
     assets_dir = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'assets'
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        'assets',
     )
     text_data_path = os.path.join(assets_dir, 'text_data.jsonl')
 

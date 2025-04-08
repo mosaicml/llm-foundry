@@ -17,7 +17,6 @@ from composer.core.precision import Precision, get_precision_context
 from composer.distributed.dist_strategy import prepare_fsdp_module
 from composer.models.huggingface import (
     HuggingFaceModel,
-    maybe_get_underlying_model,
 )
 from composer.optim import DecoupledAdamW
 from composer.utils import (

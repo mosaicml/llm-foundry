@@ -361,6 +361,7 @@ def train(cfg: DictConfig) -> Trainer:
 
     # Build tokenizer
     tokenizer = None
+    tokenizer_name - None
     if train_cfg.tokenizer:
         log.info('Building tokenizer...')
         tokenizer_name = train_cfg.tokenizer['name']

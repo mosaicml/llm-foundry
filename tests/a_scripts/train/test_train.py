@@ -32,8 +32,9 @@ from tests.fixtures.autouse import REPO_DIR
     }, None],
 )
 def test_train_gauntlet(
-    averages: Optional[dict], tmp_path: pathlib.Path,
-    request: pytest.FixtureRequest
+    averages: Optional[dict],
+    tmp_path: pathlib.Path,
+    request: pytest.FixtureRequest,
 ):
     """Test training run with a small dataset."""
     dataset_name = create_c4_dataset_xxsmall(tmp_path, request)
@@ -132,7 +133,8 @@ def test_sort_callbacks():
 
 
 def test_train_multi_eval(
-    tmp_path: pathlib.Path, request: pytest.FixtureRequest
+    tmp_path: pathlib.Path,
+    request: pytest.FixtureRequest,
 ):
     """Test training run with multiple eval datasets."""
     c4_dataset_name = create_c4_dataset_xxsmall(tmp_path, request)
@@ -214,7 +216,8 @@ def test_validate_config():
 
 
 def test_eval_metrics_with_no_train_metrics(
-    tmp_path: pathlib.Path, request: pytest.FixtureRequest
+    tmp_path: pathlib.Path,
+    request: pytest.FixtureRequest,
 ):
     """Test using use_train_metrics=False does not disable eval metrics."""
     c4_dataset_name = create_c4_dataset_xxsmall(tmp_path, request)

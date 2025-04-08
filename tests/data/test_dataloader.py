@@ -184,7 +184,7 @@ def build_mock_ft_streaming_dataset(
                 output_writer.write(encoded_sample)
 
 
-@pytest.mark.parametrize('tokenizer_name', ['gpt2', 'facebook/opt-125m'])
+@pytest.mark.parametrize('tokenizer_name', ['gpt2', 'huggyllama/llama-7b'])
 @pytest.mark.parametrize('pretokenize', [False, True])
 def test_correct_padding(
     tokenizer_name: str,
@@ -202,7 +202,7 @@ def test_correct_padding(
     bos_text = ''
     if tokenizer_name == 'gpt2':
         eos_text = '<|endoftext|>'
-    elif tokenizer_name == 'facebook/opt-125m':
+    elif tokenizer_name == 'huggyllama/llama-7b':
         bos_text = '</s>'
 
     path = get_abs_data_path(data_local)

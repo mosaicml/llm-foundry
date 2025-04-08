@@ -9,7 +9,6 @@ from tempfile import TemporaryDirectory
 from typing import Optional
 from unittest.mock import patch
 
-import datasets as hf_datasets
 import pytest
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om

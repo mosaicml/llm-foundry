@@ -214,39 +214,11 @@ def tiny_codellama_tokenizer_helper():
     wait=wait_fixed(5),
     stop=stop_after_attempt(1),
 )
-def tiny_opt_tokenizer_helper():
-    transformers = pytest.importorskip('transformers')
-
-    hf_tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'facebook/opt-125m',
-    )
-    hf_tokenizer.add_special_tokens({'pad_token': '[PAD]'})
-    return hf_tokenizer
-
-
-@retry(
-    wait=wait_fixed(5),
-    stop=stop_after_attempt(1),
-)
 def tiny_neox_tokenizer_helper():
     transformers = pytest.importorskip('transformers')
 
     hf_tokenizer = transformers.AutoTokenizer.from_pretrained(
         'EleutherAI/gpt-neox-20b',
-        model_max_length=2048,
-    )
-    return hf_tokenizer
-
-
-@retry(
-    wait=wait_fixed(5),
-    stop=stop_after_attempt(1),
-)
-def tiny_neo_tokenizer_helper():
-    transformers = pytest.importorskip('transformers')
-
-    hf_tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'EleutherAI/gpt-neo-125m',
         model_max_length=2048,
     )
     return hf_tokenizer
@@ -305,11 +277,6 @@ def tiny_mpt_chat_tokenizer_helper():
 @pytest.fixture(scope='session')
 def _session_tiny_gpt2_model(_session_tiny_gpt2_config):  # type: ignore
     return causal_lm_model_helper(_session_tiny_gpt2_config)
-
-
-@pytest.fixture(scope='session')
-def _session_tiny_opt_model(_session_tiny_opt_config):  # type: ignore
-    return causal_lm_model_helper(_session_tiny_opt_config)
 
 
 @pytest.fixture(scope='session')
@@ -379,18 +346,8 @@ def _session_tiny_codellama_tokenizer():  # type: ignore
 
 
 @pytest.fixture(scope='session')
-def _session_tiny_opt_tokenizer():  # type: ignore
-    return tiny_opt_tokenizer_helper()
-
-
-@pytest.fixture(scope='session')
 def _session_tiny_neox_tokenizer():  # type: ignore
     return tiny_neox_tokenizer_helper()
-
-
-@pytest.fixture(scope='session')
-def _session_tiny_neo_tokenizer():  # type: ignore
-    return tiny_neo_tokenizer_helper()
 
 
 @pytest.fixture(scope='session')
@@ -417,11 +374,6 @@ def _session_tiny_mpt_chat_tokenizer():  # type: ignore
 @pytest.fixture
 def tiny_gpt2_model(_session_tiny_gpt2_model):  # type: ignore
     return copy.deepcopy(_session_tiny_gpt2_model)
-
-
-@pytest.fixture
-def tiny_opt_model(_session_tiny_opt_model):  # type: ignore
-    return copy.deepcopy(_session_tiny_opt_model)
 
 
 @pytest.fixture
@@ -474,18 +426,8 @@ def tiny_codellama_tokenizer(_session_tiny_codellama_tokenizer):  # type: ignore
 
 
 @pytest.fixture
-def tiny_opt_tokenizer(_session_tiny_opt_tokenizer):  # type: ignore
-    return copy.deepcopy(_session_tiny_opt_tokenizer)
-
-
-@pytest.fixture
 def tiny_neox_tokenizer(_session_tiny_neox_tokenizer):  # type: ignore
     return copy.deepcopy(_session_tiny_neox_tokenizer)
-
-
-@pytest.fixture
-def tiny_neo_tokenizer(_session_tiny_neo_tokenizer):  # type: ignore
-    return copy.deepcopy(_session_tiny_neo_tokenizer)
 
 
 @pytest.fixture
@@ -517,9 +459,7 @@ def get_tokenizer_fixture_by_name(
         'gpt2': 'tiny_gpt2_tokenizer',
         'huggyllama/llama-7b': 'tiny_llama_tokenizer',
         'codellama/CodeLlama-7b-hf': 'tiny_codellama_tokenizer',
-        'facebook/opt-125m': 'tiny_opt_tokenizer',
         'EleutherAI/gpt-neox-20b': 'tiny_neox_tokenizer',
-        'EleutherAI/gpt-neo-125M': 'tiny_neo_tokenizer',
         't5-base': 'tiny_t5_tokenizer',
         'google-bert/bert-base-uncased': 'tiny_bert_tokenizer',
         'mosaicml/mpt-7b': 'tiny_mpt_tokenizer',

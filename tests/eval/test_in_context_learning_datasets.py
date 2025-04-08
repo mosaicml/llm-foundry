@@ -2642,6 +2642,11 @@ def test_bc_question_prelimiter(
 def test_icl_no_tokenizer():
     with pytest.raises(ValueError, match='Tokenizer is required for icl tasks'):
         _ = build_evaluators(
+            eval_loader_config=None,
             icl_tasks_config=[],
+            eval_gauntlet_config=None,
             tokenizer=None,
+            device_eval_batch_size=2,
+            icl_seq_len=128,
+            icl_subset_num_batches=2
         )

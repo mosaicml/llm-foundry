@@ -758,6 +758,7 @@ def _get_model_and_tokenizer(
             'config_overrides': {
                 'max_position_embeddings': max_seq_len,
                 'hidden_size': 36,
+                'vocab_size': 50368,
             },
             'pretrained': False,
             'init_device': 'cpu',

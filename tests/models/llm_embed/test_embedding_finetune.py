@@ -167,13 +167,13 @@ def test_construct_model_distributed(
     with patch('torch.distributed.is_initialized', return_value=dist_initialized), \
          patch('torch.distributed.get_rank', return_value=0), \
          patch('torch.distributed.barrier'), \
-         patch('transformers.AutoModel.from_pretrained', return_value=mock_auto_model), \
-         patch('llmfoundry.models.llm_embed.FinetuneEmbeddingModel.construct_model', return_value=mock_auto_model):
+         patch('llmfoundry.models.llm_embed.finetune_embedding_model.AutoModel.from_pretrained', return_value=mock_auto_model) as from_pt_mock:
         model_instance: FinetuneEmbeddingModel = FinetuneEmbeddingModel(
             tokenizer=mock_tokenizer,
             pretrained_model_name_or_path='bert-base-uncased',
             loss_fn='torch_crossentropy',
         )
-        constructed_model: torch.nn.Module = model_instance.construct_model()
+        constructed_model = model_instance.model
         assert constructed_model is not None
         assert isinstance(constructed_model, torch.nn.Module)
+        from_pt_mock.assert_called_once()

@@ -554,7 +554,8 @@ def test_get_answer_from_example(
     r'ignore:The repository for mosaicml/test_dataset contains custom code which must*:FutureWarning',
 )
 def test_fix_eos_on_preamble(
-    tmp_path: Path, tiny_gpt2_tokenizer: PreTrainedTokenizerBase
+    tmp_path: Path,
+    tiny_gpt2_tokenizer: PreTrainedTokenizerBase,
 ):
     seqlen = 2048
     num_fewshot = 0

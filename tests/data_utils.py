@@ -248,7 +248,7 @@ def create_c4_dataset_xxsmall(
             splits=[downloaded_split],
             out_root=c4_dir,
             compression=None,
-            concat_tokens=2048,
+            concat_tokens=128,
             tokenizer='EleutherAI/gpt-neox-20b',
             tokenizer_kwargs={},
             bos_text='',

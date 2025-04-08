@@ -208,6 +208,8 @@ def test_correct_padding(
     path = get_abs_data_path(data_local)
     shutil.rmtree(path, ignore_errors=True)
 
+    concat_length = 128
+
     with patch('datasets.load_dataset') as mock_load_dataset:
         mock_load_dataset.return_value = tiny_text_hf_dataset
 
@@ -220,7 +222,7 @@ def test_correct_padding(
                     splits=[split],
                     out_root=path,
                     compression=None,
-                    concat_tokens=128,
+                    concat_tokens=concat_length,
                     tokenizer=tokenizer_name,
                     tokenizer_kwargs={},
                     bos_text=bos_text,
@@ -272,7 +274,7 @@ def test_correct_padding(
     ).dataloader
     batch = next(iter(eval_loader))
 
-    assert batch['input_ids'].shape == torch.Size([batch_size, 2048])
+    assert batch['input_ids'].shape == torch.Size([batch_size, concat_length])
     assert batch['input_ids'].type() == 'torch.LongTensor'
 
     # we follow the convention (from huggingface) that non-attended tokens are 0 in the attn mask and -100 in the labels

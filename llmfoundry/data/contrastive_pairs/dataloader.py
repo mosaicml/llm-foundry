@@ -197,7 +197,7 @@ def build_pairs_dataloader(
 ) -> DataSpec:
     if tokenizer is None:
         raise ValueError(
-            'Tokenizer is required for contrastive pairs dataloader'
+            'Tokenizer is required for contrastive pairs dataloader',
         )
 
     dataset_cfg = dataset

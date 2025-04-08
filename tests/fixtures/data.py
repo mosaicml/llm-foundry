@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+import datasets as hf_datasets
 import numpy as np
 from composer.utils import dist
 from omegaconf import DictConfig
@@ -40,6 +41,22 @@ def tiny_text_dataset_path(tmp_path: Path) -> Path:
                 out.write(sample)
 
     return out_dir
+
+
+@fixture
+def tiny_text_hf_dataset():
+    assets_dir = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'assets'
+    )
+    text_data_path = os.path.join(assets_dir, 'text_data.jsonl')
+
+    ds = hf_datasets.load_dataset(
+        'json',
+        data_files=text_data_path,
+        split='train',
+    )
+
+    return ds
 
 
 @fixture

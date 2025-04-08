@@ -1,6 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 import json
 import os
 import shutil
@@ -8,7 +7,9 @@ from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Optional
+from unittest.mock import patch
 
+import datasets as hf_datasets
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 from streaming import MDSWriter
@@ -227,26 +228,31 @@ def make_tiny_conversation_ft_dataset(
             _f.write('\n')
 
 
-def create_c4_dataset_xxsmall(path: Path) -> str:
+def create_c4_dataset_xxsmall(
+    path: Path, tiny_text_hf_dataset: hf_datasets.Dataset
+) -> str:
     """Creates a small mocked version of the C4 dataset."""
-    c4_dir = os.path.join(path, f'my-copy-c4')
-    downloaded_split = 'val_xxsmall'  # very fast to convert
+    with patch('datasets.load_dataset') as mock_load_dataset:
+        mock_load_dataset.return_value = tiny_text_hf_dataset
 
-    # Hyperparameters from https://github.com/mosaicml/llm-foundry/blob/340a56658560ebceb2a3aa69d6e37813e415acd0/README.md#L188
-    convert_dataset_hf(
-        dataset='allenai/c4',
-        data_subset='en',
-        splits=[downloaded_split],
-        out_root=c4_dir,
-        compression=None,
-        concat_tokens=2048,
-        tokenizer='EleutherAI/gpt-neox-20b',
-        tokenizer_kwargs={},
-        bos_text='',
-        eos_text='<|endoftext|>',
-        no_wrap=False,
-        num_workers=8,
-    )
+        c4_dir = os.path.join(path, f'my-copy-c4')
+        downloaded_split = 'val_xxsmall'  # very fast to convert
+
+        # Hyperparameters from https://github.com/mosaicml/llm-foundry/blob/340a56658560ebceb2a3aa69d6e37813e415acd0/README.md#L188
+        convert_dataset_hf(
+            dataset='allenai/c4',
+            data_subset='en',
+            splits=[downloaded_split],
+            out_root=c4_dir,
+            compression=None,
+            concat_tokens=2048,
+            tokenizer='EleutherAI/gpt-neox-20b',
+            tokenizer_kwargs={},
+            bos_text='',
+            eos_text='<|endoftext|>',
+            no_wrap=False,
+            num_workers=8,
+        )
 
     # copy the small downloaded_split to other c4 splits for mocking purposes
     mocked_splits = ['train', 'val']

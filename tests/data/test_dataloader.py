@@ -12,6 +12,7 @@ from typing import Any, Callable, ContextManager, Literal, Optional, Union
 from unittest.mock import MagicMock, mock_open, patch
 
 import catalogue
+import datasets as hf_datasets
 import numpy as np
 import pytest
 import torch
@@ -189,6 +190,7 @@ def test_correct_padding(
     tokenizer_name: str,
     pretokenize: bool,
     request: pytest.FixtureRequest,
+    tiny_text_hf_dataset: hf_datasets.Dataset,
     batch_size: int = 4,
 ):
     if tokenizer_name == 'gpt2' and not pretokenize:
@@ -205,36 +207,45 @@ def test_correct_padding(
 
     path = get_abs_data_path(data_local)
     shutil.rmtree(path, ignore_errors=True)
-    if pretokenize:
-        convert_dataset_hf(
-            dataset='allenai/c4',
-            data_subset='en',
-            splits=[split],
-            out_root=path,
-            compression=None,
-            concat_tokens=2048,
-            tokenizer=tokenizer_name,
-            tokenizer_kwargs={},
-            bos_text=bos_text,
-            eos_text=eos_text,
-            no_wrap=False,
-            num_workers=None,
-        )
-    else:
-        convert_dataset_hf(
-            dataset='allenai/c4',
-            data_subset='en',
-            splits=[split],
-            out_root=path,
-            compression=None,
-            concat_tokens=None,
-            tokenizer=tokenizer_name,
-            tokenizer_kwargs={},
-            bos_text=bos_text,
-            eos_text=eos_text,
-            no_wrap=False,
-            num_workers=None,
-        )
+
+    with patch('datasets.load_dataset') as mock_load_dataset:
+        mock_load_dataset.return_value = tiny_text_hf_dataset
+
+        if pretokenize:
+            with patch('llmfoundry.command_utils.data_prep.convert_dataset_hf.build_tokenizer') as mock_build_tokenizer:
+                mock_build_tokenizer.return_value = get_tokenizer_fixture_by_name(request, tokenizer_name)
+                convert_dataset_hf(
+                    dataset='allenai/c4',
+                    data_subset='en',
+                    splits=[split],
+                    out_root=path,
+                    compression=None,
+                    concat_tokens=128,
+                    tokenizer=tokenizer_name,
+                    tokenizer_kwargs={},
+                    bos_text=bos_text,
+                    eos_text=eos_text,
+                    no_wrap=False,
+                    num_workers=None,
+                )
+                mock_build_tokenizer.assert_called_once()
+        else:
+            convert_dataset_hf(
+                dataset='allenai/c4',
+                data_subset='en',
+                splits=[split],
+                out_root=path,
+                compression=None,
+                concat_tokens=None,
+                tokenizer=None,
+                tokenizer_kwargs={},
+                bos_text=bos_text,
+                eos_text=eos_text,
+                no_wrap=False,
+                num_workers=None,
+            )
+
+        mock_load_dataset.assert_called_once()
     if not os.path.isdir(path):
         raise RuntimeError(f'allenai/c4 dataset at {path} not set up as expected')
 

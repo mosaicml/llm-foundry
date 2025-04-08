@@ -88,6 +88,7 @@ extra_deps['dev'] = [
     'toml>=0.10.2,<0.11',
     'packaging>=21,<25',
     'hf_transfer==0.1.8',
+    'tenacity>=9,<10',
 ]
 
 extra_deps['databricks'] = [

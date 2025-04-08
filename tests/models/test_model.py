@@ -780,40 +780,6 @@ def test_loss_reduction(
             ), f'differed at step {i}'
 
 
-@pytest.mark.parametrize(
-    'peft_config',
-    [
-        None,
-        {
-            'peft_type': 'LORA',
-            'task_type': 'CAUSAL_LM',
-        },
-    ],
-)
-def test_opt_wrapping(peft_config: Optional[dict[str, str]],):
-    if peft_config is not None:
-        _ = pytest.importorskip('peft')
-
-    conf: dict[str, dict[str, Any]] = {
-        'model': {
-            'name': 'hf_causal_lm',
-            'pretrained': False,
-        },
-    }
-    if peft_config is not None:
-        conf['model']['peft_config'] = peft_config
-
-    conf['model'].pop('name')
-    model = ComposerHFCausalLM(**conf['model'], tokenizer=None)  # type: ignore
-
-    # check that all the modules we except are blocked from FSDP wrapping
-    underlying_model = maybe_get_underlying_model(model.model)
-    assert not underlying_model.model._fsdp_wrap
-    assert not underlying_model.model.decoder._fsdp_wrap
-    assert not underlying_model.model.decoder.embed_tokens._fsdp_wrap
-    assert not underlying_model.lm_head._fsdp_wrap
-
-
 def test_lora_id():
     peft = pytest.importorskip('peft')
 

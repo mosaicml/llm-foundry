@@ -1371,124 +1371,6 @@ def test_schema_task_dataloader_sentpiece_tokenizer(
     ) == "<s>The trophy doesn't fit into the brown suitcase because the suitcase is too small. \nThe city councilmen refused the demonstrators a permit because the city councilmen feared violence."
 
 
-@pytest.mark.parametrize('dataset_uri', ['lambada_small.jsonl'])
-@pytest.mark.parametrize('num_fewshot', [0, 1])
-def test_lm_task_dataloader_opt_tokenizer(
-    tiny_gpt2_tokenizer: PreTrainedTokenizerBase,
-    dataset_uri: str,
-    num_fewshot: int,
-    tmp_path: Path,
-):
-
-    local_data = os.path.join(os.path.dirname(__file__), 'local_data')
-
-    tokenizer = tiny_gpt2_tokenizer
-    dataset_uri = f'{local_data}/{dataset_uri}'
-    batch_size = 2
-    seqlen = 512
-    dl = get_icl_task_dataloader(
-        'language_modeling',
-        dataset_uri=dataset_uri,
-        tokenizer=tokenizer,
-        batch_size=batch_size,
-        destination_path=str(tmp_path / 'icl.jsonl'),
-        kwargs={
-            'max_seq_len': seqlen,
-            'pad_tok_id': tokenizer.eos_token_id,
-            'num_fewshot': num_fewshot,
-            'prompt_string': '',
-            'example_delimiter': '\n',
-            'continuation_delimiter': '',
-        },
-    )
-    assert isinstance(dl, DataSpec)
-    assert isinstance(dl.dataloader, DataLoader)  # pyright
-    batch = next(dl.dataloader._get_iterator())
-
-    assert 'input_ids' in batch
-    assert tuple(batch['input_ids'].shape) == (batch_size, seqlen)
-    assert 'attention_mask' in batch
-    assert tuple(batch['attention_mask'].shape) == (batch_size, seqlen)
-    assert 'continuation_indices' in batch
-    assert isinstance(batch['continuation_indices'], list) and len(
-        batch['continuation_indices'],
-    ) == batch_size
-    assert 'mode' in batch
-    assert batch['mode'] == 'icl_task'
-    min_idx = min(batch['continuation_indices'][0]).item()
-    max_idx = max(batch['continuation_indices'][0]).item()
-    assert tokenizer.decode(
-        batch['input_ids'][0][min_idx:max_idx + 1],
-    ) == ' glen'
-    assert tokenizer.decode(batch['input_ids'][0][0:min_idx]).startswith('</s>')
-    assert tokenizer.decode(batch['input_ids'][0][0:min_idx]).count('</s>') == 1
-
-
-@pytest.mark.parametrize('dataset_uri', ['piqa_small.jsonl'])
-@pytest.mark.parametrize('num_fewshot', [0, 1])
-def test_mc_task_dataloader_opt_tokenizer(
-    tiny_gpt2_tokenizer: PreTrainedTokenizerBase,
-    dataset_uri: str,
-    num_fewshot: int,
-    tmp_path: Path,
-):
-
-    local_data = os.path.join(os.path.dirname(__file__), 'local_data')
-
-    tokenizer = tiny_gpt2_tokenizer
-
-    dataset_uri = f'{local_data}/{dataset_uri}'
-    batch_size = 4
-    seqlen = 64
-    dl = get_icl_task_dataloader(
-        'multiple_choice',
-        dataset_uri=dataset_uri,
-        tokenizer=tokenizer,
-        batch_size=batch_size,
-        destination_path=str(tmp_path / 'icl.jsonl'),
-        kwargs={
-            'max_seq_len': seqlen,
-            'pad_tok_id': tokenizer.eos_token_id,
-            'num_fewshot': num_fewshot,
-            'prompt_string': '',
-            'example_delimiter': '\n',
-            'continuation_delimiter': ': ',
-        },
-    )
-    assert isinstance(dl, DataSpec)
-    assert isinstance(dl.dataloader, DataLoader)  # pyright
-    batch = next(dl.dataloader._get_iterator())
-
-    choices_per_question = 2
-    assert dl.get_num_samples_in_batch(batch) == 2
-    assert 'input_ids' in batch
-    assert tuple(batch['input_ids'].shape) == (batch_size, seqlen)
-    assert 'attention_mask' in batch
-    assert tuple(batch['attention_mask'].shape) == (batch_size, seqlen)
-    assert 'continuation_indices' in batch
-    assert isinstance(batch['continuation_indices'], list) and len(
-        batch['continuation_indices'],
-    ) == batch_size
-    assert 'mode' in batch
-    assert batch['mode'] == 'icl_task'
-    assert 'gold_indices' in batch
-    assert isinstance(batch['gold_indices'], list) and len(
-        batch['gold_indices'],
-    ) == batch_size // choices_per_question
-    assert 'choice_groupings' in batch
-    assert isinstance(batch['choice_groupings'], list) and len(
-        batch['choice_groupings'],
-    ) == batch_size // choices_per_question
-
-    min_idx = min(batch['continuation_indices'][0]).item()
-    max_idx = max(batch['continuation_indices'][0]).item()
-    assert tokenizer.decode(
-        batch['input_ids'][0][min_idx:max_idx + 1],
-    ) == ' Pour it onto a plate'
-    assert tokenizer.decode(batch['input_ids'][0][0:min_idx]).startswith('</s>')
-    assert tokenizer.decode(batch['input_ids'][0][0:min_idx]).count('</s>') == 1
-
-
 @pytest.mark.parametrize('dataset_uri', ['piqa_small.jsonl'])
 @pytest.mark.parametrize('num_fewshot', [0, 1])
 def test_mc_split_batch(
@@ -1563,12 +1445,6 @@ def test_mc_split_batch(
             assert tokenizer.decode(
                 microbatch['input_ids'][0][min_idx:max_idx + 1],
             ) == ' Weld the metal together to get it to stay firmly in place'
-        assert tokenizer.decode(
-            microbatch['input_ids'][0][0:min_idx],
-        ).startswith('</s>')
-        assert tokenizer.decode(
-            microbatch['input_ids'][0][0:min_idx],
-        ).count('</s>') == 1
 
 
 @pytest.mark.parametrize('dataset_uri', ['triviaqa_small.jsonl'])

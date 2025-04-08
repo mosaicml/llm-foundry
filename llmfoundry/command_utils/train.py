@@ -360,10 +360,12 @@ def train(cfg: DictConfig) -> Trainer:
     logged_cfg.update({'tp_config': tp_config}, merge=True)
 
     # Build tokenizer
-    log.info('Building tokenizer...')
-    tokenizer_name = train_cfg.tokenizer['name']
-    tokenizer_kwargs = train_cfg.tokenizer.get('kwargs', {})
-    tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
+    tokenizer = None
+    if train_cfg.tokenizer:
+        log.info('Building tokenizer...')
+        tokenizer_name = train_cfg.tokenizer['name']
+        tokenizer_kwargs = train_cfg.tokenizer.get('kwargs', {})
+        tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
     # Scheduler
     scheduler_name: str = train_cfg.scheduler.pop('name')

@@ -54,7 +54,7 @@ _ALLOWED_DATASET_KEYS = {
 
 
 def build_finetuning_dataloader(
-    tokenizer: PreTrainedTokenizerBase,
+    tokenizer: Optional[PreTrainedTokenizerBase],
     device_batch_size: Union[int, float],
     dataset: dict[str, Any],
     num_workers: int,
@@ -179,6 +179,9 @@ def build_finetuning_dataloader(
         padding/waste rates for different `cfg.dataset.packing_ratio` choices,
         given a starting workload YAML.
     """
+    if tokenizer is None:
+        raise ValueError('Tokenizer is required for finetuning dataloader')
+
     dataset_cfg = dataset
     is_streaming = (
         dataset_cfg.get('remote') is not None or

@@ -185,7 +185,7 @@ class StreamingPairsDataset(StreamingTextDataset):
 
 def build_pairs_dataloader(
     dataset: dict[str, Any],
-    tokenizer: PreTrainedTokenizerBase,
+    tokenizer: Optional[PreTrainedTokenizerBase],
     device_batch_size: int,
     drop_last: bool,
     num_workers: int,
@@ -195,6 +195,9 @@ def build_pairs_dataloader(
     timeout: int = 0,
     max_hard_negatives: Optional[int] = None,
 ) -> DataSpec:
+    if tokenizer is None:
+        raise ValueError('Tokenizer is required for contrastive pairs dataloader')
+
     dataset_cfg = dataset
     streams_dict = dataset.pop('streams', None)
     eos_token_id = dataset.pop('eos_token_id', None)

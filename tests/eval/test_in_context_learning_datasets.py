@@ -37,7 +37,7 @@ from llmfoundry.eval.metrics import (
     InContextLearningLMAccuracy,
     InContextLearningMultipleChoiceAccuracy,
 )
-from llmfoundry.utils.builders import build_icl_evaluators
+from llmfoundry.utils.builders import build_evaluators, build_icl_evaluators
 
 
 def test_strip_data():
@@ -2637,3 +2637,11 @@ def test_bc_question_prelimiter(
     assert len(evaluators) == 1
     evaluator = evaluators[0]
     assert evaluator.dataloader.dataloader.dataset.prelimiter == 'This is a question: '  # type: ignore
+
+
+def test_icl_no_tokenizer():
+    with pytest.raises(ValueError, match='Tokenizer is required for icl tasks'):
+        _ = build_evaluators(
+            icl_tasks_config=[],
+            tokenizer=None,
+        )

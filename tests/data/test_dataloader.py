@@ -277,7 +277,7 @@ def test_correct_padding(
 
     # Dataloaders
     test_cfg.eval_loader.pop('name')
-    test_cfg['eval_loader']['dataset']['max_seq_len'] = concat_length
+    test_cfg.eval_loader.dataset.max_seq_len = concat_length
     assert isinstance(test_cfg, DictConfig)
     test_cfg = to_dict_container(test_cfg)
     eval_loader = build_text_dataloader(

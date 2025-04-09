@@ -197,9 +197,6 @@ def test_correct_padding(
     tiny_text_hf_dataset: hf_datasets.Dataset,
     batch_size: int = 4,
 ):
-    import multiprocessing
-    multiprocessing.set_start_method('spawn', force=True)
-
     if tokenizer_name == 'gpt2' and not pretokenize:
         pytest.xfail('Must pretokenize data if using "gpt2" tokenizer')
 

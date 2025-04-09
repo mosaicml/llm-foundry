@@ -6,9 +6,10 @@ from unittest.mock import patch
 
 import pytest
 import torch
-from transformers import AutoConfig, PretrainedConfig
+from transformers import PretrainedConfig
 from transformers.modeling_outputs import \
     BaseModelOutputWithPastAndCrossAttentions
+from transformers.models.bert.configuration_bert import BertConfig
 
 from llmfoundry.models.llm_embed import FinetuneEmbeddingModel
 from tests.test_utils import MockTokenizer
@@ -23,9 +24,7 @@ class MockAutoModel(torch.nn.Module):
 
     def __init__(self) -> None:
         super().__init__()
-        self.config: AutoConfig = AutoConfig.from_pretrained(
-            'bert-base-uncased',
-        )
+        self.config: PretrainedConfig = BertConfig()
         self.config.hidden_size = 768
         self.config.num_hidden_layers = 12
         self.config.n_layers = 12

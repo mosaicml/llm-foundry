@@ -193,6 +193,9 @@ def test_correct_padding(
     tiny_text_hf_dataset: hf_datasets.Dataset,
     batch_size: int = 4,
 ):
+    import multiprocessing
+    multiprocessing.set_start_method('spawn', force=True)
+
     if tokenizer_name == 'gpt2' and not pretokenize:
         pytest.xfail('Must pretokenize data if using "gpt2" tokenizer')
 
@@ -217,8 +220,8 @@ def test_correct_padding(
             with patch('llmfoundry.command_utils.data_prep.convert_dataset_hf.build_tokenizer') as mock_build_tokenizer:
                 tokenizer = get_tokenizer_fixture_by_name(request, tokenizer_name)
                 if tokenizer_name == 'huggyllama/llama-7b':
-                    tokenizer.pad_token_id = tokenizer.eos_token_id
-                mock_build_tokenizer.return_value = get_tokenizer_fixture_by_name(request, tokenizer_name)
+                    tokenizer.pad_token = tokenizer.eos_token
+                mock_build_tokenizer.return_value = tokenizer
 
 
                 convert_dataset_hf(

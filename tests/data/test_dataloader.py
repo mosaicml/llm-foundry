@@ -222,6 +222,7 @@ def test_correct_padding(
                 tokenizer = get_tokenizer_fixture_by_name(request, tokenizer_name)
                 if tokenizer_name == 'huggyllama/llama-7b':
                     tokenizer.pad_token = tokenizer.eos_token
+                print(tokenizer.pad_token, tokenizer.pad_token_id)
                 mock_build_tokenizer.return_value = tokenizer
 
 
@@ -271,9 +272,12 @@ def test_correct_padding(
     })
 
     tokenizer = get_tokenizer_fixture_by_name(request, tokenizer_name)
+    if tokenizer_name == 'huggyllama/llama-7b':
+        tokenizer.pad_token = tokenizer.eos_token
 
     # Dataloaders
     test_cfg.eval_loader.pop('name')
+    test_cfg['eval_loader']['dataset']['max_seq_len'] = concat_length
     assert isinstance(test_cfg, DictConfig)
     test_cfg = to_dict_container(test_cfg)
     eval_loader = build_text_dataloader(

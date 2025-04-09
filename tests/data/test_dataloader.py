@@ -220,11 +220,7 @@ def test_correct_padding(
         if pretokenize:
             with patch('llmfoundry.command_utils.data_prep.convert_dataset_hf.build_tokenizer') as mock_build_tokenizer:
                 tokenizer = get_tokenizer_fixture_by_name(request, tokenizer_name)
-                if tokenizer_name == 'huggyllama/llama-7b':
-                    tokenizer.pad_token = tokenizer.eos_token
-                print(tokenizer.pad_token, tokenizer.pad_token_id)
                 mock_build_tokenizer.return_value = tokenizer
-
 
                 convert_dataset_hf(
                     dataset='allenai/c4',
@@ -272,7 +268,7 @@ def test_correct_padding(
     })
 
     tokenizer = get_tokenizer_fixture_by_name(request, tokenizer_name)
-    if tokenizer_name == 'huggyllama/llama-7b':
+    if not pretokenize and tokenizer_name == 'huggyllama/llama-7b':
         tokenizer.pad_token = tokenizer.eos_token
 
     # Dataloaders

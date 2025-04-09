@@ -87,7 +87,7 @@ def log_train_analytics(
     train_loader_config: dict[str, Any],
     eval_loader_config: Optional[Union[dict[str, Any], list[dict[str, Any]]]],
     callback_configs: Optional[dict[str, Any]],
-    tokenizer_name: str,
+    tokenizer_name: Optional[str],
     load_path: Optional[str],
     icl_tasks_config: Optional[Union[list[dict[str, Any]], str]],
     eval_gauntlet: Optional[Union[dict[str, Any], str]],
@@ -95,10 +95,12 @@ def log_train_analytics(
     """Logs analytics for runs using the `train.py` script."""
     train_loader_dataset = train_loader_config.get('dataset', {})
     metrics: dict[str, Any] = {
-        'llmfoundry/tokenizer_name': tokenizer_name,
         'llmfoundry/script': 'train',
         'llmfoundry/train_loader_name': train_loader_config.get('name'),
     }
+
+    if tokenizer_name is not None:
+        metrics['llmfoundry/tokenizer_name'] = tokenizer_name
 
     if callback_configs is not None:
         metrics['llmfoundry/callbacks'] = [

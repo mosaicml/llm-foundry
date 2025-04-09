@@ -73,7 +73,7 @@ install_requires = [
     'tenacity>=8.2.3,<10',
     'catalogue>=2,<3',
     'typer<1',
-    'GitPython==3.1.43',
+    'GitPython==3.1.44',
 ]
 
 extra_deps = {}

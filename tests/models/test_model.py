@@ -17,7 +17,6 @@ from composer.core.precision import Precision, get_precision_context
 from composer.distributed.dist_strategy import prepare_fsdp_module
 from composer.models.huggingface import (
     HuggingFaceModel,
-    maybe_get_underlying_model,
 )
 from composer.optim import DecoupledAdamW
 from composer.utils import (
@@ -778,49 +777,6 @@ def test_loss_reduction(
                 rtol=1e-5,
                 atol=1e-4,
             ), f'differed at step {i}'
-
-
-@pytest.mark.parametrize(
-    'peft_config',
-    [
-        None,
-        {
-            'peft_type': 'LORA',
-            'task_type': 'CAUSAL_LM',
-        },
-    ],
-)
-def test_opt_wrapping(
-    peft_config: Optional[dict[str, str]],
-    tiny_opt_tokenizer: PreTrainedTokenizerBase,
-):
-    if peft_config is not None:
-        _ = pytest.importorskip('peft')
-
-    conf: dict[str, dict[str, Any]] = {
-        'model': {
-            'name': 'hf_causal_lm',
-            'pretrained_model_name_or_path': 'facebook/opt-125m',
-            'pretrained': False,
-        },
-        'tokenizer': {
-            'name': 'facebook/opt-125m',
-        },
-    }
-    if peft_config is not None:
-        conf['model']['peft_config'] = peft_config
-
-    tokenizer = tiny_opt_tokenizer
-
-    conf['model'].pop('name')
-    model = ComposerHFCausalLM(**conf['model'], tokenizer=tokenizer)
-
-    # check that all the modules we except are blocked from FSDP wrapping
-    underlying_model = maybe_get_underlying_model(model.model)
-    assert not underlying_model.model._fsdp_wrap
-    assert not underlying_model.model.decoder._fsdp_wrap
-    assert not underlying_model.model.decoder.embed_tokens._fsdp_wrap
-    assert not underlying_model.lm_head._fsdp_wrap
 
 
 def test_lora_id():

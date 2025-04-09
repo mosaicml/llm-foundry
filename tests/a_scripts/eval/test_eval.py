@@ -87,9 +87,10 @@ def test_loader_eval(
     capfd: Any,
     mock_saved_model_path: Any,
     tmp_path: pathlib.Path,
+    request: pytest.FixtureRequest,
 ):
 
-    c4_dataset_name = create_c4_dataset_xxsmall(tmp_path)
+    c4_dataset_name = create_c4_dataset_xxsmall(tmp_path, request)
 
     # Use a training config that already has eval loader configured
     test_cfg = gpt_tiny_cfg(c4_dataset_name, 'cpu')

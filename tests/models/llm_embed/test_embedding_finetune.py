@@ -146,28 +146,14 @@ def test_get_attribute(
     assert attribute_value is None
 
 
-@pytest.mark.parametrize(
-    'dist_initialized',
-    [
-        pytest.param(
-            True,
-            marks=[
-                pytest.mark.gpu,
-                pytest.mark.world_size(2),
-            ],
-        ),
-        pytest.param(False),
-    ],
-)
+@pytest.mark.gpu
+@pytest.mark.world_size(1, 2)
 def test_construct_model_distributed(
     mock_tokenizer: MockTokenizer,
     mock_auto_model: MockAutoModel,
     dist_initialized: bool,
 ) -> None:
-    with patch('torch.distributed.is_initialized', return_value=dist_initialized), \
-         patch('torch.distributed.get_rank', return_value=0), \
-         patch('torch.distributed.barrier'), \
-         patch('llmfoundry.models.llm_embed.finetune_embedding_model.AutoModel.from_pretrained', return_value=mock_auto_model) as from_pt_mock:
+    with patch('llmfoundry.models.llm_embed.finetune_embedding_model.AutoModel.from_pretrained', return_value=mock_auto_model) as from_pt_mock:
         model_instance: FinetuneEmbeddingModel = FinetuneEmbeddingModel(
             tokenizer=mock_tokenizer,
             pretrained_model_name_or_path='bert-base-uncased',

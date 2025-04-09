@@ -151,9 +151,11 @@ def test_get_attribute(
 def test_construct_model_distributed(
     mock_tokenizer: MockTokenizer,
     mock_auto_model: MockAutoModel,
-    dist_initialized: bool,
 ) -> None:
-    with patch('llmfoundry.models.llm_embed.finetune_embedding_model.AutoModel.from_pretrained', return_value=mock_auto_model) as from_pt_mock:
+    with patch(
+        'llmfoundry.models.llm_embed.finetune_embedding_model.AutoModel.from_pretrained',
+        return_value=mock_auto_model,
+    ) as from_pt_mock:
         model_instance: FinetuneEmbeddingModel = FinetuneEmbeddingModel(
             tokenizer=mock_tokenizer,
             pretrained_model_name_or_path='bert-base-uncased',

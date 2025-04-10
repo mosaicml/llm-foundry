@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import copy
+import os
 from typing import Any, Callable
 
 import pytest
 from pytest import fixture
-from tenacity import retry, stop_after_attempt, wait_fixed
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.models.hf.hf_causal_lm import ComposerHFCausalLM
@@ -195,109 +195,24 @@ def tiny_bert_config_helper():
     return config_object
 
 
+def assets_path():
+    return os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'assets',
+        'tokenizers'
+    )
+
+
 ## TOKENIZER HELPERS ##
-@retry(
-    wait=wait_fixed(5),
-    stop=stop_after_attempt(1),
-)
-def tiny_gpt2_tokenizer_helper(add_pad: bool = False):
+def assets_tokenizer_helper(name: str):
+    """Load a tokenizer from the assets directory."""
     transformers = pytest.importorskip('transformers')
 
-    hf_tokenizer = transformers.AutoTokenizer.from_pretrained('gpt2')
+    assets_dir = assets_path()
+    tokenizer_path = os.path.join(assets_dir, name)
 
-    if add_pad:
-        hf_tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+    # Load the tokenizer
+    hf_tokenizer = transformers.AutoTokenizer.from_pretrained(tokenizer_path)
     return hf_tokenizer
-
-
-@retry(
-    wait=wait_fixed(5),
-    stop=stop_after_attempt(1),
-)
-def tiny_llama_tokenizer_helper():
-    transformers = pytest.importorskip('transformers')
-
-    hf_tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'huggyllama/llama-7b',
-        use_fast=False,
-    )
-    return hf_tokenizer
-
-
-@retry(
-    wait=wait_fixed(5),
-    stop=stop_after_attempt(1),
-)
-def tiny_codellama_tokenizer_helper():
-    transformers = pytest.importorskip('transformers')
-
-    hf_tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'codellama/CodeLlama-7b-hf',
-    )
-    return hf_tokenizer
-
-
-@retry(
-    wait=wait_fixed(5),
-    stop=stop_after_attempt(1),
-)
-def tiny_neox_tokenizer_helper():
-    transformers = pytest.importorskip('transformers')
-
-    hf_tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'EleutherAI/gpt-neox-20b',
-        model_max_length=2048,
-    )
-    return hf_tokenizer
-
-
-@retry(
-    wait=wait_fixed(5),
-    stop=stop_after_attempt(1),
-)
-def tiny_t5_tokenizer_helper():
-    transformers = pytest.importorskip('transformers')
-
-    hf_tokenizer = transformers.AutoTokenizer.from_pretrained('t5-base',)
-    return hf_tokenizer
-
-
-@retry(
-    wait=wait_fixed(5),
-    stop=stop_after_attempt(1),
-)
-def tiny_bert_tokenizer_helper():
-    transformers = pytest.importorskip('transformers')
-
-    return transformers.AutoTokenizer.from_pretrained(
-        'google-bert/bert-base-uncased',
-    )
-
-
-@retry(
-    wait=wait_fixed(5),
-    stop=stop_after_attempt(1),
-)
-def tiny_mpt_tokenizer_helper():
-    transformers = pytest.importorskip('transformers')
-
-    return transformers.AutoTokenizer.from_pretrained(
-        'mosaicml/mpt-7b',
-        model_max_length=2048,
-    )
-
-
-@retry(
-    wait=wait_fixed(5),
-    stop=stop_after_attempt(1),
-)
-def tiny_mpt_chat_tokenizer_helper():
-    transformers = pytest.importorskip('transformers')
-
-    return transformers.AutoTokenizer.from_pretrained(
-        'mosaicml/mpt-7b-8k-chat',
-        model_max_length=2048,
-    )
 
 
 ## SESSION MODELS ##
@@ -337,47 +252,49 @@ def _session_tiny_bert_config():  # type: ignore
 ## SESSION TOKENIZERS ##
 @pytest.fixture(scope='session')
 def _session_tiny_gpt2_tokenizer():  # type: ignore
-    return tiny_gpt2_tokenizer_helper()
+    return assets_tokenizer_helper('gpt2')
 
 
 @pytest.fixture(scope='session')
 def _session_tiny_gpt2_with_pad_tokenizer():  # type: ignore
-    return tiny_gpt2_tokenizer_helper(add_pad=True)
+    tokenizer = assets_tokenizer_helper('gpt2')
+    tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+    return tokenizer
 
 
 @pytest.fixture(scope='session')
 def _session_tiny_llama_tokenizer():  # type: ignore
-    return tiny_llama_tokenizer_helper()
+    return assets_tokenizer_helper('huggyllama/llama-7b')
 
 
 @pytest.fixture(scope='session')
 def _session_tiny_codellama_tokenizer():  # type: ignore
-    return tiny_codellama_tokenizer_helper()
+    return assets_tokenizer_helper('codellama/CodeLlama-7b-hf')
 
 
 @pytest.fixture(scope='session')
 def _session_tiny_neox_tokenizer():  # type: ignore
-    return tiny_neox_tokenizer_helper()
+    return assets_tokenizer_helper('EleutherAI/gpt-neox-20b')
 
 
 @pytest.fixture(scope='session')
 def _session_tiny_t5_tokenizer():  # type: ignore
-    return tiny_t5_tokenizer_helper()
+    return assets_tokenizer_helper('t5-base')
 
 
 @pytest.fixture(scope='session')
 def _session_tiny_bert_tokenizer():  # type: ignore
-    return tiny_bert_tokenizer_helper()
+    return assets_tokenizer_helper('google-bert/bert-base-uncased')
 
 
 @pytest.fixture(scope='session')
 def _session_tiny_mpt_tokenizer():  # type: ignore
-    return tiny_mpt_tokenizer_helper()
+    return assets_tokenizer_helper('mosaicml/mpt-7b')
 
 
 @pytest.fixture(scope='session')
 def _session_tiny_mpt_chat_tokenizer():  # type: ignore
-    return tiny_mpt_chat_tokenizer_helper()
+    return assets_tokenizer_helper('mosaicml/mpt-7b-8k-chat')
 
 
 ## MODEL FIXTURES ##

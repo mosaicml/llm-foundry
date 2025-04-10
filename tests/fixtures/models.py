@@ -197,8 +197,9 @@ def tiny_bert_config_helper():
 
 def assets_path():
     return os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'assets',
-        'tokenizers'
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        'assets',
+        'tokenizers',
     )
 
 
@@ -264,37 +265,37 @@ def _session_tiny_gpt2_with_pad_tokenizer():  # type: ignore
 
 @pytest.fixture(scope='session')
 def _session_tiny_llama_tokenizer():  # type: ignore
-    return assets_tokenizer_helper('huggyllama/llama-7b')
+    return assets_tokenizer_helper('llama')
 
 
 @pytest.fixture(scope='session')
 def _session_tiny_codellama_tokenizer():  # type: ignore
-    return assets_tokenizer_helper('codellama/CodeLlama-7b-hf')
+    return assets_tokenizer_helper('codellama')
 
 
 @pytest.fixture(scope='session')
 def _session_tiny_neox_tokenizer():  # type: ignore
-    return assets_tokenizer_helper('EleutherAI/gpt-neox-20b')
+    return assets_tokenizer_helper('neox')
 
 
 @pytest.fixture(scope='session')
 def _session_tiny_t5_tokenizer():  # type: ignore
-    return assets_tokenizer_helper('t5-base')
+    return assets_tokenizer_helper('t5')
 
 
 @pytest.fixture(scope='session')
 def _session_tiny_bert_tokenizer():  # type: ignore
-    return assets_tokenizer_helper('google-bert/bert-base-uncased')
+    return assets_tokenizer_helper('bertt')
 
 
 @pytest.fixture(scope='session')
 def _session_tiny_mpt_tokenizer():  # type: ignore
-    return assets_tokenizer_helper('mosaicml/mpt-7b')
+    return assets_tokenizer_helper('mptt')
 
 
 @pytest.fixture(scope='session')
 def _session_tiny_mpt_chat_tokenizer():  # type: ignore
-    return assets_tokenizer_helper('mosaicml/mpt-7b-8k-chat')
+    return assets_tokenizer_helper('mptct')
 
 
 ## MODEL FIXTURES ##

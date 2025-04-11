@@ -1,0 +1,29 @@
+{
+    "additional_special_tokens": [
+        "\u2581<PRE>",
+        "\u2581<MID>",
+        "\u2581<SUF>",
+        "\u2581<EOT>"
+    ],
+    "bos_token": {
+        "content": "<s>",
+        "lstrip": false,
+        "normalized": false,
+        "rstrip": false,
+        "single_word": false
+    },
+    "eos_token": {
+        "content": "</s>",
+        "lstrip": false,
+        "normalized": false,
+        "rstrip": false,
+        "single_word": false
+    },
+    "unk_token": {
+        "content": "<unk>",
+        "lstrip": false,
+        "normalized": false,
+        "rstrip": false,
+        "single_word": false
+    }
+}

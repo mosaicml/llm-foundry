@@ -1,18 +1,63 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
+import os
+import random
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+import datasets as hf_datasets
+import numpy as np
 from composer.utils import dist
 from omegaconf import DictConfig
 from pytest import fixture
+from streaming import MDSWriter
 from torch.utils.data import DataLoader
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.data.finetuning.dataloader import build_finetuning_dataloader
 from tests.data_utils import make_tiny_ft_dataset
+
+
+@fixture()
+def tiny_text_dataset_path(tmp_path: Path) -> Path:
+    rng = random.Random(42)
+    out_dir = tmp_path / 'test-text-data'
+    columns = {'tokens': 'ndarray:int32'}
+    for split in ['train', 'val']:
+        with MDSWriter(
+            columns=columns,
+            out=os.path.join(out_dir, split),
+            compression=None,
+        ) as out:
+            for _ in range(100):
+                tokens = np.array(
+                    rng.sample(range(0, 100), 100),
+                    dtype=np.int32,
+                )
+                sample = {
+                    'tokens': tokens,
+                }
+                out.write(sample)
+
+    return out_dir
+
+
+@fixture
+def tiny_text_hf_dataset():
+    assets_dir = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        'assets',
+    )
+    text_data_path = os.path.join(assets_dir, 'text_data.jsonl')
+
+    ds = hf_datasets.load_dataset(
+        'json',
+        data_files=text_data_path,
+        split='train',
+    )
+
+    return ds
 
 
 @fixture

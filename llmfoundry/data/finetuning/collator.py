@@ -265,10 +265,12 @@ class Seq2SeqFinetuningCollator:
             if illegal_key in self.batch_metadata
         ]
         if found_keys:
+            found_keys_str = ', '.join(found_keys)
+            illegal_keys_str = ', '.join(illegal_keys)
             raise ValueError(
-                f'The following keys are in batch_metadata but are not allowed: {", ".join(found_keys)}.\n' +\
+                f'The following keys are in batch_metadata but are not allowed: {found_keys_str}.\n' +\
                 f'You cannot use keys that are used directly by the models. The prohibited keys are:\n' +\
-                f'{", ".join(illegal_keys)}',
+                f'{illegal_keys_str}',
             )
 
         if (max_seq_len % 8) != 0:
@@ -311,7 +313,6 @@ class Seq2SeqFinetuningCollator:
         else:
             batch = self._process_and_batch_encoder_decoder(examples)
 
-        # Add any batch_metadata
         batch_size = batch['input_ids'].shape[0]
         batch.update({
             k: torch.tensor([v] * batch_size)

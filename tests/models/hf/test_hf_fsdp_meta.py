@@ -8,9 +8,9 @@ import pytest
 import torch
 import torch.nn as nn
 from composer import Trainer
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.models.hf.hf_causal_lm import ComposerHFCausalLM
-from llmfoundry.utils.builders import build_tokenizer
 
 
 @contextmanager
@@ -44,7 +44,7 @@ def deterministic_torch_context():
 
 @pytest.mark.gpu
 @pytest.mark.world_size(2)
-def test_hf_meta_init_fsdp():
+def test_hf_meta_init_fsdp(tiny_codellama_tokenizer: PreTrainedTokenizerBase):
     # Use deterministic mode to ensure uninitialized weights are filled with NaNs
     with deterministic_torch_context():
         fsdp_config = {
@@ -58,11 +58,7 @@ def test_hf_meta_init_fsdp():
             'sync_module_states': True,
         }
 
-        tokenizer_name = 'codellama/CodeLlama-7b-hf'
-        tokenizer = build_tokenizer(
-            tokenizer_name=tokenizer_name,
-            tokenizer_kwargs={'model_max_length': 32},
-        )
+        tokenizer = tiny_codellama_tokenizer
 
         model = ComposerHFCausalLM(
             tokenizer=tokenizer,

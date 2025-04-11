@@ -11,23 +11,21 @@ import pytest
 import torch
 from omegaconf import OmegaConf as om
 from transformers import (
-    AutoConfig,
-    AutoModelForCausalLM,
     PretrainedConfig,
     PreTrainedModel,
+    PreTrainedTokenizerBase,
 )
 
 from llmfoundry.models.hf.hf_fsdp import rgetattr
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
-from llmfoundry.utils import build_tokenizer
 from llmfoundry.utils.builders import build_composer_model
 from llmfoundry.utils.config_utils import (
-    set_config_overrides,
     to_dict_container,
 )
 
 
 def test_remote_code_false_mpt(
+    tiny_mpt_tokenizer: PreTrainedTokenizerBase,
     conf_path: str = 'scripts/train/yamls/finetune/mpt-7b_dolly_sft.yaml',
 ):
     with open(conf_path) as f:
@@ -45,13 +43,7 @@ def test_remote_code_false_mpt(
     test_cfg.device = device
     test_cfg.precision = 'fp16'
 
-    tokenizer_cfg: dict[str, Any] = om.to_container(
-        test_cfg.tokenizer,
-        resolve=True,
-    )  # type: ignore
-    tokenizer_name = tokenizer_cfg['name']
-    tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
-    tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
+    tokenizer = tiny_mpt_tokenizer
 
     with pytest.raises(
         ValueError,
@@ -123,18 +115,13 @@ def test_tie_weights(tie_word_embeddings: bool):
 )
 def test_hf_config_override(
     model_cfg_overrides: dict[str, Any],
+    tiny_codellama_tokenizer: PreTrainedTokenizerBase,
     conf_path: str = 'scripts/train/yamls/pretrain/testing.yaml',
 ):
     with open(conf_path) as f:
         test_cfg = om.load(f)
 
-    tokenizer_cfg: dict[str, Any] = om.to_container(
-        test_cfg.tokenizer,
-        resolve=True,
-    )  # type: ignore
-    tokenizer_name = 'codellama/CodeLlama-7b-hf'
-    tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
-    tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
+    tokenizer = tiny_codellama_tokenizer
 
     tiny_overrides = {
         'num_hidden_layers': 2,
@@ -305,35 +292,25 @@ def test_use_flash():
     assert next(model.parameters()).dtype == torch.bfloat16
 
 
-def test_generation_config(tmp_path: Path):
-    # Create a small llama model to edit and save.
-    config = AutoConfig.from_pretrained('codellama/CodeLlama-7b-hf')
-    set_config_overrides(
-        config,
-        config_overrides={
-            'num_hidden_layers': 2,
-            'hidden_size': 32,
-            'intermediate_size': 64,
-            'vocab_size': 32016,
-        },
-    )
-    model = AutoModelForCausalLM.from_config(config)
-
-    assert isinstance(model, PreTrainedModel)
-    assert model.generation_config is not None
+def test_generation_config(
+    tmp_path: Path,
+    tiny_codellama_model: PreTrainedModel,
+):
+    assert isinstance(tiny_codellama_model, PreTrainedModel)
+    assert tiny_codellama_model.generation_config is not None
 
     new_bos_token_id = 100
 
     # Set the bos_token_id to something else
-    model.generation_config.bos_token_id = new_bos_token_id
+    tiny_codellama_model.generation_config.bos_token_id = new_bos_token_id
 
     # Generation config and model config no longer match
-    assert model.generation_config.bos_token_id != model.config.bos_token_id
+    assert tiny_codellama_model.generation_config.bos_token_id != tiny_codellama_model.config.bos_token_id
 
     save_dir = tmp_path / 'model'
 
     # Save the model.
-    model.save_pretrained(save_dir)
+    tiny_codellama_model.save_pretrained(save_dir)
 
     # Now load the model from the save directory and check that the bos_token_id is the same as what we set.
     model_cfg = {

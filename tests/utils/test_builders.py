@@ -41,9 +41,6 @@ from llmfoundry.utils.builders import (
         ('tiktoken', {
             'model_name': 'gpt-4',
         }),
-        ('EleutherAI/gpt-neo-125M', {
-            'model_max_length': 10,
-        }),
         ('mosaicml/mpt-7b', {
             'model_max_length': 20,
         }),

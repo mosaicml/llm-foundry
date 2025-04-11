@@ -716,8 +716,9 @@ class StreamingFinetuningDataset(StreamingDataset):
                 sample['labels'] = sample['labels'][:self.max_seq_len].tolist(
                 ).copy()
             else:
+                input_ids_type = type(sample['input_ids'])
                 raise ValueError(
-                    f'Expect input_ids to be bytes or numpy.ndarray type, but got {type(sample["input_ids"])}',
+                    f'Expect input_ids to be bytes or numpy.ndarray type, but got {input_ids_type}',
                 )
             # Convert to latest format by wrapping sample as a "turn"
             return {'turns': [sample]}

@@ -7,6 +7,7 @@ from typing import Optional
 import pytest
 from composer import Trainer
 from composer.models.huggingface import maybe_get_underlying_model
+from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
 from llmfoundry.utils.builders import build_composer_model, build_tokenizer
 
@@ -36,10 +37,16 @@ def test_fsdp_weight_tying(
     peft_config: Optional[dict],
     tmp_path: pathlib.Path,
     init_device: str,
+    tiny_codellama_model: PreTrainedModel,
+    tiny_codellama_tokenizer: PreTrainedTokenizerBase,
 ):
+    save_path = tmp_path / 'hf-save'
+    tiny_codellama_model.save_pretrained(save_path)
+    tiny_codellama_tokenizer.save_pretrained(save_path)
+
     model_cfg = {
         'name': 'hf_causal_lm',
-        'pretrained_model_name_or_path': 'codellama/CodeLlama-7b-hf',
+        'pretrained_model_name_or_path': str(save_path),
         'config_overrides': {
             'num_hidden_layers': 2,
             'hidden_size': 32,
@@ -49,7 +56,7 @@ def test_fsdp_weight_tying(
         'pretrained': False,
         'init_device': init_device,
     }
-    tokenizer_name = 'codellama/CodeLlama-7b-hf'
+    tokenizer_name = save_path
 
     assert model_cfg is not None
     assert tokenizer_name is not None
@@ -68,7 +75,7 @@ def test_fsdp_weight_tying(
     }
 
     tokenizer = build_tokenizer(
-        tokenizer_name=tokenizer_name,
+        tokenizer_name=str(tokenizer_name),
         tokenizer_kwargs={'model_max_length': 32},
     )
 

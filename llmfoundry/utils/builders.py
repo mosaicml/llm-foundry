@@ -58,7 +58,7 @@ def build_evaluators(
     icl_tasks_config: Optional[Union[str, list[dict[str, Any]]]],
     eval_gauntlet_config: Optional[Union[str, dict[str, Any]]],
     *,
-    tokenizer: PreTrainedTokenizerBase,
+    tokenizer: Optional[PreTrainedTokenizerBase],
     device_eval_batch_size: Union[int, float],
     icl_seq_len: int,
     icl_subset_num_batches: Optional[int],
@@ -75,10 +75,13 @@ def build_evaluators(
     logger_keys = []
     eval_gauntlet_callback = None
     if icl_tasks_config is not None:
+        if tokenizer is None:
+            raise ValueError('Tokenizer is required for icl tasks')
         if not isinstance(device_eval_batch_size, int):
             raise ValueError(
                 'device_eval_batch_size should be an int for icl tasks.',
             )
+
         icl_evaluators, logger_keys, eval_gauntlet_callback = build_icl_data_and_gauntlet(
             icl_tasks_config,
             eval_gauntlet_config,
@@ -94,7 +97,7 @@ def build_evaluators(
 
 def build_eval_loaders(
     eval_loader_config: Union[dict[str, Any], list[dict[str, Any]]],
-    tokenizer: PreTrainedTokenizerBase,
+    tokenizer: Optional[PreTrainedTokenizerBase],
     device_eval_batch_size: Union[int, float],
 ) -> list[Evaluator]:
     evaluators: list[Evaluator] = []
@@ -225,7 +228,7 @@ def build_save_planner(name: str, **kwargs: Any) -> SavePlanner:
 def build_composer_model(
     name: str,
     cfg: dict[str, Any],
-    tokenizer: PreTrainedTokenizerBase,
+    tokenizer: Optional[PreTrainedTokenizerBase],
     init_context: Optional[ContextManager] = None,
     master_weights_dtype: Optional[str] = None,
 ) -> ComposerModel:
@@ -234,7 +237,7 @@ def build_composer_model(
     Args:
         name (str): Name of the model to build.
         cfg (DictConfig): Configuration for the model.
-        tokenizer (PreTrainedTokenizerBase): Tokenizer to use.
+        tokenizer (Optional[PreTrainedTokenizerBase]): Tokenizer to use.
         init_context (Optional[ContextManager], optional): Context manager to use for initialization. Defaults to None.
         master_weights_dtype (Optional[str], optional): Master weights dtype. Defaults to None.
 
@@ -589,8 +592,9 @@ def build_icl_evaluators(
                     'InContextLearningGenerationExactMatchAccuracy',
                 ]
             else:
+                icl_task_type = icl_cfg['icl_task_type']
                 raise ValueError(
-                    f'No metric_names defined, unable to build default metrics for icl_task_type={icl_cfg["icl_task_type"]}.',
+                    f'No metric_names defined, unable to build default metrics for icl_task_type={icl_task_type}.',
                 )
 
         if 'max_seq_len' not in icl_cfg:
@@ -616,10 +620,11 @@ def build_icl_evaluators(
             else:
                 pad_tok_id = tokenizer.pad_token_id
 
-            label = f'{icl_cfg["label"]}/{num_fewshot}-shot'
+            icl_cfg_label = icl_cfg['label']
+            label = f'{icl_cfg_label}/{num_fewshot}-shot'
             metric_names = list(icl_cfg['metric_names'])
             # TODO: fix Composer bug when copying local paths and destination exists
-            destination_path = f'{destination_dir}/{icl_cfg["label"]}-{num_fewshot}.jsonl'
+            destination_path = f'{destination_dir}/{icl_cfg_label}-{num_fewshot}.jsonl'
             if dist.get_local_rank() == 0 and os.path.exists(destination_path):
                 os.remove(destination_path)
             dist.barrier()

@@ -70,6 +70,7 @@ install_requires = [
     'boto3>=1.21.45,<2',
     'huggingface-hub>=0.19.0,<0.27',
     'beautifulsoup4>=4.12.2,<5',  # required for model download utils
+    'tenacity>=8.2.3,<10',
     'catalogue>=2,<3',
     'typer<1',
     'GitPython==3.1.43',

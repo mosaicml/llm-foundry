@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import copy
-import os
-from typing import Any, Callable
 import hashlib
+import os
 import zipfile
-import requests
+from typing import Any, Callable
 
 import pytest
+import requests
 from pytest import fixture
 from transformers import PreTrainedTokenizerBase
 
@@ -199,19 +199,27 @@ def tiny_bert_config_helper():
 
 
 def assets_path():
-    return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'assets', 'tokenizers')
+    rank = os.environ.get('RANK', '0')
+    folder_name = 'tokenizers' + (f'_{rank}' if rank != '0' else '')
+    return os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'assets',
+        folder_name
+    )
 
 
 @pytest.fixture(scope='session')
 def tokenizers_assets():
-    """
-    Download tokenizers.zip and extract it to tests/assets/tokenizers.
-    This fixture runs automatically once per test session.
-    """
     download_tokenizers_files()
 
 
 def download_tokenizers_files():
+    """Download the tokenizers assets.
+
+    We download from github, because downloading from HF directly is flaky and gets rate limited easily.
+
+    Raises:
+        ValueError: If the checksum of the downloaded file does not match the expected checksum.
+    """
     # Define paths
     tokenizers_dir = assets_path()
 
@@ -234,7 +242,9 @@ def download_tokenizers_files():
     # Check the checksum
     checksum = hashlib.sha256(response.content).hexdigest()
     if checksum != expected_checksum:
-        raise ValueError(f'Checksum mismatch: expected {expected_checksum}, got {checksum}')
+        raise ValueError(
+            f'Checksum mismatch: expected {expected_checksum}, got {checksum}'
+        )
 
     with open(zip_path, 'wb') as f:
         for chunk in response.iter_content(chunk_size=8192):
@@ -300,49 +310,49 @@ def _session_tiny_bert_config():  # type: ignore
 
 ## SESSION TOKENIZERS ##
 @pytest.fixture(scope='session')
-def _session_tiny_gpt2_tokenizer():  # type: ignore
+def _session_tiny_gpt2_tokenizer(tokenizers_assets):  # type: ignore
     return assets_tokenizer_helper('gpt2')
 
 
 @pytest.fixture(scope='session')
-def _session_tiny_gpt2_with_pad_tokenizer():  # type: ignore
+def _session_tiny_gpt2_with_pad_tokenizer(tokenizers_assets):  # type: ignore
     tokenizer = assets_tokenizer_helper('gpt2')
     tokenizer.add_special_tokens({'pad_token': '[PAD]'})
     return tokenizer
 
 
 @pytest.fixture(scope='session')
-def _session_tiny_llama_tokenizer():  # type: ignore
+def _session_tiny_llama_tokenizer(tokenizers_assets):  # type: ignore
     return assets_tokenizer_helper('llama')
 
 
 @pytest.fixture(scope='session')
-def _session_tiny_codellama_tokenizer():  # type: ignore
+def _session_tiny_codellama_tokenizer(tokenizers_assets):  # type: ignore
     return assets_tokenizer_helper('codellama')
 
 
 @pytest.fixture(scope='session')
-def _session_tiny_neox_tokenizer():  # type: ignore
+def _session_tiny_neox_tokenizer(tokenizers_assets):  # type: ignore
     return assets_tokenizer_helper('neox')
 
 
 @pytest.fixture(scope='session')
-def _session_tiny_t5_tokenizer():  # type: ignore
+def _session_tiny_t5_tokenizer(tokenizers_assets):  # type: ignore
     return assets_tokenizer_helper('t5')
 
 
 @pytest.fixture(scope='session')
-def _session_tiny_bert_tokenizer():  # type: ignore
+def _session_tiny_bert_tokenizer(tokenizers_assets):  # type: ignore
     return assets_tokenizer_helper('bertt')
 
 
 @pytest.fixture(scope='session')
-def _session_tiny_mpt_tokenizer():  # type: ignore
+def _session_tiny_mpt_tokenizer(tokenizers_assets):  # type: ignore
     return assets_tokenizer_helper('mptt')
 
 
 @pytest.fixture(scope='session')
-def _session_tiny_mpt_chat_tokenizer():  # type: ignore
+def _session_tiny_mpt_chat_tokenizer(tokenizers_assets):  # type: ignore
     return assets_tokenizer_helper('mptct')
 
 

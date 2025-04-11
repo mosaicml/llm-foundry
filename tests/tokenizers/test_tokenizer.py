@@ -33,7 +33,7 @@ def test_load_tokenizer(tiny_neox_tokenizer: PreTrainedTokenizerBase):
     tokenizer = tiny_neox_tokenizer
     tokenizer.pad_token = tokenizer.eos_token
     assert tokenizer.vocab_size == 50254
-    assert tokenizer.name_or_path == 'EleutherAI/gpt-neox-20b'
+    assert tokenizer.name_or_path == '/__w/llm-foundry/llm-foundry/tests/assets/tokenizers/neox'
 
     # HuggingFace overrides model_max_length, so this check would fail. We explicitly reset the
     # model_max_length in ComposerMPTCausalLM

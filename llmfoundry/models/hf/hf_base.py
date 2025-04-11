@@ -10,9 +10,11 @@ import os
 import warnings
 from typing import TYPE_CHECKING, Any, Mapping, Optional, Union
 
+import torch
 import transformers
 from composer.models.huggingface import HuggingFaceModel, peft_installed
 from composer.utils import dist
+from torch import nn
 from torchmetrics import Metric
 from transformers import (
     AutoConfig,
@@ -25,6 +27,7 @@ from transformers import (
 from transformers.models.auto.auto_factory import _BaseAutoModelClass
 from transformers.utils.generic import ModelOutput
 
+from llmfoundry.models.consts import _MASTER_WEIGHTS_PRECISION
 from llmfoundry.models.hf.hf_fsdp import (
     hf_get_init_device,
     prepare_hf_model_for_fsdp,
@@ -35,6 +38,11 @@ from llmfoundry.utils.config_utils import set_config_overrides
 
 if TYPE_CHECKING:
     from peft import PeftConfig, PeftModel
+
+try:
+    import transformer_engine.pytorch as te
+except:
+    te = None
 
 __all__ = ['BaseHuggingFaceModel']
 
@@ -151,6 +159,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             trust_remote_code=trust_remote_code,
             use_auth_token=use_auth_token,
             attn_implementation=attn_implementation,
+            torch_dtype=_MASTER_WEIGHTS_PRECISION,
             use_cache=
             False,  # Necessary due to https://github.com/huggingface/transformers/issues/28056
         )
@@ -226,13 +235,13 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         Returns:
             Union[PreTrainedModel, 'PeftModel']: The built inner model.
         """
-        if not trust_remote_code and pretrained_model_name_or_path.startswith(
-            'mosaicml/mpt',
-        ):
+        if pretrained_model_name_or_path.startswith('mosaicml/mpt',):
             raise ValueError(
-                'trust_remote_code must be set to True for MPT models. Without this, the MPT model code will come from the transformers library, '
+                'The MPT series of models on the Hugging Face Hub is no longer supported by LLM Foundry. '
                 +
-                'which is significantly slower and not compatible with the LLM foundry training code, rather than the code release by MosaicML.',
+                'Please use an older version of LLM Foundry (<0.18) or use a different model. '
+                +
+                'Please open a GitHub issue if this is a problem for you and we can help you downgrade or work around the issue.',
             )
         # Resolve "mixed" init device to either "cpu" or "meta"
         resolved_init_device = hf_get_init_device(init_device)
@@ -434,5 +443,41 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         # so that the (possible) embedding resizing doesn't destroy them
         prepare_hf_model_for_fsdp(model, init_device)
 
+        # Define explicitly which layers should be initialized with ones (these are known to be skipped by the underlying Hugging Face model._init_weights)
+        EXPLICIT_INIT_ONES_NAMES = ['LlamaRMSNorm', 'Qwen2RMSNorm']
+
+        def _custom_param_init_fn(module: nn.Module):
+            """Custom parameter initialization function for the model's modules.
+
+            Args:
+                module: The module to initialize.
+            """
+            if te is not None:
+                # Initialize transformer engine modules
+                if isinstance(
+                    module,
+                    (te.LayerNormMLP, te.LayerNormLinear, te.Linear),
+                ):
+                    if hasattr(module, 'reset_parameters') and callable(
+                        module.reset_parameters,
+                    ):
+                        module.reset_parameters(defer_init=False)
+                    return
+
+            # Use the model's default initialization method
+            model._init_weights(module)
+
+            # Initialize modules that are skipped in model._init_weights
+            if hasattr(module, 'weight') and module.weight is not None:
+                weight = module.weight
+                if isinstance(weight, torch.Tensor):
+                    if module.__class__.__name__ in EXPLICIT_INIT_ONES_NAMES:
+                        torch.nn.init.ones_(weight)
+                    elif torch.isnan(weight).any():
+                        # Log a warning if a layer is left uninitialized and contains NaN values
+                        log.warning(
+                            f'{module.__class__.__name__} weight contains NaN values after model._init_weights call.',
+                        )
+
         # This provides support for meta initialization when using FSDP
-        model.param_init_fn = lambda module: model._init_weights(module)
+        model.param_init_fn = lambda module: _custom_param_init_fn(module)

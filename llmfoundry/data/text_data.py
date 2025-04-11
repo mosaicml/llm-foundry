@@ -197,7 +197,7 @@ class StreamingTextDataset(StreamingDataset):
 
     # How to tokenize a text sample to a token sample
     def _tokenize(self, text_sample: Mapping) -> dict[str, list[int]]:
-        if self.tokenizer._pad_token is None:
+        if self.tokenizer.pad_token is None:
             # Some tokenizers (e.g. GPT2 tokenizer) have no padding token which causes bugs
             raise RuntimeError(
                 'If tokenizing on-the-fly, tokenizer must have a pad_token_id',
@@ -446,7 +446,6 @@ if __name__ == '__main__':
         print(f'Reading {args.split} split from {args.local_path}')
 
     cfg = {
-        'name': 'text',
         'dataset': {
             'local': args.local_path,
             'remote': args.remote_path,
@@ -477,7 +476,10 @@ if __name__ == '__main__':
         print('\n')
         print('#' * 20, f'Batch {batch_ix}', '#' * 20)
         for k, v in batch.items():
-            print(k, v.shape, v.dtype)
+            if isinstance(v, torch.Tensor):
+                print(k, v.shape, v.dtype)
+            else:
+                print(k, v)
         for sample_ix, token_sample in enumerate(batch['input_ids']):
             print('-' * 20, f' Sample {sample_ix} ', '-' * 20)
             print(tokenizer.decode(token_sample))

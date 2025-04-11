@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import contextlib
+import glob
 import json
 import math
 import os
@@ -220,11 +221,43 @@ def check_hf_tokenizer_equivalence(
         if attr1 is None and attr2 is None:
             continue
 
-        attr_value1 = attr1 if isinstance(attr1, str) else attr1.content
-        attr_value2 = attr2 if isinstance(attr2, str) else attr2.content
+        # Handle the case when the attribute is an AddedToken object
+        attr_value1 = attr1 if isinstance(
+            attr1,
+            str,
+        ) else attr1.content if hasattr(attr1, 'content') else str(attr1)
+        attr_value2 = attr2 if isinstance(
+            attr2,
+            str,
+        ) else attr2.content if hasattr(attr2, 'content') else str(attr2)
         assert attr_value1 == attr_value2
 
-    assert tokenizer1.__dict__ == tokenizer2.__dict__
+    # Ignore 'extra_special_tokens' as it was added by the transformers library during save/load
+    if 'extra_special_tokens' in tokenizer2.init_kwargs and 'extra_special_tokens' not in tokenizer1.init_kwargs:
+        tokenizer2.init_kwargs.pop('extra_special_tokens')
+
+    # Process special tokens map and added tokens decoder
+    for dict_map_key in ['_special_tokens_map', '_added_tokens_decoder']:
+        if dict_map_key in tokenizer1.__dict__ and dict_map_key in tokenizer2.__dict__:
+            # Get the nested dictionaries
+            token_map1 = tokenizer1.__dict__[dict_map_key]
+            token_map2 = tokenizer2.__dict__[dict_map_key]
+
+            # Process values in the first tokenizer's map
+            for key in list(token_map1.keys()):
+                if hasattr(token_map1[key], 'content'):
+                    token_map1[key] = token_map1[key].content
+
+            # Process values in the second tokenizer's map
+            for key in list(token_map2.keys()):
+                if hasattr(token_map2[key], 'content'):
+                    token_map2[key] = token_map2[key].content
+
+    # Final comparison of dictionaries
+    t1_dict = tokenizer1.__dict__
+    t2_dict = tokenizer2.__dict__
+
+    assert t1_dict == t2_dict, 'Tokenizer dictionaries are not equal'
 
 
 def remove_moe_world_size(config: MPTConfig):
@@ -272,6 +305,52 @@ def check_hf_model_equivalence(
     ) in zip(model1.named_parameters(), model2.named_parameters()):
         if not just_lora or 'lora' in n1:
             assert torch.equal(p1.cpu(), p2.cpu())
+
+
+def check_safetensors_precision(
+    model_path: str,
+    model: torch.nn.Module,
+    expected_precision: torch.dtype,
+    tolerance: float = 0.2,
+):
+    """Verify that the safetensors files in model_path have the expected size.
+
+    Args:
+        model_path: Path to the directory containing the safetensors files
+        model: The original model to count parameters from
+        expected_precision: The expected precision (torch.float32, torch.bfloat16, etc.)
+        tolerance: Allowed deviation from expected file size (as a ratio)
+
+    Returns:
+        bool: True if the safetensors files have the expected size, False otherwise
+    """
+    total_params = sum(p.numel() for p in model.parameters())
+    # Determine expected bytes per parameter based on precision
+    bytes_per_param = {
+        torch.float32: 4,
+        torch.float16: 2,
+        torch.bfloat16: 2,
+        torch.int8: 1,
+    }.get(expected_precision)
+    assert bytes_per_param
+
+    expected_size = total_params * bytes_per_param
+
+    safetensors_files = glob.glob(os.path.join(model_path, '*.safetensors'))
+    if not safetensors_files:
+        # If no safetensors files found, check pytorch_model.bin
+        safetensors_files = glob.glob(
+            os.path.join(model_path, 'pytorch_model*.bin'),
+        )
+
+    if not safetensors_files:
+        return False
+
+    total_size = sum(os.path.getsize(f) for f in safetensors_files)
+    size_ratio = total_size / expected_size
+
+    is_correct_size = (1.0 - tolerance) <= size_ratio <= (1.0 + tolerance)
+    return is_correct_size
 
 
 # TODO(GRT-2435): Change to fixture
@@ -578,15 +657,28 @@ def test_huggingface_conversion_callback_interval(
     assert len(normal_checkpoints) == expected_normal_checkpoints
     assert len(huggingface_checkpoints) == expected_hf_checkpoints
 
+    # Get path to the last checkpoint
+    checkpoint_path = os.path.join(
+        tmp_path,
+        'checkpoints',
+        'huggingface',
+        f'ba{batches_per_epoch}',
+    )
+
+    # Verify the safetensors file size matches the expected precision
+    assert isinstance(trainer.state.model.model, torch.nn.Module)
+    is_size_correct = check_safetensors_precision(
+        model_path=checkpoint_path,
+        model=trainer.state.model.model,
+        expected_precision=precision,
+    )
+    assert is_size_correct, f"Safetensors file size doesn't match expected precision {precision_str}"
+
     # Load the last huggingface checkpoint
     loaded_model = transformers.AutoModelForCausalLM.from_pretrained(
-        os.path.join(
-            tmp_path,
-            'checkpoints',
-            'huggingface',
-            f'ba{batches_per_epoch}',
-        ),
+        checkpoint_path,
         trust_remote_code=True,
+        torch_dtype=precision,
     )
 
     # Check that the loaded model has the correct precision, and then set it back
@@ -603,14 +695,15 @@ def test_huggingface_conversion_callback_interval(
     loaded_model.config.init_device = original_model.model.config.init_device
 
     loaded_tokenizer = transformers.AutoTokenizer.from_pretrained(
-        os.path.join(
-            tmp_path,
-            'checkpoints',
-            'huggingface',
-            f'ba{batches_per_epoch}',
-        ),
+        checkpoint_path,
         trust_remote_code=True,
     )
+
+    # Also check that at least one parameter has the expected precision
+    for param_name, param in loaded_model.named_parameters():
+        assert param.dtype == precision, \
+            f'Parameter {param_name} has dtype {param.dtype}, expected {precision}'
+        break
 
     check_hf_model_equivalence(
         trainer.state.model.model.to(precision),
@@ -663,6 +756,7 @@ def _get_model_and_tokenizer(
                 'moe_top_k': 2,
                 'moe_world_size': 1,
                 'uniform_expert_assignment': False,
+                'mlp_impl': 'grouped',
             },
             'max_seq_len': max_seq_len,
             'vocab_size': 50368,
@@ -842,7 +936,7 @@ def _assert_checkpoint_equivalence(
         with patch.dict('sys.modules', {'flash_attn': None}):
             if peft_config is not None:
                 composer_model = trainer.state.model.module if trainer.state.is_model_ddp else trainer.state.model
-                composer_model.model.base_model.save_pretrained(
+                composer_model.model.base_model.save_pretrained( # type: ignore
                     tmp_path / 'base-model',
                 )
 
@@ -873,13 +967,14 @@ def _assert_checkpoint_equivalence(
             loaded_model = transformers.AutoModelForCausalLM.from_pretrained(
                 checkpoint_path,
                 trust_remote_code=True,
+                torch_dtype=precision,
             )
 
         # Check that the loaded model has the correct precision, and then set it back
         # to the original for the equivalence check
         if peft_config is None:
             assert loaded_model.config.torch_dtype == precision
-            loaded_model.config.torch_dtype = original_model.model.config.torch_dtype
+            loaded_model.config.torch_dtype = original_model.model.config.torch_dtype  # type: ignore
 
         if model == 'mpt':
             # Check that we have correctly set these attributes, and then set them back
@@ -887,9 +982,10 @@ def _assert_checkpoint_equivalence(
             assert loaded_model.config.attn_config['attn_impl'] == 'torch'
             assert loaded_model.config.init_device == 'cpu'
             loaded_model.config.attn_config[
-                'attn_impl'] = original_model.model.config.attn_config[
-                    'attn_impl']
-            loaded_model.config.init_device = original_model.model.config.init_device
+                'attn_impl'
+            ] = original_model.model.config.attn_config[  # type: ignore
+                'attn_impl']
+            loaded_model.config.init_device = original_model.model.config.init_device  # type: ignore
 
         loaded_tokenizer = transformers.AutoTokenizer.from_pretrained(
             os.path.join(
@@ -902,8 +998,8 @@ def _assert_checkpoint_equivalence(
         )
 
         check_hf_model_equivalence(
-            trainer.state.model.model.to(precision) if fsdp_state_dict_type
-            is not None else trainer.state.model.module.model.to(precision),
+            trainer.state.model.model.to(precision) if fsdp_state_dict_type  # type: ignore
+            is not None else trainer.state.model.module.model.to(precision), # type: ignore
             loaded_model,
             just_lora=peft_config is not None,
         )
@@ -1281,6 +1377,7 @@ def test_convert_and_generate(
     )
     assert output.shape == (1, 2 + (1 if model == 'llama2' else 0))
 
+    assert isinstance(original_model.model, torch.nn.Module)
     assert sum(p.numel() for p in original_model.model.parameters()
               ) == sum(p.numel() for p in loaded_model.parameters())
     assert all(
@@ -1342,6 +1439,7 @@ def test_convert_and_generate_meta(
     sd = torch.load(
         os.path.join(tmp_path_gathered, 'checkpoint.pt'),
         map_location='cpu',
+        weights_only=False,
     )
     sd['state']['integrations']['huggingface']['model']['config']['content'][
         'init_device'] = 'meta'
@@ -1385,6 +1483,7 @@ def test_convert_and_generate_meta(
     )
     assert output.shape == (1, 2)
 
+    assert isinstance(original_model.model, torch.nn.Module)
     assert sum(p.numel() for p in original_model.model.parameters()
               ) == sum(p.numel() for p in loaded_model.parameters())
     assert all(
@@ -1426,7 +1525,6 @@ def test_mptmoe_huggingface_conversion_callback(
     device_batch_size = 1
     dataset_size = 2
     precision_str = 'float32'
-    precision = torch.float32
     batches_per_epoch = math.ceil(dataset_size / (device_batch_size * 2))
 
     checkpointer_callback = HuggingFaceCheckpointer(
@@ -1617,8 +1715,8 @@ def test_mptmoe_huggingface_conversion_callback(
 
             # Check that the loaded model has the correct precision, and then set it back
             # to the original for the equivalence check
-            assert loaded_model.config.torch_dtype == precision
-            loaded_model.config.torch_dtype = original_model.model.config.torch_dtype
+            assert loaded_model.config.torch_dtype == precision_str
+            loaded_model.config.torch_dtype = original_model.model.config.torch_dtype  # type: ignore
 
             loaded_tokenizer = transformers.AutoTokenizer.from_pretrained(
                 os.path.join(
@@ -1629,6 +1727,7 @@ def test_mptmoe_huggingface_conversion_callback(
                 ),
                 trust_remote_code=True,
             )
+        assert isinstance(trainer.state.model.model, torch.nn.Module)
         for n, p in trainer.state.model.model.named_parameters():
             if isinstance(p, DTensor):
                 submodule_name, param_name = '.'.join(
@@ -1698,7 +1797,7 @@ def test_mpt_convert_simple(
         cfg=model_cfg,
     )
 
-    original_model.model.save_pretrained(str(tmp_path))
+    original_model.model.save_pretrained(str(tmp_path))  # type: ignore
 
     edit_files_for_hf_compatibility(str(tmp_path))
 

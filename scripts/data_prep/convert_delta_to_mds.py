@@ -1,7 +1,6 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-import json
 import logging
 from argparse import ArgumentParser
 
@@ -59,15 +58,13 @@ if __name__ == '__main__':
         help='use serverless cluster',
     )
     parser.add_argument(
-        '--dtypes',
+        '--task_type',
         required=False,
+        choices=['IFT', 'CHAT', 'CPT'],
         type=str,
-        help='data types for columns',
+        help='Fine-tuning API task type, used to determine data format',
     )
     args = parser.parse_args()
-
-    if args.dtypes is not None:
-        args.dtypes = json.loads(args.dtypes)
 
     convert_delta_to_mds_from_args(
         delta_table_name=args.delta_table_name,
@@ -77,5 +74,5 @@ if __name__ == '__main__':
         use_serverless=args.use_serverless,
         batch_size=args.batch_size,
         processes=args.processes,
-        dtypes=args.dtypes,
+        task_type=args.task_type,
     )

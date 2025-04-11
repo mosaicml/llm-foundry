@@ -5,7 +5,7 @@ import json
 import logging
 import os
 import tempfile
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 import numpy as np
 from streaming import MDSWriter
@@ -23,48 +23,50 @@ logger = logging.getLogger(__name__)
 
 def get_conversion_config(
     columns: list[str],
-    provided_dtypes: Optional[dict],
+    task_type: Optional[str] = None,
 ) -> tuple[dict, Callable]:
-    """If no dtypes is provided, attempts to infer config based on column names.
+    """Get the dtypes and conversion function for a given task.
 
     Args:
-        columns (List[str]): The list of column names.
-        provided_dtypes (Optional[Dict]): The provided dtypes.
+        columns (list[str]): The list of column names.
+        task_type (Optional[str]): One of 'IFT', 'CHAT', or 'CPT'. If None, will attempt to infer from columns.
+
+    Returns:
+        tuple[dict, Callable]: A tuple of the dtypes and a conversion function
     """
-    if provided_dtypes is not None:
-        convert_x = lambda x: {
-            k: np.array(v, dtype=provided_dtypes.get(k)) for k, v in x.items()
-        }
-        return provided_dtypes, convert_x
+    if task_type is None and len(columns) == 1:
+        if 'turns' in columns[0]:
+            logger.info('Identified IFT/CHAT data')
+            task_type = 'CHAT'
+        elif 'tokens' in columns[0]:
+            logger.info('Identified CPT data')
+            task_type = 'CPT'
+        else:
+            raise ValueError(
+                'Unable to infer task type from columns and no task_type provided.',
+            )
 
-    if len(columns) != 1:
-        raise ValueError(
-            'Unable to infer dtypes from columns and no dtypes provided.',
-        )
-
-    if 'turns' in columns[0]:
-        logging.info('Identified IFT/CHAT data')
+    if task_type == 'IFT' or task_type == 'CHAT':
         dtypes = {
-            'input_ids': 'ndarray',
-            'attention_mask': 'ndarray',
-            'labels': 'ndarray',
+            'turns': 'json',
         }
-        convert_x = lambda x: (
-            ValueError('More than one turn found') if len(x['turns']) > 1 else {
-                'input_ids': np.array(x['turns'][0]['input_ids']),
-                'attention_mask': np.array(x['turns'][0]['attention_mask']),
-                'labels': np.array(x['turns'][0]['labels']),
-            }
-        )
-    elif 'concat_tokens' in columns[0]:
-        logging.info('Identified CPT data')
+
+        def convert_x(x: dict[str, Any]) -> dict[str, Any]:
+            sample_to_write = {'turns': []}
+            for turn in x['turns']:
+                turn_to_write = {}
+                for key in ['input_ids', 'attention_mask', 'labels']:
+                    turn_to_write[key] = list(turn[key])
+                sample_to_write['turns'].append(turn_to_write)
+            return sample_to_write
+    elif task_type == 'CPT':
         dtypes = {
             'tokens': 'ndarray',
         }
         convert_x = lambda x: {'tokens': np.array(x['concat_tokens'])}
     else:
         raise ValueError(
-            'Unable to infer dtypes from columns and no dtypes provided.',
+            f'Unsupported task: {task_type}. Supported tasks are IFT, CHAT, and CPT.',
         )
 
     return dtypes, convert_x
@@ -78,7 +80,7 @@ def convert_delta_to_mds_from_args(
     use_serverless: bool,
     batch_size: int,
     processes: int,
-    dtypes: Optional[dict[str, str]],
+    task_type: Optional[str],
 ) -> None:
     """A wrapper for convert_delta_to_mds that parses arguments.
 
@@ -90,8 +92,7 @@ def convert_delta_to_mds_from_args(
         processes (int): Number of processes allowed to use
         cluster_id (Optional[str]): Cluster ID with runtime newer than 14.1.0 and access mode of either assigned or shared can use databricks-connect.
         use_serverless (bool): Use serverless or not. Make sure the workspace is entitled with serverless
-        dtypes (Optional[Dict[str, str]]): Mapping between column name and dtype, where dtype is supported for MDS conversion.
-                                           If not provided, the function will attempt to infer the dtype.
+        task_type (Optional[str]): One of 'IFT', 'CHAT', or 'CPT'. If None, will attempt to infer from columns.
     """
     _check_imports()
     from databricks.sdk import WorkspaceClient
@@ -115,13 +116,13 @@ def convert_delta_to_mds_from_args(
     )
     logger.info(f'Columns: {columns}')
 
-    dtypes, convert_x = get_conversion_config(columns, dtypes)
+    dtypes, convert_x = get_conversion_config(columns, task_type)
 
     compression = 'zstd:7'
     hashes = ['sha1']
     limit = '10mb'
 
-    logging.info(f'Fetching data from Delta Table {delta_table_name}...')
+    logger.info(f'Fetching data from Delta Table {delta_table_name}...')
 
     with tempfile.TemporaryDirectory() as json_out_folder:
         json_out_filename = 'train.jsonl'
@@ -157,4 +158,4 @@ def convert_delta_to_mds_from_args(
                 logger.error(f'JSON output file not found: {e}')
                 raise e
 
-    logging.info(f'Wrote to MDS at {mds_output_folder}')
+    logger.info(f'Wrote to MDS at {mds_output_folder}')

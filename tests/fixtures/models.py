@@ -202,8 +202,9 @@ def assets_path():
     rank = os.environ.get('RANK', '0')
     folder_name = 'tokenizers' + (f'_{rank}' if rank != '0' else '')
     return os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'assets',
-        folder_name
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        'assets',
+        folder_name,
     )
 
 
@@ -243,7 +244,7 @@ def download_tokenizers_files():
     checksum = hashlib.sha256(response.content).hexdigest()
     if checksum != expected_checksum:
         raise ValueError(
-            f'Checksum mismatch: expected {expected_checksum}, got {checksum}'
+            f'Checksum mismatch: expected {expected_checksum}, got {checksum}',
         )
 
     with open(zip_path, 'wb') as f:

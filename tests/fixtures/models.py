@@ -2,11 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import copy
+import hashlib
+import os
+import zipfile
 from typing import Any, Callable
 
 import pytest
+import requests
 from pytest import fixture
-from tenacity import retry, stop_after_attempt, wait_fixed
 from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.models.hf.hf_causal_lm import ComposerHFCausalLM
@@ -195,109 +198,81 @@ def tiny_bert_config_helper():
     return config_object
 
 
+def assets_path():
+    rank = os.environ.get('RANK', '0')
+    folder_name = 'tokenizers' + (f'_{rank}' if rank != '0' else '')
+    return os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        'assets',
+        folder_name,
+    )
+
+
+@pytest.fixture(scope='session')
+def tokenizers_assets():
+    download_tokenizers_files()
+
+
+def download_tokenizers_files():
+    """Download the tokenizers assets.
+
+    We download from github, because downloading from HF directly is flaky and gets rate limited easily.
+
+    Raises:
+        ValueError: If the checksum of the downloaded file does not match the expected checksum.
+    """
+    # Define paths
+    tokenizers_dir = assets_path()
+
+    if os.path.exists(tokenizers_dir):
+        return
+
+    # Create assets directory if it doesn't exist
+    os.makedirs(tokenizers_dir, exist_ok=True)
+
+    # URL for the tokenizers.zip file
+    url = 'https://github.com/mosaicml/ci-testing/releases/download/tokenizers/tokenizers.zip'
+    expected_checksum = '12dc1f254270582f7806588f1f1d47945590c5b42dee28925e5dab95f2d08075'
+
+    # Download the zip file
+    response = requests.get(url, stream=True)
+    response.raise_for_status()
+
+    zip_path = os.path.join(tokenizers_dir, 'tokenizers.zip')
+
+    # Check the checksum
+    checksum = hashlib.sha256(response.content).hexdigest()
+    if checksum != expected_checksum:
+        raise ValueError(
+            f'Checksum mismatch: expected {expected_checksum}, got {checksum}',
+        )
+
+    with open(zip_path, 'wb') as f:
+        for chunk in response.iter_content(chunk_size=8192):
+            f.write(chunk)
+
+    # Extract the zip file
+    print(f'Extracting tokenizers.zip to {tokenizers_dir}')
+    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        zip_ref.extractall(tokenizers_dir)
+
+    # Optionally remove the zip file after extraction
+    os.remove(zip_path)
+
+
 ## TOKENIZER HELPERS ##
-@retry(
-    wait=wait_fixed(5),
-    stop=stop_after_attempt(1),
-)
-def tiny_gpt2_tokenizer_helper(add_pad: bool = False):
+def assets_tokenizer_helper(name: str):
+    """Load a tokenizer from the assets directory."""
     transformers = pytest.importorskip('transformers')
 
-    hf_tokenizer = transformers.AutoTokenizer.from_pretrained('gpt2')
+    download_tokenizers_files()
 
-    if add_pad:
-        hf_tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+    assets_dir = assets_path()
+    tokenizer_path = os.path.join(assets_dir, name)
+
+    # Load the tokenizer
+    hf_tokenizer = transformers.AutoTokenizer.from_pretrained(tokenizer_path)
     return hf_tokenizer
-
-
-@retry(
-    wait=wait_fixed(5),
-    stop=stop_after_attempt(1),
-)
-def tiny_llama_tokenizer_helper():
-    transformers = pytest.importorskip('transformers')
-
-    hf_tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'huggyllama/llama-7b',
-        use_fast=False,
-    )
-    return hf_tokenizer
-
-
-@retry(
-    wait=wait_fixed(5),
-    stop=stop_after_attempt(1),
-)
-def tiny_codellama_tokenizer_helper():
-    transformers = pytest.importorskip('transformers')
-
-    hf_tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'codellama/CodeLlama-7b-hf',
-    )
-    return hf_tokenizer
-
-
-@retry(
-    wait=wait_fixed(5),
-    stop=stop_after_attempt(1),
-)
-def tiny_neox_tokenizer_helper():
-    transformers = pytest.importorskip('transformers')
-
-    hf_tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'EleutherAI/gpt-neox-20b',
-        model_max_length=2048,
-    )
-    return hf_tokenizer
-
-
-@retry(
-    wait=wait_fixed(5),
-    stop=stop_after_attempt(1),
-)
-def tiny_t5_tokenizer_helper():
-    transformers = pytest.importorskip('transformers')
-
-    hf_tokenizer = transformers.AutoTokenizer.from_pretrained('t5-base',)
-    return hf_tokenizer
-
-
-@retry(
-    wait=wait_fixed(5),
-    stop=stop_after_attempt(1),
-)
-def tiny_bert_tokenizer_helper():
-    transformers = pytest.importorskip('transformers')
-
-    return transformers.AutoTokenizer.from_pretrained(
-        'google-bert/bert-base-uncased',
-    )
-
-
-@retry(
-    wait=wait_fixed(5),
-    stop=stop_after_attempt(1),
-)
-def tiny_mpt_tokenizer_helper():
-    transformers = pytest.importorskip('transformers')
-
-    return transformers.AutoTokenizer.from_pretrained(
-        'mosaicml/mpt-7b',
-        model_max_length=2048,
-    )
-
-
-@retry(
-    wait=wait_fixed(5),
-    stop=stop_after_attempt(1),
-)
-def tiny_mpt_chat_tokenizer_helper():
-    transformers = pytest.importorskip('transformers')
-
-    return transformers.AutoTokenizer.from_pretrained(
-        'mosaicml/mpt-7b-8k-chat',
-        model_max_length=2048,
-    )
 
 
 ## SESSION MODELS ##
@@ -336,48 +311,50 @@ def _session_tiny_bert_config():  # type: ignore
 
 ## SESSION TOKENIZERS ##
 @pytest.fixture(scope='session')
-def _session_tiny_gpt2_tokenizer():  # type: ignore
-    return tiny_gpt2_tokenizer_helper()
+def _session_tiny_gpt2_tokenizer(tokenizers_assets):  # type: ignore
+    return assets_tokenizer_helper('gpt2')
 
 
 @pytest.fixture(scope='session')
-def _session_tiny_gpt2_with_pad_tokenizer():  # type: ignore
-    return tiny_gpt2_tokenizer_helper(add_pad=True)
+def _session_tiny_gpt2_with_pad_tokenizer(tokenizers_assets):  # type: ignore
+    tokenizer = assets_tokenizer_helper('gpt2')
+    tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+    return tokenizer
 
 
 @pytest.fixture(scope='session')
-def _session_tiny_llama_tokenizer():  # type: ignore
-    return tiny_llama_tokenizer_helper()
+def _session_tiny_llama_tokenizer(tokenizers_assets):  # type: ignore
+    return assets_tokenizer_helper('llama')
 
 
 @pytest.fixture(scope='session')
-def _session_tiny_codellama_tokenizer():  # type: ignore
-    return tiny_codellama_tokenizer_helper()
+def _session_tiny_codellama_tokenizer(tokenizers_assets):  # type: ignore
+    return assets_tokenizer_helper('codellama')
 
 
 @pytest.fixture(scope='session')
-def _session_tiny_neox_tokenizer():  # type: ignore
-    return tiny_neox_tokenizer_helper()
+def _session_tiny_neox_tokenizer(tokenizers_assets):  # type: ignore
+    return assets_tokenizer_helper('neox')
 
 
 @pytest.fixture(scope='session')
-def _session_tiny_t5_tokenizer():  # type: ignore
-    return tiny_t5_tokenizer_helper()
+def _session_tiny_t5_tokenizer(tokenizers_assets):  # type: ignore
+    return assets_tokenizer_helper('t5')
 
 
 @pytest.fixture(scope='session')
-def _session_tiny_bert_tokenizer():  # type: ignore
-    return tiny_bert_tokenizer_helper()
+def _session_tiny_bert_tokenizer(tokenizers_assets):  # type: ignore
+    return assets_tokenizer_helper('bertt')
 
 
 @pytest.fixture(scope='session')
-def _session_tiny_mpt_tokenizer():  # type: ignore
-    return tiny_mpt_tokenizer_helper()
+def _session_tiny_mpt_tokenizer(tokenizers_assets):  # type: ignore
+    return assets_tokenizer_helper('mptt')
 
 
 @pytest.fixture(scope='session')
-def _session_tiny_mpt_chat_tokenizer():  # type: ignore
-    return tiny_mpt_chat_tokenizer_helper()
+def _session_tiny_mpt_chat_tokenizer(tokenizers_assets):  # type: ignore
+    return assets_tokenizer_helper('mptct')
 
 
 ## MODEL FIXTURES ##

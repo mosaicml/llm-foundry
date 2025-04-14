@@ -293,6 +293,10 @@ def _slice_chat_formatted_example(
             )
         prompt = prompt_with_history[len(conversation_through_previous_turn):]
         response = full_conversation[len(prompt_with_history):]
+        if len(response) == 0:
+            raise UnableToProcessPromptResponseError(
+                conversation_through_previous_turn,
+            )
         return prompt, response
 
     templated_prompt_response_turns: list[tuple[str, str]] = []
@@ -306,6 +310,10 @@ def _slice_chat_formatted_example(
             templated_prompt_response_turns.append((prompt, response))
             conversation_through_previous_turn += prompt
             conversation_through_previous_turn += response
+            if len(response) == 0:
+                raise UnableToProcessPromptResponseError(
+                    conversation_through_previous_turn,
+                )
 
     return templated_prompt_response_turns
 
@@ -1002,6 +1010,7 @@ class DatasetConstructor:
                 num_proc = 1
 
             columns_to_remove = list(dataset[0].keys())
+
             tokenized_dataset = dataset.map(
                 dataset_mapper,
                 batched=False,

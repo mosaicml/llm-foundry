@@ -52,16 +52,16 @@ classifiers = [
 ]
 
 install_requires = [
-    'mosaicml[libcloud,wandb,oci,gcs,mlflow]>=0.29.0,<0.30',
+    'mosaicml[libcloud,wandb,oci,gcs,mlflow]>=0.30.0,<0.31',
     'mlflow>=2.14.1,<2.22',
     'accelerate>=0.25,<1.4',  # for HF inference `device_map`
-    'transformers>=v4.49.0,<4.50',
-    'mosaicml-streaming>=0.11.0,<0.12',
+    'transformers>=v4.49.0,<4.52',
+    'mosaicml-streaming>=0.12.0,<0.13',
     'torch>=2.6.0,<2.6.1',
     'datasets>=3.3.2,<3.4',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
     'sentencepiece==0.2.0',
-    'einops==0.8.0',
+    'einops==0.8.1',
     'omegaconf>=2.2.3,<3',
     'slack-sdk<4',
     'mosaicml-cli>=0.6.10,<1',
@@ -73,7 +73,7 @@ install_requires = [
     'tenacity>=8.2.3,<10',
     'catalogue>=2,<3',
     'typer<1',
-    'GitPython==3.1.43',
+    'GitPython==3.1.44',
 ]
 
 extra_deps = {}
@@ -88,10 +88,11 @@ extra_deps['dev'] = [
     'toml>=0.10.2,<0.11',
     'packaging>=21,<25',
     'hf_transfer==0.1.8',
+    'tenacity>=9,<10',
 ]
 
 extra_deps['databricks'] = [
-    'mosaicml[databricks]>=0.29.0,<0.30',
+    'mosaicml[databricks]>=0.30.0,<0.31',
     'numpy<2',
     'databricks-sql-connector>=3,<4',
     'databricks-connect==14.1.0',
@@ -99,7 +100,7 @@ extra_deps['databricks'] = [
 ]
 
 extra_deps['tensorboard'] = [
-    'mosaicml[tensorboard]>=0.29.0,<0.30',
+    'mosaicml[tensorboard]>=0.30.0,<0.31',
 ]
 
 # Flash 2 group kept for backwards compatibility
@@ -110,7 +111,7 @@ extra_deps['gpu-flash2'] = [
 extra_deps['gpu'] = copy.deepcopy(extra_deps['gpu-flash2'])
 
 extra_deps['peft'] = [
-    'mosaicml[peft]>=0.29.0,<0.30',
+    'mosaicml[peft]>=0.30.0,<0.31',
 ]
 
 extra_deps['openai'] = [

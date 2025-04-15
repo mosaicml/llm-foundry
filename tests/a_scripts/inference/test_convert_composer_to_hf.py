@@ -758,11 +758,12 @@ def _get_model_and_tokenizer(
             'config_overrides': {
                 'max_position_embeddings': max_seq_len,
                 'hidden_size': 36,
+                'vocab_size': 50368,
             },
             'pretrained': False,
             'init_device': 'cpu',
         }
-        tokenizer_name = 'EleutherAI/gpt-neo-125M'
+        tokenizer_name = 'EleutherAI/gpt-neox-20b'
     elif model == 'llama2':
         assert tie_word_embeddings is None
         if 'HF_TOKEN' not in os.environ:

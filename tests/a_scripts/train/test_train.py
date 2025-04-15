@@ -31,9 +31,13 @@ from tests.fixtures.autouse import REPO_DIR
         'core_average': ['language_understanding_lite'],
     }, None],
 )
-def test_train_gauntlet(averages: Optional[dict], tmp_path: pathlib.Path):
+def test_train_gauntlet(
+    averages: Optional[dict],
+    tmp_path: pathlib.Path,
+    request: pytest.FixtureRequest,
+):
     """Test training run with a small dataset."""
-    dataset_name = create_c4_dataset_xxsmall(tmp_path)
+    dataset_name = create_c4_dataset_xxsmall(tmp_path, request)
     test_cfg = gpt_tiny_cfg(dataset_name, 'cpu')
     test_cfg.icl_tasks = ListConfig([
         DictConfig({
@@ -128,9 +132,12 @@ def test_sort_callbacks():
     assert isinstance(trainer_mock.state.callbacks[2], HuggingFaceCheckpointer)
 
 
-def test_train_multi_eval(tmp_path: pathlib.Path):
+def test_train_multi_eval(
+    tmp_path: pathlib.Path,
+    request: pytest.FixtureRequest,
+):
     """Test training run with multiple eval datasets."""
-    c4_dataset_name = create_c4_dataset_xxsmall(tmp_path)
+    c4_dataset_name = create_c4_dataset_xxsmall(tmp_path, request)
     test_cfg = gpt_tiny_cfg(c4_dataset_name, 'cpu')
     # Set up multiple eval dataloaders
     first_eval_loader = test_cfg.eval_loader
@@ -208,9 +215,12 @@ def test_validate_config():
         validate_config(cfg_obj)
 
 
-def test_eval_metrics_with_no_train_metrics(tmp_path: pathlib.Path):
+def test_eval_metrics_with_no_train_metrics(
+    tmp_path: pathlib.Path,
+    request: pytest.FixtureRequest,
+):
     """Test using use_train_metrics=False does not disable eval metrics."""
-    c4_dataset_name = create_c4_dataset_xxsmall(tmp_path)
+    c4_dataset_name = create_c4_dataset_xxsmall(tmp_path, request)
     test_cfg = gpt_tiny_cfg(c4_dataset_name, 'cpu')
     first_eval_loader = test_cfg.eval_loader
     first_eval_loader.label = 'allenai/c4'

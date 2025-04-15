@@ -313,7 +313,6 @@ class Seq2SeqFinetuningCollator:
         else:
             batch = self._process_and_batch_encoder_decoder(examples)
 
-        # Add any batch_metadata
         batch_size = batch['input_ids'].shape[0]
         batch.update({
             k: torch.tensor([v] * batch_size)

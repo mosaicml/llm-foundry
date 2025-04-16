@@ -554,6 +554,26 @@ class HuggingFaceCheckpointer(Callback):
             PreTrainedModel: The transformed model.
         """
         return model
+    
+    def save_additional_contents(self,
+        state: State,
+        logger: Logger,
+        upload_to_save_folder: bool,
+        register_to_mlflow: bool,
+        save_dir: str,
+    ):
+        """Save any additional contents other than the checkpoint and tokenizer.
+        
+        This would be useful for saving any other potential objects that is part of the state.
+
+        Args:
+            state (State): The training state.
+            logger (Logger): The logger.
+            upload_to_save_folder (bool): Whether to upload the HF checkpoint to the save folder.
+            register_to_mlflow (bool): Whether to register the model to MLFlow
+            save_dir (str): The directory to save the additional contents.
+        """
+        pass
 
     def _get_hf_model(self, state: State):
         self.last_checkpoint_batch = state.timestamp.batch
@@ -779,8 +799,6 @@ class HuggingFaceCheckpointer(Callback):
             upload_to_save_folder (bool): Whether to upload the HF checkpoint to the save folder.
             register_to_mlflow (bool): Whether to register the model to MLFlow
         """
-        del logger  # unused
-
         save_dir = format_name_with_dist_and_time(
             str(
                 Path(self.save_dir_format_str) /
@@ -877,4 +895,13 @@ class HuggingFaceCheckpointer(Callback):
                 # Clean up the temporary directory if we don't need to register to mlflow.
                 if use_temp_dir:
                     shutil.rmtree(temp_save_dir)
+        dist.barrier()
+
+        if dist.get_global_rank() == 0:
+            self.save_additional_contents(
+                state,
+                logger,
+                upload_to_save_folder,
+                register_to_mlflow,
+            )
         dist.barrier()

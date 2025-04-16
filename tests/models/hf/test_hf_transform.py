@@ -68,7 +68,7 @@ def test_hf_transform(peft_config: Optional[dict]):
         peft_model = composer_model.model
         assert isinstance(peft_model, PeftModel)
 
-        target_modules = peft_model.peft_config[
+        target_modules = peft_model.peft_config[  # type: ignore
             peft_model.active_adapter  # type: ignore
         ].target_modules  # type: ignore
         assert list(target_modules) == ['o_proj']

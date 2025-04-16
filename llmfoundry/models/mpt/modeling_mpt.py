@@ -1484,7 +1484,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
                     'Requirements for MegaBlocks not installed; see install instructions in `README.md`.',
                 )
             lbl = batched_load_balancing_loss(
-                self.model.transformer.mb_args,
+                self.model.transformer.mb_args,  # type: ignore
             )  # type: ignore
             return {
                 'total': loss + lbl,

@@ -202,7 +202,7 @@ def prepare_hf_causal_lm_model_for_fsdp(
         assert isinstance(model, PeftModel)
         peft_type = model.peft_type.lower()  # type: ignore
         active_adapters = [
-            adapter.lower() for adapter in model.active_adapters
+            adapter.lower() for adapter in model.active_adapters  # type: ignore
         ]  # type: ignore
         for name, module in model.named_modules():
             if peft_type in name.lower() and any(

@@ -1,10 +1,12 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+from pathlib import Path
+
 import pytest
 from composer.core.precision import get_precision_context
 from composer.utils import get_device
-from transformers import PreTrainedTokenizerBase
+from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
 
 @pytest.mark.gpu
@@ -13,21 +15,21 @@ from transformers import PreTrainedTokenizerBase
 def test_init_hfhub_codellama(
     device: str,
     attn_impl: str,
+    tiny_codellama_model: PreTrainedModel,
     tiny_llama_tokenizer: PreTrainedTokenizerBase,
+    tmp_path: Path,
 ):
     if device == 'cpu' and attn_impl == 'flash':
         pytest.skip(f'{attn_impl=} not implemented for {device=}.')
     composer_device = get_device(device)
 
+    save_path = tmp_path / 'hf-save'
+    tiny_codellama_model.save_pretrained(save_path)
+
     # Create a configuration for the HF causal LM
     config = {
-        'pretrained_model_name_or_path': 'codellama/CodeLlama-7b-hf',
+        'pretrained_model_name_or_path': str(save_path),
         'pretrained': False,
-        'config_overrides': {
-            'num_hidden_layers': 2,
-            'hidden_size': 32,
-            'intermediate_size': 64,
-        },
     }
 
     from llmfoundry.utils.builders import build_composer_model
@@ -52,11 +54,15 @@ def test_init_hfhub_codellama(
 
 
 def test_init_hfhub_codellama_cpu(
+    tiny_codellama_model: PreTrainedModel,
     tiny_llama_tokenizer: PreTrainedTokenizerBase,
+    tmp_path: Path,
 ):
     """CPU-only version of the test for convenience."""
     test_init_hfhub_codellama(
         device='cpu',
         attn_impl='torch',
         tiny_llama_tokenizer=tiny_llama_tokenizer,
+        tiny_codellama_model=tiny_codellama_model,
+        tmp_path=tmp_path,
     )

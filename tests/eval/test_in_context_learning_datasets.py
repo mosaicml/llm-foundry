@@ -1837,7 +1837,7 @@ def test_lm_task_evaluation(
 
     model = HuggingFaceModel(
         model=tiny_gpt2_model,
-        tokenizer=tokenizer,
+        tokenizer=tokenizer,  # type: ignore
         eval_metrics=[InContextLearningLMAccuracy()],
         use_logits=True,
     )
@@ -1891,7 +1891,7 @@ def test_schema_task_evaluation(
 
     model = HuggingFaceModel(
         model=tiny_gpt2_model,
-        tokenizer=tokenizer,
+        tokenizer=tokenizer,  # type: ignore
         eval_metrics=[InContextLearningMultipleChoiceAccuracy()],
         use_logits=True,
     )
@@ -1962,7 +1962,7 @@ def test_mc_task_evaluation_subcategories(
 
     model = HuggingFaceModel(
         model=tiny_gpt2_model,
-        tokenizer=tiny_gpt2_with_pad_tokenizer,
+        tokenizer=tiny_gpt2_with_pad_tokenizer,  # type: ignore
         eval_metrics=[InContextLearningMultipleChoiceAccuracy()],
         use_logits=True,
     )
@@ -2031,7 +2031,7 @@ def test_mc_task_evaluation(
 
     model = HuggingFaceModel(
         model=tiny_gpt2_model,
-        tokenizer=tiny_gpt2_with_pad_tokenizer,
+        tokenizer=tiny_gpt2_with_pad_tokenizer,  # type: ignore
         eval_metrics=[InContextLearningMultipleChoiceAccuracy()],
         use_logits=True,
     )
@@ -2099,7 +2099,7 @@ def test_qa_task_evaluation(
 
     model = HuggingFaceModel(
         model=tiny_gpt2_model,
-        tokenizer=tiny_gpt2_with_pad_tokenizer,
+        tokenizer=tiny_gpt2_with_pad_tokenizer,  # type: ignore
         eval_metrics=[InContextLearningGenerationExactMatchAccuracy()],
         use_logits=True,
     )
@@ -2162,7 +2162,7 @@ def test_qa_task_with_cot_evaluation(
 
     model = HuggingFaceModel(
         model=tiny_gpt2_model,
-        tokenizer=tiny_gpt2_with_pad_tokenizer,
+        tokenizer=tiny_gpt2_with_pad_tokenizer,  # type: ignore
         eval_metrics=[InContextLearningGenerationExactMatchAccuracy()],
         use_logits=True,
     )

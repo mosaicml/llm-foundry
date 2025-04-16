@@ -1469,7 +1469,7 @@ def test_generate(
             max_new_tokens=5,
             use_cache=False,
         )
-        assert batched_generation.shape == (2, 6 + 5)
+        assert batched_generation.shape == (2, 6 + 5)  # type: ignore
 
         generation_with_left_padding = mpt.generate(
             input_ids=left_padding_input_ids,
@@ -1477,14 +1477,14 @@ def test_generate(
             max_new_tokens=5,
             use_cache=False,
         )
-        assert generation_with_left_padding.shape == (2, 6 + 5)
+        assert generation_with_left_padding.shape == (2, 6 + 5)  # type: ignore
         generation_with_no_padding = mpt.generate(
             input_ids=no_padding_input_ids,
             attention_mask=no_padding_attention_mask,
             max_new_tokens=5,
             use_cache=False,
         )
-        assert generation_with_no_padding.shape == (2, 3 + 5)
+        assert generation_with_no_padding.shape == (2, 3 + 5)  # type: ignore
 
         # check that left padding and no padding produce the same output
         assert generation_with_no_padding[:, 3:].equal(
@@ -2496,7 +2496,7 @@ def test_hf_init(
         False,
     )
 
-    model = HuggingFaceModel(model, tokenizer)
+    model = HuggingFaceModel(model, tokenizer)  # type: ignore
 
     batch = gen_random_batch(batch_size, test_cfg)
 
@@ -2544,7 +2544,7 @@ def test_head_dim_8_flash_mqa_attn(
 
     mpt = MPTForCausalLM(hf_config)
 
-    model = HuggingFaceModel(mpt, tokenizer, shift_labels=True)
+    model = HuggingFaceModel(mpt, tokenizer, shift_labels=True)  # type: ignore
 
     model = model.to(test_cfg.device)
     batch = gen_random_batch(batch_size, test_cfg)

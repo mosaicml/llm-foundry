@@ -44,7 +44,7 @@ def test_init_hfhub_codellama(
     ):
         _ = model.generate( # type: ignore
             composer_device.tensor_to_device(
-                tiny_llama_tokenizer('def hello_world():',
+                tiny_llama_tokenizer('def hello_world():',  # type: ignore
                                      return_tensors='pt')['input_ids'],
             ),
             max_new_tokens=2,

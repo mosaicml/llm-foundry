@@ -43,6 +43,6 @@ def test_pretrained_peft_trainable():
 
     assert isinstance(model, PeftModel)
 
-    n_trainable, n_all = model.get_nb_trainable_parameters()
+    n_trainable, n_all = model.get_nb_trainable_parameters()  # type: ignore
     assert n_all > 0
     assert n_trainable > 0

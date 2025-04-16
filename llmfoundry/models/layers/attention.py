@@ -614,17 +614,7 @@ class GroupedQueryAttention(nn.Module):
             **extra_kwargs,
         )
 
-        # Ref: https://github.com/huggingface/transformers/blob/9a4ce6477019358abc3ebd72d435da56f4c0ab7c/src/transformers/models/llama4/modeling_llama4.py#L332-L337
-        if self.attn_temperature_tuning is not None:
-            if pos_id_within_seq is None:
-                raise ValueError(
-                    'pos_id_within_seq must be provided when attn_temperature_tuning is enabled.',
-                )
-            attn_scales = torch.log(
-                torch.floor((pos_id_within_seq + 1) /
-                            self.attn_temperature_tuning['floor_scale']) + 1,
-            ).to(query.dtype) * self.attn_temperature_tuning['attn_scale'] + 1
-            query = query * attn_scales[:, :, None]
+        query = self.apply_temperature_tuning(pos_id_within_seq, query)
 
         if rotary_emb_w_meta_info is not None:
             query, key, value = self._apply_rotary_embeddings(
@@ -659,6 +649,20 @@ class GroupedQueryAttention(nn.Module):
         )
 
         return self.out_proj(context), attn_weights, past_key_value
+
+    def apply_temperature_tuning(self, pos_id_within_seq, query):
+        # Ref: https://github.com/huggingface/transformers/blob/9a4ce6477019358abc3ebd72d435da56f4c0ab7c/src/transformers/models/llama4/modeling_llama4.py#L332-L337
+        if self.attn_temperature_tuning is not None:
+            if pos_id_within_seq is None:
+                raise ValueError(
+                    'pos_id_within_seq must be provided when attn_temperature_tuning is enabled.',
+                )
+            attn_scales = torch.log(
+                torch.floor((pos_id_within_seq + 1) /
+                            self.attn_temperature_tuning['floor_scale']) + 1,
+            ).to(query.dtype) * self.attn_temperature_tuning['attn_scale'] + 1
+            query = query * attn_scales[:, :, None]
+        return query
 
     def get_qkv(
         self,

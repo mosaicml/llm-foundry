@@ -651,14 +651,15 @@ class HuggingFaceCheckpointer(Callback):
                 if self.using_peft:
                     from peft import PeftModel
                     assert isinstance(original_model, PeftModel)
-                    active_adapter = original_model.active_adapter
-                    base_model: PreTrainedModel = original_model.get_base_model(
-                    )  # type: ignore
+                    active_adapter = original_model.active_adapter  # type: ignore
+                    base_model: PreTrainedModel = original_model.get_base_model(  # type: ignore
+                    )
                     new_base_model_instance = type(base_model)(new_config)
 
                     new_model_instance = type(original_model)(
-                        new_base_model_instance,
-                        original_model.peft_config[active_adapter],
+                        new_base_model_instance,  # type: ignore
+                        original_model.
+                        peft_config[active_adapter],  # type: ignore
                     )
                     del new_base_model_instance
                 else:
@@ -672,7 +673,9 @@ class HuggingFaceCheckpointer(Callback):
 
             # Then load the state dict in with "assign" so that the state dict
             # is loaded properly even though the model is initially on meta device.
-            new_model_instance.load_state_dict(state_dict, assign=True)
+            new_model_instance.load_state_dict(
+                state_dict, assign=True
+            )  # type: ignore
             del state_dict
 
             # Transform the model and tokenizer before saving
@@ -688,10 +691,11 @@ class HuggingFaceCheckpointer(Callback):
                     from peft import PeftModel
                     assert isinstance(new_model_instance, PeftModel)
                     new_model_instance.base_model.name_or_path = self.pretrained_model_name
-                    for k in new_model_instance.peft_config.keys():
-                        new_model_instance.peft_config[
+                    for k in new_model_instance.peft_config.keys(
+                    ):  # type: ignore
+                        new_model_instance.peft_config[  # type: ignore
                             k
-                        ].base_model_name_or_path = self.pretrained_model_name
+                        ].base_model_name_or_path = self.pretrained_model_name  # type: ignore
 
             log.debug('Saving Hugging Face checkpoint to disk')
 

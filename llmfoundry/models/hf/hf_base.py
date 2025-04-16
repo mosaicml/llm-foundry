@@ -114,7 +114,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
 
         super().__init__(
             model=model,
-            tokenizer=tokenizer,
+            tokenizer=tokenizer,  # type: ignore
             use_logits=use_logits,
             metrics=metrics,
             eval_metrics=eval_metrics,

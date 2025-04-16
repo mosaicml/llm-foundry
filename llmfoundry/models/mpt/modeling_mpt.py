@@ -1397,7 +1397,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
 
         super().__init__(
             model=model,
-            tokenizer=tokenizer,
+            tokenizer=tokenizer,  # type: ignore
             use_logits=True,
             metrics=train_metrics,
             eval_metrics=eval_metrics,
@@ -1479,7 +1479,9 @@ class ComposerMPTCausalLM(HuggingFaceModel):
                 raise RuntimeError(
                     'Requirements for MegaBlocks not installed; see install instructions in `README.md`.',
                 )
-            lbl = batched_load_balancing_loss(self.model.transformer.mb_args)
+            lbl = batched_load_balancing_loss(
+                self.model.transformer.mb_args
+            )  # type: ignore
             return {
                 'total': loss + lbl,
                 'loss': loss,

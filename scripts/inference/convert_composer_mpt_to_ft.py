@@ -12,7 +12,7 @@ from typing import Any, Optional, Union
 
 import torch
 from composer.utils import get_file, safe_torch_load
-from transformers import PreTrainedTokenizer
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.utils import (
     convert_and_save_ft_weights,
@@ -22,7 +22,7 @@ from llmfoundry.utils import (
 
 def save_ft_config(
     composer_config: dict[str, Any],
-    tokenizer: PreTrainedTokenizer,
+    tokenizer: PreTrainedTokenizerBase,
     save_dir: str,
     infer_gpu_num: int = 1,
     weight_data_type: str = 'fp32',
@@ -154,6 +154,7 @@ def write_ft_checkpoint_from_composer_checkpoint(
     # Convert the weights using the config and tokenizer to FasterTransformer format
     print('#' * 30)
     print('Saving FasterTransformer config...')
+    assert hf_tokenizer is not None
     save_ft_config(
         composer_config,
         tokenizer=hf_tokenizer,

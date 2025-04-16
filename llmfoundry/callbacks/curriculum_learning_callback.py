@@ -237,7 +237,7 @@ class CurriculumLearning(CallbackWithConfig):
         try:
             return build_dataloader(
                 train_loader_config,
-                self._tokenizer,
+                self._tokenizer,  # type: ignore
                 self._device_train_batch_size,
             )
         except BaseContextualError as e:

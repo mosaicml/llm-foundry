@@ -158,7 +158,7 @@ def prepare_hf_causal_lm_model_for_fsdp(
     # OPT and olmo have an extra layer of wrapping, so special case here
     if isinstance(causal_base_model, OPTDecoder):
         underlying_model = maybe_get_underlying_model(model)
-        underlying_model.model._fsdp_wrap = False
+        underlying_model.model._fsdp_wrap = False  # type: ignore
     model_block = hf_get_hidden_layers(causal_base_model)
     lm_head = model.get_output_embeddings()  # type: ignore
     # Try to get input embeddings from the transformer backbone
@@ -200,7 +200,7 @@ def prepare_hf_causal_lm_model_for_fsdp(
     if hasattr(model, 'peft_type') and model.peft_type is not None:
         from peft import PeftModel
         assert isinstance(model, PeftModel)
-        peft_type = model.peft_type.lower()
+        peft_type = model.peft_type.lower()  # type: ignore
         active_adapters = [adapter.lower() for adapter in model.active_adapters]
         for name, module in model.named_modules():
             if peft_type in name.lower() and any(

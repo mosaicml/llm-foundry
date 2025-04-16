@@ -72,29 +72,29 @@ class AbstractConcatTokensDataset(ABC, IterableDataset):
         self.eos_text = eos_text
         self.should_wrap = not no_wrap
 
-        bos_iids = self.tokenizer(
+        bos_ids = self.tokenizer(
             self.bos_text,
             truncation=False,
             padding=False,
             add_special_tokens=False,
         )['input_ids']
-        assert isinstance(bos_iids, list)
+        assert isinstance(bos_ids, list)
 
-        self.bos_tokens: list[int] = bos_iids
+        self.bos_tokens: list[int] = bos_ids
         if len(self.bos_tokens) > 1:
             warnings.warn(
                 f'You specified --concat_tokens with --bos_text, but your BOS text is not tokenizing to one token\
                 , instead we got {self.bos_tokens}. Quit if this was in error.',
             )
 
-        eos_iids = self.tokenizer(
+        eos_ids = self.tokenizer(
             self.eos_text,
             truncation=False,
             padding=False,
             add_special_tokens=False,
         )['input_ids']
-        assert isinstance(eos_iids, list)
-        self.eos_tokens: list[int] = eos_iids
+        assert isinstance(eos_ids, list)
+        self.eos_tokens: list[int] = eos_ids
         if len(self.eos_tokens) > 1:
             warnings.warn(
                 f'You specified --concat_tokens with --eos_text, but your EOS text is not tokenizing to one token\

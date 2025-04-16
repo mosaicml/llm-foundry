@@ -92,13 +92,6 @@ def test_in_context_learning_qa_cot_accuracy():
     assert metric.compute() == (2 / 4)
 
 
-from transformers import BatchEncoding
-
-
-def typed_batch_encoding_access(b: BatchEncoding, k: str) -> Any:
-    return b[k]
-
-
 def test_in_context_learning_mc_accuracy(
     tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
 ):

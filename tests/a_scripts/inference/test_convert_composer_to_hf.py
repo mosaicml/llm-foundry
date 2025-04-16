@@ -1830,10 +1830,10 @@ def test_generation_config_variants(
     generation_config: Optional[Union[dict[str, Any], GenerationConfig]],
 ):
 
-    class MockModel(nn.Module):
+    class MockModel(PreTrainedModel, nn.Module):
 
         def __init__(self, config: PretrainedConfig):
-            super().__init__()
+            nn.Module.__init__(self)
             self.config = config
             # Ensure generation_config is always a GenerationConfig object
             if isinstance(config.generation_config, dict):

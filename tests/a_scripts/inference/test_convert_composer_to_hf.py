@@ -1731,7 +1731,9 @@ def test_mptmoe_huggingface_conversion_callback(
                 trainer.state.model.model.module,
                 transformers.PreTrainedModel,
             )
-            check_hf_model_equivalence(trainer.state.model.model.module, loaded_model)
+            check_hf_model_equivalence(
+                trainer.state.model.model.module, loaded_model
+            )
             check_hf_tokenizer_equivalence(tokenizer, loaded_tokenizer)
 
             # Check output equivalence

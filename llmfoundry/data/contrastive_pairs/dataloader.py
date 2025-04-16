@@ -175,8 +175,8 @@ class StreamingPairsDataset(StreamingTextDataset):
         text_samples_negatives = text_samples['negative']
         assert isinstance(text_samples_negatives, list)  # pyright type check
         text_samples_list.extend(text_samples_negatives)
-        return self.tokenizer(
-            text_samples_list,
+        return self.tokenizer(  # type: ignore
+            text_samples_list,  # type: ignore
             truncation=True,
             padding='max_length',
             max_length=self.max_seq_len,

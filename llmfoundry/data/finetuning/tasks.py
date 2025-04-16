@@ -271,29 +271,31 @@ def _slice_chat_formatted_example(
             )
         except Exception as e:
             raise ChatTemplateError(
-                tokenizer.chat_template,
+                tokenizer.chat_template,  # type: ignore
                 sample=messages_through_current_turn,
                 inner_message=str(e),
             )
-        if conversation_through_previous_turn != full_conversation[:len(
+        if conversation_through_previous_turn != full_conversation[:len(  # type: ignore
             conversation_through_previous_turn,
         )]:
             raise InvalidConversationError(
                 f'The full conversation must start with the conversation through the previous turn. {conversation_through_previous_turn=}, {full_conversation=}',
             )
-        if conversation_through_previous_turn != prompt_with_history[:len(
+        if conversation_through_previous_turn != prompt_with_history[:len(  # type: ignore
             conversation_through_previous_turn,
         )]:
             raise InvalidConversationError(
                 f'The prompt_with_history must start with the conversation through the previous turn. {conversation_through_previous_turn=}, {prompt_with_history=}',
             )
-        if prompt_with_history != full_conversation[:len(prompt_with_history)]:
+        if prompt_with_history != full_conversation[:len(prompt_with_history)
+                                                   ]:  # type: ignore
             raise InvalidConversationError(
                 f'prompt_with_history must be the first part of the full conversation. {prompt_with_history=}, {full_conversation=}',
             )
-        prompt = prompt_with_history[len(conversation_through_previous_turn):]
-        response = full_conversation[len(prompt_with_history):]
-        return prompt, response
+        prompt = prompt_with_history[len(conversation_through_previous_turn):
+                                    ]  # type: ignore
+        response = full_conversation[len(prompt_with_history):]  # type: ignore
+        return prompt, response  # type: ignore
 
     templated_prompt_response_turns: list[tuple[str, str]] = []
     conversation_through_previous_turn = ''
@@ -343,16 +345,20 @@ def _tokenize_with_bos_removal(
     input_ids_starts_with_bos = False
     labels_starts_with_bos = False
     if has_bos_token and len(
-        tokenized_sample['input_ids'],
-    ) > 0 and len(tokenized_sample['labels']) > 0:
-        input_ids_starts_with_bos = tokenized_sample['input_ids'][
-            0] == tokenizer.bos_token_id
-        labels_starts_with_bos = tokenized_sample['labels'][
-            0] == tokenizer.bos_token_id
+        cast(Any, tokenized_sample['input_ids']),
+    ) > 0 and len(cast(Any, tokenized_sample['labels'])) > 0:
+        input_ids_starts_with_bos = cast(
+            Any,
+            tokenized_sample['input_ids'],
+        )[0] == tokenizer.bos_token_id
+        labels_starts_with_bos = cast(
+            Any,
+            tokenized_sample['labels'],
+        )[0] == tokenizer.bos_token_id
     if input_ids_starts_with_bos and labels_starts_with_bos:
-        tokenized_sample['labels'] = tokenized_sample['labels'][1:]
+        tokenized_sample['labels'] = cast(Any, tokenized_sample['labels'])[1:]
 
-    return tokenized_sample
+    return tokenized_sample  # type: ignore
 
 
 def _tokenize_chat_formatted_example(
@@ -374,7 +380,7 @@ def _tokenize_chat_formatted_example(
     # (which calls `apply_chat_template`) to have the correct special tokens already.
     # We disable padding and truncation because those are handled in the collator, which needs to
     # be able to assume that none of the tokens are pad tokens.
-    return {
+    return {  # type: ignore
         'turns': [
             tokenizer(
                 text=prompt,

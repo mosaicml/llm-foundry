@@ -5,8 +5,9 @@ from typing import Any, Mapping
 
 import torch
 from composer.utils import dist
-from transformers import AutoModel
-from transformers.modeling_outputs import CausalLMOutputWithPast
+from transformers import AutoModel, PreTrainedModel
+from transformers.modeling_outputs import \
+    BaseModelOutputWithPoolingAndCrossAttentions
 
 from llmfoundry.models.consts import _MASTER_WEIGHTS_PRECISION
 from llmfoundry.models.llm_embed.modeling_llm_embed import ContrastiveModel
@@ -14,11 +15,12 @@ from llmfoundry.models.llm_embed.modeling_llm_embed import ContrastiveModel
 
 class FinetuneEmbeddingModel(ContrastiveModel):
 
-    def construct_model(self) -> CausalLMOutputWithPast:
+    def construct_model(self) -> PreTrainedModel:
         # Define the model construction specific to FinetuneEmbeddingModel
         model = None
 
         def load_model():
+            assert self.pretrained_model_name_or_path is not None
             return AutoModel.from_pretrained(
                 self.pretrained_model_name_or_path,
                 trust_remote_code=self.trust_remote_code,
@@ -36,19 +38,22 @@ class FinetuneEmbeddingModel(ContrastiveModel):
         assert model, 'Model is not loaded properly'
         return model
 
-    def get_hidden_state(self, outputs: CausalLMOutputWithPast) -> torch.Tensor:
+    def get_hidden_state(
+        self,
+        outputs: BaseModelOutputWithPoolingAndCrossAttentions,
+    ) -> torch.Tensor:
         """Override to return the last hidden state."""
-        return outputs.last_hidden_state
+        return outputs.last_hidden_state  # type: ignore
 
     def handle_language_head(
         self,
-        outputs: CausalLMOutputWithPast,
+        outputs: BaseModelOutputWithPoolingAndCrossAttentions,
     ) -> torch.Tensor:
         """Override to skip language head handling."""
         return torch.tensor(
             0,
             dtype=torch.float32,
-            device=outputs.last_hidden_state.device,
+            device=outputs.last_hidden_state.device,  # type: ignore
         )
 
     def flops_per_batch(self, batch: Mapping) -> int:

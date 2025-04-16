@@ -261,7 +261,7 @@ def download_tokenizers_files():
 
 
 ## TOKENIZER HELPERS ##
-def assets_tokenizer_helper(name: str):
+def assets_tokenizer_helper(name: str, **kwargs: Any):
     """Load a tokenizer from the assets directory."""
     transformers = pytest.importorskip('transformers')
 
@@ -271,7 +271,10 @@ def assets_tokenizer_helper(name: str):
     tokenizer_path = os.path.join(assets_dir, name)
 
     # Load the tokenizer
-    hf_tokenizer = transformers.AutoTokenizer.from_pretrained(tokenizer_path)
+    hf_tokenizer = transformers.AutoTokenizer.from_pretrained(
+        tokenizer_path,
+        **kwargs,
+    )
     return hf_tokenizer
 
 
@@ -325,6 +328,11 @@ def _session_tiny_gpt2_with_pad_tokenizer(tokenizers_assets):  # type: ignore
 @pytest.fixture(scope='session')
 def _session_tiny_llama_tokenizer(tokenizers_assets):  # type: ignore
     return assets_tokenizer_helper('llama')
+
+
+@pytest.fixture(scope='session')
+def _session_tiny_slow_llama_tokenizer(tokenizers_assets):  # type: ignore
+    return assets_tokenizer_helper('llama', use_fast=False)
 
 
 @pytest.fixture(scope='session')
@@ -390,6 +398,13 @@ def tiny_gpt2_with_pad_tokenizer(
 @pytest.fixture
 def tiny_llama_tokenizer(_session_tiny_llama_tokenizer):  # type: ignore
     return copy.deepcopy(_session_tiny_llama_tokenizer)
+
+
+@pytest.fixture
+def tiny_slow_llama_tokenizer(
+    _session_tiny_slow_llama_tokenizer,  # type: ignore
+):
+    return copy.deepcopy(_session_tiny_slow_llama_tokenizer)
 
 
 @pytest.fixture

@@ -80,13 +80,13 @@ def evaluate_model(
     tokenizer_cfg = tokenizer
     tokenizer_name = tokenizer_cfg['name']
     tokenizer_kwargs = tokenizer_cfg.get('kwargs', {})
-    tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
+    built_tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
     evaluators, logger_keys, eval_gauntlet_callback = build_evaluators(
         eval_loader_config,
         icl_tasks,
         eval_gauntlet_config,
-        tokenizer=tokenizer,
+        tokenizer=built_tokenizer,
         device_eval_batch_size=device_eval_batch_size,
         icl_seq_len=max_seq_len,
         icl_subset_num_batches=icl_subset_num_batches,
@@ -124,7 +124,7 @@ def evaluate_model(
     name = model.pop('name')
     composer_model = build_composer_model(
         name=name,
-        tokenizer=tokenizer,
+        tokenizer=built_tokenizer,
         init_context=init_context,
         cfg=model,
     )

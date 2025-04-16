@@ -225,11 +225,17 @@ def check_hf_tokenizer_equivalence(
         attr_value1 = attr1 if isinstance(
             attr1,
             str,
-        ) else attr1.content if hasattr(attr1, 'content') else str(attr1)
+        ) else attr1.content if hasattr(  # type: ignore
+            attr1,
+            'content',
+        ) else str(attr1)
         attr_value2 = attr2 if isinstance(
             attr2,
             str,
-        ) else attr2.content if hasattr(attr2, 'content') else str(attr2)
+        ) else attr2.content if hasattr(  # type: ignore
+            attr2,
+            'content',
+        ) else str(attr2)
         assert attr_value1 == attr_value2
 
     # Ignore 'extra_special_tokens' as it was added by the transformers library during save/load
@@ -271,8 +277,8 @@ def check_hf_model_equivalence(
     model2: PreTrainedModel,
     just_lora: bool = False,
 ):
-    remove_moe_world_size(model1.config)
-    remove_moe_world_size(model2.config)
+    remove_moe_world_size(model1.config)  # type: ignore
+    remove_moe_world_size(model2.config)  # type: ignore
 
     expected_model_config_dict = model1.config.to_dict()
     new_model_config_dict = model2.config.to_dict()
@@ -689,7 +695,7 @@ def test_huggingface_conversion_callback_interval(
         break
 
     check_hf_model_equivalence(
-        trainer.state.model.model.to(precision),
+        trainer.state.model.model.to(precision),  # type: ignore
         loaded_model,
     )
     check_hf_tokenizer_equivalence(mpt_tokenizer, loaded_tokenizer)
@@ -1718,6 +1724,12 @@ def test_mptmoe_huggingface_conversion_callback(
                 submodule.register_parameter(param_name, param)
 
         if dist.get_global_rank() == 0:
+            assert loaded_tokenizer is not None
+            assert loaded_model is not None
+            assert isinstance(
+                trainer.state.model.model,
+                transformers.PreTrainedModel,
+            )
             check_hf_model_equivalence(trainer.state.model.model, loaded_model)
             check_hf_tokenizer_equivalence(tokenizer, loaded_tokenizer)
 

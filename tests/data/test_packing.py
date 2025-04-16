@@ -126,7 +126,7 @@ def test_auto_packing(profile_packing: Mock):
         dataloader_cfg={'dataset': {
             'max_seq_len': 2048,
         }},
-        tokenizer=None,
+        tokenizer=None,  # type: ignore
         device_batch_size=1,
     )  # Dummy values, profiling results are already set.
 
@@ -153,7 +153,7 @@ def test_dist_auto_packing(profile_packing: Mock):
         dataloader_cfg={'dataset': {
             'max_seq_len': 2048,
         }},
-        tokenizer=None,
+        tokenizer=None,  # type: ignore
         device_batch_size=1,
     )  # Dummy values, profiling results are already set.
 

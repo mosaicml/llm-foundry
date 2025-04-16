@@ -55,9 +55,11 @@ class MockMPTForCausalLM(MPTForCausalLM):
         # Modify the logits to select the next token.
         if dist.get_global_rank() == 0:
             # Rank 0 hits EOS immediately.
+            assert result.logits is not None
             result.logits[:, :, EOS_TOKEN_ID] = torch.inf
         else:
             # Other ranks do not hit EOS.
+            assert result.logits is not None
             result.logits[:, :, EOS_TOKEN_ID] = -torch.inf
         return result
 

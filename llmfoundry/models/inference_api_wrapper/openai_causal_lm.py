@@ -7,13 +7,13 @@ import logging
 import os
 import random
 from time import sleep
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 import torch
 from composer.core.types import Batch
 from composer.utils.import_helpers import MissingConditionalImportError
 from omegaconf import DictConfig
-from transformers import AutoTokenizer
+from transformers import PreTrainedTokenizerBase
 
 log = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ class OpenAIEvalInterface(InferenceAPIEvalWrapper):
     def __init__(
         self,
         om_model_config: DictConfig,
-        tokenizer: AutoTokenizer,
+        tokenizer: PreTrainedTokenizerBase,
     ) -> None:
         super().__init__(om_model_config, tokenizer)
         try:
@@ -122,7 +122,7 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
     def __init__(
         self,
         om_model_config: DictConfig,
-        tokenizer: AutoTokenizer,
+        tokenizer: PreTrainedTokenizerBase,
     ) -> None:
         super().__init__(om_model_config, tokenizer)
 
@@ -151,11 +151,14 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
         re-tokenize with the space removed.
         """
         original_len = len(tokens)
-        retokenized_continuation = self.tokenizer(
-            self.tokenizer.decode(
-                tokens[cont_idxs[0]:cont_idxs[-1] + 1],
-            ).strip(),
-        )['input_ids']
+        retokenized_continuation = cast(
+            Any,
+            self.tokenizer(
+                self.tokenizer.decode(
+                    tokens[cont_idxs[0]:cont_idxs[-1] + 1],
+                ).strip(),
+            )['input_ids'],
+        )
 
         # replace the original continuation with the retokenized continuation + padding
         padding = [tokens[-1]] * (
@@ -223,6 +226,7 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
         # Get around this issue by retokenizing the batch to remove spacing from the continuation as well as
         # decoding the whole continuation at once.
         padding_tok = self.tokenizer.pad_token_id if self.tokenizer.pad_token_id else self.tokenizer.eos_token_id
+        assert isinstance(padding_tok, int)
         output_logits_batch = []
         batch = self.rebatch(batch)
         for tokens, cont_idxs in zip(
@@ -262,9 +266,12 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
 
         if len(completion.choices) > 0:
             tensors = []
-            for t in self.tokenizer(
-                completion.choices[0].message.content,
-            )['input_ids']:
+            for t in cast(
+                Any,
+                self.tokenizer(
+                    completion.choices[0].message.content,
+                )['input_ids'],
+            ):
                 # Not real logprobs
                 tensor = torch.tensor([0] * (len(self.tokenizer)))
                 tensor[t] = 1.0
@@ -284,7 +291,7 @@ class OpenAICausalLMEvalWrapper(OpenAIEvalInterface):
     def __init__(
         self,
         om_model_config: DictConfig,
-        tokenizer: AutoTokenizer,
+        tokenizer: PreTrainedTokenizerBase,
     ) -> None:
         super().__init__(om_model_config, tokenizer)
         self.generate_completion = lambda prompt, num_tokens: self.client.completions.create(
@@ -312,7 +319,7 @@ class OpenAICausalLMEvalWrapper(OpenAIEvalInterface):
             tensor = torch.tensor([min(tokenizer_logprobs.values()) - 1] *
                                   (len(self.tokenizer)))
             for k in tokenizer_logprobs:
-                encoding = self.tokenizer(k)['input_ids']
+                encoding = cast(Any, self.tokenizer(k)['input_ids'])
                 tensor[encoding[0]] = tokenizer_logprobs[k]
             return tensor
         else:

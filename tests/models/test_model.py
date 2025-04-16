@@ -1568,8 +1568,8 @@ def test_generate_with_device_map(
 
     pipe = pipeline(
         'text-generation',
-        model=save_path,
-        tokenizer=tiny_neox_tokenizer,
+        model=str(save_path),
+        tokenizer=tiny_neox_tokenizer,  # type: ignore
         torch_dtype=torch.bfloat16,
         trust_remote_code=True,
         device_map=device_map,
@@ -2063,10 +2063,10 @@ def test_generate_with_past_kv(
             autospec=True,
         ) as forward_mocked:
             forward_mocked.return_value = CausalLMOutputWithPast(
-                logits=composer_device.tensor_to_device(
+                logits=composer_device.tensor_to_device(  # type: ignore
                     torch.randn((1, 3, hf_config.vocab_size)),
                 ),
-                past_key_values=[(
+                past_key_values=[(  # type: ignore
                     torch.randn(1, 3, hf_config.d_model),
                     torch.randn(1, 3, hf_config.d_model),
                 ) for _ in range(hf_config.n_layers)],

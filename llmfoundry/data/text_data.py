@@ -203,7 +203,7 @@ class StreamingTextDataset(StreamingDataset):
                 'If tokenizing on-the-fly, tokenizer must have a pad_token_id',
             )
 
-        return self.tokenizer(
+        return self.tokenizer(  # type: ignore
             text_sample['text'],
             truncation=True,
             padding='max_length',

@@ -600,6 +600,7 @@ class GroupedQueryAttention(nn.Module):
         prev_layer_key_value: Optional[tuple[torch.Tensor,
                                              torch.Tensor]] = None,
         key_value_states: Optional[torch.Tensor] = None,
+        pos_id_within_seq: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
         torch.Tensor, torch.Tensor]]]:
         extra_kwargs = {}
@@ -610,6 +611,20 @@ class GroupedQueryAttention(nn.Module):
             key_value_states=key_value_states,
             **extra_kwargs,
         )
+
+        # Ref: https://github.com/huggingface/transformers/blob/9a4ce6477019358abc3ebd72d435da56f4c0ab7c/src/transformers/models/llama4/modeling_llama4.py#L332-L337
+        if self.attn_temperature_tuning is not None:
+            if pos_id_within_seq is None:
+                raise ValueError(
+                    'pos_id_within_seq must be provided when attn_temperature_tuning is enabled.',
+                )
+            attn_scales = (
+                torch.log(
+                    torch.floor((pos_id_within_seq + 1.0) /
+                                self.attn_temperature_tuning.floor_scale) + 1.0,
+                ) * self.attn_temperature_tuning.attn_scale + 1.0
+            )
+            query = query * attn_scales
 
         if rotary_emb_w_meta_info is not None:
             query, key, value = self._apply_rotary_embeddings(

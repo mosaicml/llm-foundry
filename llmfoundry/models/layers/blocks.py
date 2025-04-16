@@ -165,6 +165,7 @@ class MPTBlock(nn.Module):
         prev_layer_key_value: Optional[tuple[torch.Tensor,
                                              torch.Tensor]] = None,
         key_value_states: Optional[torch.Tensor] = None,
+        pos_id_within_seq: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
         torch.Tensor, torch.Tensor]]]:
         extra_kwargs = {}
@@ -172,6 +173,8 @@ class MPTBlock(nn.Module):
             extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
         if key_value_states is not None:
             extra_kwargs['key_value_states'] = key_value_states
+        if pos_id_within_seq is not None:
+            extra_kwargs['pos_id_within_seq'] = pos_id_within_seq
 
         if self.fuse_norm_attn_norm:
             x, m, attn_weights, past_key_value = self.norm_attn_norm(
@@ -332,6 +335,7 @@ class FusedNormAttentionNorm(nn.Module):
         prev_layer_key_value: Optional[tuple[torch.Tensor,
                                              torch.Tensor]] = None,
         key_value_states: Optional[torch.Tensor] = None,
+        pos_id_within_seq: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor],
                Optional[tuple[torch.Tensor, torch.Tensor]]]:
         a = self.norm_1(x)
@@ -340,6 +344,8 @@ class FusedNormAttentionNorm(nn.Module):
             extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
         if key_value_states is not None:
             extra_kwargs['key_value_states'] = key_value_states
+        if pos_id_within_seq is not None:
+            extra_kwargs['pos_id_within_seq'] = pos_id_within_seq
 
         b, attn_weights, past_key_value = self.attn(
             a,

@@ -171,12 +171,13 @@ def gen_rotary_embedding(
     raise ValueError('rope_impl needs to be either dail or hf')
 
 
-def gen_attention_mask_in_length(
+def gen_sequence_id_info(
     sequence_id: Union[None, torch.Tensor],
     S: int,
     attn_uses_sequence_id: bool,
     attn_impl: str,
     attention_mask: Union[torch.Tensor, None],
+    device: torch.device,
 ):
     """Generates the attention mask used for sequence masking in FA v2.
 
@@ -191,6 +192,7 @@ def gen_attention_mask_in_length(
         attn_uses_sequence_id (bool): Whether the attention uses sequence id based masking.
         attn_impl (str): Attention implementation. This function is only creates attention_mask_in_length for flash attention.
         attention_mask (Union[torch.Tensor, None]): Attention mask tensor of shape (batch_size, seq_len)
+        device (torch.device): The device on which the tensors are to be allocated.
 
     Returns:
         attention_mask_in_length: (batch, seqlen), int, a nonzero number (e.g., 1, 2, 3, etc.) means length of concatenated sequence in b-th batch, and 0 means none. For example, if batch = 3 and seqlen = 6, the attention_mask_in_length is:
@@ -231,8 +233,8 @@ def gen_attention_mask_in_length(
             ]
             ```.
             (The description above is taken verbatim from https://github.com/Dao-AILab/flash-attention/blob/9356a1c0389660d7e231ff3163c1ac17d9e3824a/flash_attn/bert_padding.py#L125 .)
+            pos_id_within_seq (torch.Tensor): Tensor containing the position id within the sequence for each token. Shape (batch_size, seq_len).
     """
-    attention_mask_in_length = None
     if (sequence_id
         is not None) and attn_uses_sequence_id and (attn_impl == 'flash'):
         # Check if sequence has left padding. If yes, raise an error.
@@ -250,21 +252,23 @@ def gen_attention_mask_in_length(
             # We replace those -1 with 0 to prevent `torch.nn.functional.one_hot(sequence_id)` in the next line from failing.
             # We apply the attention mask again after the one_hot operation.
             sequence_id = sequence_id.masked_fill(~attention_mask, 0)
-        attention_mask_in_length = torch.nn.functional.one_hot(sequence_id)
+        sequence_id_one_hot = torch.nn.functional.one_hot(sequence_id)
         if attention_mask is not None:
-            attention_mask_in_length = attention_mask_in_length.masked_fill(
+            sequence_id_one_hot = sequence_id_one_hot.masked_fill(
                 ~attention_mask.unsqueeze(-1),
                 0,
             )
-        attention_mask_in_length = attention_mask_in_length.sum(dim=1)
+        attention_mask_in_length = sequence_id_one_hot.sum(dim=1)
         attention_mask_in_length = torch.nn.functional.pad(
             attention_mask_in_length,
             (0, S - attention_mask_in_length.shape[-1]),
             mode='constant',
             value=0,
         )
+        pos_id_within_seq = sequence_id_one_hot.cumsum(dim=1).sum(dim=-1) - 1
+        return attention_mask_in_length, pos_id_within_seq
 
-    return attention_mask_in_length
+    return None, torch.arange(S, device=device)[None, :]
 
 
 def gen_flash_attn_padding_info(
@@ -915,12 +919,13 @@ class MPTModel(MPTPreTrainedModel):
             attention_mask=attention_mask,
             sequence_id=sequence_id,
         )
-        attention_mask_in_length = gen_attention_mask_in_length(
+        attention_mask_in_length, pos_id_within_seq = gen_sequence_id_info(
             sequence_id=sequence_id,
             S=S,
             attn_uses_sequence_id=self.attn_uses_sequence_id,
             attn_impl=self.attn_impl,
             attention_mask=attention_mask,
+            device=x.device,
         )
 
         alibi_slopes = None  # alibi_slopes will only be used by flash attention for ALiBi
@@ -974,6 +979,8 @@ class MPTModel(MPTPreTrainedModel):
             extra_kwargs = {}
             if prev_layer_key_value is not None:
                 extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
+            if pos_id_within_seq is not None:
+                extra_kwargs['pos_id_within_seq'] = pos_id_within_seq
             x, attn_weights, present = block(
                 x,
                 past_key_value=past_key_value,

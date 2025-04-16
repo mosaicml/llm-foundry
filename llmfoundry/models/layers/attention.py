@@ -460,6 +460,7 @@ class GroupedQueryAttention(nn.Module):
         sliding_window_size: int = -1,
         reuse_kv_layer_idx: Optional[int] = None,
         attn_logit_softcapping: Optional[float] = None,
+        attn_temperature_tuning: Optional[dict] = None,
         kv_dim: Optional[int] = None,
     ):
         super().__init__()
@@ -476,6 +477,7 @@ class GroupedQueryAttention(nn.Module):
         self.sliding_window_size = sliding_window_size
         self.reuse_kv_layer_idx = reuse_kv_layer_idx
         self.attn_logit_softcapping = attn_logit_softcapping
+        self.attn_temperature_tuning = attn_temperature_tuning
 
         self.kv_dim = kv_dim if kv_dim is not None else self.d_model
         self.head_dim = d_model // n_heads
@@ -621,10 +623,13 @@ class GroupedQueryAttention(nn.Module):
             attn_scales = (
                 torch.log(
                     torch.floor((pos_id_within_seq + 1.0) /
-                                self.attn_temperature_tuning.floor_scale) + 1.0,
-                ) * self.attn_temperature_tuning.attn_scale + 1.0
-            )
-            query = query * attn_scales
+                                self.attn_temperature_tuning['floor_scale']) +
+                    1.0,
+                ) * self.attn_temperature_tuning['attn_scale'] + 1.0
+            ).to(
+                query.dtype,
+            )  # TODO: Create one for the entire model instead of for each layer.
+            query = query * attn_scales[:, :, None]
 
         if rotary_emb_w_meta_info is not None:
             query, key, value = self._apply_rotary_embeddings(
@@ -883,6 +888,7 @@ class MultiheadAttention(GroupedQueryAttention):
         sliding_window_size: int = -1,
         reuse_kv_layer_idx: Optional[int] = None,
         attn_logit_softcapping: Optional[float] = None,
+        attn_temperature_tuning: Optional[dict] = None,
         kv_dim: Optional[int] = None,
     ):
         super().__init__(
@@ -904,6 +910,7 @@ class MultiheadAttention(GroupedQueryAttention):
             sliding_window_size=sliding_window_size,
             reuse_kv_layer_idx=reuse_kv_layer_idx,
             attn_logit_softcapping=attn_logit_softcapping,
+            attn_temperature_tuning=attn_temperature_tuning,
             kv_dim=kv_dim,
         )
 
@@ -934,6 +941,7 @@ class MultiQueryAttention(GroupedQueryAttention):
         sliding_window_size: int = -1,
         reuse_kv_layer_idx: Optional[int] = None,
         attn_logit_softcapping: Optional[float] = None,
+        attn_temperature_tuning: Optional[dict] = None,
         kv_dim: Optional[int] = None,
     ):
         super().__init__(
@@ -955,6 +963,7 @@ class MultiQueryAttention(GroupedQueryAttention):
             sliding_window_size=sliding_window_size,
             reuse_kv_layer_idx=reuse_kv_layer_idx,
             attn_logit_softcapping=attn_logit_softcapping,
+            attn_temperature_tuning=attn_temperature_tuning,
             kv_dim=kv_dim,
         )
 

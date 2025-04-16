@@ -1510,6 +1510,7 @@ def test_mptmoe_huggingface_conversion_callback(
     max_seq_len = 16
     device_batch_size = 1
     dataset_size = 2
+    precision_torch = torch.float32
     precision_str = 'float32'
     batches_per_epoch = math.ceil(dataset_size / (device_batch_size * 2))
 
@@ -1698,7 +1699,7 @@ def test_mptmoe_huggingface_conversion_callback(
 
             # Check that the loaded model has the correct precision, and then set it back
             # to the original for the equivalence check
-            assert loaded_model.config.torch_dtype == precision_str
+            assert loaded_model.config.torch_dtype == precision_torch
             loaded_model.config.torch_dtype = original_model.model.config.torch_dtype  # type: ignore
 
             loaded_tokenizer = transformers.AutoTokenizer.from_pretrained(
@@ -1727,10 +1728,10 @@ def test_mptmoe_huggingface_conversion_callback(
             assert loaded_tokenizer is not None
             assert loaded_model is not None
             assert isinstance(
-                trainer.state.model.model,
+                trainer.state.model.model.module,
                 transformers.PreTrainedModel,
             )
-            check_hf_model_equivalence(trainer.state.model.model, loaded_model)
+            check_hf_model_equivalence(trainer.state.model.model.module, loaded_model)
             check_hf_tokenizer_equivalence(tokenizer, loaded_tokenizer)
 
             # Check output equivalence

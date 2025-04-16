@@ -554,8 +554,9 @@ class HuggingFaceCheckpointer(Callback):
             PreTrainedModel: The transformed model.
         """
         return model
-    
-    def save_additional_contents(self,
+
+    def save_additional_contents(
+        self,
         state: State,
         logger: Logger,
         upload_to_save_folder: bool,
@@ -563,7 +564,7 @@ class HuggingFaceCheckpointer(Callback):
         save_dir: str,
     ):
         """Save any additional contents other than the checkpoint and tokenizer.
-        
+
         This would be useful for saving any other potential objects that is part of the state.
 
         Args:
@@ -903,5 +904,6 @@ class HuggingFaceCheckpointer(Callback):
                 logger,
                 upload_to_save_folder,
                 register_to_mlflow,
+                temp_save_dir,
             )
         dist.barrier()

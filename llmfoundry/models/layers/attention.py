@@ -620,15 +620,10 @@ class GroupedQueryAttention(nn.Module):
                 raise ValueError(
                     'pos_id_within_seq must be provided when attn_temperature_tuning is enabled.',
                 )
-            attn_scales = (
-                torch.log(
-                    torch.floor((pos_id_within_seq + 1.0) /
-                                self.attn_temperature_tuning['floor_scale']) +
-                    1.0,
-                ) * self.attn_temperature_tuning['attn_scale'] + 1.0
-            ).to(
-                query.dtype,
-            )  # TODO: Create one for the entire model instead of for each layer.
+            attn_scales = torch.log(
+                torch.floor((pos_id_within_seq + 1) /
+                            self.attn_temperature_tuning['floor_scale']) + 1,
+            ).to(query.dtype) * self.attn_temperature_tuning['attn_scale'] + 1
             query = query * attn_scales[:, :, None]
 
         if rotary_emb_w_meta_info is not None:

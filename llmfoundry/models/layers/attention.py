@@ -652,7 +652,8 @@ class GroupedQueryAttention(nn.Module):
 
     def apply_temperature_tuning(self, pos_id_within_seq, query):
         # Ref: https://github.com/huggingface/transformers/blob/9a4ce6477019358abc3ebd72d435da56f4c0ab7c/src/transformers/models/llama4/modeling_llama4.py#L332-L337
-        if self.attn_temperature_tuning is not None:
+        if self.attn_temperature_tuning is not None and self.attn_temperature_tuning[
+            'attn_scale'] != 0.0:
             if pos_id_within_seq is None:
                 raise ValueError(
                     'pos_id_within_seq must be provided when attn_temperature_tuning is enabled.',

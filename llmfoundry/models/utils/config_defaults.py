@@ -35,7 +35,7 @@ attn_config_defaults: dict = {
     },
     'attn_temperature_tuning': {
         'floor_scale': 8192,
-        'attn_scale': 0.1,
+        'attn_scale': 0.0,
     },
     'kv_dim': None,
 }

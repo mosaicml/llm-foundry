@@ -386,7 +386,8 @@ class TiktokenTokenizerWrapper(PreTrainedTokenizer):
         """
         actual_new_tokens = []
         for token in self.all_special_tokens_extended:
-            encoded = self.encoding.encode(token, allowed_special='all')
+            token_str = token if isinstance(token, str) else token.content
+            encoded = self.encoding.encode(token_str, allowed_special='all')
             if len(encoded) > 1:
                 actual_new_tokens.append(token)
 

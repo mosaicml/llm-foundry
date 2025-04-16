@@ -145,7 +145,7 @@ class ContrastiveModel(HuggingFaceModel):
 
         super().__init__(
             model=model,
-            tokenizer=tokenizer,
+            tokenizer=tokenizer,  # type: ignore
             use_logits=False,
             metrics=train_metrics,
             eval_metrics=self.eval_metrics, # type: ignore
@@ -301,7 +301,7 @@ class ContrastiveModel(HuggingFaceModel):
 
     def get_hidden_state(self, outputs: CausalLMOutputWithPast) -> torch.Tensor:
         """Returns the hidden state to use for pooling."""
-        return outputs.hidden_states[-1]
+        return outputs.hidden_states[-1]  # type: ignore
 
     def handle_language_head(
         self,
@@ -309,7 +309,7 @@ class ContrastiveModel(HuggingFaceModel):
     ) -> torch.Tensor:
         """Handles `zero` tensor to avoid DDP unused parameters error."""
         return torch.sum(
-            outputs.logits,
+            outputs.logits,  # type: ignore
         ) * 0  # This attaches the language head to the computation graph
 
     def _compute_scores(

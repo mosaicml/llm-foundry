@@ -448,13 +448,13 @@ def calculate_batch_size_info(
         device_grad_accum = 'auto'
     elif isinstance(device_microbatch_size, (int, float)):
         if device_microbatch_size > device_batch_size:
-            log.warn(
+            log.warning(
                 f'device_microbatch_size > device_batch_size, ' +
                 f'will be reduced from {device_microbatch_size} -> {device_batch_size}.',
             )
             device_microbatch_size = device_batch_size
         device_grad_accum = math.ceil(
-            device_batch_size / device_microbatch_size,
+            device_batch_size / device_microbatch_size,  # type: ignore
         )
     else:
         raise ValueError(f'Not sure how to parse {device_microbatch_size=}')

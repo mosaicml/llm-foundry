@@ -367,7 +367,7 @@ def test_fail_chat_template():
     tok = DummyTokenizer()
 
     with pytest.raises(ChatTemplateError):
-        _slice_chat_formatted_example(example, tok)
+        _slice_chat_formatted_example(example, tok)  # type: ignore
 
 
 def test_tokenize_no_labels_bos_pr():

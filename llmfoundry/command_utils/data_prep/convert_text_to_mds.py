@@ -9,7 +9,7 @@ import tempfile
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 from glob import glob
-from typing import Iterable, Optional, cast
+from typing import Any, Iterable, Optional, cast
 
 import numpy as np
 from composer.utils import (
@@ -81,7 +81,7 @@ class ConcatTokensFromFilesDataset(AbstractConcatTokensDataset):
                             truncation=False,
                             padding=False,
                         )
-                        iids = encoded['input_ids']
+                        iids = cast(Any, encoded['input_ids'])
 
                         # If this is not the first chunk, remove the BOS token
                         if not first_chunk:

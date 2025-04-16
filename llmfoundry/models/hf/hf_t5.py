@@ -46,8 +46,8 @@ class ComposerHFT5(BaseHuggingFaceModel):
         tokenizer (PreTrainedTokenizer): The tokenizer that the model will use.
     """
 
-    model_cls: Union[_BaseAutoModelClass,
-                     PreTrainedModel] = AutoModelForSeq2SeqLM
+    model_cls: Union[type[_BaseAutoModelClass],
+                     type[PreTrainedModel]] = AutoModelForSeq2SeqLM
     default_train_metrics: tuple = tuple(DEFAULT_ENC_DEC_METRICS)
     default_eval_metrics: tuple = ()
 

@@ -350,7 +350,7 @@ class LlamaRotaryEmbeddingFoundry(LlamaRotaryEmbedding):
     ) -> tuple[torch.Tensor, torch.Tensor]:
         # In this subclass, we move `inv_freq` to same device as position_ids. This operation should be a no-op during training.
         # This is done to fix pipeline parallel generation using hf.generate. Please see this comment for details: https://github.com/mosaicml/llm-foundry/pull/1334#issue-2387337525
-        self.inv_freq = self.inv_freq.to(position_ids.device)
+        self.inv_freq = self.inv_freq.to(position_ids.device)  # type: ignore
         return super().forward(x=x, position_ids=position_ids)
 
 
@@ -494,8 +494,8 @@ class MPTModel(MPTPreTrainedModel):
             nn.ModuleList: The list of Transformer blocks.
         """
         block_args = self.extract_block_args(config.to_dict())
-        self.kv_cache_layers = set()
-        self.blocks_fuse_norm_attn_norm = block_args.get(
+        self.kv_cache_layers = set()  # type: ignore
+        self.blocks_fuse_norm_attn_norm = block_args.get(  # type: ignore
             'fuse_norm_attn_norm',
             False,
         )
@@ -1007,7 +1007,7 @@ class MPTModel(MPTPreTrainedModel):
 
         return BaseModelOutputWithPast(
             last_hidden_state=x,
-            past_key_values=presents,
+            past_key_values=presents,  # type: ignore
             hidden_states=all_hidden_states,
             attentions=all_self_attns,
         )
@@ -1043,6 +1043,10 @@ class MPTModel(MPTPreTrainedModel):
 
 
 class MPTForCausalLM(MPTPreTrainedModel):
+    # Copied these from LlamaForCausalLM
+    _tied_weights_keys = ['lm_head.weight']
+    _tp_plan = {'lm_head': 'colwise_rep'}
+    _pp_plan = {'lm_head': (['hidden_states'], ['logits'])}
 
     def __init__(self, config: MPTConfig):
         super().__init__(config)
@@ -1196,8 +1200,8 @@ class MPTForCausalLM(MPTPreTrainedModel):
             )
 
         return CausalLMOutputWithPast(
-            loss=loss,
-            logits=logits,
+            loss=loss,  # type: ignore
+            logits=logits,  # type: ignore
             past_key_values=outputs.past_key_values,
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
@@ -1352,7 +1356,7 @@ def compute_loss_from_logits(
     targets = get_targets(labels) if shift_labels else labels
 
     losses = loss_fn(
-        outputs.logits.view(-1, outputs.logits.size(-1)),
+        outputs.logits.view(-1, outputs.logits.size(-1)),  # type: ignore
         targets.view(-1),
     )
 
@@ -1397,7 +1401,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
 
         super().__init__(
             model=model,
-            tokenizer=tokenizer,
+            tokenizer=tokenizer,  # type: ignore
             use_logits=True,
             metrics=train_metrics,
             eval_metrics=eval_metrics,
@@ -1479,7 +1483,9 @@ class ComposerMPTCausalLM(HuggingFaceModel):
                 raise RuntimeError(
                     'Requirements for MegaBlocks not installed; see install instructions in `README.md`.',
                 )
-            lbl = batched_load_balancing_loss(self.model.transformer.mb_args)
+            lbl = batched_load_balancing_loss(
+                self.model.transformer.mb_args,  # type: ignore
+            )  # type: ignore
             return {
                 'total': loss + lbl,
                 'loss': loss,

@@ -8,7 +8,7 @@ import pytest
 import torch
 from transformers import PretrainedConfig
 from transformers.modeling_outputs import \
-    BaseModelOutputWithPastAndCrossAttentions
+    BaseModelOutputWithPoolingAndCrossAttentions
 from transformers.models.bert.configuration_bert import BertConfig
 
 from llmfoundry.models.llm_embed import FinetuneEmbeddingModel
@@ -41,7 +41,7 @@ class MockAutoModel(torch.nn.Module):
     def forward(
         self,
         **kwargs: Any,
-    ) -> BaseModelOutputWithPastAndCrossAttentions:
+    ) -> BaseModelOutputWithPoolingAndCrossAttentions:
         # Simulate forward pass
         input_ids: torch.Tensor = kwargs.get(
             'input_ids',
@@ -55,8 +55,8 @@ class MockAutoModel(torch.nn.Module):
             self.config.hidden_size,
         )
         last_hidden_state = self.linear(last_hidden_state)
-        return BaseModelOutputWithPastAndCrossAttentions(
-            last_hidden_state=last_hidden_state,
+        return BaseModelOutputWithPoolingAndCrossAttentions(
+            last_hidden_state=last_hidden_state,  # type: ignore
             hidden_states=(last_hidden_state,) *
             (self.config.num_hidden_layers + 1),
         )
@@ -95,21 +95,33 @@ def test_construct_model(model: FinetuneEmbeddingModel) -> None:
 
 
 def test_get_hidden_state(model: FinetuneEmbeddingModel) -> None:
-    mock_outputs: BaseModelOutputWithPastAndCrossAttentions = BaseModelOutputWithPastAndCrossAttentions(
-        last_hidden_state=torch.randn(1, 10, model.model.config.hidden_size),
+    mock_outputs = BaseModelOutputWithPoolingAndCrossAttentions(
+        last_hidden_state=torch.randn(
+            1,
+            10,
+            model.model.config.hidden_size,  # type: ignore
+        ),
     )
     hidden_state: torch.Tensor = model.get_hidden_state(mock_outputs)
-    assert torch.equal(hidden_state, mock_outputs.last_hidden_state)
+    assert torch.equal(
+        hidden_state,
+        mock_outputs.last_hidden_state,  # type: ignore
+    )
 
 
 def test_handle_language_head(model: FinetuneEmbeddingModel) -> None:
-    mock_outputs: BaseModelOutputWithPastAndCrossAttentions = BaseModelOutputWithPastAndCrossAttentions(
-        last_hidden_state=torch.randn(1, 10, model.model.config.hidden_size),
+    mock_outputs = BaseModelOutputWithPoolingAndCrossAttentions(
+        last_hidden_state=torch.randn(
+            1,
+            10,
+            model.model.config.hidden_size,  # type: ignore
+        ),
     )
     result: torch.Tensor = model.handle_language_head(mock_outputs)
     assert isinstance(result, torch.Tensor)
     assert result.item() == 0
     assert result.dtype == torch.float32
+    assert mock_outputs.last_hidden_state is not None
     assert result.device == mock_outputs.last_hidden_state.device
 
 

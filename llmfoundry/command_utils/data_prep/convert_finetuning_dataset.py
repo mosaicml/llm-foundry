@@ -167,8 +167,9 @@ def convert_finetuning_dataset(
 
     tokenizer_kwargs = tokenizer_kwargs
     tokenizer_kwargs.update({'model_max_length': max_seq_len})
+    built_tokenizer = None
     if tokenizer:
-        tokenizer = build_tokenizer(tokenizer, tokenizer_kwargs)
+        built_tokenizer = build_tokenizer(tokenizer, tokenizer_kwargs)
 
     for i, split_name in enumerate(splits):
         data_file = None
@@ -184,7 +185,7 @@ def convert_finetuning_dataset(
         # Determine the output columns
         columns, example_type = get_columns_and_format(
             dataset=loaded_dataset,
-            tokenizing=tokenizer is not None,
+            tokenizing=built_tokenizer is not None,
             preprocessing_fn=preprocessing_fn,
         )
         # Prepare the iterables
@@ -226,10 +227,10 @@ def convert_finetuning_dataset(
                         'Encountered an error when checking example for proper formatting. ' +\
                         f'example={formatted_sample}',
                     ) from e
-                if tokenizer is not None:
+                if built_tokenizer is not None:
                     sample = tokenize_formatted_example(
                         formatted_sample,
-                        tokenizer=tokenizer,
+                        tokenizer=built_tokenizer,
                     )
                     if not is_valid_ift_example(
                         max_seq_len,
@@ -259,7 +260,7 @@ def convert_finetuning_dataset(
                     else:
                         out.write(formatted_sample)
 
-        if tokenizer is not None and examples_removed > 0:
+        if built_tokenizer is not None and examples_removed > 0:
             warnings.warn(
                 f'Dropped {examples_removed} examples where the prompt was longer than {max_seq_len}, '
                 +

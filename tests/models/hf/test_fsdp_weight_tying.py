@@ -88,10 +88,10 @@ def test_fsdp_weight_tying(
 
     underlying_model = maybe_get_underlying_model(original_model.model)
     lm_head = underlying_model.lm_head
-    embedding_layer = underlying_model.model.embed_tokens if peft_config is None else underlying_model.model.embed_tokens
+    embedding_layer = underlying_model.model.embed_tokens if peft_config is None else underlying_model.model.embed_tokens  # type: ignore
 
-    lm_head_id = id(lm_head.weight)
-    embedding_layer_id = id(embedding_layer.weight)
+    lm_head_id = id(lm_head.weight)  # type: ignore
+    embedding_layer_id = id(embedding_layer.weight)  # type: ignore
 
     assert lm_head_id == embedding_layer_id
 

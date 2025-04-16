@@ -55,9 +55,11 @@ class MockMPTForCausalLM(MPTForCausalLM):
         # Modify the logits to select the next token.
         if dist.get_global_rank() == 0:
             # Rank 0 hits EOS immediately.
+            assert result.logits is not None
             result.logits[:, :, EOS_TOKEN_ID] = torch.inf
         else:
             # Other ranks do not hit EOS.
+            assert result.logits is not None
             result.logits[:, :, EOS_TOKEN_ID] = -torch.inf
         return result
 
@@ -101,7 +103,8 @@ def test_mpt_generate_multi_gpu(
     with get_precision_context('amp_bf16'):
         _ = model.generate(
             device.tensor_to_device(
-                mpt_tokenizer('hello', return_tensors='pt')['input_ids'],
+                mpt_tokenizer('hello',
+                              return_tensors='pt')['input_ids'],  # type: ignore
             ),
             max_new_tokens=3,
             eos_token_id=EOS_TOKEN_ID,
@@ -203,7 +206,8 @@ def test_gen_mpt_moe(
     ):
         _ = model.generate(
             composer_device.tensor_to_device(
-                mpt_tokenizer('hello', return_tensors='pt')['input_ids'],
+                mpt_tokenizer('hello',
+                              return_tensors='pt')['input_ids'],  # type: ignore
             ),
             max_new_tokens=10,
         )

@@ -83,7 +83,8 @@ def test_flash2(model_name: str, use_flash_attention_2: bool, init_device: str):
             ],
                                         return_tensors='pt',
                                         padding=True)
-            tokenized_input['labels'] = tokenized_input['input_ids'].clone()
+            cloned = tokenized_input['input_ids'].clone()  # type: ignore
+            tokenized_input['labels'] = cloned
 
             tokenized_input = {k: v.cuda() for k, v in tokenized_input.items()}
             model.to('cuda')

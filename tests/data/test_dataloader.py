@@ -134,6 +134,7 @@ def build_mock_ft_streaming_dataset(
         ) as output_writer:
             for sample in dataset:
                 if pretokenize:
+                    assert tokenizer is not None
                     sample = tokenize_formatted_example(
                         sample,
                         tokenizer=tokenizer,
@@ -169,6 +170,7 @@ def build_mock_ft_streaming_dataset(
     ) as output_writer:
         for sample in dataset:
             if pretokenize:
+                assert tokenizer is not None
                 sample = tokenize_formatted_example(sample, tokenizer=tokenizer)
                 sample_to_write = {'turns': []}
                 for turn in sample['turns']:
@@ -1234,7 +1236,7 @@ def test_token_counting_func_dataloader_setting(
         safe_load: bool = False,
         max_seq_len: int = 2048,
         preprocessing_fn: Optional[Callable] = None,
-        tokenizer: transformers.PreTrainedTokenizerBase = None,
+        tokenizer: Optional[transformers.PreTrainedTokenizerBase] = None,
         target_prompts: str = 'last',
         target_responses: str = 'none',
         decoder_only_format: bool = True,

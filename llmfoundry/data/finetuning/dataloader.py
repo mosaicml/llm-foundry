@@ -700,12 +700,14 @@ def build_collate_fn(
             'On-the-fly packing is currently only supported for decoder-only formats.',
         )
 
+    pad_id = tokenizer.pad_token_id
+    assert isinstance(pad_id, int)
     collate_fn = BinPackCollator(
         collator=collate_fn,
         target_batch_size=device_batch_size,
         max_seq_len=max_seq_len,
-        pad_token_id=tokenizer.pad_token_id,
-        padding_side=tokenizer.padding_side,
+        pad_token_id=pad_id,
+        padding_side=tokenizer.padding_side,  # type: ignore
         max_leftover_bins_to_keep=max_leftover_bins_to_keep,
     )
     n_examples_to_pack = int(device_batch_size * packing_ratio)

@@ -20,8 +20,7 @@ from typing import Any, Optional, Union
 import numpy as np
 from transformers import (
     AutoTokenizer,
-    PreTrainedTokenizer,
-    PreTrainedTokenizerFast,
+    PreTrainedTokenizerBase,
 )
 
 log = logging.getLogger(__name__)
@@ -47,7 +46,7 @@ def get_hf_tokenizer_from_composer_state_dict(
     state_dict: dict[str, Any],
     trust_remote_code: bool,
     tokenizer_save_dir: Optional[str] = None,
-) -> Optional[PreTrainedTokenizer]:
+) -> Optional[PreTrainedTokenizerBase]:
     if 'state' not in state_dict:
         raise RuntimeError(
             'Unexpected composer state dictionary. Did you pass in a full composer checkpoint?',
@@ -120,7 +119,7 @@ def get_hf_tokenizer_from_composer_state_dict(
 def load_tokenizer(
     tokenizer_save_dir: str,
     trust_remote_code: bool,
-) -> Union[PreTrainedTokenizer, PreTrainedTokenizerFast]:
+) -> PreTrainedTokenizerBase:
     try:
         return AutoTokenizer.from_pretrained(
             tokenizer_save_dir,

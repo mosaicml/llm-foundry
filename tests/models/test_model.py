@@ -1469,7 +1469,7 @@ def test_generate(
             max_new_tokens=5,
             use_cache=False,
         )
-        assert batched_generation.shape == (2, 6 + 5)
+        assert batched_generation.shape == (2, 6 + 5)  # type: ignore
 
         generation_with_left_padding = mpt.generate(
             input_ids=left_padding_input_ids,
@@ -1477,14 +1477,14 @@ def test_generate(
             max_new_tokens=5,
             use_cache=False,
         )
-        assert generation_with_left_padding.shape == (2, 6 + 5)
+        assert generation_with_left_padding.shape == (2, 6 + 5)  # type: ignore
         generation_with_no_padding = mpt.generate(
             input_ids=no_padding_input_ids,
             attention_mask=no_padding_attention_mask,
             max_new_tokens=5,
             use_cache=False,
         )
-        assert generation_with_no_padding.shape == (2, 3 + 5)
+        assert generation_with_no_padding.shape == (2, 3 + 5)  # type: ignore
 
         # check that left padding and no padding produce the same output
         assert generation_with_no_padding[:, 3:].equal(
@@ -1568,8 +1568,8 @@ def test_generate_with_device_map(
 
     pipe = pipeline(
         'text-generation',
-        model=save_path,
-        tokenizer=tiny_neox_tokenizer,
+        model=str(save_path),
+        tokenizer=tiny_neox_tokenizer,  # type: ignore
         torch_dtype=torch.bfloat16,
         trust_remote_code=True,
         device_map=device_map,
@@ -2063,10 +2063,10 @@ def test_generate_with_past_kv(
             autospec=True,
         ) as forward_mocked:
             forward_mocked.return_value = CausalLMOutputWithPast(
-                logits=composer_device.tensor_to_device(
+                logits=composer_device.tensor_to_device(  # type: ignore
                     torch.randn((1, 3, hf_config.vocab_size)),
                 ),
-                past_key_values=[(
+                past_key_values=[(  # type: ignore
                     torch.randn(1, 3, hf_config.d_model),
                     torch.randn(1, 3, hf_config.d_model),
                 ) for _ in range(hf_config.n_layers)],
@@ -2496,7 +2496,7 @@ def test_hf_init(
         False,
     )
 
-    model = HuggingFaceModel(model, tokenizer)
+    model = HuggingFaceModel(model, tokenizer)  # type: ignore
 
     batch = gen_random_batch(batch_size, test_cfg)
 
@@ -2544,7 +2544,7 @@ def test_head_dim_8_flash_mqa_attn(
 
     mpt = MPTForCausalLM(hf_config)
 
-    model = HuggingFaceModel(mpt, tokenizer, shift_labels=True)
+    model = HuggingFaceModel(mpt, tokenizer, shift_labels=True)  # type: ignore
 
     model = model.to(test_cfg.device)
     batch = gen_random_batch(batch_size, test_cfg)

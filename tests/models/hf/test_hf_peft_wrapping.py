@@ -8,7 +8,7 @@ from unittest.mock import patch
 import pytest
 import torch
 from composer import Trainer
-from peft import LoraConfig, get_peft_model
+from peft import LoraConfig, PeftModel, get_peft_model
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
 from llmfoundry.models.hf.hf_causal_lm import ComposerHFCausalLM
@@ -18,6 +18,7 @@ from llmfoundry.utils.builders import build_composer_model
 
 def test_peft_wraps(tiny_codellama_model: PreTrainedModel):
     codellama = get_peft_model(tiny_codellama_model, LoraConfig())
+    assert isinstance(codellama, PeftModel)
     prepare_hf_model_for_fsdp(codellama, 'cpu')
 
     for n, m in codellama.named_modules():
@@ -30,7 +31,7 @@ def test_peft_wraps(tiny_codellama_model: PreTrainedModel):
 
 def test_causal_lm_peft_wraps():
     model = ComposerHFCausalLM(
-        tokenizer=None,
+        tokenizer=None,  # type: ignore
         pretrained_model_name_or_path='codellama/CodeLlama-7b-hf',
         pretrained=False,
         config_overrides={'num_hidden_layers': 2},

@@ -56,8 +56,8 @@ class ComposerHFCausalLM(BaseHuggingFaceModel):
         tokenizer (PreTrainedTokenizer): The tokenizer that the model will use.
     """
 
-    model_cls: Union[_BaseAutoModelClass,
-                     PreTrainedModel] = AutoModelForCausalLM
+    model_cls: Union[type[_BaseAutoModelClass],
+                     type[PreTrainedModel]] = AutoModelForCausalLM
     default_train_metrics: tuple = tuple(DEFAULT_CAUSAL_LM_TRAIN_METRICS)
     default_eval_metrics: tuple = tuple(DEFAULT_CAUSAL_LM_EVAL_METRICS)
 

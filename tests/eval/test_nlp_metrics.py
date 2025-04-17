@@ -1,8 +1,9 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
+from typing import Any, cast
 
 import torch
-import transformers
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.eval.metrics import (
     InContextLearningGenerationExactMatchAccuracy,
@@ -12,14 +13,17 @@ from llmfoundry.eval.metrics import (
 
 
 def test_in_context_learning_lm_accuracy(
-    tiny_gpt2_with_pad_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
 ):
     contexts = ['The dog is', 'I love to eat', 'I hate', 'The weather is']
     continuations = [' furry', ' pie', ' long lines', ' snowy']
     pad = tiny_gpt2_with_pad_tokenizer.pad_token_id
+    assert isinstance(pad, int)
     inputs = [
-        tiny_gpt2_with_pad_tokenizer(context)['input_ids'] +
-        tiny_gpt2_with_pad_tokenizer(continuation)['input_ids']
+        cast(Any,
+             tiny_gpt2_with_pad_tokenizer(context)['input_ids']) +
+        cast(Any,
+             tiny_gpt2_with_pad_tokenizer(continuation)['input_ids'])
         for context, continuation in zip(contexts, continuations)
     ]
     inputs = torch.tensor([
@@ -28,9 +32,13 @@ def test_in_context_learning_lm_accuracy(
 
     cont_idxs = []
     for context, continuation in zip(contexts, continuations):
-        start = len(tiny_gpt2_with_pad_tokenizer(context)['input_ids'])
+        start = len(
+            cast(Any,
+                 tiny_gpt2_with_pad_tokenizer(context)['input_ids']),
+        )
         end = start + len(
-            tiny_gpt2_with_pad_tokenizer(continuation)['input_ids'],
+            cast(Any,
+                 tiny_gpt2_with_pad_tokenizer(continuation)['input_ids']),
         )
         cont_idxs.append(torch.tensor(list(range(start, end))))
 
@@ -85,7 +93,7 @@ def test_in_context_learning_qa_cot_accuracy():
 
 
 def test_in_context_learning_mc_accuracy(
-    tiny_gpt2_with_pad_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
 ):
     contexts = [
         'Q: How do you cook a cake?',
@@ -102,9 +110,12 @@ def test_in_context_learning_mc_accuracy(
     gold_indices = [0, 1]
     choice_groupings = [(0, 2), (2, 4)]
     pad = tiny_gpt2_with_pad_tokenizer.pad_token_id
+    assert isinstance(pad, int)
     inputs = [
-        tiny_gpt2_with_pad_tokenizer(context)['input_ids'] +
-        tiny_gpt2_with_pad_tokenizer(continuation)['input_ids']
+        cast(Any,
+             tiny_gpt2_with_pad_tokenizer(context)['input_ids']) +
+        cast(Any,
+             tiny_gpt2_with_pad_tokenizer(continuation)['input_ids'])
         for context, continuation in zip(contexts, continuations)
     ]
     inputs = torch.tensor([
@@ -114,10 +125,15 @@ def test_in_context_learning_mc_accuracy(
 
     cont_idxs = []
     for context, continuation in zip(contexts, continuations):
-        start = len(tiny_gpt2_with_pad_tokenizer(context)['input_ids'])
-        end = start + len(
+        start = len(
+            cast(Any,
+                 tiny_gpt2_with_pad_tokenizer(context)['input_ids']),
+        )
+        cont_iids = cast(
+            Any,
             tiny_gpt2_with_pad_tokenizer(continuation)['input_ids'],
         )
+        end = start + len(cont_iids,)
         cont_idxs.append(torch.tensor(list(range(start, end))))
 
     batch = {

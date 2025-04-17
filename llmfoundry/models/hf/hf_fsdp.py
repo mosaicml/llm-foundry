@@ -73,7 +73,7 @@ def hf_get_causal_base_model(model: PreTrainedModel) -> Any:
         - gpt_neox: (GPTNeoXConfig)
     """
     if hasattr(model, 'get_decoder'):
-        return model.get_decoder()
+        return model.get_decoder()  # type: ignore
 
     decoder_attrs = (
         'transformer',
@@ -129,14 +129,14 @@ def hf_get_init_device(init_device: Optional[str]) -> Optional[str]:
 
 
 def prepare_hf_model_for_fsdp(
-    model: PreTrainedModel,
+    model: Union[PreTrainedModel, 'PeftModel'],
     init_device: Optional[str],
 ) -> None:
     """FSDP wrap a HuggingFace model.
 
     Call specific functions
     """
-    if model.config.is_encoder_decoder:
+    if model.config.is_encoder_decoder:  # type: ignore
         prepare_hf_enc_dec_model_for_fsdp(model, init_device)
     else:
         # many common decoder-only model do not set the flag
@@ -153,20 +153,20 @@ def prepare_hf_causal_lm_model_for_fsdp(
     Wrap any model for FSDP which follows one of the 3 existing conventions from
     HuggingFace for decoder-only LLMs.
     """
-    causal_base_model = hf_get_causal_base_model(model)
+    causal_base_model = hf_get_causal_base_model(model)  # type: ignore
 
     # OPT and olmo have an extra layer of wrapping, so special case here
     if isinstance(causal_base_model, OPTDecoder):
         underlying_model = maybe_get_underlying_model(model)
-        underlying_model.model._fsdp_wrap = False
+        underlying_model.model._fsdp_wrap = False  # type: ignore
     model_block = hf_get_hidden_layers(causal_base_model)
-    lm_head = model.get_output_embeddings()
+    lm_head = model.get_output_embeddings()  # type: ignore
     # Try to get input embeddings from the transformer backbone
     # and then from the XXXForCausalLM
     try:
         tied_embeddings = causal_base_model.get_input_embeddings()
     except:
-        tied_embeddings = model.get_input_embeddings()
+        tied_embeddings = model.get_input_embeddings()  # type: ignore
 
     modules = {
         'base_model': causal_base_model,
@@ -189,7 +189,7 @@ def prepare_hf_causal_lm_model_for_fsdp(
     # This is a hurdle for FSDP because they need to be in the same FSDP block
     # These lines ensures that both modules stay together in the top-most block when
     # the model has this tying enabled (almost all do; this property defaults to True)
-    if model.config.tie_word_embeddings:
+    if model.config.tie_word_embeddings:  # type: ignore
         causal_base_model._fsdp_wrap = False
         tied_embeddings._fsdp_wrap = False
         lm_head._fsdp_wrap = False
@@ -198,8 +198,12 @@ def prepare_hf_causal_lm_model_for_fsdp(
     # TODO: Revisit this if we enforce use_orig_params=True, which seems to support
     # mixed frozen/unfrozen FSDP modules
     if hasattr(model, 'peft_type') and model.peft_type is not None:
-        peft_type = model.peft_type.lower()
-        active_adapters = [adapter.lower() for adapter in model.active_adapters]
+        from peft import PeftModel
+        assert isinstance(model, PeftModel)
+        peft_type = model.peft_type.lower()  # type: ignore
+        active_adapters = [
+            adapter.lower() for adapter in model.active_adapters  # type: ignore
+        ]  # type: ignore
         for name, module in model.named_modules():
             if peft_type in name.lower() and any(
                 adapter in name.lower() for adapter in active_adapters
@@ -218,7 +222,7 @@ def prepare_hf_causal_lm_model_for_fsdp(
 
 
 def prepare_hf_enc_dec_model_for_fsdp(
-    model: PreTrainedModel,
+    model: Union[PreTrainedModel, 'PeftModel'],
     init_device: Optional[str],
 ) -> None:
     """Wrap an encoder/decoder HF model.
@@ -229,10 +233,10 @@ def prepare_hf_enc_dec_model_for_fsdp(
     model.shared == model.encoder.embed_tokens and model.shared ==
     model.decoder.embed_tokens
     """
-    tied_embeddings = model.get_input_embeddings()
-    encoder = model.get_encoder()
-    decoder = model.get_decoder()
-    lm_head = model.get_output_embeddings()
+    tied_embeddings = model.get_input_embeddings()  # type: ignore
+    encoder = model.get_encoder()  # type: ignore
+    decoder = model.get_decoder()  # type: ignore
+    lm_head = model.get_output_embeddings()  # type: ignore
     # some encoder/decoders have different layers for encoder vs decoder
     encoder_block = hf_get_hidden_layers(encoder)
     decoder_block = hf_get_hidden_layers(decoder)
@@ -255,7 +259,7 @@ def prepare_hf_enc_dec_model_for_fsdp(
     decoder_block_type = type(decoder_block[0])
     encoder_block_type = type(encoder_block[0])
 
-    if model.config.tie_word_embeddings:
+    if model.config.tie_word_embeddings:  # type: ignore
         # it is possible to train an enc/dec without tied embeddings, hence the check
         tied_embeddings._fsdp_wrap = False
         encoder._fsdp_wrap = False

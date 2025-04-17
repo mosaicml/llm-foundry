@@ -55,8 +55,8 @@ class BaseHuggingFaceModel(HuggingFaceModel):
     Base class for HuggingFace based models.
     """
 
-    model_cls: Union[_BaseAutoModelClass,
-                     PreTrainedModel] = AutoModelForCausalLM
+    model_cls: Union[type[_BaseAutoModelClass],
+                     type[PreTrainedModel]] = AutoModelForCausalLM
     default_train_metrics: tuple = ()
     default_eval_metrics: tuple = ()
 
@@ -114,7 +114,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
 
         super().__init__(
             model=model,
-            tokenizer=tokenizer,
+            tokenizer=tokenizer,  # type: ignore
             use_logits=use_logits,
             metrics=metrics,
             eval_metrics=eval_metrics,
@@ -134,14 +134,17 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         # loss is at index 0 in the output tuple, logits are at index 1
         return outputs[:2]
 
-    def transform_model(self, model: PreTrainedModel) -> PreTrainedModel:
+    def transform_model(
+        self,
+        model: Union[PreTrainedModel, 'PeftModel'],
+    ) -> Union[PreTrainedModel, 'PeftModel']:
         """Transforms the model after initialization.
 
         Args:
-            model (PreTrainedModel): The model to transform.
+            model (Union[PreTrainedModel, 'PeftModel']): The model to transform.
 
         Returns:
-            PreTrainedModel: The transformed model.
+            Union[PreTrainedModel, 'PeftModel']: The transformed model.
         """
         return model
 
@@ -214,7 +217,8 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         config_overrides: dict[str, Any],
         load_in_8bit: bool,
         pretrained: bool,
-        model_cls: Optional[Union[_BaseAutoModelClass, PreTrainedModel]] = None,
+        model_cls: Optional[Union[type[_BaseAutoModelClass],
+                                  type[PreTrainedModel]]] = None,
         prepare_for_fsdp: bool = False,
     ) -> Union[PreTrainedModel, 'PeftModel']:
         """Builds the inner model for the ComposerHFCausalLM.
@@ -253,9 +257,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
                 + 'Please `pip install llm-foundry[gpu]`.',
             )
 
-        auto_model_cls: Union[
-            _BaseAutoModelClass,
-            PreTrainedModel] = cls.model_cls if model_cls is None else model_cls
+        auto_model_cls = cls.model_cls if model_cls is None else model_cls
 
         if not (
             hasattr(auto_model_cls, 'from_pretrained') and
@@ -321,7 +323,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
                         )
             else:
                 with init_empty_weights(include_buffers=False):
-                    auto_model_cls.from_config(
+                    auto_model_cls.from_config(  # type: ignore
                         config,
                         trust_remote_code=trust_remote_code,
                         attn_implementation=requested_attention_implementation,
@@ -341,7 +343,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
                     config=config,
                 )
             else:
-                model = auto_model_cls.from_config(
+                model = auto_model_cls.from_config(  # type: ignore
                     config,
                     trust_remote_code=trust_remote_code,
                     attn_implementation=requested_attention_implementation,
@@ -352,7 +354,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
                     'Setting cfg.pretrained=True is not supported when init_device="meta".',
                 )
             with init_empty_weights(include_buffers=False):
-                model = auto_model_cls.from_config(
+                model = auto_model_cls.from_config(  # type: ignore
                     config,
                     trust_remote_code=trust_remote_code,
                     attn_implementation=requested_attention_implementation,
@@ -465,7 +467,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
                     return
 
             # Use the model's default initialization method
-            model._init_weights(module)
+            model._init_weights(module)  # type: ignore
 
             # Initialize modules that are skipped in model._init_weights
             if hasattr(module, 'weight') and module.weight is not None:

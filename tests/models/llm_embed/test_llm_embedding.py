@@ -9,7 +9,7 @@ import torch
 from composer import Trainer
 from composer.core import get_precision_context
 from torch.nn.parallel import DistributedDataParallel as DDP
-from transformers import AutoConfig
+from transformers import AutoConfig, PretrainedConfig
 from transformers.modeling_outputs import \
     BaseModelOutputWithPastAndCrossAttentions
 
@@ -28,7 +28,7 @@ class MockAutoModel(torch.nn.Module):
 
     def __init__(self) -> None:
         super().__init__()
-        self.config: AutoConfig = AutoConfig.from_pretrained(
+        self.config: PretrainedConfig = AutoConfig.from_pretrained(
             'bert-base-uncased',
         )
         self.config.hidden_size = 768
@@ -55,7 +55,7 @@ class MockAutoModel(torch.nn.Module):
         )
         batch_size: int = input_ids.size(0)
         seq_length: int = input_ids.size(1)
-        last_hidden_state: torch.Tensor = torch.randn(
+        last_hidden_state = torch.randn(
             batch_size,
             seq_length,
             self.config.hidden_size,

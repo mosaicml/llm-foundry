@@ -14,9 +14,9 @@ from llmfoundry.models.layers.attention import (
 from llmfoundry.models.layers.layer_builders import build_attention_layer
 from llmfoundry.models.mpt.modeling_mpt import (
     apply_sequence_id,
-    gen_attention_mask_in_length,
     gen_flash_attn_padding_info,
     gen_rotary_embedding,
+    gen_sequence_id_info,
 )
 
 
@@ -198,12 +198,13 @@ def test_attn_impl(
 
         return attn_bias
 
-    attention_mask_in_length_0 = gen_attention_mask_in_length(
+    attention_mask_in_length_0 = gen_sequence_id_info(
         sequence_id=sequence_id,
         S=s,
         attn_uses_sequence_id=attn_uses_sequence_id,
         attn_impl=attn_impl_0,
         attention_mask=attention_mask,
+        device=device,
     )
 
     flash_attn_padding_info_0 = {}
@@ -217,12 +218,13 @@ def test_attn_impl(
             attention_mask,
         )
 
-    attention_mask_in_length_1 = gen_attention_mask_in_length(
+    attention_mask_in_length_1 = gen_sequence_id_info(
         sequence_id=sequence_id,
         S=s,
         attn_uses_sequence_id=attn_uses_sequence_id,
         attn_impl=attn_impl_1,
         attention_mask=attention_mask,
+        device=device,
     )
 
     flash_attn_padding_info_1 = {}
@@ -642,12 +644,13 @@ def test_reuse_prev_layer_kv_cache(
 
         return attn_bias
 
-    attention_mask_in_length = gen_attention_mask_in_length(
+    attention_mask_in_length = gen_sequence_id_info(
         sequence_id=sequence_id,
         S=s,
         attn_uses_sequence_id=True,
         attn_impl=attn_impl,
         attention_mask=attention_mask,
+        device=device,
     )
 
     flash_attn_padding_info = gen_flash_attn_padding_info(

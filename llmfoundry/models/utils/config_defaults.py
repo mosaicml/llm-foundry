@@ -22,6 +22,7 @@ attn_config_defaults: dict = {
     'alibi': False,
     'alibi_bias_max': 8,
     'rope': False,
+    'nope': False,
     'rope_theta': 10000,
     'rope_impl': 'dail',
     'rope_dail_config': {

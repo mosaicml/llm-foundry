@@ -848,6 +848,12 @@ class HuggingFaceCheckpointer(Callback):
                         self.flatten_imports,
                     )
 
+                self.save_additional_contents(
+                    state,
+                    logger,
+                    temp_save_dir,
+                )
+
                 if self.remote_ud is not None:
                     for filename in os.listdir(temp_save_dir):
                         remote_file_name = os.path.join(save_dir, filename)
@@ -896,14 +902,4 @@ class HuggingFaceCheckpointer(Callback):
                 # Clean up the temporary directory if we don't need to register to mlflow.
                 if use_temp_dir:
                     shutil.rmtree(temp_save_dir)
-        dist.barrier()
-
-        if dist.get_global_rank() == 0:
-            self.save_additional_contents(
-                state,
-                logger,
-                upload_to_save_folder,
-                register_to_mlflow,
-                temp_save_dir,
-            )
         dist.barrier()

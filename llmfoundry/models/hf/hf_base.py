@@ -340,11 +340,10 @@ class BaseHuggingFaceModel(HuggingFaceModel):
 
             device = get_device(None)
             
-            done_tensor = torch.tensor(
+            done_tensor = device.tensor_to_device(torch.tensor(
                 [rank0_done_global],
                 dtype=torch.int,
-                device=device,
-            )
+            ))
 
             dist.broadcast(done_tensor, src=0)
             all_done = done_tensor.item()

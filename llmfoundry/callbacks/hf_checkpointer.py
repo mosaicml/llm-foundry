@@ -555,6 +555,23 @@ class HuggingFaceCheckpointer(Callback):
         """
         return model
 
+    def save_additional_contents(
+        self,
+        state: State,
+        logger: Logger,
+        save_dir: str,
+    ):
+        """Save any additional contents other than the checkpoint and tokenizer.
+
+        This would be useful for saving any other potential objects that is part of the state.
+
+        Args:
+            state (State): The training state.
+            logger (Logger): The logger.
+            save_dir (str): The directory to save the additional contents.
+        """
+        pass
+
     def _get_hf_model(self, state: State):
         self.last_checkpoint_batch = state.timestamp.batch
 
@@ -701,13 +718,25 @@ class HuggingFaceCheckpointer(Callback):
 
         return new_model_instance, original_tokenizer
 
-    def _register_hf_model(
+    def register_hf_model(
         self,
+        state: State,
+        logger: Logger,
         temp_save_dir: str,
         original_tokenizer: PreTrainedTokenizerBase,
         use_temp_dir: bool,
         new_model_instance: Union[PreTrainedModel, 'PeftModel'],
     ):
+        """Register the model to MLflow.
+
+        Args:
+            state (State): The training state.
+            logger (Logger): The logger.
+            temp_save_dir (str): The temporary save directory.
+            original_tokenizer (PreTrainedTokenizerBase): The original tokenizer.
+            use_temp_dir (bool): Whether to use a temporary directory.
+            new_model_instance (Union[PreTrainedModel, PeftModel]): The new model instance.
+        """
         assert new_model_instance is not None
         new_model_instance = self.transform_model_pre_registration(
             new_model_instance,
@@ -724,6 +753,12 @@ class HuggingFaceCheckpointer(Callback):
             original_tokenizer.save_pretrained(register_save_dir)
 
         self.pre_register_edit(register_save_dir)
+
+        self.save_additional_contents(
+            state,
+            logger,
+            register_save_dir,
+        )
 
         for mlflow_logger in self.mlflow_loggers:
             if self.mlflow_registered_model_name:
@@ -779,8 +814,6 @@ class HuggingFaceCheckpointer(Callback):
             upload_to_save_folder (bool): Whether to upload the HF checkpoint to the save folder.
             register_to_mlflow (bool): Whether to register the model to MLFlow
         """
-        del logger  # unused
-
         save_dir = format_name_with_dist_and_time(
             str(
                 Path(self.save_dir_format_str) /
@@ -829,6 +862,12 @@ class HuggingFaceCheckpointer(Callback):
                         self.flatten_imports,
                     )
 
+                self.save_additional_contents(
+                    state,
+                    logger,
+                    temp_save_dir,
+                )
+
                 if self.remote_ud is not None:
                     for filename in os.listdir(temp_save_dir):
                         remote_file_name = os.path.join(save_dir, filename)
@@ -867,7 +906,9 @@ class HuggingFaceCheckpointer(Callback):
                     new_model_instance.model.name_or_path = model_name
                     new_model_instance.base_model.name_or_path = model_name
             if register_to_mlflow:
-                self._register_hf_model(
+                self.register_hf_model(
+                    state,
+                    logger,
                     temp_save_dir,
                     original_tokenizer,
                     use_temp_dir,

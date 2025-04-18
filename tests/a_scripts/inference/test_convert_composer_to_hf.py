@@ -1257,7 +1257,7 @@ def test_transform_model_pre_registration(request: pytest.FixtureRequest):
         register_to_mlflow=True,
     )
 
-    assert mlflow_logger_mock.log_model.call_count == 1    
+    assert mlflow_logger_mock.log_model.call_count == 1
 
 
 # TODO(GRT-2431): Refactor as enums
@@ -1884,17 +1884,19 @@ def test_save_additional_contents(request: pytest.FixtureRequest):
         @property
         def calls(self) -> int:
             return self._calls
-        
+
         @property
         def save_dir_calls(self) -> list[str]:
             return self._save_dir_calls
 
         def save_additional_contents(
-                self,
-                state: State,
-                logger: Logger,
-                save_dir: str):
-            """Check how save additional contents are called"""
+            self,
+            state: State,
+            logger: Logger,
+            save_dir: str,
+        ):
+            self._calls += 1
+            self._save_dir_calls.append(save_dir)
 
     model_cfg, tokenizer_name = _get_model_and_tokenizer(
         model='neo',

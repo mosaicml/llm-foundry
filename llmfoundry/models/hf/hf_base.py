@@ -7,13 +7,15 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
+import time
 import warnings
 from typing import TYPE_CHECKING, Any, Mapping, Optional, Union
 
 import torch
 import transformers
 from composer.models.huggingface import HuggingFaceModel, peft_installed
-from composer.utils import dist
+from composer.utils import dist, get_device
 from torch import nn
 from torchmetrics import Metric
 from transformers import (
@@ -301,7 +303,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
 
         # We need to have all non-zero local ranks be not-pretrained
         # Rank 0 will still be pretrained, and distribute the weights appropriately
-        if dist.get_local_rank() != 0 and init_device == 'mixed':
+        if dist.get_global_rank() != 0 and init_device == 'mixed':
             pretrained = False
 
         # Hugging Face copies the modules into the
@@ -330,6 +332,34 @@ class BaseHuggingFaceModel(HuggingFaceModel):
                     )
 
         dist.barrier()
+
+        rank0_done_global = False
+
+        def download_thread_target():
+            nonlocal rank0_done_global
+
+            device = get_device(None)
+            
+            done_tensor = torch.tensor(
+                [rank0_done_global],
+                dtype=torch.int,
+                device=device,
+            )
+
+            dist.broadcast(done_tensor, src=0)
+            all_done = done_tensor.item()
+
+            while not all_done:
+                done_tensor.fill_(rank0_done_global)
+                dist.broadcast(done_tensor, src=0)
+                all_done = done_tensor.item()
+                time.sleep(30)
+
+        # Create a thread to busy wait for download to be complete
+        download_thread = threading.Thread(
+            target=download_thread_target,
+        )
+        download_thread.start()
 
         # initialize the model on the correct device
         if resolved_init_device == 'cpu':
@@ -364,19 +394,8 @@ class BaseHuggingFaceModel(HuggingFaceModel):
                 f'init_device="{init_device}" must be either "cpu" or "meta".',
             )
 
-        signal_file_path = dist.get_node_signal_file_name()
-        if dist.get_local_rank() == 0:
-            with open(signal_file_path, 'wb') as f:
-                f.write(b'local_rank0_completed_download')
-
-        # Avoid the collective call until the local rank zero has finished trying to download the checkpoint
-        # so that we don't timeout for large downloads. This syncs all processes on the node
-        with dist.local_rank_zero_download_and_wait(signal_file_path):
-            # Then, wait to ensure every node has finished downloading the checkpoint
-            dist.barrier()
-
-        if dist.get_local_rank() == 0:
-            os.remove(signal_file_path)
+        rank0_done_global = True
+        download_thread.join(timeout=3600)
 
         # Use the pretrained generation config for the model if it exists.
         try:

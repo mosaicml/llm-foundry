@@ -375,6 +375,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
                         attn_implementation=requested_attention_implementation,
                         config=config,
                     )
+                    raise ValueError('hi')
                 else:
                     model = auto_model_cls.from_config(  # type: ignore
                         config,

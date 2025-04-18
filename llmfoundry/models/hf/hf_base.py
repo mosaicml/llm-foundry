@@ -362,43 +362,51 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         log.debug('Starting download thread')
         download_thread.start()
 
-        # initialize the model on the correct device
-        if resolved_init_device == 'cpu':
-            if pretrained:
-                model = auto_model_cls.from_pretrained(
-                    pretrained_model_name_or_path,
-                    trust_remote_code=trust_remote_code,
-                    use_auth_token=use_auth_token,
-                    load_in_8bit=load_in_8bit,
-                    attn_implementation=requested_attention_implementation,
-                    config=config,
-                )
+        error = None
+        try:
+            # initialize the model on the correct device
+            if resolved_init_device == 'cpu':
+                if pretrained:
+                    model = auto_model_cls.from_pretrained(
+                        pretrained_model_name_or_path,
+                        trust_remote_code=trust_remote_code,
+                        use_auth_token=use_auth_token,
+                        load_in_8bit=load_in_8bit,
+                        attn_implementation=requested_attention_implementation,
+                        config=config,
+                    )
+                else:
+                    model = auto_model_cls.from_config(  # type: ignore
+                        config,
+                        trust_remote_code=trust_remote_code,
+                        attn_implementation=requested_attention_implementation,
+                    )
+            elif resolved_init_device == 'meta':
+                if pretrained:
+                    raise ValueError(
+                        'Setting cfg.pretrained=True is not supported when init_device="meta".',
+                    )
+                with init_empty_weights(include_buffers=False):
+                    model = auto_model_cls.from_config(  # type: ignore
+                        config,
+                        trust_remote_code=trust_remote_code,
+                        attn_implementation=requested_attention_implementation,
+                    )
             else:
-                model = auto_model_cls.from_config(  # type: ignore
-                    config,
-                    trust_remote_code=trust_remote_code,
-                    attn_implementation=requested_attention_implementation,
-                )
-        elif resolved_init_device == 'meta':
-            if pretrained:
                 raise ValueError(
-                    'Setting cfg.pretrained=True is not supported when init_device="meta".',
+                    f'init_device="{init_device}" must be either "cpu" or "meta".',
                 )
-            with init_empty_weights(include_buffers=False):
-                model = auto_model_cls.from_config(  # type: ignore
-                    config,
-                    trust_remote_code=trust_remote_code,
-                    attn_implementation=requested_attention_implementation,
-                )
-        else:
-            raise ValueError(
-                f'init_device="{init_device}" must be either "cpu" or "meta".',
-            )
+        except Exception as e:
+            error = e
+            log.error(e)
 
         rank0_done_global = True
         log.debug('Joining download thread')
         download_thread.join(timeout=3600)
         log.debug('Download thread joined')
+
+        if error:
+            raise error
 
         # Use the pretrained generation config for the model if it exists.
         try:

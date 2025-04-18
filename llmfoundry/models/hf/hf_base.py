@@ -357,7 +357,9 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         # Create a thread to busy wait for download to be complete
         download_thread = threading.Thread(
             target=download_thread_target,
+            daemon=True,
         )
+        log.debug('Starting download thread')
         download_thread.start()
 
         # initialize the model on the correct device
@@ -394,7 +396,9 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             )
 
         rank0_done_global = True
+        log.debug('Joining download thread')
         download_thread.join(timeout=3600)
+        log.debug('Download thread joined')
 
         # Use the pretrained generation config for the model if it exists.
         try:

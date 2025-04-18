@@ -20,7 +20,8 @@ import torch
 import torch.nn as nn
 import transformers
 from composer import ComposerModel, Trainer
-from composer.loggers import MLFlowLogger
+from composer.core import State
+from composer.loggers import Logger, MLFlowLogger
 from composer.utils import dist, get_device
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
@@ -1256,7 +1257,7 @@ def test_transform_model_pre_registration(request: pytest.FixtureRequest):
         register_to_mlflow=True,
     )
 
-    assert mlflow_logger_mock.log_model.call_count == 1
+    assert mlflow_logger_mock.log_model.call_count == 1    
 
 
 # TODO(GRT-2431): Refactor as enums
@@ -1868,3 +1869,66 @@ def test_generation_config_variants(
         upload_to_save_folder=False,
         register_to_mlflow=False,
     )
+
+
+def test_save_additional_contents(request: pytest.FixtureRequest):
+    """Tests the call of save additional contents."""
+
+    class ExtendedHuggingFaceCheckpointer(HuggingFaceCheckpointer):
+
+        def __init__(self, *args: list[Any], **kwargs: dict[str, Any]):
+            super.__init__(*args, **kwargs)
+            self._calls = 0
+            self._save_dir_calls: list[str] = []
+
+        @property
+        def calls(self) -> int:
+            return self._calls
+        
+        @property
+        def save_dir_calls(self) -> list[str]:
+            return self._save_dir_calls
+
+        def save_additional_contents(
+                self,
+                state: State,
+                logger: Logger,
+                save_dir: str):
+            """Check how save additional contents are called"""
+
+    model_cfg, tokenizer_name = _get_model_and_tokenizer(
+        model='neo',
+        max_seq_len=10,
+        tie_word_embeddings=None,
+        precision='bfloat16',
+    )
+    tokenizer = get_tokenizer_fixture_by_name(request, tokenizer_name)
+
+    original_model = build_composer_model(
+        model_cfg.pop('name'),
+        tokenizer=tokenizer,
+        cfg=model_cfg,
+    )
+
+    logger = MagicMock()
+    state = MagicMock()
+    state.timestamp.batch = 1
+    state.is_model_ddp = False
+    state.model = original_model
+    state.model.tokenizer = tokenizer
+
+    checkpointer = ExtendedHuggingFaceCheckpointer(
+        save_folder='test',
+        save_interval='1ba',
+    )
+    mlflow_logger_mock = _create_mlflow_logger_mock()
+    checkpointer.mlflow_loggers = [mlflow_logger_mock]  # type: ignore
+    checkpointer._save_checkpoint(
+        state=state,
+        logger=logger,
+        upload_to_save_folder=True,
+        register_to_mlflow=True,
+    )
+
+    assert checkpointer.calls == 2
+    assert checkpointer.save_dir_calls[0] != checkpointer.save_dir_calls[1]

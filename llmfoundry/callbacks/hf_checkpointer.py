@@ -718,7 +718,7 @@ class HuggingFaceCheckpointer(Callback):
 
         return new_model_instance, original_tokenizer
 
-    def _register_hf_model(
+    def register_hf_model(
         self,
         state: State,
         logger: Logger,
@@ -727,6 +727,16 @@ class HuggingFaceCheckpointer(Callback):
         use_temp_dir: bool,
         new_model_instance: Union[PreTrainedModel, 'PeftModel'],
     ):
+        """Register the model to MLflow.
+
+        Args:
+            state (State): The training state.
+            logger (Logger): The logger.
+            temp_save_dir (str): The temporary save directory.
+            original_tokenizer (PreTrainedTokenizerBase): The original tokenizer.
+            use_temp_dir (bool): Whether to use a temporary directory.
+            new_model_instance (Union[PreTrainedModel, PeftModel]): The new model instance.
+        """
         assert new_model_instance is not None
         new_model_instance = self.transform_model_pre_registration(
             new_model_instance,
@@ -896,7 +906,7 @@ class HuggingFaceCheckpointer(Callback):
                     new_model_instance.model.name_or_path = model_name
                     new_model_instance.base_model.name_or_path = model_name
             if register_to_mlflow:
-                self._register_hf_model(
+                self.register_hf_model(
                     state,
                     logger,
                     temp_save_dir,

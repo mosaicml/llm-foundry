@@ -406,8 +406,8 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         download_thread.join(timeout=3600)
         log.debug('Download thread joined')
 
+        error = dist.broadcast_object_list([error], src=0)[0]
         if error:
-            error = dist.broadcast_object_list([error], src=0)[0]
             raise error
 
         # Use the pretrained generation config for the model if it exists.

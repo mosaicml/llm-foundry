@@ -354,15 +354,17 @@ class BaseHuggingFaceModel(HuggingFaceModel):
                 done_tensor.fill_(rank0_done_global)
                 dist.broadcast(done_tensor, src=0)
                 all_done = done_tensor.item()
-                time.sleep(30)
+                time.sleep(1)
 
-        # Create a thread to busy wait for download to be complete
-        download_thread = threading.Thread(
-            target=download_thread_target,
-            daemon=True,
-        )
-        log.debug('Starting download thread')
-        download_thread.start()
+        download_thread = None
+        if dist.get_world_size() > 1:
+            # Create a thread to busy wait for download to be complete
+            download_thread = threading.Thread(
+                target=download_thread_target,
+                daemon=True,
+            )
+            log.debug('Starting download thread')
+            download_thread.start()
 
         model = None
         error = None
@@ -404,9 +406,11 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             log.error(e)
 
         rank0_done_global = True
-        log.debug('Joining download thread')
-        download_thread.join(timeout=3600)
-        log.debug('Download thread joined')
+
+        if download_thread is not None:
+            log.debug('Joining download thread')
+            download_thread.join(timeout=3600)
+            log.debug('Download thread joined')
 
         error_for_broadcast = [error]
         dist.broadcast_object_list(error_for_broadcast, src=0)

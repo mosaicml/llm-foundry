@@ -339,11 +339,13 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             nonlocal rank0_done_global
 
             device = get_device(None)
-            
-            done_tensor = device.tensor_to_device(torch.tensor(
-                [rank0_done_global],
-                dtype=torch.int,
-            ))
+
+            done_tensor = device.tensor_to_device(
+                torch.tensor(
+                    [rank0_done_global],
+                    dtype=torch.int,
+                ),
+            )
 
             dist.broadcast(done_tensor, src=0)
             all_done = done_tensor.item()
@@ -362,6 +364,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         log.debug('Starting download thread')
         download_thread.start()
 
+        model = None
         error = None
         try:
             # initialize the model on the correct device
@@ -411,6 +414,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         if error_to_maybe_raise:
             raise error_to_maybe_raise
 
+        assert model is not None
         # Use the pretrained generation config for the model if it exists.
         try:
             model.generation_config = GenerationConfig.from_pretrained(

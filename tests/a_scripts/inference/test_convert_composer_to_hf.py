@@ -1876,7 +1876,7 @@ def test_save_additional_contents(request: pytest.FixtureRequest):
 
     class ExtendedHuggingFaceCheckpointer(HuggingFaceCheckpointer):
 
-        def __init__(self, *args: list[Any], **kwargs: dict[str, Any]):
+        def __init__(self, *args: Any, **kwargs: Any):
             super().__init__(*args, **kwargs)
             self._calls = 0
             self._save_dir_calls: list[str] = []

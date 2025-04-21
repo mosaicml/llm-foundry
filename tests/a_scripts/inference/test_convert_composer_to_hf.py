@@ -1871,6 +1871,10 @@ def test_generation_config_variants(
     )
 
 
+@patch(
+    'llmfoundry.callbacks.hf_checkpointer.SpawnProcess',
+    new=MockSpawnProcess,
+)
 def test_save_additional_contents(request: pytest.FixtureRequest):
     """Tests the call of save additional contents."""
 

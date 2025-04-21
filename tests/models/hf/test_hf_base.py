@@ -76,7 +76,7 @@ def test_build_inner_model_download_thread(
 
     with patch(
         'llmfoundry.models.hf.hf_base.AutoModelForCausalLM.from_pretrained',
-        mock_build_func
+        mock_build_func,
     ):
         with error_context:
             _ = BaseHuggingFaceModel.build_inner_model(

@@ -1,7 +1,13 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
+import contextlib
+from typing import Any
+from unittest.mock import patch
 
+import pytest
+from composer.utils import dist
 from peft import PeftModel
+from transformers import PreTrainedModel
 
 from llmfoundry.models.hf.hf_base import BaseHuggingFaceModel
 
@@ -46,3 +52,42 @@ def test_pretrained_peft_trainable():
     n_trainable, n_all = model.get_nb_trainable_parameters()  # type: ignore
     assert n_all > 0
     assert n_trainable > 0
+
+
+@pytest.mark.gpu
+@pytest.mark.world_size(2)
+@pytest.mark.parametrize('error', [True, False])
+def test_build_inner_model_download_thread(
+    tiny_gpt2_model: PreTrainedModel,
+    error: bool,
+):
+
+    def mock_build_func(
+        *args: Any,
+        **kwargs: Any,
+    ):
+        if error and dist.get_global_rank() == 0:
+            raise RuntimeError('Constructor error')
+        return tiny_gpt2_model
+
+    # All ranks should raise the same error in the error case
+    error_context = contextlib.nullcontext(
+    ) if not error else pytest.raises(RuntimeError, match='Constructor error')
+
+    with patch(
+        'llmfoundry.models.hf.hf_base.AutoModelForCausalLM.from_pretrained',
+        mock_build_func
+    ):
+        with error_context:
+            _ = BaseHuggingFaceModel.build_inner_model(
+                pretrained_model_name_or_path='gpt2',
+                pretrained_lora_id_or_path=None,
+                trust_remote_code=False,
+                init_device='cpu',
+                use_flash_attention_2=False,
+                use_auth_token=False,
+                config_overrides={},
+                load_in_8bit=False,
+                pretrained=True,
+                prepare_for_fsdp=True,
+            )

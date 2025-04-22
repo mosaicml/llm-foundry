@@ -83,7 +83,20 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         additional_train_metrics: Optional[list] = None,
         additional_eval_metrics: Optional[list] = None,
         should_save_peft_only: bool = True,
+        attn_implementation: str = 'eager',
     ):
+        if use_flash_attention_2:
+            warnings.warn(
+                'use_flash_attention_2 is deprecated. Please use attn_implementation instead.' +
+                'Setting attn_implementation to flash_attention_2.',
+            )
+            attn_implementation = 'flash_attention_2'
+
+        if attn_implementation not in ['eager', 'flash_attention_2', 'sdpa']:
+            raise ValueError(
+                f'attn_implementation must be one of ["eager", "flash_attention_2", "sdpa"], but got {attn_implementation}.',
+            )
+
         config_overrides = config_overrides or {}
 
         model = self.build_inner_model(
@@ -96,6 +109,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             config_overrides=config_overrides,
             load_in_8bit=load_in_8bit,
             pretrained=pretrained,
+            attn_implementation=attn_implementation,
         )
 
         model = self.transform_model(model)
@@ -215,7 +229,6 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         pretrained_lora_id_or_path: Optional[str],
         trust_remote_code: bool,
         init_device: str,
-        use_flash_attention_2: bool,
         use_auth_token: bool,
         config_overrides: dict[str, Any],
         load_in_8bit: bool,
@@ -223,6 +236,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         model_cls: Optional[Union[type[_BaseAutoModelClass],
                                   type[PreTrainedModel]]] = None,
         prepare_for_fsdp: bool = False,
+        attn_implementation: str = 'eager',
     ) -> Union[PreTrainedModel, 'PeftModel']:
         """Builds the inner model for the ComposerHFCausalLM.
 
@@ -252,9 +266,8 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             )
         # Resolve "mixed" init device to either "cpu" or "meta"
         resolved_init_device = hf_get_init_device(init_device)
-        requested_attention_implementation = 'flash_attention_2' if use_flash_attention_2 else 'eager'
 
-        if use_flash_attention_2 and not is_flash_v2_installed():
+        if attn_implementation == 'flash_attention_2' and not is_flash_v2_installed():
             raise ValueError(
                 'use_flash_attention_2 is set to True, but flash-attention 2 is not installed. '
                 + 'Please `pip install llm-foundry[gpu]`.',
@@ -279,7 +292,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
                 pretrained_model_name_or_path,
                 trust_remote_code=trust_remote_code,
                 use_auth_token=use_auth_token,
-                attn_implementation=requested_attention_implementation,
+                attn_implementation=attn_implementation,
                 use_cache=
                 False,  # Necessary due to https://github.com/huggingface/transformers/issues/28056
             )
@@ -298,7 +311,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             pretrained_model_name_or_path,
             trust_remote_code=trust_remote_code,
             use_auth_token=use_auth_token,
-            attn_implementation=requested_attention_implementation,
+            attn_implementation=attn_implementation,
             config_overrides=config_overrides,
         )
 
@@ -320,8 +333,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
                             pretrained_model_name_or_path,
                             trust_remote_code=trust_remote_code,
                             use_auth_token=use_auth_token,
-                            attn_implementation=
-                            requested_attention_implementation,
+                            attn_implementation=attn_implementation,
                             config=config,
                         )
             else:
@@ -329,7 +341,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
                     auto_model_cls.from_config(  # type: ignore
                         config,
                         trust_remote_code=trust_remote_code,
-                        attn_implementation=requested_attention_implementation,
+                        attn_implementation=attn_implementation,
                     )
 
         dist.barrier()
@@ -345,6 +357,39 @@ class BaseHuggingFaceModel(HuggingFaceModel):
                     [status],
                     dtype=torch.int,
                 ),
+            )
+
+        # initialize the model on the correct device
+        if resolved_init_device == 'cpu':
+            if pretrained:
+                model = auto_model_cls.from_pretrained(
+                    pretrained_model_name_or_path,
+                    trust_remote_code=trust_remote_code,
+                    use_auth_token=use_auth_token,
+                    load_in_8bit=load_in_8bit,
+                    attn_implementation=attn_implementation,
+                    config=config,
+                )
+            else:
+                model = auto_model_cls.from_config(  # type: ignore
+                    config,
+                    trust_remote_code=trust_remote_code,
+                    attn_implementation=attn_implementation,
+                )
+        elif resolved_init_device == 'meta':
+            if pretrained:
+                raise ValueError(
+                    'Setting cfg.pretrained=True is not supported when init_device="meta".',
+                )
+            with init_empty_weights(include_buffers=False):
+                model = auto_model_cls.from_config(  # type: ignore
+                    config,
+                    trust_remote_code=trust_remote_code,
+                    attn_implementation=attn_implementation,
+                )
+        else:
+            raise ValueError(
+                f'init_device="{init_device}" must be either "cpu" or "meta".',
             )
 
             dist.broadcast(done_tensor, src=0)

@@ -263,7 +263,7 @@ def test_use_flash():
         },
         'pretrained': False,
         'init_device': 'cpu',
-        'use_flash_attention_2': True,
+        'attn_implementation': 'flash_attention_2',
     }
 
     name = model_cfg.pop('name')
@@ -335,3 +335,28 @@ def test_generation_config(
 
     # save_pretrained and reloading with hf_causal_lm should use the bos_token_id we set from earlier.
     assert inner_model.generation_config.bos_token_id == new_bos_token_id  # type: ignore
+
+
+@pytest.mark.parametrize('attn_implementation', ['eager', 'flash_attention_2', 'sdpa'])
+def test_attn_implementation(attn_implementation: str):
+    model_cfg = {
+        'name': 'hf_causal_lm',
+        'pretrained_model_name_or_path': 'codellama/CodeLlama-7b-hf',
+        'config_overrides': {
+            'num_hidden_layers': 2,
+            'hidden_size': 32,
+            'intermediate_size': 64,
+            'torch_dtype': 'bfloat16',
+        },
+        'pretrained': False,
+        'attn_implementation': attn_implementation,
+    }
+
+    name = model_cfg.pop('name')
+    model = build_composer_model(
+        name=name,
+        cfg=model_cfg,
+        tokenizer=None,  # type: ignore
+    )
+
+    assert model.config.attn_implementation == attn_implementation

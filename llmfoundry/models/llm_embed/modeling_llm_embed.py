@@ -13,7 +13,7 @@ https://github.com/microsoft/unilm
 import logging
 from dataclasses import dataclass
 from typing import Any, Mapping, MutableMapping, Optional, Union, cast
-
+import warnings
 import torch
 import torch.distributed
 import torch.nn as nn
@@ -90,12 +90,15 @@ class ContrastiveModel(HuggingFaceModel):
         pretrained_lora_id_or_path (Optional[str], optional): Pretrained LoRA (Low Rank Adaptation) ID or path. Defaults to None.
         trust_remote_code (bool, optional): Whether to trust remote code. Defaults to False.
         init_device (str, optional): The initial device. Defaults to 'cpu'.
-        use_flash_attention_2 (bool, optional): Whether to use Flash Attention 2. Defaults to True.
+        use_flash_attention_2 (bool, optional): DEPRECATED. Use ``attn_implementation`` instead.
+        Whether to use Flash Attention 2. Defaults to True.
         use_auth_token (bool, optional): Whether to use an authentication token. Defaults to False.
         config_overrides (Optional[Dict[str, Any]], optional): Overrides for the model configuration. Defaults to None.
         load_in_8bit (bool, optional): Whether to load the model in 8-bit mode. Defaults to False.
         loss_fn (str, optional): The loss function to use (either 'torch_crossentropy' or 'fused_crossentropy'). Defaults to 'fused_crossentropy'.
         pretrained (bool, optional): Whether to use a pretrained model when using a Hugging Face architecture. Defaults to True.
+        attn_implementation (str, optional): The attention implementation to use.
+            Default: ``'eager'``.
         **kwargs (Dict[str, Any]): Additional keyword arguments.
     """
 
@@ -113,19 +116,27 @@ class ContrastiveModel(HuggingFaceModel):
         load_in_8bit: bool = False,
         loss_fn: str = 'fused_crossentropy',
         pretrained: bool = True,
+        attn_implementation: str = 'eager',
         **kwargs: dict[str, Any],
     ):
+        if use_flash_attention_2:
+            warnings.warn(
+                'use_flash_attention_2 is deprecated. Please use attn_implementation instead.' +
+                'Setting attn_implementation to flash_attention_2.',
+            )
+            attn_implementation = 'flash_attention_2'
+
         self.pretrained_model_name_or_path = pretrained_model_name_or_path
         self.pretrained = pretrained
         self.pretrained_lora_id_or_path = pretrained_lora_id_or_path
         self.trust_remote_code = trust_remote_code
         self.init_device = init_device
-        self.use_flash_attention_2 = use_flash_attention_2
         self.use_auth_token = use_auth_token
         self.config_overrides = config_overrides
         self.load_in_8bit = load_in_8bit
         self.kwargs = kwargs
         self.is_mpt = False
+        self.attn_implementation = attn_implementation
 
         contrastive_config = contrastive_config or {}
         contrastive_config_obj: ContrastiveConfig = om.structured(
@@ -202,10 +213,10 @@ class ContrastiveModel(HuggingFaceModel):
                 pretrained_lora_id_or_path=self.pretrained_lora_id_or_path,
                 trust_remote_code=self.trust_remote_code,
                 init_device=self.init_device,
-                use_flash_attention_2=self.use_flash_attention_2,
                 use_auth_token=self.use_auth_token,
                 config_overrides=self.config_overrides or {},
                 load_in_8bit=self.load_in_8bit,
+                attn_implementation=self.attn_implementation,
                 **self.kwargs,
             )
         else:

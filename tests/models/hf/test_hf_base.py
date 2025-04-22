@@ -18,7 +18,6 @@ def test_build_inner_model_fsdp():
         pretrained_lora_id_or_path=None,
         trust_remote_code=False,
         init_device='cpu',
-        use_flash_attention_2=False,
         use_auth_token=False,
         config_overrides={
             'num_hidden_layers': 2,
@@ -28,6 +27,7 @@ def test_build_inner_model_fsdp():
         load_in_8bit=False,
         pretrained=False,
         prepare_for_fsdp=True,
+        attn_implementation='eager',
     )
 
     assert model.fsdp_wrap_fn(model.model.layers[0])  # type: ignore
@@ -39,12 +39,12 @@ def test_pretrained_peft_trainable():
         pretrained_lora_id_or_path='ybelkada/opt-350m-lora',
         trust_remote_code=False,
         init_device='cpu',
-        use_flash_attention_2=False,
         use_auth_token=False,
         config_overrides={},
         load_in_8bit=False,
         pretrained=True,
         prepare_for_fsdp=True,
+        attn_implementation='eager',
     )
 
     assert isinstance(model, PeftModel)

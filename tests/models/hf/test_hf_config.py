@@ -236,7 +236,7 @@ def test_simple_dtype():
         },
         'pretrained': False,
         'init_device': 'cpu',
-        'use_flash_attention_2': False,
+        'attn_implementation': 'eager',
     }
 
     name = model_cfg.pop('name')

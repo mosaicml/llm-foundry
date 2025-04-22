@@ -3,17 +3,28 @@
 This README walks through pretraining and finetuning a large language model using MosaicML's [StreamingDataset](https://github.com/mosaicml/streaming) format, [Composer](https://github.com/mosaicml/composer) trainer, and [MPT architecture](https://www.mosaicml.com/blog/mpt-7b). When used in concert on high-performance hardware such as A100 GPUs, these tools enable incredibly efficient and optimized LLM training.
 
 #### Table of Contents
-1. [Part 1: LLM Pretraining](#llmpretraining)
-   1. [Installation](#installation)
-   1. [Dataset Preparation](#datasetpreparation)
-   1. [How to start single and multi-node pretraining](#howtostartpretraining)
-1. [Part 2: LLM Finetuning](#llmfinetuning)
-   1. [Using a dataset on the HuggingFace Hub](#hfdataset)
-   1. [Using a local dataset](#localdataset)
-   1. [Using a StreamingDataset (MDS) formatted dataset locally or in an object store](#mdsdataset)
-1. [Using Flash Attention](#flashattention)
-1. [FAQ: How many GPUs do I need to train a LLM?](#howmandygpus)
-1. [FAQ: Optimizing Performance](#optimizingperformance)
+- [LLM Pretraining and Finetuning](#llm-pretraining-and-finetuning)
+      - [Table of Contents](#table-of-contents)
+- [Part 1: LLM Pretraining ](#part-1-llm-pretraining-)
+  - [Installation ](#installation-)
+  - [Dataset preparation ](#dataset-preparation-)
+    - [Converting C4 to StreamingDataset `.mds` format](#converting-c4-to-streamingdataset-mds-format)
+    - [Test the Dataloader](#test-the-dataloader)
+  - [How to start single and multi-node pretraining ](#how-to-start-single-and-multi-node-pretraining-)
+    - [Single-Node training](#single-node-training)
+    - [Multi-Node via CLI args](#multi-node-via-cli-args)
+    - [Multi-Node via environment variables](#multi-node-via-environment-variables)
+- [Part 2: LLM Finetuning ](#part-2-llm-finetuning-)
+  - [Data formatting](#data-formatting)
+    - [Pre-defined preprocessing functions](#pre-defined-preprocessing-functions)
+    - [Custom data preprocessing](#custom-data-preprocessing)
+  - [Usage](#usage)
+    - [**1) Using a dataset on the HuggingFace Hub** ](#1-using-a-dataset-on-the-huggingface-hub-)
+    - [**2) Using a local dataset** ](#2-using-a-local-dataset-)
+    - [**3) Using a StreamingDataset (MDS) formatted dataset locally or in an object store** ](#3-using-a-streamingdataset-mds-formatted-dataset-locally-or-in-an-object-store-)
+- [Using Flash Attention ](#using-flash-attention-)
+- [FAQ: How many GPUs do I need to train a LLM? ](#faq-how-many-gpus-do-i-need-to-train-a-llm-)
+- [FAQ: Optimizing Performance ](#faq-optimizing-performance-)
 
 # Part 1: LLM Pretraining <a name="llmpretraining"></a>
 
@@ -363,7 +374,7 @@ For any HuggingFace model that supports Flash Attention (e.g. Llama and Mistral)
 ```yaml
 model:
     name: hf_causal_lm
-    use_flash_attention_2: True # Will be automatically set to True if Flash Attention V2 is installed and the model supports it
+    attn_implementation: "flash_attention_2"  # Will be automatically set to "flash_attention_2" if Flash Attention V2 is installed and the model supports it
     ...
 ```
 HuggingFace models currently only support Flash Attention V2.

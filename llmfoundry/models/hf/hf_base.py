@@ -428,7 +428,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             download_thread.join(timeout=3600)
             log.debug('Download thread joined')
 
-        # Broadcast any
+        # Gather information about which ranks errored
         gathered_errors = dist.all_gather_object(error)
         ranks_with_error = [
             rank for rank, err in enumerate(gathered_errors) if err is not None

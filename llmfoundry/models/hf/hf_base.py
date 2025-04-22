@@ -384,6 +384,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             # initialize the model on the correct device
             if resolved_init_device == 'cpu':
                 if pretrained:
+                    raise ValueError('hi')
                     model = auto_model_cls.from_pretrained(
                         pretrained_model_name_or_path,
                         trust_remote_code=trust_remote_code,

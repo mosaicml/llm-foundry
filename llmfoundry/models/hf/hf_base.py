@@ -265,6 +265,8 @@ class BaseHuggingFaceModel(HuggingFaceModel):
                     'Set attn_implementation to flash_attention_2 directly to remove this warning.',
                 )
             attn_implementation = 'flash_attention_2'
+        if attn_implementation is None:
+            attn_implementation = 'eager'
 
         if pretrained_model_name_or_path.startswith('mosaicml/mpt',):
             raise ValueError(

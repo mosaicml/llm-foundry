@@ -85,7 +85,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         should_save_peft_only: bool = True,
         attn_implementation: str = 'eager',
     ):
-        if use_flash_attention_2:
+        if use_flash_attention_2 and attn_implementation != 'flash_attention_2':
             warnings.warn('use_flash_attention_2 is set, this will override attn_implementation')
             attn_implementation = 'flash_attention_2'
 
@@ -97,6 +97,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             trust_remote_code=trust_remote_code,
             init_device=init_device,
             use_auth_token=use_auth_token,
+            use_flash_attention_2=use_flash_attention_2,
             config_overrides=config_overrides,
             load_in_8bit=load_in_8bit,
             pretrained=pretrained,
@@ -248,7 +249,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         Returns:
             Union[PreTrainedModel, 'PeftModel']: The built inner model.
         """
-        if use_flash_attention_2:
+        if use_flash_attention_2 and attn_implementation != 'flash_attention_2':
             warnings.warn('use_flash_attention_2 is set, this will override attn_implementation')
             attn_implementation = 'flash_attention_2'
 

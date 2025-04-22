@@ -118,7 +118,7 @@ class ContrastiveModel(HuggingFaceModel):
         attn_implementation: str = 'eager',
         **kwargs: dict[str, Any],
     ):
-        if use_flash_attention_2:
+        if use_flash_attention_2 and attn_implementation != 'flash_attention_2':
             warnings.warn('use_flash_attention_2 is set, this will override attn_implementation')
             attn_implementation = 'flash_attention_2'
 

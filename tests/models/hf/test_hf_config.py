@@ -342,7 +342,7 @@ def test_generation_config(
     ['eager', 'flash_attention_2', 'sdpa'],
 )
 @patch(
-    'llmfoundry.models.layers.attention.is_flash_v2_installed',
+    'llmfoundry.models.hf.hf_base.is_flash_v2_installed',
     new=Mock(return_value=True),
 )
 def test_attn_implementation(attn_implementation: str):

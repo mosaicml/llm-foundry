@@ -19,6 +19,7 @@ def test_build_inner_model_fsdp():
         trust_remote_code=False,
         init_device='cpu',
         use_auth_token=False,
+        use_flash_attention_2=False,
         config_overrides={
             'num_hidden_layers': 2,
             'hidden_size': 32,
@@ -40,6 +41,7 @@ def test_pretrained_peft_trainable():
         trust_remote_code=False,
         init_device='cpu',
         use_auth_token=False,
+        use_flash_attention_2=False,
         config_overrides={},
         load_in_8bit=False,
         pretrained=True,

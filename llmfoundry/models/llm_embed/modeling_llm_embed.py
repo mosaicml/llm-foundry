@@ -127,6 +127,7 @@ class ContrastiveModel(HuggingFaceModel):
         self.pretrained_lora_id_or_path = pretrained_lora_id_or_path
         self.trust_remote_code = trust_remote_code
         self.init_device = init_device
+        self.use_flash_attention_2 = use_flash_attention_2
         self.use_auth_token = use_auth_token
         self.config_overrides = config_overrides
         self.load_in_8bit = load_in_8bit
@@ -209,6 +210,7 @@ class ContrastiveModel(HuggingFaceModel):
                 pretrained_lora_id_or_path=self.pretrained_lora_id_or_path,
                 trust_remote_code=self.trust_remote_code,
                 init_device=self.init_device,
+                use_flash_attention_2=self.use_flash_attention_2,
                 use_auth_token=self.use_auth_token,
                 config_overrides=self.config_overrides or {},
                 load_in_8bit=self.load_in_8bit,

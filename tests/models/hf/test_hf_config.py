@@ -363,4 +363,4 @@ def test_attn_implementation(attn_implementation: str):
     )
 
     # llama config uses _attn_implementation
-    assert model.config._attn_implementation == attn_implementation
+    assert model.config._attn_implementation == attn_implementation  # type: ignore

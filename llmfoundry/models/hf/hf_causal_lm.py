@@ -52,10 +52,10 @@ class ComposerHFCausalLM(BaseHuggingFaceModel):
         use_train_metrics (bool, optional): Whether to use training metrics. Default: ``True``.
         load_in_8bit (bool, optional): Whether to load the model in 8-bit mode. Default: ``False``.
         init_device (str, optional): Which device to initialize the model on. Default: ``'cpu'``.
-        use_flash_attention_2 (bool, optional): DEPRECATED. Use ``attn_implementation`` instead.
-            Whether to use flash-attention 2. Default: ``False``.
+        use_flash_attention_2 (bool, optional): Whether to use flash-attention 2. Default: ``False``.
         tokenizer (PreTrainedTokenizer): The tokenizer that the model will use.
         attn_implementation (str, optional): The attention implementation to use.
+            This will be overridden by if ``use_flash_attention_2`` is ``True``.
             Default: ``'eager'``.
     """
 

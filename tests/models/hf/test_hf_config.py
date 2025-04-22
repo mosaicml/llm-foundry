@@ -337,7 +337,10 @@ def test_generation_config(
     assert inner_model.generation_config.bos_token_id == new_bos_token_id  # type: ignore
 
 
-@pytest.mark.parametrize('attn_implementation', ['eager', 'flash_attention_2', 'sdpa'])
+@pytest.mark.parametrize(
+    'attn_implementation',
+    ['eager', 'flash_attention_2', 'sdpa'],
+)
 def test_attn_implementation(attn_implementation: str):
     model_cfg = {
         'name': 'hf_causal_lm',

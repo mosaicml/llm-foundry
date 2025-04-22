@@ -11,9 +11,10 @@ https://github.com/microsoft/unilm
 """
 
 import logging
+import warnings
 from dataclasses import dataclass
 from typing import Any, Mapping, MutableMapping, Optional, Union, cast
-import warnings
+
 import torch
 import torch.distributed
 import torch.nn as nn
@@ -119,7 +120,9 @@ class ContrastiveModel(HuggingFaceModel):
         **kwargs: dict[str, Any],
     ):
         if use_flash_attention_2 and attn_implementation != 'flash_attention_2':
-            warnings.warn('use_flash_attention_2 is set, this will override attn_implementation')
+            warnings.warn(
+                'use_flash_attention_2 is set, this will override attn_implementation',
+            )
             attn_implementation = 'flash_attention_2'
 
         self.pretrained_model_name_or_path = pretrained_model_name_or_path

@@ -86,7 +86,9 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         attn_implementation: str = 'eager',
     ):
         if use_flash_attention_2 and attn_implementation != 'flash_attention_2':
-            warnings.warn('use_flash_attention_2 is set, this will override attn_implementation')
+            warnings.warn(
+                'use_flash_attention_2 is set, this will override attn_implementation',
+            )
             attn_implementation = 'flash_attention_2'
 
         config_overrides = config_overrides or {}
@@ -245,12 +247,17 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             pretrained (bool): Whether the model is pretrained.
             model_cls (Union[Type, Type[PreTrainedModel]]): Kept for backwards compatibility.
             prepare_for_fsdp (bool, optional): Kept for backwards compatilbility.
+            attn_implementation (str, optional): The attention implementation to use.
+                This will be overridden by if ``use_flash_attention_2`` is ``True``.
+                Default: ``'eager'``.
 
         Returns:
             Union[PreTrainedModel, 'PeftModel']: The built inner model.
         """
         if use_flash_attention_2 and attn_implementation != 'flash_attention_2':
-            warnings.warn('use_flash_attention_2 is set, this will override attn_implementation')
+            warnings.warn(
+                'use_flash_attention_2 is set, this will override attn_implementation',
+            )
             attn_implementation = 'flash_attention_2'
 
         if pretrained_model_name_or_path.startswith('mosaicml/mpt',):
@@ -264,7 +271,8 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         # Resolve "mixed" init device to either "cpu" or "meta"
         resolved_init_device = hf_get_init_device(init_device)
 
-        if attn_implementation == 'flash_attention_2' and not is_flash_v2_installed():
+        if attn_implementation == 'flash_attention_2' and not is_flash_v2_installed(
+        ):
             raise ValueError(
                 'use_flash_attention_2 is set to True, but flash-attention 2 is not installed. '
                 + 'Please `pip install llm-foundry[gpu]`.',

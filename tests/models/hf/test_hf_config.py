@@ -337,13 +337,10 @@ def test_generation_config(
     assert inner_model.generation_config.bos_token_id == new_bos_token_id  # type: ignore
 
 
+@pytest.mark.gpu
 @pytest.mark.parametrize(
     'attn_implementation',
     ['eager', 'flash_attention_2', 'sdpa'],
-)
-@patch(
-    'llmfoundry.models.hf.hf_base.is_flash_v2_installed',
-    new=Mock(return_value=True),
 )
 def test_attn_implementation(attn_implementation: str):
     model_cfg = {

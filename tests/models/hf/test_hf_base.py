@@ -56,23 +56,24 @@ def test_pretrained_peft_trainable():
 
 @pytest.mark.gpu
 @pytest.mark.world_size(2)
-@pytest.mark.parametrize('error', [True, False])
+@pytest.mark.parametrize('error_rank', [None, 0, 1])
 def test_build_inner_model_download_thread(
     tiny_gpt2_model: PreTrainedModel,
-    error: bool,
+    error_rank: int | None,
 ):
 
     def mock_build_func(
         *args: Any,
         **kwargs: Any,
     ):
-        if error and dist.get_global_rank() == 0:
+        if dist.get_global_rank() == error_rank:
             raise RuntimeError('Constructor error')
         return tiny_gpt2_model
 
-    # All ranks should raise the same error in the error case
     error_context = contextlib.nullcontext(
-    ) if not error else pytest.raises(RuntimeError, match='Constructor error')
+    ) if error_rank is not None else pytest.raises(
+        RuntimeError, match=f'Error initializing model on ranks {error_rank}'
+    )
 
     with patch(
         'llmfoundry.models.hf.hf_base.AutoModelForCausalLM.from_pretrained',

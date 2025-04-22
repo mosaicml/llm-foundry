@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 import os
+import queue
 import threading
 import time
 import warnings
@@ -333,16 +334,15 @@ class BaseHuggingFaceModel(HuggingFaceModel):
 
         dist.barrier()
 
-        rank0_done_global = False
-
-        def download_thread_target():
-            nonlocal rank0_done_global
-
+        def download_thread_target(queue: Optional[queue.Queue]):
+            """Thread target to wait for the model to be downloaded."""
             device = get_device(None)
+
+            status = 0
 
             done_tensor = device.tensor_to_device(
                 torch.tensor(
-                    [rank0_done_global],
+                    [status],
                     dtype=torch.int,
                 ),
             )
@@ -351,17 +351,29 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             all_done = done_tensor.item()
 
             while not all_done:
-                done_tensor.fill_(rank0_done_global)
+                # On rank 0, queue exists, and the presence of an item indicates completion
+                # On all other ranks, the queue object does not exist
+                if queue is not None and not queue.empty():
+                    status = 1
+                done_tensor.fill_(status)
                 dist.broadcast(done_tensor, src=0)
                 all_done = done_tensor.item()
                 time.sleep(1)
 
+        # Create a thread to busy wait for the download to be complete
+        # This approach is used because NCCL process group does not support updating the timeout
+        # and we don't want to require a super long distributed timeout for all operations
         download_thread = None
+        download_status_queue = None
         if dist.get_world_size() > 1:
+            download_status_queue = queue.Queue() if dist.get_global_rank(
+            ) == 0 else None
+
             # Create a thread to busy wait for download to be complete
             download_thread = threading.Thread(
                 target=download_thread_target,
                 daemon=True,
+                args=(download_status_queue,),
             )
             log.debug('Starting download thread')
             download_thread.start()
@@ -405,18 +417,26 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             error = e
             log.error(e)
 
-        rank0_done_global = True
+        # Signal that the download is complete on rank 0
+        if download_status_queue is not None:
+            download_status_queue.put(1)
+            log.debug('Download complete')
 
+        # Join and wait for the thread to complete on all ranks
         if download_thread is not None:
             log.debug('Joining download thread')
             download_thread.join(timeout=3600)
             log.debug('Download thread joined')
 
-        error_for_broadcast = [error]
-        dist.broadcast_object_list(error_for_broadcast, src=0)
-        error_to_maybe_raise = error_for_broadcast[0]
-        if error_to_maybe_raise:
-            raise error_to_maybe_raise
+        # Broadcast any
+        gathered_errors = dist.all_gather_object(error)
+        ranks_with_error = [
+            rank for rank, err in enumerate(gathered_errors) if err is not None
+        ]
+        if len(ranks_with_error) > 0:
+            raise RuntimeError(
+                f'Error initializing model on ranks {ranks_with_error}. See individual rank logs for more details',
+            )
 
         assert model is not None
         # Use the pretrained generation config for the model if it exists.

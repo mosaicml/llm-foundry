@@ -74,7 +74,7 @@ def test_build_inner_model_download_thread(
     ) if error_rank is None else pytest.raises(
         RuntimeError,
         match=
-        f'Error initializing model on ranks \[{error_rank}\]. See individual rank logs for more details',
+        rf'Error initializing model on ranks \[{error_rank}\]. See individual rank logs for more details',
     )
 
     with patch(

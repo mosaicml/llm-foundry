@@ -83,12 +83,15 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         additional_train_metrics: Optional[list] = None,
         additional_eval_metrics: Optional[list] = None,
         should_save_peft_only: bool = True,
-        attn_implementation: str = 'eager',
+        attn_implementation: Optional[str] = None,
     ):
-        if use_flash_attention_2 and attn_implementation != 'flash_attention_2':
-            warnings.warn(
-                'use_flash_attention_2 is set, this will override attn_implementation',
-            )
+        if use_flash_attention_2:
+            if attn_implementation is not None and attn_implementation != 'flash_attention_2':
+                warnings.warn(
+                    'use_flash_attention_2 is set, this will override attn_implementation'
+                    +
+                    'Set attn_implementation to flash_attention_2 directly to remove this warning.',
+                )
             attn_implementation = 'flash_attention_2'
 
         config_overrides = config_overrides or {}
@@ -231,7 +234,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         model_cls: Optional[Union[type[_BaseAutoModelClass],
                                   type[PreTrainedModel]]] = None,
         prepare_for_fsdp: bool = False,
-        attn_implementation: str = 'eager',
+        attn_implementation: Optional[str] = None,
     ) -> Union[PreTrainedModel, 'PeftModel']:
         """Builds the inner model for the ComposerHFCausalLM.
 
@@ -249,15 +252,18 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             prepare_for_fsdp (bool, optional): Kept for backwards compatilbility.
             attn_implementation (str, optional): The attention implementation to use.
                 This will be overridden by if ``use_flash_attention_2`` is ``True``.
-                Default: ``'eager'``.
+                Default: ``None``.
 
         Returns:
             Union[PreTrainedModel, 'PeftModel']: The built inner model.
         """
-        if use_flash_attention_2 and attn_implementation != 'flash_attention_2':
-            warnings.warn(
-                'use_flash_attention_2 is set, this will override attn_implementation',
-            )
+        if use_flash_attention_2:
+            if attn_implementation is not None and attn_implementation != 'flash_attention_2':
+                warnings.warn(
+                    'use_flash_attention_2 is set, this will override attn_implementation'
+                    +
+                    'Set attn_implementation to flash_attention_2 directly to remove this warning.',
+                )
             attn_implementation = 'flash_attention_2'
 
         if pretrained_model_name_or_path.startswith('mosaicml/mpt',):

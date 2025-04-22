@@ -365,3 +365,30 @@ def test_attn_implementation(attn_implementation: str):
 
     # llama config uses _attn_implementation
     assert model.config._attn_implementation == attn_implementation  # type: ignore
+
+
+@pytest.mark.gpu
+def test_attn_implementation_override():
+    model_cfg = {
+        'name': 'hf_causal_lm',
+        'pretrained_model_name_or_path': 'codellama/CodeLlama-7b-hf',
+        'config_overrides': {
+            'num_hidden_layers': 2,
+            'hidden_size': 32,
+            'intermediate_size': 64,
+            'torch_dtype': 'bfloat16',
+        },
+        'pretrained': False,
+        'use_flash_attention_2': True,
+        'attn_implementation': 'eager',
+    }
+
+    name = model_cfg.pop('name')
+    model = build_composer_model(
+        name=name,
+        cfg=model_cfg,
+        tokenizer=None,  # type: ignore
+    )
+
+    # llama config uses _attn_implementation
+    assert model.config._attn_implementation == 'flash_attention_2'  # type: ignore

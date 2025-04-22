@@ -90,15 +90,14 @@ class ContrastiveModel(HuggingFaceModel):
         pretrained_lora_id_or_path (Optional[str], optional): Pretrained LoRA (Low Rank Adaptation) ID or path. Defaults to None.
         trust_remote_code (bool, optional): Whether to trust remote code. Defaults to False.
         init_device (str, optional): The initial device. Defaults to 'cpu'.
-        use_flash_attention_2 (bool, optional): DEPRECATED. Use ``attn_implementation`` instead.
-        Whether to use Flash Attention 2. Defaults to True.
+        use_flash_attention_2 (bool, optional): Whether to use Flash Attention 2. Defaults to True.
         use_auth_token (bool, optional): Whether to use an authentication token. Defaults to False.
         config_overrides (Optional[Dict[str, Any]], optional): Overrides for the model configuration. Defaults to None.
         load_in_8bit (bool, optional): Whether to load the model in 8-bit mode. Defaults to False.
         loss_fn (str, optional): The loss function to use (either 'torch_crossentropy' or 'fused_crossentropy'). Defaults to 'fused_crossentropy'.
         pretrained (bool, optional): Whether to use a pretrained model when using a Hugging Face architecture. Defaults to True.
-        attn_implementation (str, optional): The attention implementation to use.
-            Default: ``'eager'``.
+        attn_implementation (str, optional): The attention implementation to use. If
+            ``use_flash_attention_2`` is set, this will be overridden. Default: ``'eager'``.
         **kwargs (Dict[str, Any]): Additional keyword arguments.
     """
 
@@ -120,10 +119,7 @@ class ContrastiveModel(HuggingFaceModel):
         **kwargs: dict[str, Any],
     ):
         if use_flash_attention_2:
-            warnings.warn(
-                'use_flash_attention_2 is deprecated. Please use attn_implementation instead.' +
-                'Setting attn_implementation to flash_attention_2.',
-            )
+            warnings.warn('use_flash_attention_2 is set, this will override attn_implementation')
             attn_implementation = 'flash_attention_2'
 
         self.pretrained_model_name_or_path = pretrained_model_name_or_path

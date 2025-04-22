@@ -86,16 +86,8 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         attn_implementation: str = 'eager',
     ):
         if use_flash_attention_2:
-            warnings.warn(
-                'use_flash_attention_2 is deprecated. Please use attn_implementation instead.' +
-                'Setting attn_implementation to flash_attention_2.',
-            )
+            warnings.warn('use_flash_attention_2 is set, this will override attn_implementation')
             attn_implementation = 'flash_attention_2'
-
-        if attn_implementation not in ['eager', 'flash_attention_2', 'sdpa']:
-            raise ValueError(
-                f'attn_implementation must be one of ["eager", "flash_attention_2", "sdpa"], but got {attn_implementation}.',
-            )
 
         config_overrides = config_overrides or {}
 
@@ -228,6 +220,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         pretrained_lora_id_or_path: Optional[str],
         trust_remote_code: bool,
         init_device: str,
+        use_flash_attention_2: bool,
         use_auth_token: bool,
         config_overrides: dict[str, Any],
         load_in_8bit: bool,
@@ -255,6 +248,10 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         Returns:
             Union[PreTrainedModel, 'PeftModel']: The built inner model.
         """
+        if use_flash_attention_2:
+            warnings.warn('use_flash_attention_2 is set, this will override attn_implementation')
+            attn_implementation = 'flash_attention_2'
+
         if pretrained_model_name_or_path.startswith('mosaicml/mpt',):
             raise ValueError(
                 'The MPT series of models on the Hugging Face Hub is no longer supported by LLM Foundry. '

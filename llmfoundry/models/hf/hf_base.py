@@ -411,7 +411,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
                     )
             else:
                 raise ValueError(
-                    f'init_device="{init_device}" must be either "cpu" or "meta".',
+                    f'Got {init_device=} which resolved to unknown device {resolved_init_device=} on global rank {dist.get_global_rank()}.',
                 )
         except Exception as e:
             error = e

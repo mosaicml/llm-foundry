@@ -363,20 +363,20 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         # Create a thread to busy wait for the download to be complete
         # This approach is used because NCCL process group does not support updating the timeout
         # and we don't want to require a super long distributed timeout for all operations
-        download_thread = None
+        wait_for_download_thread = None
         download_status_queue = None
         if dist.get_world_size() > 1:
             download_status_queue = queue.Queue() if dist.get_global_rank(
             ) == 0 else None
 
             # Create a thread to busy wait for download to be complete
-            download_thread = threading.Thread(
+            wait_for_download_thread = threading.Thread(
                 target=download_thread_target,
                 daemon=True,
                 args=(download_status_queue,),
             )
             log.debug('Starting download thread')
-            download_thread.start()
+            wait_for_download_thread.start()
 
         model = None
         error = None
@@ -423,9 +423,9 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             log.debug('Download complete')
 
         # Join and wait for the thread to complete on all ranks
-        if download_thread is not None:
+        if wait_for_download_thread is not None:
             log.debug('Joining download thread')
-            download_thread.join(timeout=3600)
+            wait_for_download_thread.join(timeout=3600)
             log.debug('Download thread joined')
 
         # Gather information about which ranks errored

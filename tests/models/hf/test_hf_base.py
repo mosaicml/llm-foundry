@@ -71,8 +71,9 @@ def test_build_inner_model_download_thread(
         return tiny_gpt2_model
 
     error_context = contextlib.nullcontext(
-    ) if error_rank is not None else pytest.raises(
-        RuntimeError, match=f'Error initializing model on ranks {error_rank}'
+    ) if error_rank is None else pytest.raises(
+        RuntimeError,
+        match=f'Error initializing model on ranks {error_rank}',
     )
 
     with patch(

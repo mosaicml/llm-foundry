@@ -28,7 +28,6 @@ def test_build_inner_model_fsdp():
         load_in_8bit=False,
         pretrained=False,
         prepare_for_fsdp=True,
-        attn_implementation='eager',
     )
 
     assert model.fsdp_wrap_fn(model.model.layers[0])  # type: ignore
@@ -46,7 +45,6 @@ def test_pretrained_peft_trainable():
         load_in_8bit=False,
         pretrained=True,
         prepare_for_fsdp=True,
-        attn_implementation='eager',
     )
 
     assert isinstance(model, PeftModel)

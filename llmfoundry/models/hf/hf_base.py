@@ -88,7 +88,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         if use_flash_attention_2:
             if attn_implementation is not None and attn_implementation != 'flash_attention_2':
                 warnings.warn(
-                    'use_flash_attention_2 is set, this will override attn_implementation'
+                    'use_flash_attention_2 is set, this will override attn_implementation. '
                     +
                     'Set attn_implementation to flash_attention_2 directly to remove this warning.',
                 )
@@ -260,7 +260,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         if use_flash_attention_2:
             if attn_implementation is not None and attn_implementation != 'flash_attention_2':
                 warnings.warn(
-                    'use_flash_attention_2 is set, this will override attn_implementation'
+                    'use_flash_attention_2 is set, this will override attn_implementation. '
                     +
                     'Set attn_implementation to flash_attention_2 directly to remove this warning.',
                 )

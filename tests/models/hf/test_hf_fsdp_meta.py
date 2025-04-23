@@ -67,7 +67,6 @@ def test_hf_meta_init_fsdp(tiny_codellama_tokenizer: PreTrainedTokenizerBase):
             trust_remote_code=False,
             init_device='meta',
             use_flash_attention_2=False,
-            attn_implementation='eager',
             use_auth_token=False,
             config_overrides={
                 'num_hidden_layers': 2,

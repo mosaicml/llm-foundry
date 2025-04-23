@@ -374,7 +374,7 @@ For any HuggingFace model that supports Flash Attention (e.g. Llama and Mistral)
 ```yaml
 model:
     name: hf_causal_lm
-    attn_implementation: "flash_attention_2"  # Will be automatically set to "flash_attention_2" if Flash Attention V2 is installed and the model supports it
+    attn_implementation: "flash_attention_2"
     ...
 ```
 HuggingFace models currently only support Flash Attention V2.

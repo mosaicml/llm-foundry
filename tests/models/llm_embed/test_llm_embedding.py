@@ -88,7 +88,6 @@ def model(
             pretrained_model_name_or_path='bert-base-uncased',
             loss_fn='torch_crossentropy',
             use_flash_attention_2=False,
-            attn_implementation='eager',
         )
         return model_instance
 

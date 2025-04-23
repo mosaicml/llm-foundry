@@ -24,6 +24,19 @@ from llmfoundry.utils.config_utils import (
 )
 
 
+@pytest.fixture
+def tiny_llama_save_dir(tmp_path: Path, tiny_codellama_model: PreTrainedModel):
+    assert isinstance(tiny_codellama_model, PreTrainedModel)
+    assert tiny_codellama_model.generation_config is not None
+
+    save_dir = tmp_path / 'model'
+
+    # Save the model.
+    tiny_codellama_model.save_pretrained(save_dir)
+
+    return save_dir
+
+
 def test_remote_code_false_mpt(
     tiny_mpt_tokenizer: PreTrainedTokenizerBase,
     conf_path: str = 'scripts/train/yamls/finetune/mpt-7b_dolly_sft.yaml',
@@ -342,10 +355,13 @@ def test_generation_config(
     'attn_implementation',
     ['eager', 'flash_attention_2', 'sdpa'],
 )
-def test_attn_implementation(attn_implementation: str):
+def test_attn_implementation(
+    attn_implementation: str,
+    tiny_llama_save_dir: Path,
+):
     model_cfg = {
         'name': 'hf_causal_lm',
-        'pretrained_model_name_or_path': 'codellama/CodeLlama-7b-hf',
+        'pretrained_model_name_or_path': str(tiny_llama_save_dir),
         'config_overrides': {
             'num_hidden_layers': 2,
             'hidden_size': 32,
@@ -368,10 +384,10 @@ def test_attn_implementation(attn_implementation: str):
 
 
 @pytest.mark.gpu
-def test_attn_implementation_override():
+def test_attn_implementation_override(tiny_llama_save_dir: Path):
     model_cfg = {
         'name': 'hf_causal_lm',
-        'pretrained_model_name_or_path': 'codellama/CodeLlama-7b-hf',
+        'pretrained_model_name_or_path': str(tiny_llama_save_dir),
         'config_overrides': {
             'num_hidden_layers': 2,
             'hidden_size': 32,
@@ -395,10 +411,10 @@ def test_attn_implementation_override():
 
 
 @pytest.mark.gpu
-def test_attn_implementation_none():
+def test_attn_implementation_none(tiny_llama_save_dir: Path):
     model_cfg = {
         'name': 'hf_causal_lm',
-        'pretrained_model_name_or_path': 'codellama/CodeLlama-7b-hf',
+        'pretrained_model_name_or_path': str(tiny_llama_save_dir),
         'config_overrides': {
             'num_hidden_layers': 2,
             'hidden_size': 32,

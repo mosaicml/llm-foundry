@@ -372,39 +372,6 @@ class BaseHuggingFaceModel(HuggingFaceModel):
                 ),
             )
 
-        # initialize the model on the correct device
-        if resolved_init_device == 'cpu':
-            if pretrained:
-                model = auto_model_cls.from_pretrained(
-                    pretrained_model_name_or_path,
-                    trust_remote_code=trust_remote_code,
-                    use_auth_token=use_auth_token,
-                    load_in_8bit=load_in_8bit,
-                    attn_implementation=attn_implementation,
-                    config=config,
-                )
-            else:
-                model = auto_model_cls.from_config(  # type: ignore
-                    config,
-                    trust_remote_code=trust_remote_code,
-                    attn_implementation=attn_implementation,
-                )
-        elif resolved_init_device == 'meta':
-            if pretrained:
-                raise ValueError(
-                    'Setting cfg.pretrained=True is not supported when init_device="meta".',
-                )
-            with init_empty_weights(include_buffers=False):
-                model = auto_model_cls.from_config(  # type: ignore
-                    config,
-                    trust_remote_code=trust_remote_code,
-                    attn_implementation=attn_implementation,
-                )
-        else:
-            raise ValueError(
-                f'init_device="{init_device}" must be either "cpu" or "meta".',
-            )
-
             dist.broadcast(done_tensor, src=0)
             all_done = done_tensor.item()
 
@@ -447,14 +414,14 @@ class BaseHuggingFaceModel(HuggingFaceModel):
                         trust_remote_code=trust_remote_code,
                         use_auth_token=use_auth_token,
                         load_in_8bit=load_in_8bit,
-                        attn_implementation=requested_attention_implementation,
+                        attn_implementation=attn_implementation,
                         config=config,
                     )
                 else:
                     model = auto_model_cls.from_config(  # type: ignore
                         config,
                         trust_remote_code=trust_remote_code,
-                        attn_implementation=requested_attention_implementation,
+                        attn_implementation=attn_implementation,
                     )
             elif resolved_init_device == 'meta':
                 if pretrained:
@@ -465,7 +432,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
                     model = auto_model_cls.from_config(  # type: ignore
                         config,
                         trust_remote_code=trust_remote_code,
-                        attn_implementation=requested_attention_implementation,
+                        attn_implementation=attn_implementation,
                     )
             else:
                 raise ValueError(

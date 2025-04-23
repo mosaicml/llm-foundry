@@ -7,13 +7,16 @@ from __future__ import annotations
 
 import logging
 import os
+import queue
+import threading
+import time
 import warnings
 from typing import TYPE_CHECKING, Any, Mapping, Optional, Union
 
 import torch
 import transformers
 from composer.models.huggingface import HuggingFaceModel, peft_installed
-from composer.utils import dist
+from composer.utils import dist, get_device
 from torch import nn
 from torchmetrics import Metric
 from transformers import (
@@ -301,7 +304,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
 
         # We need to have all non-zero local ranks be not-pretrained
         # Rank 0 will still be pretrained, and distribute the weights appropriately
-        if dist.get_local_rank() != 0 and init_device == 'mixed':
+        if dist.get_global_rank() != 0 and init_device == 'mixed':
             pretrained = False
 
         # Hugging Face copies the modules into the
@@ -331,53 +334,111 @@ class BaseHuggingFaceModel(HuggingFaceModel):
 
         dist.barrier()
 
-        # initialize the model on the correct device
-        if resolved_init_device == 'cpu':
-            if pretrained:
-                model = auto_model_cls.from_pretrained(
-                    pretrained_model_name_or_path,
-                    trust_remote_code=trust_remote_code,
-                    use_auth_token=use_auth_token,
-                    load_in_8bit=load_in_8bit,
-                    attn_implementation=requested_attention_implementation,
-                    config=config,
-                )
-            else:
-                model = auto_model_cls.from_config(  # type: ignore
-                    config,
-                    trust_remote_code=trust_remote_code,
-                    attn_implementation=requested_attention_implementation,
-                )
-        elif resolved_init_device == 'meta':
-            if pretrained:
-                raise ValueError(
-                    'Setting cfg.pretrained=True is not supported when init_device="meta".',
-                )
-            with init_empty_weights(include_buffers=False):
-                model = auto_model_cls.from_config(  # type: ignore
-                    config,
-                    trust_remote_code=trust_remote_code,
-                    attn_implementation=requested_attention_implementation,
-                )
-        else:
-            raise ValueError(
-                f'init_device="{init_device}" must be either "cpu" or "meta".',
+        def download_thread_target(queue: Optional[queue.Queue]):
+            """Thread target to wait for the model to be downloaded."""
+            device = get_device(None)
+
+            status = 0
+
+            done_tensor = device.tensor_to_device(
+                torch.tensor(
+                    [status],
+                    dtype=torch.int,
+                ),
             )
 
-        signal_file_path = dist.get_node_signal_file_name()
-        if dist.get_local_rank() == 0:
-            with open(signal_file_path, 'wb') as f:
-                f.write(b'local_rank0_completed_download')
+            dist.broadcast(done_tensor, src=0)
+            all_done = done_tensor.item()
 
-        # Avoid the collective call until the local rank zero has finished trying to download the checkpoint
-        # so that we don't timeout for large downloads. This syncs all processes on the node
-        with dist.local_rank_zero_download_and_wait(signal_file_path):
-            # Then, wait to ensure every node has finished downloading the checkpoint
-            dist.barrier()
+            while not all_done:
+                # On rank 0, queue exists, and the presence of an item indicates completion
+                # On all other ranks, the queue object does not exist
+                if queue is not None and not queue.empty():
+                    status = 1
+                done_tensor.fill_(status)
+                dist.broadcast(done_tensor, src=0)
+                all_done = done_tensor.item()
+                time.sleep(1)
 
-        if dist.get_local_rank() == 0:
-            os.remove(signal_file_path)
+        # Create a thread to busy wait for the download to be complete
+        # This approach is used because NCCL process group does not support updating the timeout
+        # and we don't want to require a super long distributed timeout for all operations
+        wait_for_download_thread = None
+        download_status_queue = None
+        if dist.get_world_size() > 1:
+            download_status_queue = queue.Queue() if dist.get_global_rank(
+            ) == 0 else None
 
+            # Create a thread to busy wait for download to be complete
+            wait_for_download_thread = threading.Thread(
+                target=download_thread_target,
+                daemon=True,
+                args=(download_status_queue,),
+            )
+            log.debug('Starting download thread')
+            wait_for_download_thread.start()
+
+        model = None
+        error = None
+        try:
+            # initialize the model on the correct device
+            if resolved_init_device == 'cpu':
+                if pretrained:
+                    model = auto_model_cls.from_pretrained(
+                        pretrained_model_name_or_path,
+                        trust_remote_code=trust_remote_code,
+                        use_auth_token=use_auth_token,
+                        load_in_8bit=load_in_8bit,
+                        attn_implementation=requested_attention_implementation,
+                        config=config,
+                    )
+                else:
+                    model = auto_model_cls.from_config(  # type: ignore
+                        config,
+                        trust_remote_code=trust_remote_code,
+                        attn_implementation=requested_attention_implementation,
+                    )
+            elif resolved_init_device == 'meta':
+                if pretrained:
+                    raise ValueError(
+                        'Setting cfg.pretrained=True is not supported when init_device="meta".',
+                    )
+                with init_empty_weights(include_buffers=False):
+                    model = auto_model_cls.from_config(  # type: ignore
+                        config,
+                        trust_remote_code=trust_remote_code,
+                        attn_implementation=requested_attention_implementation,
+                    )
+            else:
+                raise ValueError(
+                    f'Got {init_device=} which resolved to unknown device {resolved_init_device=} on global rank {dist.get_global_rank()}.',
+                )
+        except Exception as e:
+            error = e
+            log.error(e)
+
+        # Signal that the download is complete on rank 0
+        if download_status_queue is not None:
+            download_status_queue.put(1)
+            log.debug('Download complete')
+
+        # Join and wait for the thread to complete on all ranks
+        if wait_for_download_thread is not None:
+            log.debug('Joining download thread')
+            wait_for_download_thread.join(timeout=3600)
+            log.debug('Download thread joined')
+
+        # Gather information about which ranks errored
+        gathered_errors = dist.all_gather_object(error)
+        ranks_with_error = [
+            rank for rank, err in enumerate(gathered_errors) if err is not None
+        ]
+        if len(ranks_with_error) > 0:
+            raise RuntimeError(
+                f'Error initializing model on ranks {ranks_with_error}. See individual rank logs for more details',
+            )
+
+        assert model is not None
         # Use the pretrained generation config for the model if it exists.
         try:
             model.generation_config = GenerationConfig.from_pretrained(

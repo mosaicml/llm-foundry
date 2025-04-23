@@ -669,10 +669,18 @@ class MPTModel(MPTPreTrainedModel):
         override_config: dict[str, Any],
         allowed_block_overrides: dict[str, Any],
     ) -> dict[str, Any]:
+        if 'do_not_add_default_layer_config' in override_config:
+            raise ValueError(
+                'Overriding `do_not_add_default_layer_config` is not supported.',
+            )
+
         unpermitted_keys = override_config.keys(
         ) - allowed_block_overrides.keys()
         if len(unpermitted_keys):
             raise KeyError(f'Overriding {unpermitted_keys} is not supported.')
+
+        if 'do_not_add_default_layer_config' in allowed_block_overrides:
+            return override_config
 
         new_block_args = override_config | block_args
         common_keys = override_config.keys() & block_args.keys()

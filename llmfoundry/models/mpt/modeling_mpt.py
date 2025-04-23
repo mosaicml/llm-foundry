@@ -500,7 +500,7 @@ class MPTModel(MPTPreTrainedModel):
             )
             for override_config in override_config_list:
                 if 'ffn_config' in override_config:
-                    if override_config['ffn_config']['type'] not in ffns:
+                    if override_config['ffn_config']['ffn_type'] not in ffns:
                         raise ValueError(
                             'Block overrides only supports dense ffns.',
                         )

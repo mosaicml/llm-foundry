@@ -493,22 +493,20 @@ class MPTModel(MPTPreTrainedModel):
         Returns:
             nn.ModuleList: The list of Transformer blocks.
         """
-        n_moe_layers = None
+        n_default_layers = config.n_layers
         if config.block_overrides is not None:
             model_modules_order_expanded, override_config_list = self.extract_override_config_list(
                 config,
             )
-            n_dense_layers = 0
             for override_config in override_config_list:
-                if override_config['ffn_config']['type'] not in ffns:
-                    raise ValueError(
-                        'Block overrides only supports dense ffns.',
-                    )
-                n_dense_layers += 1
-            if config.ffn_config['type'] in ffns_with_megablocks:
-                n_moe_layers = config.n_layers - n_dense_layers
+                if 'ffn_config' in override_config:
+                    if override_config['ffn_config']['type'] not in ffns:
+                        raise ValueError(
+                            'Block overrides only supports dense ffns.',
+                        )
+                    n_default_layers -= 1
 
-        block_args = self.extract_block_args(config.to_dict(), n_moe_layers)
+        block_args = self.extract_block_args(config.to_dict(), n_default_layers)
         self.kv_cache_layers = set()  # type: ignore
         self.blocks_fuse_norm_attn_norm = block_args.get(  # type: ignore
             'fuse_norm_attn_norm',
@@ -696,19 +694,15 @@ class MPTModel(MPTPreTrainedModel):
     def extract_block_args(
         self,
         block_args: dict[str, Any],
-        n_moe_layers: Optional[int],
+        n_default_layers: int,
     ) -> dict[str, Any]:
         """Sets the block args."""
         if block_args['ffn_config']['ffn_type'] in ffns_with_megablocks:
-            if n_moe_layers is None:
-                raise ValueError(
-                    'n_moe_layers should not be None when using megablocks.',
-                )
             block_args['ffn_config'] = config_moe_args(
                 block_args['ffn_config'],
                 block_args['d_model'],
                 block_args['expansion_ratio'],
-                n_moe_layers,
+                n_default_layers,
             )
             self.mb_args = block_args['ffn_config'].get('args')
         return block_args

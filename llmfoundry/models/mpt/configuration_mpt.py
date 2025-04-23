@@ -407,4 +407,8 @@ class MPTConfig(PretrainedConfig):
                 'sliding_window_size': None,
                 'reuse_kv_layer_idx': None,
             },
+            'ffn_config': {
+                'ffn_type': None,
+                'ffn_hidden_size': None,
+            },
         }

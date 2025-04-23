@@ -414,7 +414,7 @@ class MPTConfig(PretrainedConfig):
                     'name': None,
                 },
                 'ffn_act_fn': {
-                    'name': 'silu',
+                    'name': None,
                 },
                 'do_not_add_default_layer_config': None,
             },

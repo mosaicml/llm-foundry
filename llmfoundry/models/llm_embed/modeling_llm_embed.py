@@ -11,6 +11,7 @@ https://github.com/microsoft/unilm
 """
 
 import logging
+import warnings
 from dataclasses import dataclass
 from typing import Any, Mapping, MutableMapping, Optional, Union, cast
 
@@ -96,6 +97,8 @@ class ContrastiveModel(HuggingFaceModel):
         load_in_8bit (bool, optional): Whether to load the model in 8-bit mode. Defaults to False.
         loss_fn (str, optional): The loss function to use (either 'torch_crossentropy' or 'fused_crossentropy'). Defaults to 'fused_crossentropy'.
         pretrained (bool, optional): Whether to use a pretrained model when using a Hugging Face architecture. Defaults to True.
+        attn_implementation (str, optional): The attention implementation to use. If
+            ``use_flash_attention_2`` is set, this will be overridden. Default: ``'eager'``.
         **kwargs (Dict[str, Any]): Additional keyword arguments.
     """
 
@@ -113,8 +116,15 @@ class ContrastiveModel(HuggingFaceModel):
         load_in_8bit: bool = False,
         loss_fn: str = 'fused_crossentropy',
         pretrained: bool = True,
+        attn_implementation: str = 'eager',
         **kwargs: dict[str, Any],
     ):
+        if use_flash_attention_2 and attn_implementation != 'flash_attention_2':
+            warnings.warn(
+                'use_flash_attention_2 is set, this will override attn_implementation',
+            )
+            attn_implementation = 'flash_attention_2'
+
         self.pretrained_model_name_or_path = pretrained_model_name_or_path
         self.pretrained = pretrained
         self.pretrained_lora_id_or_path = pretrained_lora_id_or_path
@@ -126,6 +136,7 @@ class ContrastiveModel(HuggingFaceModel):
         self.load_in_8bit = load_in_8bit
         self.kwargs = kwargs
         self.is_mpt = False
+        self.attn_implementation = attn_implementation
 
         contrastive_config = contrastive_config or {}
         contrastive_config_obj: ContrastiveConfig = om.structured(
@@ -206,6 +217,7 @@ class ContrastiveModel(HuggingFaceModel):
                 use_auth_token=self.use_auth_token,
                 config_overrides=self.config_overrides or {},
                 load_in_8bit=self.load_in_8bit,
+                attn_implementation=self.attn_implementation,
                 **self.kwargs,
             )
         else:

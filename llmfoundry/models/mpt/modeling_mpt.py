@@ -27,7 +27,7 @@ from composer.models import HuggingFaceModel
 from composer.utils import dist
 from tabulate import tabulate
 
-from llmfoundry.layers_registry import ffns_with_megablocks
+from llmfoundry.layers_registry import ffns, ffns_with_megablocks
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 
 if is_flash_v2_installed():
@@ -493,7 +493,22 @@ class MPTModel(MPTPreTrainedModel):
         Returns:
             nn.ModuleList: The list of Transformer blocks.
         """
-        block_args = self.extract_block_args(config.to_dict())
+        n_moe_layers = None
+        if config.block_overrides is not None:
+            model_modules_order_expanded, override_config_list = self.extract_override_config_list(
+                config,
+            )
+            n_dense_layers = 0
+            for override_config in override_config_list:
+                if override_config['ffn_config']['type'] not in ffns:
+                    raise ValueError(
+                        'Block overrides only supports dense ffns.',
+                    )
+                n_dense_layers += 1
+            if config.ffn_config['type'] in ffns_with_megablocks:
+                n_moe_layers = config.n_layers - n_dense_layers
+
+        block_args = self.extract_block_args(config.to_dict(), n_moe_layers)
         self.kv_cache_layers = set()  # type: ignore
         self.blocks_fuse_norm_attn_norm = block_args.get(  # type: ignore
             'fuse_norm_attn_norm',
@@ -504,6 +519,8 @@ class MPTModel(MPTPreTrainedModel):
             block_args_list = self._get_override_block_args_list(
                 config,
                 block_args,
+                model_modules_order_expanded,
+                override_config_list,
             )
         else:
             block_args_list = [block_args for _ in range(config.n_layers)]
@@ -519,7 +536,33 @@ class MPTModel(MPTPreTrainedModel):
         self,
         config: MPTConfig,
         block_args: dict[str, Any],
+        model_modules_order_expanded: list[str],
+        override_config_list: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
+        new_block_args_list = []
+        layer_description_list = []
+        for b_idx in range(config.n_layers):
+            layer_description_list.append([
+                b_idx,
+                model_modules_order_expanded[b_idx],
+                override_config_list[b_idx],
+            ],)
+            new_block_args_list.append(
+                MPTModel._override_block_args(
+                    block_args,
+                    override_config_list[b_idx],
+                    config.allowed_block_overrides,
+                ),
+            )
+        log.info(
+            'The following is a summary of overrides per layer.\n' + tabulate(
+                layer_description_list,
+                headers=['idx', 'name', 'overrides'],
+            ),
+        )
+        return new_block_args_list
+
+    def extract_override_config_list(self, config):
         if config.block_overrides is None:
             raise ValueError(
                 'config.block_overrides should not be None when calling _get_override_block_args_list.',
@@ -532,11 +575,8 @@ class MPTModel(MPTPreTrainedModel):
             raise ValueError(
                 f'The specified block overrides do not match the number of layers: {len(model_modules_order_expanded)} vs {config.n_layers}.',
             )
-
-        new_block_args_list = []
-        layer_description_list = []
-
         reuse_kv_layer_idx_dict = {}
+        override_config_list = []
         for b_idx in range(config.n_layers):
             module_name = model_modules_order_expanded[b_idx]
             override_config = {}
@@ -560,25 +600,8 @@ class MPTModel(MPTPreTrainedModel):
                     override_config['attn_config']['reuse_kv_layer_idx'
                                                   ] = reuse_kv_layer_idx
                     self.kv_cache_layers.add(reuse_kv_layer_idx)
-            layer_description_list.append([
-                b_idx,
-                module_name,
-                override_config,
-            ],)
-            new_block_args_list.append(
-                MPTModel._override_block_args(
-                    block_args,
-                    override_config,
-                    config.allowed_block_overrides,
-                ),
-            )
-        log.info(
-            'The following is a summary of overrides per layer.\n' + tabulate(
-                layer_description_list,
-                headers=['idx', 'name', 'overrides'],
-            ),
-        )
-        return new_block_args_list
+            override_config_list.append(override_config)
+        return model_modules_order_expanded, override_config_list
 
     @staticmethod
     def _resolve_reuse_kv_layer_idx(
@@ -670,14 +693,22 @@ class MPTModel(MPTPreTrainedModel):
                 new_block_args[k] = override_config[k]
         return new_block_args
 
-    def extract_block_args(self, block_args: dict[str, Any]) -> dict[str, Any]:
+    def extract_block_args(
+        self,
+        block_args: dict[str, Any],
+        n_moe_layers: Optional[int],
+    ) -> dict[str, Any]:
         """Sets the block args."""
         if block_args['ffn_config']['ffn_type'] in ffns_with_megablocks:
+            if n_moe_layers is None:
+                raise ValueError(
+                    'n_moe_layers should not be None when using megablocks.',
+                )
             block_args['ffn_config'] = config_moe_args(
                 block_args['ffn_config'],
                 block_args['d_model'],
                 block_args['expansion_ratio'],
-                block_args['n_layers'],
+                n_moe_layers,
             )
             self.mb_args = block_args['ffn_config'].get('args')
         return block_args

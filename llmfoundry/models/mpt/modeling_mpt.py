@@ -177,7 +177,7 @@ def gen_sequence_id_info(
     attn_uses_sequence_id: bool,
     attn_impl: str,
     attention_mask: Union[torch.Tensor, None],
-    device: torch.device,
+    device: Union[torch.device, str],
 ):
     """Generates the attention mask used for sequence masking in FA v2.
 

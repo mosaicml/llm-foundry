@@ -198,7 +198,7 @@ def test_attn_impl(
 
         return attn_bias
 
-    attention_mask_in_length_0 = gen_sequence_id_info(
+    attention_mask_in_length_0, _ = gen_sequence_id_info(
         sequence_id=sequence_id,
         S=s,
         attn_uses_sequence_id=attn_uses_sequence_id,
@@ -218,7 +218,7 @@ def test_attn_impl(
             attention_mask,
         )
 
-    attention_mask_in_length_1 = gen_sequence_id_info(
+    attention_mask_in_length_1, _ = gen_sequence_id_info(
         sequence_id=sequence_id,
         S=s,
         attn_uses_sequence_id=attn_uses_sequence_id,
@@ -644,7 +644,7 @@ def test_reuse_prev_layer_kv_cache(
 
         return attn_bias
 
-    attention_mask_in_length = gen_sequence_id_info(
+    attention_mask_in_length, _ = gen_sequence_id_info(
         sequence_id=sequence_id,
         S=s,
         attn_uses_sequence_id=True,

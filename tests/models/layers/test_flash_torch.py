@@ -760,3 +760,249 @@ def test_reuse_prev_layer_kv_cache(
             assert tp.grad is not None
             assert allclose_helper(p, tp)
             assert allclose_helper(p.grad, tp.grad)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize('attn_impl', [
+    'flash',
+    'torch',
+])
+@pytest.mark.parametrize(
+    'pos_emb_config',
+    [{
+        'alibi': True,
+        'rope': False,
+    }, {
+        'alibi': False,
+        'rope': True,
+        'rope_theta': 10000,
+        'rope_impl': 'dail',
+        'rope_dail_config': {
+            'type': 'original',
+            'pos_idx_in_fp32': True,
+            'xpos_scale_base': 512,
+        },
+    }],
+)
+def test_nope(
+    attn_impl: str,
+    pos_emb_config: dict,
+    device: str = 'cuda',
+):
+    """Compare all attn impl with each other.
+
+    Includes testing with and without attn_clip_qkv, attn_qk_ln, attn_qk_gn,
+    alibi, and rope.
+    """
+    attn_type = 'grouped_query_attention'
+    alibi = pos_emb_config['alibi']
+    rope = pos_emb_config['rope']
+    if alibi and not (check_alibi_support(attn_impl)):
+        pytest.skip('flash attention below v2.4.2 does not support alibi.')
+    if rope and (pos_emb_config['rope_impl']
+                 == 'dail') and (not is_flash_v2_installed()):
+        pytest.skip('dail implementation of rope requires flash attention 2.')
+
+    cfg = om.create({
+        'attn_impl': 'flash',
+        'd_model': 64,
+        'n_heads': 4,
+        'attn_pdrop': 0,
+    })
+
+    n, s, f = 2, 4, cfg.d_model
+    assert cfg.d_model % cfg.n_heads == 0
+    if attn_type == 'grouped_query_attention':
+        cfg.kv_n_heads = 2
+
+    sequence_id = None
+
+    cfg.attn_impl = attn_impl
+    cfg.nope = True
+    attn0 = build_attention_layer(
+        name=attn_type,
+        attn_kwargs=om.to_container(cfg),  # type: ignore
+    ).to(device)
+    cfg.attn_impl = attn_impl
+    cfg.nope = False  # We will explicitly not apply any positional encoding for the second attn
+    attn1 = build_attention_layer(
+        name=attn_type,
+        attn_kwargs=om.to_container(cfg),  # type: ignore
+    ).to(device)
+
+    attn1.load_state_dict(attn0.state_dict())
+
+    attention_mask = torch.ones(n, s).to(device).bool()
+
+    def gen_bias(attn_impl: str):
+        causal = True
+        attn_bias = None
+        bs = attention.attn_bias_shape(
+            attn_impl,
+            cfg.n_heads,
+            s,
+            alibi,
+            use_sequence_id=False,
+            causal=causal,
+        )
+        if bs is not None:
+            attn_bias = torch.zeros(*bs, device=device)
+            attn_bias = attention.build_attn_bias(
+                attn_impl,
+                attn_bias,
+                cfg.n_heads,
+                s,
+                causal=causal,
+                alibi=alibi,
+                alibi_bias_max=8,
+            )
+
+        return attn_bias
+
+    attention_mask_in_length_0 = gen_attention_mask_in_length(
+        sequence_id=sequence_id,
+        S=s,
+        attn_uses_sequence_id=False,
+        attn_impl=attn_impl,
+        attention_mask=attention_mask,
+    )
+
+    flash_attn_padding_info_0 = {}
+    if attn_impl == 'flash':
+        flash_attn_padding_info_0 = gen_flash_attn_padding_info(
+            n,
+            s,
+            0,
+            torch.device(device),
+            attention_mask_in_length_0,
+            attention_mask,
+        )
+
+    attention_mask_in_length_1 = gen_attention_mask_in_length(
+        sequence_id=sequence_id,
+        S=s,
+        attn_uses_sequence_id=False,
+        attn_impl=attn_impl,
+        attention_mask=attention_mask,
+    )
+
+    flash_attn_padding_info_1 = {}
+    if attn_impl == 'flash':
+        flash_attn_padding_info_1 = gen_flash_attn_padding_info(
+            n,
+            s,
+            0,
+            torch.device(device),
+            attention_mask_in_length_1,
+            attention_mask,
+        )
+
+    x0 = torch.randn(n, s, f).to(device)
+    x1 = x0.clone().detach()
+    x0.requires_grad = True
+    x1.requires_grad = True
+
+    with torch.autocast(x0.device.type):
+        attn_bias_0 = gen_bias(attn_impl)
+        alibi_slopes_0 = None
+        if alibi and attn_impl == 'flash':
+            alibi_slopes_0 = gen_slopes(
+                n_heads=cfg.n_heads,
+                alibi_bias_max=8,
+                device=torch.device(device),
+                return_1d=True,
+            )
+        rotary_emb_w_meta_info = None
+        if rope:
+            rotary_embedding = gen_rotary_embedding(
+                rope_impl=pos_emb_config['rope_impl'],
+                rope_theta=pos_emb_config['rope_theta'],
+                rope_dail_config=pos_emb_config.get('rope_dail_config', {}),
+                rope_hf_config=pos_emb_config.get('rope_hf_config', {}),
+                max_seq_len=s,
+                d_model=cfg.d_model,
+                n_heads=cfg.n_heads,
+            ).to(device)
+            pos = torch.arange(s).unsqueeze(0).to(device=device)
+            # adjust the position indices to account for padding tokens
+            pos = torch.clamp(
+                pos - torch.cumsum((~attention_mask).to(torch.int32), dim=1),
+                min=0,
+            )
+            rotary_emb_w_meta_info = {
+                'impl':
+                    pos_emb_config['rope_impl'],
+                'rotary_emb':
+                    rotary_embedding,
+                'offset_info':
+                    pos if (pos_emb_config['rope_impl'] == 'hf') else 0,
+                'seq_len':
+                    s,
+            }
+
+        y0, _, _ = attn0(
+            x0,
+            past_key_value=None,
+            attn_bias=attn_bias_0,
+            attention_mask=attention_mask,
+            rotary_emb_w_meta_info=rotary_emb_w_meta_info,
+            is_causal=True,
+            flash_attn_padding_info=flash_attn_padding_info_0,
+            alibi_slopes=alibi_slopes_0,
+        )
+        attn_bias_1 = gen_bias(attn_impl)
+
+        query_1, key_1, value_1 = attn1.get_qkv(
+            x=x1,
+            key_value_states=None,
+        )
+        extra_attn_kwargs_1 = attn1.get_implementation_specific_args(
+            attention_mask=attention_mask,
+            alibi_slopes=None,
+            flash_attn_padding_info=flash_attn_padding_info_1,
+        )
+        context_1, _, _ = attn1.attn_fn(
+            query_1,
+            key_1,
+            value_1,
+            n_heads=attn1.n_heads,
+            kv_n_heads=attn1.kv_n_heads,
+            past_key_value=None,
+            softmax_scale=attn1.softmax_scale,
+            attn_bias=attn_bias_1,
+            is_causal=True,
+            dropout_p=attn1.attn_dropout_p,
+            training=attn1.training,
+            needs_weights=False,
+            attn_logit_softcapping=attn1.attn_logit_softcapping,
+            sliding_window_size=attn1.sliding_window_size,
+            **extra_attn_kwargs_1,
+        )
+        y1 = attn1.out_proj(context_1)
+
+        y0 *= attention_mask.unsqueeze(-1)
+        y1 *= attention_mask.unsqueeze(-1)
+
+        loss0 = y0.sum()
+        loss1 = y1.sum()
+
+    loss0.backward()
+    loss1.backward()
+
+    assert allclose_helper(y0, y1)
+
+    torch_name_param_map = dict(attn1.named_parameters())
+    for n, p in attn0.named_parameters():
+        tp = torch_name_param_map[n]
+        assert p.grad is not None
+        assert tp.grad is not None
+        assert allclose_helper(p, tp)
+
+        using_hf_rope = pos_emb_config['rope'] and pos_emb_config['rope_impl'
+                                                                 ] == 'hf'
+
+        assert allclose_helper(p.grad, tp.grad)
+
+    assert x0.grad is not None
+    assert x1.grad is not None
+    assert allclose_helper(x0.grad, x1.grad)

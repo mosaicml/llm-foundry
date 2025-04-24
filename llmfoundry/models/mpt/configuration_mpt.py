@@ -185,13 +185,6 @@ class MPTConfig(PretrainedConfig):
             for override_def in block_overrides['overrides'].values():
                 if 'attn_config' in override_def and override_def[
                     'attn_config'].get('nope', False):
-                    if override_def['attn_config'].get(
-                        'reuse_kv_layer_idx',
-                        None,
-                    ) is not None:
-                        raise ValueError(
-                            'nope position encoding block override cannot be used when reusing the kv cache of a previous layer.',
-                        )
                     if self.learned_pos_emb:
                         raise ValueError(
                             'nope position encoding block override cannot be used with learned_pos_emb.',

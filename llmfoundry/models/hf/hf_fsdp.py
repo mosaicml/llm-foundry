@@ -119,7 +119,7 @@ def hf_get_init_device(init_device: Optional[str]) -> Optional[str]:
     """Returns the appropriate device to initialize models."""
     from composer.utils import dist
     if init_device == 'mixed':
-        if dist.get_local_rank() == 0:
+        if dist.get_global_rank() == 0:
             return 'cpu'
         return 'meta'
     return init_device

@@ -997,10 +997,6 @@ def test_nope(
         assert p.grad is not None
         assert tp.grad is not None
         assert allclose_helper(p, tp)
-
-        using_hf_rope = pos_emb_config['rope'] and pos_emb_config['rope_impl'
-                                                                 ] == 'hf'
-
         assert allclose_helper(p.grad, tp.grad)
 
     assert x0.grad is not None

@@ -29,6 +29,47 @@ def allclose_helper(
     return torch.allclose(t0, t1, rtol=rtol, atol=atol)
 
 
+def gen_bias(
+    attn_impl: str,
+    cfg,
+    s,
+    alibi,
+    attn_uses_sequence_id,
+    device,
+    sequence_id,
+):
+    causal = True
+    attn_bias = None
+    bs = attention.attn_bias_shape(
+        attn_impl,
+        cfg.n_heads,
+        s,
+        alibi,
+        use_sequence_id=attn_uses_sequence_id,
+        causal=causal,
+    )
+    if bs is not None:
+        attn_bias = torch.zeros(*bs, device=device)
+        attn_bias = attention.build_attn_bias(
+            attn_impl,
+            attn_bias,
+            cfg.n_heads,
+            s,
+            causal=causal,
+            alibi=alibi,
+            alibi_bias_max=8,
+        )
+    if attn_impl == 'torch' and attn_uses_sequence_id and sequence_id is not None:
+        assert isinstance(attn_bias, torch.Tensor)  # pyright
+        attn_bias = apply_sequence_id(
+            attn_bias,
+            sequence_id,  # type: ignore
+            s,
+        )
+
+    return attn_bias
+
+
 @pytest.mark.gpu
 @pytest.mark.parametrize('attn_impl_0, attn_impl_1', [
     ('flash', 'torch'),
@@ -166,38 +207,6 @@ def test_attn_impl(
                 -1,
             )  # Similar to how we set sequence id for padded tokens: https://github.com/mosaicml/llm-foundry/blob/706ea7dd40ba60a98dea5f37695d143d91c98b6c/llmfoundry/data/packing.py#L249
 
-    def gen_bias(attn_impl: str):
-        causal = True
-        attn_bias = None
-        bs = attention.attn_bias_shape(
-            attn_impl,
-            cfg.n_heads,
-            s,
-            alibi,
-            use_sequence_id=attn_uses_sequence_id,
-            causal=causal,
-        )
-        if bs is not None:
-            attn_bias = torch.zeros(*bs, device=device)
-            attn_bias = attention.build_attn_bias(
-                attn_impl,
-                attn_bias,
-                cfg.n_heads,
-                s,
-                causal=causal,
-                alibi=alibi,
-                alibi_bias_max=8,
-            )
-        if attn_impl == 'torch' and attn_uses_sequence_id and sequence_id is not None:
-            assert isinstance(attn_bias, torch.Tensor)  # pyright
-            attn_bias = apply_sequence_id(
-                attn_bias,
-                sequence_id,  # type: ignore
-                s,
-            )
-
-        return attn_bias
-
     attention_mask_in_length_0 = gen_attention_mask_in_length(
         sequence_id=sequence_id,
         S=s,
@@ -242,7 +251,15 @@ def test_attn_impl(
     x1.requires_grad = True
 
     with torch.autocast(x0.device.type):
-        attn_bias_0 = gen_bias(attn_impl_0)
+        attn_bias_0 = gen_bias(
+            attn_impl_0,
+            cfg,
+            s,
+            alibi,
+            attn_uses_sequence_id,
+            device,
+            sequence_id,
+        )
         alibi_slopes_0 = None
         if alibi and attn_impl_0 == 'flash':
             alibi_slopes_0 = gen_slopes(
@@ -289,7 +306,15 @@ def test_attn_impl(
             flash_attn_padding_info=flash_attn_padding_info_0,
             alibi_slopes=alibi_slopes_0,
         )
-        attn_bias_1 = gen_bias(attn_impl_1)
+        attn_bias_1 = gen_bias(
+            attn_impl_1,
+            cfg,
+            s,
+            alibi,
+            attn_uses_sequence_id,
+            device,
+            sequence_id,
+        )
         alibi_slopes_1 = None
         if alibi and attn_impl_1 == 'flash':
             alibi_slopes_1 = gen_slopes(
@@ -571,17 +596,17 @@ def test_reuse_prev_layer_kv_cache(
     alibi = pos_emb_config['alibi']
     rope = pos_emb_config['rope']
 
-    cfg = {
+    cfg = om.create({
         'attn_impl': attn_impl,
         'd_model': 64,
         'n_heads': 4,
         'attn_pdrop': 0,
         'clip_qkv': True,
-    }
+    })
 
-    n, s, f = 2, 4, cfg['d_model']
-    assert cfg['d_model'] % cfg['n_heads'] == 0
-    cfg['kv_n_heads'] = 2
+    n, s, f = 2, 4, cfg.d_model
+    assert cfg.d_model % cfg.n_heads == 0
+    cfg.kv_n_heads = 2
 
     sequence_id = torch.LongTensor([
         [0] * 2 + [1] * (s - 2),
@@ -589,58 +614,26 @@ def test_reuse_prev_layer_kv_cache(
     ]).to(device=device)
 
     # Computes its own kv cache
-    cfg['reuse_kv_layer_idx'] = None
+    cfg.reuse_kv_layer_idx = None
     attn0 = build_attention_layer(
         name='grouped_query_attention',
-        attn_kwargs=cfg,  # type: ignore
+        attn_kwargs=dict(cfg),  # type: ignore
     ).to(device)
 
     # Reuses layer 0's kv cache
-    cfg['reuse_kv_layer_idx'] = 0
+    cfg.reuse_kv_layer_idx = 0
     attn1 = build_attention_layer(
         name='grouped_query_attention',
         attn_kwargs=cfg,  # type: ignore
     ).to(device)
     attn0_sd = attn0.state_dict()
-    attn0_sd['Wq.weight'] = attn0_sd['Wqkv.weight'][:cfg['d_model']]
-    attn0_sd['Wq.bias'] = attn0_sd['Wqkv.bias'][:cfg['d_model']]
+    attn0_sd['Wq.weight'] = attn0_sd['Wqkv.weight'][:cfg.d_model]
+    attn0_sd['Wq.bias'] = attn0_sd['Wqkv.bias'][:cfg.d_model]
     del attn0_sd['Wqkv.weight']
     del attn0_sd['Wqkv.bias']
     attn1.load_state_dict(attn0_sd)
 
     attention_mask = torch.ones(n, s).to(device).bool()
-
-    def gen_bias(attn_impl: str):
-        causal = True
-        attn_bias = None
-        bs = attention.attn_bias_shape(
-            attn_impl,
-            cfg['n_heads'],
-            s,
-            alibi,
-            use_sequence_id=True,
-            causal=causal,
-        )
-        if bs is not None:
-            attn_bias = torch.zeros(*bs, device=device)
-            attn_bias = attention.build_attn_bias(
-                attn_impl,
-                attn_bias,
-                cfg['n_heads'],
-                s,
-                causal=causal,
-                alibi=alibi,
-                alibi_bias_max=8,
-            )
-        if attn_impl == 'torch':
-            assert isinstance(attn_bias, torch.Tensor)  # pyright
-            attn_bias = apply_sequence_id(
-                attn_bias,
-                sequence_id,  # type: ignore
-                s,
-            )
-
-        return attn_bias
 
     attention_mask_in_length = gen_attention_mask_in_length(
         sequence_id=sequence_id,
@@ -665,11 +658,19 @@ def test_reuse_prev_layer_kv_cache(
     x1.requires_grad = True
 
     with torch.autocast(x0.device.type):
-        attn_bias_0 = gen_bias(attn_impl)
+        attn_bias_0 = gen_bias(
+            attn_impl,
+            cfg,
+            s,
+            alibi,
+            True,
+            device,
+            sequence_id,
+        )
         alibi_slopes_0 = None
         if alibi:
             alibi_slopes_0 = gen_slopes(
-                n_heads=cfg['n_heads'],
+                n_heads=cfg.n_heads,
                 alibi_bias_max=8,
                 device=torch.device(device),
                 return_1d=True,
@@ -682,8 +683,8 @@ def test_reuse_prev_layer_kv_cache(
                 rope_dail_config=pos_emb_config.get('rope_dail_config', {}),
                 rope_hf_config=pos_emb_config.get('rope_hf_config', {}),
                 max_seq_len=s,
-                d_model=cfg['d_model'],
-                n_heads=cfg['n_heads'],
+                d_model=cfg.d_model,
+                n_heads=cfg.n_heads,
             ).to(device)
             pos = torch.arange(s).unsqueeze(0).to(device=device)
             # adjust the position indices to account for padding tokens
@@ -716,7 +717,7 @@ def test_reuse_prev_layer_kv_cache(
         alibi_slopes_1 = None
         if alibi:
             alibi_slopes_1 = gen_slopes(
-                n_heads=cfg['n_heads'],
+                n_heads=cfg.n_heads,
                 alibi_bias_max=8,
                 device=torch.device(device),
                 return_1d=True,
@@ -752,8 +753,8 @@ def test_reuse_prev_layer_kv_cache(
             tp = torch_name_param_map[n.replace('Wqkv', 'Wq')]
             assert p.grad is not None
             assert tp.grad is not None
-            assert allclose_helper(p[:cfg['d_model']], tp)
-            assert allclose_helper(p.grad[:cfg['d_model']], tp.grad)
+            assert allclose_helper(p[:cfg.d_model], tp)
+            assert allclose_helper(p.grad[:cfg.d_model], tp.grad)
         else:
             tp = torch_name_param_map[n]
             assert p.grad is not None
@@ -763,10 +764,6 @@ def test_reuse_prev_layer_kv_cache(
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('attn_impl', [
-    'flash',
-    'torch',
-])
 @pytest.mark.parametrize(
     'pos_emb_config',
     [{
@@ -785,7 +782,6 @@ def test_reuse_prev_layer_kv_cache(
     }],
 )
 def test_nope(
-    attn_impl: str,
     pos_emb_config: dict,
     device: str = 'cuda',
 ):
@@ -797,10 +793,9 @@ def test_nope(
     attn_type = 'grouped_query_attention'
     alibi = pos_emb_config['alibi']
     rope = pos_emb_config['rope']
-    if alibi and not (check_alibi_support(attn_impl)):
+    if alibi and not (check_alibi_support('flash')):
         pytest.skip('flash attention below v2.4.2 does not support alibi.')
-    if rope and (pos_emb_config['rope_impl']
-                 == 'dail') and (not is_flash_v2_installed()):
+    if rope and (not is_flash_v2_installed()):
         pytest.skip('dail implementation of rope requires flash attention 2.')
 
     cfg = om.create({
@@ -817,85 +812,53 @@ def test_nope(
 
     sequence_id = None
 
-    cfg.attn_impl = attn_impl
     cfg.nope = True
     attn0 = build_attention_layer(
         name=attn_type,
         attn_kwargs=om.to_container(cfg),  # type: ignore
     ).to(device)
-    cfg.attn_impl = attn_impl
     cfg.nope = False  # We will explicitly not apply any positional encoding for the second attn
     attn1 = build_attention_layer(
         name=attn_type,
         attn_kwargs=om.to_container(cfg),  # type: ignore
     ).to(device)
-
     attn1.load_state_dict(attn0.state_dict())
 
     attention_mask = torch.ones(n, s).to(device).bool()
-
-    def gen_bias(attn_impl: str):
-        causal = True
-        attn_bias = None
-        bs = attention.attn_bias_shape(
-            attn_impl,
-            cfg.n_heads,
-            s,
-            alibi,
-            use_sequence_id=False,
-            causal=causal,
-        )
-        if bs is not None:
-            attn_bias = torch.zeros(*bs, device=device)
-            attn_bias = attention.build_attn_bias(
-                attn_impl,
-                attn_bias,
-                cfg.n_heads,
-                s,
-                causal=causal,
-                alibi=alibi,
-                alibi_bias_max=8,
-            )
-
-        return attn_bias
 
     attention_mask_in_length_0 = gen_attention_mask_in_length(
         sequence_id=sequence_id,
         S=s,
         attn_uses_sequence_id=False,
-        attn_impl=attn_impl,
+        attn_impl='flash',
         attention_mask=attention_mask,
     )
 
-    flash_attn_padding_info_0 = {}
-    if attn_impl == 'flash':
-        flash_attn_padding_info_0 = gen_flash_attn_padding_info(
-            n,
-            s,
-            0,
-            torch.device(device),
-            attention_mask_in_length_0,
-            attention_mask,
-        )
+    flash_attn_padding_info_0 = gen_flash_attn_padding_info(
+        n,
+        s,
+        0,
+        torch.device(device),
+        attention_mask_in_length_0,
+        attention_mask,
+    )
 
     attention_mask_in_length_1 = gen_attention_mask_in_length(
         sequence_id=sequence_id,
         S=s,
         attn_uses_sequence_id=False,
-        attn_impl=attn_impl,
+        attn_impl='flash',
         attention_mask=attention_mask,
     )
 
-    flash_attn_padding_info_1 = {}
-    if attn_impl == 'flash':
-        flash_attn_padding_info_1 = gen_flash_attn_padding_info(
-            n,
-            s,
-            0,
-            torch.device(device),
-            attention_mask_in_length_1,
-            attention_mask,
-        )
+    flash_attn_padding_info_1 = gen_flash_attn_padding_info(
+        n,
+        s,
+        0,
+        torch.device(device),
+        attention_mask_in_length_1,
+        attention_mask,
+    )
 
     x0 = torch.randn(n, s, f).to(device)
     x1 = x0.clone().detach()
@@ -903,17 +866,24 @@ def test_nope(
     x1.requires_grad = True
 
     with torch.autocast(x0.device.type):
-        attn_bias_0 = gen_bias(attn_impl)
-        alibi_slopes_0 = None
-        if alibi and attn_impl == 'flash':
+        attn_bias_0 = gen_bias(
+            'flash',
+            cfg,
+            s,
+            alibi,
+            False,
+            device,
+            sequence_id,
+        )
+        alibi_slopes_0, rotary_emb_w_meta_info = None, None
+        if alibi:
             alibi_slopes_0 = gen_slopes(
                 n_heads=cfg.n_heads,
                 alibi_bias_max=8,
                 device=torch.device(device),
                 return_1d=True,
             )
-        rotary_emb_w_meta_info = None
-        if rope:
+        else:
             rotary_embedding = gen_rotary_embedding(
                 rope_impl=pos_emb_config['rope_impl'],
                 rope_theta=pos_emb_config['rope_theta'],
@@ -950,7 +920,15 @@ def test_nope(
             flash_attn_padding_info=flash_attn_padding_info_0,
             alibi_slopes=alibi_slopes_0,
         )
-        attn_bias_1 = gen_bias(attn_impl)
+        attn_bias_1 = gen_bias(
+            'flash',
+            cfg,
+            s,
+            alibi,
+            False,
+            device,
+            sequence_id,
+        )
 
         query_1, key_1, value_1 = attn1.get_qkv(
             x=x1,

@@ -713,7 +713,15 @@ def test_reuse_prev_layer_kv_cache(
             flash_attn_padding_info=flash_attn_padding_info,
             alibi_slopes=alibi_slopes_0,
         )
-        attn_bias_1 = gen_bias(attn_impl)
+        attn_bias_1 = gen_bias(
+            attn_impl,
+            cfg,
+            s,
+            alibi,
+            True,
+            device,
+            sequence_id,
+        )
         alibi_slopes_1 = None
         if alibi:
             alibi_slopes_1 = gen_slopes(

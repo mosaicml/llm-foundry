@@ -12,7 +12,10 @@ from llmfoundry.models.layers.attention import (
     scaled_multihead_dot_product_attention,
 )
 from llmfoundry.models.layers.layer_builders import build_attention_layer
-from llmfoundry.models.mpt.modeling_mpt import gen_flash_attn_padding_info
+from llmfoundry.models.mpt.modeling_mpt import (
+    gen_flash_attn_padding_info,
+    gen_sequence_id_info,
+)
 
 
 @pytest.mark.parametrize(
@@ -388,3 +391,38 @@ def test_cross_attn_kv_dim(attn_name: str, dim: int):
     out_unfused, _, _ = attn_layer_kv(x1)
 
     assert torch.allclose(out_fused, out_unfused)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize('attn_uses_sequence_id', [True, False])
+def test_gen_sequence_id_info(attn_uses_sequence_id: bool):
+    n, s = 2, 4
+    sequence_id = None
+    if attn_uses_sequence_id:
+        assert n == 2
+        assert s >= 4
+        sequence_id = torch.LongTensor([
+            [0] * 2 + [1] * (s - 2),
+            [0] * 4 + [1] * (s - 4),
+        ]).to(device='cuda')
+
+    attention_mask = torch.ones(n, s).to('cuda').bool()
+
+    ######## only for temporary testing
+    attention_mask[:, -s // 3:] = 0
+    if sequence_id is not None:
+        sequence_id = sequence_id.masked_fill(
+            ~attention_mask,
+            -1,
+        )  # Similar to how we set sequence id for padded tokens: https://github.com/mosaicml/llm-foundry/blob/706ea7dd40ba60a98dea5f37695d143d91c98b6c/llmfoundry/data/packing.py#L249
+    ########
+
+    attention_mask_in_length, pos_id_within_seq = gen_sequence_id_info(
+        sequence_id=sequence_id,
+        S=s,
+        attn_uses_sequence_id=attn_uses_sequence_id,
+        attn_impl='flash',
+        attention_mask=attention_mask,
+        device='cuda',
+    )
+    breakpoint()

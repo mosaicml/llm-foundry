@@ -5,6 +5,7 @@ from typing import Union
 
 import pytest
 import torch
+from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
 from llmfoundry.models.layers import attention
@@ -33,7 +34,7 @@ def allclose_helper(
 
 def gen_bias(
     attn_impl: str,
-    cfg: om.DictConfig,
+    cfg: DictConfig,
     s: int,
     alibi: bool,
     attn_uses_sequence_id: bool,

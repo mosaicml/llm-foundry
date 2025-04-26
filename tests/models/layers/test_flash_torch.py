@@ -795,10 +795,11 @@ def test_nope(
     pos_emb_config: dict,
     device: str = 'cuda',
 ):
-    """Compare all attn impl with each other.
+    """Checks that setting nope to True does not apply any position encoding.
 
-    Includes testing with and without attn_clip_qkv, attn_qk_ln, attn_qk_gn,
-    alibi, and rope.
+    We compare the output of the attention module with nope (y0) with an
+    explicit attention computation which does not apply any position encoding
+    (y1).
     """
     attn_type = 'grouped_query_attention'
     alibi = pos_emb_config['alibi']

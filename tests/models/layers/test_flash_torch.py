@@ -1,6 +1,8 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+from typing import Union
+
 import pytest
 import torch
 from omegaconf import OmegaConf as om
@@ -31,12 +33,12 @@ def allclose_helper(
 
 def gen_bias(
     attn_impl: str,
-    cfg,
-    s,
-    alibi,
-    attn_uses_sequence_id,
-    device,
-    sequence_id,
+    cfg: om.DictConfig,
+    s: int,
+    alibi: bool,
+    attn_uses_sequence_id: bool,
+    device: Union[str, torch.device],
+    sequence_id: Union[None, torch.Tensor],
 ):
     causal = True
     attn_bias = None

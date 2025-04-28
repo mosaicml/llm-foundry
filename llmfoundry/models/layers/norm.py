@@ -4,6 +4,7 @@
 from typing import Optional, Union
 
 import torch
+from torch.nn import RMSNorm  # for backwards compatibility
 
 from llmfoundry.layers_registry import norms
 
@@ -11,6 +12,7 @@ __all__ = [
     'LPLayerNorm',
     'LPRMSNorm',
     'TritonRMSNorm',
+    'RMSNorm',
 ]
 
 norms.register(name='layernorm', func=torch.nn.LayerNorm)

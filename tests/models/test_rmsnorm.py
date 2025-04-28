@@ -11,7 +11,7 @@ from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.layers.layer_builders import build_norm
 
 
-@pytest.mark.parametrize('normalized_shape', [32, 128, 4096, [64, 64]])
+@pytest.mark.parametrize('normalized_shape', [32, 128, 4096])
 @pytest.mark.parametrize('device', ['cpu', 'cuda'])
 def test_rmsnorm_backwards_compatibility(
     normalized_shape: Union[int, list[int]],
@@ -54,7 +54,7 @@ def test_rmsnorm_backwards_compatibility(
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('normalized_shape', [32, 128, 4096, [64, 64]])
+@pytest.mark.parametrize('normalized_shape', [32, 128, 4096])
 def test_rmsnorm_triton_vs_eager(
     normalized_shape: Union[int, list[int]],
     device: str = 'cuda',

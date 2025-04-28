@@ -399,8 +399,6 @@ def test_gen_sequence_id_info(attn_uses_sequence_id: bool):
     n, s = 2, 4
     sequence_id = None
     if attn_uses_sequence_id:
-        assert n == 2
-        assert s >= 4
         sequence_id = torch.LongTensor([
             [0] * 2 + [1] * (s - 2),
             [0] * 4 + [1] * (s - 4),
@@ -408,16 +406,7 @@ def test_gen_sequence_id_info(attn_uses_sequence_id: bool):
 
     attention_mask = torch.ones(n, s).to('cuda').bool()
 
-    ######## only for temporary testing
-    attention_mask[:, -s // 3:] = 0
-    if sequence_id is not None:
-        sequence_id = sequence_id.masked_fill(
-            ~attention_mask,
-            -1,
-        )  # Similar to how we set sequence id for padded tokens: https://github.com/mosaicml/llm-foundry/blob/706ea7dd40ba60a98dea5f37695d143d91c98b6c/llmfoundry/data/packing.py#L249
-    ########
-
-    attention_mask_in_length, pos_id_within_seq = gen_sequence_id_info(
+    _, pos_id_within_seq = gen_sequence_id_info(
         sequence_id=sequence_id,
         S=s,
         attn_uses_sequence_id=attn_uses_sequence_id,
@@ -425,4 +414,12 @@ def test_gen_sequence_id_info(attn_uses_sequence_id: bool):
         attention_mask=attention_mask,
         device='cuda',
     )
-    breakpoint()
+    if attn_uses_sequence_id:
+        assert torch.all(
+            pos_id_within_seq == torch.tensor([[0, 1, 0, 1], [0, 1, 2, 3]],
+                                              device='cuda'),
+        )
+    else:
+        assert torch.all(
+            pos_id_within_seq == torch.arange(s, device='cuda').expand(1, s),
+        )

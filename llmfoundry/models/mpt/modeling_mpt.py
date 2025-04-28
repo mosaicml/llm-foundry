@@ -265,7 +265,9 @@ def gen_sequence_id_info(
             mode='constant',
             value=0,
         )
-        pos_id_within_seq = sequence_id_one_hot.cumsum(dim=1).sum(dim=-1) - 1
+        pos_id_within_seq = sequence_id_one_hot.cumsum(dim=1)
+        pos_id_within_seq = sequence_id_one_hot * pos_id_within_seq
+        pos_id_within_seq = pos_id_within_seq.sum(dim=-1) - 1
         return attention_mask_in_length, pos_id_within_seq
 
     return None, torch.arange(S, device=device)[None, :]

@@ -11,8 +11,50 @@ from llmfoundry.models.layers.attention import is_flash_v2_installed
 from llmfoundry.models.layers.layer_builders import build_norm
 
 
+@pytest.mark.parametrize('normalized_shape', [32, 128, 4096, [64, 64]])
+@pytest.mark.parametrize('device', ['cpu', 'cuda'])
+def test_rmsnorm_backwards_compatibility(
+    normalized_shape: Union[int, list[int]],
+    device: str,
+):
+    # Check that RMSNorm follows the earlier eager implementation
+    if device == 'cuda' and not torch.cuda.is_available():
+        pytest.skip('CUDA not available')
+
+    batch_size = 2
+    eps = 1e-5
+
+    rmsnorm_module = build_norm(
+        name='rmsnorm',
+        normalized_shape=normalized_shape,
+        device=device,
+    )
+
+    if isinstance(normalized_shape, int):
+        input_shape = [batch_size, normalized_shape]
+    else:
+        input_shape = (batch_size, *normalized_shape)
+
+    x = torch.randn(size=input_shape, device=device)
+
+    output_module = rmsnorm_module(x)
+
+    expected_output = x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + eps)
+    expected_output = expected_output * rmsnorm_module.weight
+
+    rtol = 1e-6
+    atol = 1e-6
+
+    torch.testing.assert_close(
+        output_module,
+        expected_output,
+        rtol=rtol,
+        atol=atol,
+    )
+
+
 @pytest.mark.gpu
-@pytest.mark.parametrize('normalized_shape', [32, 128, 4096])
+@pytest.mark.parametrize('normalized_shape', [32, 128, 4096, [64, 64]])
 def test_rmsnorm_triton_vs_eager(
     normalized_shape: Union[int, list[int]],
     device: str = 'cuda',

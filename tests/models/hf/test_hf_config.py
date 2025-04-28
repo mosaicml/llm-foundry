@@ -24,6 +24,19 @@ from llmfoundry.utils.config_utils import (
 )
 
 
+@pytest.fixture
+def tiny_llama_save_dir(tmp_path: Path, tiny_codellama_model: PreTrainedModel):
+    assert isinstance(tiny_codellama_model, PreTrainedModel)
+    assert tiny_codellama_model.generation_config is not None
+
+    save_dir = tmp_path / 'model'
+
+    # Save the model.
+    tiny_codellama_model.save_pretrained(save_dir)
+
+    return save_dir
+
+
 def test_remote_code_false_mpt(
     tiny_mpt_tokenizer: PreTrainedTokenizerBase,
     conf_path: str = 'scripts/train/yamls/finetune/mpt-7b_dolly_sft.yaml',
@@ -236,7 +249,7 @@ def test_simple_dtype():
         },
         'pretrained': False,
         'init_device': 'cpu',
-        'use_flash_attention_2': False,
+        'attn_implementation': 'eager',
     }
 
     name = model_cfg.pop('name')
@@ -263,7 +276,7 @@ def test_use_flash():
         },
         'pretrained': False,
         'init_device': 'cpu',
-        'use_flash_attention_2': True,
+        'attn_implementation': 'flash_attention_2',
     }
 
     name = model_cfg.pop('name')
@@ -335,3 +348,89 @@ def test_generation_config(
 
     # save_pretrained and reloading with hf_causal_lm should use the bos_token_id we set from earlier.
     assert inner_model.generation_config.bos_token_id == new_bos_token_id  # type: ignore
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize(
+    'attn_implementation',
+    ['eager', 'flash_attention_2', 'sdpa'],
+)
+def test_attn_implementation(
+    attn_implementation: str,
+    tiny_llama_save_dir: Path,
+):
+    model_cfg = {
+        'name': 'hf_causal_lm',
+        'pretrained_model_name_or_path': str(tiny_llama_save_dir),
+        'config_overrides': {
+            'num_hidden_layers': 2,
+            'hidden_size': 32,
+            'intermediate_size': 64,
+            'torch_dtype': 'bfloat16',
+        },
+        'pretrained': False,
+        'attn_implementation': attn_implementation,
+    }
+
+    name = model_cfg.pop('name')
+    model = build_composer_model(
+        name=name,
+        cfg=model_cfg,
+        tokenizer=None,  # type: ignore
+    )
+
+    # llama config uses _attn_implementation
+    assert model.config._attn_implementation == attn_implementation  # type: ignore
+
+
+@pytest.mark.gpu
+def test_attn_implementation_override(tiny_llama_save_dir: Path):
+    model_cfg = {
+        'name': 'hf_causal_lm',
+        'pretrained_model_name_or_path': str(tiny_llama_save_dir),
+        'config_overrides': {
+            'num_hidden_layers': 2,
+            'hidden_size': 32,
+            'intermediate_size': 64,
+            'torch_dtype': 'bfloat16',
+        },
+        'pretrained': False,
+        'use_flash_attention_2': True,
+        'attn_implementation': 'eager',
+    }
+
+    name = model_cfg.pop('name')
+    model = build_composer_model(
+        name=name,
+        cfg=model_cfg,
+        tokenizer=None,  # type: ignore
+    )
+
+    # llama config uses _attn_implementation
+    assert model.config._attn_implementation == 'flash_attention_2'  # type: ignore
+
+
+@pytest.mark.gpu
+def test_attn_implementation_none(tiny_llama_save_dir: Path):
+    model_cfg = {
+        'name': 'hf_causal_lm',
+        'pretrained_model_name_or_path': str(tiny_llama_save_dir),
+        'config_overrides': {
+            'num_hidden_layers': 2,
+            'hidden_size': 32,
+            'intermediate_size': 64,
+            'torch_dtype': 'bfloat16',
+        },
+        'pretrained': False,
+        'use_flash_attention_2': False,
+    }
+
+    name = model_cfg.pop('name')
+    model = build_composer_model(
+        name=name,
+        cfg=model_cfg,
+        tokenizer=None,  # type: ignore
+    )
+
+    # llama config uses _attn_implementation
+    assert model.config._attn_implementation == 'eager'  # type: ignore

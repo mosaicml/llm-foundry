@@ -99,23 +99,16 @@ def repeat_kv_for_gqa(hidden: torch.Tensor, n_rep: int) -> torch.Tensor:
 
 
 def apply_temperature_tuning(
-    pos_id_within_seq: Optional[torch.Tensor],
+    pos_id_within_seq: torch.Tensor,
     query: torch.Tensor,
-    attn_temperature_tuning: Optional[dict],
+    attn_temperature_tuning: dict,
 ) -> torch.Tensor:
     # Ref: https://github.com/huggingface/transformers/blob/9a4ce6477019358abc3ebd72d435da56f4c0ab7c/src/transformers/models/llama4/modeling_llama4.py#L332-L337
-    if attn_temperature_tuning is not None and attn_temperature_tuning[
-        'attn_scale'] != 0.0:
-        if pos_id_within_seq is None:
-            raise ValueError(
-                'pos_id_within_seq must be provided when attn_temperature_tuning is enabled.',
-            )
-        attn_scales = torch.log(
-            torch.floor((pos_id_within_seq + 1) /
-                        attn_temperature_tuning['floor_scale'],) + 1,
-        ).to(query.dtype) * attn_temperature_tuning['attn_scale'] + 1
-        query = query * attn_scales[:, :, None]
-    return query
+    attn_scales = torch.log(
+        torch.floor((pos_id_within_seq + 1) /
+                    attn_temperature_tuning['floor_scale'],) + 1,
+    ).to(query.dtype) * attn_temperature_tuning['attn_scale'] + 1
+    return query * attn_scales[:, :, None]
 
 
 def scaled_multihead_dot_product_attention(
@@ -636,11 +629,17 @@ class GroupedQueryAttention(nn.Module):
             **extra_kwargs,
         )
 
-        query = apply_temperature_tuning(
-            pos_id_within_seq,
-            query,
-            self.attn_temperature_tuning,
-        )
+        if self.attn_temperature_tuning is not None and self.attn_temperature_tuning[
+            'attn_scale'] != 0.0:
+            if pos_id_within_seq is None:
+                raise ValueError(
+                    'pos_id_within_seq must be provided when attn_temperature_tuning is enabled.',
+                )
+            query = apply_temperature_tuning(
+                pos_id_within_seq,
+                query,
+                self.attn_temperature_tuning,
+            )
 
         if rotary_emb_w_meta_info is not None and not self.nope:
             query, key, value = self._apply_rotary_embeddings(

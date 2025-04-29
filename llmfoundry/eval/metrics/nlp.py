@@ -74,9 +74,6 @@ class InContextLearningMetric(Metric):
     ):
         """Abstract interface for computing an in-context learning metrics.
 
-        The `output_logits` argument is deprecated and will be removed in v0.21 while it's functionality will
-        be moved to `outputs`.
-
         Args:
             batch (dict): Batch must consist minimally of `input_ids` as well as any other structure needed
                 to compute the metric.

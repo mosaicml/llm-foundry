@@ -65,16 +65,6 @@ def evaluate_model(
     should_log_config: bool = True,
     load_path: Optional[str] = None,
 ):
-    if parallelism_config:
-        deprecated_fsdp_args = list(
-            parallelism.FSDPConfig.__annotations__.keys(),
-        )
-        for deprecated_arg in deprecated_fsdp_args:
-            if deprecated_arg in parallelism_config:
-                raise ValueError(
-                    'parallelism_config cannot contain deprecated fsdp_config arguments.',
-                )
-
     log.info(f'Evaluating model: {model_name}')
     # Build tokenizer and model
     tokenizer_cfg = tokenizer

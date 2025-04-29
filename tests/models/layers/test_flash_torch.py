@@ -210,38 +210,6 @@ def test_attn_impl(
                 -1,
             )  # Similar to how we set sequence id for padded tokens: https://github.com/mosaicml/llm-foundry/blob/706ea7dd40ba60a98dea5f37695d143d91c98b6c/llmfoundry/data/packing.py#L249
 
-    def gen_bias(attn_impl: str):
-        causal = True
-        attn_bias = None
-        bs = attention.attn_bias_shape(
-            attn_impl,
-            cfg.n_heads,
-            s,
-            alibi,
-            use_sequence_id=attn_uses_sequence_id,
-            causal=causal,
-        )
-        if bs is not None:
-            attn_bias = torch.zeros(*bs, device=device)
-            attn_bias = attention.build_attn_bias(
-                attn_impl,
-                attn_bias,
-                cfg.n_heads,
-                s,
-                causal=causal,
-                alibi=alibi,
-                alibi_bias_max=8,
-            )
-        if attn_impl == 'torch' and attn_uses_sequence_id and sequence_id is not None:
-            assert isinstance(attn_bias, torch.Tensor)  # pyright
-            attn_bias = apply_sequence_id(
-                attn_bias,
-                sequence_id,  # type: ignore
-                s,
-            )
-
-        return attn_bias
-
     attention_mask_in_length_0, _ = gen_sequence_id_info(
         sequence_id=sequence_id,
         S=s,
@@ -671,38 +639,6 @@ def test_reuse_prev_layer_kv_cache(
     attn1.load_state_dict(attn0_sd)
 
     attention_mask = torch.ones(n, s).to(device).bool()
-
-    def gen_bias(attn_impl: str):
-        causal = True
-        attn_bias = None
-        bs = attention.attn_bias_shape(
-            attn_impl,
-            cfg['n_heads'],
-            s,
-            alibi,
-            use_sequence_id=True,
-            causal=causal,
-        )
-        if bs is not None:
-            attn_bias = torch.zeros(*bs, device=device)
-            attn_bias = attention.build_attn_bias(
-                attn_impl,
-                attn_bias,
-                cfg['n_heads'],
-                s,
-                causal=causal,
-                alibi=alibi,
-                alibi_bias_max=8,
-            )
-        if attn_impl == 'torch':
-            assert isinstance(attn_bias, torch.Tensor)  # pyright
-            attn_bias = apply_sequence_id(
-                attn_bias,
-                sequence_id,  # type: ignore
-                s,
-            )
-
-        return attn_bias
 
     attention_mask_in_length, _ = gen_sequence_id_info(
         sequence_id=sequence_id,

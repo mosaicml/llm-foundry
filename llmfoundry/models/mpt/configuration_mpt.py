@@ -212,6 +212,7 @@ class MPTConfig(PretrainedConfig):
         if 'loss_fn' in kwargs:
             del kwargs['loss_fn']
         if self.attn_config.get('nope', False):
+            # TODO: enable `nope` as a valid option to default position encoding. 
             raise ValueError(
                 'nope cannot be specified as the default position encoding, it can only be specified as an override using block_overrides. Please use alibi or rope instead.',
             )

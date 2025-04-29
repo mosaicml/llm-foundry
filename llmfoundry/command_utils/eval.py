@@ -11,7 +11,7 @@ import torch
 from composer.core import Callback
 from composer.loggers.logger_destination import LoggerDestination
 from composer.trainer import Trainer
-from composer.utils import dist, get_device, parallelism, reproducibility
+from composer.utils import dist, get_device, reproducibility
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 

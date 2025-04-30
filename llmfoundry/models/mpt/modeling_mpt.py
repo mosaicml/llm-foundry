@@ -190,7 +190,7 @@ def gen_attention_mask_in_length(
         S (int): Sequence length
         attn_uses_sequence_id (bool): Whether the attention uses sequence id based masking.
         attn_impl (str): Attention implementation. This function is only creates attention_mask_in_length for flash attention.
-        attention_mask (Union[None, torch.Tensor]): Attention mask that indicates which tokens are non-padding tokens. Shape (batch_size, seq_len).
+        attention_mask (Union[torch.Tensor, None]): Attention mask tensor of shape (batch_size, seq_len)
 
     Returns:
         attention_mask_in_length: (batch, seqlen), int, a nonzero number (e.g., 1, 2, 3, etc.) means length of concatenated sequence in b-th batch, and 0 means none. For example, if batch = 3 and seqlen = 6, the attention_mask_in_length is:
@@ -249,6 +249,7 @@ def _get_attn_mask_in_len_seq_one_hot(
     attention_mask: Union[torch.Tensor, None],
 ):
     attention_mask_in_length = None
+    sequence_id_one_hot = None
     if (sequence_id
         is not None) and attn_uses_sequence_id and (attn_impl == 'flash'):
         # Check if sequence has left padding. If yes, raise an error.
@@ -280,8 +281,8 @@ def _get_attn_mask_in_len_seq_one_hot(
             mode='constant',
             value=0,
         )
-        return attention_mask_in_length, sequence_id_one_hot
-    return attention_mask_in_length, None
+
+    return attention_mask_in_length, sequence_id_one_hot
 
 
 def gen_sequence_id_info(

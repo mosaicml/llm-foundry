@@ -8,6 +8,7 @@ import torch
 from composer.utils import reproducibility
 
 from llmfoundry.models.layers.attention import (
+    apply_temperature_tuning,
     attention_implementations,
     scaled_multihead_dot_product_attention,
 )
@@ -423,3 +424,27 @@ def test_gen_sequence_id_info(attn_uses_sequence_id: bool):
         assert torch.all(
             pos_id_within_seq == torch.arange(s, device='cuda').expand(1, s),
         )
+
+
+@pytest.mark.gpu
+def test_apply_temperature_tuning():
+    attn_temperature_tuning = {
+        'floor_scale': 1024,
+        'attn_scale': 2.0,
+    }
+    pos_id_within_seq = torch.tensor([[0, 1, 0, 1], [0, 1, 2, 3]],
+                                     device='cuda')
+    query = torch.randn(2, 4, 128).to(device='cuda')
+
+    attn_scales = torch.log(
+        torch.floor((pos_id_within_seq + 1) /
+                    attn_temperature_tuning['floor_scale'],) + 1,
+    ) * attn_temperature_tuning['attn_scale'] + 1
+    expected_result = (query * attn_scales[:, :, None]).to(query.dtype)
+
+    result = apply_temperature_tuning(
+        query=query,
+        attn_temperature_tuning=attn_temperature_tuning,
+        pos_id_within_seq=pos_id_within_seq,
+    )
+    assert torch.allclose(result, expected_result)

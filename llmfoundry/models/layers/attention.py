@@ -111,8 +111,8 @@ def apply_temperature_tuning(
     attn_scales = torch.log(
         torch.floor((pos_id_within_seq + 1) /
                     attn_temperature_tuning['floor_scale'],) + 1,
-    ).to(query.dtype) * attn_temperature_tuning['attn_scale'] + 1
-    return query * attn_scales[:, :, None]
+    ) * attn_temperature_tuning['attn_scale'] + 1
+    return (query * attn_scales[:, :, None]).to(query.dtype)
 
 
 def scaled_multihead_dot_product_attention(
@@ -633,13 +633,7 @@ class GroupedQueryAttention(nn.Module):
             **extra_kwargs,
         )
 
-        if self.attn_temperature_tuning is not None and self.attn_temperature_tuning[
-            'attn_scale'] != 0.0:
-            query = apply_temperature_tuning(
-                pos_id_within_seq,
-                query,
-                self.attn_temperature_tuning,
-            )
+        query = self._apply_temperature_tuning(pos_id_within_seq, query)
 
         if rotary_emb_w_meta_info is not None and not self.nope:
             query, key, value = self._apply_rotary_embeddings(
@@ -674,6 +668,16 @@ class GroupedQueryAttention(nn.Module):
         )
 
         return self.out_proj(context), attn_weights, past_key_value
+
+    def _apply_temperature_tuning(self, pos_id_within_seq, query):
+        if self.attn_temperature_tuning is not None and self.attn_temperature_tuning[
+            'attn_scale'] != 0.0:
+            query = apply_temperature_tuning(
+                pos_id_within_seq,
+                query,
+                self.attn_temperature_tuning,
+            )
+        return query
 
     def get_qkv(
         self,

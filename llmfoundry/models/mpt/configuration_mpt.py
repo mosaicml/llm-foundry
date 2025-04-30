@@ -182,6 +182,7 @@ class MPTConfig(PretrainedConfig):
 
         if block_overrides is not None:
             self._validate_block_overrides(block_overrides)
+
         self.block_overrides = block_overrides
         self.final_logit_softcapping = final_logit_softcapping
 
@@ -195,6 +196,11 @@ class MPTConfig(PretrainedConfig):
             del kwargs['name']
         if 'loss_fn' in kwargs:
             del kwargs['loss_fn']
+        if self.attn_config.get('nope', False):
+            # TODO: enable `nope` as a valid option to default position encoding.
+            raise ValueError(
+                'nope cannot be specified as the default position encoding, it can only be specified as an override using block_overrides. Please use alibi or rope instead.',
+            )
         if self.attn_config.get('alibi',
                                 False) or self.attn_config.get('rope', False):
             self.learned_pos_emb = False
@@ -219,6 +225,22 @@ class MPTConfig(PretrainedConfig):
             )
         if 'default' in block_overrides['overrides'].keys():
             raise ValueError('block overrides cannot be named "default".',)
+
+        for override_def in block_overrides['overrides'].values():
+            if 'attn_config' in override_def and override_def[
+                'attn_config'].get('nope', False):
+                if self.learned_pos_emb:
+                    raise ValueError(
+                        'nope position encoding block override cannot be used with learned_pos_emb.',
+                    )
+                if self.attn_config['attn_impl'
+                                   ] == 'torch' and self.attn_config.get(
+                                       'alibi',
+                                       False,
+                                   ):
+                    raise ValueError(
+                        'nope position encoding block override cannot be used with alibi when using torch attention.',
+                    )
 
     def _set_config_defaults(
         self,
@@ -406,6 +428,7 @@ class MPTConfig(PretrainedConfig):
             'attn_config': {
                 'sliding_window_size': None,
                 'reuse_kv_layer_idx': None,
+                'nope': None,
             },
             'ffn_config': {
                 'ffn_type': None,

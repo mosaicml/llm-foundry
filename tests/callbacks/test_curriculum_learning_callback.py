@@ -114,7 +114,9 @@ def test_curriculum_learning_callback_before_load(
         callback.before_load(state, logger)
 
 
-def test_curriculum_learning_callback_after_load(build_tiny_mpt: Callable,):
+def test_curriculum_learning_callback_after_load(
+    build_tiny_mpt: Callable,
+):
     model = build_tiny_mpt(loss_fn='torch_crossentropy')
     state = State(
         model=model,
@@ -203,7 +205,9 @@ def test_curriculum_learning_callback_iteration(
     assert state._iteration_length == Time(2, TimeUnit.EPOCH)
 
 
-def test_curriculum_learning_callback_state_dict(build_tiny_mpt: Callable,):
+def test_curriculum_learning_callback_state_dict(
+    build_tiny_mpt: Callable,
+):
     model = build_tiny_mpt(loss_fn='torch_crossentropy')
     state = State(
         model=model,

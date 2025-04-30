@@ -212,7 +212,8 @@ class OpenAIChatAPIEvalWrapper(OpenAIEvalInterface):
             new_batch['continuation_indices'].append(cont_idxs)
 
         new_batch.update({
-            k: torch.stack(new_batch[k])  # pyright: ignore
+            k:
+                torch.stack(new_batch[k])  # pyright: ignore
             for k in ['input_ids', 'labels']
         })
 

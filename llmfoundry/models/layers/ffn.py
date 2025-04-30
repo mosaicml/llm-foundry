@@ -464,7 +464,9 @@ def set_ffn_device_mesh(
         }
 
 
-def moe_fused_init_setup(ffn: nn.Module,):
+def moe_fused_init_setup(
+    ffn: nn.Module,
+):
     """Attach the _stack_dim attribute to the FFN.
 
     Args:
@@ -499,7 +501,9 @@ def build_mb_moe(
 
     ffn = megablocks.layers.moe.MoE(args)
 
-    moe_fused_init_setup(ffn=ffn,)
+    moe_fused_init_setup(
+        ffn=ffn,
+    )
     attach_ffn_mb_args(
         ffn=ffn,
         expert_parallel_group=expert_parallel_group,

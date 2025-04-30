@@ -161,8 +161,8 @@ def scaled_multihead_dot_product_attention(
         _s_k = max(0, attn_bias.size(3) - s_k)
         attn_bias = attn_bias[:, :, _s_q:, _s_k:]
 
-        if (attn_bias.size(-1) != 1 and attn_bias.size(-1) != s_k
-           ) or (attn_bias.size(-2) != 1 and attn_bias.size(-2) != s_q):
+        if (attn_bias.size(-1) != 1 and attn_bias.size(-1)
+            != s_k) or (attn_bias.size(-2) != 1 and attn_bias.size(-2) != s_q):
             raise RuntimeError(
                 f'attn_bias (shape: {attn_bias.shape}) is expected to broadcast to shape: {attn_weight.shape}.',
             )

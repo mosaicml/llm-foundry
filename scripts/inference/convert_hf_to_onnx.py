@@ -179,7 +179,9 @@ def export_to_onnx(
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Convert HF model to ONNX',)
+    parser = argparse.ArgumentParser(
+        description='Convert HF model to ONNX',
+    )
     parser.add_argument(
         '--pretrained_model_name_or_path',
         type=str,

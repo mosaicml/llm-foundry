@@ -415,7 +415,9 @@ class MPTModel(MPTPreTrainedModel):
         self.mb_args = None
         self.shift_labels = True
 
-        self.blocks = self.construct_blocks(config=config,)
+        self.blocks = self.construct_blocks(
+            config=config,
+        )
 
         # Tag all modules in the transformer blocks with the corresponding block_idx and max_block_idx
         for i, block in enumerate(self.blocks):
@@ -1363,8 +1365,8 @@ def compute_loss_from_logits(
     if torch.all(targets == loss_fn.ignore_index):  # type: ignore
         loss = losses.sum()
     else:
-        loss = losses.sum() / (targets !=
-                               loss_fn.ignore_index).sum()  # type: ignore
+        loss = losses.sum() / (targets
+                               != loss_fn.ignore_index).sum()  # type: ignore
 
     return loss
 

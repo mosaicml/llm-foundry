@@ -171,13 +171,12 @@ def gen_rotary_embedding(
     raise ValueError('rope_impl needs to be either dail or hf')
 
 
-def gen_sequence_id_info(
+def gen_attention_mask_in_length(
     sequence_id: Union[None, torch.Tensor],
     S: int,
     attn_uses_sequence_id: bool,
     attn_impl: str,
     attention_mask: Union[torch.Tensor, None],
-    device: Union[torch.device, str],
 ):
     """Generates the attention mask used for sequence masking in FA v2.
 
@@ -191,8 +190,7 @@ def gen_sequence_id_info(
         S (int): Sequence length
         attn_uses_sequence_id (bool): Whether the attention uses sequence id based masking.
         attn_impl (str): Attention implementation. This function is only creates attention_mask_in_length for flash attention.
-        attention_mask (Union[torch.Tensor, None]): Attention mask tensor of shape (batch_size, seq_len)
-        device (torch.device): The device on which the tensors are to be allocated.
+        attention_mask (Union[None, torch.Tensor]): Attention mask that indicates which tokens are non-padding tokens. Shape (batch_size, seq_len).
 
     Returns:
         attention_mask_in_length: (batch, seqlen), int, a nonzero number (e.g., 1, 2, 3, etc.) means length of concatenated sequence in b-th batch, and 0 means none. For example, if batch = 3 and seqlen = 6, the attention_mask_in_length is:
@@ -233,8 +231,24 @@ def gen_sequence_id_info(
             ]
             ```.
             (The description above is taken verbatim from https://github.com/Dao-AILab/flash-attention/blob/9356a1c0389660d7e231ff3163c1ac17d9e3824a/flash_attn/bert_padding.py#L125 .)
-            pos_id_within_seq (torch.Tensor): Tensor containing the position id within the sequence for each token. Shape (batch_size, seq_len).
     """
+    return _get_attn_mask_in_len_seq_one_hot(
+        sequence_id,
+        S,
+        attn_uses_sequence_id,
+        attn_impl,
+        attention_mask,
+    )[0]
+
+
+def _get_attn_mask_in_len_seq_one_hot(
+    sequence_id: Union[None, torch.Tensor],
+    S: int,
+    attn_uses_sequence_id: bool,
+    attn_impl: str,
+    attention_mask: Union[torch.Tensor, None],
+):
+    attention_mask_in_length = None
     if (sequence_id
         is not None) and attn_uses_sequence_id and (attn_impl == 'flash'):
         # Check if sequence has left padding. If yes, raise an error.
@@ -258,6 +272,7 @@ def gen_sequence_id_info(
                 ~attention_mask.unsqueeze(-1),
                 0,
             )
+
         attention_mask_in_length = sequence_id_one_hot.sum(dim=1)
         attention_mask_in_length = torch.nn.functional.pad(
             attention_mask_in_length,
@@ -265,6 +280,27 @@ def gen_sequence_id_info(
             mode='constant',
             value=0,
         )
+        return attention_mask_in_length, sequence_id_one_hot
+    return attention_mask_in_length, None
+
+
+def gen_sequence_id_info(
+    sequence_id: Union[None, torch.Tensor],
+    S: int,
+    attn_uses_sequence_id: bool,
+    attn_impl: str,
+    attention_mask: Union[torch.Tensor, None],
+    device: Union[torch.device, str],
+):
+    attention_mask_in_length, sequence_id_one_hot = _get_attn_mask_in_len_seq_one_hot(
+        sequence_id,
+        S,
+        attn_uses_sequence_id,
+        attn_impl,
+        attention_mask,
+    )
+
+    if sequence_id_one_hot is not None:
         pos_id_within_seq = sequence_id_one_hot.cumsum(dim=1)
         pos_id_within_seq = sequence_id_one_hot * pos_id_within_seq
         pos_id_within_seq = pos_id_within_seq.sum(dim=-1) - 1

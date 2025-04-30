@@ -99,10 +99,14 @@ def repeat_kv_for_gqa(hidden: torch.Tensor, n_rep: int) -> torch.Tensor:
 
 
 def apply_temperature_tuning(
-    pos_id_within_seq: torch.Tensor,
+    pos_id_within_seq: Optional[torch.Tensor],
     query: torch.Tensor,
     attn_temperature_tuning: dict,
 ) -> torch.Tensor:
+    if pos_id_within_seq is None:
+        raise ValueError(
+            'pos_id_within_seq must be provided when attn_temperature_tuning is enabled.',
+        )
     # Ref: https://github.com/huggingface/transformers/blob/9a4ce6477019358abc3ebd72d435da56f4c0ab7c/src/transformers/models/llama4/modeling_llama4.py#L332-L337
     attn_scales = torch.log(
         torch.floor((pos_id_within_seq + 1) /
@@ -631,10 +635,6 @@ class GroupedQueryAttention(nn.Module):
 
         if self.attn_temperature_tuning is not None and self.attn_temperature_tuning[
             'attn_scale'] != 0.0:
-            if pos_id_within_seq is None:
-                raise ValueError(
-                    'pos_id_within_seq must be provided when attn_temperature_tuning is enabled.',
-                )
             query = apply_temperature_tuning(
                 pos_id_within_seq,
                 query,

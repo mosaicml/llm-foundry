@@ -669,7 +669,11 @@ class GroupedQueryAttention(nn.Module):
 
         return self.out_proj(context), attn_weights, past_key_value
 
-    def _apply_temperature_tuning(self, pos_id_within_seq, query):
+    def _apply_temperature_tuning(
+        self,
+        pos_id_within_seq: Optional[torch.Tensor],
+        query: torch.Tensor,
+    ):
         if self.attn_temperature_tuning is not None and self.attn_temperature_tuning[
             'attn_scale'] != 0.0:
             query = apply_temperature_tuning(

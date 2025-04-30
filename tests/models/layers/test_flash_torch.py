@@ -841,7 +841,7 @@ def test_nope(
 
     attention_mask = torch.ones(n, s).to(device).bool()
 
-    attention_mask_in_length_0 = gen_sequence_id_info(
+    attention_mask_in_length_0, _ = gen_sequence_id_info(
         sequence_id=sequence_id,
         S=s,
         attn_uses_sequence_id=False,
@@ -859,7 +859,7 @@ def test_nope(
         attention_mask,
     )
 
-    attention_mask_in_length_1 = gen_sequence_id_info(
+    attention_mask_in_length_1, _ = gen_sequence_id_info(
         sequence_id=sequence_id,
         S=s,
         attn_uses_sequence_id=False,

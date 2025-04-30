@@ -7,12 +7,17 @@ from __future__ import annotations
 
 import logging
 import os
+import queue
+import threading
+import time
 import warnings
 from typing import TYPE_CHECKING, Any, Mapping, Optional, Union
 
+import torch
 import transformers
 from composer.models.huggingface import HuggingFaceModel, peft_installed
-from composer.utils import dist
+from composer.utils import dist, get_device
+from torch import nn
 from torchmetrics import Metric
 from transformers import (
     AutoConfig,
@@ -25,6 +30,7 @@ from transformers import (
 from transformers.models.auto.auto_factory import _BaseAutoModelClass
 from transformers.utils.generic import ModelOutput
 
+from llmfoundry.models.consts import _MASTER_WEIGHTS_PRECISION
 from llmfoundry.models.hf.hf_fsdp import (
     hf_get_init_device,
     prepare_hf_model_for_fsdp,
@@ -35,6 +41,11 @@ from llmfoundry.utils.config_utils import set_config_overrides
 
 if TYPE_CHECKING:
     from peft import PeftConfig, PeftModel
+
+try:
+    import transformer_engine.pytorch as te
+except:
+    te = None
 
 __all__ = ['BaseHuggingFaceModel']
 
@@ -47,8 +58,8 @@ class BaseHuggingFaceModel(HuggingFaceModel):
     Base class for HuggingFace based models.
     """
 
-    model_cls: Union[_BaseAutoModelClass,
-                     PreTrainedModel] = AutoModelForCausalLM
+    model_cls: Union[type[_BaseAutoModelClass],
+                     type[PreTrainedModel]] = AutoModelForCausalLM
     default_train_metrics: tuple = ()
     default_eval_metrics: tuple = ()
 
@@ -72,7 +83,17 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         additional_train_metrics: Optional[list] = None,
         additional_eval_metrics: Optional[list] = None,
         should_save_peft_only: bool = True,
+        attn_implementation: Optional[str] = None,
     ):
+        if use_flash_attention_2:
+            if attn_implementation is not None and attn_implementation != 'flash_attention_2':
+                warnings.warn(
+                    'use_flash_attention_2 is set, this will override attn_implementation. '
+                    +
+                    'Set attn_implementation to flash_attention_2 directly to remove this warning.',
+                )
+            attn_implementation = 'flash_attention_2'
+
         config_overrides = config_overrides or {}
 
         model = self.build_inner_model(
@@ -85,6 +106,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             config_overrides=config_overrides,
             load_in_8bit=load_in_8bit,
             pretrained=pretrained,
+            attn_implementation=attn_implementation,
         )
 
         model = self.transform_model(model)
@@ -106,7 +128,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
 
         super().__init__(
             model=model,
-            tokenizer=tokenizer,
+            tokenizer=tokenizer,  # type: ignore
             use_logits=use_logits,
             metrics=metrics,
             eval_metrics=eval_metrics,
@@ -126,14 +148,17 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         # loss is at index 0 in the output tuple, logits are at index 1
         return outputs[:2]
 
-    def transform_model(self, model: PreTrainedModel) -> PreTrainedModel:
+    def transform_model(
+        self,
+        model: Union[PreTrainedModel, 'PeftModel'],
+    ) -> Union[PreTrainedModel, 'PeftModel']:
         """Transforms the model after initialization.
 
         Args:
-            model (PreTrainedModel): The model to transform.
+            model (Union[PreTrainedModel, 'PeftModel']): The model to transform.
 
         Returns:
-            PreTrainedModel: The transformed model.
+            Union[PreTrainedModel, 'PeftModel']: The transformed model.
         """
         return model
 
@@ -151,6 +176,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             trust_remote_code=trust_remote_code,
             use_auth_token=use_auth_token,
             attn_implementation=attn_implementation,
+            torch_dtype=_MASTER_WEIGHTS_PRECISION,
             use_cache=
             False,  # Necessary due to https://github.com/huggingface/transformers/issues/28056
         )
@@ -205,8 +231,10 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         config_overrides: dict[str, Any],
         load_in_8bit: bool,
         pretrained: bool,
-        model_cls: Optional[Union[_BaseAutoModelClass, PreTrainedModel]] = None,
+        model_cls: Optional[Union[type[_BaseAutoModelClass],
+                                  type[PreTrainedModel]]] = None,
         prepare_for_fsdp: bool = False,
+        attn_implementation: Optional[str] = None,
     ) -> Union[PreTrainedModel, 'PeftModel']:
         """Builds the inner model for the ComposerHFCausalLM.
 
@@ -222,31 +250,43 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             pretrained (bool): Whether the model is pretrained.
             model_cls (Union[Type, Type[PreTrainedModel]]): Kept for backwards compatibility.
             prepare_for_fsdp (bool, optional): Kept for backwards compatilbility.
+            attn_implementation (str, optional): The attention implementation to use.
+                This will be overridden by if ``use_flash_attention_2`` is ``True``.
+                Default: ``None``.
 
         Returns:
             Union[PreTrainedModel, 'PeftModel']: The built inner model.
         """
-        if not trust_remote_code and pretrained_model_name_or_path.startswith(
-            'mosaicml/mpt',
-        ):
+        if use_flash_attention_2:
+            if attn_implementation is not None and attn_implementation != 'flash_attention_2':
+                warnings.warn(
+                    'use_flash_attention_2 is set, this will override attn_implementation. '
+                    +
+                    'Set attn_implementation to flash_attention_2 directly to remove this warning.',
+                )
+            attn_implementation = 'flash_attention_2'
+        if attn_implementation is None:
+            attn_implementation = 'eager'
+
+        if pretrained_model_name_or_path.startswith('mosaicml/mpt',):
             raise ValueError(
-                'trust_remote_code must be set to True for MPT models. Without this, the MPT model code will come from the transformers library, '
+                'The MPT series of models on the Hugging Face Hub is no longer supported by LLM Foundry. '
                 +
-                'which is significantly slower and not compatible with the LLM foundry training code, rather than the code release by MosaicML.',
+                'Please use an older version of LLM Foundry (<0.18) or use a different model. '
+                +
+                'Please open a GitHub issue if this is a problem for you and we can help you downgrade or work around the issue.',
             )
         # Resolve "mixed" init device to either "cpu" or "meta"
         resolved_init_device = hf_get_init_device(init_device)
-        requested_attention_implementation = 'flash_attention_2' if use_flash_attention_2 else 'eager'
 
-        if use_flash_attention_2 and not is_flash_v2_installed():
+        if attn_implementation == 'flash_attention_2' and not is_flash_v2_installed(
+        ):
             raise ValueError(
                 'use_flash_attention_2 is set to True, but flash-attention 2 is not installed. '
                 + 'Please `pip install llm-foundry[gpu]`.',
             )
 
-        auto_model_cls: Union[
-            _BaseAutoModelClass,
-            PreTrainedModel] = cls.model_cls if model_cls is None else model_cls
+        auto_model_cls = cls.model_cls if model_cls is None else model_cls
 
         if not (
             hasattr(auto_model_cls, 'from_pretrained') and
@@ -265,7 +305,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
                 pretrained_model_name_or_path,
                 trust_remote_code=trust_remote_code,
                 use_auth_token=use_auth_token,
-                attn_implementation=requested_attention_implementation,
+                attn_implementation=attn_implementation,
                 use_cache=
                 False,  # Necessary due to https://github.com/huggingface/transformers/issues/28056
             )
@@ -284,13 +324,13 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             pretrained_model_name_or_path,
             trust_remote_code=trust_remote_code,
             use_auth_token=use_auth_token,
-            attn_implementation=requested_attention_implementation,
+            attn_implementation=attn_implementation,
             config_overrides=config_overrides,
         )
 
         # We need to have all non-zero local ranks be not-pretrained
         # Rank 0 will still be pretrained, and distribute the weights appropriately
-        if dist.get_local_rank() != 0 and init_device == 'mixed':
+        if dist.get_global_rank() != 0 and init_device == 'mixed':
             pretrained = False
 
         # Hugging Face copies the modules into the
@@ -306,67 +346,124 @@ class BaseHuggingFaceModel(HuggingFaceModel):
                             pretrained_model_name_or_path,
                             trust_remote_code=trust_remote_code,
                             use_auth_token=use_auth_token,
-                            attn_implementation=
-                            requested_attention_implementation,
+                            attn_implementation=attn_implementation,
                             config=config,
                         )
             else:
                 with init_empty_weights(include_buffers=False):
-                    auto_model_cls.from_config(
+                    auto_model_cls.from_config(  # type: ignore
                         config,
                         trust_remote_code=trust_remote_code,
-                        attn_implementation=requested_attention_implementation,
+                        attn_implementation=attn_implementation,
                     )
 
         dist.barrier()
 
-        # initialize the model on the correct device
-        if resolved_init_device == 'cpu':
-            if pretrained:
-                model = auto_model_cls.from_pretrained(
-                    pretrained_model_name_or_path,
-                    trust_remote_code=trust_remote_code,
-                    use_auth_token=use_auth_token,
-                    load_in_8bit=load_in_8bit,
-                    attn_implementation=requested_attention_implementation,
-                    config=config,
-                )
-            else:
-                model = auto_model_cls.from_config(
-                    config,
-                    trust_remote_code=trust_remote_code,
-                    attn_implementation=requested_attention_implementation,
-                )
-        elif resolved_init_device == 'meta':
-            if pretrained:
-                raise ValueError(
-                    'Setting cfg.pretrained=True is not supported when init_device="meta".',
-                )
-            with init_empty_weights(include_buffers=False):
-                model = auto_model_cls.from_config(
-                    config,
-                    trust_remote_code=trust_remote_code,
-                    attn_implementation=requested_attention_implementation,
-                )
-        else:
-            raise ValueError(
-                f'init_device="{init_device}" must be either "cpu" or "meta".',
+        def download_thread_target(queue: Optional[queue.Queue]):
+            """Thread target to wait for the model to be downloaded."""
+            device = get_device(None)
+
+            status = 0
+
+            done_tensor = device.tensor_to_device(
+                torch.tensor(
+                    [status],
+                    dtype=torch.int,
+                ),
             )
 
-        signal_file_path = dist.get_node_signal_file_name()
-        if dist.get_local_rank() == 0:
-            with open(signal_file_path, 'wb') as f:
-                f.write(b'local_rank0_completed_download')
+            dist.broadcast(done_tensor, src=0)
+            all_done = done_tensor.item()
 
-        # Avoid the collective call until the local rank zero has finished trying to download the checkpoint
-        # so that we don't timeout for large downloads. This syncs all processes on the node
-        with dist.local_rank_zero_download_and_wait(signal_file_path):
-            # Then, wait to ensure every node has finished downloading the checkpoint
-            dist.barrier()
+            while not all_done:
+                # On rank 0, queue exists, and the presence of an item indicates completion
+                # On all other ranks, the queue object does not exist
+                if queue is not None and not queue.empty():
+                    status = 1
+                done_tensor.fill_(status)
+                dist.broadcast(done_tensor, src=0)
+                all_done = done_tensor.item()
+                time.sleep(1)
 
-        if dist.get_local_rank() == 0:
-            os.remove(signal_file_path)
+        # Create a thread to busy wait for the download to be complete
+        # This approach is used because NCCL process group does not support updating the timeout
+        # and we don't want to require a super long distributed timeout for all operations
+        wait_for_download_thread = None
+        download_status_queue = None
+        if dist.get_world_size() > 1:
+            download_status_queue = queue.Queue() if dist.get_global_rank(
+            ) == 0 else None
 
+            # Create a thread to busy wait for download to be complete
+            wait_for_download_thread = threading.Thread(
+                target=download_thread_target,
+                daemon=True,
+                args=(download_status_queue,),
+            )
+            log.debug('Starting download thread')
+            wait_for_download_thread.start()
+
+        model = None
+        error = None
+        try:
+            # initialize the model on the correct device
+            if resolved_init_device == 'cpu':
+                if pretrained:
+                    model = auto_model_cls.from_pretrained(
+                        pretrained_model_name_or_path,
+                        trust_remote_code=trust_remote_code,
+                        use_auth_token=use_auth_token,
+                        load_in_8bit=load_in_8bit,
+                        attn_implementation=attn_implementation,
+                        config=config,
+                    )
+                else:
+                    model = auto_model_cls.from_config(  # type: ignore
+                        config,
+                        trust_remote_code=trust_remote_code,
+                        attn_implementation=attn_implementation,
+                    )
+            elif resolved_init_device == 'meta':
+                if pretrained:
+                    raise ValueError(
+                        'Setting cfg.pretrained=True is not supported when init_device="meta".',
+                    )
+                with init_empty_weights(include_buffers=False):
+                    model = auto_model_cls.from_config(  # type: ignore
+                        config,
+                        trust_remote_code=trust_remote_code,
+                        attn_implementation=attn_implementation,
+                    )
+            else:
+                raise ValueError(
+                    f'Got {init_device=} which resolved to unknown device {resolved_init_device=} on global rank {dist.get_global_rank()}.',
+                )
+        except Exception as e:
+            error = e
+            log.error(e)
+
+        # Signal that the download is complete on rank 0
+        if download_status_queue is not None:
+            download_status_queue.put(1)
+            log.debug('Download complete')
+
+        # Join and wait for the thread to complete on all ranks
+        if wait_for_download_thread is not None:
+            log.debug('Joining download thread')
+            wait_for_download_thread.join(timeout=3600)
+            log.debug('Download thread joined')
+
+        # Gather information about which ranks errored
+        gathered_errors = dist.all_gather_object(error)
+        ranks_with_error = [
+            rank for rank, err in enumerate(gathered_errors) if err is not None
+        ]
+        if len(ranks_with_error) > 0:
+            raise RuntimeError(
+                f'Error initializing model on ranks {ranks_with_error}. See individual rank logs for more details',
+            )
+
+        assert model is not None
         # Use the pretrained generation config for the model if it exists.
         try:
             model.generation_config = GenerationConfig.from_pretrained(
@@ -434,5 +531,41 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         # so that the (possible) embedding resizing doesn't destroy them
         prepare_hf_model_for_fsdp(model, init_device)
 
+        # Define explicitly which layers should be initialized with ones (these are known to be skipped by the underlying Hugging Face model._init_weights)
+        EXPLICIT_INIT_ONES_NAMES = ['LlamaRMSNorm', 'Qwen2RMSNorm']
+
+        def _custom_param_init_fn(module: nn.Module):
+            """Custom parameter initialization function for the model's modules.
+
+            Args:
+                module: The module to initialize.
+            """
+            if te is not None:
+                # Initialize transformer engine modules
+                if isinstance(
+                    module,
+                    (te.LayerNormMLP, te.LayerNormLinear, te.Linear),
+                ):
+                    if hasattr(module, 'reset_parameters') and callable(
+                        module.reset_parameters,
+                    ):
+                        module.reset_parameters(defer_init=False)
+                    return
+
+            # Use the model's default initialization method
+            model._init_weights(module)  # type: ignore
+
+            # Initialize modules that are skipped in model._init_weights
+            if hasattr(module, 'weight') and module.weight is not None:
+                weight = module.weight
+                if isinstance(weight, torch.Tensor):
+                    if module.__class__.__name__ in EXPLICIT_INIT_ONES_NAMES:
+                        torch.nn.init.ones_(weight)
+                    elif torch.isnan(weight).any():
+                        # Log a warning if a layer is left uninitialized and contains NaN values
+                        log.warning(
+                            f'{module.__class__.__name__} weight contains NaN values after model._init_weights call.',
+                        )
+
         # This provides support for meta initialization when using FSDP
-        model.param_init_fn = lambda module: model._init_weights(module)
+        model.param_init_fn = lambda module: _custom_param_init_fn(module)

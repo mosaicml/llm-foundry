@@ -6,9 +6,10 @@ from unittest.mock import patch
 
 import pytest
 import torch
-from transformers import AutoConfig
+from transformers import PretrainedConfig
 from transformers.modeling_outputs import \
-    BaseModelOutputWithPastAndCrossAttentions
+    BaseModelOutputWithPoolingAndCrossAttentions
+from transformers.models.bert.configuration_bert import BertConfig
 
 from llmfoundry.models.llm_embed import FinetuneEmbeddingModel
 from tests.test_utils import MockTokenizer
@@ -23,9 +24,7 @@ class MockAutoModel(torch.nn.Module):
 
     def __init__(self) -> None:
         super().__init__()
-        self.config: AutoConfig = AutoConfig.from_pretrained(
-            'bert-base-uncased',
-        )
+        self.config: PretrainedConfig = BertConfig()
         self.config.hidden_size = 768
         self.config.num_hidden_layers = 12
         self.config.n_layers = 12
@@ -42,7 +41,7 @@ class MockAutoModel(torch.nn.Module):
     def forward(
         self,
         **kwargs: Any,
-    ) -> BaseModelOutputWithPastAndCrossAttentions:
+    ) -> BaseModelOutputWithPoolingAndCrossAttentions:
         # Simulate forward pass
         input_ids: torch.Tensor = kwargs.get(
             'input_ids',
@@ -56,8 +55,8 @@ class MockAutoModel(torch.nn.Module):
             self.config.hidden_size,
         )
         last_hidden_state = self.linear(last_hidden_state)
-        return BaseModelOutputWithPastAndCrossAttentions(
-            last_hidden_state=last_hidden_state,
+        return BaseModelOutputWithPoolingAndCrossAttentions(
+            last_hidden_state=last_hidden_state,  # type: ignore
             hidden_states=(last_hidden_state,) *
             (self.config.num_hidden_layers + 1),
         )
@@ -96,21 +95,33 @@ def test_construct_model(model: FinetuneEmbeddingModel) -> None:
 
 
 def test_get_hidden_state(model: FinetuneEmbeddingModel) -> None:
-    mock_outputs: BaseModelOutputWithPastAndCrossAttentions = BaseModelOutputWithPastAndCrossAttentions(
-        last_hidden_state=torch.randn(1, 10, model.model.config.hidden_size),
+    mock_outputs = BaseModelOutputWithPoolingAndCrossAttentions(
+        last_hidden_state=torch.randn(
+            1,
+            10,
+            model.model.config.hidden_size,  # type: ignore
+        ),
     )
     hidden_state: torch.Tensor = model.get_hidden_state(mock_outputs)
-    assert torch.equal(hidden_state, mock_outputs.last_hidden_state)
+    assert torch.equal(
+        hidden_state,
+        mock_outputs.last_hidden_state,  # type: ignore
+    )
 
 
 def test_handle_language_head(model: FinetuneEmbeddingModel) -> None:
-    mock_outputs: BaseModelOutputWithPastAndCrossAttentions = BaseModelOutputWithPastAndCrossAttentions(
-        last_hidden_state=torch.randn(1, 10, model.model.config.hidden_size),
+    mock_outputs = BaseModelOutputWithPoolingAndCrossAttentions(
+        last_hidden_state=torch.randn(
+            1,
+            10,
+            model.model.config.hidden_size,  # type: ignore
+        ),
     )
     result: torch.Tensor = model.handle_language_head(mock_outputs)
     assert isinstance(result, torch.Tensor)
     assert result.item() == 0
     assert result.dtype == torch.float32
+    assert mock_outputs.last_hidden_state is not None
     assert result.device == mock_outputs.last_hidden_state.device
 
 
@@ -123,8 +134,11 @@ def test_flops_per_batch(model: FinetuneEmbeddingModel) -> None:
     assert flops > 0
 
 
-def test_get_attribute(model: FinetuneEmbeddingModel) -> None:
-    config: AutoConfig = AutoConfig.from_pretrained('bert-base-uncased')
+def test_get_attribute(
+    model: FinetuneEmbeddingModel,
+    tiny_bert_config: PretrainedConfig,
+) -> None:
+    config = tiny_bert_config
     config.hidden_size = 768
     config.d_model = 1024
     config.n_embd = 512
@@ -143,34 +157,22 @@ def test_get_attribute(model: FinetuneEmbeddingModel) -> None:
     assert attribute_value is None
 
 
-@pytest.mark.parametrize(
-    'dist_initialized',
-    [
-        pytest.param(
-            True,
-            marks=[
-                pytest.mark.gpu,
-                pytest.mark.world_size(2),
-            ],
-        ),
-        pytest.param(False),
-    ],
-)
+@pytest.mark.gpu
+@pytest.mark.world_size(1, 2)
 def test_construct_model_distributed(
     mock_tokenizer: MockTokenizer,
     mock_auto_model: MockAutoModel,
-    dist_initialized: bool,
 ) -> None:
-    with patch('torch.distributed.is_initialized', return_value=dist_initialized), \
-         patch('torch.distributed.get_rank', return_value=0), \
-         patch('torch.distributed.barrier'), \
-         patch('transformers.AutoModel.from_pretrained', return_value=mock_auto_model), \
-         patch('llmfoundry.models.llm_embed.FinetuneEmbeddingModel.construct_model', return_value=mock_auto_model):
+    with patch(
+        'llmfoundry.models.llm_embed.finetune_embedding_model.AutoModel.from_pretrained',
+        return_value=mock_auto_model,
+    ) as from_pt_mock:
         model_instance: FinetuneEmbeddingModel = FinetuneEmbeddingModel(
             tokenizer=mock_tokenizer,
             pretrained_model_name_or_path='bert-base-uncased',
             loss_fn='torch_crossentropy',
         )
-        constructed_model: torch.nn.Module = model_instance.construct_model()
+        constructed_model = model_instance.model
         assert constructed_model is not None
         assert isinstance(constructed_model, torch.nn.Module)
+        from_pt_mock.assert_called_once()

@@ -234,4 +234,5 @@ def config_moe_args(
             get_device_mesh=get_megablocks_device_mesh,
         )
     else:
-        raise ValueError(f'Invalid ffn_type ({ffn_config["ffn_type"]}).')
+        ffn_type = ffn_config['ffn_type']
+        raise ValueError(f'Invalid ffn_type ({ffn_type}).')

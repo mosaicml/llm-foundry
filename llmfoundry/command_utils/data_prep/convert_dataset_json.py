@@ -29,7 +29,7 @@ def build_hf_dataset(
     bos_text: str = '',
     eos_text: str = '',
     no_wrap: bool = False,
-    tokenizer: PreTrainedTokenizerBase = None,
+    tokenizer: Optional[PreTrainedTokenizerBase] = None,
 ) -> IterableDataset:
     """Build an IterableDataset over the HF C4 or pile source data.
 
@@ -70,9 +70,10 @@ def build_hf_dataset(
             raise ValueError(f'max_length must be set.')
         if bos_text + eos_text == '':
             test_tokens = tokenizer('test')
-            if test_tokens['input_ids'][
-                0] != tokenizer.bos_token_id and test_tokens['input_ids'][
-                    -1] != tokenizer.eos_token_id:
+            if test_tokens['input_ids'][  # type: ignore
+                0] != tokenizer.bos_token_id and test_tokens[
+                    'input_ids'][  # type: ignore
+                        -1] != tokenizer.eos_token_id:
                 tok_error_msg = 'This tokenizer does not insert an EOS nor BOS token. '
                 tok_error_msg += 'Concatenating with this tokenizer will result in sequences being '
                 tok_error_msg += 'attached without a separating token. Please use another tokenizer, '
@@ -118,6 +119,7 @@ def convert_dataset_json(
     """
     if concat_tokens is not None:
         mode = ConcatMode.CONCAT_TOKENS
+        assert tokenizer is not None
         built_tokenizer = AutoTokenizer.from_pretrained(tokenizer)
         # we will enforce length, so suppress warnings about sequences too long for the model
         built_tokenizer.model_max_length = int(1e30)

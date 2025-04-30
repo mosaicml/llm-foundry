@@ -54,7 +54,7 @@ _ALLOWED_DATASET_KEYS = {
 
 
 def build_finetuning_dataloader(
-    tokenizer: PreTrainedTokenizerBase,
+    tokenizer: Optional[PreTrainedTokenizerBase],
     device_batch_size: Union[int, float],
     dataset: dict[str, Any],
     num_workers: int,
@@ -179,6 +179,9 @@ def build_finetuning_dataloader(
         padding/waste rates for different `cfg.dataset.packing_ratio` choices,
         given a starting workload YAML.
     """
+    if tokenizer is None:
+        raise ValueError('Tokenizer is required for finetuning dataloader')
+
     dataset_cfg = dataset
     is_streaming = (
         dataset_cfg.get('remote') is not None or
@@ -460,9 +463,10 @@ def _validate_config(
         if remote is not None:
             discovered_illegal_keys.append('`remote`')
         if discovered_illegal_keys:
+            discovered_illegal_keys_str = ', '.join(discovered_illegal_keys)
             raise ValueError(
                 'The dataset config sets a value for `hf_name` as well as the ' +\
-                f'following keys: {", ".join(discovered_illegal_keys)}.\n' +\
+                f'following keys: {discovered_illegal_keys_str}.\n' +\
                 'Those keys are used when building from a streaming dataset, but ' +\
                 'setting `hf_name` instructs the dataset to build from a HuggingFace dataset.',
             )
@@ -479,9 +483,10 @@ def _validate_config(
             if value is not None:
                 discovered_illegal_keys.append('`' + key + '`')
         if discovered_illegal_keys:
+            discovered_illegal_keys_str = ', '.join(discovered_illegal_keys)
             raise ValueError(
                 'The dataset config sets a value for `remote` as well as the ' +\
-                f'following keys: {", ".join(discovered_illegal_keys)}.\n' +\
+                f'following keys: {discovered_illegal_keys_str}.\n' +\
                 'Those keys are used when building from a HuggingFace dataset, but ' +\
                 'setting `remote` instructs the dataset to build from a streaming dataset.',
             )
@@ -503,9 +508,10 @@ def _validate_config(
             if value is not None:
                 discovered_illegal_keys.append('`' + key + '`')
         if discovered_illegal_keys:
+            discovered_illegal_keys_str = ', '.join(discovered_illegal_keys)
             raise ValueError(
                 'The dataset config sets a value for `streams` as well as the ' +\
-                f'following keys: {", ".join(discovered_illegal_keys)}.\n' +\
+                f'following keys: {discovered_illegal_keys_str}.\n' +\
                 'Those keys are used when building from a HuggingFace dataset, but ' +\
                 'setting `streams` instructs the dataset to build from a streaming dataset.',
             )
@@ -515,9 +521,10 @@ def _validate_config(
             if value is not None:
                 discovered_illegal_keys.append('`' + key + '`')
         if discovered_illegal_keys:
+            discovered_illegal_keys_str = ', '.join(discovered_illegal_keys)
             raise ValueError(
                 'The dataset config sets a value for `streams` as well as the ' +\
-                f'following keys: {", ".join(discovered_illegal_keys)}.\n' +\
+                f'following keys: {discovered_illegal_keys_str}.\n' +\
                 'Please either use single stream (set remote/local only) ' +\
                 'or put remote/local under streams',
             )
@@ -575,7 +582,8 @@ def _download_remote_hf_dataset(remote_path: str, split: str) -> str:
     )
     os.makedirs(finetune_dir, exist_ok=True)
     for extension in SUPPORTED_EXTENSIONS:
-        name = f'{remote_path.strip("/")}/{split}{extension}'
+        stripped_remote_path = remote_path.strip('/') + '/'
+        name = f'{stripped_remote_path}{split}{extension}'
         destination = str(
             os.path.abspath(
                 os.path.join(
@@ -692,12 +700,14 @@ def build_collate_fn(
             'On-the-fly packing is currently only supported for decoder-only formats.',
         )
 
+    pad_id = tokenizer.pad_token_id
+    assert isinstance(pad_id, int)
     collate_fn = BinPackCollator(
         collator=collate_fn,
         target_batch_size=device_batch_size,
         max_seq_len=max_seq_len,
-        pad_token_id=tokenizer.pad_token_id,
-        padding_side=tokenizer.padding_side,
+        pad_token_id=pad_id,
+        padding_side=tokenizer.padding_side,  # type: ignore
         max_leftover_bins_to_keep=max_leftover_bins_to_keep,
     )
     n_examples_to_pack = int(device_batch_size * packing_ratio)

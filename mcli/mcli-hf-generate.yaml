@@ -1,7 +1,7 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: v0.16.0
+  git_branch: v0.19.0
   # git_commit: # OR use your commit hash
   pip_install: .[gpu]
   ssh_clone: false  # Should be true if using a private repo
@@ -35,7 +35,7 @@ command: |
       "Here's a quick recipe for baking chocolate chip cookies: Start by" \
       "The best 5 cities to visit in Europe are"
 
-image: mosaicml/llm-foundry:2.5.1_cu124-latest
+image: mosaicml/llm-foundry:2.6.0_cu124-latest
 name: hf-generate
 
 compute:

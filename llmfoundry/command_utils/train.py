@@ -1,5 +1,6 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
+import copy
 import gc
 import logging
 import os
@@ -82,8 +83,8 @@ def validate_config(train_config: TrainConfig):
         if loader['name'] == 'text':
             if train_config.model['name'] == 'hf_t5':
                 raise ValueError(
-                    f'Model type "{train_config.model["name"]}" is not supported when using the "text " ' +\
-                    f'dataloader. Only finetuning is supported.')
+                    'Model type hf_t5 is not supported when using the \"text\" dataloader. Only finetuning is supported.',
+                )
 
     if train_config.icl_tasks is not None or train_config.icl_tasks_str is not None:
         if train_config.model['name'] == 'hf_t5':
@@ -282,31 +283,6 @@ def train(cfg: DictConfig) -> Trainer:
     # Optional fsdp data, fine-tuning, and eval configs
     fsdp_config: Optional[dict[str, Any]] = train_cfg.fsdp_config
 
-    if fsdp_config is not None:
-        if 'load_planner' in fsdp_config:
-            load_planners = list(fsdp_config['load_planner'].items())
-            if len(load_planners) > 1:
-                raise ValueError(
-                    'Only one load planner can be specified in the config.',
-                )
-            load_planner_name, load_planner_config = load_planners[0]
-            fsdp_config['load_planner'] = build_load_planner(
-                load_planner_name,
-                **load_planner_config,
-            )
-
-        if 'save_planner' in fsdp_config:
-            save_planners = list(fsdp_config['save_planner'].items())
-            if len(save_planners) > 1:
-                raise ValueError(
-                    'Only one save planner can be specified in the config.',
-                )
-            save_planner_name, save_planner_config = save_planners[0]
-            fsdp_config['save_planner'] = build_save_planner(
-                save_planner_name,
-                **save_planner_config,
-            )
-
     eval_loader_config = train_cfg.eval_loader if train_cfg.eval_loader is not None else train_cfg.eval_loaders
     icl_tasks_config = train_cfg.icl_tasks or train_cfg.icl_tasks_str
     eval_gauntlet_config = train_cfg.eval_gauntlet or train_cfg.eval_gauntlet_str
@@ -356,14 +332,42 @@ def train(cfg: DictConfig) -> Trainer:
 
     # Initialize context
     init_context = process_init_device(model_config, fsdp_config, tp_config)
-    logged_cfg.update({'fsdp_config': fsdp_config}, merge=True)
-    logged_cfg.update({'tp_config': tp_config}, merge=True)
+    logged_cfg.update({'fsdp_config': copy.deepcopy(fsdp_config)}, merge=True)
+    logged_cfg.update({'tp_config': copy.deepcopy(tp_config)}, merge=True)
+
+    if fsdp_config is not None:
+        if 'load_planner' in fsdp_config:
+            load_planners = list(fsdp_config['load_planner'].items())
+            if len(load_planners) > 1:
+                raise ValueError(
+                    'Only one load planner can be specified in the config.',
+                )
+            load_planner_name, load_planner_config = load_planners[0]
+            fsdp_config['load_planner'] = build_load_planner(
+                load_planner_name,
+                **load_planner_config,
+            )
+
+        if 'save_planner' in fsdp_config:
+            save_planners = list(fsdp_config['save_planner'].items())
+            if len(save_planners) > 1:
+                raise ValueError(
+                    'Only one save planner can be specified in the config.',
+                )
+            save_planner_name, save_planner_config = save_planners[0]
+            fsdp_config['save_planner'] = build_save_planner(
+                save_planner_name,
+                **save_planner_config,
+            )
 
     # Build tokenizer
-    log.info('Building tokenizer...')
-    tokenizer_name = train_cfg.tokenizer['name']
-    tokenizer_kwargs = train_cfg.tokenizer.get('kwargs', {})
-    tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
+    tokenizer = None
+    tokenizer_name = None
+    if train_cfg.tokenizer:
+        log.info('Building tokenizer...')
+        tokenizer_name = train_cfg.tokenizer['name']
+        tokenizer_kwargs = train_cfg.tokenizer.get('kwargs', {})
+        tokenizer = build_tokenizer(tokenizer_name, tokenizer_kwargs)
 
     # Scheduler
     scheduler_name: str = train_cfg.scheduler.pop('name')

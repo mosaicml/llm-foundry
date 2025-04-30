@@ -1,7 +1,7 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: v0.16.0
+  git_branch: v0.19.0
   # git_commit:  # OR use your commit hash
   pip_install: .[gpu]
   ssh_clone: false  # Should be true if using a private repo
@@ -16,7 +16,7 @@ gpu_num: 8
 # gpu_type:
 # cluster:  # replace with your cluster here!
 
-image: mosaicml/llm-foundry:2.5.1_cu124-latest
+image: mosaicml/llm-foundry:2.6.0_cu124-latest
 
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:
@@ -28,19 +28,20 @@ parameters:
 
   models:
   -
-    model_name: mosaicml/mpt-7b-instruct
+    model_name: meta-llama/Meta-Llama-3-8B
     # Tokenizer
     tokenizer:
-      name: EleutherAI/gpt-neox-20b
+      name: meta-llama/Meta-Llama-3-8B
       kwargs:
         model_max_length: ${max_seq_len}
 
     model:
       name: hf_causal_lm
-      pretrained_model_name_or_path: mosaicml/mpt-7b-instruct
+      pretrained_model_name_or_path: meta-llama/Meta-Llama-3-8B
       init_device: mixed
       pretrained: true
-      use_auth_token: false
+      # Note: you must have set the HF_TOKEN environment variable and have access to the llama3 models
+      use_auth_token: true
 
   # FSDP config for model sharding
   fsdp_config:

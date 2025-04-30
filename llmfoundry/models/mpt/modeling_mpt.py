@@ -83,8 +83,6 @@ from llmfoundry.models.utils.param_init_fns import generic_param_init_fn_  # typ
 from llmfoundry.models.layers.norm import LPLayerNorm  # type: ignore
 # isort: on
 
-from llmfoundry.utils.warnings import VersionedDeprecationWarning
-
 log = logging.getLogger(__name__)
 
 CROSS_ENTROPY_IGNORE_INDEX = -100
@@ -298,15 +296,15 @@ def gen_flash_attn_padding_info(
         query_padding_mask = attention_mask_in_length
         unpadding_function = bert_padding.unpad_input_for_concatenated_sequences
 
-    _, indices_q, cu_seqlens_q, max_seqlen_q = unpadding_function(
+    _, indices_q, cu_seqlens_q, max_seqlen_q, *_ = unpadding_function(
         torch.empty(bsz, S, 1, device=device),
         query_padding_mask,
     )
-    _, indices_k, cu_seqlens_k, max_seqlen_k = unpadding_function(
+    _, indices_k, cu_seqlens_k, max_seqlen_k, *_ = unpadding_function(
         torch.empty(bsz, past_key_len + S, 1, device=device),
         key_padding_mask,
     )
-    _, indices_v, _, _ = unpadding_function(
+    _, indices_v, *_ = unpadding_function(
         torch.empty(bsz, past_key_len + S, 1, device=device),
         key_padding_mask,
     )
@@ -359,7 +357,7 @@ class LlamaRotaryEmbeddingFoundry(LlamaRotaryEmbedding):
     ) -> tuple[torch.Tensor, torch.Tensor]:
         # In this subclass, we move `inv_freq` to same device as position_ids. This operation should be a no-op during training.
         # This is done to fix pipeline parallel generation using hf.generate. Please see this comment for details: https://github.com/mosaicml/llm-foundry/pull/1334#issue-2387337525
-        self.inv_freq = self.inv_freq.to(position_ids.device)
+        self.inv_freq = self.inv_freq.to(position_ids.device)  # type: ignore
         return super().forward(x=x, position_ids=position_ids)
 
 
@@ -375,7 +373,7 @@ def _fsdp_wrap_fn(
 ) -> bool:
     # FSDP Wrap function for MPT Models
     if hasattr(module, '_fsdp_kwargs_dict'):
-        return module._fsdp_kwargs_dict
+        return module._fsdp_kwargs_dict  # type: ignore
     return isinstance(module, MPTBlock)
 
 
@@ -498,7 +496,8 @@ class MPTModel(MPTPreTrainedModel):
                     module.use_bias = False
 
         log.debug(self)
-        log.debug(f'Using {self.config.init_config["name"]} initialization.')
+        init_config_name = self.config.init_config['name']
+        log.debug(f'Using {init_config_name} initialization.')
 
     @property
     def block_class(self) -> type[MPTBlock]:
@@ -514,8 +513,8 @@ class MPTModel(MPTPreTrainedModel):
             nn.ModuleList: The list of Transformer blocks.
         """
         block_args = self.extract_block_args(config.to_dict())
-        self.kv_cache_layers = set()
-        self.blocks_fuse_norm_attn_norm = block_args.get(
+        self.kv_cache_layers = set()  # type: ignore
+        self.blocks_fuse_norm_attn_norm = block_args.get(  # type: ignore
             'fuse_norm_attn_norm',
             False,
         )
@@ -610,8 +609,9 @@ class MPTModel(MPTPreTrainedModel):
     ) -> int:
         override_attn_config = override_config['attn_config']
         if override_attn_config['reuse_kv_layer_idx'] >= 0:
+            reuse_kv_layer_idx = override_attn_config['reuse_kv_layer_idx']
             raise ValueError(
-                f'The relative index of kv layer to reuse, {override_attn_config["reuse_kv_layer_idx"]=}, should be negative.',
+                f'The relative index of kv layer to reuse, override_attn_config[\'reuse_kv_layer_idx\']={reuse_kv_layer_idx}, should be negative.',
             )
         reuse_kv_layer_idx = b_idx + override_attn_config['reuse_kv_layer_idx']
         if reuse_kv_layer_idx < 0:
@@ -977,14 +977,14 @@ class MPTModel(MPTPreTrainedModel):
 
         layer_kv_cache_dict = {}
         for b_idx, block in enumerate(self.blocks):
-            attn_block = block.norm_attn_norm.attn if self.blocks_fuse_norm_attn_norm else block.attn
-            if attn_block.reuse_kv_layer_idx is not None:
-                if attn_block.reuse_kv_layer_idx not in layer_kv_cache_dict:
+            attn_block = block.norm_attn_norm.attn if self.blocks_fuse_norm_attn_norm else block.attn  # type: ignore
+            if attn_block.reuse_kv_layer_idx is not None:  # type: ignore
+                if attn_block.reuse_kv_layer_idx not in layer_kv_cache_dict:  # type: ignore
                     raise KeyError(
-                        f'kv cache for layer {block.reuse_kv_layer_idx} not found in {layer_kv_cache_dict=}.',
+                        f'kv cache for layer {block.reuse_kv_layer_idx} not found in {layer_kv_cache_dict=}.',  # type: ignore
                     )
                 prev_layer_key_value = layer_kv_cache_dict[
-                    attn_block.reuse_kv_layer_idx]
+                    attn_block.reuse_kv_layer_idx]  # type: ignore
             else:
                 prev_layer_key_value = None
             if output_hidden_states:
@@ -1042,7 +1042,7 @@ class MPTModel(MPTPreTrainedModel):
 
         return BaseModelOutputWithPast(
             last_hidden_state=x,
-            past_key_values=presents,
+            past_key_values=presents,  # type: ignore
             hidden_states=all_hidden_states,
             attentions=all_self_attns,
         )
@@ -1078,6 +1078,10 @@ class MPTModel(MPTPreTrainedModel):
 
 
 class MPTForCausalLM(MPTPreTrainedModel):
+    # Copied these from LlamaForCausalLM
+    _tied_weights_keys = ['lm_head.weight']
+    _tp_plan = {'lm_head': 'colwise_rep'}
+    _pp_plan = {'lm_head': (['hidden_states'], ['logits'])}
 
     def __init__(self, config: MPTConfig):
         super().__init__(config)
@@ -1231,8 +1235,8 @@ class MPTForCausalLM(MPTPreTrainedModel):
             )
 
         return CausalLMOutputWithPast(
-            loss=loss,
-            logits=logits,
+            loss=loss,  # type: ignore
+            logits=logits,  # type: ignore
             past_key_values=outputs.past_key_values,
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
@@ -1299,12 +1303,12 @@ class MPTForCausalLM(MPTPreTrainedModel):
         act_ckpt_mod_to_blocks = build_act_ckpt_mod_to_blocks(
             act_ckpt_target,
             MPTBlock,
-            module.max_block_idx,
+            module.max_block_idx,  # type: ignore
         )
 
         check_mapping_blocks_overlap(
             act_ckpt_mod_to_blocks,
-            module.max_block_idx,
+            module.max_block_idx,  # type: ignore
         )
 
         for k in act_ckpt_mod_to_blocks.keys():
@@ -1383,31 +1387,19 @@ def compute_loss_from_logits(
     shift_labels: bool,
     labels: torch.Tensor,
     loss_fn: nn.Module,
-    sample_weighing_factor: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
     targets = get_targets(labels) if shift_labels else labels
 
     losses = loss_fn(
-        outputs.logits.view(-1, outputs.logits.size(-1)),
+        outputs.logits.view(-1, outputs.logits.size(-1)),  # type: ignore
         targets.view(-1),
     )
 
-    if torch.all(targets == loss_fn.ignore_index):
+    if torch.all(targets == loss_fn.ignore_index):  # type: ignore
         loss = losses.sum()
     else:
-        loss = losses.sum() / (targets != loss_fn.ignore_index).sum()
-        if sample_weighing_factor is not None:
-            warnings.warn(
-                VersionedDeprecationWarning(
-                    message='sample_weighing_factor has been deprecated!',
-                    remove_version='0.17.0',
-                ),
-            )
-            if sample_weighing_factor.shape[0] > 1:
-                raise ValueError(
-                    'Sample weighing factor is not supported when batch["sample_weighing_factor"].shape[0] > 1.',
-                )
-            loss = loss * sample_weighing_factor[0].item()
+        loss = losses.sum() / (targets !=
+                               loss_fn.ignore_index).sum()  # type: ignore
 
     return loss
 
@@ -1444,7 +1436,7 @@ class ComposerMPTCausalLM(HuggingFaceModel):
 
         super().__init__(
             model=model,
-            tokenizer=tokenizer,
+            tokenizer=tokenizer,  # type: ignore
             use_logits=True,
             metrics=train_metrics,
             eval_metrics=eval_metrics,
@@ -1516,7 +1508,6 @@ class ComposerMPTCausalLM(HuggingFaceModel):
             self.shift_labels,
             batch['labels'],
             self.loss_fn,
-            batch.get('sample_weighing_factor', None),
         )
 
         if self.config.ffn_config['ffn_type'] in ffns_with_megablocks:
@@ -1527,7 +1518,9 @@ class ComposerMPTCausalLM(HuggingFaceModel):
                 raise RuntimeError(
                     'Requirements for MegaBlocks not installed; see install instructions in `README.md`.',
                 )
-            lbl = batched_load_balancing_loss(self.model.transformer.mb_args)
+            lbl = batched_load_balancing_loss(
+                self.model.transformer.mb_args,  # type: ignore
+            )  # type: ignore
             return {
                 'total': loss + lbl,
                 'loss': loss,

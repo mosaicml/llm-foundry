@@ -8,7 +8,7 @@ from composer.core.types import Batch
 from composer.models import ComposerModel
 from omegaconf import DictConfig
 from torchmetrics import Metric
-from transformers import AutoTokenizer
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.eval.metrics import InContextLearningMetric
 from llmfoundry.metrics import DEFAULT_CAUSAL_LM_EVAL_METRICS
@@ -19,7 +19,11 @@ __all__ = ['InferenceAPIEvalWrapper']
 
 class InferenceAPIEvalWrapper(ComposerModel):
 
-    def __init__(self, om_model_config: DictConfig, tokenizer: AutoTokenizer):
+    def __init__(
+        self,
+        om_model_config: DictConfig,
+        tokenizer: PreTrainedTokenizerBase,
+    ):
         from llmfoundry.utils.builders import build_metric
 
         self.tokenizer = tokenizer

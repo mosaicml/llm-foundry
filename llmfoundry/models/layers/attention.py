@@ -630,6 +630,7 @@ class GroupedQueryAttention(nn.Module):
         kv_dim: Optional[int] = None,
         flex_attn_mod_list: Optional[list[dict[str, Any]]] = None,
         flex_attn_compile: bool = FLEX_ATTN_COMPILE,
+        nope: bool = False,
     ):
         super().__init__()
 
@@ -645,6 +646,7 @@ class GroupedQueryAttention(nn.Module):
         self.sliding_window_size = sliding_window_size
         self.reuse_kv_layer_idx = reuse_kv_layer_idx
         self.attn_logit_softcapping = attn_logit_softcapping
+        self.nope = nope
 
         self.kv_dim = kv_dim if kv_dim is not None else self.d_model
         self.head_dim = d_model // n_heads
@@ -785,7 +787,7 @@ class GroupedQueryAttention(nn.Module):
             **extra_kwargs,
         )
 
-        if rotary_emb_w_meta_info is not None:
+        if rotary_emb_w_meta_info is not None and not self.nope:
             query, key, value = self._apply_rotary_embeddings(
                 rotary_emb_w_meta_info,
                 query,
@@ -1008,6 +1010,8 @@ class GroupedQueryAttention(nn.Module):
             extra_attn_kwargs (dict[str, Any]): Implementation specific args.
         """
         if self.attn_impl == 'flash':
+            if self.nope:
+                alibi_slopes = None
             extra_attn_kwargs = {
                 'should_repeat_kv_for_gqa': not is_flash_v2_installed(),
                 'alibi_slopes': alibi_slopes,
@@ -1066,6 +1070,7 @@ class MultiheadAttention(GroupedQueryAttention):
         kv_dim: Optional[int] = None,
         flex_attn_mod_list: Optional[list[dict[str, Any]]] = None,
         flex_attn_compile: bool = FLEX_ATTN_COMPILE,
+        nope: bool = False,
     ):
         super().__init__(
             d_model=d_model,
@@ -1089,6 +1094,7 @@ class MultiheadAttention(GroupedQueryAttention):
             kv_dim=kv_dim,
             flex_attn_mod_list=flex_attn_mod_list,
             flex_attn_compile=flex_attn_compile,
+            nope=nope,
         )
 
 
@@ -1121,6 +1127,7 @@ class MultiQueryAttention(GroupedQueryAttention):
         kv_dim: Optional[int] = None,
         flex_attn_mod_list: Optional[list[dict[str, Any]]] = None,
         flex_attn_compile: bool = FLEX_ATTN_COMPILE,
+        nope: bool = False,
     ):
         super().__init__(
             d_model=d_model,
@@ -1144,6 +1151,7 @@ class MultiQueryAttention(GroupedQueryAttention):
             kv_dim=kv_dim,
             flex_attn_mod_list=flex_attn_mod_list,
             flex_attn_compile=flex_attn_compile,
+            nope=nope,
         )
 
 

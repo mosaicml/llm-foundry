@@ -17,9 +17,9 @@ from llmfoundry.models.layers.attention import (
 from llmfoundry.models.layers.layer_builders import build_attention_layer
 from llmfoundry.models.mpt.modeling_mpt import (
     apply_sequence_id,
+    gen_attention_mask_in_length,
     gen_flash_attn_padding_info,
     gen_rotary_embedding,
-    gen_sequence_id_info,
 )
 
 
@@ -210,13 +210,12 @@ def test_attn_impl(
                 -1,
             )  # Similar to how we set sequence id for padded tokens: https://github.com/mosaicml/llm-foundry/blob/706ea7dd40ba60a98dea5f37695d143d91c98b6c/llmfoundry/data/packing.py#L249
 
-    attention_mask_in_length_0, _ = gen_sequence_id_info(
+    attention_mask_in_length_0 = gen_attention_mask_in_length(
         sequence_id=sequence_id,
         S=s,
         attn_uses_sequence_id=attn_uses_sequence_id,
         attn_impl=attn_impl_0,
         attention_mask=attention_mask,
-        device=device,
     )
 
     flash_attn_padding_info_0 = {}
@@ -230,13 +229,12 @@ def test_attn_impl(
             attention_mask,
         )
 
-    attention_mask_in_length_1, _ = gen_sequence_id_info(
+    attention_mask_in_length_1 = gen_attention_mask_in_length(
         sequence_id=sequence_id,
         S=s,
         attn_uses_sequence_id=attn_uses_sequence_id,
         attn_impl=attn_impl_1,
         attention_mask=attention_mask,
-        device=device,
     )
 
     flash_attn_padding_info_1 = {}
@@ -640,13 +638,12 @@ def test_reuse_prev_layer_kv_cache(
 
     attention_mask = torch.ones(n, s).to(device).bool()
 
-    attention_mask_in_length, _ = gen_sequence_id_info(
+    attention_mask_in_length = gen_attention_mask_in_length(
         sequence_id=sequence_id,
         S=s,
         attn_uses_sequence_id=True,
         attn_impl=attn_impl,
         attention_mask=attention_mask,
-        device=device,
     )
 
     flash_attn_padding_info = gen_flash_attn_padding_info(
@@ -841,13 +838,12 @@ def test_nope(
 
     attention_mask = torch.ones(n, s).to(device).bool()
 
-    attention_mask_in_length_0, _ = gen_sequence_id_info(
+    attention_mask_in_length_0 = gen_attention_mask_in_length(
         sequence_id=sequence_id,
         S=s,
         attn_uses_sequence_id=False,
         attn_impl='flash',
         attention_mask=attention_mask,
-        device=device,
     )
 
     flash_attn_padding_info_0 = gen_flash_attn_padding_info(
@@ -859,13 +855,12 @@ def test_nope(
         attention_mask,
     )
 
-    attention_mask_in_length_1, _ = gen_sequence_id_info(
+    attention_mask_in_length_1 = gen_attention_mask_in_length(
         sequence_id=sequence_id,
         S=s,
         attn_uses_sequence_id=False,
         attn_impl='flash',
         attention_mask=attention_mask,
-        device=device,
     )
 
     flash_attn_padding_info_1 = gen_flash_attn_padding_info(

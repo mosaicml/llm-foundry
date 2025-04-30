@@ -841,12 +841,13 @@ def test_nope(
 
     attention_mask = torch.ones(n, s).to(device).bool()
 
-    attention_mask_in_length_0 = gen_attention_mask_in_length(
+    attention_mask_in_length_0 = gen_sequence_id_info(
         sequence_id=sequence_id,
         S=s,
         attn_uses_sequence_id=False,
         attn_impl='flash',
         attention_mask=attention_mask,
+        device=device,
     )
 
     flash_attn_padding_info_0 = gen_flash_attn_padding_info(
@@ -858,12 +859,13 @@ def test_nope(
         attention_mask,
     )
 
-    attention_mask_in_length_1 = gen_attention_mask_in_length(
+    attention_mask_in_length_1 = gen_sequence_id_info(
         sequence_id=sequence_id,
         S=s,
         attn_uses_sequence_id=False,
         attn_impl='flash',
         attention_mask=attention_mask,
+        device=device,
     )
 
     flash_attn_padding_info_1 = gen_flash_attn_padding_info(

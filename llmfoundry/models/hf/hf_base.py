@@ -331,6 +331,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             attn_implementation=attn_implementation,
             config_overrides=config_overrides,
         )
+        print(config)
 
         # We need to have all non-zero local ranks be not-pretrained
         # Rank 0 will still be pretrained, and distribute the weights appropriately
@@ -499,6 +500,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         if prepare_for_fsdp:
             cls.prepare_inner_model(model, init_device)
 
+        print(model)
         return model
 
     def get_peft_config(self, peft_config_dict: dict[str, Any]) -> 'PeftConfig':

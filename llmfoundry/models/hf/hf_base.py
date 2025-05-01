@@ -60,6 +60,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
 
     model_cls: Union[type[_BaseAutoModelClass],
                      type[PreTrainedModel]] = AutoModelForCausalLM
+    use_text_config: bool = False
     default_train_metrics: tuple = ()
     default_eval_metrics: tuple = ()
 
@@ -180,6 +181,9 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             use_cache=
             False,  # Necessary due to https://github.com/huggingface/transformers/issues/28056
         )
+
+        if cls.use_text_config and hasattr(config, 'text_config'):
+            config = config.text_config
 
         set_config_overrides(config, config_overrides)
 

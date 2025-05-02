@@ -12,7 +12,7 @@ import torch
 import torch.distributed
 from composer import ComposerModel, Trainer
 from composer.utils.parallelism import FSDP2Config, ParallelismConfig
-from composer.distributed.fsdp2 import prepare_fully_shard
+from composer.distributed.prepare_distributed import parallelize_model
 from composer.callbacks.checkpoint_saver import CheckpointSaver
 from composer.core.callback import Callback
 from composer.profiler import (
@@ -544,9 +544,9 @@ def train(cfg: DictConfig) -> Trainer:
     
     if int(os.environ.get('USE_FSDP2', 0)) == 1:
         parallelism_config = ParallelismConfig()
-        fsdp2_config = FSDP2Config()
+        fsdp2_config = FSDP2Config(activation_checkpointing=fsdp_config.get('activation_checkpointing', False), activation_cpu_offload=fsdp_config.get('activation_cpu_offload', False))
         parallelism_config.fsdp2 = fsdp2_config
-        prepare_fully_shard(model=model.model, fsdp2_config=fsdp2_config, optimizer=optimizer)
+        parallelize_model(model=model.model, config=fsdp2_config, optimizer=optimizer)
         model.to_empty(device='cuda')
         param_init_fn = getattr(model.model, 'param_init_fn')
         for module in model.model.modules():

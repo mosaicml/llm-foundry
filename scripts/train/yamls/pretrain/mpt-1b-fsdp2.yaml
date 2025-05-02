@@ -4,11 +4,8 @@ variables:
   max_seq_len: 2048
   global_seed: 17
 
-  # Run Name
-  run_name:  fsdp2-mb8
-
 max_seq_len: ${variables.max_seq_len}
-run_name: ${variables.run_name}
+run_name:  # If left blank, will be read from env var $COMPOSER_RUN_NAME
 
 # Model
 model:
@@ -78,12 +75,12 @@ max_duration: 24800ba  # ~ 26B tokens
 eval_interval: 2000ba
 eval_first: false
 eval_subset_num_batches: -1
-global_train_batch_size: 12
+global_train_batch_size: 8
 
 # System
 seed: ${variables.global_seed}
 device_eval_batch_size: 4
-device_train_microbatch_size: 6
+device_train_microbatch_size: 4
 # device_train_microbatch_size: auto
 precision: amp_bf16
 

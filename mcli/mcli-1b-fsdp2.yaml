@@ -1,13 +1,13 @@
 integrations:
 - integration_type: git_repo
-  git_repo: mosaicml/composer
-  git_branch: main
+  git_repo: mosaicml/llm-foundry
+  git_branch: boweny/fsdp2/playground
   # git_commit:  # OR use your commit hash
   pip_install: .[gpu]
   ssh_clone: false  # Should be true if using a private repo
 - integration_type: git_repo
-  git_repo: mosaicml/llm-foundry
-  git_branch: boweny/fsdp2/playground
+  git_repo: mosaicml/composer
+  git_branch: main
   # git_commit:  # OR use your commit hash
   pip_install: .[gpu]
   ssh_clone: false  # Should be true if using a private repo
@@ -27,11 +27,11 @@ command: |
     --dataset allenai/c4 --data_subset en \
     --out_root ./my-copy-c4 --splits train_small val_small \
     --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
-  composer train/train.py train/yamls/pretrain/mpt-1b-fsdp2.yaml \
-    run_name=mpt-1b-{compute.gpus}gpu \
+  USE_FSDP2=1 composer train/train.py train/yamls/pretrain/mpt-1b-fsdp2.yaml \
+    run_name=mpt-1b-8-h100-fsdp2 \
     train_loader.dataset.split=train_small \
     eval_loader.dataset.split=val_small \
-    max_duration=100ba \
+    max_duration=512ba \
     eval_interval=0
 image: mosaicml/llm-foundry:2.6.0_cu124-latest
 name: mpt-1b-fsdp2

@@ -185,7 +185,7 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         transformers_version = transformers.__version__
         from packaging.version import parse
         transformers_version_is_dev = parse(transformers_version).is_devrelease
-        if not transformers_version_is_dev and cls.use_text_config and hasattr(config, 'text_config') and transformers_version_is_dev:
+        if cls.use_text_config and hasattr(config, 'text_config') and transformers_version_is_dev:
             config = config.text_config
 
         config.text_config.use_cache = False

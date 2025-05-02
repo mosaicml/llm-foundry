@@ -188,9 +188,9 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         if cls.use_text_config and hasattr(config, 'text_config') and transformers_version_is_dev:
             config = config.text_config
 
-        config.text_config.use_cache = False
-        config.text_config.attn_implementation = attn_implementation
-        config.text_config.torch_dtype = _MASTER_WEIGHTS_PRECISION
+        config.use_cache = False
+        config.attn_implementation = attn_implementation
+        config.torch_dtype = _MASTER_WEIGHTS_PRECISION
         set_config_overrides(config, config_overrides)
 
         return config

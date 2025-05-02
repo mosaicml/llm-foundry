@@ -182,15 +182,14 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             False,  # Necessary due to https://github.com/huggingface/transformers/issues/28056
         )
 
-        transformers_version = transformers.__version__
-        from packaging.version import parse
-        transformers_version_is_dev = parse(transformers_version).is_devrelease
-        if cls.use_text_config and hasattr(config, 'text_config') and transformers_version_is_dev:
+        if cls.use_text_config and hasattr(config, 'text_config'):
             config = config.text_config
 
-        config.use_cache = False
-        config.attn_implementation = attn_implementation
-        config.torch_dtype = _MASTER_WEIGHTS_PRECISION
+            # Forward the above overrides to the text config too
+            config.use_cache = False
+            config.attn_implementation = attn_implementation
+            config.torch_dtype = _MASTER_WEIGHTS_PRECISION
+
         set_config_overrides(config, config_overrides)
 
         return config

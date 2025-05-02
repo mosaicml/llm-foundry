@@ -98,6 +98,23 @@ def repeat_kv_for_gqa(hidden: torch.Tensor, n_rep: int) -> torch.Tensor:
     return hidden.reshape(b, s, kv_n_heads * n_rep, d)
 
 
+def apply_temperature_tuning(
+    pos_id_within_seq: Optional[torch.Tensor],
+    query: torch.Tensor,
+    attn_temperature_tuning: dict,
+) -> torch.Tensor:
+    if pos_id_within_seq is None:
+        raise ValueError(
+            'pos_id_within_seq must be provided when attn_temperature_tuning is enabled.',
+        )
+    # Ref: https://github.com/huggingface/transformers/blob/9a4ce6477019358abc3ebd72d435da56f4c0ab7c/src/transformers/models/llama4/modeling_llama4.py#L332-L337
+    attn_scales = torch.log(
+        torch.floor((pos_id_within_seq + 1) /
+                    attn_temperature_tuning['floor_scale'],) + 1,
+    ) * attn_temperature_tuning['attn_scale'] + 1
+    return (query * attn_scales[:, :, None]).to(query.dtype)
+
+
 def scaled_multihead_dot_product_attention(
     query: torch.Tensor,
     key: torch.Tensor,
@@ -460,6 +477,7 @@ class GroupedQueryAttention(nn.Module):
         sliding_window_size: int = -1,
         reuse_kv_layer_idx: Optional[int] = None,
         attn_logit_softcapping: Optional[float] = None,
+        attn_temperature_tuning: Optional[dict] = None,
         kv_dim: Optional[int] = None,
         nope: bool = False,
     ):
@@ -477,6 +495,7 @@ class GroupedQueryAttention(nn.Module):
         self.sliding_window_size = sliding_window_size
         self.reuse_kv_layer_idx = reuse_kv_layer_idx
         self.attn_logit_softcapping = attn_logit_softcapping
+        self.attn_temperature_tuning = attn_temperature_tuning
         self.nope = nope
 
         self.kv_dim = kv_dim if kv_dim is not None else self.d_model
@@ -602,6 +621,7 @@ class GroupedQueryAttention(nn.Module):
         prev_layer_key_value: Optional[tuple[torch.Tensor,
                                              torch.Tensor]] = None,
         key_value_states: Optional[torch.Tensor] = None,
+        pos_id_within_seq: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
         torch.Tensor, torch.Tensor]]]:
         extra_kwargs = {}
@@ -612,6 +632,8 @@ class GroupedQueryAttention(nn.Module):
             key_value_states=key_value_states,
             **extra_kwargs,
         )
+
+        query = self._apply_temperature_tuning(pos_id_within_seq, query)
 
         if rotary_emb_w_meta_info is not None and not self.nope:
             query, key, value = self._apply_rotary_embeddings(
@@ -646,6 +668,20 @@ class GroupedQueryAttention(nn.Module):
         )
 
         return self.out_proj(context), attn_weights, past_key_value
+
+    def _apply_temperature_tuning(
+        self,
+        pos_id_within_seq: Optional[torch.Tensor],
+        query: torch.Tensor,
+    ):
+        if self.attn_temperature_tuning is not None and self.attn_temperature_tuning[
+            'attn_scale'] != 0.0:
+            query = apply_temperature_tuning(
+                pos_id_within_seq,
+                query,
+                self.attn_temperature_tuning,
+            )
+        return query
 
     def get_qkv(
         self,
@@ -872,6 +908,7 @@ class MultiheadAttention(GroupedQueryAttention):
         sliding_window_size: int = -1,
         reuse_kv_layer_idx: Optional[int] = None,
         attn_logit_softcapping: Optional[float] = None,
+        attn_temperature_tuning: Optional[dict] = None,
         kv_dim: Optional[int] = None,
         nope: bool = False,
     ):
@@ -894,6 +931,7 @@ class MultiheadAttention(GroupedQueryAttention):
             sliding_window_size=sliding_window_size,
             reuse_kv_layer_idx=reuse_kv_layer_idx,
             attn_logit_softcapping=attn_logit_softcapping,
+            attn_temperature_tuning=attn_temperature_tuning,
             kv_dim=kv_dim,
             nope=nope,
         )
@@ -925,6 +963,7 @@ class MultiQueryAttention(GroupedQueryAttention):
         sliding_window_size: int = -1,
         reuse_kv_layer_idx: Optional[int] = None,
         attn_logit_softcapping: Optional[float] = None,
+        attn_temperature_tuning: Optional[dict] = None,
         kv_dim: Optional[int] = None,
         nope: bool = False,
     ):
@@ -947,6 +986,7 @@ class MultiQueryAttention(GroupedQueryAttention):
             sliding_window_size=sliding_window_size,
             reuse_kv_layer_idx=reuse_kv_layer_idx,
             attn_logit_softcapping=attn_logit_softcapping,
+            attn_temperature_tuning=attn_temperature_tuning,
             kv_dim=kv_dim,
             nope=nope,
         )

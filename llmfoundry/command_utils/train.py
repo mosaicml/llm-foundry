@@ -546,11 +546,10 @@ def train(cfg: DictConfig) -> Trainer:
         parallelism_config = ParallelismConfig()
         fsdp2_config = FSDP2Config()
         parallelism_config.fsdp2 = fsdp2_config
-        torch_model = model.model
-        prepare_fully_shard(model=torch_model, fsdp2_config=fsdp2_config, optimizer=optimizer)
+        prepare_fully_shard(model=model.model, fsdp2_config=fsdp2_config, optimizer=optimizer)
         model.to_empty(device='cuda')
-        param_init_fn = getattr(torch_model, 'param_init_fn')
-        for module in torch_model.modules():
+        param_init_fn = getattr(model.model, 'param_init_fn')
+        for module in model.model.modules():
             param_init_fn(module)
     # Now add the eval metrics
     try:

@@ -14,7 +14,7 @@ integrations:
 
 compute:
   gpus: 8  # Number of GPUs to use
-  cluster: r4z14p1
+  cluster: r15z4p4
   gpu_type: h100_80gb
 
 # We are fetching, converting, and training on the 'val' split

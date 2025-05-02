@@ -2,7 +2,7 @@ variables:
   data_local: ./my-copy-c4
   data_remote:  # If blank, files must be present in data_local
   max_seq_len: 2048
-  global_seed: 17
+  global_seed: 42
 
 max_seq_len: ${variables.max_seq_len}
 run_name:  # If left blank, will be read from env var $COMPOSER_RUN_NAME

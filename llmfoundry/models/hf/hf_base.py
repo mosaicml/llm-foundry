@@ -182,10 +182,12 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             False,  # Necessary due to https://github.com/huggingface/transformers/issues/28056
         )
 
-        if cls.use_text_config and hasattr(config, 'text_config'):
-            config = config.text_config
+        if cls.subselect_config_attr is not None and hasattr(
+            config, cls.subselect_config_attr
+        ):
+            config = getattr(config, cls.subselect_config_attr)
 
-            # Forward the above overrides to the text config too
+            # Forward the above overrides to the subselected config too
             config.use_cache = False
             config.attn_implementation = attn_implementation
             config.torch_dtype = _MASTER_WEIGHTS_PRECISION

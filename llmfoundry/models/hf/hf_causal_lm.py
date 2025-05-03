@@ -61,7 +61,7 @@ class ComposerHFCausalLM(BaseHuggingFaceModel):
 
     model_cls: Union[type[_BaseAutoModelClass],
                      type[PreTrainedModel]] = AutoModelForCausalLM
-    use_text_config: bool = True
+    subselect_config_attr: Optional[str] = 'text_config'
     default_train_metrics: tuple = tuple(DEFAULT_CAUSAL_LM_TRAIN_METRICS)
     default_eval_metrics: tuple = tuple(DEFAULT_CAUSAL_LM_EVAL_METRICS)
 

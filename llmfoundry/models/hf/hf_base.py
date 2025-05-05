@@ -56,6 +56,16 @@ class BaseHuggingFaceModel(HuggingFaceModel):
     """Wrapper around HuggingFaceModel.
 
     Base class for HuggingFace based models.
+
+    Attributes:
+        model_cls (type): The model class to use. Default: ``AutoModelForCausalLM``.
+        subselect_config_attr (str): The attribute to use to subselect the config.
+            This is used if you want to select only using the text_config or vision_config
+            for a multimodal model. For example, AutoConfig.from_pretrained on Llama4 produces
+            a Llama4Config, and to use as a causal LM, we need to get the Llama4TextConfig.
+            Default: ``None``, which will use whatever AutoConfig produces.
+        default_train_metrics (tuple): The default training metrics to use.
+        default_eval_metrics (tuple): The default evaluation metrics to use.
     """
 
     model_cls: Union[type[_BaseAutoModelClass],
@@ -339,7 +349,6 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             attn_implementation=attn_implementation,
             config_overrides=config_overrides,
         )
-        print(config)
 
         # We need to have all non-zero local ranks be not-pretrained
         # Rank 0 will still be pretrained, and distribute the weights appropriately
@@ -508,7 +517,6 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         if prepare_for_fsdp:
             cls.prepare_inner_model(model, init_device)
 
-        print(model)
         return model
 
     def get_peft_config(self, peft_config_dict: dict[str, Any]) -> 'PeftConfig':

@@ -59,11 +59,12 @@ class ComposerHFCausalLM(BaseHuggingFaceModel):
             Default: ``None``.
     """
 
+    model_cls: Union[type[_BaseAutoModelClass],
+                     type[PreTrainedModel]] = AutoModelForCausalLM
+
     # The text_config attr should be correct for most multimodal models, although
     # there is not an official standard for this and this may need to be updated in future
     # transformers versions.
-    model_cls: Union[type[_BaseAutoModelClass],
-                     type[PreTrainedModel]] = AutoModelForCausalLM
     subselect_config_attr: Optional[str] = 'text_config'
     default_train_metrics: tuple = tuple(DEFAULT_CAUSAL_LM_TRAIN_METRICS)
     default_eval_metrics: tuple = tuple(DEFAULT_CAUSAL_LM_EVAL_METRICS)

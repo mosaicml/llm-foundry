@@ -56,10 +56,21 @@ class BaseHuggingFaceModel(HuggingFaceModel):
     """Wrapper around HuggingFaceModel.
 
     Base class for HuggingFace based models.
+
+    Attributes:
+        model_cls (type): The model class to use. Default: ``AutoModelForCausalLM``.
+        subselect_config_attr (optional, str): The attribute to use to subselect the config.
+            This is used if you want to select only using the text_config or vision_config
+            for a multimodal model. For example, AutoConfig.from_pretrained on Llama4 produces
+            a Llama4Config, and to use as a causal LM, we need to get the Llama4TextConfig.
+            Default: ``None``, which will use whatever AutoConfig produces.
+        default_train_metrics (tuple): The default training metrics to use.
+        default_eval_metrics (tuple): The default evaluation metrics to use.
     """
 
     model_cls: Union[type[_BaseAutoModelClass],
                      type[PreTrainedModel]] = AutoModelForCausalLM
+    subselect_config_attr: Optional[str] = None
     default_train_metrics: tuple = ()
     default_eval_metrics: tuple = ()
 
@@ -171,15 +182,28 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         attn_implementation: str,
         config_overrides: dict[str, Any],
     ) -> PretrainedConfig:
+        # Necessary due to https://github.com/huggingface/transformers/issues/28056
+        use_cache = False
+
         config = AutoConfig.from_pretrained(
             pretrained_model_name_or_path,
             trust_remote_code=trust_remote_code,
             use_auth_token=use_auth_token,
             attn_implementation=attn_implementation,
             torch_dtype=_MASTER_WEIGHTS_PRECISION,
-            use_cache=
-            False,  # Necessary due to https://github.com/huggingface/transformers/issues/28056
+            use_cache=use_cache,
         )
+
+        if cls.subselect_config_attr is not None and hasattr(
+            config,
+            cls.subselect_config_attr,
+        ):
+            config = getattr(config, cls.subselect_config_attr)
+
+            # Forward the above overrides to the subselected config too
+            config.use_cache = use_cache
+            config.attn_implementation = attn_implementation
+            config.torch_dtype = _MASTER_WEIGHTS_PRECISION
 
         set_config_overrides(config, config_overrides)
 

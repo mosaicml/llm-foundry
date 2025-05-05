@@ -194,7 +194,10 @@ class BaseHuggingFaceModel(HuggingFaceModel):
             use_cache=use_cache,
         )
 
-        if cls.subselect_config_attr is not None:
+        if cls.subselect_config_attr is not None and hasattr(
+            config,
+            cls.subselect_config_attr,
+        ):
             config = getattr(config, cls.subselect_config_attr)
 
             # Forward the above overrides to the subselected config too

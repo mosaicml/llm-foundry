@@ -195,10 +195,6 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         )
 
         if cls.subselect_config_attr is not None:
-            if not hasattr(config, cls.subselect_config_attr):
-                raise ValueError(
-                    f'Config {cls.subselect_config_attr} not found in {config}.',
-                )
             config = getattr(config, cls.subselect_config_attr)
 
             # Forward the above overrides to the subselected config too

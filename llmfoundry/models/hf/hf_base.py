@@ -268,7 +268,9 @@ class BaseHuggingFaceModel(HuggingFaceModel):
         if attn_implementation is None:
             attn_implementation = 'eager'
 
-        if pretrained_model_name_or_path.startswith('mosaicml/mpt',):
+        if pretrained_model_name_or_path.startswith(
+            'mosaicml/mpt',
+        ):
             raise ValueError(
                 'The MPT series of models on the Hugging Face Hub is no longer supported by LLM Foundry. '
                 +

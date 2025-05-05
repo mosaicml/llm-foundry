@@ -845,9 +845,8 @@ if __name__ == '__main__':
                     print(
                         '\033[91m{}\033[00m\n'.format('TARGET:   '),
                         tokenizer.decode(
-                            batch['input_ids']
-                            [j,
-                             batch['labels'][j] != CROSS_ENTROPY_IGNORE_INDEX],
+                            batch['input_ids'][j, batch['labels'][j] !=
+                                               CROSS_ENTROPY_IGNORE_INDEX],
                             skip_special_tokens=False,
                             clean_up_tokenization_spaces=True,
                         ),

@@ -499,8 +499,8 @@ def build_tokenizer(
 
     signal_file_path = dist.get_node_signal_file_name()
 
-    if dist.is_available() and dist.is_initialized(
-    ) and dist.get_world_size() > 1:
+    if dist.is_available() and dist.is_initialized() and dist.get_world_size(
+    ) > 1:
         # Make sure the tokenizer files are downloaded and cached first by local rank 0
         with dist.local_rank_zero_download_and_wait(signal_file_path):
             pass
@@ -533,8 +533,8 @@ def build_tokenizer(
             f'The tokenizer {tokenizer_name} must have an eos_token.',
         )
 
-    if dist.is_available() and dist.is_initialized(
-    ) and dist.get_world_size() > 1:
+    if dist.is_available() and dist.is_initialized() and dist.get_world_size(
+    ) > 1:
         if dist.get_local_rank() == 0:
             with open(signal_file_path, 'wb') as f:
                 f.write(b'local_rank0_completed_tokenizer_setup')

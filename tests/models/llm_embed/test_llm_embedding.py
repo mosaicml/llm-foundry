@@ -206,7 +206,9 @@ def test_contrastive_loss(
             2,
         )
 
-        with get_precision_context('amp_bf16',):
+        with get_precision_context(
+            'amp_bf16',
+        ):
             trainer = Trainer(
                 model=model,
                 train_dataloader=train_dataloader,

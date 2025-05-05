@@ -11,8 +11,6 @@ from typing import Any, Optional, Union
 import torch
 import torch.distributed
 from composer import ComposerModel, Trainer
-from composer.utils.parallelism import FSDP2Config, ParallelismConfig
-from composer.distributed.prepare_distributed import parallelize_model
 from composer.callbacks.checkpoint_saver import CheckpointSaver
 from composer.core.callback import Callback
 from composer.profiler import (
@@ -541,16 +539,6 @@ def train(cfg: DictConfig) -> Trainer:
     optimizer_cfg = train_cfg.optimizer
     optimizer = build_optimizer(model, optimizer_name, optimizer_cfg)
 
-    
-    if int(os.environ.get('USE_FSDP2', 0)) == 1:
-        parallelism_config = ParallelismConfig()
-        fsdp2_config = FSDP2Config(activation_checkpointing=fsdp_config.get('activation_checkpointing', False), activation_cpu_offload=fsdp_config.get('activation_cpu_offload', False))
-        parallelism_config.fsdp2 = fsdp2_config
-        parallelize_model(model=model.model, config=fsdp2_config, optimizer=optimizer)
-        model.to_empty(device='cuda')
-        param_init_fn = getattr(model.model, 'param_init_fn')
-        for module in model.model.modules():
-            param_init_fn(module)
     # Now add the eval metrics
     try:
         if eval_loader_config is not None and not use_async_eval:
@@ -659,7 +647,6 @@ def train(cfg: DictConfig) -> Trainer:
     trainer.fit()
 
     log.info('Done.')
-    print(trainer.state.model)
     return trainer
 
 

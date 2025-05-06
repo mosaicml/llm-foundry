@@ -168,4 +168,3 @@ accumulate_train_batch_on_tokens: true
 # python /llm-foundry/scripts/data_prep/convert_dataset_hf.py --dataset allenai/c4 --data_subset en --out_root /data/my-copy --splits train_small val_small --concat_tokens 8192 --tokenizer meta-llama/Meta-Llama-3.1-70B-Instruct --eos_text '<|eot_id|>'
 # cd /llm-foundry && composer -n 8 scripts/train/train.py /mnt/config/parameters.yaml || (echo "Command failed - killing python" && pkill -f python && exit 1)
 # echo exit code is $?
-

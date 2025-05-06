@@ -645,7 +645,7 @@ def train(cfg: DictConfig) -> Trainer:
 
     log.info('Starting training...')
     trainer.fit()
-
+    print(trainer.state.model)
     log.info('Done.')
     return trainer
 

@@ -629,9 +629,6 @@ def train(cfg: DictConfig) -> Trainer:
         with FSDP.summon_full_params(model_fsdp1):
             for fsdp1_param, fsdp2_param in zip(model_fsdp1.parameters(), model_fsdp2.parameters()):
                 fsdp2_param.data.copy_(fsdp1_param.data)
-        for fsdp1_param, fsdp2_param in zip(model_fsdp1.parameters(), model_fsdp2.parameters()):
-            print(fsdp1_param.dtype, fsdp2_param.dtype)
-        exit()
         trainer.close()
         del trainer
         optimizer_fsdp2 = build_optimizer(model_fsdp2, optimizer_name, optimizer_cfg)

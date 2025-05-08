@@ -20,9 +20,9 @@ from llmfoundry.models.layers.flex_attn_utils import FLEX_ATTN_COMPILE
 from llmfoundry.models.layers.layer_builders import build_attention_layer
 from llmfoundry.models.mpt.modeling_mpt import (
     apply_sequence_id,
+    gen_attention_mask_in_length,
     gen_flash_attn_padding_info,
     gen_rotary_embedding,
-    gen_sequence_id_info,
 )
 
 compiled_flex_attention = flex_attention
@@ -229,7 +229,7 @@ def test_attn_impl(
                 -1,
             )  # Similar to how we set sequence id for padded tokens: https://github.com/mosaicml/llm-foundry/blob/706ea7dd40ba60a98dea5f37695d143d91c98b6c/llmfoundry/data/packing.py#L249
 
-    attention_mask_in_length_0 = gen_sequence_id_info(
+    attention_mask_in_length_0 = gen_attention_mask_in_length(
         sequence_id=sequence_id,
         S=s,
         attn_uses_sequence_id=attn_uses_sequence_id,
@@ -248,7 +248,7 @@ def test_attn_impl(
             attention_mask,
         )
 
-    attention_mask_in_length_1 = gen_sequence_id_info(
+    attention_mask_in_length_1 = gen_attention_mask_in_length(
         sequence_id=sequence_id,
         S=s,
         attn_uses_sequence_id=attn_uses_sequence_id,
@@ -717,7 +717,7 @@ def test_reuse_prev_layer_kv_cache(
     attn1.load_state_dict(attn0_sd)
 
     attention_mask = torch.ones(n, s).to(device).bool()
-    attention_mask_in_length = gen_sequence_id_info(
+    attention_mask_in_length = gen_attention_mask_in_length(
         sequence_id=sequence_id,
         S=s,
         attn_uses_sequence_id=True,

@@ -312,8 +312,7 @@ def test_local_global_window(
         pytest.skip(
             'FlexAttention is not supported in torch version {torch.__version__}<2.5.1.',
         )
-    global_window_size = torch.tensor(global_window_size, device='cuda')
-    sliding_window_size = torch.tensor(sliding_window_size, device='cuda')
+
     dtype = torch.bfloat16
     device = 'cuda'
     d = 128

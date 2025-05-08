@@ -1,7 +1,6 @@
 seed: 17
 model:
   name: hf_causal_lm
-  convert_to: mpt
   pretrained: false
   init_device: mixed
   use_auth_token: true

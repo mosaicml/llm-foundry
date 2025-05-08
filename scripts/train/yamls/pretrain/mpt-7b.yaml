@@ -108,15 +108,3 @@ callbacks:
   memory_monitor: {}
   runtime_estimator: {}
 
-# loggers:
-#   wandb: {}
-
-# Checkpoint to local filesystem or remote object store
-# save_interval: 5000ba
-# save_num_checkpoints_to_keep: 1  # Important, this cleans up checkpoints saved to DISK
-# save_folder: ./{run_name}/checkpoints
-# save_folder: s3://my-bucket/my-folder/{run_name}/checkpoints
-
-# Load from local filesystem or remote object store
-# load_path: ./gpt-7b/checkpoints/latest-rank{rank}.pt
-# load_path: s3://my-bucket/my-folder/gpt-7b/checkpoints/latest-rank{rank}.pt

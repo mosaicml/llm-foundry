@@ -69,12 +69,12 @@ class EvalOutputLogging(Callback):
 
         assert state.outputs is not None
         assert state.metric_outputs is not None
-        logging_dict: dict[str,
-                           Union[list[Any], torch.Tensor,
-                                 Sequence[torch.Tensor]],
-                          ] = deepcopy(
-                              state.metric_outputs,
-                          )
+        logging_dict: dict[
+            str,
+            Union[list[Any], torch.Tensor, Sequence[torch.Tensor]],
+        ] = deepcopy(
+            state.metric_outputs,
+        )
 
         if state.batch.get('mode') == 'generate':
             # Outputs are already detokenized

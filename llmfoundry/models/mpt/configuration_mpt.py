@@ -220,13 +220,17 @@ class MPTConfig(PretrainedConfig):
     def _validate_block_overrides(self, block_overrides: dict[str, Any]):
         warnings.warn(ExperimentalWarning('block_overrides'))
         if 'order' not in block_overrides:
-            raise ValueError('`order` should be defined in block_overrides',)
+            raise ValueError(
+                '`order` should be defined in block_overrides',
+            )
         if 'overrides' not in block_overrides:
             raise ValueError(
                 '`overrides` should be defined in block_overrides',
             )
         if 'default' in block_overrides['overrides'].keys():
-            raise ValueError('block overrides cannot be named "default".',)
+            raise ValueError(
+                'block overrides cannot be named "default".',
+            )
 
         for override_def in block_overrides['overrides'].values():
             if 'attn_config' in override_def and override_def[
@@ -354,8 +358,9 @@ class MPTConfig(PretrainedConfig):
                     'If using the dail implementation of rope, the flash_attn library v2.0.1 or higher must be installed. Please check the instructions at https://github.com/mosaicml/llm-foundry/blob/main/TUTORIAL.md#what-kinds-of-positional-embeddings-does-llm-foundry-support',
                 )
         if self.attn_config['sliding_window_size'] != -1 and self.attn_config[
-            'attn_impl'
-        ] == 'flash' and not is_flash_v2_installed(v2_version='v2.3.0',):
+            'attn_impl'] == 'flash' and not is_flash_v2_installed(
+                v2_version='v2.3.0',
+            ):
             raise NotImplementedError(
                 'sliding window attention only implemented for torch attention and flash attention (v2.3.0 or higher).',
             )
@@ -364,9 +369,10 @@ class MPTConfig(PretrainedConfig):
                 raise ValueError(
                     'Attention attn_logit_softcapping should be positive.',
                 )
-            if self.attn_config[
-                'attn_impl'
-            ] == 'flash' and not is_flash_v2_installed(v2_version='v2.6.2',):
+            if self.attn_config['attn_impl'
+                               ] == 'flash' and not is_flash_v2_installed(
+                                   v2_version='v2.6.2',
+                               ):
                 raise NotImplementedError(
                     'Attention attn_logit_softcapping is only implemented with torch attention or flash attention v2.6.2 (or higher).',
                 )
@@ -438,6 +444,10 @@ class MPTConfig(PretrainedConfig):
                 'sliding_window_size': None,
                 'reuse_kv_layer_idx': None,
                 'flex_attn_mod_list': None,
+                'attn_temperature_tuning': {
+                    'floor_scale': None,
+                    'attn_scale': None,
+                },
                 'nope': None,
             },
         }

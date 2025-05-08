@@ -205,7 +205,9 @@ def test_emb_init(emb_init_cfg: Optional[tuple[str, Union[int, list[int]]]]):
     'padding_idx',
     [0, 2],
 )
-def test_emb_padding_init(padding_idx: int,):
+def test_emb_padding_init(
+    padding_idx: int,
+):
     cfg: dict[str, Union[int, list[int]]] = {
         'vocab_size': 64,
         'in_features': 16,

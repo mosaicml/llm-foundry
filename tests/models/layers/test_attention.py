@@ -10,12 +10,16 @@ from packaging import version
 from torch.nn.attention.flex_attention import create_block_mask, flex_attention
 
 from llmfoundry.models.layers.attention import (
+    apply_temperature_tuning,
     attention_implementations,
     scaled_multihead_dot_product_attention,
 )
 from llmfoundry.models.layers.flex_attn_utils import FLEX_ATTN_COMPILE
 from llmfoundry.models.layers.layer_builders import build_attention_layer
-from llmfoundry.models.mpt.modeling_mpt import gen_flash_attn_padding_info
+from llmfoundry.models.mpt.modeling_mpt import (
+    gen_flash_attn_padding_info,
+    gen_sequence_id_info,
+)
 
 compiled_flex_attention = flex_attention
 compiled_create_block_mask = create_block_mask
@@ -545,3 +549,59 @@ def test_cross_attn_kv_dim(attn_name: str, dim: int):
     out_unfused, _, _ = attn_layer_kv(x1)
 
     assert torch.allclose(out_fused, out_unfused)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize('attn_uses_sequence_id', [True, False])
+def test_gen_sequence_id_info(attn_uses_sequence_id: bool):
+    n, s = 2, 4
+    sequence_id = None
+    if attn_uses_sequence_id:
+        sequence_id = torch.LongTensor([
+            [0] * 2 + [1] * (s - 2),
+            [0] * 4 + [1] * (s - 4),
+        ]).to(device='cuda')
+
+    attention_mask = torch.ones(n, s).to('cuda').bool()
+
+    _, pos_id_within_seq = gen_sequence_id_info(
+        sequence_id=sequence_id,
+        S=s,
+        attn_uses_sequence_id=attn_uses_sequence_id,
+        attn_impl='flash',
+        attention_mask=attention_mask,
+        device='cuda',
+    )
+    if attn_uses_sequence_id:
+        assert torch.all(
+            pos_id_within_seq == torch.tensor([[0, 1, 0, 1], [0, 1, 2, 3]],
+                                              device='cuda'),
+        )
+    else:
+        assert torch.all(
+            pos_id_within_seq == torch.arange(s, device='cuda').expand(1, s),
+        )
+
+
+@pytest.mark.gpu
+def test_apply_temperature_tuning():
+    attn_temperature_tuning = {
+        'floor_scale': 1024,
+        'attn_scale': 2.0,
+    }
+    pos_id_within_seq = torch.tensor([[0, 1, 0, 1], [0, 1, 2, 3]],
+                                     device='cuda')
+    query = torch.randn(2, 4, 128).to(device='cuda')
+
+    attn_scales = torch.log(
+        torch.floor((pos_id_within_seq + 1) /
+                    attn_temperature_tuning['floor_scale'],) + 1,
+    ) * attn_temperature_tuning['attn_scale'] + 1
+    expected_result = (query * attn_scales[:, :, None]).to(query.dtype)
+
+    result = apply_temperature_tuning(
+        query=query,
+        attn_temperature_tuning=attn_temperature_tuning,
+        pos_id_within_seq=pos_id_within_seq,
+    )
+    assert torch.allclose(result, expected_result)

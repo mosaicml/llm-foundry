@@ -133,7 +133,9 @@ def test_in_context_learning_mc_accuracy(
             Any,
             tiny_gpt2_with_pad_tokenizer(continuation)['input_ids'],
         )
-        end = start + len(cont_iids,)
+        end = start + len(
+            cont_iids,
+        )
         cont_idxs.append(torch.tensor(list(range(start, end))))
 
     batch = {

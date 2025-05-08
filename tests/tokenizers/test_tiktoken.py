@@ -479,7 +479,9 @@ def test_additional_special_tokens_len():
         additional_special_tokens=[special_token_to_add],
     )
 
-    no_special = TiktokenTokenizerWrapper(model_name='gpt-4',)
+    no_special = TiktokenTokenizerWrapper(
+        model_name='gpt-4',
+    )
     assert len(with_special.get_vocab()) == len(no_special.get_vocab()) + 1
 
     ret = with_special.add_special_tokens({
@@ -550,7 +552,9 @@ def test_chat_formatting(
 
 
 def test_tiktoken_out_of_range():
-    wrapped_tokenizer = TiktokenTokenizerWrapper(model_name='gpt-4',)
+    wrapped_tokenizer = TiktokenTokenizerWrapper(
+        model_name='gpt-4',
+    )
 
     # For gpt-4, 100256 is less than the vocab size, but is not a valid token
     assert wrapped_tokenizer.decode([100256]) == ''

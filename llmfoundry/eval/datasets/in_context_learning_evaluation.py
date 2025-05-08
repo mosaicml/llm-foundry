@@ -831,9 +831,9 @@ class InContextLearningGenerationTaskWithAnswersDataset(
             if k in self.static_keys:
                 chunked[k] = [v] * num_chunks
 
-        batched_list = [{k: v[idx]
-                         for k, v in chunked.items()}
-                        for idx in range(num_chunks)]
+        batched_list = [{
+            k: v[idx] for k, v in chunked.items()
+        } for idx in range(num_chunks)]
         return batched_list
 
 
@@ -1219,9 +1219,9 @@ class InContextLearningMultipleChoiceTaskDataset(InContextLearningDataset):
             if k in self.static_keys:
                 chunked[k] = [v] * num_chunks
 
-        return [{k: v[idx]
-                 for k, v in chunked.items()}
-                for idx in range(num_chunks)]
+        return [{
+            k: v[idx] for k, v in chunked.items()
+        } for idx in range(num_chunks)]
 
 
 class InContextLearningSchemaTaskDataset(

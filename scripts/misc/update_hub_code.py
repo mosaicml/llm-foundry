@@ -101,4 +101,6 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    main(hf_repos_for_upload=args.hf_repos_for_upload,)
+    main(
+        hf_repos_for_upload=args.hf_repos_for_upload,
+    )

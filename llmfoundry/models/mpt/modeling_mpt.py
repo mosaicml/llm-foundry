@@ -236,9 +236,26 @@ def gen_sequence_id_info(
             ```.
             (The description above is taken verbatim from https://github.com/Dao-AILab/flash-attention/blob/9356a1c0389660d7e231ff3163c1ac17d9e3824a/flash_attn/bert_padding.py#L125 .)
     """
-    if (sequence_id is not None) and attn_uses_sequence_id and (
-        attn_impl == 'flash' or attn_impl == 'flex'
-    ):
+    return _get_attn_mask_in_len_seq_one_hot(
+        sequence_id,
+        S,
+        attn_uses_sequence_id,
+        attn_impl,
+        attention_mask,
+    )[0]
+
+
+def _get_attn_mask_in_len_seq_one_hot(
+    sequence_id: Union[None, torch.Tensor],
+    S: int,
+    attn_uses_sequence_id: bool,
+    attn_impl: str,
+    attention_mask: Union[torch.Tensor, None],
+):
+    attention_mask_in_length = None
+    sequence_id_one_hot = None
+    if (sequence_id
+        is not None) and attn_uses_sequence_id and (attn_impl == 'flash'):
         # Check if sequence has left padding. If yes, raise an error.
         if (attention_mask is not None
            ) and (attention_mask[:, 0].sum() != attention_mask.shape[0]):
@@ -260,8 +277,7 @@ def gen_sequence_id_info(
                 ~attention_mask.unsqueeze(-1),
                 0,
             )
-        if attn_impl == 'flex':
-            return sequence_id_one_hot.cumsum(dim=1).sum(dim=-1) - 1
+
         attention_mask_in_length = sequence_id_one_hot.sum(dim=1)
         attention_mask_in_length = torch.nn.functional.pad(
             attention_mask_in_length,
@@ -271,7 +287,32 @@ def gen_sequence_id_info(
         )
         return attention_mask_in_length
 
-    return None
+    return attention_mask_in_length, sequence_id_one_hot
+
+
+def gen_sequence_id_info(
+    sequence_id: Union[None, torch.Tensor],
+    S: int,
+    attn_uses_sequence_id: bool,
+    attn_impl: str,
+    attention_mask: Union[torch.Tensor, None],
+    device: Union[torch.device, str],
+):
+    attention_mask_in_length, sequence_id_one_hot = _get_attn_mask_in_len_seq_one_hot(
+        sequence_id,
+        S,
+        attn_uses_sequence_id,
+        attn_impl,
+        attention_mask,
+    )
+
+    if sequence_id_one_hot is not None:
+        pos_id_within_seq = sequence_id_one_hot.cumsum(dim=1)
+        pos_id_within_seq = sequence_id_one_hot * pos_id_within_seq
+        pos_id_within_seq = pos_id_within_seq.sum(dim=-1) - 1
+        return attention_mask_in_length, pos_id_within_seq
+
+    return None, torch.arange(S, device=device)[None, :]
 
 
 def gen_flash_attn_padding_info(
@@ -434,7 +475,9 @@ class MPTModel(MPTPreTrainedModel):
                 create_block_mask,
             ) if flex_attn_compile else create_block_mask
 
-        self.blocks = self.construct_blocks(config=config,)
+        self.blocks = self.construct_blocks(
+            config=config,
+        )
 
         # Tag all modules in the transformer blocks with the corresponding block_idx and max_block_idx
         for i, block in enumerate(self.blocks):
@@ -934,13 +977,13 @@ class MPTModel(MPTPreTrainedModel):
             attention_mask=attention_mask,
             sequence_id=sequence_id,
         )
-
-        sequence_id_info = gen_sequence_id_info(
+        attention_mask_in_length, pos_id_within_seq = gen_sequence_id_info(
             sequence_id=sequence_id,
             S=S,
             attn_uses_sequence_id=self.attn_uses_sequence_id,
             attn_impl=self.attn_impl,
             attention_mask=attention_mask,
+            device=x.device,
         )
 
         alibi_slopes = None  # alibi_slopes will only be used by flash attention for ALiBi
@@ -1009,6 +1052,8 @@ class MPTModel(MPTPreTrainedModel):
                     'compiled_create_block_mask':
                         self.compiled_create_block_mask,
                 }
+            if pos_id_within_seq is not None:
+                extra_kwargs['pos_id_within_seq'] = pos_id_within_seq
             x, attn_weights, present = block(
                 x,
                 past_key_value=past_key_value,
@@ -1398,8 +1443,8 @@ def compute_loss_from_logits(
     if torch.all(targets == loss_fn.ignore_index):  # type: ignore
         loss = losses.sum()
     else:
-        loss = losses.sum() / (targets !=
-                               loss_fn.ignore_index).sum()  # type: ignore
+        loss = losses.sum() / (targets
+                               != loss_fn.ignore_index).sum()  # type: ignore
 
     return loss
 

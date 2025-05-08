@@ -130,7 +130,9 @@ def tiny_gpt2_config_helper():
         'vocab_size': 50258,
     }
 
-    config_object = GPT2Config(**config_dict,)
+    config_object = GPT2Config(
+        **config_dict,
+    )
     return config_object
 
 
@@ -163,7 +165,96 @@ def tiny_codellama_config_helper(tie_word_embeddings: bool = False):
         'vocab_size': 32016,
     }
 
-    config_object = LlamaConfig(**config_dict,)
+    config_object = LlamaConfig(
+        **config_dict,
+    )
+    return config_object
+
+
+def tiny_llama4_config_helper():
+    pytest.importorskip('transformers')
+    from transformers.models.llama4.configuration_llama4 import Llama4Config
+
+    config_dict = {
+        'architectures': ['Llama4ForConditionalGeneration',],
+        'boi_token_index': 200080,
+        'eoi_token_index': 200081,
+        'image_token_index': 200092,
+        'model_type': 'llama4',
+        'text_config': {
+            '_attn_implementation_autoset': True,
+            'attention_bias': False,
+            'attention_chunk_size': 8192,
+            'attention_dropout': 0.0,
+            'bos_token_id': 200000,
+            'eos_token_id': [
+                200001,
+                200007,
+                200008,
+            ],
+            'for_llm_compressor': False,
+            'head_dim': 128,
+            'hidden_act': 'silu',
+            'hidden_size': 5120,
+            'initializer_range': 0.02,
+            'interleave_moe_layer_step': 1,
+            'intermediate_size': 8192,
+            'intermediate_size_mlp': 16384,
+            'max_position_embeddings': 10485760,
+            'model_type': 'llama4_text',
+            'no_rope_layers': [],
+            'num_attention_heads': 40,
+            'num_experts_per_tok': 1,
+            'num_hidden_layers': 48,
+            'num_key_value_heads': 8,
+            'num_local_experts': 16,
+            'output_router_logits': False,
+            'pad_token_id': 200018,
+            'rms_norm_eps': 1e-05,
+            'rope_scaling': {
+                'factor': 16.0,
+                'high_freq_factor': 1.0,
+                'low_freq_factor': 1.0,
+                'original_max_position_embeddings': 8192,
+                'rope_type': 'llama3',
+            },
+            'rope_theta': 500000.0,
+            'router_aux_loss_coef': 0.001,
+            'router_jitter_noise': 0.0,
+            'torch_dtype': 'bfloat16',
+            'use_cache': True,
+            'use_qk_norm': True,
+            'vocab_size': 202048,
+        },
+        'torch_dtype': 'bfloat16',
+        'transformers_version': '4.51.0.dev0',
+        'vision_config': {
+            '_attn_implementation_autoset': True,
+            'attention_dropout': 0.0,
+            'hidden_act': 'gelu',
+            'hidden_size': 1408,
+            'image_size': 336,
+            'initializer_range': 0.02,
+            'intermediate_size': 5632,
+            'model_type': 'llama4_vision_model',
+            'multi_modal_projector_bias': False,
+            'norm_eps': 1e-05,
+            'num_attention_heads': 16,
+            'num_channels': 3,
+            'num_hidden_layers': 34,
+            'patch_size': 14,
+            'pixel_shuffle_ratio': 0.5,
+            'projector_dropout': 0.0,
+            'projector_input_dim': 4096,
+            'projector_output_dim': 4096,
+            'rope_theta': 10000,
+            'vision_feature_layer': -1,
+            'vision_feature_select_strategy': 'default',
+            'vision_output_dim': 4096,
+        },
+    }
+
+    config_object = Llama4Config(**config_dict)
     return config_object
 
 
@@ -194,7 +285,9 @@ def tiny_bert_config_helper():
         'vocab_size': 30522,
     }
 
-    config_object = BertConfig(**config_object,)
+    config_object = BertConfig(
+        **config_object,
+    )
     return config_object
 
 
@@ -312,6 +405,11 @@ def _session_tiny_bert_config():  # type: ignore
     return tiny_bert_config_helper()
 
 
+@pytest.fixture(scope='session')
+def _session_tiny_llama4_config():  # type: ignore
+    return tiny_llama4_config_helper()
+
+
 ## SESSION TOKENIZERS ##
 @pytest.fixture(scope='session')
 def _session_tiny_gpt2_tokenizer(tokenizers_assets):  # type: ignore
@@ -380,6 +478,11 @@ def tiny_codellama_model(_session_tiny_codellama_model):  # type: ignore
 @pytest.fixture
 def tiny_bert_config(_session_tiny_bert_config):  # type: ignore
     return copy.deepcopy(_session_tiny_bert_config)
+
+
+@pytest.fixture
+def tiny_llama4_config(_session_tiny_llama4_config):  # type: ignore
+    return copy.deepcopy(_session_tiny_llama4_config)
 
 
 ## TOKENIZER FIXTURES ##

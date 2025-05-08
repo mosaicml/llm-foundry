@@ -600,8 +600,19 @@ def train(cfg: DictConfig) -> Trainer:
         accumulate_train_batch_on_tokens=train_cfg.
         accumulate_train_batch_on_tokens,
     )
-
-    _sort_callbacks(trainer)
+    # if os.getenv('FSDP_VERSION') == '2':
+    #     for name, param in trainer.state.model.named_parameters():
+    #         if 'norm' in name or 'bias' in name:
+    #             continue
+    #         full_tensor = param.full_tensor()
+    #         print(name, full_tensor.norm().item(), full_tensor.std().item())
+    # else:
+    #     from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
+    #     with FSDP.summon_full_params(trainer.state.model):
+    #         for name, param in trainer.state.model.named_parameters():
+    #             if 'norm' in name or 'bias' in name:
+    #                 continue
+    #             print(name, param.norm().item(), param.std().item())
 
     # Optionally just save an HF checkpoint
     if train_cfg.only_hf_checkpoint:

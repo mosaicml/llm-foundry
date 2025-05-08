@@ -69,7 +69,7 @@ def fused_init_helper_(
     _fused = getattr(module, '_fused', None)
     if _fused is None:
         raise RuntimeError(f'Internal logic error')
-    print('fused value', _fused)
+    # print('fused value', _fused)
     fused_param_init_helper(getattr(module, name_param), init_fn_, _fused)
 
 

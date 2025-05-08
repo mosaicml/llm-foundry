@@ -613,7 +613,73 @@ def train(cfg: DictConfig) -> Trainer:
     #             if 'norm' in name or 'bias' in name:
     #                 continue
     #             print(name, param.norm().item(), param.std().item())
-
+    if os.getenv('USE_FSDP2') == '1':
+        from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
+        os.environ['FSDP_VERSION'] = '2'
+        model_fsdp1: torch.nn.Module = trainer.state.model
+        print('fsdp1', model_fsdp1)
+        print('rebuilding fsdp2 model from fsdp1')
+        model_fsdp2: torch.nn.Module = build_composer_model(
+            name=name,
+            tokenizer=tokenizer,
+            master_weights_dtype=model_config.pop('master_weights_dtype', None),
+            cfg=model_config,
+        )
+        model_fsdp2.to_empty(device='cuda', recurse=True)
+        with FSDP.summon_full_params(model_fsdp1):
+            for fsdp1_param, fsdp2_param in zip(model_fsdp1.parameters(), model_fsdp2.parameters()):
+                fsdp2_param.data.copy_(fsdp1_param.data)
+        for fsdp1_param, fsdp2_param in zip(model_fsdp1.parameters(), model_fsdp2.parameters()):
+            print(fsdp1_param.dtype, fsdp2_param.dtype)
+        exit()
+        trainer.close()
+        del trainer
+        optimizer_fsdp2 = build_optimizer(model_fsdp2, optimizer_name, optimizer_cfg)
+        trainer = Trainer(
+            run_name=run_name,
+            seed=seed,
+            model=model_fsdp2,
+            train_dataloader=train_loader,
+            train_subset_num_batches=train_cfg.train_subset_num_batches,
+            eval_dataloader=evaluators,
+            optimizers=optimizer_fsdp2,
+            schedulers=scheduler,
+            max_duration=train_cfg.max_duration,
+            eval_interval=train_cfg.eval_interval,
+            eval_subset_num_batches=train_cfg.eval_subset_num_batches,
+            progress_bar=train_cfg.progress_bar,
+            log_to_console=train_cfg.log_to_console,
+            console_log_interval=train_cfg.console_log_interval,
+            loggers=loggers,
+            callbacks=callbacks,
+            precision=train_cfg.precision,
+            algorithms=algorithms,
+            device_train_microbatch_size=train_cfg.device_train_microbatch_size,
+            parallelism_config=parallelism_config,
+            save_folder=train_cfg.save_folder,
+            save_filename=save_filename,
+            save_latest_filename=save_latest_filename,
+            save_interval=train_cfg.save_interval,
+            save_num_checkpoints_to_keep=train_cfg.save_num_checkpoints_to_keep,
+            save_overwrite=train_cfg.save_overwrite,
+            save_weights_only=train_cfg.save_weights_only,
+            load_path=train_cfg.load_path,
+            load_weights_only=train_cfg.load_weights_only,
+            load_strict_model_weights=train_cfg.load_strict_model_weights,
+            load_ignore_keys=train_cfg.load_ignore_keys,
+            save_ignore_keys=train_cfg.save_ignore_keys,
+            autoresume=train_cfg.autoresume,
+            python_log_level=train_cfg.python_log_level,
+            dist_timeout=train_cfg.dist_timeout,
+            profiler=profiler,
+            compile_config=compile_config,
+            spin_dataloaders=train_cfg.spin_dataloaders,
+            accumulate_train_batch_on_tokens=train_cfg.
+            accumulate_train_batch_on_tokens,
+        )
+        with FSDP.summon_full_params(model_fsdp1):
+            for fsdp1_param, fsdp2_param in zip(model_fsdp1.parameters(), model_fsdp2.parameters()):
+                torch.testing.assert_close(fsdp1_param.data, fsdp2_param.full_tensor())
     # Optionally just save an HF checkpoint
     if train_cfg.only_hf_checkpoint:
         hf_checkpointer_callbacks = [

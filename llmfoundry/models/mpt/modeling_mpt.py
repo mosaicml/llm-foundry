@@ -175,7 +175,7 @@ def gen_rotary_embedding(
     raise ValueError('rope_impl needs to be either dail or hf')
 
 
-def gen_sequence_id_info(
+def gen_attention_mask_in_length(
     sequence_id: Union[None, torch.Tensor],
     S: int,
     attn_uses_sequence_id: bool,
@@ -285,7 +285,6 @@ def _get_attn_mask_in_len_seq_one_hot(
             mode='constant',
             value=0,
         )
-        return attention_mask_in_length
 
     return attention_mask_in_length, sequence_id_one_hot
 
@@ -1014,7 +1013,7 @@ class MPTModel(MPTPreTrainedModel):
                 S,
                 past_position,
                 x.device,
-                sequence_id_info,
+                attention_mask_in_length,
                 attention_mask,
             )
 
@@ -1043,7 +1042,7 @@ class MPTModel(MPTPreTrainedModel):
                 extra_kwargs['flex_attn_kwargs'] = {
                     'sequence_id_info': {
                         'pos_in_seq':
-                            sequence_id_info,
+                            pos_id_within_seq,
                         'sequence_id':
                             sequence_id if self.attn_uses_sequence_id else None,
                     },

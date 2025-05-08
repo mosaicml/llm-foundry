@@ -4,18 +4,19 @@
 from typing import Optional, Union
 
 import torch
+from torch.nn import RMSNorm  # for backwards compatibility
 
 from llmfoundry.layers_registry import norms
 
 __all__ = [
     'LPLayerNorm',
     'LPRMSNorm',
-    'RMSNorm',
     'TritonRMSNorm',
-    'rms_norm',
+    'RMSNorm',
 ]
 
 norms.register(name='layernorm', func=torch.nn.LayerNorm)
+norms.register(name='rmsnorm', func=torch.nn.RMSNorm)
 
 
 def _cast_if_autocast_enabled(tensor: torch.Tensor) -> torch.Tensor:
@@ -50,7 +51,6 @@ class LPLayerNorm(torch.nn.LayerNorm):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        module_device = x.device
         downcast_x = _cast_if_autocast_enabled(x)
         downcast_weight = _cast_if_autocast_enabled(
             self.weight,
@@ -58,7 +58,7 @@ class LPLayerNorm(torch.nn.LayerNorm):
         downcast_bias = _cast_if_autocast_enabled(
             self.bias,
         ) if self.bias is not None else self.bias
-        with torch.autocast(enabled=False, device_type=module_device.type):
+        with torch.autocast(enabled=False, device_type=x.device.type):
             return torch.nn.functional.layer_norm(
                 downcast_x,
                 self.normalized_shape,
@@ -68,58 +68,23 @@ class LPLayerNorm(torch.nn.LayerNorm):
             )
 
 
-def rms_norm(
-    x: torch.Tensor,
-    weight: Optional[torch.Tensor] = None,
-    eps: float = 1e-5,
-) -> torch.Tensor:
-    output = x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + eps)
-    if weight is not None:
-        return output * weight
-    return output
-
-
-@norms.register_class('rmsnorm')
-class RMSNorm(torch.nn.Module):
-
-    def __init__(
-        self,
-        normalized_shape: Union[int, list[int], torch.Size],
-        eps: float = 1e-5,
-        weight: bool = True,
-        dtype: Optional[torch.dtype] = None,
-        device: Optional[torch.device] = None,
-    ):
-        super().__init__()
-        self.eps = eps
-        if weight:
-            self.weight = torch.nn.Parameter(
-                torch.ones(normalized_shape, dtype=dtype, device=device),
-            )
-        else:
-            self.register_parameter('weight', None)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return rms_norm(x.float(), self.weight, self.eps).to(dtype=x.dtype)
-
-
 @norms.register_class('low_precision_rmsnorm')
-class LPRMSNorm(RMSNorm):
+class LPRMSNorm(torch.nn.RMSNorm):
 
     def __init__(
         self,
         normalized_shape: Union[int, list[int], torch.Size],
-        eps: float = 1e-5,
-        weight: bool = True,
-        dtype: Optional[torch.dtype] = None,
+        eps: Optional[float] = None,
+        elementwise_affine: bool = True,
         device: Optional[torch.device] = None,
+        dtype: Optional[torch.dtype] = None,
     ):
         super().__init__(
             normalized_shape=normalized_shape,
             eps=eps,
-            weight=weight,
-            dtype=dtype,
+            elementwise_affine=elementwise_affine,
             device=device,
+            dtype=dtype,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -128,8 +93,12 @@ class LPRMSNorm(RMSNorm):
             self.weight,
         ) if self.weight is not None else self.weight
         with torch.autocast(enabled=False, device_type=x.device.type):
-            return rms_norm(downcast_x, downcast_weight,
-                            self.eps).to(dtype=x.dtype)
+            return torch.nn.functional.rms_norm(
+                downcast_x,
+                self.normalized_shape,
+                downcast_weight,
+                self.eps,
+            ).to(dtype=x.dtype)
 
 
 @norms.register_class('triton_rmsnorm')

@@ -2599,6 +2599,7 @@ def test_head_dim_8_flash_mqa_attn(
     attn_impl: str,
     tiny_neox_tokenizer: PreTrainedTokenizerBase,
     batch_size: int = 2,
+):
     if attn_impl == 'flex' and version.parse(
         torch.__version__.split('.dev')[0],
     ) < version.parse('2.5.1'):

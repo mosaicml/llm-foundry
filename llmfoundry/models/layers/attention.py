@@ -608,7 +608,6 @@ class GroupedQueryAttention(nn.Module):
         extra_kwargs = {}
         if prev_layer_key_value is not None:
             extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
-        print('attn input: ', x.norm().item())
         query, key, value = self.get_qkv(
             x=x,
             key_value_states=key_value_states,

@@ -381,8 +381,8 @@ def test_local_global_window(
 
     global_bias_2 = torch.where(
         torch.arange(seqlen_1)[None, None,
-                               None, :].to(dtype=dtype, device=device) <=
-        global_window_size,
+                               None, :].to(dtype=dtype, device=device)
+        <= global_window_size,
         torch.ones(1, 1, seqlen_1,
                    seqlen_1).to(dtype=torch.bool, device=device),
         torch.zeros(1, 1, seqlen_1,
@@ -566,6 +566,7 @@ def test_gen_sequence_id_info(attn_uses_sequence_id: bool):
 
     _, pos_id_within_seq = gen_sequence_id_info(
         sequence_id=sequence_id,
+        bsz=n,
         S=s,
         attn_uses_sequence_id=attn_uses_sequence_id,
         attn_impl='flash',

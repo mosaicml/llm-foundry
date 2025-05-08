@@ -254,8 +254,9 @@ def _get_attn_mask_in_len_seq_one_hot(
 ):
     attention_mask_in_length = None
     sequence_id_one_hot = None
-    if (sequence_id
-        is not None) and attn_uses_sequence_id and (attn_impl == 'flash'):
+    if (sequence_id is not None) and attn_uses_sequence_id and (
+        attn_impl == 'flash' or attn_impl == 'flex'
+    ):
         # Check if sequence has left padding. If yes, raise an error.
         if (attention_mask is not None
            ) and (attention_mask[:, 0].sum() != attention_mask.shape[0]):
@@ -291,6 +292,7 @@ def _get_attn_mask_in_len_seq_one_hot(
 
 def gen_sequence_id_info(
     sequence_id: Union[None, torch.Tensor],
+    bsz: int,
     S: int,
     attn_uses_sequence_id: bool,
     attn_impl: str,
@@ -311,7 +313,7 @@ def gen_sequence_id_info(
         pos_id_within_seq = pos_id_within_seq.sum(dim=-1) - 1
         return attention_mask_in_length, pos_id_within_seq
 
-    return None, torch.arange(S, device=device)[None, :]
+    return None, torch.arange(S, device=device).repeat(bsz, 1)
 
 
 def gen_flash_attn_padding_info(
@@ -978,6 +980,7 @@ class MPTModel(MPTPreTrainedModel):
         )
         attention_mask_in_length, pos_id_within_seq = gen_sequence_id_info(
             sequence_id=sequence_id,
+            bsz=bsz,
             S=S,
             attn_uses_sequence_id=self.attn_uses_sequence_id,
             attn_impl=self.attn_impl,

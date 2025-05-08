@@ -1,19 +1,31 @@
 seed: 17
 model:
   name: hf_causal_lm
+  convert_to: mpt
   pretrained: false
-  init_device: mixed
+  init_device: meta
+  peft_config:
+    r: 64
+    peft_type: LORA
+    task_type: CAUSAL_LM
+    lora_alpha: 32
+    lora_dropout: 0.05
+    target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
   use_auth_token: true
   config_overrides: {}
   trust_remote_code: true
   use_train_metrics: true
   should_save_peft_only: false
   use_flash_attention_2: true
-  pretrained_model_name_or_path: meta-llama/Meta-Llama-3.1-70B-Instruct
+  pretrained_model_name_or_path: meta-llama/Meta-Llama-3.1-405B-Instruct
 loggers: {}
 metadata:
   run_group: b200-benchmark-prep
-run_name: llama70b-8192-2
+run_name: llama405b-8192-meta-4
 callbacks:
   lr_monitor: {}
   scheduled_gc:
@@ -37,7 +49,7 @@ scheduler:
   alpha_f: 0
   t_warmup: 0.02dur
 tokenizer:
-  name: meta-llama/Meta-Llama-3.1-70B-Instruct
+  name: meta-llama/Meta-Llama-3.1-405B-Instruct
   kwargs:
     revision: main
     model_max_length: 8192
@@ -63,7 +75,7 @@ fsdp_config:
   limit_all_gathers: true
   sharding_strategy: FULL_SHARD
   sync_module_states: false
-  activation_cpu_offload: false
+  activation_cpu_offload: true
   activation_checkpointing: true
   load_monolith_rank0_only: true
   activation_checkpointing_reentrant: false
@@ -106,11 +118,12 @@ only_hf_checkpoint: false
 console_log_interval: 1ba
 device_eval_batch_size: 1
 eval_subset_num_batches: 20
-global_train_batch_size: 32
+global_train_batch_size: 64
 only_composer_checkpoint: false
 device_train_microbatch_size: 1
 save_num_checkpoints_to_keep: 1
 accumulate_train_batch_on_tokens: true
 
-# python /llm-foundry/scripts/data_prep/convert_dataset_hf.py --dataset allenai/c4 --data_subset en --out_root /data/my-copy --splits train_small val_small --concat_tokens 8192 --tokenizer meta-llama/Meta-Llama-3.1-70B-Instruct --eos_text '<|eot_id|>'
-# cd /llm-foundry && composer -n 8 scripts/train/train.py params.yaml
+# python /llm-foundry/scripts/data_prep/convert_dataset_hf.py --dataset allenai/c4 --data_subset en --out_root /data/my-copy --splits train_small val_small --concat_tokens 8192 --tokenizer meta-llama/Meta-Llama-3.1-405B-Instruct --eos_text '<|eot_id|>'
+# cd /llm-foundry && composer -n 8 scripts/train/train.py /mnt/config/parameters.yaml || (echo "Command failed - killing python" && pkill -f python && exit 1)
+# echo exit code is $?

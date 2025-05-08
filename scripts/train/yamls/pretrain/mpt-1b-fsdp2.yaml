@@ -19,6 +19,7 @@ model:
   vocab_size: 50368
   attn_config:
     attn_impl: flash
+    fused_qkv: false
 
 # Tokenizer
 tokenizer:

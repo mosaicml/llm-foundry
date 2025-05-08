@@ -677,6 +677,7 @@ def train(cfg: DictConfig) -> Trainer:
         with FSDP.summon_full_params(model_fsdp1):
             for fsdp1_param, fsdp2_param in zip(model_fsdp1.parameters(), model_fsdp2.parameters()):
                 torch.testing.assert_close(fsdp1_param.data, fsdp2_param.full_tensor())
+    add_hooks_to_linear_modules(trainer.state.model)
     # Optionally just save an HF checkpoint
     if train_cfg.only_hf_checkpoint:
         hf_checkpointer_callbacks = [
@@ -723,6 +724,41 @@ def train(cfg: DictConfig) -> Trainer:
     log.info('Done.')
     return trainer
 
+def add_hooks_to_linear_modules(module: torch.nn.Module):
+    from torch._C._distributed_c10d import ReduceOp
+    for submodule in module.modules():
+        if isinstance(submodule, torch.nn.Linear):
+            def post_hook_fn(module: torch.nn.Linear, grad_input: torch.Tensor, grad_output: torch.Tensor):
+                print('grad_input: ', grad_input[0].norm().item(), 'grad_output: ', grad_output[0].norm().item())
+            def forward_hook_fn(module: torch.nn.Linear, input: torch.Tensor, output: torch.Tensor):
+                print('module: ', module, 'input: ', input[0].norm().item(), 'output: ', output.norm().item())
+            def weight_hook(grad: torch.Tensor):
+                grad = grad.clone().detach().reshape(-1)
+                # print('weight_grad: ', grad.norm().item())
+                # grad_sc_output = grad.new_empty(grad.shape[0] // 2)
+                # print('reduce scatter dtype: ', grad_sc_output.dtype, grad.dtype)
+                # torch.distributed.reduce_scatter_tensor(grad_sc_output, grad, op=ReduceOp.AVG)
+                # print('local sc weight grad: ', grad_sc_output.float().norm().item())
+                torch.distributed.all_reduce(grad, op=ReduceOp.AVG)
+                print('all_reduced weight_grad: ', grad.float().norm().item())
+            def bias_hook(grad: torch.Tensor):
+                grad = grad.clone().detach().reshape(-1)    
+                # print('bias_grad: ', grad.norm().item())
+                # grad_sc_output = grad.new_empty(grad.shape[0] // 2)
+                # torch.distributed.reduce_scatter_tensor(grad_sc_output, grad, op=ReduceOp.AVG)
+                # print('local sc bias grad: ', grad_sc_output.float().norm().item())
+                torch.distributed.all_reduce(grad, op=ReduceOp.AVG)
+                print('all_reduced bias_grad: ', grad.float().norm().item())
+            def pre_backward_hook_fn(module: torch.nn.Linear, grad_output: torch.Tensor):
+                print(f'linear: {module.in_features} x {module.out_features}')
+                if not module.weight._backward_hooks:
+                    module.weight.register_hook(weight_hook)
+                if not module.bias._backward_hooks:
+                    module.bias.register_hook(bias_hook)
+
+            submodule.register_full_backward_hook(post_hook_fn)
+            submodule.register_forward_hook(forward_hook_fn)
+            submodule.register_full_backward_pre_hook(pre_backward_hook_fn)
 
 def train_from_yaml(
     yaml_path: str,

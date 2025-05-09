@@ -617,7 +617,7 @@ def train(cfg: DictConfig) -> Trainer:
     #             print(name, param.norm().item(), param.std().item())
     if os.getenv('USE_FSDP2') == '1':
         from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
-        os.environ['FSDP_VERSION'] = '2'
+        # os.environ['FSDP_VERSION'] = '2'
         model_fsdp1: torch.nn.Module = trainer.state.model
         print('fsdp1', model_fsdp1)
         print('rebuilding fsdp2 model from fsdp1')
@@ -743,8 +743,8 @@ def add_hooks_to_linear_modules(module: torch.nn.Module):
                 # torch.distributed.reduce_scatter_tensor(grad_sc_output, grad, op=ReduceOp.AVG)
                 # print('local sc weight grad: ', grad_sc_output.float().norm().item())
                 print('local weight grad: ', grad.dtype, grad.float().norm().item())
-                torch.distributed.all_reduce(grad, op=ReduceOp.AVG)
-                print('all_reduced weight_grad: ', grad.dtype, grad.float().norm().item())
+                # torch.distributed.all_reduce(grad, op=ReduceOp.AVG)
+                # print('all_reduced weight_grad: ', grad.dtype, grad.float().norm().item())
             def bias_hook(grad: torch.Tensor):
                 grad = grad.clone().detach().reshape(-1)    
                 # print('bias_grad: ', grad.norm().item())
@@ -752,13 +752,14 @@ def add_hooks_to_linear_modules(module: torch.nn.Module):
                 # torch.distributed.reduce_scatter_tensor(grad_sc_output, grad, op=ReduceOp.AVG)
                 # print('local sc bias grad: ', grad_sc_output.float().norm().item())
                 print('local bias grad: ', grad.dtype, grad.float().norm().item())
-                torch.distributed.all_reduce(grad, op=ReduceOp.AVG)
-                print('all_reduced bias_grad: ', grad.dtype, grad.float().norm().item())
+                # torch.distributed.all_reduce(grad, op=ReduceOp.AVG)
+                # print('all_reduced bias_grad: ', grad.dtype, grad.float().norm().item())
             def pre_backward_hook_fn(module: torch.nn.Linear, grad_output: torch.Tensor):
                 print(f'linear: {module.in_features} x {module.out_features}')
                 # print(f'grad_output shape: {grad_output[0].shape}, dtype: {grad_output[0].dtype}')
-                print(f'grad_output: {grad_output[0].float().norm().item()}')
-                print(f'expected bias_grad: {grad_output[0].float().sum(dim=(0, 1)).norm().item()}')
+                # print(f'grad_output: {grad_output[0].float().norm().item()}')
+                # print(f'expected bias_grad: {grad_output[0].float().sum(dim=(0, 1)).norm().item()}')
+                print(f'weight_norm: {module.weight.norm().item()}, bias_norm: {module.bias.norm().item()}')
                 if not module.weight._backward_hooks:
                     module.weight.register_hook(weight_hook)
                 if not module.bias._backward_hooks:

@@ -602,6 +602,7 @@ def train(cfg: DictConfig) -> Trainer:
         accumulate_train_batch_on_tokens=train_cfg.
         accumulate_train_batch_on_tokens,
     )
+    print(f'optimizer name: {optimizer_name}, optimizer config: {optimizer_cfg}')
     # if os.getenv('FSDP_VERSION') == '2':
     #     for name, param in trainer.state.model.named_parameters():
     #         if 'norm' in name or 'bias' in name:
@@ -617,7 +618,7 @@ def train(cfg: DictConfig) -> Trainer:
     #             print(name, param.norm().item(), param.std().item())
     if os.getenv('USE_FSDP2') == '1':
         from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
-        # os.environ['FSDP_VERSION'] = '2'
+        os.environ['FSDP_VERSION'] = '2'
         model_fsdp1: torch.nn.Module = trainer.state.model
         print('fsdp1', model_fsdp1)
         print('rebuilding fsdp2 model from fsdp1')

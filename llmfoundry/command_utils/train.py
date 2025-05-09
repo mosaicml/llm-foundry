@@ -732,7 +732,7 @@ def add_hooks_to_linear_modules(module: torch.nn.Module):
     for submodule in module.modules():
         if isinstance(submodule, torch.nn.Linear):
             def post_hook_fn(module: torch.nn.Linear, grad_input: torch.Tensor, grad_output: torch.Tensor):
-                print('grad_input: ', grad_input[0].norm().item(), 'grad_output: ', grad_output[0].norm().item())
+                print('grad_input: ', grad_input[0].norm().item())
             def forward_hook_fn(module: torch.nn.Linear, input: torch.Tensor, output: torch.Tensor):
                 print('module: ', module, 'input: ', input[0].norm().item(), 'output: ', output.norm().item())
             def weight_hook(grad: torch.Tensor):
@@ -756,6 +756,9 @@ def add_hooks_to_linear_modules(module: torch.nn.Module):
                 print('all_reduced bias_grad: ', grad.dtype, grad.float().norm().item())
             def pre_backward_hook_fn(module: torch.nn.Linear, grad_output: torch.Tensor):
                 print(f'linear: {module.in_features} x {module.out_features}')
+                # print(f'grad_output shape: {grad_output[0].shape}, dtype: {grad_output[0].dtype}')
+                print(f'grad_output: {grad_output[0].float().norm().item()}')
+                print(f'expected bias_grad: {grad_output[0].float().sum(dim=(0, 1)).norm().item()}')
                 if not module.weight._backward_hooks:
                     module.weight.register_hook(weight_hook)
                 if not module.bias._backward_hooks:

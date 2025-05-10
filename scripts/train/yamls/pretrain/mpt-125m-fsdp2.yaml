@@ -16,13 +16,12 @@ model:
   init_device: meta
   d_model: 768
   n_heads: 12
-  n_layers: 1
+  n_layers: 12
   expansion_ratio: 4
   max_seq_len: ${variables.max_seq_len}
   vocab_size: 50368
   attn_config:
-    attn_impl: torch
-    fused_qkv: true
+    attn_impl: flash
 
 # Tokenizer
 tokenizer:
@@ -57,13 +56,13 @@ eval_loader:
 
 # Optimization
 scheduler:
-  name: linear_decay_with_warmup  # linear no warmup is HF default which dolly used
-  t_warmup: 0ba
-  alpha_f: 0
+  name: cosine_with_warmup
+  t_warmup: 100ba
+  alpha_f: 0.1
 
 optimizer:
   name: decoupled_adamw
-  lr: 1.0
+  lr: 6.0e-4
   betas:
   - 0.9
   - 0.95
@@ -97,7 +96,6 @@ fsdp_config:
   activation_cpu_offload: false
   limit_all_gathers: true
   state_dict_type: sharded
-  # keep_low_precision_grads: true
 
 # Logging
 progress_bar: false

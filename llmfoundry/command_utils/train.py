@@ -275,7 +275,6 @@ def train(cfg: DictConfig) -> Trainer:
     # Set seed first
     seed: int = train_cfg.seed
     reproducibility.seed_all(seed)
-    # reproducibility.configure_deterministic_mode()
 
     # Mandatory model training configs
     model_config = train_cfg.model
@@ -562,7 +561,6 @@ def train(cfg: DictConfig) -> Trainer:
     trainer = Trainer(
         run_name=run_name,
         seed=seed,
-        deterministic_mode=True,
         model=model,
         train_dataloader=train_loader,
         train_subset_num_batches=train_cfg.train_subset_num_batches,
@@ -638,7 +636,6 @@ def train(cfg: DictConfig) -> Trainer:
         trainer = Trainer(
             run_name=run_name,
             seed=seed,
-            deterministic_mode=True,
             model=model_fsdp2,
             train_dataloader=train_loader,
             train_subset_num_batches=train_cfg.train_subset_num_batches,

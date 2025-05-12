@@ -75,7 +75,7 @@ def get_conversion_config(
                 raise ValueError('More than one turn found')
             
             # Debug the raw data
-            logger.debug(f"IFT/CHAT turn data types: input_ids={type(x['turns'][0]['input_ids'])}, attention_mask={type(x['turns'][0]['attention_mask'])}, labels={type(x['turns'][0]['labels'])}")
+            print(f"IFT/CHAT turn data types: input_ids={type(x['turns'][0]['input_ids'])}, attention_mask={type(x['turns'][0]['attention_mask'])}, labels={type(x['turns'][0]['labels'])}")
             
             return {
                 'input_ids': np.array(x['turns'][0]['input_ids'], dtype=np.int32),
@@ -90,7 +90,7 @@ def get_conversion_config(
         
         def convert_x(x):
             # Debug the raw data
-            logger.debug(f"CPT tokens type: {type(x['concat_tokens'])}, sample: {str(x['concat_tokens'][:10]) if x['concat_tokens'] else 'empty'}")
+            print(f"CPT tokens type: {type(x['concat_tokens'])}, sample: {str(x['concat_tokens'][:10]) if x['concat_tokens'] else 'empty'}")
             
             return {'tokens': np.array(x['concat_tokens'], dtype=np.int32)}
     
@@ -105,7 +105,7 @@ def get_conversion_config(
         
         def convert_x(x):
             # Debug the raw data
-            logger.debug(f"COMP_EVAL data types: prompt={type(x['prompt'])}, chosen={type(x['chosen'])}, rejected={type(x['rejected'])}")
+            print(f"COMP_EVAL data types: prompt={type(x['prompt'])}, chosen={type(x['chosen'])}, rejected={type(x['rejected'])}")
             
             try:
                 result = {
@@ -117,7 +117,7 @@ def get_conversion_config(
                 }
                 
                 # Debug the converted data
-                logger.debug(f"Converted COMP_EVAL data types: prompt={result['prompt'].dtype}, chosen={result['chosen'].dtype}, rejected={result['rejected'].dtype}")
+                print(f"Converted COMP_EVAL data types: prompt={result['prompt'].dtype}, chosen={result['chosen'].dtype}, rejected={result['rejected'].dtype}")
                 
                 return result
             except Exception as e:
@@ -136,22 +136,22 @@ def get_conversion_config(
 def debug_data_sample(data, prefix=""):
     """Helper function to debug data structures"""
     if not data:
-        logger.debug(f"{prefix} Data is empty or None")
+        print(f"{prefix} Data is empty or None")
         return
     
     if isinstance(data, dict):
-        logger.debug(f"{prefix} Dict with keys: {list(data.keys())}")
+        print(f"{prefix} Dict with keys: {list(data.keys())}")
         for key, value in data.items():
             sample_value = str(value)[:100] + "..." if len(str(value)) > 100 else str(value)
-            logger.debug(f"{prefix} - {key}: {type(value)}, sample: {sample_value}")
+            print(f"{prefix} - {key}: {type(value)}, sample: {sample_value}")
     elif isinstance(data, list):
-        logger.debug(f"{prefix} List of length {len(data)}")
+        print(f"{prefix} List of length {len(data)}")
         if data:
             first_item = data[0]
             sample_value = str(first_item)[:100] + "..." if len(str(first_item)) > 100 else str(first_item)
-            logger.debug(f"{prefix} - First item type: {type(first_item)}, sample: {sample_value}")
+            print(f"{prefix} - First item type: {type(first_item)}, sample: {sample_value}")
     else:
-        logger.debug(f"{prefix} Data type: {type(data)}, sample: {str(data)[:100]}")
+        print(f"{prefix} Data type: {type(data)}, sample: {str(data)[:100]}")
 
 
 def safe_write(writer, data, record_index=None):

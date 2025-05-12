@@ -96,9 +96,9 @@ def get_conversion_config(
     
     elif task_type == FinetuneTaskType.COMPARATIVE_EVALUATION:
         dtypes = {
-            'prompt': 'bytes',
-            'chosen': 'bytes',
-            'rejected': 'bytes',
+            'prompt': 'bytes:int32',
+            'chosen': 'bytes:int32',
+            'rejected': 'bytes:int32',
             'chosen_reward': 'float32',  # Spark FloatType is 4 bytes
             'rejected_reward': 'float32',
         }

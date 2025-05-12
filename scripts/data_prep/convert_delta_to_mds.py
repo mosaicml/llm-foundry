@@ -108,10 +108,18 @@ def get_conversion_config(
             print(f"COMP_EVAL data types: prompt={type(x['prompt'])}, chosen={type(x['chosen'])}, rejected={type(x['rejected'])}")
             
             try:
+                prompt_array = np.array(x['prompt'])
+                chosen_array = np.array(x['chosen'])
+                rejected_array = np.array(x['rejected'])
+
+                print(f"dtype of prompt_array: {prompt_array.dtype}")
+                print(f"dtype of chosen_array: {chosen_array.dtype}")
+                print(f"dtype of rejected_array: {rejected_array.dtype}")
+
                 result = {
-                    'prompt': np.array(x['prompt']).tobytes(),
-                    'chosen': np.array(x['chosen']).tobytes(),
-                    'rejected': np.array(x['rejected']).tobytes(),
+                    'prompt': prompt_array.tobytes(),
+                    'chosen': chosen_array.tobytes(),
+                    'rejected': rejected_array.tobytes(),
                     'chosen_reward': np.float32(x['chosen_reward']), 
                     'rejected_reward': np.float32(x['rejected_reward']),
                 }

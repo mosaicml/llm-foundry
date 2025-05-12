@@ -54,7 +54,7 @@ def get_conversion_config(
                 raise ValueError(
                     'Unable to infer task type from columns and no task_type provided.',
                 )
-        elif len(columns) == 5 and set(columns) == {'prompt', 'chosen', 'rejected', 'chosen_score', 'rejected_score'}:
+        elif len(columns) == 5 and set(columns) == {'prompt', 'chosen', 'rejected', 'chosen_reward', 'rejected_reward'}:
             task_type = FinetuneTaskType.COMPARATIVE_EVALUATION
         else:
             raise ValueError(
@@ -85,15 +85,15 @@ def get_conversion_config(
             'prompt': 'ndarray',
             'chosen': 'ndarray',
             'rejected': 'ndarray',
-            'chosen_score': 'float32', # Spark FloatType is 4 bytes
-            'rejected_score': 'float32',
+            'chosen_reward': 'float32', # Spark FloatType is 4 bytes
+            'rejected_reward': 'float32',
         }
         convert_x = lambda x: {
             'prompt': np.array(x['prompt']),
             'chosen': np.array(x['chosen']),
             'rejected': np.array(x['rejected']),
-            'chosen_score': np.float32(x['chosen_score']), 
-            'rejected_score': np.float32(x['rejected_score']),
+            'chosen_reward': np.float32(x['chosen_reward']), 
+            'rejected_reward': np.float32(x['rejected_reward']),
         }
     else:
         raise ValueError(

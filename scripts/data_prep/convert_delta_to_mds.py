@@ -96,9 +96,9 @@ def get_conversion_config(
     
     elif task_type == FinetuneTaskType.COMPARATIVE_EVALUATION:
         dtypes = {
-            'prompt': 'ndarray',
-            'chosen': 'ndarray',
-            'rejected': 'ndarray',
+            'prompt': 'bytes',
+            'chosen': 'bytes',
+            'rejected': 'bytes',
             'chosen_reward': 'float32',  # Spark FloatType is 4 bytes
             'rejected_reward': 'float32',
         }
@@ -109,9 +109,9 @@ def get_conversion_config(
             
             try:
                 result = {
-                    'prompt': np.array(x['prompt'], dtype=np.int32),
-                    'chosen': np.array(x['chosen'], dtype=np.int32),
-                    'rejected': np.array(x['rejected'], dtype=np.int32),
+                    'prompt': np.array(x['prompt'], dtype=np.int32).tobytes(),
+                    'chosen': np.array(x['chosen'], dtype=np.int32).tobytes(),
+                    'rejected': np.array(x['rejected'], dtype=np.int32).tobytes(),
                     'chosen_reward': np.float32(x['chosen_reward']), 
                     'rejected_reward': np.float32(x['rejected_reward']),
                 }

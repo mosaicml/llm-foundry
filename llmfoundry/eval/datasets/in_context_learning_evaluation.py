@@ -18,6 +18,7 @@ from composer.utils import MissingConditionalImportError, dist, get_file
 from datasets import Dataset as HFDataset
 from datasets import IterableDataset, load_dataset
 from torch.utils.data import DataLoader, Dataset
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry import registry
 from llmfoundry.eval.datasets.utils import (
@@ -720,7 +721,8 @@ class InContextLearningGenerationTaskWithAnswersDataset(
             str: The answer in from the example with chain of thought and delimiter if needed
         """
         if self.has_cot:
-            return f'{example["chain_of_thought"]}{self.cot_delimiter}{example[self.answer_key]}'
+            example_cot = example['chain_of_thought']
+            return f'{example_cot}{self.cot_delimiter}{example[self.answer_key]}'
         else:
             return example[self.answer_key]
 
@@ -761,9 +763,8 @@ class InContextLearningGenerationTaskWithAnswersDataset(
             ] + list(example.get('aliases', []))
             for answer in all_answers:
                 if self.has_cot:
-                    response = (
-                        f'{example["chain_of_thought"]}{self.cot_delimiter}{answer}'
-                    )
+                    example_cot = example['chain_of_thought']
+                    response = (f'{example_cot}{self.cot_delimiter}{answer}')
                 else:
                     response = answer
                 tokenized_response = self.tokenizer(response)['input_ids']
@@ -830,9 +831,9 @@ class InContextLearningGenerationTaskWithAnswersDataset(
             if k in self.static_keys:
                 chunked[k] = [v] * num_chunks
 
-        batched_list = [{k: v[idx]
-                         for k, v in chunked.items()}
-                        for idx in range(num_chunks)]
+        batched_list = [{
+            k: v[idx] for k, v in chunked.items()
+        } for idx in range(num_chunks)]
         return batched_list
 
 
@@ -1218,9 +1219,9 @@ class InContextLearningMultipleChoiceTaskDataset(InContextLearningDataset):
             if k in self.static_keys:
                 chunked[k] = [v] * num_chunks
 
-        return [{k: v[idx]
-                 for k, v in chunked.items()}
-                for idx in range(num_chunks)]
+        return [{
+            k: v[idx] for k, v in chunked.items()
+        } for idx in range(num_chunks)]
 
 
 class InContextLearningSchemaTaskDataset(
@@ -1626,8 +1627,7 @@ def partition_dataset_by_category(
 def get_icl_task_dataloader(
     icl_task_type: str,
     dataset_uri: str,
-    tokenizer: Union[transformers.PreTrainedTokenizer,
-                     transformers.PreTrainedTokenizerFast],
+    tokenizer: PreTrainedTokenizerBase,
     batch_size: int,
     has_categories: bool = False,
     hf_loading_vars: Optional[dict] = None,

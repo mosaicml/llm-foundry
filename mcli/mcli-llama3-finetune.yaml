@@ -1,7 +1,7 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: v0.16.0
+  git_branch: v0.20.0
   # git_commit: # OR use your commit hash
   pip_install: .[gpu]
   ssh_clone: false  # Should be true if using a private repo
@@ -10,7 +10,7 @@ command: |
   cd llm-foundry/scripts
   export HF_HUB_ENABLE_HF_TRANSFER=1
   composer train/train.py /mnt/config/parameters.yaml
-image: mosaicml/llm-foundry:2.5.1_cu124-latest
+image: mosaicml/llm-foundry:2.6.0_cu124-latest
 name: llama2-finetune
 
 compute:
@@ -23,7 +23,7 @@ compute:
 # The below is injected as a YAML file: /mnt/config/parameters.yaml
 parameters:
   variables:
-    tokenizer_name: meta-llama/Llama-2-7b-hf
+    tokenizer_name: meta-llama/Meta-Llama-3-8B
     global_seed: 17
     max_seq_len: 4096
 
@@ -38,9 +38,9 @@ parameters:
   model:
     name: hf_causal_lm
     init_device: mixed
-    pretrained_model_name_or_path: meta-llama/Llama-2-7b-hf
+    pretrained_model_name_or_path: meta-llama/Meta-Llama-3-8B
     pretrained: true
-    # Note: you must have set the HF_TOKEN environment variable and have access to the llama2 models
+    # Note: you must have set the HF_TOKEN environment variable and have access to the llama3 models
     use_auth_token: true
     use_flash_attention_2: true
 

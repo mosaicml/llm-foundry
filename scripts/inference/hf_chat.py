@@ -36,7 +36,9 @@ class ChatMessage:
         self.role = role
         self.content = content
 
-    def to_dict(self,) -> dict[str, str]:
+    def to_dict(
+        self,
+    ) -> dict[str, str]:
         return {'role': self.role, 'content': self.content}
 
     def __repr__(self) -> str:
@@ -99,7 +101,7 @@ class Conversation:
                 return False
 
         self.streamer = TextStreamer(
-            tokenizer,
+            tokenizer,  # type: ignore
             skip_prompt=True,
             skip_special_tokens=True,
         )
@@ -129,7 +131,7 @@ class Conversation:
     def _history_as_formatted_str(self) -> str:
         chat_conversation = self._history_to_chat_conversation()
         try:
-            return self.tokenizer.apply_chat_template(
+            return self.tokenizer.apply_chat_template(  # type: ignore
                 chat_conversation,
                 tokenize=False,
                 add_generation_prompt=False,
@@ -138,7 +140,7 @@ class Conversation:
         except Exception as e:
             raise ChatTemplateError(
                 inner_message=str(e),
-                template=self.tokenizer.chat_template,
+                template=self.tokenizer.chat_template,  # type: ignore
                 sample=chat_conversation,
             )
 
@@ -156,19 +158,23 @@ class Conversation:
         except Exception as e:
             raise ChatTemplateError(
                 inner_message=str(e),
-                template=self.tokenizer.chat_template,
+                template=self.tokenizer.chat_template,  # type: ignore
                 sample=chat_conversation,
             )
-        tokenized_chat = tokenized_chat.to(self.model.device)
+
+        tokenized_chat = tokenized_chat.to(self.model.device)  # type: ignore
         # also stream to stdout
         maybe_synchronize()
         start = time.time()
         print(f'Assistant:')
-        output_ids = self.model.generate(tokenized_chat, **self.generate_kwargs)
+        output_ids = self.model.generate(
+            tokenized_chat,  # type: ignore
+            **self.generate_kwargs,
+        )
         maybe_synchronize()
         end = time.time()
         print(f'\nTook {end - start:.2f} seconds')
-        new_tokens = output_ids[0, len(tokenized_chat[0]):]
+        new_tokens = output_ids[0, len(tokenized_chat[0]):]  # type: ignore
         assistant_response = self.tokenizer.decode(
             new_tokens,
             skip_special_tokens=True,

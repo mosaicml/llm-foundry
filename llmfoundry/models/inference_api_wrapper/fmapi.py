@@ -7,7 +7,7 @@ import time
 
 import requests
 from omegaconf import DictConfig
-from transformers import AutoTokenizer
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.models.inference_api_wrapper.openai_causal_lm import (
     OpenAICausalLMEvalWrapper,
@@ -51,7 +51,11 @@ class FMAPIEvalInterface(OpenAIEvalInterface):
                     f'Endpoint {ping_url} did not become read after {waited_s:,} seconds, exiting',
                 )
 
-    def __init__(self, om_model_config: DictConfig, tokenizer: AutoTokenizer):
+    def __init__(
+        self,
+        om_model_config: DictConfig,
+        tokenizer: PreTrainedTokenizerBase,
+    ):
         is_local = om_model_config.pop('local', False)
         if is_local:
             base_url = os.environ.get(

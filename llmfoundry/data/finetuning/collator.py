@@ -6,7 +6,7 @@ import warnings
 from typing import Any, Optional, Union
 
 import torch
-from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.utils.consts import CROSS_ENTROPY_IGNORE_INDEX
 
@@ -231,7 +231,7 @@ class Seq2SeqFinetuningCollator:
 
     def __init__(
         self,
-        tokenizer: Union[PreTrainedTokenizer, PreTrainedTokenizerFast],
+        tokenizer: PreTrainedTokenizerBase,
         max_seq_len: int,
         decoder_only_format: bool,
         target_responses: str = 'last',
@@ -265,10 +265,12 @@ class Seq2SeqFinetuningCollator:
             if illegal_key in self.batch_metadata
         ]
         if found_keys:
+            found_keys_str = ', '.join(found_keys)
+            illegal_keys_str = ', '.join(illegal_keys)
             raise ValueError(
-                f'The following keys are in batch_metadata but are not allowed: {", ".join(found_keys)}.\n' +\
+                f'The following keys are in batch_metadata but are not allowed: {found_keys_str}.\n' +\
                 f'You cannot use keys that are used directly by the models. The prohibited keys are:\n' +\
-                f'{", ".join(illegal_keys)}',
+                f'{illegal_keys_str}',
             )
 
         if (max_seq_len % 8) != 0:
@@ -311,7 +313,6 @@ class Seq2SeqFinetuningCollator:
         else:
             batch = self._process_and_batch_encoder_decoder(examples)
 
-        # Add any batch_metadata
         batch_size = batch['input_ids'].shape[0]
         batch.update({
             k: torch.tensor([v] * batch_size)
@@ -331,7 +332,7 @@ class Seq2SeqFinetuningCollator:
                 example_turns=example['turns'],
                 target_prompts=self.target_prompts,
                 target_responses=self.target_responses,
-                eos_token_id=self.tokenizer.eos_token_id,
+                eos_token_id=self.tokenizer.eos_token_id,  # type: ignore
             ) for example in examples
         ]
 
@@ -397,18 +398,18 @@ class Seq2SeqFinetuningCollator:
             return_tensors='pt',
         )
 
-        batch['sequence_id'] = batch['attention_mask'] - 1
+        batch['sequence_id'] = batch['attention_mask'] - 1  # type: ignore
 
         # This logic prevents trimming on at least the first batch
         if not (self._allow_pad_trimming and self._seen_first_batch):
             self._seen_first_batch = True
-            return batch
+            return batch  # type: ignore
         self._seen_first_batch = True
 
         # The batch is ready, but we can trim padding for efficiency
         multiple_of = 8
 
-        n_non_padding = batch['attention_mask'].sum(dim=1).max()
+        n_non_padding = batch['attention_mask'].sum(dim=1).max()  # type: ignore
         keep_tokens = int(multiple_of * torch.ceil(n_non_padding / multiple_of))
         for k, v in batch.items():
             if len(v.shape) < 2:
@@ -418,7 +419,7 @@ class Seq2SeqFinetuningCollator:
             else:
                 batch[k] = v[:, :keep_tokens].contiguous()
 
-        return batch
+        return batch  # type: ignore
 
     def _process_and_batch_encoder_decoder(
         self,
@@ -430,7 +431,7 @@ class Seq2SeqFinetuningCollator:
         contexts_and_targets = [
             stitch_turns_encoder_decoder(
                 example_turns=example['turns'],
-                eos_token_id=self.tokenizer.eos_token_id,
+                eos_token_id=self.tokenizer.eos_token_id,  # type: ignore
             ) for example in examples
         ]
 
@@ -486,38 +487,42 @@ class Seq2SeqFinetuningCollator:
             return_tensors='pt',
         )
         # We're still missing decoder_input_ids and decoder_attention_mask
-        batch['decoder_input_ids'] = torch.cat([
+        pad_id = self.tokenizer.pad_token_id
+        assert isinstance(pad_id, int)
+        batch['decoder_input_ids'] = torch.cat([  # type: ignore
             torch.full((len(processed_examples), 1),
-                       self.tokenizer.pad_token_id),
-            batch['labels'][:, :-1],
+                       pad_id),
+            batch['labels'][:, :-1],  # type: ignore
         ],
                                                dim=1)
-        batch['decoder_input_ids'].masked_fill_(
+        batch['decoder_input_ids'].masked_fill_(  # type: ignore
             batch['decoder_input_ids'] == CROSS_ENTROPY_IGNORE_INDEX,
-            self.tokenizer.pad_token_id,
+            pad_id,
         )
         batch['decoder_attention_mask'] = torch.not_equal(
-            batch['labels'],
+            batch['labels'],  # type: ignore
             CROSS_ENTROPY_IGNORE_INDEX,
         )
 
         # This logic prevents trimming on at least the first batch
         if not (self._allow_pad_trimming and self._seen_first_batch):
             self._seen_first_batch = True
-            return batch
+            return batch  # type: ignore
         self._seen_first_batch = True
 
         # The batch is now valid, but we can trim padding for efficiency
         multiple_of = 8
         # (first for the encoder)
-        n_non_padding = batch['attention_mask'].sum(dim=1).max()
+        n_non_padding = batch['attention_mask'].sum(dim=1).max()  # type: ignore
         keep_tokens = int(multiple_of * torch.ceil(n_non_padding / multiple_of))
         for k in ['input_ids', 'attention_mask']:
-            batch[k] = batch[k][:, :keep_tokens].contiguous()
+            batch[k] = batch[k][:, :keep_tokens].contiguous()  # type: ignore
         # (then for the decoder)
-        n_non_padding = batch['decoder_attention_mask'].sum(dim=1).max()
+        n_non_padding = batch['decoder_attention_mask'].sum(  # type: ignore
+            dim=1,
+        ).max()  # type: ignore
         keep_tokens = int(multiple_of * torch.ceil(n_non_padding / multiple_of))
         for k in ['decoder_input_ids', 'decoder_attention_mask', 'labels']:
-            batch[k] = batch[k][:, :keep_tokens].contiguous()
+            batch[k] = batch[k][:, :keep_tokens].contiguous()  # type: ignore
 
-        return batch
+        return batch  # type: ignore

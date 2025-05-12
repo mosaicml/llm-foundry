@@ -33,16 +33,15 @@ def test_flash2(model_name: str, use_flash_attention_2: bool, init_device: str):
         tokenizer_name = 'codellama/CodeLlama-7b-hf'
         from transformers.models.llama.modeling_llama import (
             LlamaAttention,
-            LlamaFlashAttention2,
         )
-        flash_attn_class = LlamaFlashAttention2 if use_flash_attention_2 else LlamaAttention
+        flash_attn_class = LlamaAttention  # transformers 4.49.0 has baked FA2 into FA
         attention_layers_attr = 'model.model.layers'
         attention_attr = 'self_attn'
     else:
         raise ValueError(f'Unknown model: {model_name}')
 
     if use_flash_attention_2:
-        model_cfg['use_flash_attention_2'] = True
+        model_cfg['attn_implementation'] = 'flash_attention_2'
 
     tokenizer = build_tokenizer(
         tokenizer_name=tokenizer_name,
@@ -65,7 +64,7 @@ def test_flash2(model_name: str, use_flash_attention_2: bool, init_device: str):
         )
 
         # check that it actually used flash attention 2
-        assert model.model.config._attn_implementation == (
+        assert model.model.config._attn_implementation == (  # type: ignore
             'flash_attention_2' if use_flash_attention_2 else 'eager'
         )
         attention_layer = rgetattr(
@@ -84,7 +83,8 @@ def test_flash2(model_name: str, use_flash_attention_2: bool, init_device: str):
             ],
                                         return_tensors='pt',
                                         padding=True)
-            tokenized_input['labels'] = tokenized_input['input_ids'].clone()
+            cloned = tokenized_input['input_ids'].clone()  # type: ignore
+            tokenized_input['labels'] = cloned
 
             tokenized_input = {k: v.cuda() for k, v in tokenized_input.items()}
             model.to('cuda')

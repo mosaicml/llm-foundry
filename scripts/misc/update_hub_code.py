@@ -77,7 +77,7 @@ def main(hf_repos_for_upload: list[str]):
             result = api.upload_folder(
                 folder_path=original_save_dir,
                 repo_id=repo,
-                use_auth_token=True,
+                token=True,
                 repo_type='model',
                 allow_patterns=['*.py'],
                 commit_message=f'LLM-foundry update {formatted_datetime}',
@@ -101,4 +101,6 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    main(hf_repos_for_upload=args.hf_repos_for_upload,)
+    main(
+        hf_repos_for_upload=args.hf_repos_for_upload,
+    )

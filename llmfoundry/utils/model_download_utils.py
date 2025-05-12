@@ -272,7 +272,9 @@ def download_from_oras(
             f'oras cli command `{ORAS_CLI}` is not found. Please install oras: https://oras.land/docs/installation ',
         )
 
-    def _read_secrets_file(secret_file_path: str,):
+    def _read_secrets_file(
+        secret_file_path: str,
+    ):
         try:
             with open(secret_file_path, encoding='utf-8') as f:
                 return f.read().strip()
@@ -316,7 +318,8 @@ def download_from_oras(
         return cmd
 
     cmd_without_creds = get_oras_cmd()
-    log.info(f'CMD for oras cli to run: {" ".join(cmd_without_creds)}')
+    oras_cli_command = ' '.join(cmd_without_creds)
+    log.info(f'CMD for oras cli to run: {oras_cli_command}')
     cmd_to_run = get_oras_cmd(
         username=secrets['username'],
         password=secrets['password'],

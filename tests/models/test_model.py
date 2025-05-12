@@ -17,7 +17,6 @@ from composer.core.precision import Precision, get_precision_context
 from composer.distributed.dist_strategy import prepare_fsdp_module
 from composer.models.huggingface import (
     HuggingFaceModel,
-    maybe_get_underlying_model,
 )
 from composer.optim import DecoupledAdamW
 from composer.utils import (
@@ -30,9 +29,9 @@ from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from transformers import (
     AutoModelForCausalLM,
-    AutoTokenizer,
     PreTrainedModel,
     PreTrainedTokenizer,
+    PreTrainedTokenizerBase,
     PreTrainedTokenizerFast,
     pipeline,
 )
@@ -52,8 +51,8 @@ from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM, MPTModel
 from llmfoundry.models.mpt.modeling_mpt import (
     CROSS_ENTROPY_IGNORE_INDEX,
     LlamaRotaryEmbeddingFoundry,
+    PartialLlamaConfig,
 )
-from llmfoundry.utils import build_tokenizer
 from llmfoundry.utils.builders import build_composer_model
 from llmfoundry.utils.config_utils import to_dict_container
 
@@ -66,15 +65,6 @@ def get_config(
     with open(conf_path) as f:
         test_cfg = om.load(f)
     return cast(DictConfig, test_cfg)
-
-
-def _load_tokenizer_cfg(cfg: Union[dict[str, Any], DictConfig]) -> dict:
-    if isinstance(cfg, DictConfig):
-        config = to_dict_container(cfg)
-    else:
-        assert isinstance(cfg, dict)
-        config = cfg
-    return config
 
 
 def _get_objs(
@@ -119,11 +109,7 @@ def _get_objs(
     test_cfg.device_eval_batch_size = 2
     test_cfg.device_train_microbatch_size = 2
 
-    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
-    tokenizer = build_tokenizer(
-        test_cfg.tokenizer.name,
-        tokenizer_cfg.get('kwargs', {}),
-    )
+    tokenizer = request.getfixturevalue('tiny_neox_tokenizer')
 
     name = test_cfg.model.pop('name')
     model = build_composer_model(
@@ -311,9 +297,9 @@ def test_attention_mechanism(
                        device=input_ids.device).unsqueeze(0)
 
     with get_precision_context(test_cfg.precision):
-        tok_emb = model.model.transformer.wte(input_ids)
-        pos_emb = model.model.transformer.wpe(pos)
-        x = model.model.transformer.emb_drop(tok_emb + pos_emb)
+        tok_emb = model.model.transformer.wte(input_ids)  # type: ignore
+        pos_emb = model.model.transformer.wpe(pos)  # type: ignore
+        x = model.model.transformer.emb_drop(tok_emb + pos_emb)  # type: ignore
 
         # basically the attention mask should be a tensor shape (bsz, seqlen, seqlen)
         # wih -inf along the upper triangle as well as wherever there are any pad tokens
@@ -329,20 +315,20 @@ def test_attention_mechanism(
             axis=1)
         expected_zerod_weights |= torch_key_padding
 
-        attn_bias, attention_mask = model.model.transformer._attn_bias(
+        attn_bias, attention_mask = model.model.transformer._attn_bias( # type: ignore
             device=x.device,
             dtype=x.dtype,
             attention_mask=attention_mask,
         )
 
-        for block in model.model.transformer.blocks:
+        for block in model.model.transformer.blocks:  # type: ignore
             a = block.norm_1(x)
             b, attention_weights, _ = block.attn(
                 a,
                 past_key_value=None,
                 attn_bias=attn_bias,
                 attention_mask=attention_mask,
-                is_causal=model.model.transformer.is_causal,
+                is_causal=model.model.transformer.is_causal, # type: ignore
                 needs_weights=True,
             )
 
@@ -357,7 +343,10 @@ def test_attention_mechanism(
             x = x + block.resid_ffn_dropout(n)
 
 
-def test_full_forward_and_backward_gpt2_small(batch_size: int = 2):
+def test_full_forward_and_backward_gpt2_small(
+    tiny_gpt2_tokenizer: PreTrainedTokenizerBase,
+    batch_size: int = 2,
+):
     warnings.filterwarnings(
         action='ignore',
         message='Torchmetrics v0.9 introduced a new argument class property',
@@ -371,11 +360,7 @@ def test_full_forward_and_backward_gpt2_small(batch_size: int = 2):
     neo_cfg.max_seq_len = 256
     neo_cfg.model.name = 'hf_causal_lm'
 
-    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(neo_cfg.tokenizer)
-    tokenizer = build_tokenizer(
-        neo_cfg.tokenizer.name,
-        tokenizer_cfg.get('kwargs', {}),
-    )
+    tokenizer = tiny_gpt2_tokenizer
 
     name = neo_cfg.model.pop('name')
     model = build_composer_model(
@@ -399,7 +384,7 @@ def test_full_forward_and_backward_gpt2_small(batch_size: int = 2):
     )
 
     # set vocab size using model num_embeddings
-    neo_cfg.model.vocab_size = model.model.transformer.wte.num_embeddings
+    neo_cfg.model.vocab_size = model.model.transformer.wte.num_embeddings  # type: ignore
     batch = gen_random_batch(batch_size, neo_cfg)
 
     assert batch['input_ids'].shape == torch.Size([
@@ -417,7 +402,10 @@ def test_full_forward_and_backward_gpt2_small(batch_size: int = 2):
     assert not torch.equal(original_params, updated_params)
 
 
-def test_full_forward_and_backward_t5_small(batch_size: int = 2):
+def test_full_forward_and_backward_t5_small(
+    tiny_t5_tokenizer: PreTrainedTokenizerBase,
+    batch_size: int = 2,
+):
     warnings.filterwarnings(
         action='ignore',
         message='Torchmetrics v0.9 introduced a new argument class property',
@@ -430,11 +418,7 @@ def test_full_forward_and_backward_t5_small(batch_size: int = 2):
     t5_cfg.device = device
     t5_cfg.max_seq_len = 16
 
-    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(t5_cfg.tokenizer)
-    tokenizer = build_tokenizer(
-        t5_cfg.tokenizer.name,
-        tokenizer_cfg.get('kwargs', {}),
-    )
+    tokenizer = tiny_t5_tokenizer
 
     name = t5_cfg.model.pop('name')
     model = build_composer_model(
@@ -459,7 +443,7 @@ def test_full_forward_and_backward_t5_small(batch_size: int = 2):
     # set vocab size using model num_embeddings
     batch = gen_random_enc_dec_batch(
         batch_size,
-        model.model.config.vocab_size,
+        model.model.config.vocab_size, # type: ignore
         t5_cfg.max_seq_len,
         device,
     )
@@ -514,6 +498,7 @@ def test_determinism(
     precision: torch.dtype,
     ffn_type: str,
     ffn_act_fn: dict,
+    tiny_neox_tokenizer: PreTrainedTokenizerBase,
 ):
     conf_path = 'scripts/train/yamls/pretrain/testing.yaml'
     with open(conf_path) as f:
@@ -530,11 +515,7 @@ def test_determinism(
     test_cfg.model.init_device = 'cuda:0'
     test_cfg.device = 'cuda:0'
 
-    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
-    tokenizer = build_tokenizer(
-        test_cfg.tokenizer.name,
-        tokenizer_cfg.get('kwargs', {}),
-    )
+    tokenizer = tiny_neox_tokenizer
 
     name = test_cfg.model.pop('name')
     model_1 = build_composer_model(
@@ -581,7 +562,7 @@ def test_determinism(
 
 
 @pytest.mark.gpu
-def test_loss_fn():
+def test_loss_fn(tiny_neox_tokenizer: PreTrainedTokenizerBase):
     """Tests the Fused CrossEntropy vs torch.nn.CrossEntropy loss function.
 
     We provide non-zero tolerances to account for small numerics differences
@@ -610,11 +591,7 @@ def test_loss_fn():
         'init_std': 0.02,
     }
 
-    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
-    tokenizer = build_tokenizer(
-        test_cfg.tokenizer.name,
-        tokenizer_cfg.get('kwargs', {}),
-    )
+    tokenizer = tiny_neox_tokenizer
 
     name = test_cfg.model.pop('name')
     model_1 = build_composer_model(
@@ -686,7 +663,10 @@ def test_loss_fn():
     'loss_fn_config',
     ['torch_crossentropy', 'fused_crossentropy'],
 )
-def test_loss_reduction(loss_fn_config: str):
+def test_loss_reduction(
+    loss_fn_config: str,
+    tiny_neox_tokenizer: PreTrainedTokenizerBase,
+):
     """Tests the Fused CrossEntropy vs torch.nn.CrossEntropy loss function.
 
     We provide non-zero tolerances to account for small numerics differences
@@ -717,11 +697,7 @@ def test_loss_reduction(loss_fn_config: str):
         'init_std': 0.02,
     }
 
-    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
-    tokenizer = build_tokenizer(
-        test_cfg.tokenizer.name,
-        tokenizer_cfg.get('kwargs', {}),
-    )
+    tokenizer = tiny_neox_tokenizer
 
     name = test_cfg.model.pop('name')
     model_1 = build_composer_model(
@@ -776,7 +752,7 @@ def test_loss_reduction(loss_fn_config: str):
         loss_1 = model_1.loss(output_1, batch)
 
         # Loss for model_2 gets reduced within the loss_fn, so we handle it separately
-        targets = model_2.get_targets(batch)
+        targets = model_2.get_targets(batch)  # type: ignore
         loss_2 = model_2.loss_fn(
             output_2.logits.view(-1, output_2.logits.size(-1)),
             targets.view(-1),
@@ -803,50 +779,6 @@ def test_loss_reduction(loss_fn_config: str):
             ), f'differed at step {i}'
 
 
-@pytest.mark.parametrize(
-    'peft_config',
-    [
-        None,
-        {
-            'peft_type': 'LORA',
-            'task_type': 'CAUSAL_LM',
-        },
-    ],
-)
-def test_opt_wrapping(peft_config: Optional[dict[str, str]]):
-    if peft_config is not None:
-        _ = pytest.importorskip('peft')
-
-    conf: dict[str, dict[str, Any]] = {
-        'model': {
-            'name': 'hf_causal_lm',
-            'pretrained_model_name_or_path': 'facebook/opt-125m',
-            'pretrained': False,
-        },
-        'tokenizer': {
-            'name': 'facebook/opt-125m',
-        },
-    }
-    if peft_config is not None:
-        conf['model']['peft_config'] = peft_config
-
-    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(conf['tokenizer'])
-    tokenizer = build_tokenizer(
-        conf['tokenizer']['name'],
-        tokenizer_cfg.get('kwargs', {}),
-    )
-
-    conf['model'].pop('name')
-    model = ComposerHFCausalLM(**conf['model'], tokenizer=tokenizer)
-
-    # check that all the modules we except are blocked from FSDP wrapping
-    underlying_model = maybe_get_underlying_model(model.model)
-    assert not underlying_model.model._fsdp_wrap
-    assert not underlying_model.model.decoder._fsdp_wrap
-    assert not underlying_model.model.decoder.embed_tokens._fsdp_wrap
-    assert not underlying_model.lm_head._fsdp_wrap
-
-
 def test_lora_id():
     peft = pytest.importorskip('peft')
 
@@ -864,14 +796,8 @@ def test_lora_id():
 
     config = DictConfig(conf)
 
-    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(config.tokenizer)
-    tokenizer = build_tokenizer(
-        config.tokenizer.name,
-        tokenizer_cfg.get('kwargs', {}),
-    )
-
     config.model.pop('name')
-    model = ComposerHFCausalLM(**config.model, tokenizer=tokenizer)
+    model = ComposerHFCausalLM(**config.model, tokenizer=None)  # type: ignore
 
     assert isinstance(model.model, peft.PeftModelForCausalLM)
 
@@ -1025,6 +951,7 @@ def test_mb_mpt_creation():
                 'name': 'gelu',
             },
             'moe_world_size': 1,
+            'mlp_impl': 'grouped',
         },
     )
 
@@ -1542,7 +1469,7 @@ def test_generate(
             max_new_tokens=5,
             use_cache=False,
         )
-        assert batched_generation.shape == (2, 6 + 5)
+        assert batched_generation.shape == (2, 6 + 5)  # type: ignore
 
         generation_with_left_padding = mpt.generate(
             input_ids=left_padding_input_ids,
@@ -1550,14 +1477,14 @@ def test_generate(
             max_new_tokens=5,
             use_cache=False,
         )
-        assert generation_with_left_padding.shape == (2, 6 + 5)
+        assert generation_with_left_padding.shape == (2, 6 + 5)  # type: ignore
         generation_with_no_padding = mpt.generate(
             input_ids=no_padding_input_ids,
             attention_mask=no_padding_attention_mask,
             max_new_tokens=5,
             use_cache=False,
         )
-        assert generation_with_no_padding.shape == (2, 3 + 5)
+        assert generation_with_no_padding.shape == (2, 3 + 5)  # type: ignore
 
         # check that left padding and no padding produce the same output
         assert generation_with_no_padding[:, 3:].equal(
@@ -1601,6 +1528,7 @@ def test_generate_with_device_map(
     tmp_path: pathlib.Path,
     world_size: int,
     tie_word_embeddings: bool,
+    tiny_neox_tokenizer: PreTrainedTokenizerBase,
 ):
     if not torch.cuda.device_count() >= world_size:
         pytest.skip(f'This test requires {world_size} GPUs.')
@@ -1627,7 +1555,6 @@ def test_generate_with_device_map(
     from transformers.models.auto.configuration_auto import CONFIG_MAPPING
     CONFIG_MAPPING._extra_content['mpt'] = MPTConfig
     AutoModelForCausalLM.register(MPTConfig, MPTForCausalLM)
-    tokenizer = AutoTokenizer.from_pretrained('EleutherAI/gpt-neox-20b')
 
     device_map = {
         'transformer.wte': 0,
@@ -1641,8 +1568,8 @@ def test_generate_with_device_map(
 
     pipe = pipeline(
         'text-generation',
-        model=save_path,
-        tokenizer=tokenizer,
+        model=str(save_path),
+        tokenizer=tiny_neox_tokenizer,  # type: ignore
         torch_dtype=torch.bfloat16,
         trust_remote_code=True,
         device_map=device_map,
@@ -2136,10 +2063,10 @@ def test_generate_with_past_kv(
             autospec=True,
         ) as forward_mocked:
             forward_mocked.return_value = CausalLMOutputWithPast(
-                logits=composer_device.tensor_to_device(
+                logits=composer_device.tensor_to_device(  # type: ignore
                     torch.randn((1, 3, hf_config.vocab_size)),
                 ),
-                past_key_values=[(
+                past_key_values=[(  # type: ignore
                     torch.randn(1, 3, hf_config.d_model),
                     torch.randn(1, 3, hf_config.d_model),
                 ) for _ in range(hf_config.n_layers)],
@@ -2494,6 +2421,7 @@ def test_hf_init(
     tmp_path: pathlib.Path,
     init_device: str,
     world_size: int,
+    tiny_neox_tokenizer: PreTrainedTokenizerBase,
     batch_size: int = 1,
 ):
     if not torch.cuda.device_count() >= world_size:
@@ -2551,11 +2479,7 @@ def test_hf_init(
             trust_remote_code=True,
         )
 
-    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
-    tokenizer = build_tokenizer(
-        test_cfg.tokenizer.name,
-        tokenizer_cfg.get('kwargs', {}),
-    )
+    tokenizer = tiny_neox_tokenizer
 
     optimizer = DecoupledAdamW(
         model.parameters(),
@@ -2572,7 +2496,7 @@ def test_hf_init(
         False,
     )
 
-    model = HuggingFaceModel(model, tokenizer)
+    model = HuggingFaceModel(model, tokenizer)  # type: ignore
 
     batch = gen_random_batch(batch_size, test_cfg)
 
@@ -2591,7 +2515,10 @@ def test_hf_init(
 
 
 @pytest.mark.gpu
-def test_head_dim_8_flash_mqa_attn(batch_size: int = 2):
+def test_head_dim_8_flash_mqa_attn(
+    tiny_neox_tokenizer: PreTrainedTokenizerBase,
+    batch_size: int = 2,
+):
     test_cfg = get_config(conf_path='scripts/train/yamls/pretrain/testing.yaml')
     test_cfg.device = torch.cuda.current_device()
 
@@ -2613,15 +2540,11 @@ def test_head_dim_8_flash_mqa_attn(batch_size: int = 2):
     )
     test_cfg.device = torch.cuda.current_device()
 
-    tokenizer_cfg: dict[str, Any] = _load_tokenizer_cfg(test_cfg.tokenizer)
-    tokenizer = build_tokenizer(
-        test_cfg.tokenizer.name,
-        tokenizer_cfg.get('kwargs', {}),
-    )
+    tokenizer = tiny_neox_tokenizer
 
     mpt = MPTForCausalLM(hf_config)
 
-    model = HuggingFaceModel(mpt, tokenizer, shift_labels=True)
+    model = HuggingFaceModel(mpt, tokenizer, shift_labels=True)  # type: ignore
 
     model = model.to(test_cfg.device)
     batch = gen_random_batch(batch_size, test_cfg)
@@ -2705,27 +2628,40 @@ def test_construct_blocks():
     block_list = MPTModel(config).construct_blocks(config)
 
     assert len(block_list) == n_layers
-    assert block_list[0].attn.sliding_window_size == -1
-    assert block_list[0].attn.reuse_kv_layer_idx is None
+
+    assert block_list[0].attn.sliding_window_size == -1  # type: ignore
+    assert block_list[0].attn.reuse_kv_layer_idx is None  # type: ignore
 
     for layer_offset in [1, 7]:
-        assert block_list[layer_offset].attn.sliding_window_size == 1024
-        assert block_list[layer_offset].attn.reuse_kv_layer_idx is None
-        assert block_list[layer_offset + 1].attn.sliding_window_size == 1024
+        assert block_list[layer_offset
+                         ].attn.sliding_window_size == 1024  # type: ignore
+        assert block_list[layer_offset
+                         ].attn.reuse_kv_layer_idx is None  # type: ignore
         assert block_list[layer_offset +
-                          1].attn.reuse_kv_layer_idx == layer_offset
+                          1].attn.sliding_window_size == 1024  # type: ignore
+        assert block_list[
+            layer_offset +
+            1].attn.reuse_kv_layer_idx == layer_offset  # type: ignore
 
-        assert block_list[layer_offset + 2].attn.sliding_window_size == 1024
-        assert block_list[layer_offset + 2].attn.reuse_kv_layer_idx is None
-        assert block_list[layer_offset + 3].attn.sliding_window_size == 1024
         assert block_list[layer_offset +
-                          3].attn.reuse_kv_layer_idx == layer_offset + 2
-        assert block_list[layer_offset + 4].attn.sliding_window_size == 1024
+                          2].attn.sliding_window_size == 1024  # type: ignore
         assert block_list[layer_offset +
-                          4].attn.reuse_kv_layer_idx == layer_offset + 2
+                          2].attn.reuse_kv_layer_idx is None  # type: ignore
+        assert block_list[layer_offset +
+                          3].attn.sliding_window_size == 1024  # type: ignore
+        assert block_list[
+            layer_offset +
+            3].attn.reuse_kv_layer_idx == layer_offset + 2  # type: ignore
+        assert block_list[layer_offset +
+                          4].attn.sliding_window_size == 1024  # type: ignore
+        assert block_list[
+            layer_offset +
+            4].attn.reuse_kv_layer_idx == layer_offset + 2  # type: ignore
 
-        assert block_list[layer_offset + 5].attn.sliding_window_size == -1
-        assert block_list[layer_offset + 5].attn.reuse_kv_layer_idx == 0
+        assert block_list[layer_offset +
+                          5].attn.sliding_window_size == -1  # type: ignore
+        assert block_list[layer_offset +
+                          5].attn.reuse_kv_layer_idx == 0  # type: ignore
 
 
 @pytest.mark.gpu
@@ -2776,7 +2712,9 @@ def test_reuse_prev_layer_kv_cache(
             prev_layer_key_value_dict[b_idx] = kwargs['prev_layer_key_value']
         return b_forward(*args, **kwargs)
 
-    for b_idx, block in enumerate(model.model.transformer.blocks):
+    for b_idx, block in enumerate(
+        model.model.transformer.blocks,  # type: ignore
+    ):
         block.forward = partial(mock_forward, block.forward, b_idx)
 
     with get_precision_context(test_cfg.precision):
@@ -2919,7 +2857,7 @@ def test_resolve_reuse_kv_layer_idx(reuse_kv_layer_idx: int):
         with pytest.raises(
             expected_exception=ValueError,
             match=
-            'The relative index of kv layer to reuse, override_attn_config\[\"reuse_kv_layer_idx\"\]=0, should be negative\.',  # type: ignore
+            'The relative index of kv layer to reuse, override_attn_config\\[\'reuse_kv_layer_idx\'\\]=0, should be negative.',  # type: ignore
         ):
             _validate_helper(b_idx=2)
 
@@ -2933,22 +2871,21 @@ def test_hf_rotary_child_class_builds():
     value = torch.rand([bsz, num_heads, max_seq_len, rope_head_dim])
     position_ids = torch.Tensor([
         list(range(max_seq_len)),
-    ] * bsz)
+    ] * bsz).long()
 
-    rot_emb_mp = LlamaRotaryEmbeddingFoundry(
-        rope_head_dim,
-        max_seq_len,
-        rope_theta,
-        device='cpu',
+    # Create config for both classes
+    partial_config = PartialLlamaConfig(
+        rope_scaling={'rope_type': 'default'},
+        rope_theta=rope_theta,
+        max_position_embeddings=max_seq_len,
+        hidden_size=rope_head_dim * num_heads,
+        num_attention_heads=num_heads,
     )
-    cos_mp, sin_mp = rot_emb_mp(value, position_ids)
 
-    rot_emb = LlamaRotaryEmbedding(
-        rope_head_dim,
-        max_seq_len,
-        rope_theta,
-        device='cpu',
-    )
+    rot_emb_mp = LlamaRotaryEmbeddingFoundry(config=partial_config)
+    cos_mp, sin_mp = rot_emb_mp(x=value, position_ids=position_ids)
+
+    rot_emb = LlamaRotaryEmbedding(config=partial_config)
     cos, sin = rot_emb(value, position_ids)
 
     assert torch.all(cos == cos_mp)

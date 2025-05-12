@@ -63,7 +63,7 @@ def test_encoding_types_text(
 
     if use_bytes and token_encoding_type != 'default':
         dataset = StreamingTextDataset(
-            tokenizer=None,
+            tokenizer=None,  # type: ignore
             token_encoding_type=token_encoding_type,
             max_seq_len=max_seq_len,
             local=dataset_local_path,
@@ -73,7 +73,7 @@ def test_encoding_types_text(
         # There should be no need to pass in the token encoding type if writing out ndarrays,
         # or if using the default token encoding type.
         dataset = StreamingTextDataset(
-            tokenizer=None,
+            tokenizer=None,  # type: ignore
             max_seq_len=max_seq_len,
             local=dataset_local_path,
             batch_size=1,
@@ -153,7 +153,7 @@ def test_encoding_types_finetuning(
 
     if use_bytes and token_encoding_type != 'default':
         dataset = StreamingFinetuningDataset(
-            tokenizer=None,
+            tokenizer=None,  # type: ignore
             token_encoding_type=token_encoding_type,
             local=dataset_local_path,
             max_seq_len=max_seq_len,
@@ -163,7 +163,7 @@ def test_encoding_types_finetuning(
         # There should be no need to pass in the token encoding type if writing out ndarrays,
         # or if using the default token encoding type.
         dataset = StreamingFinetuningDataset(
-            tokenizer=None,
+            tokenizer=None,  # type: ignore
             local=dataset_local_path,
             max_seq_len=max_seq_len,
             batch_size=1,
@@ -189,7 +189,7 @@ def test_unsupported_encoding_type(
     with pytest.raises(ValueError, match='The token_encoding_type*'):
         if use_finetuning:
             StreamingFinetuningDataset(
-                tokenizer=None,
+                tokenizer=None,  # type: ignore
                 token_encoding_type=token_encoding_type,
                 local='dataset/path',
                 max_seq_len=2048,
@@ -197,7 +197,7 @@ def test_unsupported_encoding_type(
             )
         else:
             StreamingTextDataset(
-                tokenizer=None,
+                tokenizer=None,  # type: ignore
                 token_encoding_type=token_encoding_type,
                 max_seq_len=2048,
                 local='dataset/path',

@@ -22,8 +22,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-        - name: "gpu-2.5.1-1"
-          container: mosaicml/llm-foundry:2.5.1_cu124-latest
+        - name: "gpu-2.6.0-1"
+          container: mosaicml/llm-foundry:2.6.0_cu124-latest
           markers: "gpu"
           pip_deps: "[all]"
           pytest_command: "coverage run -m pytest"
@@ -39,7 +39,7 @@ jobs:
         pip_deps: ${{ matrix.pip_deps }}
         pytest_command: ${{ matrix.pytest_command }}
         pytest_markers: ${{ matrix.markers }}
-        python_version: 3.9
+        python_version: "3.10"
         gpu_num: 1
         mcloud_api_key: ${{ secrets.MCLOUD_API_KEY }}
         ci_repo_gpu_test_ref: ${{ matrix.ci_repo_gpu_test_ref }}
@@ -51,8 +51,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-        - name: "gpu-2.5.1-2"
-          container: mosaicml/llm-foundry:2.5.1_cu124-latest
+        - name: "gpu-2.6.0-2"
+          container: mosaicml/llm-foundry:2.6.0_cu124-latest
           markers: "gpu"
           pip_deps: "[all]"
           pytest_command: "coverage run -m pytest"
@@ -68,7 +68,7 @@ jobs:
         pip_deps: ${{ matrix.pip_deps }}
         pytest_command: ${{ matrix.pytest_command }}
         pytest_markers: ${{ matrix.markers }}
-        python_version: 3.9
+        python_version: "3.10"
         gpu_num: 2
         mcloud_api_key: ${{ secrets.MCLOUD_API_KEY }}
         ci_repo_gpu_test_ref: ${{ matrix.ci_repo_gpu_test_ref }}
@@ -80,8 +80,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-        - name: "gpu-2.5.1-4"
-          container: mosaicml/llm-foundry:2.5.1_cu124-latest
+        - name: "gpu-2.6.0-4"
+          container: mosaicml/llm-foundry:2.6.0_cu124-latest
           markers: "gpu"
           pip_deps: "[all]"
           pytest_command: "coverage run -m pytest"
@@ -97,7 +97,7 @@ jobs:
         pip_deps: ${{ matrix.pip_deps }}
         pytest_command: ${{ matrix.pytest_command }}
         pytest_markers: ${{ matrix.markers }}
-        python_version: 3.9
+        python_version: "3.10"
         gpu_num: 4
         mcloud_api_key: ${{ secrets.MCLOUD_API_KEY }}
         ci_repo_gpu_test_ref: ${{ matrix.ci_repo_gpu_test_ref }}

@@ -197,13 +197,13 @@ class StreamingTextDataset(StreamingDataset):
 
     # How to tokenize a text sample to a token sample
     def _tokenize(self, text_sample: Mapping) -> dict[str, list[int]]:
-        if self.tokenizer._pad_token is None:
+        if self.tokenizer.pad_token is None:
             # Some tokenizers (e.g. GPT2 tokenizer) have no padding token which causes bugs
             raise RuntimeError(
                 'If tokenizing on-the-fly, tokenizer must have a pad_token_id',
             )
 
-        return self.tokenizer(
+        return self.tokenizer(  # type: ignore
             text_sample['text'],
             truncation=True,
             padding='max_length',
@@ -291,7 +291,9 @@ class ConcatenatedSequenceCollatorWrapper:
         return torch.cat([left_zeros, cumulative_sep[:, :-1]], dim=1)
 
 
-def build_streams(streams: Optional[dict[str, Any]] = None,):
+def build_streams(
+    streams: Optional[dict[str, Any]] = None,
+):
     streams_dict = streams
     # build streams
     streams_ret = []
@@ -301,7 +303,7 @@ def build_streams(streams: Optional[dict[str, Any]] = None,):
 
 
 def build_text_dataloader(
-    tokenizer: PreTrainedTokenizerBase,
+    tokenizer: Optional[PreTrainedTokenizerBase],
     device_batch_size: Union[int, float],
     dataset: dict[str, Any],
     drop_last: bool,
@@ -311,6 +313,8 @@ def build_text_dataloader(
     persistent_workers: bool = True,
     timeout: int = 0,
 ) -> DataSpec:
+    if tokenizer is None:
+        raise ValueError('Tokenizer is required for text dataloader')
 
     dataset_cfg = dataset
 
@@ -335,7 +339,9 @@ def build_text_dataloader(
         StreamingTextDataset,
     ).parameters
 
-    valid_base_dataset_params = inspect.signature(StreamingDataset,).parameters
+    valid_base_dataset_params = inspect.signature(
+        StreamingDataset,
+    ).parameters
 
     dataset_config_subset_for_streaming_text_dataset = {
         k: v
@@ -446,7 +452,6 @@ if __name__ == '__main__':
         print(f'Reading {args.split} split from {args.local_path}')
 
     cfg = {
-        'name': 'text',
         'dataset': {
             'local': args.local_path,
             'remote': args.remote_path,
@@ -477,7 +482,10 @@ if __name__ == '__main__':
         print('\n')
         print('#' * 20, f'Batch {batch_ix}', '#' * 20)
         for k, v in batch.items():
-            print(k, v.shape, v.dtype)
+            if isinstance(v, torch.Tensor):
+                print(k, v.shape, v.dtype)
+            else:
+                print(k, v)
         for sample_ix, token_sample in enumerate(batch['input_ids']):
             print('-' * 20, f' Sample {sample_ix} ', '-' * 20)
             print(tokenizer.decode(token_sample))

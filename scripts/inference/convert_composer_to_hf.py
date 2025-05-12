@@ -258,7 +258,7 @@ def _convert_composer_to_hf(args: Namespace) -> None:
         )
         api.create_repo(
             repo_id=args.hf_repo_for_upload,
-            use_auth_token=True,
+            token=True,
             repo_type='model',
             private=True,
             exist_ok=True,
@@ -276,7 +276,7 @@ def _convert_composer_to_hf(args: Namespace) -> None:
         api.upload_folder(
             folder_path=args.hf_output_path,
             repo_id=args.hf_repo_for_upload,
-            use_auth_token=True,
+            token=True,
             repo_type='model',
             ignore_patterns=ignore_patterns,
         )

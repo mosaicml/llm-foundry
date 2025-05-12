@@ -585,3 +585,15 @@ class DeltaTableNotFoundError(UserError):
             volume_name=volume_name,
             table_name=table_name,
         )
+
+
+class TableDownloadError(UserError):
+    """Generic error passing along the table download error message."""
+
+    def __init__(self, table_name: str, parent_error: str) -> None:
+        message = f'Error downloading table {table_name}: {parent_error}'
+        super().__init__(
+            message,
+            table_name=table_name,
+            parent_error=parent_error,
+        )

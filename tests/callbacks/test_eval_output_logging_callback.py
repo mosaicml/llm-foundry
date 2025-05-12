@@ -4,18 +4,18 @@
 import contextlib
 import json
 import re
-from typing import Any
+from typing import Any, cast
 from unittest import mock
 
 import pytest
 import torch
-import transformers
 from composer.core.state import State
 from composer.core.time import Timestamp
 from composer.loggers import InMemoryLogger, Logger
 from composer.models import HuggingFaceModel
 from torch.utils.data import DataLoader
 from torchmetrics import Metric
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.callbacks.eval_output_logging_callback import EvalOutputLogging
 from llmfoundry.eval.datasets.in_context_learning_evaluation import \
@@ -28,14 +28,14 @@ from llmfoundry.eval.metrics.nlp import (
 
 class MockDataset(InContextLearningMultipleChoiceTaskDataset):
 
-    def __init__(self, tokenizer: transformers.AutoTokenizer):
+    def __init__(self, tokenizer: PreTrainedTokenizerBase):
         self.tokenizer = tokenizer
         self.pad_tok_id = tokenizer.pad_token_id
 
 
 class MockDataLoader(DataLoader):
 
-    def __init__(self, tokenizer: transformers.AutoTokenizer):
+    def __init__(self, tokenizer: PreTrainedTokenizerBase):
         self.dataset = MockDataset(tokenizer)
 
 
@@ -75,14 +75,17 @@ class RegexMatcher:
 
 def mock_lm_computation(
     metric: Metric,
-    tokenizer: transformers.AutoTokenizer,
+    tokenizer: PreTrainedTokenizerBase,
     state: State,
 ):
     contexts = ['The dog is', 'I love to eat', 'I hate', 'The weather is']
     continuations = [' furry', ' pie', ' long lines', ' snowy']
     pad = tokenizer.pad_token_id
     inputs = [
-        tokenizer(context)['input_ids'] + tokenizer(continuation)['input_ids']
+        cast(Any,
+             tokenizer(context)['input_ids']) +
+        cast(Any,
+             tokenizer(continuation)['input_ids'])
         for context, continuation in zip(contexts, continuations)
     ]
     inputs = torch.tensor([
@@ -91,8 +94,8 @@ def mock_lm_computation(
 
     cont_idxs = []
     for context, continuation in zip(contexts, continuations):
-        start = len(tokenizer(context)['input_ids'])
-        end = start + len(tokenizer(continuation)['input_ids'])
+        start = len(cast(Any, tokenizer(context)['input_ids']))
+        end = start + len(cast(Any, tokenizer(continuation)['input_ids']))
         cont_idxs.append(torch.tensor(list(range(start, end))))
 
     batch = {
@@ -116,7 +119,7 @@ def mock_lm_computation(
 
 def mock_mc_computation(
     metric: Metric,
-    tokenizer: transformers.AutoTokenizer,
+    tokenizer: PreTrainedTokenizerBase,
     state: State,
 ):
     contexts = [
@@ -135,7 +138,10 @@ def mock_mc_computation(
     choice_groupings = [(0, 2), (2, 4)]
     pad = tokenizer.pad_token_id
     inputs = [
-        tokenizer(context)['input_ids'] + tokenizer(continuation)['input_ids']
+        cast(Any,
+             tokenizer(context)['input_ids']) +
+        cast(Any,
+             tokenizer(continuation)['input_ids'])
         for context, continuation in zip(contexts, continuations)
     ]
     inputs = torch.tensor([
@@ -145,8 +151,8 @@ def mock_mc_computation(
 
     cont_idxs = []
     for context, continuation in zip(contexts, continuations):
-        start = len(tokenizer(context)['input_ids'])
-        end = start + len(tokenizer(continuation)['input_ids'])
+        start = len(cast(Any, tokenizer(context)['input_ids']))
+        end = start + len(cast(Any, tokenizer(continuation)['input_ids']))
         cont_idxs.append(torch.tensor(list(range(start, end))))
 
     batch = {
@@ -218,7 +224,7 @@ def test_init(
 
 @pytest.mark.parametrize('log_output_text', [True, False])
 def test_eval_output_logging_lm(
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
     log_output_text: bool,
 ):
     # this test simulates an unrolled version of the eval loop occurring twice
@@ -238,12 +244,12 @@ def test_eval_output_logging_lm(
 
     for _ in range(2):
         state.update_curr_eval(
-            MockDataLoader(tiny_gpt2_tokenizer),
+            MockDataLoader(tiny_gpt2_with_pad_tokenizer),
             'lm_acc',
         )
         mock_lm_computation(
             state.eval_metrics['lm_acc']['InContextLearningLMAccuracy()'],
-            tiny_gpt2_tokenizer,
+            tiny_gpt2_with_pad_tokenizer,
             state,
         )
         state.metric_outputs['metric_name'] = [
@@ -363,7 +369,7 @@ def test_eval_output_logging_lm(
 
 
 def test_eval_output_logging_mc(
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
 ):
     # this test simulates an unrolled version of the eval loop occurring twice
     state = MockState()
@@ -381,13 +387,13 @@ def test_eval_output_logging_mc(
     eval_output_logging.init(mock.Mock(model=MockHFModel()), logger)
     for _ in range(2):
         state.update_curr_eval(
-            MockDataLoader(tiny_gpt2_tokenizer),
+            MockDataLoader(tiny_gpt2_with_pad_tokenizer),
             'mc_acc',
         )
         mock_mc_computation(
             state.eval_metrics['mc_acc']
             ['InContextLearningMultipleChoiceAccuracy()'],
-            tiny_gpt2_tokenizer,
+            tiny_gpt2_with_pad_tokenizer,
             state,
         )
         state.metric_outputs['metric_name'] = [

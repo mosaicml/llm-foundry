@@ -116,9 +116,6 @@ def get_conversion_config(
                     'rejected_reward': np.float32(x['rejected_reward']),
                 }
                 
-                # Debug the converted data
-                print(f"Converted COMP_EVAL data types: prompt={result['prompt'].dtype}, chosen={result['chosen'].dtype}, rejected={result['rejected'].dtype}")
-                
                 return result
             except Exception as e:
                 logger.error(f"Error in COMP_EVAL convert_x: {e}")

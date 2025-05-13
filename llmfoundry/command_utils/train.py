@@ -454,7 +454,7 @@ def train(cfg: DictConfig) -> Trainer:
         build_algorithm(str(name), algorithm_cfg)
         for name, algorithm_cfg in algorithm_configs.items()
     ]
-
+    algorithms = []
     # Dataloaders
     log.info('Building train loader...')
     try:

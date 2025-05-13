@@ -678,6 +678,7 @@ def train(cfg: DictConfig) -> Trainer:
         with FSDP.summon_full_params(model_fsdp1):
             for fsdp1_param, fsdp2_param in zip(model_fsdp1.parameters(), model_fsdp2.parameters()):
                 torch.testing.assert_close(fsdp1_param.data, fsdp2_param.full_tensor())
+        del model_fsdp1, optimizer
     # add_hooks_to_linear_modules(trainer.state.model)
     # Optionally just save an HF checkpoint
     if train_cfg.only_hf_checkpoint:

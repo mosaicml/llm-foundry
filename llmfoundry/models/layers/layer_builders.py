@@ -112,44 +112,9 @@ def build_fc(
         **{k: v for k, v in fc_kwargs.items() if k != 'name'},
     }
 
-    module = construct_from_registry(
+    return construct_from_registry(
         name=name,
         registry=fcs,
         pre_validation_function=torch.nn.Module,
         kwargs=kwargs,
     )
-    # from torch._C._distributed_c10d import ReduceOp
-    # if isinstance(module, torch.nn.Linear):
-    #     def post_hook_fn(module, grad_input, grad_output):
-    #         print('grad_input: ', grad_input[0].norm().item(), 'grad_output: ', grad_output[0].norm().item())
-    #     def forward_hook_fn(module, input, output):
-    #         print('module: ', module, 'input: ', input[0].norm().item(), 'output: ', output.norm().item())
-    #     def weight_hook(grad):
-    #         grad = grad.clone().detach().reshape(-1)
-    #         # print('weight_grad: ', grad.norm().item())
-    #         # grad_sc_output = grad.new_empty(grad.shape[0] // 2)
-    #         # print('reduce scatter dtype: ', grad_sc_output.dtype, grad.dtype)
-    #         # torch.distributed.reduce_scatter_tensor(grad_sc_output, grad, op=ReduceOp.AVG)
-    #         # print('local sc weight grad: ', grad_sc_output.float().norm().item())
-    #         torch.distributed.all_reduce(grad, op=ReduceOp.AVG)
-    #         print('weight_grad: ', grad.float().norm().item())
-    #     def bias_hook(grad):
-    #         grad = grad.clone().detach().reshape(-1)    
-    #         # print('bias_grad: ', grad.norm().item())
-    #         # grad_sc_output = grad.new_empty(grad.shape[0] // 2)
-    #         # torch.distributed.reduce_scatter_tensor(grad_sc_output, grad, op=ReduceOp.AVG)
-    #         # print('local sc bias grad: ', grad_sc_output.float().norm().item())
-    #         torch.distributed.all_reduce(grad, op=ReduceOp.AVG)
-    #         print('bias_grad: ', grad.float().norm().item())
-    #     def pre_backward_hook_fn(module: torch.nn.Linear, grad_output: torch.Tensor):
-    #         print('module: ', module)
-    #         if not module.weight._backward_hooks:
-    #             module.weight.register_hook(weight_hook)
-    #         if not module.bias._backward_hooks:
-    #             module.bias.register_hook(bias_hook)
-
-    #     module.register_full_backward_hook(post_hook_fn)
-    #     module.register_forward_hook(forward_hook_fn)
-    #     module.register_full_backward_pre_hook(pre_backward_hook_fn)
-
-    return module

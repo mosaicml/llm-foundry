@@ -533,13 +533,12 @@ class GroupedQueryAttention(nn.Module):
             ]
             self.Wqkv._fused = (0, fuse_splits)
         else:
-            self.Wq: nn.Linear = build_fc(
+            self.Wq = build_fc(
                 name=fc_type_name,
                 in_features=self.d_model,
                 out_features=self.d_model,
                 fc_kwargs=fc_type,
             )
-            
             self.Wk = build_fc(
                 name=fc_type_name,
                 in_features=self.kv_dim,
@@ -627,6 +626,7 @@ class GroupedQueryAttention(nn.Module):
             alibi_slopes,
             flash_attn_padding_info,
         )
+
         context, attn_weights, past_key_value = self.attn_fn(
             query,
             key,

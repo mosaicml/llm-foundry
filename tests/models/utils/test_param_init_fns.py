@@ -492,6 +492,7 @@ def test_multihead_attention_init_dtensor_vs_tensor(qkv_same_dim: bool, is_resid
         kdim=d_model if qkv_same_dim else d_model*2,
         vdim=d_model if qkv_same_dim else d_model*2,
         batch_first=True,
+        add_bias_kv=not qkv_same_dim,
     )
     
     # Create MultiheadAttention with DTensor parameters
@@ -501,6 +502,7 @@ def test_multihead_attention_init_dtensor_vs_tensor(qkv_same_dim: bool, is_resid
         kdim=d_model if qkv_same_dim else d_model*2,
         vdim=d_model if qkv_same_dim else d_model*2,
         batch_first=True,
+        add_bias_kv=not qkv_same_dim,
     )
     
     # Mark out_proj as residual if needed
@@ -528,8 +530,11 @@ def test_multihead_attention_init_dtensor_vs_tensor(qkv_same_dim: bool, is_resid
         dtensor_mha.v_proj_weight = torch.nn.Parameter(
             distribute_tensor(dtensor_mha.v_proj_weight, mesh, [Shard(0)]),
         )
-        dtensor_mha.in_proj_bias = torch.nn.Parameter(
-            distribute_tensor(dtensor_mha.in_proj_bias, mesh, [Shard(0)]),
+        dtensor_mha.bias_k = torch.nn.Parameter(
+            distribute_tensor(dtensor_mha.bias_k, mesh, [Shard(0)]),
+        )
+        dtensor_mha.bias_v = torch.nn.Parameter(
+            distribute_tensor(dtensor_mha.bias_v, mesh, [Shard(0)]),
         )
     
     # Convert out_proj parameters to DTensor
@@ -550,6 +555,9 @@ def test_multihead_attention_init_dtensor_vs_tensor(qkv_same_dim: bool, is_resid
         dtensor_in_proj_weight = dtensor_mha.in_proj_weight.full_tensor()
         assert torch.equal(regular_mha.in_proj_weight, dtensor_in_proj_weight), \
             f'regular in_proj_weight: {regular_mha.in_proj_weight} vs DTensor: {dtensor_in_proj_weight}'
+        dtensor_in_proj_bias = dtensor_mha.in_proj_bias.full_tensor()
+        assert torch.equal(regular_mha.in_proj_bias, dtensor_in_proj_bias), \
+            f'regular in_proj_bias: {regular_mha.in_proj_bias} vs DTensor: {dtensor_in_proj_bias}'
     else:
         # Compare q/k/v_proj_weight
         dtensor_q_proj_weight = dtensor_mha.q_proj_weight.full_tensor()
@@ -562,11 +570,12 @@ def test_multihead_attention_init_dtensor_vs_tensor(qkv_same_dim: bool, is_resid
             f'regular k_proj_weight: {regular_mha.k_proj_weight} vs DTensor: {dtensor_k_proj_weight}'
         assert torch.equal(regular_mha.v_proj_weight, dtensor_v_proj_weight), \
             f'regular v_proj_weight: {regular_mha.v_proj_weight} vs DTensor: {dtensor_v_proj_weight}'
-    
-    # Compare in_proj_bias
-    dtensor_in_proj_bias = dtensor_mha.in_proj_bias.full_tensor()
-    assert torch.equal(regular_mha.in_proj_bias, dtensor_in_proj_bias), \
-        f'regular in_proj_bias: {regular_mha.in_proj_bias} vs DTensor: {dtensor_in_proj_bias}'
+        dtensor_bias_k = dtensor_mha.bias_k.full_tensor()
+        dtensor_bias_v = dtensor_mha.bias_v.full_tensor()
+        assert torch.equal(regular_mha.bias_k, dtensor_bias_k), \
+            f'regular bias_k: {regular_mha.bias_k} vs DTensor: {dtensor_bias_k}'
+        assert torch.equal(regular_mha.bias_v, dtensor_bias_v), \
+            f'regular bias_v: {regular_mha.bias_v} vs DTensor: {dtensor_bias_v}'
     
     # Compare out_proj parameters
     dtensor_out_proj_weight = dtensor_mha.out_proj.weight.full_tensor()
@@ -576,12 +585,6 @@ def test_multihead_attention_init_dtensor_vs_tensor(qkv_same_dim: bool, is_resid
         f'regular out_proj.weight: {regular_mha.out_proj.weight} vs DTensor: {dtensor_out_proj_weight}'
     assert torch.equal(regular_mha.out_proj.bias, dtensor_out_proj_bias), \
         f'regular out_proj.bias: {regular_mha.out_proj.bias} vs DTensor: {dtensor_out_proj_bias}'
-    
-    # Verify biases are zeros
-    assert torch.all(dtensor_in_proj_bias == 0), \
-        f'DTensor in_proj_bias not initialized to zero: {dtensor_in_proj_bias}'
-    assert torch.all(dtensor_out_proj_bias == 0), \
-        f'DTensor out_proj.bias not initialized to zero: {dtensor_out_proj_bias}'
     
     # For residual case, verify scaling was applied correctly
     if is_residual:

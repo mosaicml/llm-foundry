@@ -11,7 +11,8 @@ from typing import Any, Callable, Generator, Optional, Union
 
 import torch
 from torch import nn
-from torch.distributed._tensor import DTensor, distribute_tensor, Placement, DeviceMesh
+from torch.distributed._tensor import (DeviceMesh, DTensor, Placement,
+                                       distribute_tensor,)
 
 from llmfoundry.layers_registry import (
     fcs,
@@ -91,12 +92,15 @@ def materialize_module(
     Yields:
         nn.Module: The module with materialized parameters that can be initialized.
     """
-    param_placement_map: dict[tuple[nn.Module, str], tuple[DeviceMesh, list[Placement]]] = {}
+    param_placement_map: dict[tuple[nn.Module, str],
+                              tuple[DeviceMesh, list[Placement]]] = {}
     with torch.no_grad():
         for submodule in module.modules():
             for name, param in submodule.named_parameters(recurse=False):
                 if isinstance(param, DTensor):
-                    param_placement_map[(submodule, name)] = (param.device_mesh, param.placements)
+                    param_placement_map[
+                        (submodule,
+                         name)] = (param.device_mesh, param.placements)
                     setattr(submodule, name, nn.Parameter(param.full_tensor()))
 
         yield module
@@ -104,12 +108,25 @@ def materialize_module(
         for submodule in module.modules():
             for name, param in submodule.named_parameters(recurse=False):
                 if (submodule, name) in param_placement_map:
-                    device_mesh, placements = param_placement_map[(submodule, name)]
-                    setattr(submodule, name, nn.Parameter(distribute_tensor(param, device_mesh=device_mesh, placements=placements)))
+                    device_mesh, placements = param_placement_map[
+                        (submodule, name)]
+                    setattr(
+                        submodule, name,
+                        nn.Parameter(
+                            distribute_tensor(
+                                param,
+                                device_mesh=device_mesh,
+                                placements=placements
+                            )
+                        )
+                    )
 
 
-def summon_dtensor(init_fn: Callable[[nn.Module | torch.Tensor, Any], None]) -> Callable[[nn.Module | torch.Tensor, Any], None]:
-    """Decorator that makes initialization functions compatible with DTensor parameters.
+def summon_dtensor(
+    init_fn: Callable[[nn.Module | torch.Tensor, Any], None]
+) -> Callable[[nn.Module | torch.Tensor, Any], None]:
+    """Decorator that makes initialization functions compatible with DTensor
+    parameters.
 
     This decorator wraps an initialization function to handle both regular tensors/modules
     and those containing DTensor parameters by temporarily materializing DTensors as full
@@ -121,7 +138,10 @@ def summon_dtensor(init_fn: Callable[[nn.Module | torch.Tensor, Any], None]) -> 
     Returns:
         A wrapped initialization function that can handle DTensor parameters.
     """
-    def init_fn_wrapper(obj: nn.Module | torch.Tensor, *args: Any, **kwargs: Any) -> None:
+
+    def init_fn_wrapper(
+        obj: nn.Module | torch.Tensor, *args: Any, **kwargs: Any
+    ) -> None:
         if isinstance(obj, nn.Module):
             with materialize_module(obj) as obj:
                 init_fn(obj, *args, **kwargs)
@@ -130,6 +150,7 @@ def summon_dtensor(init_fn: Callable[[nn.Module | torch.Tensor, Any], None]) -> 
                 init_fn(obj, *args, **kwargs)
         else:
             raise TypeError(f"Invalid object type: {type(obj)}")
+
     return init_fn_wrapper
 
 
@@ -260,6 +281,7 @@ def _flip_fan_mode(init_fn_: Callable):
         elif _init_fn_.keywords['mode'] == 'fan_out':
             _init_fn_.keywords['mode'] = 'fan_in'
     return _init_fn_
+
 
 @summon_dtensor
 def fc_init(

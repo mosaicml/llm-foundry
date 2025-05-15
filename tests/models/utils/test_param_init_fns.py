@@ -278,7 +278,7 @@ def test_fused_init_helper_dtensor_vs_tensor():
 
     # Verify results are identical
     assert torch.equal(regular_tensor, dtensor_result), \
-        f"fused_param_init_helper produced different results for regular tensor: {regular_tensor} vs DTensor: {dtensor_result}"
+        f'fused_param_init_helper produced different results for regular tensor: {regular_tensor} vs DTensor: {dtensor_result}'
 
     # Check that each partition was separately initialized as expected
     numel_half = dtensor_result.numel() // 2

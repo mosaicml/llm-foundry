@@ -76,6 +76,12 @@ def fused_init_helper_(
 
 @contextmanager
 def DTensorInitContext(tensor: torch.Tensor) -> Generator[torch.Tensor, None, None]:
+    """Context manager for initializing DTensor parameters.
+
+    NOTE: This DTensorInitContext is not efficient as it initializes
+    a full tensor on every rank and then slices it back to a DTensor,
+    yet since we only init a model once, this overhead is negligible
+    """
     is_dtensor = isinstance(tensor, DTensor)
     original_tensor = tensor
     
@@ -93,7 +99,7 @@ def DTensorInitContext(tensor: torch.Tensor) -> Generator[torch.Tensor, None, No
                 device_mesh=original_tensor.device_mesh, 
                 placements=original_tensor.placements
             )
-            original_tensor.copy_(temp_tensor)
+            original_tensor.to_local().copy_(temp_tensor.to_local())
 
 
 def fused_param_init_helper(
@@ -115,6 +121,10 @@ def fused_param_init_helper(
         dim, splits = fused_parameters
         splits = (0, *splits, tensor.size(dim))  # type: ignore
         for s, e in zip(splits[:-1], splits[1:]):
+            # DTensor slicing results in CC and thus produces new Tensor
+            # so the update is not inplace, additionally, the init_fn is
+            # designed for full tensors, not for a (sharded) DTensor, so
+            # we need this context manager to handle the DTensor case
             slice_indices = [slice(None)] * p_ndims  # type: ignore
             slice_indices[dim] = slice(s, e)
             init_fn_(tensor[slice_indices])  # type: ignore

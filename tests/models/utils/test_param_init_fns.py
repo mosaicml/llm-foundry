@@ -254,6 +254,8 @@ def test_fused_init_helper_dtensor_vs_tensor():
     fused_param_init_helper(regular_tensor, init_fn_, fused_params)
     fused_param_init_helper(dtensor, init_fn_, fused_params)
     
+    assert isinstance(dtensor, torch.nn.Parameter), f'param is not an nn.Parameter anymore: {type(dtensor)}'
+
     # For comparison, convert DTensor to regular tensor
     dtensor_result = dtensor.full_tensor()
     

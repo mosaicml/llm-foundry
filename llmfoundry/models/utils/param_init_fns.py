@@ -69,7 +69,7 @@ def fused_init_helper_(
     _fused = getattr(module, '_fused', None)
     if _fused is None:
         raise RuntimeError(f'Internal logic error')
-    # print('fused value', _fused)
+
     fused_param_init_helper(getattr(module, name_param), init_fn_, _fused)
 
 
@@ -86,21 +86,13 @@ def fused_param_init_helper(
         fused_parameters (tuple[int, list[int]]): First element of _fused is the dimension
             along which the tensor is fused. Second element is a an iterable of split indices.
     """
-    if isinstance(param, DTensor):
-        init_fn_(param)
-        return
     p_ndims = param.ndim
     dim, splits = fused_parameters
     splits = (0, *splits, param.size(dim))  # type: ignore
     for s, e in zip(splits[:-1], splits[1:]):
         slice_indices = [slice(None)] * p_ndims  # type: ignore
         slice_indices[dim] = slice(s, e)
-        # if e < 65:
-        #     print(param[slice_indices].shape)
-        #     print(param[slice_indices])
         init_fn_(param[slice_indices])  # type: ignore
-        # if e < 65:
-        #     print(param[slice_indices])
 
 
 def stacked_init_helper_(
@@ -177,16 +169,10 @@ def fc_init(
 
     if isinstance(module, tuple({fcs.get(n) for n in fcs.get_all()})):
         # Linear
-        # print('before init')
-        # print(module.weight.to_local().norm().item())
         if hasattr(module, '_fused'):
-            # print('fused')
             fused_init_helper_(module, init_fn_)
         else:
-            # print('not fused')
             init_fn_(module.weight)
-        # print('after init')
-        # print(module.weight.to_local().norm().item())
         if module.bias is not None:
             assert isinstance(module.bias, torch.Tensor)
             torch.nn.init.zeros_(module.bias)
@@ -457,8 +443,6 @@ def generic_param_init_fn_(
     ]
     did_init = False
     for module_init_fn in all_module_init_fns:
-        # if isinstance(module, torch.nn.Linear):
-        #     print('module_init_fn', module_init_fn)
         did_init = module_init_fn(
             module=module,
             init_fn_=init_fn_,
@@ -800,19 +784,14 @@ def kaiming_normal_param_init_fn_(
     **kwargs: Any,
 ) -> None:
     del kwargs  # unused, just to capture any extra args from the config
-    # print('initializing kaiming normal on module', module)
-    # for param in module.parameters():
-    #     if param.dim() > 1:
-    #         full_tensor = param.full_tensor()
-    #         print('full', param.shape, full_tensor.norm().item())
-    #         print('local', param.to_local().shape, param.to_local().norm().item())
+
     kaiming_normal_ = partial(
         torch.nn.init.kaiming_normal_,
         a=init_gain,
         mode=fan_mode,
         nonlinearity=init_nonlinearity,
     )
-    # print(f'arguments: {init_gain}, {fan_mode}, {init_nonlinearity}, {d_model}, {n_layers}, {init_div_is_residual}, {emb_init_std}, {emb_init_uniform_lim}')
+
     generic_param_init_fn_(
         module=module,
         init_fn_=kaiming_normal_,
@@ -822,12 +801,7 @@ def kaiming_normal_param_init_fn_(
         emb_init_std=emb_init_std,
         emb_init_uniform_lim=emb_init_uniform_lim,
     )
-    # print('done initializing kaiming normal on module')
-    # for param in module.parameters():
-    #     if param.dim() > 1:
-    #         full_tensor = param.full_tensor()
-    #         print('full_tensor', full_tensor.norm().item())
-    #         print('local_tensor', param.to_local().norm().item())
+
 
 def xavier_uniform_param_init_fn_(
     module: nn.Module,

@@ -20,7 +20,7 @@ from torch.distributed._tensor import (
 
 from llmfoundry.layers_registry import param_init_fns
 from llmfoundry.models.utils import generic_param_init_fn_
-from llmfoundry.models.utils.param_init_fns import fused_param_init_helper
+from llmfoundry.models.utils.param_init_fns import fc_init, fused_param_init_helper
 
 
 class MLP(nn.Module):
@@ -294,3 +294,70 @@ def test_fused_init_helper_dtensor_vs_tensor():
         dtensor_result,
         expected_result,
     ), f'DTensor was not initialized correctly: {dtensor_result} vs {expected_result}'
+
+
+@pytest.mark.world_size(2)
+def test_fc_init_dtensor_vs_tensor():
+    """Test that fc_init initializes the same way for a regular linear layer
+    and a linear layer with DTensor parameters."""
+    # Create a simple device mesh for CPU
+    mesh = DeviceMesh('cpu', [0, 1])
+    
+    # Create a simple initialization function for testing
+    def init_fn_(weight: torch.Tensor) -> None:
+        with torch.no_grad():
+            weight.copy_(
+                torch.arange(weight.numel()).reshape(weight.shape).float(),
+            )
+    
+    # Create a regular linear layer
+    regular_linear = nn.Linear(8, 4)
+    
+    # Create a linear layer with DTensor parameters
+    dtensor_linear = nn.Linear(8, 4)
+    
+    # Convert the weight and bias to DTensor
+    dtensor_linear.weight = torch.nn.Parameter(
+        distribute_tensor(dtensor_linear.weight, mesh, [Shard(0)]),
+    )
+    dtensor_linear.bias = torch.nn.Parameter(
+        distribute_tensor(dtensor_linear.bias, mesh, [Shard(0)]),
+    )
+    
+    # Mark one of the layers as residual to test the residual path
+    regular_linear._is_residual = True
+    dtensor_linear._is_residual = True
+    
+    # Set up minimal config 
+    init_div_is_residual = True
+    div_is_residual = 2.0
+    
+    # Initialize both modules using fc_init
+    fc_init(regular_linear, init_fn_, init_div_is_residual, div_is_residual)
+    fc_init(dtensor_linear, init_fn_, init_div_is_residual, div_is_residual)
+    
+    # For comparison, convert DTensor to regular tensor
+    dtensor_weight = dtensor_linear.weight.full_tensor()
+    dtensor_bias = dtensor_linear.bias.full_tensor()
+    
+    # Verify weight results are identical
+    assert torch.equal(regular_linear.weight, dtensor_weight), \
+        f"fc_init produced different weight results for regular tensor: {regular_linear.weight} vs DTensor: {dtensor_weight}"
+    
+    # Verify bias results are identical (should be all zeros)
+    assert torch.equal(regular_linear.bias, dtensor_bias), \
+        f"fc_init produced different bias results for regular tensor: {regular_linear.bias} vs DTensor: {dtensor_bias}"
+    
+    # Check that initialization followed the expected pattern
+    # Weights should be initialized with init_fn_ and then divided by div_is_residual
+    expected_weight = torch.arange(regular_linear.weight.numel()).reshape(regular_linear.weight.shape).float() / div_is_residual
+    assert torch.equal(
+        regular_linear.weight,
+        expected_weight,
+    ), f'Regular tensor weight was not initialized correctly: {regular_linear.weight} vs {expected_weight}'
+    
+    # Bias should be all zeros
+    assert torch.all(regular_linear.bias == 0), \
+        f'Regular tensor bias was not initialized correctly: {regular_linear.bias}'
+    assert torch.all(dtensor_bias == 0), \
+        f'DTensor bias was not initialized correctly: {dtensor_bias}'

@@ -11,7 +11,7 @@ from typing import Any, Callable, Generator, Optional, Union
 
 import torch
 from torch import nn
-from torch.distributed._tensor import DTensor, distribute_tensor
+from torch.distributed._tensor import DTensor, distribute_tensor, Placement, DeviceMesh
 
 from llmfoundry.layers_registry import (
     fcs,
@@ -75,7 +75,7 @@ def fused_init_helper_(
 
 
 @contextmanager
-def DTensorInitContext(
+def materialize_tensor(
     tensor: torch.Tensor,
 ) -> Generator[torch.Tensor, None, None]:
     """Context manager for initializing DTensor parameters.
@@ -86,23 +86,59 @@ def DTensorInitContext(
     """
     is_dtensor = isinstance(tensor, DTensor)
 
-    if is_dtensor:
-        full_tensor = tensor.full_tensor()
-    else:
-        full_tensor = tensor
-    yield full_tensor
+    with torch.no_grad():
+        if is_dtensor:
+            full_tensor = tensor.full_tensor()
+        else:
+            full_tensor = tensor
 
-    if is_dtensor:
-        # Redistribute the updated full tensor back to the original DTensor
-        with torch.no_grad():
-            temp_tensor = distribute_tensor(
-                full_tensor,
-                device_mesh=tensor.device_mesh,
-                placements=tensor.placements,
-            )
-            tensor.to_local().copy_(temp_tensor.to_local())
+        yield full_tensor
+        if is_dtensor:
+            # Redistribute the updated full tensor back to the original DTensor
+            with torch.no_grad():
+                temp_tensor = distribute_tensor(
+                    full_tensor,
+                    device_mesh=tensor.device_mesh,
+                    placements=tensor.placements,
+                )
+                tensor.to_local().copy_(temp_tensor.to_local())
 
 
+@contextmanager
+def materialize_module(
+    module: nn.Module,
+) -> Generator[nn.Module, None, None]:
+    param_placement_map: dict[tuple[nn.Module, str], tuple[DeviceMesh, list[Placement]]] = {}
+    with torch.no_grad():
+        for submodule in module.modules():
+            for name, param in submodule.named_parameters(recurse=False):
+                if isinstance(param, DTensor):
+                    param_placement_map[(submodule, name)] = (param.device_mesh, param.placements)
+                    setattr(submodule, name, nn.Parameter(param.full_tensor()))
+
+        yield module
+
+        for submodule in module.modules():
+            for name, param in submodule.named_parameters(recurse=False):
+                if (submodule, name) in param_placement_map:
+                    device_mesh, placements = param_placement_map[(submodule, name)]
+                    setattr(submodule, name, nn.Parameter(distribute_tensor(param, device_mesh=device_mesh, placements=placements)))
+
+
+def summon_dtensor(init_fn: Callable[[nn.Module | torch.Tensor, ...], None]) -> Callable[[nn.Module | torch.Tensor, Any, ...], None]:
+    def init_fn_wrapper(obj: nn.Module | torch.Tensor, *args, **kwargs) -> None:
+        if isinstance(obj, nn.Module):
+            with materialize_module(obj) as obj:
+                init_fn(obj, *args, **kwargs)
+        elif isinstance(obj, torch.Tensor):
+            with materialize_tensor(obj) as obj:
+                init_fn(obj, *args, **kwargs)
+        else:
+            raise TypeError(f"Invalid object type: {type(obj)}")
+    return init_fn_wrapper
+
+
+@summon_dtensor
 def fused_param_init_helper(
     param: torch.Tensor,
     init_fn_: Callable,
@@ -116,18 +152,17 @@ def fused_param_init_helper(
         fused_parameters (tuple[int, list[int]]): First element of _fused is the dimension
             along which the tensor is fused. Second element is a an iterable of split indices.
     """
-    with torch.no_grad(), DTensorInitContext(param) as tensor:
-        p_ndims = tensor.ndim
-        dim, splits = fused_parameters
-        splits = (0, *splits, tensor.size(dim))  # type: ignore
-        for s, e in zip(splits[:-1], splits[1:]):
-            # DTensor slicing results in CC and thus produces new Tensor
-            # so the update is not inplace, additionally, the init_fn is
-            # designed for full tensors, not for a (sharded) DTensor, so
-            # we need this context manager to handle the DTensor case
-            slice_indices = [slice(None)] * p_ndims  # type: ignore
-            slice_indices[dim] = slice(s, e)
-            init_fn_(tensor[slice_indices])  # type: ignore
+    p_ndims = param.ndim
+    dim, splits = fused_parameters
+    splits = (0, *splits, param.size(dim))  # type: ignore
+    for s, e in zip(splits[:-1], splits[1:]):
+        # DTensor slicing results in CC and thus produces new Tensor
+        # so the update is not inplace, additionally, the init_fn is
+        # designed for full tensors, not for a (sharded) DTensor, so
+        # we need this context manager to handle the DTensor case
+        slice_indices = [slice(None)] * p_ndims  # type: ignore
+        slice_indices[dim] = slice(s, e)
+        init_fn_(param[slice_indices])  # type: ignore
 
 
 def stacked_init_helper_(
@@ -192,7 +227,7 @@ def _flip_fan_mode(init_fn_: Callable):
             _init_fn_.keywords['mode'] = 'fan_in'
     return _init_fn_
 
-
+@summon_dtensor
 def fc_init(
     module: nn.Module,
     init_fn_: Callable,

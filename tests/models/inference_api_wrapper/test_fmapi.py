@@ -89,6 +89,7 @@ def mock_create(**kwargs: dict[str, str]):
         return MockCompletion(' ')
 
 
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
 def test_causal_fmapi_wrapper(
     tmp_path: str,
     tiny_gpt2_tokenizer: PreTrainedTokenizerBase,
@@ -131,6 +132,7 @@ def test_causal_fmapi_wrapper(
             assert acc == 0.5
 
 
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
 def test_chat_fmapi_wrapper(
     tmp_path: str,
     tiny_gpt2_tokenizer: PreTrainedTokenizerBase,

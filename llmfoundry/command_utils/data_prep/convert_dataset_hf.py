@@ -294,7 +294,8 @@ def generate_samples(
             n_samples += 1
             yield {
                 k:
-                v[idx].numpy() if isinstance(v[idx], torch.Tensor) else v[idx]
+                    v[idx].numpy()
+                    if isinstance(v[idx], torch.Tensor) else v[idx]
                 for k, v in batch.items()
             }
 

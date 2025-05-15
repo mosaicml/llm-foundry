@@ -36,7 +36,9 @@ class ChatMessage:
         self.role = role
         self.content = content
 
-    def to_dict(self,) -> dict[str, str]:
+    def to_dict(
+        self,
+    ) -> dict[str, str]:
         return {'role': self.role, 'content': self.content}
 
     def __repr__(self) -> str:

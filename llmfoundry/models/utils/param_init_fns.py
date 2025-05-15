@@ -4,13 +4,14 @@
 import math
 import warnings
 from collections.abc import Sequence
+from contextlib import contextmanager
 from copy import deepcopy
 from functools import partial
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Generator, Optional, Union
 
 import torch
 from torch import nn
-from torch.distributed._tensor import DTensor
+from torch.distributed._tensor import DTensor, distribute_tensor
 
 from llmfoundry.layers_registry import (
     fcs,
@@ -73,6 +74,34 @@ def fused_init_helper_(
     fused_param_init_helper(getattr(module, name_param), init_fn_, _fused)
 
 
+@contextmanager
+def DTensorInitContext(tensor: torch.Tensor) -> Generator[torch.Tensor, None, None]:
+    """Context manager for initializing DTensor parameters.
+
+    NOTE: This DTensorInitContext is not efficient as it initializes
+    a full tensor on every rank and then slices it back to a DTensor,
+    yet since we only init a model once, this overhead is negligible
+    """
+    is_dtensor = isinstance(tensor, DTensor)
+    original_tensor = tensor
+    
+    if is_dtensor:
+        full_tensor = tensor.full_tensor()
+        yield full_tensor
+    else:
+        yield tensor
+    
+    if is_dtensor:
+        # Redistribute the updated full tensor back to the original DTensor
+        with torch.no_grad():
+            temp_tensor = distribute_tensor(
+                full_tensor, 
+                device_mesh=original_tensor.device_mesh, 
+                placements=original_tensor.placements
+            )
+            original_tensor.to_local().copy_(temp_tensor.to_local())
+
+
 def fused_param_init_helper(
     param: torch.Tensor,
     init_fn_: Callable,
@@ -86,13 +115,19 @@ def fused_param_init_helper(
         fused_parameters (tuple[int, list[int]]): First element of _fused is the dimension
             along which the tensor is fused. Second element is a an iterable of split indices.
     """
-    p_ndims = param.ndim
-    dim, splits = fused_parameters
-    splits = (0, *splits, param.size(dim))  # type: ignore
-    for s, e in zip(splits[:-1], splits[1:]):
-        slice_indices = [slice(None)] * p_ndims  # type: ignore
-        slice_indices[dim] = slice(s, e)
-        init_fn_(param[slice_indices])  # type: ignore
+    
+    with torch.no_grad(), DTensorInitContext(param) as tensor:
+        p_ndims = tensor.ndim
+        dim, splits = fused_parameters
+        splits = (0, *splits, tensor.size(dim))  # type: ignore
+        for s, e in zip(splits[:-1], splits[1:]):
+            # DTensor slicing results in CC and thus produces new Tensor
+            # so the update is not inplace, additionally, the init_fn is
+            # designed for full tensors, not for a (sharded) DTensor, so
+            # we need this context manager to handle the DTensor case
+            slice_indices = [slice(None)] * p_ndims  # type: ignore
+            slice_indices[dim] = slice(s, e)
+            init_fn_(tensor[slice_indices])  # type: ignore
 
 
 def stacked_init_helper_(

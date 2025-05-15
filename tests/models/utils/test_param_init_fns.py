@@ -8,12 +8,14 @@ from typing import Optional, Union
 
 import pytest
 import torch
+from torch.distributed._tensor import distribute_tensor, DeviceMesh, Shard
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from torch import nn
 
 from llmfoundry.layers_registry import param_init_fns
 from llmfoundry.models.utils import generic_param_init_fn_
+from llmfoundry.models.utils.param_init_fns import fused_param_init_helper
 
 
 class MLP(nn.Module):
@@ -205,7 +207,9 @@ def test_emb_init(emb_init_cfg: Optional[tuple[str, Union[int, list[int]]]]):
     'padding_idx',
     [0, 2],
 )
-def test_emb_padding_init(padding_idx: int,):
+def test_emb_padding_init(
+    padding_idx: int,
+):
     cfg: dict[str, Union[int, list[int]]] = {
         'vocab_size': 64,
         'in_features': 16,
@@ -226,3 +230,40 @@ def test_emb_padding_init(padding_idx: int,):
 
     if dict_cfg.get('emb_init_std') is not None:
         assert (model.weight[padding_idx] == 0).all()
+
+
+@pytest.mark.world_size(2)
+def test_fused_init_helper_dtensor_vs_tensor():
+    """Test that fused_param_init_helper produces the same results for a regular tensor and a DTensor."""
+    # Create a simple device mesh for CPU
+    mesh = DeviceMesh('cpu', [0, 1])
+    
+    regular_tensor = torch.nn.Parameter(torch.zeros(4, 4))
+    
+    dtensor = torch.nn.Parameter(distribute_tensor(regular_tensor, mesh, [Shard(0)]))
+    
+    # Create a simple initialization function for testing
+    def init_fn_(weight: torch.Tensor) -> None:
+        with torch.no_grad():
+            weight.copy_(torch.arange(weight.numel()).reshape(weight.shape).float())
+    
+    # Define fused parameters (dimension 0, split at index 2)
+    fused_params = (0, [2])
+    
+    # Initialize both tensors using fused_param_init_helper
+    fused_param_init_helper(regular_tensor, init_fn_, fused_params)
+    fused_param_init_helper(dtensor, init_fn_, fused_params)
+    
+    assert isinstance(dtensor, torch.nn.Parameter), f'param is not an nn.Parameter anymore: {type(dtensor)}'
+
+    # For comparison, convert DTensor to regular tensor
+    dtensor_result = dtensor.full_tensor()
+    
+    # Verify results are identical
+    assert torch.equal(regular_tensor, dtensor_result), \
+        f"fused_param_init_helper produced different results for regular tensor: {regular_tensor} vs DTensor: {dtensor_result}"
+    
+    # Check that each partition was separately initialized as expected
+    numel_half = dtensor_result.numel() // 2
+    expected_result = torch.cat([torch.arange(numel_half), torch.arange(numel_half)]).reshape(dtensor_result.shape).float()
+    assert torch.equal(dtensor_result, expected_result), f'DTensor was not initialized correctly: {dtensor_result} vs {expected_result}'

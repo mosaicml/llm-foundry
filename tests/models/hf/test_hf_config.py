@@ -15,7 +15,9 @@ from transformers import (
     PreTrainedModel,
     PreTrainedTokenizerBase,
 )
+from transformers.models.llama4.configuration_llama4 import Llama4TextConfig
 
+from llmfoundry.models.hf import BaseHuggingFaceModel
 from llmfoundry.models.hf.hf_fsdp import rgetattr
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils.builders import build_composer_model
@@ -434,3 +436,24 @@ def test_attn_implementation_none(tiny_llama_save_dir: Path):
 
     # llama config uses _attn_implementation
     assert model.config._attn_implementation == 'eager'  # type: ignore
+
+
+def test_text_config(tiny_llama4_config: PretrainedConfig, tmp_path: Path):
+    save_path = tmp_path / 'model'
+    tiny_llama4_config.save_pretrained(save_path)
+
+    class TestModel(BaseHuggingFaceModel):
+        subselect_config_attr = 'text_config'
+
+    config = TestModel.build_config(
+        pretrained_model_name_or_path=str(save_path),
+        trust_remote_code=True,
+        use_auth_token=False,
+        attn_implementation='eager',
+        config_overrides={},
+    )
+
+    assert isinstance(config, Llama4TextConfig)
+    assert config.attn_implementation == 'eager'
+    assert config.use_cache == False
+    assert config.torch_dtype == 'float32'

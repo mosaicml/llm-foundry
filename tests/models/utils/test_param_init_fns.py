@@ -237,6 +237,15 @@ def test_emb_padding_init(
         assert (model.weight[padding_idx] == 0).all()
 
 
+
+
+def init_arange_(weight: torch.Tensor) -> None:
+    with torch.no_grad():
+        weight.copy_(
+            torch.arange(weight.numel()).reshape(weight.shape).float(),
+        )
+
+
 @pytest.mark.world_size(2)
 def test_fused_init_helper_dtensor_vs_tensor():
     #Test that fused_param_init_helper produces the same results for a regular
@@ -250,19 +259,12 @@ def test_fused_init_helper_dtensor_vs_tensor():
         distribute_tensor(regular_tensor, mesh, [Shard(0)]),
     )
 
-    # Create a simple initialization function for testing
-    def init_fn_(weight: torch.Tensor) -> None:
-        with torch.no_grad():
-            weight.copy_(
-                torch.arange(weight.numel()).reshape(weight.shape).float(),
-            )
-
     # Define fused parameters (dimension 0, split at index 2)
     fused_params = (0, [2])
 
     # Initialize both tensors using fused_param_init_helper
-    fused_param_init_helper(regular_tensor, init_fn_, fused_params)
-    fused_param_init_helper(dtensor, init_fn_, fused_params)
+    fused_param_init_helper(regular_tensor, init_arange_, fused_params)
+    fused_param_init_helper(dtensor, init_arange_, fused_params)
 
     assert isinstance(
         dtensor,
@@ -297,18 +299,16 @@ def test_fused_init_helper_dtensor_vs_tensor():
 
 
 @pytest.mark.world_size(2)
-def test_fc_init_dtensor_vs_tensor():
+@pytest.mark.parametrize('is_fused', [False, True])
+def test_fc_init_dtensor_vs_tensor(is_fused: bool):
     """Test that fc_init initializes the same way for a regular linear layer
     and a linear layer with DTensor parameters."""
     # Create a simple device mesh for CPU
     mesh = DeviceMesh('cpu', [0, 1])
     
-    # Create a simple initialization function for testing
-    def init_fn_(weight: torch.Tensor) -> None:
-        with torch.no_grad():
-            weight.copy_(
-                torch.arange(weight.numel()).reshape(weight.shape).float(),
-            )
+    # Set up minimal config 
+    init_div_is_residual = True
+    div_is_residual = 2.0
     
     # Create a regular linear layer
     regular_linear = nn.Linear(8, 4)
@@ -328,13 +328,16 @@ def test_fc_init_dtensor_vs_tensor():
     regular_linear._is_residual = True
     dtensor_linear._is_residual = True
     
-    # Set up minimal config 
-    init_div_is_residual = True
-    div_is_residual = 2.0
+    # For fused case, add the _fused attribute
+    if is_fused:
+        # Define fused parameters (dimension 0, split at index 2)
+        fused_params = (0, [2])
+        regular_linear._fused = fused_params
+        dtensor_linear._fused = fused_params
     
     # Initialize both modules using fc_init
-    fc_init(regular_linear, init_fn_, init_div_is_residual, div_is_residual)
-    fc_init(dtensor_linear, init_fn_, init_div_is_residual, div_is_residual)
+    fc_init(regular_linear, init_arange_, init_div_is_residual, div_is_residual)
+    fc_init(dtensor_linear, init_arange_, init_div_is_residual, div_is_residual)
     
     # For comparison, convert DTensor to regular tensor
     dtensor_weight = dtensor_linear.weight.full_tensor()
@@ -342,22 +345,31 @@ def test_fc_init_dtensor_vs_tensor():
     
     # Verify weight results are identical
     assert torch.equal(regular_linear.weight, dtensor_weight), \
-        f"fc_init produced different weight results for regular tensor: {regular_linear.weight} vs DTensor: {dtensor_weight}"
+        f'regular tensor: {regular_linear.weight} vs DTensor: {dtensor_weight}'
     
     # Verify bias results are identical (should be all zeros)
     assert torch.equal(regular_linear.bias, dtensor_bias), \
-        f"fc_init produced different bias results for regular tensor: {regular_linear.bias} vs DTensor: {dtensor_bias}"
+        f'regular tensor: {regular_linear.bias} vs DTensor: {dtensor_bias}'
     
-    # Check that initialization followed the expected pattern
-    # Weights should be initialized with init_fn_ and then divided by div_is_residual
-    expected_weight = torch.arange(regular_linear.weight.numel()).reshape(regular_linear.weight.shape).float() / div_is_residual
+    if is_fused:
+        # For fused case, check that each partition was separately initialized as expected
+        # Following the same verification logic as in test_fused_init_helper_dtensor_vs_tensor
+        numel_half = regular_linear.weight.numel() // 2
+        expected_weight = torch.cat([
+            torch.arange(numel_half),
+            torch.arange(numel_half),
+        ]).reshape(regular_linear.weight.shape).float()
+        
+        # Apply div_is_residual factor for residual path
+        expected_weight = expected_weight / div_is_residual
+    else:
+        # For non-fused case, the initialization is simpler
+        expected_weight = torch.arange(regular_linear.weight.numel()).reshape(regular_linear.weight.shape).float() / div_is_residual
     assert torch.equal(
-        regular_linear.weight,
+        dtensor_weight,
         expected_weight,
-    ), f'Regular tensor weight was not initialized correctly: {regular_linear.weight} vs {expected_weight}'
+    ), f'DTensor weight was not initialized correctly: {dtensor_weight} vs {expected_weight}'
     
-    # Bias should be all zeros
-    assert torch.all(regular_linear.bias == 0), \
-        f'Regular tensor bias was not initialized correctly: {regular_linear.bias}'
+    # Bias should be all zeros in both cases
     assert torch.all(dtensor_bias == 0), \
         f'DTensor bias was not initialized correctly: {dtensor_bias}'

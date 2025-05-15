@@ -121,7 +121,7 @@ def summon_dtensor(init_fn: Callable[[nn.Module | torch.Tensor, Any], None]) -> 
     Returns:
         A wrapped initialization function that can handle DTensor parameters.
     """
-    def init_fn_wrapper(obj: nn.Module | torch.Tensor, *args, **kwargs) -> None:
+    def init_fn_wrapper(obj: nn.Module | torch.Tensor, *args: Any, **kwargs: Any) -> None:
         if isinstance(obj, nn.Module):
             with materialize_module(obj) as obj:
                 init_fn(obj, *args, **kwargs)

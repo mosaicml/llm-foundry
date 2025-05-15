@@ -116,19 +116,24 @@ def fused_param_init_helper(
             along which the tensor is fused. Second element is a an iterable of split indices.
     """
     
-    with torch.no_grad(), DTensorInitContext(param) as tensor:
-        p_ndims = tensor.ndim
-        dim, splits = fused_parameters
-        splits = (0, *splits, tensor.size(dim))  # type: ignore
-        for s, e in zip(splits[:-1], splits[1:]):
-            # DTensor slicing results in CC and thus produces new Tensor
-            # so the update is not inplace, additionally, the init_fn is
-            # designed for full tensors, not for a (sharded) DTensor, so
-            # we need this context manager to handle the DTensor case
-            slice_indices = [slice(None)] * p_ndims  # type: ignore
-            slice_indices[dim] = slice(s, e)
-            init_fn_(tensor[slice_indices])  # type: ignore
-
+    # with torch.no_grad(), DTensorInitContext(param) as tensor:
+    tensor = param
+    p_ndims = tensor.ndim
+    dim, splits = fused_parameters
+    splits = (0, *splits, tensor.size(dim))  # type: ignore
+    for s, e in zip(splits[:-1], splits[1:]):
+        # DTensor slicing results in CC and thus produces new Tensor
+        # so the update is not inplace, additionally, the init_fn is
+        # designed for full tensors, not for a (sharded) DTensor, so
+        # we need this context manager to handle the DTensor case
+        slice_indices = [slice(None)] * p_ndims  # type: ignore
+        slice_indices[dim] = slice(s, e)
+        init_fn_(tensor[slice_indices])  # type: ignore
+    if isinstance(tensor, DTensor):
+        print('DTensor')
+        print(tensor)
+        print('sliced DTensor')
+        print(tensor[slice_indices])
 
 def stacked_init_helper_(
     module: nn.Module,

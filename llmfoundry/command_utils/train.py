@@ -454,6 +454,7 @@ def train(cfg: DictConfig) -> Trainer:
         build_algorithm(str(name), algorithm_cfg)
         for name, algorithm_cfg in algorithm_configs.items()
     ]
+
     # Dataloaders
     log.info('Building train loader...')
     try:
@@ -599,86 +600,9 @@ def train(cfg: DictConfig) -> Trainer:
         accumulate_train_batch_on_tokens=train_cfg.
         accumulate_train_batch_on_tokens,
     )
-    # print(f'optimizer name: {optimizer_name}, optimizer config: {optimizer_cfg}')
-    # if os.getenv('FSDP_VERSION') == '2':
-    #     for name, param in trainer.state.model.named_parameters():
-    #         if 'norm' in name or 'bias' in name:
-    #             continue
-    #         full_tensor = param.full_tensor()
-    #         print(name, full_tensor.norm().item(), full_tensor.std().item())
-    # else:
-    #     from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
-    #     with FSDP.summon_full_params(trainer.state.model):
-    #         for name, param in trainer.state.model.named_parameters():
-    #             if 'norm' in name or 'bias' in name:
-    #                 continue
-    #             print(name, param.norm().item(), param.std().item())
-    if os.getenv('USE_FSDP2') == '1':
-        from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
-        os.environ['FSDP_VERSION'] = '2'
-        model_fsdp1: torch.nn.Module = trainer.state.model
-        print('fsdp1', model_fsdp1)
-        print('rebuilding fsdp2 model from fsdp1')
-        model_fsdp2: torch.nn.Module = build_composer_model(
-            name=name,
-            tokenizer=tokenizer,
-            master_weights_dtype=model_config.pop('master_weights_dtype', None),
-            cfg=model_config,
-        )
-        model_fsdp2.to_empty(device='cuda', recurse=True)
-        with FSDP.summon_full_params(model_fsdp1):
-            for fsdp1_param, fsdp2_param in zip(model_fsdp1.parameters(), model_fsdp2.parameters()):
-                fsdp2_param.data.copy_(fsdp1_param.data)
-        trainer.close()
-        del trainer
-        optimizer_fsdp2 = build_optimizer(model_fsdp2, optimizer_name, optimizer_cfg)
-        trainer = Trainer(
-            run_name=run_name,
-            seed=seed,
-            model=model_fsdp2,
-            train_dataloader=train_loader,
-            train_subset_num_batches=train_cfg.train_subset_num_batches,
-            eval_dataloader=evaluators,
-            optimizers=optimizer_fsdp2,
-            schedulers=scheduler,
-            max_duration=train_cfg.max_duration,
-            eval_interval=train_cfg.eval_interval,
-            eval_subset_num_batches=train_cfg.eval_subset_num_batches,
-            progress_bar=train_cfg.progress_bar,
-            log_to_console=train_cfg.log_to_console,
-            console_log_interval=train_cfg.console_log_interval,
-            loggers=loggers,
-            callbacks=callbacks,
-            precision=train_cfg.precision,
-            algorithms=algorithms,
-            device_train_microbatch_size=train_cfg.device_train_microbatch_size,
-            parallelism_config=parallelism_config,
-            save_folder=train_cfg.save_folder,
-            save_filename=save_filename,
-            save_latest_filename=save_latest_filename,
-            save_interval=train_cfg.save_interval,
-            save_num_checkpoints_to_keep=train_cfg.save_num_checkpoints_to_keep,
-            save_overwrite=train_cfg.save_overwrite,
-            save_weights_only=train_cfg.save_weights_only,
-            load_path=train_cfg.load_path,
-            load_weights_only=train_cfg.load_weights_only,
-            load_strict_model_weights=train_cfg.load_strict_model_weights,
-            load_ignore_keys=train_cfg.load_ignore_keys,
-            save_ignore_keys=train_cfg.save_ignore_keys,
-            autoresume=train_cfg.autoresume,
-            python_log_level=train_cfg.python_log_level,
-            dist_timeout=train_cfg.dist_timeout,
-            profiler=profiler,
-            compile_config=compile_config,
-            spin_dataloaders=train_cfg.spin_dataloaders,
-            accumulate_train_batch_on_tokens=train_cfg.
-            accumulate_train_batch_on_tokens,
-        )
-        with FSDP.summon_full_params(model_fsdp1):
-            for fsdp1_param, fsdp2_param in zip(model_fsdp1.parameters(), model_fsdp2.parameters()):
-                torch.testing.assert_close(fsdp1_param.data, fsdp2_param.full_tensor())
-        del model_fsdp1, optimizer
-    # add_hooks_to_linear_modules(trainer.state.model)
+
+    _sort_callbacks(trainer)
+
     # Optionally just save an HF checkpoint
     if train_cfg.only_hf_checkpoint:
         hf_checkpointer_callbacks = [
@@ -721,51 +645,10 @@ def train(cfg: DictConfig) -> Trainer:
 
     log.info('Starting training...')
     trainer.fit()
-    print(trainer.state.model)
+
     log.info('Done.')
     return trainer
 
-def add_hooks_to_linear_modules(module: torch.nn.Module):
-    from torch._C._distributed_c10d import ReduceOp
-    for submodule in module.modules():
-        if isinstance(submodule, torch.nn.Linear):
-            def post_hook_fn(module: torch.nn.Linear, grad_input: torch.Tensor, grad_output: torch.Tensor):
-                print('grad_input: ', grad_input[0].norm().item())
-            def forward_hook_fn(module: torch.nn.Linear, input: torch.Tensor, output: torch.Tensor):
-                print('module: ', module, 'input: ', input[0].norm().item(), 'output: ', output.norm().item())
-            def weight_hook(grad: torch.Tensor):
-                grad = grad.clone().detach().reshape(-1)
-                # print('weight_grad: ', grad.norm().item())
-                # grad_sc_output = grad.new_empty(grad.shape[0] // 2)
-                # print('reduce scatter dtype: ', grad_sc_output.dtype, grad.dtype)
-                # torch.distributed.reduce_scatter_tensor(grad_sc_output, grad, op=ReduceOp.AVG)
-                # print('local sc weight grad: ', grad_sc_output.float().norm().item())
-                print('local weight grad: ', grad.dtype, grad.float().norm().item())
-                # torch.distributed.all_reduce(grad, op=ReduceOp.AVG)
-                # print('all_reduced weight_grad: ', grad.dtype, grad.float().norm().item())
-            def bias_hook(grad: torch.Tensor):
-                grad = grad.clone().detach().reshape(-1)    
-                # print('bias_grad: ', grad.norm().item())
-                # grad_sc_output = grad.new_empty(grad.shape[0] // 2)
-                # torch.distributed.reduce_scatter_tensor(grad_sc_output, grad, op=ReduceOp.AVG)
-                # print('local sc bias grad: ', grad_sc_output.float().norm().item())
-                print('local bias grad: ', grad.dtype, grad.float().norm().item())
-                # torch.distributed.all_reduce(grad, op=ReduceOp.AVG)
-                # print('all_reduced bias_grad: ', grad.dtype, grad.float().norm().item())
-            def pre_backward_hook_fn(module: torch.nn.Linear, grad_output: torch.Tensor):
-                print(f'linear: {module.in_features} x {module.out_features}')
-                # print(f'grad_output shape: {grad_output[0].shape}, dtype: {grad_output[0].dtype}')
-                # print(f'grad_output: {grad_output[0].float().norm().item()}')
-                # print(f'expected bias_grad: {grad_output[0].float().sum(dim=(0, 1)).norm().item()}')
-                print(f'weight_norm: {module.weight.norm().item()}, bias_norm: {module.bias.norm().item()}')
-                if not module.weight._backward_hooks:
-                    module.weight.register_hook(weight_hook)
-                if not module.bias._backward_hooks:
-                    module.bias.register_hook(bias_hook)
-
-            submodule.register_full_backward_hook(post_hook_fn)
-            submodule.register_forward_hook(forward_hook_fn)
-            submodule.register_full_backward_pre_hook(pre_backward_hook_fn)
 
 def train_from_yaml(
     yaml_path: str,

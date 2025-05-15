@@ -75,7 +75,9 @@ def fused_init_helper_(
 
 
 @contextmanager
-def DTensorInitContext(tensor: torch.Tensor) -> Generator[torch.Tensor, None, None]:
+def DTensorInitContext(
+    tensor: torch.Tensor
+) -> Generator[torch.Tensor, None, None]:
     """Context manager for initializing DTensor parameters.
 
     NOTE: This DTensorInitContext is not efficient as it initializes
@@ -84,20 +86,20 @@ def DTensorInitContext(tensor: torch.Tensor) -> Generator[torch.Tensor, None, No
     """
     is_dtensor = isinstance(tensor, DTensor)
     original_tensor = tensor
-    
+
     if is_dtensor:
         full_tensor = tensor.full_tensor()
         yield full_tensor
     else:
         yield tensor
-    
+
     if is_dtensor:
         # Redistribute the updated full tensor back to the original DTensor
         with torch.no_grad():
             temp_tensor = distribute_tensor(
-                full_tensor, 
-                device_mesh=original_tensor.device_mesh, 
-                placements=original_tensor.placements
+                full_tensor,
+                device_mesh=original_tensor.device_mesh,
+                placements=original_tensor.placements,
             )
             original_tensor.to_local().copy_(temp_tensor.to_local())
 
@@ -115,7 +117,6 @@ def fused_param_init_helper(
         fused_parameters (tuple[int, list[int]]): First element of _fused is the dimension
             along which the tensor is fused. Second element is a an iterable of split indices.
     """
-    
     with torch.no_grad(), DTensorInitContext(param) as tensor:
         p_ndims = tensor.ndim
         dim, splits = fused_parameters

@@ -76,7 +76,7 @@ def fused_init_helper_(
 
 @contextmanager
 def DTensorInitContext(
-    tensor: torch.Tensor
+    tensor: torch.Tensor,
 ) -> Generator[torch.Tensor, None, None]:
     """Context manager for initializing DTensor parameters.
 
@@ -85,23 +85,22 @@ def DTensorInitContext(
     yet since we only init a model once, this overhead is negligible
     """
     is_dtensor = isinstance(tensor, DTensor)
-    original_tensor = tensor
 
     if is_dtensor:
         full_tensor = tensor.full_tensor()
-        yield full_tensor
     else:
-        yield tensor
+        full_tensor = tensor
+    yield full_tensor
 
     if is_dtensor:
         # Redistribute the updated full tensor back to the original DTensor
         with torch.no_grad():
             temp_tensor = distribute_tensor(
                 full_tensor,
-                device_mesh=original_tensor.device_mesh,
-                placements=original_tensor.placements,
+                device_mesh=tensor.device_mesh,
+                placements=tensor.placements,
             )
-            original_tensor.to_local().copy_(temp_tensor.to_local())
+            tensor.to_local().copy_(temp_tensor.to_local())
 
 
 def fused_param_init_helper(

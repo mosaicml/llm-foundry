@@ -248,9 +248,7 @@ def init_arange_(weight: torch.Tensor) -> None:
 
 @pytest.mark.world_size(2)
 def test_fused_init_helper_dtensor_vs_tensor():
-    #Test that fused_param_init_helper produces the same results for a regular
-    # tensor and a DTensor.
-
+    # Create a simple device mesh for CPU
     mesh = DeviceMesh('cpu', [0, 1])
 
     regular_tensor = torch.nn.Parameter(torch.zeros(4, 4))
@@ -301,8 +299,6 @@ def test_fused_init_helper_dtensor_vs_tensor():
 @pytest.mark.world_size(2)
 @pytest.mark.parametrize('is_fused', [False, True])
 def test_fc_init_dtensor_vs_tensor(is_fused: bool):
-    """Test that fc_init initializes the same way for a regular linear layer
-    and a linear layer with DTensor parameters."""
     # Create a simple device mesh for CPU
     mesh = DeviceMesh('cpu', [0, 1])
     
@@ -377,8 +373,6 @@ def test_fc_init_dtensor_vs_tensor(is_fused: bool):
 
 @pytest.mark.world_size(2)
 def test_stacked_param_init_helper_dtensor_vs_tensor():
-    """Test that stacked_param_init_helper produces the same results for a regular
-    tensor and a DTensor."""
     # Create a simple device mesh for CPU
     mesh = DeviceMesh('cpu', [0, 1])
 
@@ -409,7 +403,7 @@ def test_stacked_param_init_helper_dtensor_vs_tensor():
 
     # Verify results are identical
     assert torch.equal(regular_tensor, dtensor_result), \
-        f"stacked_param_init_helper produced different results for regular tensor: {regular_tensor} vs DTensor: {dtensor_result}"
+        f'stacked_param_init_helper produced different results for regular tensor: {regular_tensor} vs DTensor: {dtensor_result}'
 
     # Check that each slice along stack_dim was separately initialized as expected
     rows, cols = regular_tensor.shape
@@ -429,8 +423,6 @@ def test_stacked_param_init_helper_dtensor_vs_tensor():
 @pytest.mark.parametrize('use_padding_idx', [False, True])
 @pytest.mark.parametrize('init_type', ['std', 'uniform', 'default'])
 def test_embedding_init_dtensor_vs_tensor(use_padding_idx: bool, init_type: str):
-    """Test that embedding_init initializes the same way for a regular embedding layer
-    and an embedding layer with DTensor parameters."""
     # Create a simple device mesh for CPU
     mesh = DeviceMesh('cpu', [0, 1])
     
@@ -472,8 +464,6 @@ def test_embedding_init_dtensor_vs_tensor(use_padding_idx: bool, init_type: str)
 @pytest.mark.parametrize('qkv_same_dim', [True, False])
 @pytest.mark.parametrize('is_residual', [True, False])
 def test_multihead_attention_init_dtensor_vs_tensor(qkv_same_dim: bool, is_residual: bool):
-    """Test that multihead_attention_init initializes the same way for a regular 
-    MultiheadAttention and one with DTensor parameters."""
     # Create a simple device mesh for CPU
     mesh = DeviceMesh('cpu', [0, 1])
     

@@ -36,6 +36,103 @@ __all__ = [
 ]
 
 
+@contextmanager
+def materialize_tensor(
+    tensor: torch.Tensor,
+) -> Generator[torch.Tensor, None, None]:
+    """Context manager for initializing DTensor parameters.
+
+    This context manager temporarily materializes a DTensor as a full tensor for initialization,
+    then redistributes the initialized values back to the original DTensor.
+
+    NOTE: This approach is not memory-efficient as it materializes a full tensor on every rank
+    and then redistributes it back to a DTensor. However, since model initialization happens
+    only once, this overhead is generally acceptable.
+
+    Args:
+        tensor: The tensor to materialize. Can be either a regular Tensor or a DTensor.
+
+    Yields:
+        torch.Tensor: The materialized full tensor that can be initialized.
+    """
+    is_dtensor = isinstance(tensor, DTensor)
+
+    with torch.no_grad():
+        if is_dtensor:
+            full_tensor = tensor.full_tensor()
+        else:
+            full_tensor = tensor
+
+        yield full_tensor
+        if is_dtensor:
+            # Redistribute the updated full tensor back to the original DTensor
+            with torch.no_grad():
+                temp_tensor = distribute_tensor(
+                    full_tensor,
+                    device_mesh=tensor.device_mesh,
+                    placements=tensor.placements,
+                )
+                tensor.to_local().copy_(temp_tensor.to_local())
+
+
+@contextmanager
+def materialize_module(
+    module: nn.Module,
+) -> Generator[nn.Module, None, None]:
+    """Context manager for initializing modules containing DTensor parameters.
+
+    This context manager temporarily materializes all DTensor parameters in a module
+    as full tensors for initialization, then redistributes the initialized values back
+    to the original DTensor parameters.
+
+    Args:
+        module: The module whose parameters should be materialized.
+
+    Yields:
+        nn.Module: The module with materialized parameters that can be initialized.
+    """
+    param_placement_map: dict[tuple[nn.Module, str], tuple[DeviceMesh, list[Placement]]] = {}
+    with torch.no_grad():
+        for submodule in module.modules():
+            for name, param in submodule.named_parameters(recurse=False):
+                if isinstance(param, DTensor):
+                    param_placement_map[(submodule, name)] = (param.device_mesh, param.placements)
+                    setattr(submodule, name, nn.Parameter(param.full_tensor()))
+
+        yield module
+
+        for submodule in module.modules():
+            for name, param in submodule.named_parameters(recurse=False):
+                if (submodule, name) in param_placement_map:
+                    device_mesh, placements = param_placement_map[(submodule, name)]
+                    setattr(submodule, name, nn.Parameter(distribute_tensor(param, device_mesh=device_mesh, placements=placements)))
+
+
+def summon_dtensor(init_fn: Callable[[nn.Module | torch.Tensor, Any], None]) -> Callable[[nn.Module | torch.Tensor, Any], None]:
+    """Decorator that makes initialization functions compatible with DTensor parameters.
+
+    This decorator wraps an initialization function to handle both regular tensors/modules
+    and those containing DTensor parameters by temporarily materializing DTensors as full
+    tensors during initialization.
+
+    Args:
+        init_fn: The initialization function to wrap.
+
+    Returns:
+        A wrapped initialization function that can handle DTensor parameters.
+    """
+    def init_fn_wrapper(obj: nn.Module | torch.Tensor, *args, **kwargs) -> None:
+        if isinstance(obj, nn.Module):
+            with materialize_module(obj) as obj:
+                init_fn(obj, *args, **kwargs)
+        elif isinstance(obj, torch.Tensor):
+            with materialize_tensor(obj) as obj:
+                init_fn(obj, *args, **kwargs)
+        else:
+            raise TypeError(f"Invalid object type: {type(obj)}")
+    return init_fn_wrapper
+
+
 def torch_default_param_init_fn_(
     module: nn.Module,
     **kwargs: Any,
@@ -72,70 +169,6 @@ def fused_init_helper_(
         raise RuntimeError(f'Internal logic error')
 
     fused_param_init_helper(getattr(module, name_param), init_fn_, _fused)
-
-
-@contextmanager
-def materialize_tensor(
-    tensor: torch.Tensor,
-) -> Generator[torch.Tensor, None, None]:
-    """Context manager for initializing DTensor parameters.
-
-    NOTE: This DTensorInitContext is not efficient as it initializes
-    a full tensor on every rank and then slices it back to a DTensor,
-    yet since we only init a model once, this overhead is negligible
-    """
-    is_dtensor = isinstance(tensor, DTensor)
-
-    with torch.no_grad():
-        if is_dtensor:
-            full_tensor = tensor.full_tensor()
-        else:
-            full_tensor = tensor
-
-        yield full_tensor
-        if is_dtensor:
-            # Redistribute the updated full tensor back to the original DTensor
-            with torch.no_grad():
-                temp_tensor = distribute_tensor(
-                    full_tensor,
-                    device_mesh=tensor.device_mesh,
-                    placements=tensor.placements,
-                )
-                tensor.to_local().copy_(temp_tensor.to_local())
-
-
-@contextmanager
-def materialize_module(
-    module: nn.Module,
-) -> Generator[nn.Module, None, None]:
-    param_placement_map: dict[tuple[nn.Module, str], tuple[DeviceMesh, list[Placement]]] = {}
-    with torch.no_grad():
-        for submodule in module.modules():
-            for name, param in submodule.named_parameters(recurse=False):
-                if isinstance(param, DTensor):
-                    param_placement_map[(submodule, name)] = (param.device_mesh, param.placements)
-                    setattr(submodule, name, nn.Parameter(param.full_tensor()))
-
-        yield module
-
-        for submodule in module.modules():
-            for name, param in submodule.named_parameters(recurse=False):
-                if (submodule, name) in param_placement_map:
-                    device_mesh, placements = param_placement_map[(submodule, name)]
-                    setattr(submodule, name, nn.Parameter(distribute_tensor(param, device_mesh=device_mesh, placements=placements)))
-
-
-def summon_dtensor(init_fn: Callable[[nn.Module | torch.Tensor, ...], None]) -> Callable[[nn.Module | torch.Tensor, Any, ...], None]:
-    def init_fn_wrapper(obj: nn.Module | torch.Tensor, *args, **kwargs) -> None:
-        if isinstance(obj, nn.Module):
-            with materialize_module(obj) as obj:
-                init_fn(obj, *args, **kwargs)
-        elif isinstance(obj, torch.Tensor):
-            with materialize_tensor(obj) as obj:
-                init_fn(obj, *args, **kwargs)
-        else:
-            raise TypeError(f"Invalid object type: {type(obj)}")
-    return init_fn_wrapper
 
 
 @summon_dtensor

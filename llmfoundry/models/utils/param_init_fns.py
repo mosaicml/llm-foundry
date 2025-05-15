@@ -189,6 +189,7 @@ def stacked_init_helper_(
     stacked_param_init_helper(getattr(module, name_param), init_fn_, stack_dim)
 
 
+@summon_dtensor
 def stacked_param_init_helper(
     param: torch.Tensor,
     init_fn_: Callable,
@@ -259,6 +260,7 @@ def fc_init(
     return False
 
 
+@summon_dtensor
 def embedding_init(
     module: nn.Module,
     init_fn_: Callable,
@@ -325,6 +327,7 @@ def norm_init(
     return False
 
 
+@summon_dtensor
 def multihead_attention_init(
     module: nn.Module,
     init_fn_: Callable,

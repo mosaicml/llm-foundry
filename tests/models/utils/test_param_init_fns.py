@@ -240,8 +240,7 @@ def test_emb_padding_init(
 @pytest.mark.world_size(2)
 def test_fused_init_helper_dtensor_vs_tensor():
     """Test that fused_param_init_helper produces the same results for a regular
-    tensor and a DTensor.
-    """
+    tensor and a DTensor."""
     # Create a simple device mesh for CPU
     mesh = DeviceMesh('cpu', [0, 1])
 

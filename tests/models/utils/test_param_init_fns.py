@@ -340,6 +340,14 @@ def test_fc_init_dtensor_vs_tensor(is_fused: bool):
     fc_init(dtensor_linear, init_arange_, init_div_is_residual, div_is_residual)
 
     # For comparison, convert DTensor to regular tensor
+    assert isinstance(
+        dtensor_linear.weight,
+        DTensor,
+    ), f'DTensor is not a DTensor: {type(dtensor_linear.weight)}'
+    assert isinstance(
+        dtensor_linear.bias,
+        DTensor,
+    ), f'DTensor is not a DTensor: {type(dtensor_linear.bias)}'
     dtensor_weight = dtensor_linear.weight.full_tensor()
     dtensor_bias = dtensor_linear.bias.full_tensor()
 
@@ -463,6 +471,10 @@ def test_embedding_init_dtensor_vs_tensor(
     embedding_init(dtensor_embedding, init_arange_, None, None)
 
     # For comparison, convert DTensor to regular tensor
+    assert isinstance(
+        dtensor_embedding.weight,
+        DTensor,
+    ), f'DTensor is not a DTensor: {type(dtensor_embedding.weight)}'
     dtensor_weight = dtensor_embedding.weight.full_tensor()
 
     # Verify weight results are identical
@@ -541,10 +553,18 @@ def test_multihead_attention_init_dtensor_vs_tensor(
             distribute_tensor(dtensor_mha.v_proj_weight, mesh, [Shard(0)]),
         )
         dtensor_mha.bias_k = torch.nn.Parameter(
-            distribute_tensor(dtensor_mha.bias_k, mesh, [Shard(0)]),
+            distribute_tensor(
+                dtensor_mha.bias_k,  # type: ignore
+                mesh,
+                [Shard(0)],
+            ),
         )
         dtensor_mha.bias_v = torch.nn.Parameter(
-            distribute_tensor(dtensor_mha.bias_v, mesh, [Shard(0)]),
+            distribute_tensor(
+                dtensor_mha.bias_v,  # type: ignore
+                mesh,
+                [Shard(0)],
+            ),
         )
 
     # Convert out_proj parameters to DTensor
@@ -574,35 +594,73 @@ def test_multihead_attention_init_dtensor_vs_tensor(
     # Convert DTensor parameters to regular tensors for comparison
     if qkv_same_dim:
         # Compare in_proj_weight
+        assert isinstance(
+            dtensor_mha.in_proj_weight,
+            DTensor,
+        ), f'DTensor is not a DTensor: {type(dtensor_mha.in_proj_weight)}'
         dtensor_in_proj_weight = dtensor_mha.in_proj_weight.full_tensor()
         assert torch.equal(regular_mha.in_proj_weight, dtensor_in_proj_weight), \
             f'regular in_proj_weight: {regular_mha.in_proj_weight} vs DTensor: {dtensor_in_proj_weight}'
+        assert isinstance(
+            dtensor_mha.in_proj_bias,
+            DTensor,
+        ), f'DTensor is not a DTensor: {type(dtensor_mha.in_proj_bias)}'
         dtensor_in_proj_bias = dtensor_mha.in_proj_bias.full_tensor()
         assert torch.equal(regular_mha.in_proj_bias, dtensor_in_proj_bias), \
             f'regular in_proj_bias: {regular_mha.in_proj_bias} vs DTensor: {dtensor_in_proj_bias}'
     else:
         # Compare q/k/v_proj_weight
+        assert isinstance(
+            dtensor_mha.q_proj_weight,
+            DTensor,
+        ), f'DTensor is not a DTensor: {type(dtensor_mha.q_proj_weight)}'
         dtensor_q_proj_weight = dtensor_mha.q_proj_weight.full_tensor()
+        assert isinstance(
+            dtensor_mha.k_proj_weight,
+            DTensor,
+        ), f'DTensor is not a DTensor: {type(dtensor_mha.k_proj_weight)}'
         dtensor_k_proj_weight = dtensor_mha.k_proj_weight.full_tensor()
+        assert isinstance(
+            dtensor_mha.v_proj_weight,
+            DTensor,
+        ), f'DTensor is not a DTensor: {type(dtensor_mha.v_proj_weight)}'
         dtensor_v_proj_weight = dtensor_mha.v_proj_weight.full_tensor()
-
         assert torch.equal(regular_mha.q_proj_weight, dtensor_q_proj_weight), \
             f'regular q_proj_weight: {regular_mha.q_proj_weight} vs DTensor: {dtensor_q_proj_weight}'
         assert torch.equal(regular_mha.k_proj_weight, dtensor_k_proj_weight), \
             f'regular k_proj_weight: {regular_mha.k_proj_weight} vs DTensor: {dtensor_k_proj_weight}'
         assert torch.equal(regular_mha.v_proj_weight, dtensor_v_proj_weight), \
             f'regular v_proj_weight: {regular_mha.v_proj_weight} vs DTensor: {dtensor_v_proj_weight}'
+        assert isinstance(
+            dtensor_mha.bias_k,
+            DTensor,
+        ), f'DTensor is not a DTensor: {type(dtensor_mha.bias_k)}'
         dtensor_bias_k = dtensor_mha.bias_k.full_tensor()
+        assert isinstance(
+            dtensor_mha.bias_v,
+            DTensor,
+        ), f'DTensor is not a DTensor: {type(dtensor_mha.bias_v)}'
         dtensor_bias_v = dtensor_mha.bias_v.full_tensor()
-        assert torch.equal(regular_mha.bias_k, dtensor_bias_k), \
-            f'regular bias_k: {regular_mha.bias_k} vs DTensor: {dtensor_bias_k}'
-        assert torch.equal(regular_mha.bias_v, dtensor_bias_v), \
-            f'regular bias_v: {regular_mha.bias_v} vs DTensor: {dtensor_bias_v}'
+        assert torch.equal(
+            regular_mha.bias_k,  # type: ignore
+            dtensor_bias_k,
+        ), f'regular bias_k: {regular_mha.bias_k} vs DTensor: {dtensor_bias_k}'
+        assert torch.equal(
+            regular_mha.bias_v,  # type: ignore
+            dtensor_bias_v,
+        ), f'regular bias_v: {regular_mha.bias_v} vs DTensor: {dtensor_bias_v}'
 
     # Compare out_proj parameters
+    assert isinstance(
+        dtensor_mha.out_proj.weight,
+        DTensor,
+    ), f'DTensor is not a DTensor: {type(dtensor_mha.out_proj.weight)}'
     dtensor_out_proj_weight = dtensor_mha.out_proj.weight.full_tensor()
+    assert isinstance(
+        dtensor_mha.out_proj.bias,
+        DTensor,
+    ), f'DTensor is not a DTensor: {type(dtensor_mha.out_proj.bias)}'
     dtensor_out_proj_bias = dtensor_mha.out_proj.bias.full_tensor()
-
     assert torch.equal(regular_mha.out_proj.weight, dtensor_out_proj_weight), \
         f'regular out_proj.weight: {regular_mha.out_proj.weight} vs DTensor: {dtensor_out_proj_weight}'
     assert torch.equal(regular_mha.out_proj.bias, dtensor_out_proj_bias), \

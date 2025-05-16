@@ -97,7 +97,7 @@ def materialize_module(
         nn.Module: The module with materialized parameters that can be initialized.
     """
     param_placement_map: dict[tuple[nn.Module, str],
-                              tuple[DeviceMesh, list[Placement]]] = {}
+                              tuple[DeviceMesh, tuple[Placement, ...]]] = {}
     with torch.no_grad():
         for submodule in module.modules():
             for name, param in submodule.named_parameters(recurse=False):
@@ -127,11 +127,8 @@ def materialize_module(
                     )
 
 
-def summon_dtensor(
-    init_fn: Callable[[nn.Module | torch.Tensor, Any], bool],
-) -> Callable[[nn.Module | torch.Tensor, Any], bool]:
-    """Decorator that makes initialization functions compatible with DTensor
-    parameters.
+def summon_dtensor(init_fn: Callable) -> Callable:
+    """Unshard and Reshard DTensor parameters for initialization.
 
     This decorator wraps an initialization function to handle both regular tensors/modules
     and those containing DTensor parameters by temporarily materializing DTensors as full

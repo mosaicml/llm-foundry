@@ -128,8 +128,8 @@ def materialize_module(
 
 
 def summon_dtensor(
-    init_fn: Callable[[nn.Module | torch.Tensor, Any], None],
-) -> Callable[[nn.Module | torch.Tensor, Any], None]:
+    init_fn: Callable[[nn.Module | torch.Tensor, Any], bool],
+) -> Callable[[nn.Module | torch.Tensor, Any], bool]:
     """Decorator that makes initialization functions compatible with DTensor
     parameters.
 
@@ -148,13 +148,13 @@ def summon_dtensor(
         obj: nn.Module | torch.Tensor,
         *args: Any,
         **kwargs: Any,
-    ) -> None:
+    ) -> bool:
         if isinstance(obj, nn.Module):
             with materialize_module(obj) as obj:
-                init_fn(obj, *args, **kwargs)
+                return init_fn(obj, *args, **kwargs)
         elif isinstance(obj, torch.Tensor):
             with materialize_tensor(obj) as obj:
-                init_fn(obj, *args, **kwargs)
+                return init_fn(obj, *args, **kwargs)
         else:
             raise TypeError(f"Invalid object type: {type(obj)}")
 
@@ -579,7 +579,7 @@ def generic_param_init_fn_(
     did_init = False
     for module_init_fn in all_module_init_fns:
         did_init = module_init_fn(
-            module=module,
+            module,
             init_fn_=init_fn_,
             d_model=d_model,
             init_div_is_residual=init_div_is_residual,

@@ -140,7 +140,7 @@ def summon_dtensor(init_fn: Callable) -> Callable:
     Returns:
         A wrapped initialization function that can handle DTensor parameters.
     """
-
+    return init_fn
     def init_fn_wrapper(
         obj: nn.Module | torch.Tensor,
         *args: Any,

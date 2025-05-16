@@ -26,12 +26,13 @@ command: |
     --dataset allenai/c4 --data_subset en \
     --out_root ./my-copy-c4 --splits train_small val_small \
     --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
-  FSDP_VERSION=2 composer train/train.py train/yamls/pretrain/mpt-7b-fsdp2.yaml \
-    run_name=mpt-7b-fsdp2-dec-ver \
+  BENCHMARK_TRAINER=1 FSDP_VERSION=1 composer train/train.py train/yamls/pretrain/mpt-7b-fsdp2.yaml \
+    run_name=mpt-7b-fsdp1-init-time \
     train_loader.dataset.split=train_small \
     eval_loader.dataset.split=val_small \
-    max_duration=512ba \
+    max_duration=10ba \
     eval_interval=0 \
+    loggers="" \
 image: mosaicml/llm-foundry:2.6.0_cu124-latest
 name: mpt-7b-fsdp2
 

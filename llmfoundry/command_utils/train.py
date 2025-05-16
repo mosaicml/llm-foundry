@@ -558,8 +558,7 @@ def train(cfg: DictConfig) -> Trainer:
     compile_config = train_cfg.compile_config
     # Build the Trainer
     log.info('Building trainer...')
-    if int(os.environ.get('BENCHMARK_TRAINER', 0)) == 1:
-        trainer_start_time = time.time()
+    trainer_start_time = time.time()
     trainer = Trainer(
         run_name=run_name,
         seed=seed,
@@ -602,10 +601,9 @@ def train(cfg: DictConfig) -> Trainer:
         accumulate_train_batch_on_tokens=train_cfg.
         accumulate_train_batch_on_tokens,
     )
-    if int(os.environ.get('BENCHMARK_TRAINER', 0)) == 1:
-        trainer_end_time = time.time()
-        trainer_construction_time = trainer_end_time - trainer_start_time
-        log.info(f'Trainer construction took {trainer_construction_time:.2f} seconds')
+    trainer_end_time = time.time()
+    trainer_construction_time = trainer_end_time - trainer_start_time
+    log.info(f'Trainer construction took {trainer_construction_time:.2f} seconds')
     _sort_callbacks(trainer)
 
     # Optionally just save an HF checkpoint

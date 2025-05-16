@@ -153,7 +153,7 @@ def summon_dtensor(init_fn: Callable) -> Callable:
             with materialize_tensor(obj) as obj:
                 return init_fn(obj, *args, **kwargs)
         else:
-            raise TypeError(f"Invalid object type: {type(obj)}")
+            raise TypeError(f'Invalid object type: {type(obj)}')
 
     return init_fn_wrapper
 

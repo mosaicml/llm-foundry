@@ -27,7 +27,7 @@ command: |
     --out_root ./my-copy-c4 --splits train_small val_small \
     --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
   FSDP_VERSION=2 composer train/train.py train/yamls/pretrain/mpt-7b-fsdp2.yaml \
-    run_name=mpt-7b-fsdp2-dec-ver \
+    run_name=mpt-7b-fsdp2-init-fix \
     train_loader.dataset.split=train_small \
     eval_loader.dataset.split=val_small \
     max_duration=512ba \

@@ -20,10 +20,13 @@ from torch.distributed._tensor import (
 
 from llmfoundry.layers_registry import param_init_fns
 from llmfoundry.models.utils import generic_param_init_fn_
-from llmfoundry.models.utils.param_init_fns import (embedding_init, fc_init,
-                                                    fused_param_init_helper,
-                                                    multihead_attention_init,
-                                                    stacked_param_init_helper,)
+from llmfoundry.models.utils.param_init_fns import (
+    embedding_init,
+    fc_init,
+    fused_param_init_helper,
+    multihead_attention_init,
+    stacked_param_init_helper,
+)
 
 
 class MLP(nn.Module):
@@ -362,7 +365,7 @@ def test_fc_init_dtensor_vs_tensor(is_fused: bool):
     else:
         # For non-fused case, the initialization is simpler
         expected_weight = torch.arange(regular_linear.weight.numel()).reshape(
-            regular_linear.weight.shape
+            regular_linear.weight.shape,
         ).float() / div_is_residual
     assert torch.equal(
         dtensor_weight,
@@ -426,7 +429,8 @@ def test_stacked_param_init_helper_dtensor_vs_tensor():
 @pytest.mark.parametrize('use_padding_idx', [False, True])
 @pytest.mark.parametrize('init_type', ['std', 'uniform', 'default'])
 def test_embedding_init_dtensor_vs_tensor(
-    use_padding_idx: bool, init_type: str
+    use_padding_idx: bool,
+    init_type: str,
 ):
     # Create a simple device mesh for CPU
     mesh = DeviceMesh('cpu', [0, 1])
@@ -437,12 +441,16 @@ def test_embedding_init_dtensor_vs_tensor(
 
     # Create a regular embedding layer
     regular_embedding = nn.Embedding(
-        vocab_size, embed_dim, padding_idx=padding_idx
+        vocab_size,
+        embed_dim,
+        padding_idx=padding_idx,
     )
 
     # Create an embedding layer with DTensor parameters
     dtensor_embedding = nn.Embedding(
-        vocab_size, embed_dim, padding_idx=padding_idx
+        vocab_size,
+        embed_dim,
+        padding_idx=padding_idx,
     )
 
     # Convert the weight to DTensor
@@ -473,7 +481,8 @@ def test_embedding_init_dtensor_vs_tensor(
 @pytest.mark.parametrize('qkv_same_dim', [True, False])
 @pytest.mark.parametrize('is_residual', [True, False])
 def test_multihead_attention_init_dtensor_vs_tensor(
-    qkv_same_dim: bool, is_residual: bool
+    qkv_same_dim: bool,
+    is_residual: bool,
 ):
     # Create a simple device mesh for CPU
     mesh = DeviceMesh('cpu', [0, 1])
@@ -548,12 +557,18 @@ def test_multihead_attention_init_dtensor_vs_tensor(
 
     # Initialize both modules using multihead_attention_init
     multihead_attention_init(
-        regular_mha, init_arange_, d_model, init_div_is_residual,
-        div_is_residual
+        regular_mha,
+        init_arange_,
+        d_model,
+        init_div_is_residual,
+        div_is_residual,
     )
     multihead_attention_init(
-        dtensor_mha, init_arange_, d_model, init_div_is_residual,
-        div_is_residual
+        dtensor_mha,
+        init_arange_,
+        d_model,
+        init_div_is_residual,
+        div_is_residual,
     )
 
     # Convert DTensor parameters to regular tensors for comparison
@@ -597,7 +612,7 @@ def test_multihead_attention_init_dtensor_vs_tensor(
     if is_residual:
         # The out_proj weight should be scaled by div_is_residual
         expected_out_proj_weight = torch.arange(
-            regular_mha.out_proj.weight.numel()
+            regular_mha.out_proj.weight.numel(),
         ).reshape(regular_mha.out_proj.weight.shape).float() / div_is_residual
 
         assert torch.equal(dtensor_out_proj_weight, expected_out_proj_weight), \

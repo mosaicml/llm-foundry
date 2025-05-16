@@ -11,8 +11,12 @@ from typing import Any, Callable, Generator, Optional, Union
 
 import torch
 from torch import nn
-from torch.distributed._tensor import (DeviceMesh, DTensor, Placement,
-                                       distribute_tensor,)
+from torch.distributed._tensor import (
+    DeviceMesh,
+    DTensor,
+    Placement,
+    distribute_tensor,
+)
 
 from llmfoundry.layers_registry import (
     fcs,
@@ -111,19 +115,20 @@ def materialize_module(
                     device_mesh, placements = param_placement_map[
                         (submodule, name)]
                     setattr(
-                        submodule, name,
+                        submodule,
+                        name,
                         nn.Parameter(
                             distribute_tensor(
                                 param,
                                 device_mesh=device_mesh,
-                                placements=placements
-                            )
-                        )
+                                placements=placements,
+                            ),
+                        ),
                     )
 
 
 def summon_dtensor(
-    init_fn: Callable[[nn.Module | torch.Tensor, Any], None]
+    init_fn: Callable[[nn.Module | torch.Tensor, Any], None],
 ) -> Callable[[nn.Module | torch.Tensor, Any], None]:
     """Decorator that makes initialization functions compatible with DTensor
     parameters.
@@ -140,7 +145,9 @@ def summon_dtensor(
     """
 
     def init_fn_wrapper(
-        obj: nn.Module | torch.Tensor, *args: Any, **kwargs: Any
+        obj: nn.Module | torch.Tensor,
+        *args: Any,
+        **kwargs: Any,
     ) -> None:
         if isinstance(obj, nn.Module):
             with materialize_module(obj) as obj:

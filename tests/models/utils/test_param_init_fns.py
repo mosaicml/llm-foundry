@@ -324,7 +324,7 @@ def test_fc_init_dtensor_vs_tensor(is_fused: bool):
         distribute_tensor(dtensor_linear.bias, mesh, [Shard(0)]),
     )
 
-    # Mark one of the layers as residual to test the residual path
+    # Test the residual path
     regular_linear._is_residual = True
     dtensor_linear._is_residual = True
 

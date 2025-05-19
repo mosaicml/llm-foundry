@@ -54,7 +54,7 @@ classifiers = [
 install_requires = [
     'mosaicml[libcloud,wandb,oci,gcs,mlflow]>=0.30.0,<0.31',
     'mlflow>=2.14.1,<2.22',
-    'accelerate>=0.25,<1.7',  # for HF inference `device_map`
+    'accelerate>=0.25,<1.8',  # for HF inference `device_map`
     'transformers>=v4.51.0,<4.52',
     'mosaicml-streaming>=0.12.0,<0.13',
     'torch>=2.6.0,<2.6.1',
@@ -65,7 +65,7 @@ install_requires = [
     'omegaconf>=2.2.3,<3',
     'slack-sdk<4',
     'mosaicml-cli>=0.6.10,<1',
-    'onnx==1.17.0',
+    'onnx==1.18.0',
     'onnxruntime==1.22.0',
     'boto3>=1.21.45,<2',
     'huggingface-hub[hf_xet]>=0.30.0,<0.32',

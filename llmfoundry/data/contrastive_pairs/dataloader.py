@@ -1,6 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """Dataset and dataloader for contrastive training.
 
 Build a StreamingPairsDataset dataset and dataloader for contrastive training.

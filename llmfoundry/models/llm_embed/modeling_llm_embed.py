@@ -1,10 +1,9 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """LLM Contrastive Embedding Model.
 
-Implements InfoNCE Loss using the MPT architecture. The resulting model can
-be used as a vector embedding model.
+Implements InfoNCE Loss using the MPT architecture. The resulting model can be
+used as a vector embedding model.
 
 This is inspired by Microsoft Research's unilm repository
 https://github.com/microsoft/unilm
@@ -297,8 +296,10 @@ class ContrastiveModel(HuggingFaceModel):
     def _cat_gather(self, t: torch.Tensor, group: Any = None) -> torch.Tensor:
         """Applies an all gather operation necessary for InfoNCELoss.
 
-        See https://github.com/pytorch/pytorch/blob/63d5e9221bedd1546b7d364b5ce4171547db12a9/torch/distributed/nn/functional.py#L314
-        as well as https://github.com/pytorch/pytorch/issues/121587#issuecomment-1989070351
+        See
+        https://github.com/pytorch/pytorch/blob/63d5e9221bedd1546b7d364b5ce4171547db12a9/torch/distributed/nn/functional.py#L314
+         as well as
+        https://github.com/pytorch/pytorch/issues/121587#issuecomment-1989070351
         """
         if self.use_legacy_gradient_passthrough:
             all_tensors = list(dist.all_gather(t, group))

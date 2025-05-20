@@ -1,6 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 r"""Example custom preprocessing function.
 
 This is here to help illustrate the way to set up finetuning

@@ -1,6 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """Basic HuggingFace -> ONNX export script.
 
 This scripts show a basic HuggingFace -> ONNX export workflow. This works for a MPT model

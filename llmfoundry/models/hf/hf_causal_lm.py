@@ -1,6 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """Implements a Hugging Causal LM wrapped inside a :class:`.ComposerModel`."""
 
 import logging

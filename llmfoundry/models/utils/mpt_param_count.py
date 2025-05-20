@@ -1,6 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """Helper functions for computing parameter counts for MPT model.
 
 Use if generic `sum(p.numel() for p in self.parameters())`

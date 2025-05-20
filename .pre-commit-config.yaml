@@ -73,7 +73,7 @@ repos:
     - --allow-past-years
     types: [python]
 - repo: https://github.com/PyCQA/docformatter
-  rev: v1.5.0
+  rev: v1.7.7
   hooks:
   - id: docformatter
     args: [--in-place, --wrap-summaries=80, --wrap-descriptions=80]

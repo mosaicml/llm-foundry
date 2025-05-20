@@ -1,6 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """Includes code for task-specific seq-to-seq data formatting.
 
 This file provides some templates/examples of preprocessing functions

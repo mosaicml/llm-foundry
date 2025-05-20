@@ -1,6 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """Batch generate text completion results from an endpoint.
 
 Warning: This script is experimental and could change or be removed at any time

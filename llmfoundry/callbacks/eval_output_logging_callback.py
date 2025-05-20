@@ -1,6 +1,5 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """Log model outputs and expected outputs during ICL evaluation."""
 
 import warnings

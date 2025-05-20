@@ -1,6 +1,5 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """Natively supported in-context learning evaluation datasets."""
 
 from llmfoundry.eval.datasets.in_context_learning_evaluation import (

@@ -854,9 +854,10 @@ def neox_param_init_fn_(
 ) -> None:
     """From section 2.3.1 of GPT-NeoX-20B:
 
-    An Open-Source AutoregressiveLanguage Model — Black et. al. (2022)
-    see https://github.com/EleutherAI/gpt-neox/blob/9610391ab319403cef079b438edd016a2443af54/megatron/model/init_functions.py#L151
-    and https://github.com/EleutherAI/gpt-neox/blob/main/megatron/model/transformer.py
+    An Open-Source AutoregressiveLanguage Model — Black et. al. (2022) see
+    https://github.com/EleutherAI/gpt-neox/blob/9610391ab319403cef079b438edd016a2443af54/megatron/model/init_functions.py#L151
+     and
+    https://github.com/EleutherAI/gpt-neox/blob/main/megatron/model/transformer.py
     """
     del kwargs  # unused, just to capture any extra args from the config
     residual_div = n_layers / math.sqrt(10)  # small std / wang std

@@ -1,6 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """Implements a OpenAI chat and causal LM inference API wrappers."""
 
 import logging

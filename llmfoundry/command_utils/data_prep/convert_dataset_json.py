@@ -140,8 +140,6 @@ def convert_dataset_json(
         tokenizer=built_tokenizer,
     )
 
-    print('here')
-
     # Write samples
     print(f'Converting to MDS format...')
     print(

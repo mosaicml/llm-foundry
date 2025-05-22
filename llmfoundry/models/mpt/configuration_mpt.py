@@ -439,4 +439,15 @@ class MPTConfig(PretrainedConfig):
                 },
                 'nope': None,
             },
+            'ffn_config': {
+                'ffn_type': None,
+                'ffn_hidden_size': None,
+                'fc_type': {
+                    'name': None,
+                },
+                'ffn_act_fn': {
+                    'name': None,
+                },
+                'do_not_add_default_layer_config': None,
+            },
         }

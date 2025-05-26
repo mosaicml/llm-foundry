@@ -58,7 +58,7 @@ install_requires = [
     'mosaicml-streaming>=0.12.0,<0.13',
     'torch>=2.6.0,<2.6.1',
     'datasets>=3.3.2,<3.7',
-    'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
+    'fsspec==2025.5.1',  # newer version results in a bug in datasets that duplicates data
     'sentencepiece==0.2.0',
     'einops==0.8.1',
     'omegaconf>=2.2.3,<3',

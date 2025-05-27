@@ -514,7 +514,6 @@ class MPTModel(MPTPreTrainedModel):
         #                   'bias') and isinstance(module.bias, nn.Parameter):
         #            log.debug(f'Removing bias from {module=}.')
         #            module.register_parameter('bias', None)
-
         #        # For transformer engine
         #        if hasattr(module, 'use_bias') and module.use_bias is True:
         #            log.debug(f'Setting use_bias=False for {module=}.')

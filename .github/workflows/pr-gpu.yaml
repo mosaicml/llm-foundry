@@ -23,7 +23,7 @@ jobs:
       matrix:
         include:
         - name: "gpu-2.7.0-1"
-          container: mosaicml/pytorch:2.7.0_cu128-python3.12-ubuntu22.04
+          container: mosaicml/pytorch:2.7.0_cu126-python3.12-ubuntu22.04
           markers: "gpu"
           pip_deps: "[all]"
           pytest_command: "coverage run -m pytest"
@@ -52,7 +52,7 @@ jobs:
       matrix:
         include:
         - name: "gpu-2.7.0-2"
-          container: mosaicml/pytorch:2.7.0_cu128-python3.12-ubuntu22.04
+          container: mosaicml/pytorch:2.7.0_cu126-python3.12-ubuntu22.04
           markers: "gpu"
           pip_deps: "[all]"
           pytest_command: "coverage run -m pytest"
@@ -81,7 +81,7 @@ jobs:
       matrix:
         include:
         - name: "gpu-2.7.0-4"
-          container: mosaicml/pytorch:2.7.0_cu128-python3.12-ubuntu22.04
+          container: mosaicml/pytorch:2.7.0_cu126-python3.12-ubuntu22.04
           markers: "gpu"
           pip_deps: "[all]"
           pytest_command: "coverage run -m pytest"

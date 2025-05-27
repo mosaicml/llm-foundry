@@ -501,23 +501,17 @@ class GroupedQueryAttention(nn.Module):
         self.kv_dim = kv_dim if kv_dim is not None else self.d_model
         self.head_dim = d_model // n_heads
 
-        ip_fc_type = {}
-        if fc_type is None:
-            ip_fc_type = copy.deepcopy(fc_type_defaults)
-            ip_fc_type['bias'] = attention_bias
-            ip_fc_type['device'] = device
-        else:
-            ip_fc_type = copy.deepcopy(fc_type)
-            ip_fc_type['bias'] = attention_bias
-
-        ip_fc_type_name = fc_type['name']
-
         # Usually, fc_type dict should be passed in through MPTBlock's __init__ function.
         if fc_type is None:
             fc_type = copy.deepcopy(fc_type_defaults)
             fc_type['bias'] = bias
             fc_type['device'] = device
         fc_type_name = fc_type['name']
+
+        # for attention inputs
+        ip_fc_type = copy.deepcopy(fc_type)
+        ip_fc_type['bias'] = attention_bias
+        ip_fc_type_name = ip_fc_type['name']
 
         if self.kv_n_heads <= 0:
             raise ValueError('kv_n_heads should be greater than zero.')
@@ -544,7 +538,7 @@ class GroupedQueryAttention(nn.Module):
                 name=ip_fc_type_name,
                 in_features=self.d_model,
                 out_features=self.d_model,
-                fc_kwargs=fc_type,
+                fc_kwargs=ip_fc_type,
             )
             # for param init fn; enables shape based init of fused layers
             fuse_splits = [i * self.head_dim for i in range(1, self.n_heads)]

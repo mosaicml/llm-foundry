@@ -41,6 +41,7 @@ class MPTConfig(PretrainedConfig):
         init_device: str = 'cpu',
         logit_scale: Optional[Union[float, str]] = None,
         no_bias: bool = False,
+        attention_bias: bool = False,
         embedding_fraction: float = 1.0,
         norm_type: str = 'low_precision_layernorm',
         norm_eps: float = 1e-05,
@@ -101,6 +102,7 @@ class MPTConfig(PretrainedConfig):
             init_device (str): The device to use for parameter initialization.
             logit_scale (Optional[Union[float, str]]): If not None, scale the logits by this value.
             no_bias (bool): Whether to use bias in all layers.
+            attention_bias (bool): Whether to use bias in the attention layer.
             embedding_fraction (float): The fraction to scale the gradients of the embedding layer by.
             norm_type (str): choose type of norm to use
             norm_eps (float): epsilon value for norm layer
@@ -171,6 +173,7 @@ class MPTConfig(PretrainedConfig):
         self.init_device = init_device
         self.logit_scale = logit_scale
         self.no_bias = no_bias
+        self.attention_bias = attention_bias
         self.embedding_fraction = embedding_fraction
         self.norm_type = norm_type
         self.norm_eps = norm_eps

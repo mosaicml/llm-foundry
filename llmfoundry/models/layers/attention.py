@@ -473,6 +473,7 @@ class GroupedQueryAttention(nn.Module):
         fc_type: Optional[dict[str, Any]] = None,
         device: Optional[str] = None,
         bias: bool = True,
+        attention_bias: bool = False,
         sliding_window_size: int = -1,
         reuse_kv_layer_idx: Optional[int] = None,
         attn_logit_softcapping: Optional[float] = None,
@@ -499,6 +500,17 @@ class GroupedQueryAttention(nn.Module):
 
         self.kv_dim = kv_dim if kv_dim is not None else self.d_model
         self.head_dim = d_model // n_heads
+
+        ip_fc_type = {}
+        if fc_type is None:
+            ip_fc_type = copy.deepcopy(fc_type_defaults)
+            ip_fc_type['bias'] = attention_bias
+            ip_fc_type['device'] = device
+        else:
+            ip_fc_type = copy.deepcopy(fc_type)
+            ip_fc_type['bias'] = attention_bias
+
+        ip_fc_type_name = fc_type['name']
 
         # Usually, fc_type dict should be passed in through MPTBlock's __init__ function.
         if fc_type is None:
@@ -529,7 +541,7 @@ class GroupedQueryAttention(nn.Module):
 
         if self.reuse_kv_layer_idx is not None:
             self.Wq = build_fc(
-                name=fc_type_name,
+                name=ip_fc_type_name,
                 in_features=self.d_model,
                 out_features=self.d_model,
                 fc_kwargs=fc_type,
@@ -539,10 +551,10 @@ class GroupedQueryAttention(nn.Module):
             self.Wq._fused = (0, fuse_splits)
         elif self.fused_qkv:
             self.Wqkv = build_fc(
-                name=fc_type_name,
+                name=ip_fc_type_name,
                 in_features=self.d_model,
                 out_features=self.d_model + 2 * self.kv_n_heads * self.head_dim,
-                fc_kwargs=fc_type,
+                fc_kwargs=ip_fc_type,
             )
             # for param init fn; enables shape based init of fused layers
             fuse_splits = [
@@ -552,22 +564,22 @@ class GroupedQueryAttention(nn.Module):
             self.Wqkv._fused = (0, fuse_splits)
         else:
             self.Wq = build_fc(
-                name=fc_type_name,
+                name=ip_fc_type_name,
                 in_features=self.d_model,
                 out_features=self.d_model,
-                fc_kwargs=fc_type,
+                fc_kwargs=ip_fc_type,
             )
             self.Wk = build_fc(
-                name=fc_type_name,
+                name=ip_fc_type_name,
                 in_features=self.kv_dim,
                 out_features=self.kv_n_heads * self.head_dim,
-                fc_kwargs=fc_type,
+                fc_kwargs=ip_fc_type,
             )
             self.Wv = build_fc(
-                name=fc_type_name,
+                name=ip_fc_type_name,
                 in_features=self.kv_dim,
                 out_features=self.kv_n_heads * self.head_dim,
-                fc_kwargs=fc_type,
+                fc_kwargs=ip_fc_type,
             )
             # for param init fn; enables shape based init of fused layers
             q_fuse_splits = [i * self.head_dim for i in range(1, self.n_heads)]

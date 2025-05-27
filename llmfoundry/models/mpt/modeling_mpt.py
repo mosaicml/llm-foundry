@@ -508,17 +508,17 @@ class MPTModel(MPTPreTrainedModel):
             use_sequence_id=self.attn_uses_sequence_id,
         )
 
-        if config.no_bias:
-            for module in self.modules():
-                if hasattr(module,
-                           'bias') and isinstance(module.bias, nn.Parameter):
-                    log.debug(f'Removing bias from {module=}.')
-                    module.register_parameter('bias', None)
+        #if config.no_bias:
+        #    for module in self.modules():
+        #        if hasattr(module,
+        #                   'bias') and isinstance(module.bias, nn.Parameter):
+        #            log.debug(f'Removing bias from {module=}.')
+        #            module.register_parameter('bias', None)
 
-                # For transformer engine
-                if hasattr(module, 'use_bias') and module.use_bias is True:
-                    log.debug(f'Setting use_bias=False for {module=}.')
-                    module.use_bias = False
+        #        # For transformer engine
+        #        if hasattr(module, 'use_bias') and module.use_bias is True:
+        #            log.debug(f'Setting use_bias=False for {module=}.')
+        #            module.use_bias = False
 
         log.debug(self)
         init_config_name = self.config.init_config['name']

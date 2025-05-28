@@ -844,7 +844,7 @@ class HuggingFaceCheckpointer(Callback):
                 )
 
                 _NON_MLFLOW_HF_MAX_SHARD_SIZE = os.environ.get(
-                    'LLM_FOUNDRY_NON_MLFLOW_HF_MAX_SHARD_SIZE', '1GB'
+                    'LLM_FOUNDRY_NON_REGISTER_HF_MAX_SHARD_SIZE', '1GB'
                 )
                 with context_manager:
                     new_model_instance.save_pretrained(

@@ -103,11 +103,9 @@ extra_deps['tensorboard'] = [
 ]
 
 # Flash 2 group kept for backwards compatibility
-extra_deps['gpu-flash2'] = [
+extra_deps['gpu'] = [
     'flash-attn==2.7.4.post1',
 ]
-
-extra_deps['gpu'] = copy.deepcopy(extra_deps['gpu-flash2'])
 
 extra_deps['peft'] = [
     'mosaicml[peft]>=0.30.0,<0.31',
@@ -138,11 +136,7 @@ extra_deps['all-cpu'] = {
 }
 extra_deps['all'] = {
     dep for key, deps in extra_deps.items() for dep in deps
-    if key not in {'gpu-flash2', 'all-cpu', 'te'}
-}
-extra_deps['all-flash2'] = {
-    dep for key, deps in extra_deps.items() for dep in deps
-    if key not in {'gpu', 'all', 'all-cpu', 'te'}
+    if key not in {'gpu', 'all-cpu', 'te'}
 }
 
 setup(

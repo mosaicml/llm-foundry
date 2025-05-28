@@ -433,7 +433,7 @@ def get_integrations(
     git_integration.update({
         'integration_type': 'git_repo',
         'git_repo': 'mosaicml/llm-foundry',
-        'pip_install': '.[gpu-flash2]',
+        'pip_install': '.[gpu]',
     })
 
     integrations = [git_integration]
@@ -458,7 +458,7 @@ def run_config(
             'integration_type': 'git_repo',
             'git_repo': 'mosaicml/llm-foundry',
             'git_branch': 'main',
-            'pip_install': '.[gpu-flash2]',
+            'pip_install': '.[gpu]',
         },
         {
             'integration_type': 'wandb',

@@ -749,7 +749,7 @@ class HuggingFaceCheckpointer(Callback):
         )
         new_model_instance.save_pretrained(
             register_save_dir,
-            max_shard_size='1GB',
+            max_shard_size='5GB',
         )
         if original_tokenizer:
             original_tokenizer.save_pretrained(register_save_dir)

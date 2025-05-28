@@ -219,6 +219,11 @@ def _log_model_with_multi_process(
 class HuggingFaceCheckpointer(Callback):
     """Save a huggingface formatted checkpoint during training.
 
+    The shard size for saving a checkpoint can be controlled by setting the
+    environment variable ``LLM_FOUNDRY_NON_REGISTER_HF_MAX_SHARD_SIZE``.
+    Documentation for this parameter can be found at
+    https://huggingface.co/docs/transformers/en/main_classes/model#transformers.PreTrainedModel.push_to_hub.max_shard_size
+
     Args:
         save_folder (str): Top level folder to save checkpoints to (can be a
             URI). It is likely that this would be the same as your save_folder.

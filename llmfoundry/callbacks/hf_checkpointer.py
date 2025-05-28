@@ -405,7 +405,8 @@ class HuggingFaceCheckpointer(Callback):
                 import mlflow
                 import mlflow.environment_variables
                 mlflow.environment_variables.MLFLOW_HUGGINGFACE_MODEL_MAX_SHARD_SIZE.set(
-                    '1GB',
+                    #'1GB',
+                    '5GB',
                 )
 
             # Check if the model is using PEFT
@@ -845,7 +846,8 @@ class HuggingFaceCheckpointer(Callback):
                 with context_manager:
                     new_model_instance.save_pretrained(
                         temp_save_dir,
-                        max_shard_size='1GB',
+                        #max_shard_size='1GB',
+                        max_shard_size='5GB',
                     )
                 if original_tokenizer is not None:  # type: ignore
                     assert isinstance(

@@ -843,7 +843,9 @@ class HuggingFaceCheckpointer(Callback):
                 ) if is_te_imported and state.precision == Precision.AMP_FP8 else contextlib.nullcontext(
                 )
 
-                _NON_MLFLOW_HF_MAX_SHARD_SIZE = os.environ.get('LLM_FOUNDRY_NON_MLFLOW_HF_MAX_SHARD_SIZE', '1GB')
+                _NON_MLFLOW_HF_MAX_SHARD_SIZE = os.environ.get(
+                    'LLM_FOUNDRY_NON_MLFLOW_HF_MAX_SHARD_SIZE', '1GB'
+                )
                 with context_manager:
                     new_model_instance.save_pretrained(
                         temp_save_dir,

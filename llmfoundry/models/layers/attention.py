@@ -513,10 +513,6 @@ class GroupedQueryAttention(nn.Module):
         ip_fc_type['bias'] = attention_bias
         ip_fc_type_name = ip_fc_type['name']
 
-        print("#"*40)
-        print(ip_fc_type)
-        print("#"*40)
-
         if self.kv_n_heads <= 0:
             raise ValueError('kv_n_heads should be greater than zero.')
 

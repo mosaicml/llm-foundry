@@ -473,7 +473,7 @@ class GroupedQueryAttention(nn.Module):
         fc_type: Optional[dict[str, Any]] = None,
         device: Optional[str] = None,
         bias: bool = True,
-        attention_bias: bool = False,
+        attention_bias: bool = True,
         sliding_window_size: int = -1,
         reuse_kv_layer_idx: Optional[int] = None,
         attn_logit_softcapping: Optional[float] = None,
@@ -512,6 +512,10 @@ class GroupedQueryAttention(nn.Module):
         ip_fc_type = copy.deepcopy(fc_type)
         ip_fc_type['bias'] = attention_bias
         ip_fc_type_name = ip_fc_type['name']
+
+        print("#"*40)
+        print(ip_fc_type)
+        print("#"*40)
 
         if self.kv_n_heads <= 0:
             raise ValueError('kv_n_heads should be greater than zero.')

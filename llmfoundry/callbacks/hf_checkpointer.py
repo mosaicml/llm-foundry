@@ -842,10 +842,12 @@ class HuggingFaceCheckpointer(Callback):
                     True,
                 ) if is_te_imported and state.precision == Precision.AMP_FP8 else contextlib.nullcontext(
                 )
+
+                _NON_MLFLOW_HF_MAX_SHARD_SIZE = os.environ.get('LLM_FOUNDRY_NON_MLFLOW_HF_MAX_SHARD_SIZE', '1GB')
                 with context_manager:
                     new_model_instance.save_pretrained(
                         temp_save_dir,
-                        max_shard_size='1GB',
+                        max_shard_size=_NON_MLFLOW_HF_MAX_SHARD_SIZE,
                     )
                 if original_tokenizer is not None:  # type: ignore
                     assert isinstance(

@@ -1,5 +1,5 @@
 name: c4-2k-pre-tokenized
-image: mosaicml/llm-foundry:2.6.0_cu124-latest
+image: mosaicml/llm-foundry:2.7.0_cu126-latest
 compute:
   gpus: 8  # Number of GPUs to use
 

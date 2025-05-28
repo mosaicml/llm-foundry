@@ -13,7 +13,7 @@ command: |
     --hf_output_path s3://bucket/folder/hf/ \
     --output_precision bf16 \
 
-image: mosaicml/llm-foundry:2.6.0_cu124-latest
+image: mosaicml/llm-foundry:2.7.0_cu126-latest
 name: convert-composer-hf
 
 compute:

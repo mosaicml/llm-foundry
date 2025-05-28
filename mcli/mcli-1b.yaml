@@ -21,7 +21,7 @@ command: |
     eval_loader.dataset.split=val_small \
     max_duration=100ba \
     eval_interval=0
-image: mosaicml/llm-foundry:2.6.0_cu124-latest
+image: mosaicml/llm-foundry:2.7.0_cu126-latest
 name: mpt-1b-gpus-8
 
 compute:

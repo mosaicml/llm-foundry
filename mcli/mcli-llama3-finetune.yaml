@@ -10,7 +10,7 @@ command: |
   cd llm-foundry/scripts
   export HF_HUB_ENABLE_HF_TRANSFER=1
   composer train/train.py /mnt/config/parameters.yaml
-image: mosaicml/llm-foundry:2.6.0_cu124-latest
+image: mosaicml/llm-foundry:2.7.0_cu126-latest
 name: llama2-finetune
 
 compute:

@@ -5,7 +5,6 @@ import json
 import logging
 import os
 import tempfile
-import traceback
 from enum import Enum
 from typing import Callable, Optional
 from argparse import ArgumentParser
@@ -23,78 +22,50 @@ from llmfoundry.command_utils.data_prep.convert_delta_to_json import (
 
 logger = logging.getLogger(__name__)
 
+
 class FinetuneTaskType(Enum):
-    CONTINUED_PRETRAIN = 'CPT'
-    INSTRUCTION_FINETUNE = 'IFT'
-    CHAT_COMPLETION = 'CHAT'
-    COMPARATIVE_EVALUATION = 'COMP_EVAL'
+    CHAT_COMPLETION = 'CHAT_COMPLETION'
+    CONTINUED_PRETRAIN = 'CONTINUED_PRETRAIN'
+    INSTRUCTION_FINETUNE = 'INSTRUCTION_FINETUNE'
+    SPECIAL = 'SPECIAL'
 
 
 def get_conversion_config(
     columns: list[str],
-    task_type: Optional[FinetuneTaskType] = None,
+    task_type: FinetuneTaskType,
 ) -> tuple[dict, Callable]:
     """
-    Returns dtyles and a conversion function for a given task type.
-    If no task type is provided, attempts to infer config based on column names.
+    Returns dtypes and a conversion function for a given task type.
 
     Args:
         columns (list[str]): The list of column names.
-        task_type (Optional[str]): One of FinetuneTaskType. If not provided, will attempt to infer config based on column names.
+        task_type (str): One of FinetuneTaskType.
 
     Returns:
         tuple[dict, Callable]: A tuple of the dtypes and a conversion function.
     """
-    if task_type is None:
-        if len(columns) == 1:
-            if 'turns' in columns[0]:
-                task_type = FinetuneTaskType.CHAT_COMPLETION
-            elif 'tokens' in columns[0]:
-                task_type = FinetuneTaskType.CONTINUED_PRETRAIN
-            else:
-                raise ValueError(
-                    'Unable to infer task type from columns and no task_type provided.',
-                )
-        elif len(columns) == 5 and set(columns) == {'prompt', 'chosen', 'rejected', 'chosen_reward', 'rejected_reward'}:
-            task_type = FinetuneTaskType.COMPARATIVE_EVALUATION
-        else:
-            raise ValueError(
-                'Unable to infer task type from columns and no task_type provided.',
-            )
-        logger.info(f'No task_type provided. Inferred task type: {task_type}')
-
-    if task_type in [FinetuneTaskType.INSTRUCTION_FINETUNE, FinetuneTaskType.CHAT_COMPLETION]:
+    if task_type in [
+            FinetuneTaskType.INSTRUCTION_FINETUNE,
+            FinetuneTaskType.CHAT_COMPLETION,
+    ]:
         dtypes = {
             'input_ids': 'ndarray',
             'attention_mask': 'ndarray',
             'labels': 'ndarray',
         }
-        
-        def convert_x(x):
-            if len(x['turns']) > 1:
-                raise ValueError('More than one turn found')
-            
-            # Debug the raw data
-            print(f"IFT/CHAT turn data types: input_ids={type(x['turns'][0]['input_ids'])}, attention_mask={type(x['turns'][0]['attention_mask'])}, labels={type(x['turns'][0]['labels'])}")
-            
-            return {
-                'input_ids': np.array(x['turns'][0]['input_ids'], dtype=np.int32),
-                'attention_mask': np.array(x['turns'][0]['attention_mask'], dtype=np.int32),
-                'labels': np.array(x['turns'][0]['labels'], dtype=np.int32),
-            }
-    
+        convert_x = lambda x: (
+            ValueError('More than one turn found')
+            if len(x['turns']) > 1 else {
+                'input_ids': np.array(x['turns'][0]['input_ids']),
+                'attention_mask': np.array(x['turns'][0]['attention_mask']),
+                'labels': np.array(x['turns'][0]['labels']),
+            })
     elif task_type == FinetuneTaskType.CONTINUED_PRETRAIN:
         dtypes = {
             'tokens': 'ndarray',
         }
-        
-        def convert_x(x):
-            # Debug the raw data
-            print(f"CPT tokens type: {type(x['concat_tokens'])}, sample: {str(x['concat_tokens'][:10]) if x['concat_tokens'] else 'empty'}")
-            
-            return {'tokens': np.array(x['concat_tokens'], dtype=np.int32)}
-    
-    elif task_type == FinetuneTaskType.COMPARATIVE_EVALUATION:
+        convert_x = lambda x: {'tokens': np.array(x['concat_tokens'])}
+    elif task_type == FinetuneTaskType.SPECIAL
         dtypes = {
             'prompt': 'bytes',
             'chosen': 'bytes',
@@ -102,108 +73,17 @@ def get_conversion_config(
             'chosen_reward': 'float32',  # Spark FloatType is 4 bytes
             'rejected_reward': 'float32',
         }
-        
-        def convert_x(x):
-            # Debug the raw data
-            print(f"COMP_EVAL data types: prompt={type(x['prompt'])}, chosen={type(x['chosen'])}, rejected={type(x['rejected'])}")
-            
-            try:
-                prompt_array = np.array(x['prompt'])
-                chosen_array = np.array(x['chosen'])
-                rejected_array = np.array(x['rejected'])
-
-                print(f"dtype of prompt_array: {prompt_array.dtype}")
-                print(f"dtype of chosen_array: {chosen_array.dtype}")
-                print(f"dtype of rejected_array: {rejected_array.dtype}")
-
-                result = {
-                    'prompt': prompt_array.tobytes(),
-                    'chosen': chosen_array.tobytes(),
-                    'rejected': rejected_array.tobytes(),
-                    'chosen_reward': np.float32(x['chosen_reward']), 
-                    'rejected_reward': np.float32(x['rejected_reward']),
-                }
-                
-                return result
-            except Exception as e:
-                logger.error(f"Error in COMP_EVAL convert_x: {e}")
-                logger.error(f"Problematic data: prompt={str(x['prompt'])[:50]}, chosen={str(x['chosen'])[:50]}, rejected={str(x['rejected'])[:50]}")
-                raise
-    
+        convert_x = lambda x: {
+            'prompt': np.array(x['prompt'], dtype=np.int64).tobytes(),
+            'chosen': np.array(x['chosen'], dtype=np.int64).tobytes(),
+            'rejected': np.array(x['rejected'], dtype=np.int64).tobytes(),
+            'chosen_reward': np.float32(x['chosen_reward']),
+            'rejected_reward': np.float32(x['rejected_reward']),
+        }
     else:
-        raise ValueError(
-            'Unable to infer dtypes from columns and no dtypes provided.',
-        )
+        raise ValueError(f"Unsupported task type: {task_type}")
 
     return dtypes, convert_x
-
-
-def debug_data_sample(data, prefix=""):
-    """Helper function to debug data structures"""
-    if not data:
-        print(f"{prefix} Data is empty or None")
-        return
-    
-    if isinstance(data, dict):
-        print(f"{prefix} Dict with keys: {list(data.keys())}")
-        for key, value in data.items():
-            sample_value = str(value)[:100] + "..." if len(str(value)) > 100 else str(value)
-            print(f"{prefix} - {key}: {type(value)}, sample: {sample_value}")
-    elif isinstance(data, list):
-        print(f"{prefix} List of length {len(data)}")
-        if data:
-            first_item = data[0]
-            sample_value = str(first_item)[:100] + "..." if len(str(first_item)) > 100 else str(first_item)
-            print(f"{prefix} - First item type: {type(first_item)}, sample: {sample_value}")
-    else:
-        print(f"{prefix} Data type: {type(data)}, sample: {str(data)[:100]}")
-
-
-def safe_write(writer, data, record_index=None):
-    """Helper function to safely write to MDS with better error reporting"""
-    try:
-        writer.write(data)
-    except ValueError as e:
-        error_msg = str(e)
-        logger.error(f"ValueError when writing record {record_index}: {error_msg}")
-        
-        if "Unsupported dtype" in error_msg:
-            logger.error("Detailed data type information:")
-            for key, value in data.items():
-                if hasattr(value, 'dtype'):
-                    logger.error(f"Field {key}: dtype={value.dtype}, shape={value.shape}")
-                    # If it's a string dtype, print some values to help debugging
-                    if 'str' in str(value.dtype):
-                        logger.error(f"First few values of {key}: {value.tolist()[:5] if value.size > 0 else 'empty'}")
-                        
-                        # Try to inspect the original values
-                        logger.error(f"Attempting to fix string dtype in {key}")
-                        try:
-                            # Convert strings to integers if possible
-                            if value.size > 0:
-                                # Check if the first few values are numeric strings
-                                sample_values = value.tolist()[:5]
-                                logger.error(f"Sample values types: {[type(x) for x in sample_values]}")
-                                
-                                # Try to convert to int if it's a numeric string
-                                fixed_val = np.array([int(x) if isinstance(x, str) and x.isdigit() else x for x in value], dtype=np.int32)
-                                data[key] = fixed_val
-                                logger.error(f"Fixed {key} to dtype={fixed_val.dtype}")
-                        except Exception as fix_error:
-                            logger.error(f"Failed to fix {key}: {fix_error}")
-            
-            # Try again with potentially fixed data
-            try:
-                writer.write(data)
-                logger.info("Successfully wrote after attempting to fix data types")
-            except Exception as retry_error:
-                logger.error(f"Still failed after fixing: {retry_error}")
-                # Print full traceback
-                logger.error(traceback.format_exc())
-                raise
-        else:
-            logger.error(traceback.format_exc())
-            raise
 
 
 def convert_delta_to_mds_from_args(
@@ -214,7 +94,7 @@ def convert_delta_to_mds_from_args(
     use_serverless: bool,
     batch_size: int,
     processes: int,
-    task_type: Optional[FinetuneTaskType],
+    task_type: FinetuneTaskType,
 ) -> None:
     """A wrapper for convert_delta_to_mds that parses arguments.
 
@@ -226,7 +106,7 @@ def convert_delta_to_mds_from_args(
         processes (int): Number of processes allowed to use
         cluster_id (Optional[str]): Cluster ID with runtime newer than 14.1.0 and access mode of either assigned or shared can use databricks-connect.
         use_serverless (bool): Use serverless or not. Make sure the workspace is entitled with serverless
-        task_type (Optional[FinetuneTaskType]): The type of finetune task. If not provided, the function will attempt to infer the task type from the column names.
+        task_type (FinetuneTaskType): The type of finetune task.
     """
     _check_imports()
     from databricks.sdk import WorkspaceClient
@@ -251,7 +131,6 @@ def convert_delta_to_mds_from_args(
     logger.info(f'Columns: {columns}')
 
     dtypes, convert_x = get_conversion_config(columns, task_type)
-    logger.info(f'Using dtypes configuration: {dtypes}')
 
     compression = 'zstd:7'
     hashes = ['sha1']
@@ -279,59 +158,24 @@ def convert_delta_to_mds_from_args(
             logger.error(f'Error fetching data from Delta Table: {e}')
             raise e
         
+        json_num_lines = sum(1 for _ in open(json_full_filepath, 'r'))
+        logging.info(f'Number of lines in JSON file: {json_num_lines}')
+        
         with MDSWriter(
-            out=mds_output_folder,
-            columns=dtypes,
-            compression=compression,
-            hashes=hashes,
-            size_limit=limit,
+                out=mds_output_folder,
+                columns=dtypes,
+                compression=compression,
+                hashes=hashes,
+                size_limit=limit,
         ) as out:
             try:
                 with open(json_full_filepath, 'r') as f:
-                    for i, line in enumerate(f):
-                        try:
-                            # Parse the JSON
-                            data = json.loads(line)
-                            
-                            # Debug the first few records
-                            if i < 3:
-                                logger.info(f"Record {i} raw data sample:")
-                                debug_data_sample(data, prefix=f"Record {i}")
-                                
-                                # Check for string values in arrays
-                                for key, value in data.items():
-                                    if isinstance(value, list) and value:
-                                        if any(isinstance(item, str) for item in value[:10]):
-                                            logger.warning(f"String values found in {key} array at record {i}")
-                                            logger.warning(f"First few items: {value[:5]}")
-                            
-                            # Convert the data
-                            try:
-                                converted = convert_x(data)
-                                
-                                # Debug the converted data
-                                if i < 3:
-                                    logger.info(f"Record {i} converted data:")
-                                    for key, value in converted.items():
-                                        if hasattr(value, 'dtype'):
-                                            logger.info(f"  - {key}: type={type(value)}, dtype={value.dtype}, shape={value.shape}")
-                                            if 'str' in str(value.dtype):
-                                                logger.warning(f"WARNING: String dtype detected in {key}: {value.dtype}")
-                                
-                                # Write with enhanced error handling
-                                safe_write(out, converted, i)
-                                
-                            except Exception as convert_error:
-                                logger.error(f"Error converting record {i}: {convert_error}")
-                                logger.error(f"Problematic data: {str(data)[:500]}")
-                                logger.error(traceback.format_exc())
-                                raise
-                                
-                        except Exception as record_error:
-                            logger.error(f"Error processing record {i}: {record_error}")
-                            logger.error(traceback.format_exc())
-                            raise
-                            
+                    for idx, line in enumerate(f):
+                        print(f'Processing line {idx}: {line}', flush=True)
+                        converted = convert_x(json.loads(line))
+                        print(f'Wrote converted data: {converted}', flush=True)
+                        out.write(converted)
+
             except FileNotFoundError as e:
                 logger.error(f'JSON output file not found: {e}')
                 raise e
@@ -340,12 +184,6 @@ def convert_delta_to_mds_from_args(
 
 
 if __name__ == '__main__':
-    # Configure more verbose logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-    
     parser = ArgumentParser(
         description=
         'Download Delta Table from UC and save as MDS shards in local folder',
@@ -361,6 +199,13 @@ if __name__ == '__main__':
         required=True,
         type=str,
         help='Local path to save the MDS shards',
+    )
+    parser.add_argument(
+        '--task_type',
+        required=True,
+        type=str.upper,
+        choices=FinetuneTaskType.__members__.keys(),
+        help='The type of finetune task',
     )
     parser.add_argument(
         '--http_path',
@@ -394,20 +239,10 @@ if __name__ == '__main__':
         action='store_true',
         help='use serverless cluster',
     )
-    parser.add_argument(
-        '--task_type',
-        required=False,
-        type=str,
-        help='The type of finetune task',
-    )
     args = parser.parse_args()
 
-    try:
-        task_type = FinetuneTaskType(args.task_type.upper()) if args.task_type else None
-    except ValueError:
-        logger.error(f'Invalid task type: {args.task_type}, will attempt to automatically infer task type.')
-        task_type = None
-        
+    task_type = FinetuneTaskType(args.task_type)
+
     convert_delta_to_mds_from_args(
         delta_table_name=args.delta_table_name,
         mds_output_folder=args.mds_output_folder,

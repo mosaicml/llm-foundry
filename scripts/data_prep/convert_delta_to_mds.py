@@ -74,9 +74,9 @@ def get_conversion_config(
             'rejected_reward': 'float32',
         }
         convert_x = lambda x: {
-            'prompt': np.array(x['prompt']).tobytes(),
-            'chosen': np.array(x['chosen']).tobytes(),
-            'rejected': np.array(x['rejected']).tobytes(),
+            'prompt': np.array(x['prompt'], dtype=np.int32).tobytes(),
+            'chosen': np.array(x['chosen'], dtype=np.int32).tobytes(),
+            'rejected': np.array(x['rejected'], dtype=np.int32).tobytes(),
             'chosen_reward': np.float32(x['chosen_reward']),
             'rejected_reward': np.float32(x['rejected_reward']),
         }

@@ -65,7 +65,7 @@ def get_conversion_config(
             'tokens': 'ndarray',
         }
         convert_x = lambda x: {'tokens': np.array(x['concat_tokens'])}
-    elif task_type == FinetuneTaskType.SPECIAL
+    elif task_type == FinetuneTaskType.SPECIAL:
         dtypes = {
             'prompt': 'bytes',
             'chosen': 'bytes',

@@ -539,8 +539,8 @@ class MPTModel(MPTPreTrainedModel):
         """
         block_args = self.extract_block_args(config.to_dict())
         self.state_cache_layers = {
-            'reuse_kv_layer_idx': set(),
-            'reuse_kv_x_layer_idx': set(),
+            'reuse_kv_layer_idx': set(),  # type: ignore
+            'reuse_kv_x_layer_idx': set(),  # type: ignore
         }
         self.blocks_fuse_norm_attn_norm = block_args.get(  # type: ignore
             'fuse_norm_attn_norm',
@@ -1025,7 +1025,7 @@ class MPTModel(MPTPreTrainedModel):
             if attn_block.reuse_kv_layer_idx is not None:  # type: ignore
                 if attn_block.reuse_kv_layer_idx not in layer_kv_cache_dict:  # type: ignore
                     raise KeyError(
-                        f'kv cache for layer {attn_block.reuse_kv_layer_idx} not found in {layer_kv_cache_dict=}.',
+                        f'kv cache for layer {attn_block.reuse_kv_layer_idx} not found in {layer_kv_cache_dict=}.',  # type: ignore
                     )
                 prev_layer_key_value = layer_kv_cache_dict[
                     attn_block.reuse_kv_layer_idx]  # type: ignore
@@ -1033,12 +1033,14 @@ class MPTModel(MPTPreTrainedModel):
                 prev_layer_key_value = None
             if b_idx in self.state_cache_layers['reuse_kv_x_layer_idx']:
                 layer_kv_x_cache_dict[b_idx] = x
-            if attn_block.reuse_kv_x_layer_idx is not None:
-                if attn_block.reuse_kv_x_layer_idx not in layer_kv_x_cache_dict:
+            if attn_block.reuse_kv_x_layer_idx is not None:  # type: ignore
+                if attn_block.reuse_kv_x_layer_idx not in layer_kv_x_cache_dict:  # type: ignore
                     raise KeyError(
-                        f'kv cache for layer {attn_block.reuse_kv_x_layer_idx} not found in {layer_kv_x_cache_dict=}.',
+                        f'kv cache for layer {attn_block.reuse_kv_x_layer_idx} not found in {layer_kv_x_cache_dict=}.',  # type: ignore
                     )
-                x_prev = layer_kv_x_cache_dict[attn_block.reuse_kv_x_layer_idx]
+                x_prev = layer_kv_x_cache_dict[
+                    attn_block.reuse_kv_x_layer_idx  # type: ignore
+                ]
             else:
                 x_prev = None
             if output_hidden_states:

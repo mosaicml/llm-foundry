@@ -538,9 +538,9 @@ class MPTModel(MPTPreTrainedModel):
             nn.ModuleList: The list of Transformer blocks.
         """
         block_args = self.extract_block_args(config.to_dict())
-        self.state_cache_layers = {
-            'reuse_kv_layer_idx': set(),  # type: ignore
-            'reuse_kv_x_layer_idx': set(),  # type: ignore
+        self.state_cache_layers = {  # type: ignore
+            'reuse_kv_layer_idx': set(),
+            'reuse_kv_x_layer_idx': set(),
         }
         self.blocks_fuse_norm_attn_norm = block_args.get(  # type: ignore
             'fuse_norm_attn_norm',

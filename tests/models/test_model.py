@@ -2858,7 +2858,7 @@ def test_resolve_reuse_state_layer_idx(reuse_kv_layer_idx: int):
         with pytest.raises(
             expected_exception=ValueError,
             match=
-            'The relative index of kv layer to reuse, override_attn_config\\[\'reuse_kv_layer_idx\'\\]=0, should be negative.',  # type: ignore
+            'The relative index of kv layer to reuse, override_attn_config[reuse_type]=0, should be negative.',  # type: ignore
         ):
             _validate_helper(b_idx=2)
 

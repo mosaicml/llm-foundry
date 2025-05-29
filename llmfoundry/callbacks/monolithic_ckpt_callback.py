@@ -7,7 +7,6 @@ import tempfile
 from pathlib import Path
 
 import torch
-from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from composer.core import Callback, State
 from composer.core.state import (
     fsdp_get_optim_state_dict,
@@ -21,6 +20,7 @@ from composer.utils import (
     parse_uri,
     reproducibility,
 )
+from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 
 __all__ = ['MonolithicCheckpointSaver']
 

@@ -1,6 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """Utility functions for downloading models."""
 import copy
 import logging
@@ -142,7 +141,7 @@ def _extract_links_from_html(html: str):
         list[str]: A list of links to download.
     """
     soup = BeautifulSoup(html, 'html.parser')
-    links = [a['href'] for a in soup.find_all('a')]
+    links = [a['href'] for a in soup.find_all('a')]  # type: ignore
     return links
 
 
@@ -208,7 +207,7 @@ def _recursive_download(
         _recursive_download(
             session,
             base_url,
-            urljoin(path, child_link),
+            urljoin(path, child_link),  # type: ignore
             save_dir,
             ignore_cert=ignore_cert,
         )
@@ -272,7 +271,9 @@ def download_from_oras(
             f'oras cli command `{ORAS_CLI}` is not found. Please install oras: https://oras.land/docs/installation ',
         )
 
-    def _read_secrets_file(secret_file_path: str,):
+    def _read_secrets_file(
+        secret_file_path: str,
+    ):
         try:
             with open(secret_file_path, encoding='utf-8') as f:
                 return f.read().strip()
@@ -316,7 +317,8 @@ def download_from_oras(
         return cmd
 
     cmd_without_creds = get_oras_cmd()
-    log.info(f'CMD for oras cli to run: {" ".join(cmd_without_creds)}')
+    oras_cli_command = ' '.join(cmd_without_creds)
+    log.info(f'CMD for oras cli to run: {oras_cli_command}')
     cmd_to_run = get_oras_cmd(
         username=secrets['username'],
         password=secrets['password'],

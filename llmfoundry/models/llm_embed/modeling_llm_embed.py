@@ -1,16 +1,16 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """LLM Contrastive Embedding Model.
 
-Implements InfoNCE Loss using the MPT architecture. The resulting model can
-be used as a vector embedding model.
+Implements InfoNCE Loss using the MPT architecture. The resulting model can be
+used as a vector embedding model.
 
 This is inspired by Microsoft Research's unilm repository
 https://github.com/microsoft/unilm
 """
 
 import logging
+import warnings
 from dataclasses import dataclass
 from typing import Any, Mapping, MutableMapping, Optional, Union, cast
 
@@ -48,9 +48,11 @@ class ContrastiveEvalLoss(Metric):
         if loss.device != self.loss.device:
             loss = loss.to(self.loss.device)
         self.loss += loss
-        self.total += 1
+        self.total += 1  # type: ignore
 
     def compute(self):
+        assert isinstance(self.loss, torch.Tensor)
+        assert isinstance(self.total, torch.Tensor)
         return self.loss / self.total
 
 
@@ -94,6 +96,8 @@ class ContrastiveModel(HuggingFaceModel):
         load_in_8bit (bool, optional): Whether to load the model in 8-bit mode. Defaults to False.
         loss_fn (str, optional): The loss function to use (either 'torch_crossentropy' or 'fused_crossentropy'). Defaults to 'fused_crossentropy'.
         pretrained (bool, optional): Whether to use a pretrained model when using a Hugging Face architecture. Defaults to True.
+        attn_implementation (str, optional): The attention implementation to use. If
+            ``use_flash_attention_2`` is set, this will be overridden. Default: ``'eager'``.
         **kwargs (Dict[str, Any]): Additional keyword arguments.
     """
 
@@ -111,8 +115,15 @@ class ContrastiveModel(HuggingFaceModel):
         load_in_8bit: bool = False,
         loss_fn: str = 'fused_crossentropy',
         pretrained: bool = True,
+        attn_implementation: str = 'eager',
         **kwargs: dict[str, Any],
     ):
+        if use_flash_attention_2 and attn_implementation != 'flash_attention_2':
+            warnings.warn(
+                'use_flash_attention_2 is set, this will override attn_implementation',
+            )
+            attn_implementation = 'flash_attention_2'
+
         self.pretrained_model_name_or_path = pretrained_model_name_or_path
         self.pretrained = pretrained
         self.pretrained_lora_id_or_path = pretrained_lora_id_or_path
@@ -124,6 +135,7 @@ class ContrastiveModel(HuggingFaceModel):
         self.load_in_8bit = load_in_8bit
         self.kwargs = kwargs
         self.is_mpt = False
+        self.attn_implementation = attn_implementation
 
         contrastive_config = contrastive_config or {}
         contrastive_config_obj: ContrastiveConfig = om.structured(
@@ -143,7 +155,7 @@ class ContrastiveModel(HuggingFaceModel):
 
         super().__init__(
             model=model,
-            tokenizer=tokenizer,
+            tokenizer=tokenizer,  # type: ignore
             use_logits=False,
             metrics=train_metrics,
             eval_metrics=self.eval_metrics, # type: ignore
@@ -204,6 +216,7 @@ class ContrastiveModel(HuggingFaceModel):
                 use_auth_token=self.use_auth_token,
                 config_overrides=self.config_overrides or {},
                 load_in_8bit=self.load_in_8bit,
+                attn_implementation=self.attn_implementation,
                 **self.kwargs,
             )
         else:
@@ -283,8 +296,10 @@ class ContrastiveModel(HuggingFaceModel):
     def _cat_gather(self, t: torch.Tensor, group: Any = None) -> torch.Tensor:
         """Applies an all gather operation necessary for InfoNCELoss.
 
-        See https://github.com/pytorch/pytorch/blob/63d5e9221bedd1546b7d364b5ce4171547db12a9/torch/distributed/nn/functional.py#L314
-        as well as https://github.com/pytorch/pytorch/issues/121587#issuecomment-1989070351
+        See
+        https://github.com/pytorch/pytorch/blob/63d5e9221bedd1546b7d364b5ce4171547db12a9/torch/distributed/nn/functional.py#L314
+         as well as
+        https://github.com/pytorch/pytorch/issues/121587#issuecomment-1989070351
         """
         if self.use_legacy_gradient_passthrough:
             all_tensors = list(dist.all_gather(t, group))
@@ -299,7 +314,7 @@ class ContrastiveModel(HuggingFaceModel):
 
     def get_hidden_state(self, outputs: CausalLMOutputWithPast) -> torch.Tensor:
         """Returns the hidden state to use for pooling."""
-        return outputs.hidden_states[-1]
+        return outputs.hidden_states[-1]  # type: ignore
 
     def handle_language_head(
         self,
@@ -307,7 +322,7 @@ class ContrastiveModel(HuggingFaceModel):
     ) -> torch.Tensor:
         """Handles `zero` tensor to avoid DDP unused parameters error."""
         return torch.sum(
-            outputs.logits,
+            outputs.logits,  # type: ignore
         ) * 0  # This attaches the language head to the computation graph
 
     def _compute_scores(

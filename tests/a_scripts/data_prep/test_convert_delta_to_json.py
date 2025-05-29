@@ -5,6 +5,7 @@ import json
 import os
 import shutil
 import sys
+import tempfile
 import unittest
 from argparse import Namespace
 from contextlib import contextmanager
@@ -32,6 +33,7 @@ from llmfoundry.utils.exceptions import (
     DeltaTableNotFoundError,
     MalformedUCTableError,
     StoragePermissionError,
+    TableDownloadError,
 )
 
 
@@ -142,7 +144,9 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )
         mock_workspace_client.return_value.clusters.get = mock_cluster_get
 
-        with UncreatedNamedTemporaryFile(suffix='.jsonl',) as tf:
+        with UncreatedNamedTemporaryFile(
+            suffix='.jsonl',
+        ) as tf:
             mock_combine_jsons.side_effect = _mock_write_jsonl(tf.name)
             json_output_folder, json_output_filename = os.path.split(tf.name)
             fetch_DT(
@@ -326,7 +330,9 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )  # Mock return value for getOrCreate
         mock_databricks_session.builder.remote.return_value = mock_remote
 
-        with UncreatedNamedTemporaryFile(suffix='.jsonl',) as tf:
+        with UncreatedNamedTemporaryFile(
+            suffix='.jsonl',
+        ) as tf:
             mock_combine_jsons.side_effect = _mock_write_jsonl(tf.name)
             json_output_folder, json_output_filename = os.path.split(tf.name)
             fetch_DT(
@@ -385,7 +391,9 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
-        with UncreatedNamedTemporaryFile(suffix='.jsonl',) as tf:
+        with UncreatedNamedTemporaryFile(
+            suffix='.jsonl',
+        ) as tf:
             mock_combine_jsons.side_effect = _mock_write_jsonl(tf.name)
             json_output_folder, json_output_filename = os.path.split(tf.name)
             fetch_DT(
@@ -445,7 +453,9 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
-        with UncreatedNamedTemporaryFile(suffix='.jsonl',) as tf:
+        with UncreatedNamedTemporaryFile(
+            suffix='.jsonl',
+        ) as tf:
             mock_combine_jsons.side_effect = _mock_write_jsonl(tf.name)
             json_output_folder, json_output_filename = os.path.split(tf.name)
             fetch_DT(
@@ -505,7 +515,9 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
-        with UncreatedNamedTemporaryFile(suffix='.jsonl',) as tf:
+        with UncreatedNamedTemporaryFile(
+            suffix='.jsonl',
+        ) as tf:
             mock_combine_jsons.side_effect = _mock_write_jsonl(tf.name)
             json_output_folder, json_output_filename = os.path.split(tf.name)
             fetch_DT(
@@ -561,7 +573,9 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         mock_cluster_response = Namespace(spark_version='14.2.0-scala2.12')
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
-        with UncreatedNamedTemporaryFile(suffix='.jsonl',) as tf:
+        with UncreatedNamedTemporaryFile(
+            suffix='.jsonl',
+        ) as tf:
             mock_combine_jsons.side_effect = _mock_write_jsonl(tf.name)
             json_output_folder, json_output_filename = os.path.split(tf.name)
             fetch_DT(
@@ -593,14 +607,16 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
             '`hyphenated-catalog`.`schema`.`test_table`',
         )
 
-    @patch('llmfoundry.command_utils.data_prep.convert_delta_to_json.fetch')
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.get_total_rows',
+    )
     @patch(
         'llmfoundry.command_utils.data_prep.convert_delta_to_json.validate_and_get_cluster_info',
     )
     def test_fetch_DT_catches_grpc_errors(
         self,
         mock_validate_cluster_info: MagicMock,
-        mock_fetch: MagicMock,
+        mock_get_total_rows: MagicMock,
     ):
         # Arrange
         # Mock the validate_and_get_cluster_info to return test values
@@ -650,7 +666,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
             texts_to_check_in_error,
         ) in error_contexts:
             # Configure the fetch function to raise the SparkConnectGrpcException
-            mock_fetch.side_effect = err_to_throw
+            mock_get_total_rows.side_effect = err_to_throw
 
             # Test inputs
             delta_table_name = 'test_table'
@@ -678,7 +694,7 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
                 self.assertIn(text, str(context.exception))
 
         # Verify that fetch was called
-        mock_fetch.assert_called()
+        mock_get_total_rows.assert_called()
 
     @patch(
         'llmfoundry.command_utils.data_prep.convert_delta_to_json.get_total_rows',
@@ -805,3 +821,72 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )
 
         mock_fetch.assert_called()
+
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.get_args',
+        return_value=[(None, None, None, None)],
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.get_total_rows',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.get_columns_info',
+        return_value=(None, None, None),
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.ProcessPoolExecutor',
+    )
+    @patch(
+        'llmfoundry.command_utils.data_prep.convert_delta_to_json.validate_and_get_cluster_info',
+    )
+    def test_general_table_download_error(
+        self,
+        mock_validate_cluster_info: MagicMock,
+        mock_pp_executor: MagicMock,
+        mock_get_columns_info: MagicMock,
+        mock_get_total_rows: MagicMock,
+        mock_get_args: MagicMock,
+    ):
+        mock_session = MagicMock()
+        mock_table = MagicMock()
+        mock_session.table.return_value = mock_table
+        mock_validate_cluster_info.return_value = (
+            'dbconnect',
+            None,
+            mock_session,
+        )
+        mock_table.collect_cf.return_value = (MagicMock(), None, None)
+
+        exception_message = 'Overflow occurred in npy_datetimestruct_to_datetime'
+        overflow_exception = OverflowError(exception_message)
+
+        mock_pp_executor.side_effect = overflow_exception
+
+        # Define test inputs
+        delta_table_name = 'test_table'
+        json_output_folder = tempfile.mkdtemp()
+        http_path = None
+        cluster_id = 'test-cluster-id'
+        use_serverless = False
+        DATABRICKS_HOST = 'https://test-host'
+        DATABRICKS_TOKEN = 'test-token'
+
+        # Act & Assert
+        with self.assertRaises(TableDownloadError) as context:
+            fetch_DT(
+                delta_table_name=delta_table_name,
+                json_output_folder=json_output_folder,
+                http_path=http_path,
+                cluster_id=cluster_id,
+                use_serverless=use_serverless,
+                DATABRICKS_HOST=DATABRICKS_HOST,
+                DATABRICKS_TOKEN=DATABRICKS_TOKEN,
+                processes=1,
+            )
+
+        self.assertIn(
+            f'Error downloading table {delta_table_name}: {exception_message}',
+            str(context.exception),
+        )
+
+        mock_pp_executor.assert_called()

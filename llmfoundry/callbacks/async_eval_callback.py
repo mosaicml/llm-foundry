@@ -1,6 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """Run the eval loop asynchronously as part of a MosaicML platform run.
 
 This callback is currently experimental. The API may change in the future.
@@ -179,9 +178,9 @@ def validate_eval_run_config(
             found_unsupported.add(key)
 
     if found_unsupported:
+        unsupported_keys = ', '.join(found_unsupported)
         raise ValueError(
-            f'Unsupported eval run config keys found: {", ".join(found_unsupported)}'
-            + f'. Supported keys: {supported_keys}',
+            f'Unsupported eval run config keys found: {unsupported_keys}. Supported keys: {supported_keys}',
         )
 
     return run_config

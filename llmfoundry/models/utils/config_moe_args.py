@@ -1,6 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """Helper function to configure MPT with MoEs."""
 
 import inspect
@@ -234,4 +233,5 @@ def config_moe_args(
             get_device_mesh=get_megablocks_device_mesh,
         )
     else:
-        raise ValueError(f'Invalid ffn_type ({ffn_config["ffn_type"]}).')
+        ffn_type = ffn_config['ffn_type']
+        raise ValueError(f'Invalid ffn_type ({ffn_type}).')

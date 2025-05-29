@@ -15,7 +15,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Run MPT model with FT.
 
 This script is a modified version of
@@ -336,7 +335,8 @@ def main():
 
     print('\n=================== Arguments ===================')
     for k, v in vars(args).items():
-        print(f'{k.ljust(30, ".")}: {v}')
+        dots = k.ljust(30, '.')
+        print(f'{dots}: {v}')
     print('=================================================\n')
 
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_name_or_path)
@@ -541,8 +541,11 @@ def main():
             print(
                 'model_name, gpu_type, gpu_count, batch_size, input_tokens, output_tokens, latency_ms',
             )
+            model_name = ckpt_config.get('gpt', 'model_name')
+            gpu_type = torch.cuda.get_device_name().replace(' ', '-')
+
             print(
-                f'{ckpt_config.get("gpt", "model_name")}, {torch.cuda.get_device_name().replace(" ", "-")}, {torch.cuda.device_count()}, {batch_size}, {args.input_len}, {args.output_len}, {time_elapsed * 1000 / measurement_iterations:.2f}',
+                f'{model_name}, {gpu_type}, {torch.cuda.device_count()}, {batch_size}, {args.input_len}, {args.output_len}, {time_elapsed * 1000 / measurement_iterations:.2f}',
             )
 
 

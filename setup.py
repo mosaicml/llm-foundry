@@ -1,6 +1,5 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """MosaicML LLM Foundry package setup."""
 
 import copy
@@ -46,52 +45,53 @@ while True:
 
 classifiers = [
     'Programming Language :: Python :: 3',
-    'Programming Language :: Python :: 3.9',
     'Programming Language :: Python :: 3.10',
     'Programming Language :: Python :: 3.11',
+    'Programming Language :: Python :: 3.12',
 ]
 
 install_requires = [
-    'mosaicml[libcloud,wandb,oci,gcs,mlflow]>=0.28.0,<0.29',
-    'mlflow>=2.14.1,<2.19',
-    'accelerate>=0.25,<1.2',  # for HF inference `device_map`
-    'transformers>=4.43.2,<4.47',
-    'mosaicml-streaming>=0.11.0,<0.12',
-    'torch>=2.5.1,<2.5.2',
-    'datasets>=2.20.0,<3.3',
+    'mosaicml[libcloud,wandb,oci,gcs,mlflow]>=0.31.0,<0.32',
+    'mlflow>=2.14.1,<2.22',
+    'accelerate>=0.25,<1.8',  # for HF inference `device_map`
+    'transformers>=v4.51.0,<4.52',
+    'mosaicml-streaming>=0.12.0,<0.13',
+    'torch>=2.6.0,<2.6.1',
+    'datasets>=3.3.2,<3.7',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
     'sentencepiece==0.2.0',
-    'einops==0.8.0',
+    'einops==0.8.1',
     'omegaconf>=2.2.3,<3',
     'slack-sdk<4',
     'mosaicml-cli>=0.6.10,<1',
-    'onnx==1.17.0',
-    'onnxruntime==1.19.2',
+    'onnx==1.18.0',
+    'onnxruntime==1.22.0',
     'boto3>=1.21.45,<2',
-    'huggingface-hub>=0.19.0,<0.27',
+    'huggingface-hub[hf_xet]>=0.30.0,<0.32',
     'beautifulsoup4>=4.12.2,<5',  # required for model download utils
     'tenacity>=8.2.3,<10',
     'catalogue>=2,<3',
     'typer<1',
-    'GitPython==3.1.43',
+    'GitPython==3.1.44',
 ]
 
 extra_deps = {}
 
 extra_deps['dev'] = [
-    'coverage[toml]==7.6.10',
+    'coverage[toml]==7.8.2',
     'pre-commit>=3.4.0,<4',
     'pytest>=7.2.1,<9',
     'pytest_codeblocks>=0.16.1,<0.18',
     'pytest-cov>=4,<7',
     'pyright==1.1.256',
     'toml>=0.10.2,<0.11',
-    'packaging>=21,<25',
+    'packaging>=21,<26',
     'hf_transfer==0.1.8',
+    'tenacity>=9,<10',
 ]
 
 extra_deps['databricks'] = [
-    'mosaicml[databricks]>=0.28.0,<0.29',
+    'mosaicml[databricks]>=0.31.0,<0.32',
     'numpy<2',
     'databricks-sql-connector>=3,<4',
     'databricks-connect==14.1.0',
@@ -99,32 +99,32 @@ extra_deps['databricks'] = [
 ]
 
 extra_deps['tensorboard'] = [
-    'mosaicml[tensorboard]>=0.28.0,<0.29',
+    'mosaicml[tensorboard]>=0.31.0,<0.32',
 ]
 
 # Flash 2 group kept for backwards compatibility
 extra_deps['gpu-flash2'] = [
-    'flash-attn==2.6.3',
+    'flash-attn==2.7.4.post1',
 ]
 
 extra_deps['gpu'] = copy.deepcopy(extra_deps['gpu-flash2'])
 
 extra_deps['peft'] = [
-    'mosaicml[peft]>=0.28.0,<0.29',
+    'mosaicml[peft]>=0.31.0,<0.32',
 ]
 
 extra_deps['openai'] = [
     'openai>=1.56.0,<2.0',
-    'tiktoken>=0.4,<0.8.1',
+    'tiktoken>=0.4,<0.9.1',
 ]
 
 extra_deps['megablocks'] = [
     'megablocks<1.0',
-    'grouped-gemm==0.1.6',
+    'grouped-gemm==0.2.0',
 ]
 
 extra_deps['te'] = [
-    'transformer-engine[pytorch]>=1.11.0,<1.12',
+    'transformer-engine[pytorch]>=1.13.0,<2.0',
 ]
 
 extra_deps['databricks-serverless'] = {
@@ -138,11 +138,11 @@ extra_deps['all-cpu'] = {
 }
 extra_deps['all'] = {
     dep for key, deps in extra_deps.items() for dep in deps
-    if key not in {'gpu-flash2', 'all-cpu'}
+    if key not in {'gpu-flash2', 'all-cpu', 'te'}
 }
 extra_deps['all-flash2'] = {
     dep for key, deps in extra_deps.items() for dep in deps
-    if key not in {'gpu', 'all', 'all-cpu'}
+    if key not in {'gpu', 'all', 'all-cpu', 'te'}
 }
 
 setup(
@@ -163,7 +163,7 @@ setup(
     classifiers=classifiers,
     install_requires=install_requires,
     extras_require=extra_deps,
-    python_requires='>=3.9',
+    python_requires='>=3.10',
     entry_points={
         'console_scripts': ['llmfoundry = llmfoundry.cli.cli:app'],
     },

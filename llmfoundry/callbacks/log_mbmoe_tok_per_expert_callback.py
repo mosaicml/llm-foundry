@@ -1,6 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """Log tokens per expert for MegaBlocks MoE."""
 from __future__ import annotations
 
@@ -81,7 +80,7 @@ class MegaBlocksMoE_TokPerExpert(Callback):
                 )
             for module in state.model.modules():
                 if isinstance(module, (MoE, dMoE)):
-                    self.topk = module.experts.args.moe_top_k
+                    self.topk = module.experts.args.moe_top_k  # type: ignore
                     return
 
             raise RuntimeError(

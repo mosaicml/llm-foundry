@@ -1,6 +1,5 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """Log model outputs and expected outputs during ICL evaluation."""
 
 import warnings
@@ -69,12 +68,12 @@ class EvalOutputLogging(Callback):
 
         assert state.outputs is not None
         assert state.metric_outputs is not None
-        logging_dict: dict[str,
-                           Union[list[Any], torch.Tensor,
-                                 Sequence[torch.Tensor]],
-                          ] = deepcopy(
-                              state.metric_outputs,
-                          )
+        logging_dict: dict[
+            str,
+            Union[list[Any], torch.Tensor, Sequence[torch.Tensor]],
+        ] = deepcopy(
+            state.metric_outputs,
+        )
 
         if state.batch.get('mode') == 'generate':
             # Outputs are already detokenized
@@ -147,14 +146,16 @@ class EvalOutputLogging(Callback):
     def eval_end(self, state: State, logger: Logger) -> None:
         list_of_rows = all_gather_object(self.rows)
         rows = [row for rows in list_of_rows for row in rows]
-        for dest_logger in logger.destinations:
-            if not isinstance(dest_logger, ConsoleLogger):
-                dest_logger.log_table(
-                    self.columns,
-                    rows,
-                    name=self.name,
-                    step=state.timestamp.batch.value,
-                )
+        # Only log if we have columns and a name
+        if self.columns is not None and self.name is not None and rows:
+            for dest_logger in logger.destinations:
+                if not isinstance(dest_logger, ConsoleLogger):
+                    dest_logger.log_table(
+                        self.columns,
+                        rows,
+                        name=self.name,
+                        step=state.timestamp.batch.value,
+                    )
 
         self.rows = []
         self.name = None

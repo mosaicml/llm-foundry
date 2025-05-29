@@ -1,6 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """Implements a Hugging Face T5 wrapped inside a :class:`.ComposerModel`."""
 
 from __future__ import annotations
@@ -17,6 +16,7 @@ from transformers import (
 from transformers.models.auto.auto_factory import _BaseAutoModelClass
 
 from llmfoundry.metrics import DEFAULT_ENC_DEC_METRICS
+from llmfoundry.models.consts import _MASTER_WEIGHTS_PRECISION
 from llmfoundry.models.hf.hf_base import BaseHuggingFaceModel
 from llmfoundry.utils.warnings import experimental_class
 
@@ -45,8 +45,8 @@ class ComposerHFT5(BaseHuggingFaceModel):
         tokenizer (PreTrainedTokenizer): The tokenizer that the model will use.
     """
 
-    model_cls: Union[_BaseAutoModelClass,
-                     PreTrainedModel] = AutoModelForSeq2SeqLM
+    model_cls: Union[type[_BaseAutoModelClass],
+                     type[PreTrainedModel]] = AutoModelForSeq2SeqLM
     default_train_metrics: tuple = tuple(DEFAULT_ENC_DEC_METRICS)
     default_eval_metrics: tuple = ()
 
@@ -88,6 +88,7 @@ class ComposerHFT5(BaseHuggingFaceModel):
             pretrained_model_name_or_path,
             trust_remote_code=trust_remote_code,
             use_auth_token=use_auth_token,
+            torch_dtype=_MASTER_WEIGHTS_PRECISION,
         )
 
         # set config overrides

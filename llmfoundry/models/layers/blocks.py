@@ -1,6 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """GPT Blocks used for the GPT Model."""
 
 import copy
@@ -166,6 +165,7 @@ class MPTBlock(nn.Module):
                                              torch.Tensor]] = None,
         key_value_states: Optional[torch.Tensor] = None,
         x_prev: Optional[torch.Tensor] = None,
+        pos_id_within_seq: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
         torch.Tensor, torch.Tensor]]]:
         extra_kwargs = {}
@@ -173,6 +173,8 @@ class MPTBlock(nn.Module):
             extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
         if key_value_states is not None:
             extra_kwargs['key_value_states'] = key_value_states
+        if pos_id_within_seq is not None:
+            extra_kwargs['pos_id_within_seq'] = pos_id_within_seq
 
         if self.fuse_norm_attn_norm:
             if x_prev is not None:
@@ -213,8 +215,11 @@ class MPTBlock(nn.Module):
         n = self.apply_ffn(attention_mask, m)
         # In the following line we move the `x` tensor to the same devices as the output of ffn layer. This operation should be a no-op during training.
         # This is done to fix pipeline parallel generation using hf.generate. Please see this comment for details: https://github.com/mosaicml/llm-foundry/pull/1332#issue-2386827204
-        x = x.to(device=n.device,
-                ) + self.resid_ffn_dropout(n).to(device=n.device,)
+        x = x.to(
+            device=n.device,
+        ) + self.resid_ffn_dropout(n).to(
+            device=n.device,
+        )
         return x, attn_weights, past_key_value
 
     def apply_ffn(
@@ -236,7 +241,7 @@ class MPTBlock(nn.Module):
         if not self.use_pad_tok_in_ffn and attention_mask is not None:
             assert unpad_input is not None
             attention_mask = self.slice_attention_mask(attention_mask, seq_len)
-            m, indices, _, _ = unpad_input(m, attention_mask)
+            m, indices, *_ = unpad_input(m, attention_mask)
         n = self.ffn(m)
         if not self.use_pad_tok_in_ffn and attention_mask is not None:
             assert pad_input is not None
@@ -338,6 +343,7 @@ class FusedNormAttentionNorm(nn.Module):
                                              torch.Tensor]] = None,
         key_value_states: Optional[torch.Tensor] = None,
         x_prev: Optional[torch.Tensor] = None,
+        pos_id_within_seq: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor],
                Optional[tuple[torch.Tensor, torch.Tensor]]]:
         a = self.norm_1(x)
@@ -348,6 +354,8 @@ class FusedNormAttentionNorm(nn.Module):
             extra_kwargs['x_prev'] = self.norm_1(x_prev)
         if key_value_states is not None:
             extra_kwargs['key_value_states'] = key_value_states
+        if pos_id_within_seq is not None:
+            extra_kwargs['pos_id_within_seq'] = pos_id_within_seq
 
         b, attn_weights, past_key_value = self.attn(
             a,

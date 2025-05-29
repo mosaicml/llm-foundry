@@ -7,29 +7,21 @@ from unittest.mock import patch
 
 import pytest
 import torch
-import transformers
 from composer import Trainer
-from peft import LoraConfig, get_peft_model
+from peft import LoraConfig, PeftModel, get_peft_model
+from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
 from llmfoundry.models.hf.hf_causal_lm import ComposerHFCausalLM
 from llmfoundry.models.hf.hf_fsdp import prepare_hf_model_for_fsdp
-from llmfoundry.utils.builders import build_composer_model, build_tokenizer
+from llmfoundry.utils.builders import build_composer_model
 
 
-def test_peft_wraps():
-    mpt_cfg = transformers.AutoConfig.from_pretrained(
-        'mosaicml/mpt-7b',
-        n_layers=2,
-        trust_remote_code=True,
-    )
-    mpt = transformers.AutoModelForCausalLM.from_config(
-        mpt_cfg,
-        trust_remote_code=True,
-    )
-    mpt = get_peft_model(mpt, LoraConfig())
-    prepare_hf_model_for_fsdp(mpt, 'cpu')
+def test_peft_wraps(tiny_codellama_model: PreTrainedModel):
+    codellama = get_peft_model(tiny_codellama_model, LoraConfig())
+    assert isinstance(codellama, PeftModel)
+    prepare_hf_model_for_fsdp(codellama, 'cpu')
 
-    for n, m in mpt.named_modules():
+    for n, m in codellama.named_modules():
         if 'lora' in n and 'default' in n:
             has_parameters = any(True for _ in m.parameters())
             has_buffers = any(True for _ in m.buffers())
@@ -39,11 +31,10 @@ def test_peft_wraps():
 
 def test_causal_lm_peft_wraps():
     model = ComposerHFCausalLM(
-        tokenizer=None,
-        pretrained_model_name_or_path='mosaicml/mpt-7b',
+        tokenizer=None,  # type: ignore
+        pretrained_model_name_or_path='codellama/CodeLlama-7b-hf',
         pretrained=False,
-        trust_remote_code=True,
-        config_overrides={'n_layers': 2},
+        config_overrides={'num_hidden_layers': 2},
         peft_config={
             'peft_type': 'LORA',
             'task_type': 'CAUSAL_LM',
@@ -81,6 +72,7 @@ def test_lora_mixed_init(
     peft_config: Optional[dict],
     tmp_path: pathlib.Path,
     init_device: str,
+    tiny_codellama_tokenizer: PreTrainedTokenizerBase,
 ):
     model_cfg = {
         'name': 'hf_causal_lm',
@@ -110,10 +102,7 @@ def test_lora_mixed_init(
         'sync_module_states': True,
     }
 
-    tokenizer = build_tokenizer(
-        tokenizer_name=tokenizer_name,
-        tokenizer_kwargs={'model_max_length': 32},
-    )
+    tokenizer = tiny_codellama_tokenizer
 
     name = model_cfg.pop('name')
     original_model = build_composer_model(
@@ -131,9 +120,13 @@ def test_lora_mixed_init(
     )
 
     model = trainer.state.model
-    underlying_model = model.model.base_model.model
-    lora_A = underlying_model.model.layers[0].self_attn.q_proj.lora_A['default']
-    lora_B = underlying_model.model.layers[0].self_attn.q_proj.lora_B['default']
+    underlying_model = model.model.base_model.model  # type: ignore
+    lora_A = underlying_model.model.layers[  # type: ignore
+        0].self_attn.q_proj.lora_A[  # type: ignore
+            'default']
+    lora_B = underlying_model.model.layers[  # type: ignore
+        0].self_attn.q_proj.lora_B[  # type: ignore
+            'default']
 
     assert (lora_A.weight == 1).all()
     assert (lora_B.weight == 0).all()

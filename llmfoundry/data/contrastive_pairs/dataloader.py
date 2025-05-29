@@ -1,6 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """Dataset and dataloader for contrastive training.
 
 Build a StreamingPairsDataset dataset and dataloader for contrastive training.
@@ -175,8 +174,8 @@ class StreamingPairsDataset(StreamingTextDataset):
         text_samples_negatives = text_samples['negative']
         assert isinstance(text_samples_negatives, list)  # pyright type check
         text_samples_list.extend(text_samples_negatives)
-        return self.tokenizer(
-            text_samples_list,
+        return self.tokenizer(  # type: ignore
+            text_samples_list,  # type: ignore
             truncation=True,
             padding='max_length',
             max_length=self.max_seq_len,
@@ -185,7 +184,7 @@ class StreamingPairsDataset(StreamingTextDataset):
 
 def build_pairs_dataloader(
     dataset: dict[str, Any],
-    tokenizer: PreTrainedTokenizerBase,
+    tokenizer: Optional[PreTrainedTokenizerBase],
     device_batch_size: int,
     drop_last: bool,
     num_workers: int,
@@ -195,6 +194,11 @@ def build_pairs_dataloader(
     timeout: int = 0,
     max_hard_negatives: Optional[int] = None,
 ) -> DataSpec:
+    if tokenizer is None:
+        raise ValueError(
+            'Tokenizer is required for contrastive pairs dataloader',
+        )
+
     dataset_cfg = dataset
     streams_dict = dataset.pop('streams', None)
     eos_token_id = dataset.pop('eos_token_id', None)

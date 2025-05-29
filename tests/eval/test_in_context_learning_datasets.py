@@ -5,7 +5,7 @@ import contextlib
 import os
 import random
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional, cast
 
 import pytest
 import torch
@@ -17,6 +17,7 @@ from composer.models import HuggingFaceModel
 from composer.trainer import Trainer
 from composer.utils import dist, reproducibility
 from torch.utils.data import DataLoader
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.eval.datasets import (
     InContextLearningDataset,
@@ -37,7 +38,7 @@ from llmfoundry.eval.metrics import (
     InContextLearningLMAccuracy,
     InContextLearningMultipleChoiceAccuracy,
 )
-from llmfoundry.utils.builders import build_icl_evaluators
+from llmfoundry.utils.builders import build_evaluators, build_icl_evaluators
 
 
 def test_strip_data():
@@ -53,21 +54,16 @@ def test_strip_data():
         assert not v[-1].isspace()
 
 
-@pytest.mark.skip(
-    reason="Currently don't have a tokenizer that satisfies this test",
-)
 def test_tokenizer_needs_prefix_space_when_space_not_needed(
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_llama_tokenizer: transformers.PreTrainedTokenizerBase,
 ):
-    assert not tokenizer_needs_prefix_space(tiny_gpt2_tokenizer)
+    assert not tokenizer_needs_prefix_space(tiny_llama_tokenizer)
 
 
-def test_tokenizer_needs_prefix_space_when_space_needed():
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'facebook/opt-125m',
-        use_fast=False,
-    )  # type: ignore reportUnboundVariable
-    assert tokenizer_needs_prefix_space(tokenizer)
+def test_tokenizer_needs_prefix_space_when_space_needed(
+    tiny_gpt2_tokenizer: transformers.PreTrainedTokenizerBase,
+):
+    assert tokenizer_needs_prefix_space(tiny_gpt2_tokenizer)
 
 
 def test_trim_context():
@@ -108,11 +104,15 @@ def test_get_continuation_span():
 
 @pytest.mark.parametrize('padding_side', ['left', 'right', 'middle'])
 def test_make_padding(
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
     padding_side: str,
 ):
-    context = tiny_gpt2_tokenizer(' cat' * 2000)['input_ids']
-    padding_id = tiny_gpt2_tokenizer.eos_token_id
+    context = cast(
+        Any,
+        tiny_gpt2_with_pad_tokenizer(' cat' * 2000)['input_ids'],
+    )
+    padding_id = tiny_gpt2_with_pad_tokenizer.eos_token_id
+    assert isinstance(padding_id, int)
 
     error_context = contextlib.nullcontext() if padding_side in {
         'left',
@@ -129,51 +129,64 @@ def test_make_padding(
         )
 
         if padding_side == 'left':
-            assert input_ids[0] == tiny_gpt2_tokenizer.eos_token_id
+            assert input_ids[0] == tiny_gpt2_with_pad_tokenizer.eos_token_id
             assert input_ids[48:].tolist() == context
         elif padding_side == 'right':
-            assert input_ids[-1] == tiny_gpt2_tokenizer.eos_token_id
+            assert input_ids[-1] == tiny_gpt2_with_pad_tokenizer.eos_token_id
             assert input_ids[:-48].tolist() == context
 
 
 def test_batch_padding_logic_no_padding(
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
 ):
-    continuation = tiny_gpt2_tokenizer(' dog' * 2000)['input_ids']
-    context = tiny_gpt2_tokenizer(' cat' * 2000)['input_ids']
+    continuation = cast(
+        Any,
+        tiny_gpt2_with_pad_tokenizer(' dog' * 2000)['input_ids'],
+    )
+    context = cast(
+        Any,
+        tiny_gpt2_with_pad_tokenizer(' cat' * 2000)['input_ids'],
+    )
     max_seq_len = 2048
     trimmed_context = trim_context(context, continuation, max_seq_len)
     continuation_spans = get_continuation_span(trimmed_context, continuation)
+    pad_id = tiny_gpt2_with_pad_tokenizer.pad_token_id
+    assert isinstance(pad_id, int)
     padded_input = make_padded_input(
         trimmed_context,
         continuation,
         max_seq_len,
-        tiny_gpt2_tokenizer.pad_token_id,
+        pad_id,
         padding_side='right',
     )
     assert continuation_spans[0] == 48 and continuation_spans[-1] == 2047
     assert len(padded_input) == 2048
-    assert tiny_gpt2_tokenizer.pad_token_id not in padded_input
+    assert tiny_gpt2_with_pad_tokenizer.pad_token_id not in padded_input
 
 
 def test_batch_padding_logic_with_padding(
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
 ):
-    continuation = tiny_gpt2_tokenizer(' dog' * 200)['input_ids']
-    context = tiny_gpt2_tokenizer(' cat' * 200)['input_ids']
+    continuation = cast(
+        Any,
+        tiny_gpt2_with_pad_tokenizer(' dog' * 200)['input_ids'],
+    )
+    context = cast(Any, tiny_gpt2_with_pad_tokenizer(' cat' * 200)['input_ids'])
     max_seq_len = 2048
     trimmed_context = trim_context(context, continuation, max_seq_len)
     continuation_spans = get_continuation_span(trimmed_context, continuation)
+    pad_id = tiny_gpt2_with_pad_tokenizer.pad_token_id
+    assert isinstance(pad_id, int)
     padded_input = make_padded_input(
         trimmed_context,
         continuation,
         max_seq_len,
-        tiny_gpt2_tokenizer.pad_token_id,
+        pad_id,
         padding_side='right',
     )
     assert continuation_spans[0] == 200 and continuation_spans[-1] == 399
     assert len(padded_input) == 2048
-    assert padded_input[-1] == tiny_gpt2_tokenizer.pad_token_id
+    assert padded_input[-1] == tiny_gpt2_with_pad_tokenizer.pad_token_id
 
 
 def test_fewshot_sample_idxs():
@@ -269,10 +282,10 @@ def test_fewshot_sample_idxs_randomness():
     r'ignore:The repository for mosaicml/test_dataset contains custom code which must*:FutureWarning',
 )
 def test_update_generation_kwargs(
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
     tmp_path: Path,
 ):
-    tokenizer = tiny_gpt2_tokenizer
+    tokenizer = tiny_gpt2_with_pad_tokenizer
     seqlen = 2048
     num_fewshot = 0
     prompt_string = ''
@@ -284,11 +297,13 @@ def test_update_generation_kwargs(
     hf_parsing_map = {'context': ['quas', 'wex', 'exort'], 'answer': ['spell']}
     gen_kwargs = {'test_arg1': 1, 'test_arg2': 2}
 
+    eos_id = tokenizer.eos_token_id
+    assert isinstance(eos_id, int)
     dl = InContextLearningDataset(
         dataset_uri='hf://mosaicml/test_dataset',
         tokenizer=tokenizer,
         max_seq_len=seqlen,
-        pad_tok_id=tokenizer.eos_token_id,
+        pad_tok_id=eos_id,
         num_fewshot=num_fewshot,
         fewshot_random_seed=1,
         prompt_string=prompt_string,
@@ -307,21 +322,37 @@ def test_update_generation_kwargs(
 
 
 def test_stop_sequences_criteria(
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
 ):
-    eos_criteria = MultiTokenEOSCriteria('\n\n', tiny_gpt2_tokenizer, 2)
-    seq1 = tiny_gpt2_tokenizer('Dogs are furry')['input_ids']
-    seq2 = tiny_gpt2_tokenizer('Dogs are furry\n\n')['input_ids']
-    seq1 = [tiny_gpt2_tokenizer.pad_token_id] * (len(seq2) - len(seq1)) + seq1
+    eos_criteria = MultiTokenEOSCriteria(
+        '\n\n',
+        tiny_gpt2_with_pad_tokenizer,
+        2,
+    )
+    seq1 = cast(
+        Any,
+        tiny_gpt2_with_pad_tokenizer('Dogs are furry')['input_ids'],
+    )
+    seq2 = cast(
+        Any,
+        tiny_gpt2_with_pad_tokenizer('Dogs are furry\n\n')['input_ids'],
+    )
+    seq1 = [
+        tiny_gpt2_with_pad_tokenizer.pad_token_id,
+    ] * (len(seq2) - len(seq1)) + seq1
     input_ids = torch.LongTensor([seq1, seq2])
     assert not eos_criteria(
         input_ids,
         None,
     )  # pyright: ignore[reportGeneralTypeIssues]
 
-    eos_criteria = MultiTokenEOSCriteria('\n\n', tiny_gpt2_tokenizer, 2)
-    seq1 = tiny_gpt2_tokenizer('Dogs are furry\n\n')['input_ids']
-    seq2 = tiny_gpt2_tokenizer('Dogs are furry\n\n')['input_ids']
+    eos_criteria = MultiTokenEOSCriteria(
+        '\n\n',
+        tiny_gpt2_with_pad_tokenizer,
+        2,
+    )
+    seq1 = tiny_gpt2_with_pad_tokenizer('Dogs are furry\n\n')['input_ids']
+    seq2 = tiny_gpt2_with_pad_tokenizer('Dogs are furry\n\n')['input_ids']
     input_ids = torch.LongTensor([seq1, seq2])
     assert eos_criteria(
         input_ids,
@@ -330,16 +361,19 @@ def test_stop_sequences_criteria(
 
 
 def test_stop_sequences_criteria_sentencepiece(
-    tiny_llama_tokenizer: transformers.AutoTokenizer,
+    tiny_llama_tokenizer: PreTrainedTokenizerBase,
 ):
 
     tokenizer = tiny_llama_tokenizer
     eos_criteria = MultiTokenEOSCriteria('\n\n', tokenizer, 2)
-    seq1 = tokenizer(
-        '\n\nDogs',
-    )['input_ids'
-     ]  # check to make sure starting with the stop sequence doesnt break it
-    seq2 = tokenizer('Dogs are furry\n\n')['input_ids']
+    seq1 = cast(
+        Any,
+        tokenizer(
+            '\n\nDogs',
+        )['input_ids'],
+    )  # check to make sure starting with the stop sequence doesnt break it
+    seq2 = cast(Any, tokenizer('Dogs are furry\n\n')['input_ids'])
+    assert isinstance(tokenizer.eos_token_id, int)
     seq1 = [tokenizer.eos_token_id] * (len(seq2) - len(seq1)) + seq1
     input_ids = torch.LongTensor([seq1, seq2])
     assert not eos_criteria(
@@ -361,10 +395,10 @@ def test_stop_sequences_criteria_sentencepiece(
     r'ignore:The repository for mosaicml/test_dataset contains custom code which must*:FutureWarning',
 )
 def test_update_generation_kwargs_no_kwargs(
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
     tmp_path: Path,
 ):
-    tokenizer = tiny_gpt2_tokenizer
+    tokenizer = tiny_gpt2_with_pad_tokenizer
     seqlen = 2048
     num_fewshot = 0
     prompt_string = ''
@@ -375,11 +409,13 @@ def test_update_generation_kwargs_no_kwargs(
     }
     hf_parsing_map = {'context': ['quas', 'wex', 'exort'], 'answer': ['spell']}
 
+    eos_id = tokenizer.eos_token_id
+    assert isinstance(eos_id, int)
     dl = InContextLearningDataset(
         dataset_uri='hf://mosaicml/test_dataset',
         tokenizer=tokenizer,
         max_seq_len=seqlen,
-        pad_tok_id=tokenizer.eos_token_id,
+        pad_tok_id=eos_id,
         num_fewshot=num_fewshot,
         fewshot_random_seed=1,
         prompt_string=prompt_string,
@@ -393,21 +429,24 @@ def test_update_generation_kwargs_no_kwargs(
     assert not 'generation_kwargs' in dl.base_batch
 
 
-def test_update_generation_kwargs_no_kwargs_qa_dataset(tmp_path: Path):
+def test_update_generation_kwargs_no_kwargs_qa_dataset(
+    tmp_path: Path,
+    tiny_gpt2_tokenizer: PreTrainedTokenizerBase,
+):
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/triviaqa_small.jsonl'
 
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'facebook/opt-125m',
-    )  # type: ignore reportUnboundVariable
+    tokenizer = tiny_gpt2_tokenizer
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
+    eos_id = tokenizer.eos_token_id
+    assert isinstance(eos_id, int)
     dl = InContextLearningGenerationTaskWithAnswersDataset(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         max_seq_len=1024,
-        pad_tok_id=tokenizer.eos_token_id,
+        pad_tok_id=eos_id,
         num_fewshot=0,
         fewshot_random_seed=1234,
         prompt_string='',
@@ -419,21 +458,24 @@ def test_update_generation_kwargs_no_kwargs_qa_dataset(tmp_path: Path):
     assert len(dl.base_batch['generation_kwargs']) == 4
 
 
-def test_update_generation_kwargs_with_kwargs_qa_dataset(tmp_path: Path):
+def test_update_generation_kwargs_with_kwargs_qa_dataset(
+    tmp_path: Path,
+    tiny_gpt2_tokenizer: PreTrainedTokenizerBase,
+):
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/triviaqa_small.jsonl'
 
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'facebook/opt-125m',
-    )  # type: ignore reportUnboundVariable
+    tokenizer = tiny_gpt2_tokenizer
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
+    eos_id = tokenizer.eos_token_id
+    assert isinstance(eos_id, int)
     dl = InContextLearningGenerationTaskWithAnswersDataset(
         dataset_uri=dataset_uri,
         tokenizer=tokenizer,
         max_seq_len=1024,
-        pad_tok_id=tokenizer.eos_token_id,
+        pad_tok_id=eos_id,
         num_fewshot=0,
         fewshot_random_seed=1234,
         prompt_string='',
@@ -451,10 +493,10 @@ def test_update_generation_kwargs_with_kwargs_qa_dataset(tmp_path: Path):
     r'ignore:The repository for mosaicml/test_dataset contains custom code which must*:FutureWarning',
 )
 def test_construct_context(
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
     tmp_path: Path,
 ):
-    tokenizer = tiny_gpt2_tokenizer
+    tokenizer = tiny_gpt2_with_pad_tokenizer
     seqlen = 2048
     num_fewshot = 0
     prompt_string = ''
@@ -465,11 +507,13 @@ def test_construct_context(
     }
     hf_parsing_map = {'context': ['quas', 'wex', 'exort'], 'answer': ['spell']}
 
+    eos_id = tokenizer.eos_token_id
+    assert isinstance(eos_id, int)
     dl = InContextLearningDataset(
         dataset_uri='hf://mosaicml/test_dataset',
         tokenizer=tokenizer,
         max_seq_len=seqlen,
-        pad_tok_id=tokenizer.eos_token_id,
+        pad_tok_id=eos_id,
         num_fewshot=num_fewshot,
         fewshot_random_seed=1,
         prompt_string=prompt_string,
@@ -506,10 +550,10 @@ def test_construct_context(
     r'ignore:The repository for mosaicml/test_dataset contains custom code which must*:FutureWarning',
 )
 def test_get_answer_from_example(
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
     tmp_path: Path,
 ):
-    tokenizer = tiny_gpt2_tokenizer
+    tokenizer = tiny_gpt2_with_pad_tokenizer
     seqlen = 2048
     num_fewshot = 0
     prompt_string = ''
@@ -545,11 +589,10 @@ def test_get_answer_from_example(
 @pytest.mark.filterwarnings(
     r'ignore:The repository for mosaicml/test_dataset contains custom code which must*:FutureWarning',
 )
-def test_fix_eos_on_preamble(tmp_path: Path):
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'facebook/opt-125m',
-        use_fast=False,
-    )  # type: ignore reportUnboundVariable
+def test_fix_eos_on_preamble(
+    tmp_path: Path,
+    tiny_gpt2_tokenizer: PreTrainedTokenizerBase,
+):
     seqlen = 2048
     num_fewshot = 0
     prompt_string = ''
@@ -559,12 +602,13 @@ def test_fix_eos_on_preamble(tmp_path: Path):
         'trust_remote_code': True,
     }
     hf_parsing_map = {'context': ['quas', 'wex', 'exort'], 'answer': ['spell']}
+    tiny_gpt2_tokenizer.eos_token_id = 50256
 
     dl = InContextLearningDataset(
         dataset_uri='hf://mosaicml/test_dataset',
-        tokenizer=tokenizer,
+        tokenizer=tiny_gpt2_tokenizer,
         max_seq_len=seqlen,
-        pad_tok_id=tokenizer.eos_token_id,
+        pad_tok_id=tiny_gpt2_tokenizer.eos_token_id,
         num_fewshot=num_fewshot,
         fewshot_random_seed=1,
         prompt_string=prompt_string,
@@ -576,21 +620,21 @@ def test_fix_eos_on_preamble(tmp_path: Path):
         hf_parsing_map=hf_parsing_map,
     )
     preamble = 'blah blah blah.'
-    tokenized_preamble = tokenizer.encode(preamble)
-    tokenized_preamble += [tokenizer.eos_token_id]
+    tokenized_preamble = tiny_gpt2_tokenizer.encode(preamble)
+    tokenized_preamble += [tiny_gpt2_tokenizer.eos_token_id]
     fixed_preamble = dl._fix_eos_on_preamble(tokenized_preamble)
     assert tokenized_preamble[:-1] == fixed_preamble
-    assert fixed_preamble[-1] != tokenizer.eos_token_id
+    assert fixed_preamble[-1] != tiny_gpt2_tokenizer.eos_token_id
 
 
 @pytest.mark.filterwarnings(
     r'ignore:The repository for mosaicml/test_dataset contains custom code which must*:FutureWarning',
 )
 def test_tokenize_example_with_tokenize_labels(
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
     tmp_path: Path,
 ):
-    tokenizer = tiny_gpt2_tokenizer
+    tokenizer = tiny_gpt2_with_pad_tokenizer
     seqlen = 2048
     num_fewshot = 0
     prompt_string = ''
@@ -654,10 +698,10 @@ def test_tokenize_example_with_tokenize_labels(
     r'ignore:The repository for mosaicml/test_dataset contains custom code which must*:FutureWarning',
 )
 def test_tokenize_example_with_no_tokenize_labels(
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
     tmp_path: Path,
 ):
-    tokenizer = tiny_gpt2_tokenizer
+    tokenizer = tiny_gpt2_with_pad_tokenizer
     seqlen = 2048
     num_fewshot = 0
     prompt_string = ''
@@ -714,13 +758,14 @@ def test_tokenize_example_with_no_tokenize_labels(
     assert type(tokenized_example['answer']) == str
 
 
-def test_qa_set_cot_no_cot(tmp_path: Path):
+def test_qa_set_cot_no_cot(
+    tmp_path: Path,
+    tiny_gpt2_tokenizer: PreTrainedTokenizerBase,
+):
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/triviaqa_small.jsonl'
 
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'facebook/opt-125m',
-    )  # type: ignore reportUnboundVariable
+    tokenizer = tiny_gpt2_tokenizer
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
@@ -739,13 +784,14 @@ def test_qa_set_cot_no_cot(tmp_path: Path):
     assert not dl.has_cot
 
 
-def test_qa_set_cot_has_cot(tmp_path: Path):
+def test_qa_set_cot_has_cot(
+    tmp_path: Path,
+    tiny_gpt2_tokenizer: PreTrainedTokenizerBase,
+):
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/gsm8k_small.jsonl'
 
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'facebook/opt-125m',
-    )  # type: ignore reportUnboundVariable
+    tokenizer = tiny_gpt2_tokenizer
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
@@ -765,12 +811,12 @@ def test_qa_set_cot_has_cot(tmp_path: Path):
 
 
 def test_qa_get_max_answer_length(
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
     tmp_path: Path,
 ):
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/triviaqa_small.jsonl'
-    tokenizer = tiny_gpt2_tokenizer
+    tokenizer = tiny_gpt2_with_pad_tokenizer
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
@@ -793,7 +839,7 @@ def test_qa_get_max_answer_length(
 
 def test_qa_get_answer_from_example_with_no_cot(
     tmp_path: Path,
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
 ):
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
@@ -803,9 +849,9 @@ def test_qa_get_answer_from_example_with_no_cot(
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
     dl = InContextLearningGenerationTaskWithAnswersDataset(
         dataset_uri=dataset_uri,
-        tokenizer=tiny_gpt2_tokenizer,
+        tokenizer=tiny_gpt2_with_pad_tokenizer,
         max_seq_len=1024,
-        pad_tok_id=tiny_gpt2_tokenizer.eos_token_id,
+        pad_tok_id=tiny_gpt2_with_pad_tokenizer.eos_token_id,
         num_fewshot=0,
         fewshot_random_seed=1234,
         prompt_string='',
@@ -824,7 +870,7 @@ def test_qa_get_answer_from_example_with_no_cot(
 
 def test_qa_get_answer_from_example_with_cot(
     tmp_path: Path,
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
 ):
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
@@ -834,9 +880,9 @@ def test_qa_get_answer_from_example_with_cot(
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
     dl = InContextLearningGenerationTaskWithAnswersDataset(
         dataset_uri=dataset_uri,
-        tokenizer=tiny_gpt2_tokenizer,
+        tokenizer=tiny_gpt2_with_pad_tokenizer,
         max_seq_len=1024,
-        pad_tok_id=tiny_gpt2_tokenizer.eos_token_id,
+        pad_tok_id=tiny_gpt2_with_pad_tokenizer.eos_token_id,
         num_fewshot=0,
         fewshot_random_seed=1234,
         prompt_string='',
@@ -855,7 +901,7 @@ def test_qa_get_answer_from_example_with_cot(
 
 
 def test_qa_tokenize_example(
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
     tmp_path: Path,
 ):
 
@@ -866,9 +912,9 @@ def test_qa_tokenize_example(
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
     dl = InContextLearningGenerationTaskWithAnswersDataset(
         dataset_uri=dataset_uri,
-        tokenizer=tiny_gpt2_tokenizer,
+        tokenizer=tiny_gpt2_with_pad_tokenizer,
         max_seq_len=1024,
-        pad_tok_id=tiny_gpt2_tokenizer.eos_token_id,
+        pad_tok_id=tiny_gpt2_with_pad_tokenizer.eos_token_id,
         num_fewshot=0,
         fewshot_random_seed=1234,
         prompt_string='',
@@ -896,12 +942,12 @@ def test_qa_tokenize_example(
 
 
 def test_mc_tokenize_example(
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
     tmp_path: Path,
 ):
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/mmlu_small.jsonl'
-    tokenizer = tiny_gpt2_tokenizer
+    tokenizer = tiny_gpt2_with_pad_tokenizer
     seqlen = 2048
     num_fewshot = 0
     prompt_string = ''
@@ -949,12 +995,12 @@ def test_mc_tokenize_example(
 @pytest.mark.parametrize('prelimiter', ['', 'This is a question: '])
 def test_schema_construct_context(
     prelimiter: str,
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
     tmp_path: Path,
 ):
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/winograd_small.jsonl'
-    tokenizer = tiny_gpt2_tokenizer
+    tokenizer = tiny_gpt2_with_pad_tokenizer
     seqlen = 2048
     num_fewshot = 0
     seqlen = 2048
@@ -985,12 +1031,12 @@ def test_schema_construct_context(
 @pytest.mark.parametrize('prelimiter', ['', 'This is a question: '])
 def test_schema_construct_multiple_contexts(
     prelimiter: str,
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
     tmp_path: Path,
 ):
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/winograd_small.jsonl'
-    tokenizer = tiny_gpt2_tokenizer
+    tokenizer = tiny_gpt2_with_pad_tokenizer
     seqlen = 2048
     num_fewshot = 0
     prompt_string = ''
@@ -1029,12 +1075,12 @@ def test_schema_construct_multiple_contexts(
 
 
 def test_schema_tokenize_example(
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
     tmp_path: Path,
 ):
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/winograd_small.jsonl'
-    tokenizer = tiny_gpt2_tokenizer
+    tokenizer = tiny_gpt2_with_pad_tokenizer
     seqlen = 2048
     num_fewshot = 0
     prompt_string = ''
@@ -1064,7 +1110,7 @@ def test_schema_tokenize_example(
         example=example,
     )
     assert all(
-        tiny_gpt2_tokenizer.decode(cont) == ' this is a continuation'
+        tiny_gpt2_with_pad_tokenizer.decode(cont) == ' this is a continuation'
         for cont in tokenized_example['answer']
     )
     unpadded_inputs = [
@@ -1083,13 +1129,13 @@ def test_schema_tokenize_example(
 @pytest.mark.parametrize('dataset_uri', ['mmlu_small.jsonl'])
 def test_mc_task_dataloader_subcategories(
     dataset_uri: str,
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
     tmp_path: Path,
 ):
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
 
-    tokenizer = tiny_gpt2_tokenizer
+    tokenizer = tiny_gpt2_with_pad_tokenizer
     dataset_uri = f'{local_data}/{dataset_uri}'
     batch_size = 8
     seqlen = 64
@@ -1142,13 +1188,13 @@ def test_mc_task_dataloader_subcategories(
 ])
 def test_lm_task_dataloader_extra_space(
     dataset_uri: str,
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
     tmp_path: Path,
 ):
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
 
-    tokenizer = tiny_gpt2_tokenizer
+    tokenizer = tiny_gpt2_with_pad_tokenizer
     dataset_uri = f'{local_data}/{dataset_uri}'
     batch_size = 2
     seqlen = 64
@@ -1168,8 +1214,9 @@ def test_lm_task_dataloader_extra_space(
         },
     )
     assert isinstance(dl, DataSpec)
-    assert isinstance(dl.dataloader, DataLoader)  # pyright
-    batch = next(dl.dataloader._get_iterator())
+    dl_spec: DataSpec = dl
+    assert isinstance(dl_spec.dataloader, DataLoader)  # pyright
+    batch = next(dl_spec.dataloader._get_iterator())
 
     assert 'input_ids' in batch
     assert tuple(batch['input_ids'].shape) == (batch_size, seqlen)
@@ -1194,13 +1241,13 @@ def test_lm_task_dataloader_extra_space(
 ])
 def test_lm_task_dataloader(
     dataset_uri: str,
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
     tmp_path: Path,
 ):
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
 
-    tokenizer = tiny_gpt2_tokenizer
+    tokenizer = tiny_gpt2_with_pad_tokenizer
     dataset_uri = f'{local_data}/{dataset_uri}'
     batch_size = 2
     seqlen = 64
@@ -1220,8 +1267,9 @@ def test_lm_task_dataloader(
         },
     )
     assert isinstance(dl, DataSpec)
-    assert isinstance(dl.dataloader, DataLoader)  # pyright
-    batch = next(dl.dataloader._get_iterator())
+    dl_spec: DataSpec = dl
+    assert isinstance(dl_spec.dataloader, DataLoader)  # pyright
+    batch = next(dl_spec.dataloader._get_iterator())
 
     assert 'input_ids' in batch
     assert tuple(batch['input_ids'].shape) == (batch_size, seqlen)
@@ -1245,13 +1293,13 @@ def test_lm_task_dataloader(
 def test_schema_task_dataloader(
     dataset_uri: str,
     prelimiter: str,
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
     tmp_path: Path,
 ):
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
 
-    tokenizer = tiny_gpt2_tokenizer
+    tokenizer = tiny_gpt2_with_pad_tokenizer
     dataset_uri = f'{local_data}/{dataset_uri}'
     batch_size = 2
     seqlen = 64
@@ -1272,8 +1320,9 @@ def test_schema_task_dataloader(
         },
     )
     assert isinstance(dl, DataSpec)
-    assert isinstance(dl.dataloader, DataLoader)
-    batch = next(dl.dataloader._get_iterator())
+    dl_spec: DataSpec = dl
+    assert isinstance(dl_spec.dataloader, DataLoader)
+    batch = next(dl_spec.dataloader._get_iterator())
 
     choices_per_question = 2
     assert 'input_ids' in batch
@@ -1306,13 +1355,11 @@ def test_schema_task_dataloader(
 def test_schema_task_dataloader_sentpiece_tokenizer(
     dataset_uri: str,
     tmp_path: Path,
+    tiny_slow_llama_tokenizer: PreTrainedTokenizerBase,
 ):
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
-    tokenizer = transformers.AutoTokenizer.from_pretrained(
-        'huggyllama/llama-7b',  # type: ignore reportUnboundVariable
-        use_fast=False,
-    )
+    tokenizer = tiny_slow_llama_tokenizer
     dataset_uri = f'{local_data}/{dataset_uri}'
     batch_size = 2
     seqlen = 64
@@ -1332,8 +1379,9 @@ def test_schema_task_dataloader_sentpiece_tokenizer(
         },
     )
     assert isinstance(dl, DataSpec)
-    assert isinstance(dl.dataloader, DataLoader)
-    batch = next(dl.dataloader._get_iterator())
+    dl_spec: DataSpec = dl
+    assert isinstance(dl_spec.dataloader, DataLoader)
+    batch = next(dl_spec.dataloader._get_iterator())
 
     choices_per_question = 2
     assert 'input_ids' in batch
@@ -1361,128 +1409,10 @@ def test_schema_task_dataloader_sentpiece_tokenizer(
     ) == "<s>The trophy doesn't fit into the brown suitcase because the suitcase is too small. \nThe city councilmen refused the demonstrators a permit because the city councilmen feared violence."
 
 
-@pytest.mark.parametrize('dataset_uri', ['lambada_small.jsonl'])
-@pytest.mark.parametrize('num_fewshot', [0, 1])
-def test_lm_task_dataloader_opt_tokenizer(
-    tiny_opt_tokenizer: transformers.AutoTokenizer,
-    dataset_uri: str,
-    num_fewshot: int,
-    tmp_path: Path,
-):
-
-    local_data = os.path.join(os.path.dirname(__file__), 'local_data')
-
-    tokenizer = tiny_opt_tokenizer
-    dataset_uri = f'{local_data}/{dataset_uri}'
-    batch_size = 2
-    seqlen = 512
-    dl = get_icl_task_dataloader(
-        'language_modeling',
-        dataset_uri=dataset_uri,
-        tokenizer=tokenizer,
-        batch_size=batch_size,
-        destination_path=str(tmp_path / 'icl.jsonl'),
-        kwargs={
-            'max_seq_len': seqlen,
-            'pad_tok_id': tokenizer.eos_token_id,
-            'num_fewshot': num_fewshot,
-            'prompt_string': '',
-            'example_delimiter': '\n',
-            'continuation_delimiter': '',
-        },
-    )
-    assert isinstance(dl, DataSpec)
-    assert isinstance(dl.dataloader, DataLoader)  # pyright
-    batch = next(dl.dataloader._get_iterator())
-
-    assert 'input_ids' in batch
-    assert tuple(batch['input_ids'].shape) == (batch_size, seqlen)
-    assert 'attention_mask' in batch
-    assert tuple(batch['attention_mask'].shape) == (batch_size, seqlen)
-    assert 'continuation_indices' in batch
-    assert isinstance(batch['continuation_indices'], list) and len(
-        batch['continuation_indices'],
-    ) == batch_size
-    assert 'mode' in batch
-    assert batch['mode'] == 'icl_task'
-    min_idx = min(batch['continuation_indices'][0]).item()
-    max_idx = max(batch['continuation_indices'][0]).item()
-    assert tokenizer.decode(
-        batch['input_ids'][0][min_idx:max_idx + 1],
-    ) == ' glen'
-    assert tokenizer.decode(batch['input_ids'][0][0:min_idx]).startswith('</s>')
-    assert tokenizer.decode(batch['input_ids'][0][0:min_idx]).count('</s>') == 1
-
-
-@pytest.mark.parametrize('dataset_uri', ['piqa_small.jsonl'])
-@pytest.mark.parametrize('num_fewshot', [0, 1])
-def test_mc_task_dataloader_opt_tokenizer(
-    tiny_opt_tokenizer: transformers.AutoTokenizer,
-    dataset_uri: str,
-    num_fewshot: int,
-    tmp_path: Path,
-):
-
-    local_data = os.path.join(os.path.dirname(__file__), 'local_data')
-
-    tokenizer = tiny_opt_tokenizer
-
-    dataset_uri = f'{local_data}/{dataset_uri}'
-    batch_size = 4
-    seqlen = 64
-    dl = get_icl_task_dataloader(
-        'multiple_choice',
-        dataset_uri=dataset_uri,
-        tokenizer=tokenizer,
-        batch_size=batch_size,
-        destination_path=str(tmp_path / 'icl.jsonl'),
-        kwargs={
-            'max_seq_len': seqlen,
-            'pad_tok_id': tokenizer.eos_token_id,
-            'num_fewshot': num_fewshot,
-            'prompt_string': '',
-            'example_delimiter': '\n',
-            'continuation_delimiter': ': ',
-        },
-    )
-    assert isinstance(dl, DataSpec)
-    assert isinstance(dl.dataloader, DataLoader)  # pyright
-    batch = next(dl.dataloader._get_iterator())
-
-    choices_per_question = 2
-    assert dl.get_num_samples_in_batch(batch) == 2
-    assert 'input_ids' in batch
-    assert tuple(batch['input_ids'].shape) == (batch_size, seqlen)
-    assert 'attention_mask' in batch
-    assert tuple(batch['attention_mask'].shape) == (batch_size, seqlen)
-    assert 'continuation_indices' in batch
-    assert isinstance(batch['continuation_indices'], list) and len(
-        batch['continuation_indices'],
-    ) == batch_size
-    assert 'mode' in batch
-    assert batch['mode'] == 'icl_task'
-    assert 'gold_indices' in batch
-    assert isinstance(batch['gold_indices'], list) and len(
-        batch['gold_indices'],
-    ) == batch_size // choices_per_question
-    assert 'choice_groupings' in batch
-    assert isinstance(batch['choice_groupings'], list) and len(
-        batch['choice_groupings'],
-    ) == batch_size // choices_per_question
-
-    min_idx = min(batch['continuation_indices'][0]).item()
-    max_idx = max(batch['continuation_indices'][0]).item()
-    assert tokenizer.decode(
-        batch['input_ids'][0][min_idx:max_idx + 1],
-    ) == ' Pour it onto a plate'
-    assert tokenizer.decode(batch['input_ids'][0][0:min_idx]).startswith('</s>')
-    assert tokenizer.decode(batch['input_ids'][0][0:min_idx]).count('</s>') == 1
-
-
 @pytest.mark.parametrize('dataset_uri', ['piqa_small.jsonl'])
 @pytest.mark.parametrize('num_fewshot', [0, 1])
 def test_mc_split_batch(
-    tiny_opt_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_tokenizer: PreTrainedTokenizerBase,
     dataset_uri: str,
     num_fewshot: int,
     tmp_path: Path,
@@ -1490,7 +1420,7 @@ def test_mc_split_batch(
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
 
-    tokenizer = tiny_opt_tokenizer
+    tokenizer = tiny_gpt2_tokenizer
 
     dataset_uri = f'{local_data}/{dataset_uri}'
     batch_size = 4
@@ -1511,15 +1441,16 @@ def test_mc_split_batch(
         },
     )
     assert isinstance(dl, DataSpec)
-    assert isinstance(dl.dataloader, DataLoader)  # pyright
-    batch = next(dl.dataloader._get_iterator())
+    dl_spec: DataSpec = dl
+    assert isinstance(dl_spec.dataloader, DataLoader)  # pyright
+    batch = next(dl_spec.dataloader._get_iterator())
     choices_per_question = 2
     real_microbatch_size = batch_size // 2
     logical_microbatch_size = real_microbatch_size // choices_per_question
-    microbatches = dl.split_batch(batch, logical_microbatch_size)
+    microbatches = dl_spec.split_batch(batch, logical_microbatch_size)
     assert len(microbatches) == 2
     for i, microbatch in enumerate(microbatches):
-        assert dl.get_num_samples_in_batch(microbatch) == 1
+        assert dl_spec.get_num_samples_in_batch(microbatch) == 1
         assert 'input_ids' in microbatch
         assert tuple(
             microbatch['input_ids'].shape,
@@ -1553,24 +1484,18 @@ def test_mc_split_batch(
             assert tokenizer.decode(
                 microbatch['input_ids'][0][min_idx:max_idx + 1],
             ) == ' Weld the metal together to get it to stay firmly in place'
-        assert tokenizer.decode(
-            microbatch['input_ids'][0][0:min_idx],
-        ).startswith('</s>')
-        assert tokenizer.decode(
-            microbatch['input_ids'][0][0:min_idx],
-        ).count('</s>') == 1
 
 
 @pytest.mark.parametrize('dataset_uri', ['triviaqa_small.jsonl'])
 def test_qa_split_batch(
-    tiny_opt_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_tokenizer: PreTrainedTokenizerBase,
     dataset_uri: str,
     tmp_path: Path,
 ):
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/{dataset_uri}'
-    tokenizer = tiny_opt_tokenizer
+    tokenizer = tiny_gpt2_tokenizer
 
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)  # for dist
@@ -1590,10 +1515,11 @@ def test_qa_split_batch(
         },
     )
 
-    assert isinstance(dl, DataSpec)  # pyright
+    assert isinstance(dl, DataSpec)
+    dl_spec: DataSpec = dl
 
-    batch = next(iter(dl.dataloader))
-    split_batch = dl.split_batch(batch, 3)
+    batch = next(iter(dl_spec.dataloader))
+    split_batch = dl_spec.split_batch(batch, 3)
 
     assert len(split_batch) == 2
     split1 = split_batch[0]
@@ -1624,7 +1550,7 @@ def test_qa_split_batch(
 @pytest.mark.parametrize('prompt_string', ['I am a prompt', ''])
 def test_qa_task_dataloader_w_null_eos(
     dataset_uri: str,
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
     tmp_path: Path,
     num_fewshot: int,
     prompt_string: str,
@@ -1632,11 +1558,11 @@ def test_qa_task_dataloader_w_null_eos(
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
 
-    tokenizer = tiny_gpt2_tokenizer
+    tokenizer = tiny_gpt2_with_pad_tokenizer
     dataset_uri = f'{local_data}/{dataset_uri}'
     batch_size = 4
     seqlen = 512
-    tiny_gpt2_tokenizer.eos_token_id = None
+    tiny_gpt2_with_pad_tokenizer.eos_token_id = None
     with pytest.raises(ValueError):
         _ = get_icl_task_dataloader(
             'generation_task_with_answers',
@@ -1661,7 +1587,7 @@ def test_qa_task_dataloader_w_null_eos(
 @pytest.mark.parametrize('prompt_string', ['I am a prompt', ''])
 def test_qa_task_dataloader(
     dataset_uri: str,
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
     tmp_path: Path,
     num_fewshot: int,
     prompt_string: str,
@@ -1669,7 +1595,7 @@ def test_qa_task_dataloader(
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
 
-    tokenizer = tiny_gpt2_tokenizer
+    tokenizer = tiny_gpt2_with_pad_tokenizer
     dataset_uri = f'{local_data}/{dataset_uri}'
     batch_size = 4
     seqlen = 512
@@ -1692,9 +1618,9 @@ def test_qa_task_dataloader(
         },
     )
     assert isinstance(dl, DataSpec)
-
-    assert isinstance(dl.dataloader, DataLoader)  # pyright
-    batch = next(dl.dataloader._get_iterator())
+    dl_spec: DataSpec = dl
+    assert isinstance(dl_spec.dataloader, DataLoader)  # pyright
+    batch = next(dl_spec.dataloader._get_iterator())
 
     assert tuple(
         batch['input_ids'].shape,
@@ -1731,14 +1657,14 @@ def test_qa_task_dataloader(
 @pytest.mark.parametrize('num_fewshot', [0, 2])
 def test_qa_task_with_cot_dataloader(
     dataset_uri: str,
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
     tmp_path: Path,
     num_fewshot: int,
 ):
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
 
-    tokenizer = tiny_gpt2_tokenizer
+    tokenizer = tiny_gpt2_with_pad_tokenizer
     dataset_uri = f'{local_data}/{dataset_uri}'
     batch_size = 2
     seqlen = 512
@@ -1762,8 +1688,9 @@ def test_qa_task_with_cot_dataloader(
         },
     )
     assert isinstance(dl, DataSpec)
-    assert isinstance(dl.dataloader, DataLoader)  # pyright
-    batch = next(dl.dataloader._get_iterator())
+    dl_spec: DataSpec = dl
+    assert isinstance(dl_spec.dataloader, DataLoader)  # pyright
+    batch = next(dl_spec.dataloader._get_iterator())
     assert tuple(
         batch['input_ids'].shape,
     ) == (batch_size, seqlen - maximum_answer_length)
@@ -1800,13 +1727,13 @@ def test_qa_task_with_cot_dataloader(
 def test_mc_task_dataloader(
     dataset_uri: str,
     prelimiter: str,
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
     tmp_path: Path,
 ):
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
 
-    tokenizer = tiny_gpt2_tokenizer
+    tokenizer = tiny_gpt2_with_pad_tokenizer
     dataset_uri = f'{local_data}/{dataset_uri}'
     batch_size = 2
     seqlen = 64
@@ -1828,8 +1755,9 @@ def test_mc_task_dataloader(
         },
     )
     assert isinstance(dl, DataSpec)
-    assert isinstance(dl.dataloader, DataLoader)  # pyright
-    batch = next(dl.dataloader._get_iterator())
+    dl_spec: DataSpec = dl
+    assert isinstance(dl_spec.dataloader, DataLoader)  # pyright
+    batch = next(dl_spec.dataloader._get_iterator())
 
     choices_per_question = 2
     assert 'input_ids' in batch
@@ -1874,7 +1802,7 @@ def test_mc_task_dataloader(
 def test_lm_task_evaluation(
     num_fewshot: int,
     dataset_uri: str,
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
     tmp_path: Path,
     tiny_gpt2_model: transformers.AutoModelForCausalLM,
 ):
@@ -1883,7 +1811,7 @@ def test_lm_task_evaluation(
     )  # track the logged metrics in the in_memory_logger
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/{dataset_uri}'
-    tokenizer = tiny_gpt2_tokenizer
+    tokenizer = tiny_gpt2_with_pad_tokenizer
     batch_size = 2
     dl = get_icl_task_dataloader(
         'language_modeling',
@@ -1909,7 +1837,7 @@ def test_lm_task_evaluation(
 
     model = HuggingFaceModel(
         model=tiny_gpt2_model,
-        tokenizer=tokenizer,
+        tokenizer=tokenizer,  # type: ignore
         eval_metrics=[InContextLearningLMAccuracy()],
         use_logits=True,
     )
@@ -1928,7 +1856,7 @@ def test_lm_task_evaluation(
 def test_schema_task_evaluation(
     num_fewshot: int,
     dataset_uri: str,
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
     tmp_path: Path,
     tiny_gpt2_model: transformers.AutoModelForCausalLM,
 ):
@@ -1937,7 +1865,7 @@ def test_schema_task_evaluation(
     )  # track the logged metrics in the in_memory_logger
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/{dataset_uri}'
-    tokenizer = tiny_gpt2_tokenizer
+    tokenizer = tiny_gpt2_with_pad_tokenizer
     batch_size = 8
     dl = get_icl_task_dataloader(
         'schema',
@@ -1963,7 +1891,7 @@ def test_schema_task_evaluation(
 
     model = HuggingFaceModel(
         model=tiny_gpt2_model,
-        tokenizer=tokenizer,
+        tokenizer=tokenizer,  # type: ignore
         eval_metrics=[InContextLearningMultipleChoiceAccuracy()],
         use_logits=True,
     )
@@ -1992,7 +1920,7 @@ def test_mc_task_evaluation_subcategories(
     dataset_uri: str,
     num_fewshot: int,
     tiny_gpt2_model: transformers.AutoModelForCausalLM,
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
     tmp_path: Path,
 ):
 
@@ -2000,7 +1928,7 @@ def test_mc_task_evaluation_subcategories(
     )  # track the logged metrics in the in_memory_logger
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/{dataset_uri}'
-    tokenizer = tiny_gpt2_tokenizer
+    tokenizer = tiny_gpt2_with_pad_tokenizer
     batch_size = 16
     max_seq_len = 64
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
@@ -2034,7 +1962,7 @@ def test_mc_task_evaluation_subcategories(
 
     model = HuggingFaceModel(
         model=tiny_gpt2_model,
-        tokenizer=tiny_gpt2_tokenizer,
+        tokenizer=tiny_gpt2_with_pad_tokenizer,  # type: ignore
         eval_metrics=[InContextLearningMultipleChoiceAccuracy()],
         use_logits=True,
     )
@@ -2063,7 +1991,7 @@ def test_mc_task_evaluation_subcategories(
 def test_mc_task_evaluation(
     num_fewshot: int,
     dataset_uri: str,
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
     tmp_path: Path,
     tiny_gpt2_model: transformers.AutoModelForCausalLM,
 ):
@@ -2072,7 +2000,7 @@ def test_mc_task_evaluation(
     )  # track the logged metrics in the in_memory_logger
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/{dataset_uri}'
-    tokenizer = tiny_gpt2_tokenizer
+    tokenizer = tiny_gpt2_with_pad_tokenizer
     batch_size = 8
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
@@ -2103,7 +2031,7 @@ def test_mc_task_evaluation(
 
     model = HuggingFaceModel(
         model=tiny_gpt2_model,
-        tokenizer=tiny_gpt2_tokenizer,
+        tokenizer=tiny_gpt2_with_pad_tokenizer,  # type: ignore
         eval_metrics=[InContextLearningMultipleChoiceAccuracy()],
         use_logits=True,
     )
@@ -2124,133 +2052,6 @@ def test_mc_task_evaluation(
     assert total.item() == num_samples  # type: ignore
 
 
-@pytest.mark.parametrize('num_fewshot', [0, 5])
-@pytest.mark.parametrize('dataset_uri', ['triviaqa_small.jsonl'])
-@pytest.mark.filterwarnings(
-    r'ignore:.*The dataloader_len \(2\) is greater than the length.*:UserWarning',
-)
-@pytest.mark.filterwarnings(r'ignore:Cannot split .* of length.*:UserWarning')
-@pytest.mark.gpu
-@pytest.mark.world_size(2)
-def test_qa_task_evaluation_opt_tokenizer(
-    tiny_opt_tokenizer: transformers.AutoTokenizer,
-    tiny_opt_model: transformers.AutoModelForCausalLM,
-    num_fewshot: int,
-    dataset_uri: str,
-    tmp_path: Path,
-):
-
-    in_memory_logger = InMemoryLogger(
-    )  # track the logged metrics in the in_memory_logger
-    local_data = os.path.join(os.path.dirname(__file__), 'local_data')
-    dataset_uri = f'{local_data}/{dataset_uri}'
-    tokenizer = tiny_opt_tokenizer
-
-    batch_size = 4
-    tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
-    gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
-    dl = get_icl_task_dataloader(
-        'generation_task_with_answers',
-        dataset_uri=dataset_uri,
-        tokenizer=tokenizer,
-        batch_size=batch_size,
-        destination_path=str(Path(gathered_paths[0]) / 'icl.jsonl'),
-        kwargs={
-            'max_seq_len': 1024,
-            'pad_tok_id': tokenizer.eos_token_id,
-            'num_fewshot': num_fewshot,
-            'prompt_string': '',
-            'example_delimiter': '\n',
-            'continuation_delimiter': ': ',
-        },
-    )
-
-    evaluator = Evaluator(
-        label='triviaqa',
-        dataloader=dl,
-        metric_names=['InContextLearningGenerationExactMatchAccuracy'],
-    )
-    model = HuggingFaceModel(
-        model=tiny_opt_model,
-        tokenizer=tokenizer,
-        eval_metrics=[InContextLearningGenerationExactMatchAccuracy()],
-        use_logits=True,
-    )
-
-    trainer = Trainer(model=model, max_duration='1ba', loggers=in_memory_logger)
-
-    trainer.eval(eval_dataloader=evaluator, subset_num_batches=2)
-    assert 'metrics/triviaqa/InContextLearningGenerationExactMatchAccuracy' in in_memory_logger.data.keys(
-    )
-    assert in_memory_logger.data[
-        'metrics/triviaqa/InContextLearningGenerationExactMatchAccuracy'][0][
-            1].item() == 0
-
-
-@pytest.mark.parametrize('num_fewshot', [5])
-@pytest.mark.parametrize('dataset_uri', ['gsm8k_small.jsonl'])
-@pytest.mark.gpu
-@pytest.mark.world_size(2)
-@pytest.mark.filterwarnings(
-    r'ignore:.*The dataloader_len \(2\) is greater than the length.*:UserWarning',
-)
-@pytest.mark.filterwarnings(r'ignore:Cannot split .* of length.*:UserWarning')
-def test_qa_task_evaluation_with_cot_opt_tokenizer(
-    tiny_opt_tokenizer: transformers.AutoTokenizer,
-    tiny_opt_model: transformers.AutoModelForCausalLM,
-    num_fewshot: int,
-    dataset_uri: str,
-    tmp_path: Path,
-):
-
-    in_memory_logger = InMemoryLogger(
-    )  # track the logged metrics in the in_memory_logger
-    local_data = os.path.join(os.path.dirname(__file__), 'local_data')
-    dataset_uri = f'{local_data}/{dataset_uri}'
-    tokenizer = tiny_opt_tokenizer
-
-    batch_size = 4
-    tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
-    gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
-    dl = get_icl_task_dataloader(
-        'generation_task_with_answers',
-        dataset_uri=dataset_uri,
-        tokenizer=tokenizer,
-        batch_size=batch_size,
-        destination_path=str(Path(gathered_paths[0]) / 'icl.jsonl'),
-        kwargs={
-            'max_seq_len': 1024,
-            'pad_tok_id': tokenizer.eos_token_id,
-            'num_fewshot': num_fewshot,
-            'prompt_string': '',
-            'example_delimiter': '\n',
-            'continuation_delimiter': "A: Let's think step by step. ",
-            'cot_delimiter': ' #### ',
-        },
-    )
-
-    evaluator = Evaluator(
-        label='gsm8k',
-        dataloader=dl,
-        metric_names=['InContextLearningGenerationExactMatchAccuracy'],
-    )
-    model = HuggingFaceModel(
-        model=tiny_opt_model,
-        tokenizer=tokenizer,
-        eval_metrics=[InContextLearningGenerationExactMatchAccuracy()],
-        use_logits=True,
-    )
-
-    trainer = Trainer(model=model, max_duration='1ba', loggers=in_memory_logger)
-
-    trainer.eval(eval_dataloader=evaluator, subset_num_batches=2)
-    assert 'metrics/gsm8k/InContextLearningGenerationExactMatchAccuracy' in in_memory_logger.data.keys(
-    )
-    assert in_memory_logger.data[
-        'metrics/gsm8k/InContextLearningGenerationExactMatchAccuracy'][0][
-            1].item() == 0
-
-
 @pytest.mark.parametrize('dataset_uri', ['triviaqa_small.jsonl'])
 @pytest.mark.parametrize('num_fewshot', [0, 5])
 @pytest.mark.gpu
@@ -2261,7 +2062,7 @@ def test_qa_task_evaluation_with_cot_opt_tokenizer(
 def test_qa_task_evaluation(
     num_fewshot: int,
     dataset_uri: str,
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
     tiny_gpt2_model: transformers.AutoModelForCausalLM,
     tmp_path: Path,
 ):
@@ -2270,7 +2071,7 @@ def test_qa_task_evaluation(
     )  # track the logged metrics in the in_memory_logger
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/{dataset_uri}'
-    tokenizer = tiny_gpt2_tokenizer
+    tokenizer = tiny_gpt2_with_pad_tokenizer
     batch_size = 2
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
@@ -2298,7 +2099,7 @@ def test_qa_task_evaluation(
 
     model = HuggingFaceModel(
         model=tiny_gpt2_model,
-        tokenizer=tiny_gpt2_tokenizer,
+        tokenizer=tiny_gpt2_with_pad_tokenizer,  # type: ignore
         eval_metrics=[InContextLearningGenerationExactMatchAccuracy()],
         use_logits=True,
     )
@@ -2323,7 +2124,7 @@ def test_qa_task_evaluation(
 def test_qa_task_with_cot_evaluation(
     num_fewshot: int,
     dataset_uri: str,
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
     tiny_gpt2_model: transformers.AutoModelForCausalLM,
     tmp_path: Path,
 ):
@@ -2332,7 +2133,7 @@ def test_qa_task_with_cot_evaluation(
     )  # track the logged metrics in the in_memory_logger
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
     dataset_uri = f'{local_data}/{dataset_uri}'
-    tokenizer = tiny_gpt2_tokenizer
+    tokenizer = tiny_gpt2_with_pad_tokenizer
     batch_size = 2
     tmp_path_to_broadcast = str(os.path.abspath(tmp_path))
     gathered_paths = dist.all_gather_object(tmp_path_to_broadcast)
@@ -2361,7 +2162,7 @@ def test_qa_task_with_cot_evaluation(
 
     model = HuggingFaceModel(
         model=tiny_gpt2_model,
-        tokenizer=tiny_gpt2_tokenizer,
+        tokenizer=tiny_gpt2_with_pad_tokenizer,  # type: ignore
         eval_metrics=[InContextLearningGenerationExactMatchAccuracy()],
         use_logits=True,
     )
@@ -2379,13 +2180,13 @@ def test_qa_task_with_cot_evaluation(
 @pytest.mark.parametrize('dataset_uri', ['lambada_small.jsonl'])
 def test_lm_spacing_dataloader(
     dataset_uri: str,
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
     tmp_path: Path,
 ):
 
     local_data = os.path.join(os.path.dirname(__file__), 'local_data')
 
-    tokenizer = tiny_gpt2_tokenizer
+    tokenizer = tiny_gpt2_with_pad_tokenizer
     dataset_uri = f'{local_data}/{dataset_uri}'
     batch_size = 2
     seqlen = 512
@@ -2405,9 +2206,10 @@ def test_lm_spacing_dataloader(
         },
     )
     assert isinstance(dl, DataSpec)
-    assert isinstance(dl.dataloader, DataLoader)  # pyright
-    first_batch = next(dl.dataloader._get_iterator())
-    second_batch = next(dl.dataloader._get_iterator())
+    dl_spec: DataSpec = dl
+    assert isinstance(dl_spec.dataloader, DataLoader)  # pyright
+    first_batch = next(dl_spec.dataloader._get_iterator())
+    second_batch = next(dl_spec.dataloader._get_iterator())
 
     first_batch_text = tokenizer.decode(
         first_batch['input_ids'][0],
@@ -2451,7 +2253,7 @@ def test_lm_spacing_dataloader(
 )
 def test_hf_dataloading_lm_dataloader(
     dataset_uri: str,
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
     tmp_path: Path,
     num_fewshot: int,
     prompt_string: str,
@@ -2459,7 +2261,7 @@ def test_hf_dataloading_lm_dataloader(
     hf_parsing_map: Optional[dict[str, list[str]]],
 ):
 
-    tokenizer = tiny_gpt2_tokenizer
+    tokenizer = tiny_gpt2_with_pad_tokenizer
     batch_size = 2
     seqlen = 2048
     dl = get_icl_task_dataloader(
@@ -2480,8 +2282,9 @@ def test_hf_dataloading_lm_dataloader(
         },
     )
     assert isinstance(dl, DataSpec)
-    assert isinstance(dl.dataloader, DataLoader)  # pyright
-    batch = next(dl.dataloader._get_iterator())
+    dl_spec: DataSpec = dl
+    assert isinstance(dl_spec.dataloader, DataLoader)  # pyright
+    batch = next(dl_spec.dataloader._get_iterator())
 
     assert 'input_ids' in batch
     assert tuple(batch['input_ids'].shape) == (batch_size, seqlen)
@@ -2531,7 +2334,7 @@ def test_hf_dataloading_lm_dataloader(
 )
 def test_hf_dataloading_custom_parsing(
     dataset_uri: str,
-    tiny_gpt2_tokenizer: transformers.AutoTokenizer,
+    tiny_gpt2_with_pad_tokenizer: PreTrainedTokenizerBase,
     tmp_path: Path,
     num_fewshot: int,
     prompt_string: str,
@@ -2539,7 +2342,7 @@ def test_hf_dataloading_custom_parsing(
     hf_parsing_map: dict[str, list[str]],
 ):
 
-    tokenizer = tiny_gpt2_tokenizer
+    tokenizer = tiny_gpt2_with_pad_tokenizer
     batch_size = 2
     seqlen = 2048
 
@@ -2565,8 +2368,9 @@ def test_hf_dataloading_custom_parsing(
         },
     )
     assert isinstance(dl, DataSpec)
-    assert isinstance(dl.dataloader, DataLoader)  # pyright
-    batch = next(dl.dataloader._get_iterator())
+    dl_spec: DataSpec = dl
+    assert isinstance(dl_spec.dataloader, DataLoader)  # pyright
+    batch = next(dl_spec.dataloader._get_iterator())
 
     assert tuple(
         batch['input_ids'].shape,
@@ -2637,3 +2441,16 @@ def test_bc_question_prelimiter(
     assert len(evaluators) == 1
     evaluator = evaluators[0]
     assert evaluator.dataloader.dataloader.dataset.prelimiter == 'This is a question: '  # type: ignore
+
+
+def test_icl_no_tokenizer():
+    with pytest.raises(ValueError, match='Tokenizer is required for icl tasks'):
+        _ = build_evaluators(
+            eval_loader_config=None,
+            icl_tasks_config=[],
+            eval_gauntlet_config=None,
+            tokenizer=None,
+            device_eval_batch_size=2,
+            icl_seq_len=128,
+            icl_subset_num_batches=2,
+        )

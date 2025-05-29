@@ -344,8 +344,8 @@ def test_tiktoken_padding(
     ],
                                                          padding=True)
     for wrapped1, attn_mask, original1 in zip(
-        wrapped_output['input_ids'],
-        wrapped_output['attention_mask'],
+        wrapped_output['input_ids'],  # type: ignore
+        wrapped_output['attention_mask'],  # type: ignore
         original_output,
     ):
         original_length = len(original1)
@@ -460,6 +460,7 @@ def test_additional_special_tokens(
         additional_special_tokens=[special_token_to_add],
     )
     encoded_outputs = wrapped_tokenizer(input_string)['input_ids']
+    assert isinstance(encoded_outputs, list)
 
     assert encoded_outputs[0] == wrapped_tokenizer.vocab_size
     assert len(encoded_outputs) == 2
@@ -478,16 +479,18 @@ def test_additional_special_tokens_len():
         additional_special_tokens=[special_token_to_add],
     )
 
-    no_special = TiktokenTokenizerWrapper(model_name='gpt-4',)
+    no_special = TiktokenTokenizerWrapper(
+        model_name='gpt-4',
+    )
     assert len(with_special.get_vocab()) == len(no_special.get_vocab()) + 1
 
     ret = with_special.add_special_tokens({
-        'additional_special_tokens': ['<|im_start|>'],
+        'additional_special_tokens': ['<|im_start|>'],  # type: ignore
     })
     assert ret == 0
 
     ret = with_special.add_special_tokens({
-        'additional_special_tokens': ['<|im_end|>'],
+        'additional_special_tokens': ['<|im_end|>'],  # type: ignore
     })
     assert ret == 1
     assert len(with_special.get_vocab()) == len(no_special.get_vocab()) + 2
@@ -549,7 +552,9 @@ def test_chat_formatting(
 
 
 def test_tiktoken_out_of_range():
-    wrapped_tokenizer = TiktokenTokenizerWrapper(model_name='gpt-4',)
+    wrapped_tokenizer = TiktokenTokenizerWrapper(
+        model_name='gpt-4',
+    )
 
     # For gpt-4, 100256 is less than the vocab size, but is not a valid token
     assert wrapped_tokenizer.decode([100256]) == ''

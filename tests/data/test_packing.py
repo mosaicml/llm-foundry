@@ -12,12 +12,12 @@ from omegaconf import DictConfig
 from pytest import approx
 from streaming import MDSWriter
 from torch.utils.data import DataLoader
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.data.finetuning.dataloader import build_finetuning_dataloader
 from llmfoundry.data.finetuning.tasks import StreamingFinetuningDataset
 from llmfoundry.data.packing import BinPackCollator, auto_packing_ratio
 from llmfoundry.data.utils import LossGeneratingTokensCollatorWrapper
-from llmfoundry.utils.builders import build_tokenizer
 
 
 def _data_to_batch(data: list[list[int]], max_seq_len: int,
@@ -126,7 +126,7 @@ def test_auto_packing(profile_packing: Mock):
         dataloader_cfg={'dataset': {
             'max_seq_len': 2048,
         }},
-        tokenizer=None,
+        tokenizer=None,  # type: ignore
         device_batch_size=1,
     )  # Dummy values, profiling results are already set.
 
@@ -153,7 +153,7 @@ def test_dist_auto_packing(profile_packing: Mock):
         dataloader_cfg={'dataset': {
             'max_seq_len': 2048,
         }},
-        tokenizer=None,
+        tokenizer=None,  # type: ignore
         device_batch_size=1,
     )  # Dummy values, profiling results are already set.
 
@@ -218,9 +218,10 @@ def patched_packing_ratio(*args: Any, **kwargs: Any):
 def test_auto_packing_with_streaming_dataloader(
     get_config: Callable[[dict, str, str], DictConfig],
     tmp_path: Path,
+    tiny_gpt2_tokenizer: PreTrainedTokenizerBase,
 ):
     columns = {'prompt': 'str', 'response': 'str'}
-    tokenizer = build_tokenizer('gpt2', {})
+    tokenizer = tiny_gpt2_tokenizer
     remote_dir = str(tmp_path / 'remote')
     local_dir = str(tmp_path / 'local')
     with MDSWriter(out=remote_dir, columns=columns, compression=None) as out:
@@ -274,10 +275,13 @@ def test_auto_packing_with_streaming_dataloader(
     'llmfoundry.data.finetuning.dataloader.auto_packing_ratio',
     patched_packing_ratio,
 )
-def test_packing_with_dataloader(packing_ratio: Any):
+def test_packing_with_dataloader(
+    packing_ratio: Any,
+    tiny_gpt2_tokenizer: PreTrainedTokenizerBase,
+):
     """Tests that packing works with a dataloader."""
     reproducibility.seed_all(17)
-    tokenizer = build_tokenizer('gpt2', {})
+    tokenizer = tiny_gpt2_tokenizer
     cfg = {
         'dataset': {
             'hf_name': 'tatsu-lab/alpaca',

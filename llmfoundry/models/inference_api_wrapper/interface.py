@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import warnings
 from typing import Any, Optional
 
 import torch
@@ -8,18 +9,30 @@ from composer.core.types import Batch
 from composer.models import ComposerModel
 from omegaconf import DictConfig
 from torchmetrics import Metric
-from transformers import AutoTokenizer
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.eval.metrics import InContextLearningMetric
 from llmfoundry.metrics import DEFAULT_CAUSAL_LM_EVAL_METRICS
 from llmfoundry.utils.consts import CROSS_ENTROPY_IGNORE_INDEX
+from llmfoundry.utils.warnings import VersionedDeprecationWarning
 
 __all__ = ['InferenceAPIEvalWrapper']
 
 
 class InferenceAPIEvalWrapper(ComposerModel):
 
-    def __init__(self, om_model_config: DictConfig, tokenizer: AutoTokenizer):
+    def __init__(
+        self,
+        om_model_config: DictConfig,
+        tokenizer: PreTrainedTokenizerBase,
+    ):
+        warnings.warn(
+            VersionedDeprecationWarning(
+                'InferenceAPIEvalWrapper is deprecated.',
+                remove_version='0.22',
+            ),
+        )
+
         from llmfoundry.utils.builders import build_metric
 
         self.tokenizer = tokenizer

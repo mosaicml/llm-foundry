@@ -1,6 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """Defaults for MPT model component configs."""
 
 ffn_config_defaults: dict = {
@@ -22,6 +21,7 @@ attn_config_defaults: dict = {
     'alibi': False,
     'alibi_bias_max': 8,
     'rope': False,
+    'nope': False,
     'rope_theta': 10000,
     'rope_impl': 'dail',
     'rope_dail_config': {
@@ -32,6 +32,10 @@ attn_config_defaults: dict = {
     'rope_hf_config': {
         'type': 'no_scaling',
         'factor': 1.0,
+    },
+    'attn_temperature_tuning': {
+        'floor_scale': 8192,
+        'attn_scale': 0.0,
     },
     'kv_dim': None,
 }

@@ -1,9 +1,8 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """Dataloader builder utilities."""
 
-from typing import Any, Union
+from typing import Any, Optional, Union
 
 from composer import DataSpec
 from transformers import PreTrainedTokenizerBase
@@ -18,14 +17,14 @@ __all__ = [
 
 def build_dataloader(
     cfg: dict[str, Any],
-    tokenizer: PreTrainedTokenizerBase,
+    tokenizer: Optional[PreTrainedTokenizerBase],
     device_batch_size: Union[int, float],
 ) -> DataSpec:
     """Builds a dataloader from a config.
 
     Args:
         cfg (DictConfig): An omegaconf dictionary used to configure the loader.
-        tokenizer (PreTrainedTokenizerBase): The tokenizer that the model will use.
+        tokenizer (Optional[PreTrainedTokenizerBase]): The tokenizer that the model will use.
         device_batch_size (int): The size of the batches (number of examples)
             that the dataloader will produce.
     """

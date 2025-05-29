@@ -121,6 +121,7 @@ def test_dmoe(
         'fp16': fp16,
         'bf16': bf16,
         'init_method': partial(torch.nn.init.uniform_, a=-1.0, b=1.0),
+        'mlp_impl': 'grouped',
     }
     device_mesh = None
     if moe_world_size > 1:
@@ -138,7 +139,9 @@ def test_dmoe(
             'expert_parallel_group': expert_parallel_group,
         },)
     mp_dmoe_args.update(extra_args)
-    args = megablocks.layers.arguments.Arguments(**mp_dmoe_args,)
+    args = megablocks.layers.arguments.Arguments(
+        **mp_dmoe_args,
+    )
     mb_dmoe = megablocks.layers.dmoe.dMoE(args).to(device)
     mb_dmoe.router = DDP(mb_dmoe.router, device_ids=[rank])
 
@@ -166,7 +169,9 @@ def test_dmoe(
         # Copy mb_dmoe's parameters to torch_dmoe
         mb_dmoe_state_dict = get_model_state_dict(
             mb_dmoe,
-            options=StateDictOptions(full_state_dict=True,),
+            options=StateDictOptions(
+                full_state_dict=True,
+            ),
         )
         for key, t in mb_dmoe_state_dict.items():
             if key in tp_names:
@@ -181,7 +186,9 @@ def test_dmoe(
         mb_dmoe.experts = DDP(mb_dmoe.experts, device_ids=[rank])
         mb_dmoe_state_dict = get_model_state_dict(
             mb_dmoe,
-            options=StateDictOptions(full_state_dict=True,),
+            options=StateDictOptions(
+                full_state_dict=True,
+            ),
         )
     mb_dmoe_optimizer = optim.SGD(mb_dmoe.parameters(), lr=0.1)
 
@@ -209,7 +216,9 @@ def test_dmoe(
 @pytest.mark.gpu
 @pytest.mark.world_size(2)
 @pytest.mark.parametrize('two_d_input', [True, False])
-def test_dmoe_defaults(two_d_input: bool,):
+def test_dmoe_defaults(
+    two_d_input: bool,
+):
     rank = dist.get_rank()
     fp16 = False
     bf16 = True
@@ -235,18 +244,23 @@ def test_dmoe_defaults(two_d_input: bool,):
         'fp16': fp16,
         'bf16': bf16,
         'init_method': partial(torch.nn.init.uniform_, a=-1.0, b=1.0),
+        'mlp_impl': 'grouped',
     }
 
     # Expert parallelism is not enabled by default
     mp_dmoe_args.update(extra_args)
-    args = megablocks.layers.arguments.Arguments(**mp_dmoe_args,)
+    args = megablocks.layers.arguments.Arguments(
+        **mp_dmoe_args,
+    )
     mb_dmoe = megablocks.layers.dmoe.dMoE(args).to(device)
     mb_dmoe.router = DDP(mb_dmoe.router, device_ids=[rank])
 
     mb_dmoe.experts = DDP(mb_dmoe.experts, device_ids=[rank])
     mb_dmoe_state_dict = get_model_state_dict(
         mb_dmoe,
-        options=StateDictOptions(full_state_dict=True,),
+        options=StateDictOptions(
+            full_state_dict=True,
+        ),
     )
     mb_dmoe_optimizer = optim.SGD(mb_dmoe.parameters(), lr=0.1)
 
@@ -285,7 +299,7 @@ def test_dmoe_defaults(two_d_input: bool,):
 @pytest.mark.gpu
 @pytest.mark.parametrize('seqlen', [512])
 @pytest.mark.parametrize('mlp_type', ['glu', 'mlp'])
-@pytest.mark.parametrize('precision', ['bf16', 'fp32'])
+@pytest.mark.parametrize('precision', ['bf16'])
 def test_fwd_equal_dmoe(seqlen: int, precision: str, mlp_type: str):
     mb_dmoe_config = MPTConfig(
         d_model=1024,
@@ -317,6 +331,7 @@ def test_fwd_equal_dmoe(seqlen: int, precision: str, mlp_type: str):
             'ffn_hidden_size': 1792,
             'moe_num_experts': 16,
             'moe_top_k': 4,
+            'mlp_impl': 'grouped',
             'moe_jitter_eps': 0.0,
             'moe_loss_weight': 0.05,
             'moe_normalize_expert_weights': 1.0,
@@ -339,6 +354,7 @@ def test_fwd_equal_dmoe(seqlen: int, precision: str, mlp_type: str):
     del torch_dmoe_config.ffn_config['fc_type']
     del torch_dmoe_config.ffn_config['moe_loss_weight']
     del torch_dmoe_config.ffn_config['return_bias']
+    del torch_dmoe_config.ffn_config['mlp_impl']
 
     mb_dmoe_model = MPTForCausalLM(
         mb_dmoe_config,

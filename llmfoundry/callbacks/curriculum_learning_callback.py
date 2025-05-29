@@ -1,6 +1,5 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """Enable curriculum learning by specifying a schedule of datasets to train on.
 
 This module provides a CurriculumLearning callback that allows for dynamic
@@ -237,7 +236,7 @@ class CurriculumLearning(CallbackWithConfig):
         try:
             return build_dataloader(
                 train_loader_config,
-                self._tokenizer,
+                self._tokenizer,  # type: ignore
                 self._device_train_batch_size,
             )
         except BaseContextualError as e:

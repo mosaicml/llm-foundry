@@ -1,6 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """Basic HuggingFace -> ONNX export script.
 
 This scripts show a basic HuggingFace -> ONNX export workflow. This works for a MPT model
@@ -179,7 +178,9 @@ def export_to_onnx(
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Convert HF model to ONNX',)
+    parser = argparse.ArgumentParser(
+        description='Convert HF model to ONNX',
+    )
     parser.add_argument(
         '--pretrained_model_name_or_path',
         type=str,

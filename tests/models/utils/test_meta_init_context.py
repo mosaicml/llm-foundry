@@ -24,7 +24,9 @@ class ModelWithIntParameter(nn.Module):
         return x
 
 
-def test_init_empty_weights(build_tiny_mpt: Callable,):
+def test_init_empty_weights(
+    build_tiny_mpt: Callable,
+):
     # Initialize a model on CPU for comparison
     cpu_model = build_tiny_mpt(loss_fn='torch_crossentropy')
 
@@ -58,7 +60,9 @@ def test_init_empty_weights_with_buffers():
 
 
 @pytest.mark.gpu
-def test_init_on_device(build_tiny_mpt: Callable,):
+def test_init_on_device(
+    build_tiny_mpt: Callable,
+):
     device = torch.device('cuda')
     with init_on_device(device):
         model = build_tiny_mpt()

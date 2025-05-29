@@ -64,7 +64,9 @@ def build_ffn(
         'expansion_ratio': expansion_ratio,
         'device': device,
         'bias': bias,
-        **{k: v for k, v in ffn_kwargs.items() if k != 'ffn_type'},
+        **{
+            k: v for k, v in ffn_kwargs.items() if k != 'ffn_type'
+        },
     }
 
     def _validation_function(maybe_module: Any):
@@ -109,7 +111,9 @@ def build_fc(
     kwargs = {
         'in_features': in_features,
         'out_features': out_features,
-        **{k: v for k, v in fc_kwargs.items() if k != 'name'},
+        **{
+            k: v for k, v in fc_kwargs.items() if k != 'name'
+        },
     }
 
     return construct_from_registry(

@@ -4,8 +4,8 @@
 from unittest.mock import patch
 
 import pytest
-import transformers
 from omegaconf import DictConfig, ListConfig
+from transformers import PreTrainedTokenizerBase
 
 from llmfoundry.models.inference_api_wrapper import (
     FMAPICasualLMEvalWrapper,
@@ -89,21 +89,22 @@ def mock_create(**kwargs: dict[str, str]):
         return MockCompletion(' ')
 
 
-def test_causal_fmapi_wrapper(tmp_path: str):
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
+def test_causal_fmapi_wrapper(
+    tmp_path: str,
+    tiny_gpt2_tokenizer: PreTrainedTokenizerBase,
+):
     # patch block_until_ready
     with patch.object(FMAPIEvalInterface, 'block_until_ready') as mock:
 
         _ = pytest.importorskip('openai')
 
-        tokenizer = transformers.AutoTokenizer.from_pretrained(
-            'mosaicml/mpt-7b-8k-instruct',
-        )
         model = FMAPICasualLMEvalWrapper(
             om_model_config=DictConfig({
                 'local': True,
                 'name': 'mosaicml/mpt-7b-8k-instruct',
             }),
-            tokenizer=tokenizer,
+            tokenizer=tiny_gpt2_tokenizer,
         )
         with patch.object(model, 'client') as mock:
             mock.completions.create = mock_create
@@ -111,7 +112,7 @@ def test_causal_fmapi_wrapper(tmp_path: str):
             task_cfg = load_icl_config()
             evaluators, _ = build_icl_evaluators(
                 to_list_container(task_cfg.icl_tasks),
-                tokenizer,
+                tiny_gpt2_tokenizer,
                 1024,
                 2,
                 destination_dir=str(tmp_path),
@@ -131,19 +132,20 @@ def test_causal_fmapi_wrapper(tmp_path: str):
             assert acc == 0.5
 
 
-def test_chat_fmapi_wrapper(tmp_path: str):
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
+def test_chat_fmapi_wrapper(
+    tmp_path: str,
+    tiny_gpt2_tokenizer: PreTrainedTokenizerBase,
+):
     with patch.object(FMAPIEvalInterface, 'block_until_ready') as mock:
         _ = pytest.importorskip('openai')
 
-        tokenizer = transformers.AutoTokenizer.from_pretrained(
-            'mosaicml/mpt-7b-8k-instruct',
-        )
         chatmodel = FMAPIChatAPIEvalWrapper(
             om_model_config=DictConfig({
                 'local': True,
                 'name': 'mosaicml/mpt-7b-8k-instruct',
             }),
-            tokenizer=tokenizer,
+            tokenizer=tiny_gpt2_tokenizer,
         )
 
         with patch.object(chatmodel, 'client') as mock:
@@ -154,7 +156,7 @@ def test_chat_fmapi_wrapper(tmp_path: str):
             task_cfg = load_icl_config()
             evaluators, _ = build_icl_evaluators(
                 to_list_container(task_cfg.icl_tasks),
-                tokenizer,
+                tiny_gpt2_tokenizer,
                 1024,
                 2,
                 destination_dir=str(tmp_path),

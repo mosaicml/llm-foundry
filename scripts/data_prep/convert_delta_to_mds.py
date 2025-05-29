@@ -159,7 +159,7 @@ def convert_delta_to_mds_from_args(
             raise e
         
         json_num_lines = sum(1 for _ in open(json_full_filepath, 'r'))
-        logging.info(f'Number of lines in JSON file: {json_num_lines}')
+        print(f'Number of lines in JSON file: {json_num_lines}', flush=True)
         
         with MDSWriter(
                 out=mds_output_folder,
@@ -181,6 +181,14 @@ def convert_delta_to_mds_from_args(
                 raise e
 
     logging.info(f'Wrote to MDS at {mds_output_folder}')
+
+    # print out the files in mds_output_folder and their sizes
+    print("FILES IN MDS OUTPUT FOLDER AND THEIR SIZES:", flush=True)
+    for root, _, files in os.walk(mds_output_folder):
+        for file in files:
+            file_path = os.path.join(root, file)
+            file_size = os.path.getsize(file_path)
+            print(f'File: {file_path}, Size: {file_size} bytes', flush=True)
 
 
 if __name__ == '__main__':

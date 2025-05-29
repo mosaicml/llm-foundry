@@ -129,6 +129,7 @@ class MonolithicCheckpointSaver(Callback):
             if self.upload_to_object_store and self.remote_ud is not None and dist.get_global_rank(
             ) == 0:
                 remote_file_name = str(Path(save_dir) / Path(filename))
+                print(f'Saving checkpoint to {remote_file_name}')
                 self.remote_ud.upload_file(
                     state=state,
                     remote_file_name=remote_file_name,

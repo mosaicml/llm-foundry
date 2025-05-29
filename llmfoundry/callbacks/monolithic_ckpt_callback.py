@@ -7,6 +7,7 @@ import tempfile
 from pathlib import Path
 
 import torch
+from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from composer.core import Callback, State
 from composer.core.state import (
     fsdp_get_optim_state_dict,
@@ -113,17 +114,16 @@ class MonolithicCheckpointSaver(Callback):
             ):
                 state_dict['state']['model'] = state.model.state_dict()
 
-            # Add in unsharded optimizer state dict.
-            if self.keep_optimizers:
-                optimizer = state.optimizers[0]
-                state_dict['state']['optimizers'] = {
-                    type(optimizer).__qualname__:
-                        fsdp_get_optim_state_dict(
-                            state.model,
-                            optimizer,
-                            state_dict_type='full',
-                        ),
-                }
+                # Add in unsharded optimizer state dict.
+                if self.keep_optimizers:
+                    optimizer = state.optimizers[0]
+                    state_dict['state']['optimizers'] = {
+                        type(optimizer).__qualname__:
+                            FSDP.optim_state_dict(
+                                state.model,
+                                optimizer,
+                            ),
+                    }
             if dist.get_global_rank() == 0:
                 torch.save(state_dict, save_path)
 

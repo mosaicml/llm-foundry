@@ -9,7 +9,6 @@ from pathlib import Path
 import torch
 from composer.core import Callback, State
 from composer.core.state import (
-    fsdp_get_optim_state_dict,
     fsdp_state_dict_type_context,
 )
 from composer.loggers import Logger

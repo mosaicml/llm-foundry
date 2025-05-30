@@ -51,12 +51,12 @@ classifiers = [
 ]
 
 install_requires = [
-    'mosaicml[libcloud,wandb,oci,gcs,mlflow]>=0.30.0,<0.31',
+    'mosaicml[libcloud,wandb,oci,gcs,mlflow]>=0.31.0,<0.32',
     'mlflow>=2.14.1,<2.22',
     'accelerate>=0.25,<1.8',  # for HF inference `device_map`
     'transformers>=v4.51.0,<4.52',
     'mosaicml-streaming>=0.12.0,<0.13',
-    'torch>=2.6.0,<2.6.1',
+    'torch>=2.7.0,<2.7.1',
     'datasets>=3.3.2,<3.7',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
     'sentencepiece==0.2.0',
@@ -91,7 +91,7 @@ extra_deps['dev'] = [
 ]
 
 extra_deps['databricks'] = [
-    'mosaicml[databricks]>=0.30.0,<0.31',
+    'mosaicml[databricks]>=0.31.0,<0.32',
     'numpy<2',
     'databricks-sql-connector>=3,<4',
     'databricks-connect==14.1.0',
@@ -99,7 +99,7 @@ extra_deps['databricks'] = [
 ]
 
 extra_deps['tensorboard'] = [
-    'mosaicml[tensorboard]>=0.30.0,<0.31',
+    'mosaicml[tensorboard]>=0.31.0,<0.32',
 ]
 
 # Flash 2 group kept for backwards compatibility
@@ -110,7 +110,7 @@ extra_deps['gpu-flash2'] = [
 extra_deps['gpu'] = copy.deepcopy(extra_deps['gpu-flash2'])
 
 extra_deps['peft'] = [
-    'mosaicml[peft]>=0.30.0,<0.31',
+    'mosaicml[peft]>=0.31.0,<0.32',
 ]
 
 extra_deps['openai'] = [
@@ -120,7 +120,7 @@ extra_deps['openai'] = [
 
 extra_deps['megablocks'] = [
     'megablocks<1.0',
-    'grouped-gemm==0.2.0',
+    'grouped-gemm==0.3.0',
 ]
 
 extra_deps['te'] = [

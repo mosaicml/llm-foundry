@@ -164,6 +164,7 @@ class MPTBlock(nn.Module):
         prev_layer_key_value: Optional[tuple[torch.Tensor,
                                              torch.Tensor]] = None,
         key_value_states: Optional[torch.Tensor] = None,
+        x_prev: Optional[torch.Tensor] = None,
         pos_id_within_seq: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
         torch.Tensor, torch.Tensor]]]:
@@ -176,6 +177,8 @@ class MPTBlock(nn.Module):
             extra_kwargs['pos_id_within_seq'] = pos_id_within_seq
 
         if self.fuse_norm_attn_norm:
+            if x_prev is not None:
+                extra_kwargs['x_prev'] = x_prev
             x, m, attn_weights, past_key_value = self.norm_attn_norm(
                 x,
                 past_key_value=past_key_value,
@@ -190,6 +193,8 @@ class MPTBlock(nn.Module):
             )
         else:
             a = self.norm_1(x)
+            if x_prev is not None:
+                extra_kwargs['x_prev'] = self.norm_1(x_prev)
             b, attn_weights, past_key_value = self.attn(
                 a,
                 past_key_value=past_key_value,
@@ -337,6 +342,7 @@ class FusedNormAttentionNorm(nn.Module):
         prev_layer_key_value: Optional[tuple[torch.Tensor,
                                              torch.Tensor]] = None,
         key_value_states: Optional[torch.Tensor] = None,
+        x_prev: Optional[torch.Tensor] = None,
         pos_id_within_seq: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor],
                Optional[tuple[torch.Tensor, torch.Tensor]]]:
@@ -344,6 +350,8 @@ class FusedNormAttentionNorm(nn.Module):
         extra_kwargs = {}
         if prev_layer_key_value is not None:
             extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
+        if x_prev is not None:
+            extra_kwargs['x_prev'] = self.norm_1(x_prev)
         if key_value_states is not None:
             extra_kwargs['key_value_states'] = key_value_states
         if pos_id_within_seq is not None:

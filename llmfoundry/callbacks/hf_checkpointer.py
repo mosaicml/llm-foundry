@@ -415,7 +415,7 @@ class HuggingFaceCheckpointer(Callback):
                     '1GB',
                 )
                 mlflow.environment_variables.MLFLOW_HUGGINGFACE_MODEL_MAX_SHARD_SIZE.set(
-                    _LLM_FOUNDRY_SAVE_FOLDER_HF_MAX_SHARD_SIZE
+                    _LLM_FOUNDRY_SAVE_FOLDER_HF_MAX_SHARD_SIZE,
                 )
 
             # Check if the model is using PEFT

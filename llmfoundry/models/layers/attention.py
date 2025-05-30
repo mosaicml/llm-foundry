@@ -473,7 +473,7 @@ class GroupedQueryAttention(nn.Module):
         fc_type: Optional[dict[str, Any]] = None,
         device: Optional[str] = None,
         bias: bool = True,
-        attention_bias: bool = True,
+        attention_bias: bool = False,
         sliding_window_size: int = -1,
         reuse_kv_layer_idx: Optional[int] = None,
         attn_logit_softcapping: Optional[float] = None,

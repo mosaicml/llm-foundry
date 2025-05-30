@@ -676,14 +676,6 @@ class MPTModel(MPTPreTrainedModel):
         parent_config['attn_config'][reuse_type] = override_config['attn_config'
                                                                   ][reuse_type]
 
-        if override_config != parent_config and not (
-            'allow_mismatch' in override_config and
-            override_config['allow_mismatch']
-        ):
-            raise ValueError(
-                'For reusing the kv cache of a previous layer, the previous layer should match the block config as the current layer.',
-            )
-
         return reuse_state_layer_idx
 
     @staticmethod

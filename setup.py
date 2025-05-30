@@ -118,7 +118,7 @@ extra_deps['openai'] = [
 
 extra_deps['megablocks'] = [
     'megablocks<1.0',
-    'grouped-gemm==0.2.0',
+    'grouped-gemm==0.3.0',
 ]
 
 extra_deps['te'] = [

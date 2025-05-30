@@ -122,15 +122,15 @@ We highly recommend using our prebuilt Docker images. You can find them here: ht
 The `mosaicml/pytorch` images are pinned to specific PyTorch and CUDA versions, and are stable and rarely updated.
 
 The `mosaicml/llm-foundry` images are built with new tags upon every commit to the `main` branch.
-You can select a specific commit hash such as `mosaicml/llm-foundry:2.7.0_cu126-9867a7b` or take the latest one using `mosaicml/llm-foundry:2.7.0_cu126-latest`.
+You can select a specific commit hash such as `mosaicml/llm-foundry:2.7.0_cu128-9867a7b` or take the latest one using `mosaicml/llm-foundry:2.7.0_cu128-latest`.
 
 **Please Note:** The `mosaicml/llm-foundry` images do not come with the `llm-foundry` package preinstalled, just the dependencies. You will still need to `pip install llm-foundry` either from PyPi or from source.
 
 | Docker Image                                           | Torch Version | Cuda Version      | LLM Foundry dependencies installed? |
 | ------------------------------------------------------ | ------------- | ----------------- | ----------------------------------- |
-| `mosaicml/pytorch:2.7.0_cu126-python3.12-ubuntu22.04`  | 2.7.0         | 12.6 (Infiniband) | No                                  |
-| `mosaicml/llm-foundry:2.7.0_cu126-latest`              | 2.7.0         | 12.6 (Infiniband) | Yes                                 |
-| `mosaicml/llm-foundry:2.7.0_cu126_aws-latest`          | 2.7.0         | 12.6 (EFA)        | Yes                                 |
+| `mosaicml/pytorch:2.7.0_cu128-python3.12-ubuntu22.04`  | 2.7.0         | 12.6 (Infiniband) | No                                  |
+| `mosaicml/llm-foundry:2.7.0_cu128-latest`              | 2.7.0         | 12.6 (Infiniband) | Yes                                 |
+| `mosaicml/llm-foundry:2.7.0_cu128_aws-latest`          | 2.7.0         | 12.6 (EFA)        | Yes                                 |
 
 
 # Installation

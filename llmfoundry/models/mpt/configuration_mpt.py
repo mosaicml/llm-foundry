@@ -102,7 +102,7 @@ class MPTConfig(PretrainedConfig):
             init_device (str): The device to use for parameter initialization.
             logit_scale (Optional[Union[float, str]]): If not None, scale the logits by this value.
             no_bias (bool): Whether to use bias in all layers.
-            attention_bias (bool): Whether to use bias in the attention layer.
+            attention_bias (bool): Whether to use bias in the QKV projections of the attention layer.
             embedding_fraction (float): The fraction to scale the gradients of the embedding layer by.
             norm_type (str): choose type of norm to use
             norm_eps (float): epsilon value for norm layer

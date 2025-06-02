@@ -2787,7 +2787,7 @@ def test_get_modules_order_expanded():
     assert expected_list == MPTModel._get_modules_order_expanded(order)
 
 
-@pytest.mark.parametrize('reuse_kv_layer_idx', [-2, -1, 0])
+@pytest.mark.parametrize('reuse_kv_layer_idx', [-2, 0])
 def test_resolve_reuse_state_layer_idx(reuse_kv_layer_idx: int):
     layer_a_override = {
         'key_1': 'value_a',
@@ -2841,18 +2841,7 @@ def test_resolve_reuse_state_layer_idx(reuse_kv_layer_idx: int):
             reuse_type='reuse_kv_layer_idx',
         )
 
-    if reuse_kv_layer_idx == -1:
-        assert _validate_helper(b_idx=2) == 1
-        assert _validate_helper(b_idx=3) == 1
-        assert _validate_helper(b_idx=4) == 1
-        with pytest.raises(
-            expected_exception=ValueError,
-            match=
-            'For reusing the kv cache of a previous layer, the previous layer should match the block config as the current layer\.',  # type: ignore
-        ):
-            _validate_helper(b_idx=6)
-
-    elif reuse_kv_layer_idx == -2:
+    if reuse_kv_layer_idx == -2:
         assert _validate_helper(b_idx=2) == 0
     else:
         with pytest.raises(

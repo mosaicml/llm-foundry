@@ -56,7 +56,7 @@ install_requires = [
     'accelerate>=0.25,<1.8',  # for HF inference `device_map`
     'transformers>=v4.51.0,<4.52',
     'mosaicml-streaming>=0.12.0,<0.13',
-    'torch>=2.6.0,<2.6.1',
+    'torch>=2.7.0,<2.7.1',
     'datasets>=3.3.2,<3.7',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
     'sentencepiece==0.2.0',
@@ -67,7 +67,7 @@ install_requires = [
     'onnx==1.18.0',
     'onnxruntime==1.22.0',
     'boto3>=1.21.45,<2',
-    'huggingface-hub[hf_xet]>=0.30.0,<0.32',
+    'huggingface-hub[hf_xet]>=0.30.0,<0.33',
     'beautifulsoup4>=4.12.2,<5',  # required for model download utils
     'tenacity>=8.2.3,<10',
     'catalogue>=2,<3',
@@ -120,7 +120,7 @@ extra_deps['openai'] = [
 
 extra_deps['megablocks'] = [
     'megablocks<1.0',
-    'grouped-gemm==0.2.0',
+    'grouped-gemm==0.3.0',
 ]
 
 extra_deps['te'] = [

@@ -1,7 +1,7 @@
 integrations:
 - integration_type: git_repo
   git_repo: mosaicml/llm-foundry
-  git_branch: v0.20.0
+  git_branch: v0.21.0
   # git_commit: # OR use your commit hash
   pip_install: .[gpu]
   ssh_clone: false  # Should be true if using a private repo
@@ -10,7 +10,7 @@ command: |
   cd llm-foundry/scripts
   export HF_HUB_ENABLE_HF_TRANSFER=1
   composer train/train.py /mnt/config/parameters.yaml
-image: mosaicml/llm-foundry:2.6.0_cu124-latest
+image: mosaicml/llm-foundry:2.7.0_cu128-latest
 name: llama2-finetune
 
 compute:

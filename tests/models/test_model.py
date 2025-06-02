@@ -100,6 +100,7 @@ def _get_objs(
     device = 'cuda' if is_gpu else 'cpu'
     test_cfg.precision = 'amp_bf16' if is_gpu else 'fp32'
     test_cfg.model.attn_config = {
+        'fused_qkv': False,
         'attn_impl': attn_impl,
     }
     test_cfg.model.init_device = device
@@ -2664,9 +2665,91 @@ def test_construct_blocks():
                           5].attn.reuse_kv_layer_idx == 0  # type: ignore
 
 
+def test_construct_blocks_swiftkv():
+    n_layers = 8
+
+    config = MPTConfig(
+        d_model=32,
+        n_heads=16,
+        n_layers=n_layers,
+        expansion_ratio=2,
+        max_seq_len=64,
+        attn_config={
+            'attn_impl': 'flash',
+            'attn_type': 'grouped_query_attention',
+            'kv_n_heads': 4,
+            'fused_qkv': False,
+        },
+    )
+
+    # override architecture taken from https://www.snowflake.com/en/engineering-blog/swiftkv-llm-compute-reduction/
+    config.block_overrides = {}
+    config.block_overrides['overrides'] = {
+        'reuse_kv_x_layer': {
+            'attn_config': {
+                'reuse_kv_x_layer_idx': -2,
+            },
+        },
+        'reuse_kv_layer': {
+            'attn_config': {
+                'reuse_kv_layer_idx': -1,
+            },
+        },
+    }
+    config.block_overrides['order'] = [
+        {
+            'name': 'default',
+        },
+        {
+            'name': 'default',
+        },
+        {
+            'name': 'default',
+        },
+        {
+            'name': 'default',
+        },
+        {
+            'name': 'default',
+        },
+        {
+            'name': 'reuse_kv_layer',
+        },
+        {
+            'name': 'reuse_kv_x_layer',
+        },
+        {
+            'name': 'reuse_kv_layer',
+        },
+    ]
+
+    block_list = MPTModel(config).construct_blocks(config)
+
+    assert len(block_list) == n_layers
+
+    for i in range(5):
+        assert block_list[i].attn.reuse_kv_layer_idx is None  # type: ignore
+        assert block_list[i].attn.reuse_kv_x_layer_idx is None  # type: ignore
+
+    assert block_list[5].attn.reuse_kv_layer_idx == 4  # type: ignore
+    assert block_list[5].attn.reuse_kv_x_layer_idx is None  # type: ignore
+    assert block_list[6].attn.reuse_kv_layer_idx is None  # type: ignore
+    assert block_list[6].attn.reuse_kv_x_layer_idx == 4  # type: ignore
+    assert block_list[7].attn.reuse_kv_layer_idx == 6  # type: ignore
+    assert block_list[7].attn.reuse_kv_x_layer_idx is None  # type: ignore
+
+
 @pytest.mark.gpu
+@pytest.mark.parametrize(
+    'reuse_type',
+    [
+        'reuse_kv_layer',
+        'reuse_kv_x_layer',
+    ],
+)
 def test_reuse_prev_layer_kv_cache(
     request: pytest.FixtureRequest,
+    reuse_type: str,
     batch_size: int = 2,
 ):
     conf_path = 'scripts/train/yamls/pretrain/testing.yaml'
@@ -2677,13 +2760,13 @@ def test_reuse_prev_layer_kv_cache(
                     'name': 'default',
                 },
                 {
-                    'name': 'kv_reuse_layer',
+                    'name': reuse_type,
                 },
             ],
             'overrides': {
-                'kv_reuse_layer': {
+                reuse_type: {
                     'attn_config': {
-                        'reuse_kv_layer_idx': -1,
+                        f'{reuse_type}_idx': -1,
                     },
                 },
             },
@@ -2704,6 +2787,11 @@ def test_reuse_prev_layer_kv_cache(
         test_cfg.max_seq_len,
     ])
     model.train()
+
+    if reuse_type == 'reuse_kv_x_layer':
+        model.model.transformer.blocks[1].attn.load_state_dict(
+            model.model.transformer.blocks[0].attn.state_dict(),
+        )
 
     prev_layer_key_value_dict = {}
 
@@ -2726,13 +2814,16 @@ def test_reuse_prev_layer_kv_cache(
         assert torch.all(
             outputs.past_key_values[0][1] == outputs.past_key_values[1][1],
         )
-        assert 0 not in prev_layer_key_value_dict
-        assert torch.all(
-            prev_layer_key_value_dict[1][0] == outputs.past_key_values[0][0],
-        )
-        assert torch.all(
-            prev_layer_key_value_dict[1][1] == outputs.past_key_values[0][1],
-        )
+        if reuse_type == 'reuse_kv_layer':
+            assert 0 not in prev_layer_key_value_dict
+            assert torch.all(
+                prev_layer_key_value_dict[1][0] == outputs.past_key_values[0]
+                [0],
+            )
+            assert torch.all(
+                prev_layer_key_value_dict[1][1] == outputs.past_key_values[0]
+                [1],
+            )
 
 
 def test_override_block_args():

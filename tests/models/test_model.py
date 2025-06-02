@@ -2789,8 +2789,8 @@ def test_reuse_prev_layer_kv_cache(
     model.train()
 
     if reuse_type == 'reuse_kv_x_layer':
-        model.model.transformer.blocks[1].attn.load_state_dict(
-            model.model.transformer.blocks[0].attn.state_dict(),
+        model.model.transformer.blocks[1].attn.load_state_dict(  # type: ignore
+            model.model.transformer.blocks[0].attn.state_dict(),  # type: ignore
         )
 
     prev_layer_key_value_dict = {}

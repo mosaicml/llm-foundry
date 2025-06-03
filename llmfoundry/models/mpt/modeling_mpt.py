@@ -514,7 +514,7 @@ class MPTModel(MPTPreTrainedModel):
         )
 
         if config.no_bias:
-            for module in self.named_modules():
+            for module in self.modules():
                 if isinstance(module,
                               nn.Linear) or isinstance(module, te.Linear):
                     continue

@@ -928,7 +928,7 @@ def test_mpt_creation(
         assert block.resid_attn_dropout.p == 0.2
         assert block.resid_ffn_dropout.p == 0.2
 
-        if attention_bias or not no_bias:
+        if attention_bias:
             assert block.attn.Wqkv.bias.shape == torch.Size([d_model * 3])
 
         if not attention_bias and no_bias:

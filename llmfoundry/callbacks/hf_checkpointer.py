@@ -409,13 +409,8 @@ class HuggingFaceCheckpointer(Callback):
 
                 import mlflow
                 import mlflow.environment_variables
-
-                _LLM_FOUNDRY_SAVE_FOLDER_HF_MAX_SHARD_SIZE = os.environ.get(
-                    'LLM_FOUNDRY_SAVE_FOLDER_HF_MAX_SHARD_SIZE',
-                    '1GB',
-                )
                 mlflow.environment_variables.MLFLOW_HUGGINGFACE_MODEL_MAX_SHARD_SIZE.set(
-                    _LLM_FOUNDRY_SAVE_FOLDER_HF_MAX_SHARD_SIZE,
+                    '1GB',
                 )
 
             # Check if the model is using PEFT
@@ -749,11 +744,6 @@ class HuggingFaceCheckpointer(Callback):
             use_temp_dir (bool): Whether to use a temporary directory.
             new_model_instance (Union[PreTrainedModel, PeftModel]): The new model instance.
         """
-        _LLM_FOUNDRY_SAVE_FOLDER_HF_MAX_SHARD_SIZE = os.environ.get(
-            'LLM_FOUNDRY_SAVE_FOLDER_HF_MAX_SHARD_SIZE',
-            '1GB',
-        )
-
         assert new_model_instance is not None
         new_model_instance = self.transform_model_pre_registration(
             new_model_instance,
@@ -764,7 +754,7 @@ class HuggingFaceCheckpointer(Callback):
         )
         new_model_instance.save_pretrained(
             register_save_dir,
-            max_shard_size=_LLM_FOUNDRY_SAVE_FOLDER_HF_MAX_SHARD_SIZE,
+            max_shard_size='1GB',
         )
         if original_tokenizer:
             original_tokenizer.save_pretrained(register_save_dir)

@@ -928,14 +928,25 @@ def test_mpt_creation(
         assert block.resid_attn_dropout.p == 0.2
         assert block.resid_ffn_dropout.p == 0.2
 
-        if attention_bias:
-            assert block.attn.qkv.bias.shape == torch.Size([d_model * 3])
+        if attention_bias or not no_bias:
+            assert block.attn.Wqkv.bias.shape == torch.Size([d_model * 3])
 
         if not attention_bias and no_bias:
-            assert block.attn.qkv.bias is None
+            assert block.attn.Wqkv.bias is None
             assert block.attn.out_proj.bias is None
             assert block.ffn.up_proj.bias is None
             assert block.ffn.down_proj.bias is None
+
+        if no_bias:
+            assert block.ffn.up_proj.bias is None
+            assert block.ffn.down_proj.bias is None
+        else:
+            assert block.ffn.up_proj.bias.shape == torch.Size([
+                ffn_hidden_size,
+            ])
+            assert block.ffn.down_proj.bias.shape == torch.Size([
+                hf_config.d_model,
+            ])
 
 
 @pytest.mark.gpu

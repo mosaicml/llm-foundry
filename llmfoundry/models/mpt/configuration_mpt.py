@@ -41,7 +41,7 @@ class MPTConfig(PretrainedConfig):
         init_device: str = 'cpu',
         logit_scale: Optional[Union[float, str]] = None,
         no_bias: bool = False,
-        attention_bias: bool = False,
+        attention_bias: bool = True,
         embedding_fraction: float = 1.0,
         norm_type: str = 'low_precision_layernorm',
         norm_eps: float = 1e-05,

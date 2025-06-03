@@ -29,11 +29,6 @@ from tabulate import tabulate
 from llmfoundry.layers_registry import ffns_with_megablocks
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 
-try:
-    import transformer_engine.pytorch as te
-except ImportError:
-    pass
-
 if is_flash_v2_installed():
     try:  # This try...except is needed because transformers requires it despite the 'if' statement above
         from flash_attn import bert_padding
@@ -515,8 +510,7 @@ class MPTModel(MPTPreTrainedModel):
 
         if config.no_bias:
             for module in self.modules():
-                if isinstance(module,
-                              nn.Linear) or isinstance(module, te.Linear):
+                if isinstance(module, nn.Linear):
                     continue
 
                 if hasattr(

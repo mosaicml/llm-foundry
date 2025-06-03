@@ -509,9 +509,9 @@ class GroupedQueryAttention(nn.Module):
         fc_type_name = fc_type['name']
 
         # for attention inputs
-        ip_fc_type = copy.deepcopy(fc_type)
-        ip_fc_type['bias'] = attention_bias
-        ip_fc_type_name = ip_fc_type['name']
+        qkv_fc_type = copy.deepcopy(fc_type)
+        qkv_fc_type['bias'] = attention_bias
+        qkv_fc_type_name = qkv_fc_type['name']
 
         if self.kv_n_heads <= 0:
             raise ValueError('kv_n_heads should be greater than zero.')
@@ -535,20 +535,20 @@ class GroupedQueryAttention(nn.Module):
 
         if self.reuse_kv_layer_idx is not None:
             self.Wq = build_fc(
-                name=ip_fc_type_name,
+                name=qkv_fc_type_name,
                 in_features=self.d_model,
                 out_features=self.d_model,
-                fc_kwargs=ip_fc_type,
+                fc_kwargs=qkv_fc_type,
             )
             # for param init fn; enables shape based init of fused layers
             fuse_splits = [i * self.head_dim for i in range(1, self.n_heads)]
             self.Wq._fused = (0, fuse_splits)
         elif self.fused_qkv:
             self.Wqkv = build_fc(
-                name=ip_fc_type_name,
+                name=qkv_fc_type_name,
                 in_features=self.d_model,
                 out_features=self.d_model + 2 * self.kv_n_heads * self.head_dim,
-                fc_kwargs=ip_fc_type,
+                fc_kwargs=qkv_fc_type,
             )
             # for param init fn; enables shape based init of fused layers
             fuse_splits = [
@@ -558,22 +558,22 @@ class GroupedQueryAttention(nn.Module):
             self.Wqkv._fused = (0, fuse_splits)
         else:
             self.Wq = build_fc(
-                name=ip_fc_type_name,
+                name=qkv_fc_type_name,
                 in_features=self.d_model,
                 out_features=self.d_model,
-                fc_kwargs=ip_fc_type,
+                fc_kwargs=qkv_fc_type,
             )
             self.Wk = build_fc(
-                name=ip_fc_type_name,
+                name=qkv_fc_type_name,
                 in_features=self.kv_dim,
                 out_features=self.kv_n_heads * self.head_dim,
-                fc_kwargs=ip_fc_type,
+                fc_kwargs=qkv_fc_type,
             )
             self.Wv = build_fc(
-                name=ip_fc_type_name,
+                name=qkv_fc_type_name,
                 in_features=self.kv_dim,
                 out_features=self.kv_n_heads * self.head_dim,
-                fc_kwargs=ip_fc_type,
+                fc_kwargs=qkv_fc_type,
             )
             # for param init fn; enables shape based init of fused layers
             q_fuse_splits = [i * self.head_dim for i in range(1, self.n_heads)]

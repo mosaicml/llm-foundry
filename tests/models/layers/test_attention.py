@@ -42,7 +42,6 @@ def test_unfused_wqkv(attn_name: str, dim: int):
         'clip_qkv': None,
         'softmax_scale': None,
         'sliding_window_size': -1,
-        'attention_bias': True,
     }
 
     if attn_name == 'grouped_query_attention':

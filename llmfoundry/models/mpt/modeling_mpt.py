@@ -29,6 +29,11 @@ from tabulate import tabulate
 from llmfoundry.layers_registry import ffns_with_megablocks
 from llmfoundry.models.layers.attention import is_flash_v2_installed
 
+try:
+    import transformer_engine.pytorch as te
+except ImportError:
+    pass
+
 if is_flash_v2_installed():
     try:  # This try...except is needed because transformers requires it despite the 'if' statement above
         from flash_attn import bert_padding
@@ -509,19 +514,22 @@ class MPTModel(MPTPreTrainedModel):
         )
 
         if config.no_bias:
-            for name, module in self.named_modules():
-                # Only remove bias from modules with "norm_1" or "norm_2" in their names
-                if 'norm_1' in name or 'norm_2' in name:
-                    if hasattr(
-                        module,
-                        'bias',
-                    ) and isinstance(module.bias, nn.Parameter):
-                        log.debug(f'Removing bias from {module=}.')
-                        module.register_parameter('bias', None)
-                    # For transformer engine
-                    if hasattr(module, 'use_bias') and module.use_bias is True:
-                        log.debug(f'Setting use_bias=False for {module=}.')
-                        module.use_bias = False
+            for module in self.named_modules():
+                if isinstance(module,
+                              nn.Linear) or isinstance(module, te.Linear):
+                    continue
+
+                if hasattr(
+                    module,
+                    'bias',
+                ) and isinstance(module.bias, nn.Parameter):
+                    log.debug(f'Removing bias from {module=}.')
+                    module.register_parameter('bias', None)
+
+                # For transformer engine
+                if hasattr(module, 'use_bias') and module.use_bias is True:
+                    log.debug(f'Setting use_bias=False for {module=}.')
+                    module.use_bias = False
 
         log.debug(self)
         init_config_name = self.config.init_config['name']

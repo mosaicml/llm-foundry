@@ -45,6 +45,7 @@ class MPTBlock(nn.Module):
         fc_type: Optional[dict[str, Any]] = None,
         device: Optional[str] = None,
         no_bias: bool = False,
+        attention_bias: bool = True,
         use_pad_tok_in_ffn: bool = True,
         **kwargs: Any,
     ):
@@ -87,6 +88,7 @@ class MPTBlock(nn.Module):
                 norm_eps=norm_eps,
                 device=device,
                 no_bias=no_bias,
+                attention_bias=attention_bias,
             )
         else:
             assert isinstance(attn_config['attn_type'], str)
@@ -111,6 +113,7 @@ class MPTBlock(nn.Module):
                     'fc_type': fc_type,
                     'device': device,
                     'bias': not no_bias,
+                    'attention_bias': attention_bias,
                     **attn_config_subset_for_attn_class,
                 },
             )
@@ -277,6 +280,7 @@ class FusedNormAttentionNorm(nn.Module):
         norm_eps: float = 1e-05,
         device: Optional[str] = None,
         no_bias: bool = False,
+        attention_bias: bool = True,
         **kwargs: Any,
     ):
         super().__init__()
@@ -309,6 +313,7 @@ class FusedNormAttentionNorm(nn.Module):
                 'fc_type': fc_type,
                 'device': device,
                 'bias': not no_bias,
+                'attention_bias': attention_bias,
                 **attn_config_subset_for_attn_class,
             },
         )

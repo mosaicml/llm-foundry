@@ -804,6 +804,7 @@ def test_lora_id():
 
 @pytest.mark.parametrize('norm_type', norms.get_all())
 @pytest.mark.parametrize('no_bias', [False, True])
+@pytest.mark.parametrize('attention_bias', [False, True])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
 @pytest.mark.parametrize(
     'expansion_ratio,ffn_hidden_size',
@@ -846,9 +847,10 @@ def test_lora_id():
 def test_mpt_creation(
     norm_type: str,
     no_bias: bool,
+    attention_bias: bool,
     tie_word_embeddings: bool,
     expansion_ratio: Union[int, float],
-    ffn_hidden_size: int,
+    ffn_hidden_size: Optional[int],
     ffn_act_fn: dict,
 ):
     if norm_type == 'triton_rmsnorm' and not is_flash_v2_installed():
@@ -871,6 +873,7 @@ def test_mpt_creation(
         },
         norm_type=norm_type,
         no_bias=no_bias,
+        attention_bias=attention_bias,
         tie_word_embeddings=tie_word_embeddings,
         ffn_config={
             'ffn_type': 'mptmlp',
@@ -924,6 +927,26 @@ def test_mpt_creation(
         ])
         assert block.resid_attn_dropout.p == 0.2
         assert block.resid_ffn_dropout.p == 0.2
+
+        if attention_bias:
+            assert block.attn.Wqkv.bias.shape == torch.Size([d_model * 3])
+
+        if not attention_bias and no_bias:
+            assert block.attn.Wqkv.bias is None
+            assert block.attn.out_proj.bias is None
+            assert block.ffn.up_proj.bias is None
+            assert block.ffn.down_proj.bias is None
+
+        if no_bias:
+            assert block.ffn.up_proj.bias is None
+            assert block.ffn.down_proj.bias is None
+        else:
+            assert block.ffn.up_proj.bias.shape == torch.Size([
+                ffn_hidden_size,
+            ])
+            assert block.ffn.down_proj.bias.shape == torch.Size([
+                hf_config.d_model,
+            ])
 
 
 @pytest.mark.gpu

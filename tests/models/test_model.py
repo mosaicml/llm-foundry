@@ -804,7 +804,7 @@ def test_lora_id():
 
 @pytest.mark.parametrize('norm_type', norms.get_all())
 @pytest.mark.parametrize('no_bias', [False, True])
-@pytest.mark.parametrize('attention_bias', [False, True])
+@pytest.mark.parametrize('attention_bias', [False, True, None])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
 @pytest.mark.parametrize(
     'expansion_ratio,ffn_hidden_size',
@@ -847,7 +847,7 @@ def test_lora_id():
 def test_mpt_creation(
     norm_type: str,
     no_bias: bool,
-    attention_bias: bool,
+    attention_bias: Optional[bool],
     tie_word_embeddings: bool,
     expansion_ratio: Union[int, float],
     ffn_hidden_size: Optional[int],
@@ -928,25 +928,28 @@ def test_mpt_creation(
         assert block.resid_attn_dropout.p == 0.2
         assert block.resid_ffn_dropout.p == 0.2
 
-        if attention_bias:
+        attn_should_have_bias = (
+            attention_bias is True or (attention_bias is None and not no_bias)
+        )
+        other_should_have_bias = not no_bias
+
+        if attn_should_have_bias:
             assert block.attn.Wqkv.bias.shape == torch.Size([d_model * 3])
-
-        if not attention_bias and no_bias:
-            assert block.attn.Wqkv.bias is None
-            assert block.attn.out_proj.bias is None
-            assert block.ffn.up_proj.bias is None
-            assert block.ffn.down_proj.bias is None
-
-        if no_bias:
-            assert block.ffn.up_proj.bias is None
-            assert block.ffn.down_proj.bias is None
         else:
+            assert block.attn.Wqkv.bias is None
+
+        if other_should_have_bias:
+            assert block.attn.out_proj.bias.shape == torch.Size([d_model])
             assert block.ffn.up_proj.bias.shape == torch.Size([
                 ffn_hidden_size,
             ])
             assert block.ffn.down_proj.bias.shape == torch.Size([
                 hf_config.d_model,
             ])
+        else:
+            assert block.attn.out_proj.bias is None
+            assert block.ffn.up_proj.bias is None
+            assert block.ffn.down_proj.bias is None
 
 
 @pytest.mark.gpu

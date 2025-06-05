@@ -6,17 +6,26 @@ import math
 import pytest
 import torch
 from composer.utils import reproducibility
+from packaging import version
+from torch.nn.attention.flex_attention import create_block_mask, flex_attention
 
 from llmfoundry.models.layers.attention import (
     apply_temperature_tuning,
     attention_implementations,
     scaled_multihead_dot_product_attention,
 )
+from llmfoundry.models.layers.flex_attn_utils import FLEX_ATTN_COMPILE
 from llmfoundry.models.layers.layer_builders import build_attention_layer
 from llmfoundry.models.mpt.modeling_mpt import (
     gen_flash_attn_padding_info,
     gen_sequence_id_info,
 )
+
+compiled_flex_attention = flex_attention
+compiled_create_block_mask = create_block_mask
+if FLEX_ATTN_COMPILE:
+    compiled_flex_attention = torch.compile(flex_attention)
+    compiled_create_block_mask = torch.compile(create_block_mask)
 
 
 @pytest.mark.parametrize(
@@ -174,14 +183,20 @@ def test_unfused_wqkv(attn_name: str, dim: int):
 
 @pytest.mark.gpu
 @pytest.mark.parametrize('sliding_window_size', [1, 4, 8])
-@pytest.mark.parametrize('attn_impl', ['flash', 'torch'])
+@pytest.mark.parametrize('attn_impl', ['flash', 'torch', 'flex'])
 def test_sliding_window(sliding_window_size: int, attn_impl: str):
     # Test that sliding window attention works as expected.
+    if attn_impl == 'flex' and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.5.1'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.1.',
+        )
     dtype = torch.bfloat16
     device = 'cuda'
     d = 128
     n_heads = 8
-    seqlen_1 = 8
+    seqlen_1 = 8 if attn_impl != 'flex' else 128  # FlexAttention requires seqlen to be a multiple of 128 (to compute gradients I think). More info: https://pytorch.org/blog/flexattention/#limitations-and-future-work
     bsz = 2
 
     query_1 = torch.randn(bsz, seqlen_1,
@@ -208,6 +223,13 @@ def test_sliding_window(sliding_window_size: int, attn_impl: str):
                 ),
             'should_repeat_kv_for_gqa':
                 True,
+        }
+    elif attn_impl == 'flex':
+        attn_extra_kwargs = {
+            'compiled_flex_attention': compiled_flex_attention,
+            'compiled_create_block_mask': compiled_create_block_mask,
+            'flex_attn_compile': FLEX_ATTN_COMPILE,
+            'sequence_id_info': {},
         }
 
     output_1, _, _ = attention_implementations.get(attn_impl)(
@@ -264,6 +286,140 @@ def test_sliding_window(sliding_window_size: int, attn_impl: str):
     output_2.sum().backward()
 
     print(torch.max(output_1 - output_2))
+
+    _assert_approx_equal(output_1, output_2)
+    assert (query_2.grad is not None) and (query_1.grad is not None)
+    _assert_approx_equal(query_1.grad, query_2.grad)
+    assert (key_2.grad is not None) and (key_1.grad is not None)
+    _assert_approx_equal(key_1.grad, key_2.grad)
+    assert (value_2.grad is not None) and (value_1.grad is not None)
+    _assert_approx_equal(value_1.grad, value_2.grad)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize('sliding_window_size', [1, 4])
+@pytest.mark.parametrize('global_window_size', [1, 4])
+@pytest.mark.parametrize('attn_impl', ['flex'])
+def test_local_global_window(
+    sliding_window_size: int,
+    global_window_size: int,
+    attn_impl: str,
+):
+    # Test that sliding window attention works as expected.
+    if attn_impl == 'flex' and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.5.1'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.1.',
+        )
+
+    dtype = torch.bfloat16
+    device = 'cuda'
+    d = 128
+    n_heads = 8
+    seqlen_1 = 128
+    bsz = 1
+
+    query_1 = torch.randn(bsz, seqlen_1,
+                          n_heads * d).to(dtype=dtype, device=device)
+    query_1.requires_grad = True
+    key_1 = torch.randn(bsz, seqlen_1,
+                        n_heads * d).to(dtype=dtype, device=device)
+    key_1.requires_grad = True
+    value_1 = torch.randn(bsz, seqlen_1,
+                          n_heads * d).to(dtype=dtype, device=device)
+    value_1.requires_grad = True
+
+    attn_extra_kwargs = {}
+    if attn_impl == 'flex':
+        attn_extra_kwargs = {
+            'compiled_flex_attention':
+                compiled_flex_attention,
+            'compiled_create_block_mask':
+                compiled_create_block_mask,
+            'flex_attn_compile':
+                FLEX_ATTN_COMPILE,
+            'sequence_id_info': {
+                'pos_in_seq': None,
+            },
+            'flex_attn_mod_list': [{
+                'mod_name': 'local_global_mask',
+                'mod_kwargs': {
+                    'sliding_window_size': sliding_window_size,
+                    'global_window_size': global_window_size,
+                },
+            },],
+        }
+
+    output_1, _, _ = attention_implementations.get(attn_impl)(
+        query=query_1,
+        key=key_1,
+        value=value_1,
+        n_heads=n_heads,
+        kv_n_heads=n_heads,
+        past_key_value=None,
+        softmax_scale=1 / math.sqrt(d),
+        attn_bias=None,
+        key_padding_mask=None,
+        is_causal=True,
+        dropout_p=0.0,
+        training=False,
+        needs_weights=False,
+        sliding_window_size=-1,
+        **attn_extra_kwargs,
+    )
+
+    output_1.sum().backward()
+
+    query_2 = query_1.detach().clone()
+    query_2.requires_grad = True
+    key_2 = key_1.detach().clone()
+    key_2.requires_grad = True
+    value_2 = value_1.detach().clone()
+    value_2.requires_grad = True
+
+    global_bias_2 = torch.where(
+        torch.arange(seqlen_1)[None, None,
+                               None, :].to(dtype=dtype, device=device)
+        <= global_window_size,
+        torch.ones(1, 1, seqlen_1,
+                   seqlen_1).to(dtype=torch.bool, device=device),
+        torch.zeros(1, 1, seqlen_1,
+                    seqlen_1).to(dtype=torch.bool, device=device),
+    )
+
+    window_mask_2 = torch.tril(
+        torch.ones(seqlen_1, seqlen_1),
+        diagonal=-(sliding_window_size + 1),
+    ).to(dtype=torch.bool, device=device)
+    window_mask_2 = torch.where(
+        window_mask_2,
+        torch.zeros_like(window_mask_2),
+        torch.ones_like(window_mask_2),
+    )
+    attn_bias_2 = global_bias_2 | window_mask_2
+    attn_bias_2 = torch.where(
+        attn_bias_2,
+        torch.zeros_like(attn_bias_2, dtype=dtype),
+        torch.finfo(dtype).min,
+    )
+    output_2, _, _ = scaled_multihead_dot_product_attention(
+        query=query_2,
+        key=key_2,
+        value=value_2,
+        n_heads=n_heads,
+        kv_n_heads=n_heads,
+        past_key_value=None,
+        softmax_scale=1 / math.sqrt(d),
+        attn_bias=attn_bias_2,
+        key_padding_mask=None,
+        is_causal=True,
+        dropout_p=0.0,
+        training=False,
+        needs_weights=False,
+    )
+
+    output_2.sum().backward()
 
     _assert_approx_equal(output_1, output_2)
     assert (query_2.grad is not None) and (query_1.grad is not None)
@@ -409,6 +565,7 @@ def test_gen_sequence_id_info(attn_uses_sequence_id: bool):
 
     _, pos_id_within_seq = gen_sequence_id_info(
         sequence_id=sequence_id,
+        bsz=n,
         S=s,
         attn_uses_sequence_id=attn_uses_sequence_id,
         attn_impl='flash',

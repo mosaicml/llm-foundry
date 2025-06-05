@@ -6,6 +6,8 @@ import copy
 import warnings
 from typing import Any, Optional, Union
 
+import torch
+from packaging import version
 from transformers import PretrainedConfig
 
 from llmfoundry.layers_registry import ffns_with_megablocks
@@ -302,9 +304,15 @@ class MPTConfig(PretrainedConfig):
             raise ValueError(
                 "self.attn_config['attn_pdrop'], resid_pdrop, emb_pdrop are probabilities and must be between 0 and 1",
             )
-        if self.attn_config['attn_impl'] not in ['torch', 'flash']:
+        if self.attn_config['attn_impl'] not in ['torch', 'flash', 'flex']:
             raise ValueError(
                 f"Unknown attn_impl={self.attn_config['attn_impl']}",
+            )
+        if self.attn_config['attn_type'] == 'flex' and version.parse(
+            torch.__version__.split('.dev')[0],
+        ) < version.parse('2.6.0'):
+            raise RuntimeError(
+                'FlexAttention is not supported in torch version {torch.__version__}<2.6.0.',
             )
         if self.attn_config['alibi'] and not check_alibi_support(
             self.attn_config['attn_impl'],
@@ -313,7 +321,8 @@ class MPTConfig(PretrainedConfig):
                 'alibi only implemented with torch and flash (v2.4.2 or higher) attention.',
             )
         if self.attn_config['attn_uses_sequence_id'] and not (
-            self.attn_config['attn_impl'] == 'torch' or (
+            self.attn_config['attn_impl'] == 'torch' or
+            self.attn_config['attn_impl'] == 'flex' or (
                 self.attn_config['attn_impl'] == 'flash' and
                 is_flash_v2_installed(v2_version='v2.1.2')
             )
@@ -438,6 +447,7 @@ class MPTConfig(PretrainedConfig):
             'attn_config': {
                 'sliding_window_size': None,
                 'reuse_kv_layer_idx': None,
+                'flex_attn_mod_list': None,
                 'attn_temperature_tuning': {
                     'floor_scale': None,
                     'attn_scale': None,

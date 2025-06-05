@@ -25,9 +25,13 @@ import torch.nn.functional as F
 from composer.models import HuggingFaceModel
 from composer.utils import dist
 from tabulate import tabulate
+from torch.nn.attention.flex_attention import create_block_mask, flex_attention
 
-from llmfoundry.layers_registry import ffns_with_megablocks
+from llmfoundry.layers_registry import (
+    ffns_with_megablocks,
+)
 from llmfoundry.models.layers.attention import is_flash_v2_installed
+from llmfoundry.models.layers.flex_attn_utils import FLEX_ATTN_COMPILE
 
 if is_flash_v2_installed():
     try:  # This try...except is needed because transformers requires it despite the 'if' statement above
@@ -249,8 +253,9 @@ def _get_attn_mask_in_len_seq_one_hot(
 ):
     attention_mask_in_length = None
     sequence_id_one_hot = None
-    if (sequence_id
-        is not None) and attn_uses_sequence_id and (attn_impl == 'flash'):
+    if (sequence_id is not None) and attn_uses_sequence_id and (
+        attn_impl == 'flash' or attn_impl == 'flex'
+    ):
         # Check if sequence has left padding. If yes, raise an error.
         if (attention_mask is not None
            ) and (attention_mask[:, 0].sum() != attention_mask.shape[0]):
@@ -286,6 +291,7 @@ def _get_attn_mask_in_len_seq_one_hot(
 
 def gen_sequence_id_info(
     sequence_id: Union[None, torch.Tensor],
+    bsz: int,
     S: int,
     attn_uses_sequence_id: bool,
     attn_impl: str,
@@ -306,7 +312,7 @@ def gen_sequence_id_info(
         pos_id_within_seq = pos_id_within_seq.sum(dim=-1) - 1
         return attention_mask_in_length, pos_id_within_seq
 
-    return None, torch.arange(S, device=device)[None, :]
+    return None, torch.arange(S, device=device).repeat(bsz, 1)
 
 
 def gen_flash_attn_padding_info(
@@ -456,6 +462,18 @@ class MPTModel(MPTPreTrainedModel):
         self.emb_drop = nn.Dropout(config.emb_pdrop)
         self.mb_args = None
         self.shift_labels = True
+
+        flex_attn_compile = config.attn_config.get(
+            'flex_attn_compile',
+            FLEX_ATTN_COMPILE,
+        )
+        if self.attn_impl == 'flex':
+            self.compiled_flex_attention = torch.compile(
+                flex_attention,
+            ) if flex_attn_compile else flex_attention
+            self.compiled_create_block_mask = torch.compile(
+                create_block_mask,
+            ) if flex_attn_compile else create_block_mask
 
         self.blocks = self.construct_blocks(
             config=config,
@@ -767,7 +785,7 @@ class MPTModel(MPTPreTrainedModel):
             self._attn_bias_initialized = True
 
         # flash will incorporate any attention_mask inside the attention module
-        if self.attn_impl == 'flash':
+        if self.attn_impl == 'flash' or self.attn_impl == 'flex':
             return self.attn_bias, attention_mask
 
         if self.attn_bias is not None:
@@ -966,6 +984,7 @@ class MPTModel(MPTPreTrainedModel):
         )
         attention_mask_in_length, pos_id_within_seq = gen_sequence_id_info(
             sequence_id=sequence_id,
+            bsz=bsz,
             S=S,
             attn_uses_sequence_id=self.attn_uses_sequence_id,
             attn_impl=self.attn_impl,
@@ -974,7 +993,9 @@ class MPTModel(MPTPreTrainedModel):
         )
 
         alibi_slopes = None  # alibi_slopes will only be used by flash attention for ALiBi
-        if self.alibi and self.attn_impl == 'flash':
+        if self.alibi and (
+            self.attn_impl == 'flash' or self.attn_impl == 'flex'
+        ):
             alibi_slopes = gen_slopes(
                 n_heads=self.config.n_heads,
                 alibi_bias_max=self.alibi_bias_max,
@@ -1024,6 +1045,19 @@ class MPTModel(MPTPreTrainedModel):
             extra_kwargs = {}
             if prev_layer_key_value is not None:
                 extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
+            if self.attn_impl == 'flex':
+                extra_kwargs['flex_attn_kwargs'] = {
+                    'sequence_id_info': {
+                        'pos_in_seq':
+                            pos_id_within_seq,
+                        'sequence_id':
+                            sequence_id if self.attn_uses_sequence_id else None,
+                    },
+                    'compiled_flex_attention':
+                        self.compiled_flex_attention,
+                    'compiled_create_block_mask':
+                        self.compiled_create_block_mask,
+                }
             if pos_id_within_seq is not None:
                 extra_kwargs['pos_id_within_seq'] = pos_id_within_seq
             x, attn_weights, present = block(

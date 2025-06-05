@@ -7,6 +7,8 @@ import pytest
 import torch
 from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
+from packaging import version
+from torch.nn.attention.flex_attention import create_block_mask, flex_attention
 
 from llmfoundry.models.layers import attention
 from llmfoundry.models.layers.attention import (
@@ -14,6 +16,7 @@ from llmfoundry.models.layers.attention import (
     gen_slopes,
     is_flash_v2_installed,
 )
+from llmfoundry.models.layers.flex_attn_utils import FLEX_ATTN_COMPILE
 from llmfoundry.models.layers.layer_builders import build_attention_layer
 from llmfoundry.models.mpt.modeling_mpt import (
     apply_sequence_id,
@@ -21,6 +24,12 @@ from llmfoundry.models.mpt.modeling_mpt import (
     gen_flash_attn_padding_info,
     gen_rotary_embedding,
 )
+
+compiled_flex_attention = flex_attention
+compiled_create_block_mask = create_block_mask
+if FLEX_ATTN_COMPILE:
+    compiled_flex_attention = torch.compile(flex_attention)
+    compiled_create_block_mask = torch.compile(create_block_mask)
 
 
 def allclose_helper(
@@ -74,9 +83,13 @@ def gen_bias(
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('attn_impl_0, attn_impl_1', [
-    ('flash', 'torch'),
-])
+@pytest.mark.parametrize(
+    'attn_impl_0, attn_impl_1',
+    [
+        ('flash', 'torch'),
+        ('flex', 'torch'),
+    ],
+)
 @pytest.mark.parametrize('clip_qkv', [True, False])
 @pytest.mark.parametrize(
     'qk_ln, qk_gn',
@@ -140,6 +153,12 @@ def test_attn_impl(
     Includes testing with and without attn_clip_qkv, attn_qk_ln, attn_qk_gn,
     alibi, and rope.
     """
+    if (attn_impl_0 == 'flex' or attn_impl_1 == 'flex') and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.5.1'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.1.',
+        )
     alibi = pos_emb_config['alibi']
     rope = pos_emb_config['rope']
     if alibi and not (
@@ -161,7 +180,7 @@ def test_attn_impl(
         pytest.skip('attn_uses_sequence_id requires alibi or rope.')
 
     cfg = om.create({
-        'attn_impl': 'flash',
+        'attn_impl': attn_impl_0,
         'd_model': 64,
         'n_heads': 4,
         'attn_pdrop': 0,
@@ -264,7 +283,7 @@ def test_attn_impl(
             sequence_id,
         )
         alibi_slopes_0 = None
-        if alibi and attn_impl_0 == 'flash':
+        if alibi and (attn_impl_0 == 'flash' or attn_impl_0 == 'flex'):
             alibi_slopes_0 = gen_slopes(
                 n_heads=cfg.n_heads,
                 alibi_bias_max=8,
@@ -298,7 +317,17 @@ def test_attn_impl(
                 'seq_len':
                     s,
             }
-
+        extra_kwargs = {}
+        if attn_impl_0 == 'flex':
+            extra_kwargs['flex_attn_kwargs'] = {
+                'compiled_flex_attention': compiled_flex_attention,
+                'compiled_create_block_mask': compiled_create_block_mask,
+                'flex_attn_compile': FLEX_ATTN_COMPILE,
+                'sequence_id_info': {},
+            }
+            if sequence_id is not None:
+                extra_kwargs['flex_attn_kwargs']['sequence_id_info'][
+                    'sequence_id'] = sequence_id
         y0, _, _ = attn0(
             x0,
             past_key_value=None,
@@ -308,6 +337,7 @@ def test_attn_impl(
             is_causal=True,
             flash_attn_padding_info=flash_attn_padding_info_0,
             alibi_slopes=alibi_slopes_0,
+            **extra_kwargs,
         )
         attn_bias_1 = gen_bias(
             attn_impl_1,
@@ -319,13 +349,26 @@ def test_attn_impl(
             sequence_id,
         )
         alibi_slopes_1 = None
-        if alibi and attn_impl_1 == 'flash':
+        if alibi and (attn_impl_1 == 'flash' or attn_impl_1 == 'flex'):
             alibi_slopes_1 = gen_slopes(
                 n_heads=cfg.n_heads,
                 alibi_bias_max=8,
                 device=torch.device(device),
                 return_1d=True,
             )
+
+        extra_kwargs = {}
+        if attn_impl_1 == 'flex':
+            extra_kwargs['flex_attn_kwargs'] = {
+                'compiled_flex_attention': compiled_flex_attention,
+                'compiled_create_block_mask': compiled_create_block_mask,
+                'flex_attn_compile': FLEX_ATTN_COMPILE,
+            }
+            if sequence_id is not None:
+                extra_kwargs['flex_attn_kwargs']['sequence_id_info'] = {
+                    'sequence_id': sequence_id,
+                }
+
         y1, _, _ = attn1(
             x1,
             past_key_value=None,
@@ -335,6 +378,7 @@ def test_attn_impl(
             is_causal=True,
             flash_attn_padding_info=flash_attn_padding_info_1,
             alibi_slopes=alibi_slopes_1,
+            **extra_kwargs,
         )
         y0 *= attention_mask.unsqueeze(-1)
         y1 *= attention_mask.unsqueeze(-1)
@@ -372,9 +416,15 @@ def test_attn_impl(
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('attn_impl', ['flash', 'torch'])
+@pytest.mark.parametrize('attn_impl', ['flash', 'torch', 'flex'])
 def test_vs_mha(attn_impl: str, device: str = 'cuda'):
     """Compare diff attn_impl to torch.nn.MultiheadAttention."""
+    if attn_impl == 'flex' and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.5.1'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.1.',
+        )
     from llmfoundry.models.layers import attention
 
     cfg = om.create({
@@ -429,6 +479,14 @@ def test_vs_mha(attn_impl: str, device: str = 'cuda'):
                 None,
                 attention_mask,
             )
+        extra_kwargs = {}
+        if attn_impl == 'flex':
+            extra_kwargs['flex_attn_kwargs'] = {
+                'compiled_flex_attention': compiled_flex_attention,
+                'compiled_create_block_mask': compiled_create_block_mask,
+                'flex_attn_compile': FLEX_ATTN_COMPILE,
+                'sequence_id_info': {},
+            }
         y0, _, _ = mmhsa(
             x0,
             past_key_value=None,
@@ -436,6 +494,7 @@ def test_vs_mha(attn_impl: str, device: str = 'cuda'):
             attention_mask=attention_mask,
             is_causal=True,
             flash_attn_padding_info=flash_attn_padding_info,
+            **extra_kwargs,
         )
         y1, _ = tmhsa(
             x1,
@@ -481,7 +540,7 @@ def test_vs_mha(attn_impl: str, device: str = 'cuda'):
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('attn_impl', ['flash', 'torch'])
+@pytest.mark.parametrize('attn_impl', ['flash', 'torch', 'flex'])
 @pytest.mark.parametrize('n_heads', [16, 8])
 @pytest.mark.parametrize('kv_n_heads', [4, 2, 1])
 def test_grouped_attention_heads(
@@ -491,6 +550,12 @@ def test_grouped_attention_heads(
     device: str = 'cuda',
 ):
     """Ensure grouped_query_attention runs w/ diff n_heads & kv_n_heads."""
+    if attn_impl == 'flex' and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.5.1'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.1.',
+        )
     from llmfoundry.models.layers import attention
 
     cfg = om.create({
@@ -522,6 +587,14 @@ def test_grouped_attention_heads(
                 None,
                 attention_mask,
             )
+        extra_kwargs = {}
+        if attn_impl == 'flex':
+            extra_kwargs['flex_attn_kwargs'] = {
+                'compiled_flex_attention': compiled_flex_attention,
+                'compiled_create_block_mask': compiled_create_block_mask,
+                'flex_attn_compile': FLEX_ATTN_COMPILE,
+                'sequence_id_info': {},
+            }
         y0, _, _ = mmhsa(
             x0,
             past_key_value=None,
@@ -529,6 +602,7 @@ def test_grouped_attention_heads(
             attention_mask=attention_mask,
             is_causal=True,
             flash_attn_padding_info=flash_attn_padding_info,
+            **extra_kwargs,
         )
         y0 *= attention_mask.unsqueeze(-1)
 
@@ -589,13 +663,19 @@ def test_grouped_query_invalid_heads():
         },
     }],
 )
-@pytest.mark.parametrize('attn_impl', ['flash', 'torch'])
+@pytest.mark.parametrize('attn_impl', ['flash', 'torch', 'flex'])
 def test_reuse_prev_layer_kv_cache(
     pos_emb_config: dict,
     attn_impl: str,
     device: str = 'cuda',
 ):
     """Checks reusing previous layer's kv cache."""
+    if attn_impl == 'flex' and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.5.1'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.1.',
+        )
     alibi = pos_emb_config['alibi']
     rope = pos_emb_config['rope']
 
@@ -637,7 +717,6 @@ def test_reuse_prev_layer_kv_cache(
     attn1.load_state_dict(attn0_sd)
 
     attention_mask = torch.ones(n, s).to(device).bool()
-
     attention_mask_in_length = gen_attention_mask_in_length(
         sequence_id=sequence_id,
         S=s,
@@ -705,7 +784,16 @@ def test_reuse_prev_layer_kv_cache(
                 'seq_len':
                     s,
             }
-
+        extra_kwargs = {}
+        if attn_impl == 'flex':
+            extra_kwargs['flex_attn_kwargs'] = {
+                'compiled_flex_attention': compiled_flex_attention,
+                'compiled_create_block_mask': compiled_create_block_mask,
+                'flex_attn_compile': FLEX_ATTN_COMPILE,
+                'sequence_id_info': {
+                    'sequence_id': sequence_id,
+                },
+            }
         y0, _, prev_layer_key_value = attn0(
             x0,
             past_key_value=(),
@@ -715,6 +803,7 @@ def test_reuse_prev_layer_kv_cache(
             is_causal=True,
             flash_attn_padding_info=flash_attn_padding_info,
             alibi_slopes=alibi_slopes_0,
+            **extra_kwargs,
         )
         attn_bias_1 = gen_bias(
             attn_impl,
@@ -737,6 +826,16 @@ def test_reuse_prev_layer_kv_cache(
         prev_layer_key_value = [
             t.clone().detach() for t in prev_layer_key_value
         ]
+        extra_kwargs = {}
+        if attn_impl == 'flex':
+            extra_kwargs['flex_attn_kwargs'] = {
+                'compiled_flex_attention': compiled_flex_attention,
+                'compiled_create_block_mask': compiled_create_block_mask,
+                'flex_attn_compile': FLEX_ATTN_COMPILE,
+                'sequence_id_info': {
+                    'sequence_id': sequence_id,
+                },
+            }
         y1, _, _ = attn1(
             x1,
             past_key_value=None,
@@ -747,6 +846,7 @@ def test_reuse_prev_layer_kv_cache(
             flash_attn_padding_info=flash_attn_padding_info,
             alibi_slopes=alibi_slopes_1,
             prev_layer_key_value=prev_layer_key_value,
+            **extra_kwargs,
         )
         y0 *= attention_mask.unsqueeze(-1)
         y1 *= attention_mask.unsqueeze(-1)

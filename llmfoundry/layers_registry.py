@@ -1,7 +1,7 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Callable
+from typing import Any, Callable
 
 import torch
 
@@ -176,6 +176,20 @@ attention_implementations = create_registry(
     description=_attention_implementations_description,
 )
 
+_flex_attention_mods_description = (
+    """The flex_attention_mods registry is used to register classes that implement flex attention mods.
+
+    One example is 'CausalMaskMod'. See flex_attn_mods.py for examples.
+    """
+)
+flex_attention_mods = create_registry(
+    'llmfoundry',
+    'flex_attention_mods',
+    generic_type=type[Any],
+    entry_points=True,
+    description=_flex_attention_mods_description,
+)
+
 _param_init_fns_description = (
     """The param_init_fns registry is used to register functions that initialize parameters.
 
@@ -231,5 +245,6 @@ __all__ = [
     'ffns_with_megablocks',
     'attention_classes',
     'attention_implementations',
+    'flex_attention_mods',
     'fcs',
 ]

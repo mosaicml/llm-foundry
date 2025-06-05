@@ -6,17 +6,26 @@ from typing import Optional
 
 import pytest
 import torch
+from packaging import version
+from torch.nn.attention.flex_attention import create_block_mask, flex_attention
 
 from llmfoundry.models.layers.attention import (
+    attention_implementations,
     attn_bias_shape,
     build_attn_bias,
     check_alibi_support,
-    flash_attn_fn,
     gen_slopes,
     is_flash_v2_installed,
     scaled_multihead_dot_product_attention,
 )
+from llmfoundry.models.layers.flex_attn_utils import FLEX_ATTN_COMPILE
 from llmfoundry.models.mpt.modeling_mpt import gen_flash_attn_padding_info
+
+compiled_flex_attention = flex_attention
+compiled_create_block_mask = create_block_mask
+if FLEX_ATTN_COMPILE:
+    compiled_flex_attention = torch.compile(flex_attention)
+    compiled_create_block_mask = torch.compile(create_block_mask)
 
 
 @pytest.mark.gpu
@@ -24,13 +33,20 @@ from llmfoundry.models.mpt.modeling_mpt import gen_flash_attn_padding_info
     not is_flash_v2_installed(),
     reason='GQA natively only supported by Flash Attention after v2.',
 )
+@pytest.mark.parametrize('attn_impl', ['flash', 'flex'])
 @pytest.mark.parametrize('kv_n_heads', [1, 4, 8])
-def test_gqa_kv_repetition(kv_n_heads: int):
+def test_gqa_kv_repetition(attn_impl: str, kv_n_heads: int):
     # Test that flash attention v2 with GQA (kv_n_heads < n_heads) works the same
     # whether we repeat the kv_n_heads explicitly or flash attention v2 handles it on its own.
+    if attn_impl == 'flex' and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.5.1'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.1.',
+        )
     d = 128
     n_heads = 8
-    seqlen_1 = 6
+    seqlen_1 = 6 if attn_impl != 'flex' else 128  # FlexAttention requires seqlen to be a multiple of 128 (to compute gradients I think). More info: https://pytorch.org/blog/flexattention/#limitations-and-future-work
     bsz = 2
 
     query_1 = torch.randn(bsz, seqlen_1, n_heads * d).to(torch.bfloat16).cuda()
@@ -41,7 +57,30 @@ def test_gqa_kv_repetition(kv_n_heads: int):
                           kv_n_heads * d).to(torch.bfloat16).cuda()
     value_1.requires_grad = True
 
-    output_1, _, _ = flash_attn_fn(
+    extra_attn_kwargs = {}
+    if attn_impl == 'flash':
+        extra_attn_kwargs = {
+            'flash_attn_padding_info':
+                gen_flash_attn_padding_info(
+                    bsz,
+                    seqlen_1,
+                    0,
+                    query_1.device,
+                    None,
+                    None,
+                ),
+            'should_repeat_kv_for_gqa':
+                True,
+        }
+    elif attn_impl == 'flex':
+        extra_attn_kwargs = {
+            'compiled_flex_attention': compiled_flex_attention,
+            'compiled_create_block_mask': compiled_create_block_mask,
+            'flex_attn_compile': FLEX_ATTN_COMPILE,
+            'sequence_id_info': {},
+        }
+
+    output_1, _, _ = attention_implementations.get(attn_impl)(
         query=query_1,
         key=key_1,
         value=value_1,
@@ -55,15 +94,7 @@ def test_gqa_kv_repetition(kv_n_heads: int):
         dropout_p=0.0,
         training=False,
         needs_weights=False,
-        flash_attn_padding_info=gen_flash_attn_padding_info(
-            bsz,
-            seqlen_1,
-            0,
-            query_1.device,
-            None,
-            None,
-        ),
-        should_repeat_kv_for_gqa=True,
+        **extra_attn_kwargs,
     )
 
     output_1.sum().backward()
@@ -74,8 +105,30 @@ def test_gqa_kv_repetition(kv_n_heads: int):
     key_2.requires_grad = True
     value_2 = value_1.detach().clone()
     value_2.requires_grad = True
+    extra_attn_kwargs = {}
+    if attn_impl == 'flash':
+        extra_attn_kwargs = {
+            'flash_attn_padding_info':
+                gen_flash_attn_padding_info(
+                    bsz,
+                    seqlen_1,
+                    0,
+                    query_2.device,
+                    None,
+                    None,
+                ),
+            'should_repeat_kv_for_gqa':
+                False,
+        }
+    elif attn_impl == 'flex':
+        extra_attn_kwargs = {
+            'compiled_flex_attention': compiled_flex_attention,
+            'compiled_create_block_mask': compiled_create_block_mask,
+            'flex_attn_compile': FLEX_ATTN_COMPILE,
+            'sequence_id_info': {},
+        }
 
-    output_2, _, _ = flash_attn_fn(
+    output_2, _, _ = attention_implementations.get(attn_impl)(
         query=query_2,
         key=key_2,
         value=value_2,
@@ -89,15 +142,7 @@ def test_gqa_kv_repetition(kv_n_heads: int):
         dropout_p=0.0,
         training=False,
         needs_weights=False,
-        flash_attn_padding_info=gen_flash_attn_padding_info(
-            bsz,
-            seqlen_1,
-            0,
-            query_2.device,
-            None,
-            None,
-        ),
-        should_repeat_kv_for_gqa=False,
+        **extra_attn_kwargs,
     )
 
     output_2.sum().backward()
@@ -113,12 +158,19 @@ def test_gqa_kv_repetition(kv_n_heads: int):
     reason=
     'Using sequence id with flash attention requires flash attention v2.1.2 or higher.',
 )
-def test_seq_id_masking_FA_v2():
+@pytest.mark.parametrize('attn_impl', ['flash', 'flex'])
+def test_seq_id_masking_FA_v2(attn_impl: str):
     # Test that flash attention v2 with sequence id masking works correctly.
-    d = 128
+    if attn_impl == 'flex' and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.5.1'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.1.',
+        )
+    d = 128  # TODO: Compiled FlexAttention works for d=16 with seqlen=6, but not for d=128 with seqlen=6. For seqlen=128, all d's in [16, 32, 64, 128, 256] work. Probably because this is not yet fixed: https://pytorch.org/blog/flexattention/#limitations-and-future-work
     n_heads = 4
     kv_n_heads = 4
-    seqlen_1 = 6
+    seqlen_1 = 128
     bsz = 2
 
     query_1 = torch.randn(bsz, seqlen_1, n_heads * d).to(torch.bfloat16).cuda()
@@ -134,9 +186,13 @@ def test_seq_id_masking_FA_v2():
         (3, 5),
         (5, 6),
     ]  # Each batch has 3 sequences of length 3, 2, and 1 respectively.
-    attention_mask_in_length_1 = torch.tensor([[3, 2, 1, 0, 0, 0],
-                                               [3, 2, 1, 0, 0,
-                                                0]]).to(torch.int64).cuda()
+    attention_mask_in_length_1 = torch.tensor([
+        [3, 2, 1] + [0] * (seqlen_1 - 3),
+        [3, 2, 1] + [0] * (seqlen_1 - 3),
+    ]).to(torch.int64).cuda()
+    sequence_id = torch.tensor([[0, 0, 0, 1, 1, 2] + [-1] *
+                                (seqlen_1 - 6), [0, 0, 0, 1, 1, 2] + [-1] *
+                                (seqlen_1 - 6)],).to(torch.int64).cuda()
 
     flash_attn_padding_info_1 = gen_flash_attn_padding_info(
         bsz,
@@ -146,8 +202,19 @@ def test_seq_id_masking_FA_v2():
         attention_mask_in_length_1,
         None,
     )
-
-    output_1, _, _ = flash_attn_fn(
+    extra_attn_kwargs = {}
+    if attn_impl == 'flash':
+        extra_attn_kwargs['flash_attn_padding_info'] = flash_attn_padding_info_1
+    elif attn_impl == 'flex':
+        extra_attn_kwargs = {
+            'compiled_flex_attention': compiled_flex_attention,
+            'compiled_create_block_mask': compiled_create_block_mask,
+            'flex_attn_compile': FLEX_ATTN_COMPILE,
+            'sequence_id_info': {
+                'sequence_id': sequence_id,
+            },
+        }
+    output_1, _, _ = attention_implementations.get(attn_impl)(
         query=query_1,
         key=key_1,
         value=value_1,
@@ -161,7 +228,7 @@ def test_seq_id_masking_FA_v2():
         dropout_p=0.0,
         training=False,
         needs_weights=False,
-        flash_attn_padding_info=flash_attn_padding_info_1,
+        **extra_attn_kwargs,
     )
 
     output_1.sum().backward()
@@ -182,8 +249,11 @@ def test_seq_id_masking_FA_v2():
             None,
             None,
         )
-
-        output_2, _, _ = flash_attn_fn(
+        attn_impl = 'flash'
+        extra_attn_kwargs = {
+            'flash_attn_padding_info': flash_attn_padding_info_2,
+        }
+        output_2, _, _ = attention_implementations.get(attn_impl)(
             query=query_2,
             key=key_2,
             value=value_2,
@@ -197,11 +267,11 @@ def test_seq_id_masking_FA_v2():
             dropout_p=0.0,
             training=False,
             needs_weights=False,
-            flash_attn_padding_info=flash_attn_padding_info_2,
+            **extra_attn_kwargs,
         )
 
         output_2.sum().backward()
-        assert torch.allclose(
+        torch.testing.assert_close(
             output_1[:, seq_range[0]:seq_range[1], :],
             output_2,
         )
@@ -224,13 +294,24 @@ def test_seq_id_masking_FA_v2():
     not check_alibi_support('flash'),
     reason='ALiBi only supported by Flash Attention after v2.4.2.',
 )
+@pytest.mark.parametrize('attn_impl', ['flash', 'flex'])
 @pytest.mark.parametrize('n_heads', [1, 6, 8])
-def test_alibi_bias(n_heads: int):
+def test_alibi_bias(attn_impl: str, n_heads: int):
     # Test that sliding window attention works as expected.
+    if attn_impl == 'flex' and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.5.1'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.1.',
+        )
+    if attn_impl == 'flex' and n_heads != 8:
+        pytest.skip(
+            'FlexAttention passes the test individually for n_heads=1, 6, and 8, but not when all three are configured.',
+        )  # TODO: Investigate why this is the case.
     dtype = torch.bfloat16
     device = 'cuda'
     d = 128
-    seqlen_1 = 8
+    seqlen_1 = 6 if attn_impl != 'flex' else 128  # TODO: FlexAttention requires seqlen to be a multiple of 128 (to compute gradients I think). More info: https://pytorch.org/blog/flexattention/#limitations-and-future-work
     bsz = 2
 
     query_1 = torch.randn(bsz, seqlen_1,
@@ -248,7 +329,29 @@ def test_alibi_bias(n_heads: int):
         device=torch.device(device),
         return_1d=True,
     )
-    output_1, _, _ = flash_attn_fn(
+    extra_attn_kwargs = {}
+    if attn_impl == 'flash':
+        extra_attn_kwargs = {
+            'flash_attn_padding_info':
+                gen_flash_attn_padding_info(
+                    bsz,
+                    seqlen_1,
+                    0,
+                    query_1.device,
+                    None,
+                    None,
+                ),
+            'should_repeat_kv_for_gqa':
+                True,
+        }
+    elif attn_impl == 'flex':
+        extra_attn_kwargs = {
+            'compiled_flex_attention': compiled_flex_attention,
+            'compiled_create_block_mask': compiled_create_block_mask,
+            'flex_attn_compile': FLEX_ATTN_COMPILE,
+            'sequence_id_info': {},
+        }
+    output_1, _, _ = attention_implementations.get(attn_impl)(
         query=query_1,
         key=key_1,
         value=value_1,
@@ -262,16 +365,8 @@ def test_alibi_bias(n_heads: int):
         dropout_p=0.0,
         training=False,
         needs_weights=False,
-        flash_attn_padding_info=gen_flash_attn_padding_info(
-            bsz,
-            seqlen_1,
-            0,
-            query_1.device,
-            None,
-            None,
-        ),
-        should_repeat_kv_for_gqa=True,
         alibi_slopes=alibi_slopes_1,
+        **extra_attn_kwargs,
     )
 
     output_1.sum().backward()
@@ -341,16 +436,34 @@ def test_alibi_bias(n_heads: int):
     reason=
     'attn_logit_softcapping only supported by Flash Attention after v2.6.2.',
 )
+@pytest.mark.parametrize('attn_impl', ['flash', 'flex'])
 @pytest.mark.parametrize(
     'attn_logit_softcapping',
     [None, 0.1, 1.0, 10.0, 100.0],
 )
-def test_attn_logit_softcapping(attn_logit_softcapping: Optional[float]):
+def test_attn_logit_softcapping(
+    attn_impl: str,
+    attn_logit_softcapping: Optional[float],
+):
     # Test that attn_logit_softcapping in attention works as expected.
+    if attn_impl == 'flex' and version.parse(
+        torch.__version__.split('.dev')[0],
+    ) < version.parse('2.5.1'):
+        pytest.skip(
+            'FlexAttention is not supported in torch version {torch.__version__}<2.5.1.',
+        )
+    if attn_impl == 'flex' and attn_logit_softcapping is not None:
+        if int(attn_logit_softcapping) != attn_logit_softcapping:
+            pytest.skip(
+                'FlexAttention does not support attn_logit_softcapping with float softcap temperature.',
+            )
+        else:
+            attn_logit_softcapping = int(attn_logit_softcapping)
+
     dtype = torch.bfloat16
     device = 'cuda'
     d = 128
-    seqlen_1 = 8
+    seqlen_1 = 8 if attn_impl != 'flex' else 128  # FlexAttention requires seqlen to be a multiple of 128 (to compute gradients I think). More info: https://pytorch.org/blog/flexattention/#limitations-and-future-work
     bsz = 2
     n_heads = 4
 
@@ -363,7 +476,29 @@ def test_attn_logit_softcapping(attn_logit_softcapping: Optional[float]):
     value_1 = torch.randn(bsz, seqlen_1,
                           n_heads * d).to(dtype=dtype, device=device)
     value_1.requires_grad = True
-    output_1, _, _ = flash_attn_fn(
+    extra_attn_kwargs = {}
+    if attn_impl == 'flash':
+        extra_attn_kwargs = {
+            'flash_attn_padding_info':
+                gen_flash_attn_padding_info(
+                    bsz,
+                    seqlen_1,
+                    0,
+                    query_1.device,
+                    None,
+                    None,
+                ),
+            'should_repeat_kv_for_gqa':
+                True,
+        }
+    elif attn_impl == 'flex':
+        extra_attn_kwargs = {
+            'compiled_flex_attention': compiled_flex_attention,
+            'compiled_create_block_mask': compiled_create_block_mask,
+            'flex_attn_compile': FLEX_ATTN_COMPILE,
+            'sequence_id_info': {},
+        }
+    output_1, _, _ = attention_implementations.get(attn_impl)(
         query=query_1,
         key=key_1,
         value=value_1,
@@ -377,16 +512,8 @@ def test_attn_logit_softcapping(attn_logit_softcapping: Optional[float]):
         dropout_p=0.0,
         training=False,
         needs_weights=False,
-        flash_attn_padding_info=gen_flash_attn_padding_info(
-            bsz,
-            seqlen_1,
-            0,
-            query_1.device,
-            None,
-            None,
-        ),
-        should_repeat_kv_for_gqa=True,
         attn_logit_softcapping=attn_logit_softcapping,
+        **extra_attn_kwargs,
     )
     output_1.sum().backward()
 

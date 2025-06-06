@@ -510,8 +510,13 @@ class MPTModel(MPTPreTrainedModel):
 
         if config.no_bias:
             for module in self.modules():
-                if hasattr(module,
-                           'bias') and isinstance(module.bias, nn.Parameter):
+                if isinstance(module, nn.Linear):
+                    continue
+
+                if hasattr(
+                    module,
+                    'bias',
+                ) and isinstance(module.bias, nn.Parameter):
                     log.debug(f'Removing bias from {module=}.')
                     module.register_parameter('bias', None)
 

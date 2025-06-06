@@ -439,11 +439,19 @@ class HuggingFaceCheckpointer(Callback):
             if self._any_register_processes_error(
                 state.device,
             ) and self.final_register_only:
-                log.error(
-                    'An error occurred in one or more registration processes. The model should still be logged to'
-                    +
-                    'the Mlflow artifacts, but will need to be registered manually',
-                )
+                if self._check_manual_registration_possible():
+                    log.error(
+                        log.error(
+                            'An error occurred in one or more registration processes. The model should still be logged to'
+                            +
+                            'the Mlflow artifacts, but will need to be registered manually',
+                        ),
+                    )
+                else:
+                    raise RuntimeError(
+                        'An error occurred in one or more registration processes and the model artifacts '
+                        + 'cannot be registered manually.',
+                    )
 
             # Clean up temporary save directory; all processes are done with it.
             if self.temp_save_dir is not None:
@@ -932,3 +940,32 @@ class HuggingFaceCheckpointer(Callback):
                 if use_temp_dir:
                     shutil.rmtree(temp_save_dir)
         dist.barrier()
+
+    def _check_manual_registration_possible(self) -> bool:
+        """Check if manual registration is possible by verifying the existing of
+        the final_model_checkpoint artifact in MLflow.
+
+        Returns:
+            bool: True if final_model_checkpoint artifact exists in MLflow
+        """
+        if not self.mlflow_loggers:
+            return False
+
+        mlflow_logger = self.mlflow_loggers[0]
+
+        if mlflow_logger._run_id is None:
+            return False
+
+        artifacts = mlflow_logger._mlflow_client.list_artifacts(
+            run_id=mlflow_logger._run_id,
+        )
+        print('Got the following artifacts from MLflow:', flush=True)
+        for artifact in artifacts:
+            print(
+                f'Artifact: {artifact.path}, is_dir: {artifact.is_dir}',
+                flush=True
+            )
+        return any(
+            artifact.path == 'final_model_checkpoint' and artifact.is_dir
+            for artifact in artifacts
+        )

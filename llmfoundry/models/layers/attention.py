@@ -461,6 +461,7 @@ class GroupedQueryAttention(nn.Module):
         d_model: int,
         n_heads: int,
         kv_n_heads: int,
+        head_dim: Optional[int] = None,
         attn_impl: str = 'flash',
         clip_qkv: Optional[float] = None,
         qk_ln: bool = False,
@@ -499,7 +500,7 @@ class GroupedQueryAttention(nn.Module):
         self.nope = nope
 
         self.kv_dim = kv_dim if kv_dim is not None else self.d_model
-        self.head_dim = d_model // n_heads
+        self.head_dim = head_dim if head_dim is not None else d_model // n_heads
 
         # Usually, fc_type dict should be passed in through MPTBlock's __init__ function.
         if fc_type is None:
@@ -537,7 +538,7 @@ class GroupedQueryAttention(nn.Module):
             self.Wq = build_fc(
                 name=qkv_fc_type_name,
                 in_features=self.d_model,
-                out_features=self.d_model,
+                out_features=self.n_heads * self.head_dim,
                 fc_kwargs=qkv_fc_type,
             )
             # for param init fn; enables shape based init of fused layers
@@ -547,7 +548,7 @@ class GroupedQueryAttention(nn.Module):
             self.Wqkv = build_fc(
                 name=qkv_fc_type_name,
                 in_features=self.d_model,
-                out_features=self.d_model + 2 * self.kv_n_heads * self.head_dim,
+                out_features=self.n_heads * self.head_dim + 2 * self.kv_n_heads * self.head_dim,
                 fc_kwargs=qkv_fc_type,
             )
             # for param init fn; enables shape based init of fused layers
@@ -560,7 +561,7 @@ class GroupedQueryAttention(nn.Module):
             self.Wq = build_fc(
                 name=qkv_fc_type_name,
                 in_features=self.d_model,
-                out_features=self.d_model,
+                out_features=self.n_heads * self.head_dim,
                 fc_kwargs=qkv_fc_type,
             )
             self.Wk = build_fc(
@@ -585,7 +586,7 @@ class GroupedQueryAttention(nn.Module):
             self.Wv._fused = (0, kv_fuse_splits)
 
         if self.qk_ln or self.qk_gn:
-            norm_size = self.head_dim if qk_gn else d_model
+            norm_size = self.head_dim if qk_gn else self.n_heads * self.head_dim
             self.q_ln = build_norm(
                 name=norm_type.lower(),
                 normalized_shape=norm_size,
@@ -606,7 +607,7 @@ class GroupedQueryAttention(nn.Module):
 
         self.out_proj = build_fc(
             name=fc_type_name,
-            in_features=self.d_model,
+            in_features=self.n_heads * self.head_dim,
             out_features=self.d_model,
             fc_kwargs=fc_type,
         )
@@ -898,6 +899,7 @@ class MultiheadAttention(GroupedQueryAttention):
         self,
         d_model: int,
         n_heads: int,
+        head_dim: Optional[int] = None,
         attn_impl: str = 'flash',
         clip_qkv: Optional[float] = None,
         qk_ln: bool = False,
@@ -922,6 +924,7 @@ class MultiheadAttention(GroupedQueryAttention):
             d_model=d_model,
             n_heads=n_heads,
             kv_n_heads=n_heads,  # for MHA, same # heads as kv groups
+            head_dim=head_dim,
             attn_impl=attn_impl,
             clip_qkv=clip_qkv,
             qk_ln=qk_ln,
@@ -955,6 +958,7 @@ class MultiQueryAttention(GroupedQueryAttention):
         self,
         d_model: int,
         n_heads: int,
+        head_dim: Optional[int] = None,
         attn_impl: str = 'flash',
         clip_qkv: Optional[float] = None,
         qk_ln: bool = False,
@@ -979,6 +983,7 @@ class MultiQueryAttention(GroupedQueryAttention):
             d_model=d_model,
             n_heads=n_heads,
             kv_n_heads=1,  # for MQA, 1 head
+            head_dim=head_dim,
             attn_impl=attn_impl,
             clip_qkv=clip_qkv,
             qk_ln=qk_ln,

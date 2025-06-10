@@ -37,6 +37,7 @@ class MPTBlock(nn.Module):
         d_model: int,
         n_heads: int,
         expansion_ratio: int,
+        head_dim: Optional[int] = None,
         attn_config: Optional[dict] = None,
         ffn_config: Optional[dict] = None,
         resid_pdrop: float = 0.0,
@@ -45,7 +46,7 @@ class MPTBlock(nn.Module):
         fc_type: Optional[dict[str, Any]] = None,
         device: Optional[str] = None,
         no_bias: bool = False,
-        attention_bias: bool = True,
+        attention_bias: bool = False,
         use_pad_tok_in_ffn: bool = True,
         **kwargs: Any,
     ):
@@ -89,6 +90,7 @@ class MPTBlock(nn.Module):
                 device=device,
                 no_bias=no_bias,
                 attention_bias=attention_bias,
+                head_dim=head_dim,
             )
         else:
             assert isinstance(attn_config['attn_type'], str)
@@ -110,6 +112,7 @@ class MPTBlock(nn.Module):
                 attn_kwargs={
                     'd_model': d_model,
                     'n_heads': n_heads,
+                    'head_dim': head_dim,
                     'fc_type': fc_type,
                     'device': device,
                     'bias': not no_bias,
@@ -281,6 +284,7 @@ class FusedNormAttentionNorm(nn.Module):
         device: Optional[str] = None,
         no_bias: bool = False,
         attention_bias: bool = True,
+        head_dim: Optional[int] = None,
         **kwargs: Any,
     ):
         super().__init__()
@@ -314,6 +318,7 @@ class FusedNormAttentionNorm(nn.Module):
                 'device': device,
                 'bias': not no_bias,
                 'attention_bias': attention_bias,
+                'head_dim': head_dim,
                 **attn_config_subset_for_attn_class,
             },
         )

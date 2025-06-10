@@ -30,6 +30,7 @@ class MPTConfig(PretrainedConfig):
         d_model: int = 2048,
         n_heads: int = 16,
         n_layers: int = 24,
+        head_dim: Optional[int] = None,
         expansion_ratio: Union[int, float] = 4,
         max_seq_len: int = 2048,
         vocab_size: int = 50368,
@@ -60,6 +61,7 @@ class MPTConfig(PretrainedConfig):
             d_model (int): The size of the embedding dimension of the model.
             n_heads (int): The number of attention heads.
             n_layers (int): The number of layers in the model.
+            head_dim (Optional[int]): If not None, sets the attention head dimension.
             expansion_ratio (Union[int, float]): The ratio of the up/down scale in the ffn.
             max_seq_len (int): The maximum sequence length of the model.
             vocab_size (int): The size of the vocabulary.
@@ -158,6 +160,7 @@ class MPTConfig(PretrainedConfig):
         self.d_model = d_model
         self.n_heads = n_heads
         self.n_layers = n_layers
+        self.head_dim = head_dim
         self.expansion_ratio = expansion_ratio
         if max_seq_len != int(max_seq_len):
             raise ValueError('max_seq_len must be an integer')

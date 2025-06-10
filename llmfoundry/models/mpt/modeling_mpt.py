@@ -1028,8 +1028,6 @@ class MPTModel(MPTPreTrainedModel):
                     attn_block.reuse_kv_layer_idx]  # type: ignore
             else:
                 prev_layer_key_value = None
-            if b_idx in self.state_cache_layers['reuse_kv_x_layer_idx']:
-                layer_kv_x_cache_dict[b_idx] = x
             if attn_block.reuse_kv_x_layer_idx is not None:  # type: ignore
                 if attn_block.reuse_kv_x_layer_idx not in layer_kv_x_cache_dict:  # type: ignore
                     raise KeyError(
@@ -1049,11 +1047,9 @@ class MPTModel(MPTPreTrainedModel):
             extra_kwargs = {}
             if prev_layer_key_value is not None:
                 extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
-            if x_prev is not None:
-                extra_kwargs['x_prev'] = x_prev
             if pos_id_within_seq is not None:
                 extra_kwargs['pos_id_within_seq'] = pos_id_within_seq
-            x, attn_weights, present = block(
+            x, attn_weights, present, x_post_norm = block(
                 x,
                 past_key_value=past_key_value,
                 attn_bias=attn_bias,
@@ -1063,8 +1059,12 @@ class MPTModel(MPTPreTrainedModel):
                 output_attentions=bool(output_attentions),
                 alibi_slopes=alibi_slopes,
                 flash_attn_padding_info=flash_attn_padding_info,
+                return_x_post_norm=True,
+                x_prev=x_prev,
                 **extra_kwargs,
             )
+            if b_idx in self.state_cache_layers['reuse_kv_x_layer_idx']:
+                layer_kv_x_cache_dict[b_idx] = x_post_norm
             if presents is not None:
                 presents += (present,)
             if b_idx in self.state_cache_layers['reuse_kv_layer_idx']:

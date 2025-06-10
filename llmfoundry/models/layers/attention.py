@@ -644,11 +644,10 @@ class GroupedQueryAttention(nn.Module):
         extra_kwargs = {}
         if prev_layer_key_value is not None:
             extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
-        if x_prev is not None:
-            extra_kwargs['x_prev'] = x_prev
         query, key, value = self.get_qkv(
             x=x,
             key_value_states=key_value_states,
+            x_prev=x_prev,
             **extra_kwargs,
         )
 

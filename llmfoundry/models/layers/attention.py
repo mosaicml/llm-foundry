@@ -548,7 +548,8 @@ class GroupedQueryAttention(nn.Module):
             self.Wqkv = build_fc(
                 name=qkv_fc_type_name,
                 in_features=self.d_model,
-                out_features=self.n_heads * self.head_dim + 2 * self.kv_n_heads * self.head_dim,
+                out_features=self.n_heads * self.head_dim +
+                2 * self.kv_n_heads * self.head_dim,
                 fc_kwargs=qkv_fc_type,
             )
             # for param init fn; enables shape based init of fused layers

@@ -160,23 +160,14 @@ def gen_rotary_embedding(
         llama_rope_config['rope_type'] = llama_rope_config.pop('type')
         if llama_rope_config['rope_type'] == 'no_scaling':
             llama_rope_config['rope_type'] = 'default'
-        if head_dim is not None:
-            partial_llama_config = PartialLlamaConfig(
-                rope_scaling=llama_rope_config,
-                rope_theta=rope_theta,
-                max_position_embeddings=max_seq_len,
-                hidden_size=d_model,
-                num_attention_heads=n_heads,
-                head_dim=head_dim,
-            )
-        else:
-            partial_llama_config = PartialLlamaConfig(
-                rope_scaling=llama_rope_config,
-                rope_theta=rope_theta,
-                max_position_embeddings=max_seq_len,
-                hidden_size=d_model,
-                num_attention_heads=n_heads,
-            )
+        partial_llama_config = PartialLlamaConfig(
+            rope_scaling=llama_rope_config,
+            rope_theta=rope_theta,
+            max_position_embeddings=max_seq_len,
+            hidden_size=d_model,
+            num_attention_heads=n_heads,
+            head_dim=head_dim,
+        )
         return LlamaRotaryEmbeddingFoundry(config=partial_llama_config)
     raise ValueError('rope_impl needs to be either dail or hf')
 

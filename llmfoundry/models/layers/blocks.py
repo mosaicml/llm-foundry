@@ -46,7 +46,7 @@ class MPTBlock(nn.Module):
         fc_type: Optional[dict[str, Any]] = None,
         device: Optional[str] = None,
         no_bias: bool = False,
-        attention_bias: bool = False,
+        attention_bias: bool = True,
         use_pad_tok_in_ffn: bool = True,
         **kwargs: Any,
     ):

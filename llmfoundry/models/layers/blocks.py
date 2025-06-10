@@ -228,7 +228,7 @@ class MPTBlock(nn.Module):
             device=n.device,
         )
         if return_x_post_norm:
-            return x, m, attn_weights, past_key_value, x_post_norm  # type: ignore
+            return x, attn_weights, past_key_value, x_post_norm  # type: ignore
         return x, attn_weights, past_key_value
 
     def apply_ffn(

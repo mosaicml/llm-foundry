@@ -949,7 +949,6 @@ def test_mpt_creation(
         else:
             block_head_dim = 64
         assert block.attn.Wqkv.weight.shape == 3 * 4 * block_head_dim
-            
 
         if other_should_have_bias:
             assert block.attn.out_proj.bias.shape == torch.Size([d_model])

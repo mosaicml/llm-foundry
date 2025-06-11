@@ -805,6 +805,7 @@ def test_lora_id():
 @pytest.mark.parametrize('norm_type', norms.get_all())
 @pytest.mark.parametrize('no_bias', [False, True])
 @pytest.mark.parametrize('attention_bias', [False, True, None])
+@pytest.mark.parametrize('head_dim', [64, None])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
 @pytest.mark.parametrize(
     'expansion_ratio,ffn_hidden_size',
@@ -848,6 +849,7 @@ def test_mpt_creation(
     norm_type: str,
     no_bias: bool,
     attention_bias: Optional[bool],
+    head_dim: Optional[int],
     tie_word_embeddings: bool,
     expansion_ratio: Union[int, float],
     ffn_hidden_size: Optional[int],
@@ -864,6 +866,7 @@ def test_mpt_creation(
         d_model=128,
         n_heads=4,
         n_layers=2,
+        head_dim=head_dim,
         expansion_ratio=expansion_ratio,
         max_seq_len=2048,
         emb_pdrop=0.1,
@@ -887,6 +890,7 @@ def test_mpt_creation(
     assert mpt.config.d_model == 128
     assert mpt.config.n_heads == 4
     assert mpt.config.n_layers == 2
+    assert mpt.config.head_dim == head_dim
     if ffn_hidden_size is None:
         assert mpt.config.expansion_ratio == expansion_ratio
     else:
@@ -908,6 +912,7 @@ def test_mpt_creation(
     assert len(mpt.transformer.blocks) == 2
 
     d_model = hf_config.d_model
+    n_heads = mpt.config.n_heads
     if ffn_hidden_size is None:  # type: ignore (sometimes it may not be none)
         ffn_hidden_size = int(hf_config.d_model * hf_config.expansion_ratio)
     for block in mpt.transformer.blocks:
@@ -933,8 +938,21 @@ def test_mpt_creation(
         )
         other_should_have_bias = not no_bias
 
+        attn_head_dim_set = head_dim is not None
+
+        if not attn_head_dim_set:
+            block_head_dim = d_model // n_heads
+        else:
+            block_head_dim = head_dim
+        assert block.attn.Wqkv.weight.shape == torch.Size([
+            3 * n_heads * block_head_dim,
+            d_model,
+        ])
+
         if attn_should_have_bias:
-            assert block.attn.Wqkv.bias.shape == torch.Size([d_model * 3])
+            assert block.attn.Wqkv.bias.shape == torch.Size([
+                3 * n_heads * block_head_dim,
+            ])
         else:
             assert block.attn.Wqkv.bias is None
 

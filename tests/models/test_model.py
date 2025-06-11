@@ -912,6 +912,7 @@ def test_mpt_creation(
     assert len(mpt.transformer.blocks) == 2
 
     d_model = hf_config.d_model
+    n_heads = mpt.config.n_heads
     if ffn_hidden_size is None:  # type: ignore (sometimes it may not be none)
         ffn_hidden_size = int(hf_config.d_model * hf_config.expansion_ratio)
     for block in mpt.transformer.blocks:
@@ -939,16 +940,21 @@ def test_mpt_creation(
 
         attn_head_dim_set = head_dim is not None
 
-        if attn_should_have_bias:
-            assert block.attn.Wqkv.bias.shape == torch.Size([d_model * 3])
-        else:
-            assert block.attn.Wqkv.bias is None
-
         if not attn_head_dim_set:
             block_head_dim = 32
         else:
             block_head_dim = 64
-        assert block.attn.Wqkv.weight.shape == 3 * 4 * block_head_dim
+        assert block.attn.Wqkv.weight.shape == torch.Size([
+            3 * n_heads * block_head_dim,
+            d_model,
+        ])
+
+        if attn_should_have_bias:
+            assert block.attn.Wqkv.bias.shape == torch.Size([
+                3 * n_heads * block_head_dim,
+            ])
+        else:
+            assert block.attn.Wqkv.bias is None
 
         if other_should_have_bias:
             assert block.attn.out_proj.bias.shape == torch.Size([d_model])

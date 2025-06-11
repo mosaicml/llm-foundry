@@ -941,9 +941,9 @@ def test_mpt_creation(
         attn_head_dim_set = head_dim is not None
 
         if not attn_head_dim_set:
-            block_head_dim = 32
+            block_head_dim = d_model // n_heads
         else:
-            block_head_dim = 64
+            block_head_dim = head_dim
         assert block.attn.Wqkv.weight.shape == torch.Size([
             3 * n_heads * block_head_dim,
             d_model,

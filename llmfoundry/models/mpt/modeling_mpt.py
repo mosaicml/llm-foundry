@@ -141,6 +141,7 @@ def gen_rotary_embedding(
     max_seq_len: int,
     d_model: int,
     n_heads: int,
+    head_dim: Optional[int] = None,
 ):
     rope_head_dim = d_model // n_heads
     if rope_impl == 'dail':
@@ -165,6 +166,7 @@ def gen_rotary_embedding(
             max_position_embeddings=max_seq_len,
             hidden_size=d_model,
             num_attention_heads=n_heads,
+            head_dim=head_dim,
         )
         return LlamaRotaryEmbeddingFoundry(config=partial_llama_config)
     raise ValueError('rope_impl needs to be either dail or hf')
@@ -486,6 +488,7 @@ class MPTModel(MPTPreTrainedModel):
                 max_seq_len=self.config.max_seq_len,
                 d_model=config.d_model,
                 n_heads=config.n_heads,
+                head_dim=config.head_dim,
             )
 
         if config.init_device != 'meta':

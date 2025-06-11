@@ -3,7 +3,7 @@
 """GPT Blocks used for the GPT Model."""
 
 import copy
-from typing import Any, Optional, Union
+from typing import Any, Optional
 
 import torch
 import torch.nn as nn
@@ -172,11 +172,8 @@ class MPTBlock(nn.Module):
         key_value_states: Optional[torch.Tensor] = None,
         x_prev: Optional[torch.Tensor] = None,
         pos_id_within_seq: Optional[torch.Tensor] = None,
-        return_x_post_norm: bool = False,
-    ) -> Union[tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
-        torch.Tensor, torch.Tensor]]], tuple[
-            torch.Tensor, Optional[torch.Tensor], Optional[tuple[
-                torch.Tensor, torch.Tensor]], torch.Tensor]]:
+    ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
+        torch.Tensor, torch.Tensor]]]:
         extra_kwargs = {}
         if prev_layer_key_value is not None:
             extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
@@ -186,7 +183,7 @@ class MPTBlock(nn.Module):
             extra_kwargs['pos_id_within_seq'] = pos_id_within_seq
 
         if self.fuse_norm_attn_norm:
-            x, m, attn_weights, past_key_value, x_post_norm = self.norm_attn_norm(
+            x, m, attn_weights, past_key_value = self.norm_attn_norm(
                 x,
                 past_key_value=past_key_value,
                 attn_bias=attn_bias,
@@ -196,14 +193,13 @@ class MPTBlock(nn.Module):
                 output_attentions=output_attentions,
                 alibi_slopes=alibi_slopes,
                 flash_attn_padding_info=flash_attn_padding_info,
-                return_x_post_norm=True,
                 x_prev=x_prev,
                 **extra_kwargs,
             )
         else:
             a = self.norm_1(x)
-            if return_x_post_norm:
-                x_post_norm = a
+            if x_prev is not None:
+                x_prev = self.norm_1(x_prev)
             b, attn_weights, past_key_value = self.attn(
                 a,
                 past_key_value=past_key_value,
@@ -230,8 +226,6 @@ class MPTBlock(nn.Module):
         ) + self.resid_ffn_dropout(n).to(
             device=n.device,
         )
-        if return_x_post_norm:
-            return x, attn_weights, past_key_value, x_post_norm  # type: ignore
         return x, attn_weights, past_key_value
 
     def apply_ffn(
@@ -360,16 +354,14 @@ class FusedNormAttentionNorm(nn.Module):
         key_value_states: Optional[torch.Tensor] = None,
         x_prev: Optional[torch.Tensor] = None,
         pos_id_within_seq: Optional[torch.Tensor] = None,
-        return_x_post_norm: bool = False,
-    ) -> Union[tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor],
-                     Optional[tuple[torch.Tensor, torch.Tensor]]],
-               tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor],
-                     Optional[tuple[torch.Tensor,
-                                    torch.Tensor]], torch.Tensor]]:
+    ) -> tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor],
+               Optional[tuple[torch.Tensor, torch.Tensor]]]:
         a = self.norm_1(x)
         extra_kwargs = {}
         if prev_layer_key_value is not None:
             extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
+        if x_prev is not None:
+            x_prev = self.norm_1(x_prev)
         if key_value_states is not None:
             extra_kwargs['key_value_states'] = key_value_states
         if pos_id_within_seq is not None:
@@ -393,6 +385,4 @@ class FusedNormAttentionNorm(nn.Module):
         if self.norm_2 is not None:
             m = self.norm_2(x)
 
-        if return_x_post_norm:
-            return x, m, attn_weights, past_key_value, a
         return x, m, attn_weights, past_key_value

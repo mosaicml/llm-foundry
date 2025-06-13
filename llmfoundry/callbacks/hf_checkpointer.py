@@ -103,33 +103,13 @@ def override_env(**kwargs: Any):
             else:
                 # Otherwise, restore the original value
                 os.environ[key] = original_value
-import collections.abc
-def find_cuda_tensors(obj, path=""):
-    """
-    Recursively searches a Python object to find any torch.Tensor
-    that resides on a CUDA device.
-    """
-    # Use a set to keep track of object ids to handle cycles
-    if not hasattr(find_cuda_tensors, "seen"):
-        find_cuda_tensors.seen = set()
 
-    if id(obj) in find_cuda_tensors.seen:
-        return
-    find_cuda_tensors.seen.add(id(obj))
-
-    if isinstance(obj, torch.Tensor):
-        if obj.is_cuda:
-            print(f"!!! Found CUDA Tensor at: {path or 'root object'}")
-    elif isinstance(obj, dict):
-        for key, value in obj.items():
-            find_cuda_tensors(value, path=f"{path}[{repr(key)}]")
-    elif isinstance(obj, collections.abc.Iterable) and not isinstance(obj, str):
-        for i, item in enumerate(obj):
-            find_cuda_tensors(item, path=f"{path}[{i}]")
-    # Optional: Check for attributes in custom objects
-    elif hasattr(obj, '__dict__'):
-        for key, value in vars(obj).items():
-            find_cuda_tensors(value, path=f"{path}.{key}")
+def _move_mlflow_logger_to_cpu(
+    mlflow_logger: MLFlowLogger
+):
+    for k, v in mlflow_logger._metrics_cache.items():
+        if isinstance(v, torch.Tensor):
+            v.to(device='cpu')
 
 @contextmanager
 def _monitor_process_saver(mlflow_logger: MLFlowLogger):
@@ -840,8 +820,7 @@ class HuggingFaceCheckpointer(Callback):
 
             # Save the monitor process to be restored after registering the model.
             with _monitor_process_saver(mlflow_logger):
-                find_cuda_tensors(mlflow_logger)
-                print(mlflow_logger._metrics_cache['metrics/train/LanguageCrossEntropy'][0])
+                _move_mlflow_logger_to_cpu(mlflow_logger)
                 process = SpawnProcess(
                     target=_log_model_with_multi_process,
                     kwargs={
@@ -850,8 +829,8 @@ class HuggingFaceCheckpointer(Callback):
                         'python_logging_level':
                             logging.getLogger('llmfoundry').level,
                         'transformers_model': {
-                            'model': None,
-                            'tokenizer': None,
+                            'model': new_model_instance,
+                            'tokenizer': original_tokenizer,
                         } if self.using_peft else register_save_dir,
                         'artifact_path':
                             'final_model_checkpoint',

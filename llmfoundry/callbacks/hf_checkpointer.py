@@ -821,7 +821,7 @@ class HuggingFaceCheckpointer(Callback):
                         'python_logging_level':
                             logging.getLogger('llmfoundry').level,
                         'transformers_model': {
-                            'model': new_model_instance,
+                            'model': None,
                             'tokenizer': None,
                         } if self.using_peft else register_save_dir,
                         'artifact_path':

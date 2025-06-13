@@ -107,6 +107,11 @@ def override_env(**kwargs: Any):
 def _move_mlflow_logger_to_cpu(
     mlflow_logger: MLFlowLogger
 ):
+    # TODO: Move this move to CPU functionality to Composer's MLFlowLogger
+    # But for now we provide a bit of safety here by checking the attr exists
+    # before accessing it.
+    if not hasattr(mlflow_logger, '_metrics_cache'):
+        return
     for k, v in mlflow_logger._metrics_cache.items():
         if isinstance(v, torch.Tensor):
             mlflow_logger._metrics_cache[k] = v.cpu()

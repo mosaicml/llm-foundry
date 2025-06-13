@@ -841,6 +841,7 @@ class HuggingFaceCheckpointer(Callback):
             # Save the monitor process to be restored after registering the model.
             with _monitor_process_saver(mlflow_logger):
                 find_cuda_tensors(mlflow_logger)
+                print(mlflow_logger._metrics_cache['metrics/train/LanguageCrossEntropy'][0])
                 process = SpawnProcess(
                     target=_log_model_with_multi_process,
                     kwargs={

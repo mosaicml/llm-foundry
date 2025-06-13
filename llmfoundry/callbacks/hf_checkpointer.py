@@ -817,12 +817,12 @@ class HuggingFaceCheckpointer(Callback):
                     target=_log_model_with_multi_process,
                     kwargs={
                         'mlflow_logger':
-                            None,
+                            mlflow_logger,
                         'python_logging_level':
                             logging.getLogger('llmfoundry').level,
                         'transformers_model': {
                             'model': None,
-                            'tokenizer': None,
+                            'tokenizer': original_tokenizer,
                         } if self.using_peft else register_save_dir,
                         'artifact_path':
                             'final_model_checkpoint',

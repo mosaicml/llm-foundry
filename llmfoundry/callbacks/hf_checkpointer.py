@@ -109,7 +109,7 @@ def _move_mlflow_logger_to_cpu(
 ):
     for k, v in mlflow_logger._metrics_cache.items():
         if isinstance(v, torch.Tensor):
-            v.to(device='cpu')
+            mlflow_logger._metrics_cache[k] = v.cpu()
 
 @contextmanager
 def _monitor_process_saver(mlflow_logger: MLFlowLogger):

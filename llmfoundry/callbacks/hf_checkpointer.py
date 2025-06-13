@@ -812,17 +812,17 @@ class HuggingFaceCheckpointer(Callback):
                 )
 
             # Save the monitor process to be restored after registering the model.
-            with _monitor_process_saver(mlflow_logger), override_env(PYTORCH_CUDA_ALLOC_CONF='expandable_segments:False'):
+            with _monitor_process_saver(mlflow_logger):
                 process = SpawnProcess(
                     target=_log_model_with_multi_process,
                     kwargs={
                         'mlflow_logger':
-                            mlflow_logger,
+                            None,
                         'python_logging_level':
                             logging.getLogger('llmfoundry').level,
                         'transformers_model': {
-                            'model': new_model_instance,
-                            'tokenizer': original_tokenizer,
+                            'model': None,
+                            'tokenizer': None,
                         } if self.using_peft else register_save_dir,
                         'artifact_path':
                             'final_model_checkpoint',

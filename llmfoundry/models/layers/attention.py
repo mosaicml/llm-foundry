@@ -780,7 +780,7 @@ class GroupedQueryAttention(nn.Module):
                 if self.reuse_kv_x_layer_idx is not None:
                     if x_prev is None:
                         raise ValueError(
-                            'x_prev is None, cannot reuse_prev_layer_x.',
+                            'x_prev is None, cannot reuse_kv_x_layer_idx.',
                         )
                     kv_input = x_prev
                 key = self.Wk(kv_input)

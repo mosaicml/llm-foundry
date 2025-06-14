@@ -500,6 +500,7 @@ class GroupedQueryAttention(nn.Module):
                 raise ValueError(
                     'Only one of reuse_kv_layer_idx and reuse_kv_x_layer_idx can be set.',
                 )
+            # For reuse_kv_x_layer_idx, we call Wq on the current layer's x and Wk, Wv on a previous layer's x, hence we cannot support fused_qkv.
             if self.fused_qkv:
                 raise ValueError(
                     'reuse_kv_x_layer_idx is not supported with fused_qkv.',

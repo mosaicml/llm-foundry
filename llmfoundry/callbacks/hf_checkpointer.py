@@ -81,9 +81,11 @@ def _move_mlflow_logger_to_cpu(
     # before accessing it.
     if not hasattr(mlflow_logger, '_metrics_cache'):
         return
-    for k, (v, _) in mlflow_logger._metrics_cache.items():
-        if isinstance(v, torch.Tensor):
-            mlflow_logger._metrics_cache[k] = v.cpu()
+    for k, v in mlflow_logger._metrics_cache.items():
+        if not isinstance(v, tuple) or len(v) != 2:
+            continue
+        if isinstance(v[0], torch.Tensor):
+            mlflow_logger._metrics_cache[k] = (v[0].cpu(), v[1])
 
 
 @contextmanager

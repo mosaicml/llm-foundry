@@ -65,48 +65,17 @@ _LICENSE_FILE_PATTERN = re.compile(r'license(\.[a-z]+|$)', re.IGNORECASE)
 
 from contextlib import contextmanager
 
-@contextmanager
-def override_env(**kwargs: Any):
-    """
-    A context manager to temporarily set environment variables and
-    restore them to their original state afterward.
-
-    This is useful for testing or for running code that requires specific
-    environment variable settings without permanently altering the
-    parent process's environment.
-
-    Usage:
-        with override_env(MY_VAR='new_value', ANOTHER_VAR='123'):
-            # Code within this block will see the new environment variables
-            print(os.getenv('MY_VAR'))  # Output: new_value
-        
-        # Outside the block, the environment is restored
-        print(os.getenv('MY_VAR'))  # Output: None (or original value)
-    """
-    original_env = {}
-    
-    # Store original values and set new ones
-    for key, value in kwargs.items():
-        # Store whether the key existed and its original value if it did
-        original_env[key] = os.environ.get(key)
-        os.environ[key] = str(value) # Environment variables must be strings
-
-    try:
-        # Yield control to the code inside the 'with' block
-        yield
-    finally:
-        # Restore the original environment state
-        for key, original_value in original_env.items():
-            if original_value is None:
-                # If the key did not exist originally, remove it
-                del os.environ[key]
-            else:
-                # Otherwise, restore the original value
-                os.environ[key] = original_value
 
 def _move_mlflow_logger_to_cpu(
-    mlflow_logger: MLFlowLogger
+    mlflow_logger: MLFlowLogger,
 ):
+    """Moves metrics tensors stored on the MLFlowLogger to CPU.
+
+    When using expandable_segments:True in PyTorch, sending CUDA tensors to a
+    subprocess requires a particular syscall which is not available in all
+    environments. So we use this helper to move the tensors to CPU before
+    sending the MLFlowLogger to a subprocess.
+    """
     # TODO: Move this move to CPU functionality to Composer's MLFlowLogger
     # But for now we provide a bit of safety here by checking the attr exists
     # before accessing it.
@@ -115,6 +84,7 @@ def _move_mlflow_logger_to_cpu(
     for k, (v, _) in mlflow_logger._metrics_cache.items():
         if isinstance(v, torch.Tensor):
             mlflow_logger._metrics_cache[k] = v.cpu()
+
 
 @contextmanager
 def _monitor_process_saver(mlflow_logger: MLFlowLogger):

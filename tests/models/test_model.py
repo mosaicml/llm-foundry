@@ -2791,13 +2791,22 @@ def test_construct_blocks_swiftkv():
         'reuse_kv_x_layer',
     ],
 )
+@pytest.mark.parametrize(
+    'fuse_norm_attn_norm',
+    [
+        True,
+        False,
+    ],
+)
 def test_reuse_prev_layer_kv_cache(
     request: pytest.FixtureRequest,
     reuse_type: str,
+    fuse_norm_attn_norm: bool,
     batch_size: int = 2,
 ):
     conf_path = 'scripts/train/yamls/pretrain/testing.yaml'
     model_config_overrides = {
+        'fuse_norm_attn_norm': fuse_norm_attn_norm,
         'block_overrides': {
             'order': [
                 {
@@ -2833,9 +2842,20 @@ def test_reuse_prev_layer_kv_cache(
     model.train()
 
     if reuse_type == 'reuse_kv_x_layer':
-        model.model.transformer.blocks[1].attn.load_state_dict(  # type: ignore
-            model.model.transformer.blocks[0].attn.state_dict(),  # type: ignore
-        )
+        if fuse_norm_attn_norm:
+            model.model.transformer.blocks[1].norm_attn_norm.norm_1.load_state_dict(  # type: ignore
+                model.model.transformer.blocks[0].norm_attn_norm.norm_1.state_dict(),  # type: ignore
+            )
+            model.model.transformer.blocks[1].norm_attn_norm.attn.load_state_dict(  # type: ignore
+                model.model.transformer.blocks[0].norm_attn_norm.attn.state_dict(),  # type: ignore
+            )
+        else:
+            model.model.transformer.blocks[1].norm_1.load_state_dict(  # type: ignore
+                model.model.transformer.blocks[0].norm_1.state_dict(),  # type: ignore
+            )
+            model.model.transformer.blocks[1].attn.load_state_dict(  # type: ignore
+                model.model.transformer.blocks[0].attn.state_dict(),  # type: ignore
+            )
 
     prev_layer_key_value_dict = {}
 

@@ -2726,7 +2726,8 @@ def test_construct_blocks_swiftkv():
         },
     )
 
-    # override architecture taken from https://www.snowflake.com/en/engineering-blog/swiftkv-llm-compute-reduction/
+    # First half of the network uses standard attention layers.
+    # In the second half, every pair of layers share their KV cache, and the first layer of each pair reuses the input to the kv cache.
     config.block_overrides = {}
     config.block_overrides['overrides'] = {
         'reuse_kv_x_layer': {

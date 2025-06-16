@@ -170,6 +170,7 @@ class MPTBlock(nn.Module):
         prev_layer_key_value: Optional[tuple[torch.Tensor,
                                              torch.Tensor]] = None,
         key_value_states: Optional[torch.Tensor] = None,
+        x_prev: Optional[torch.Tensor] = None,
         pos_id_within_seq: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
         torch.Tensor, torch.Tensor]]]:
@@ -192,10 +193,13 @@ class MPTBlock(nn.Module):
                 output_attentions=output_attentions,
                 alibi_slopes=alibi_slopes,
                 flash_attn_padding_info=flash_attn_padding_info,
+                x_prev=x_prev,
                 **extra_kwargs,
             )
         else:
             a = self.norm_1(x)
+            if x_prev is not None:
+                x_prev = self.norm_1(x_prev)
             b, attn_weights, past_key_value = self.attn(
                 a,
                 past_key_value=past_key_value,
@@ -206,6 +210,7 @@ class MPTBlock(nn.Module):
                 needs_weights=output_attentions,
                 alibi_slopes=alibi_slopes,
                 flash_attn_padding_info=flash_attn_padding_info,
+                x_prev=x_prev,
                 **extra_kwargs,
             )
             x = x + self.resid_attn_dropout(b)
@@ -347,6 +352,7 @@ class FusedNormAttentionNorm(nn.Module):
         prev_layer_key_value: Optional[tuple[torch.Tensor,
                                              torch.Tensor]] = None,
         key_value_states: Optional[torch.Tensor] = None,
+        x_prev: Optional[torch.Tensor] = None,
         pos_id_within_seq: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor],
                Optional[tuple[torch.Tensor, torch.Tensor]]]:
@@ -354,6 +360,8 @@ class FusedNormAttentionNorm(nn.Module):
         extra_kwargs = {}
         if prev_layer_key_value is not None:
             extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
+        if x_prev is not None:
+            x_prev = self.norm_1(x_prev)
         if key_value_states is not None:
             extra_kwargs['key_value_states'] = key_value_states
         if pos_id_within_seq is not None:
@@ -369,6 +377,7 @@ class FusedNormAttentionNorm(nn.Module):
             needs_weights=output_attentions,
             alibi_slopes=alibi_slopes,
             flash_attn_padding_info=flash_attn_padding_info,
+            x_prev=x_prev,
             **extra_kwargs,
         )
         x = x + self.resid_attn_dropout(b)

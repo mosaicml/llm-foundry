@@ -30,6 +30,7 @@ class MPTConfig(PretrainedConfig):
         d_model: int = 2048,
         n_heads: int = 16,
         n_layers: int = 24,
+        head_dim: Optional[int] = None,
         expansion_ratio: Union[int, float] = 4,
         max_seq_len: int = 2048,
         vocab_size: int = 50368,
@@ -41,6 +42,7 @@ class MPTConfig(PretrainedConfig):
         init_device: str = 'cpu',
         logit_scale: Optional[Union[float, str]] = None,
         no_bias: bool = False,
+        attention_bias: Optional[bool] = None,
         embedding_fraction: float = 1.0,
         norm_type: str = 'low_precision_layernorm',
         norm_eps: float = 1e-05,
@@ -59,6 +61,7 @@ class MPTConfig(PretrainedConfig):
             d_model (int): The size of the embedding dimension of the model.
             n_heads (int): The number of attention heads.
             n_layers (int): The number of layers in the model.
+            head_dim (Optional[int]): If not None, sets the attention head dimension.
             expansion_ratio (Union[int, float]): The ratio of the up/down scale in the ffn.
             max_seq_len (int): The maximum sequence length of the model.
             vocab_size (int): The size of the vocabulary.
@@ -101,6 +104,9 @@ class MPTConfig(PretrainedConfig):
             init_device (str): The device to use for parameter initialization.
             logit_scale (Optional[Union[float, str]]): If not None, scale the logits by this value.
             no_bias (bool): Whether to use bias in all layers.
+            attention_bias (bool): Whether to use bias in the QKV projections of the attention layer. This takes precedence over the
+                `no_bias` flag. If `no_bias` is True and this is True, then bias for QKV projections will be used. Default is None,
+                which means it will use the value of `no_bias` flag.
             embedding_fraction (float): The fraction to scale the gradients of the embedding layer by.
             norm_type (str): choose type of norm to use
             norm_eps (float): epsilon value for norm layer
@@ -154,6 +160,7 @@ class MPTConfig(PretrainedConfig):
         self.d_model = d_model
         self.n_heads = n_heads
         self.n_layers = n_layers
+        self.head_dim = head_dim
         self.expansion_ratio = expansion_ratio
         if max_seq_len != int(max_seq_len):
             raise ValueError('max_seq_len must be an integer')
@@ -171,6 +178,7 @@ class MPTConfig(PretrainedConfig):
         self.init_device = init_device
         self.logit_scale = logit_scale
         self.no_bias = no_bias
+        self.attention_bias = attention_bias if attention_bias is not None else not no_bias
         self.embedding_fraction = embedding_fraction
         self.norm_type = norm_type
         self.norm_eps = norm_eps
@@ -433,6 +441,7 @@ class MPTConfig(PretrainedConfig):
             'attn_config': {
                 'sliding_window_size': None,
                 'reuse_kv_layer_idx': None,
+                'reuse_kv_x_layer_idx': None,
                 'attn_temperature_tuning': {
                     'floor_scale': None,
                     'attn_scale': None,

@@ -461,6 +461,7 @@ class GroupedQueryAttention(nn.Module):
         d_model: int,
         n_heads: int,
         kv_n_heads: int,
+        head_dim: Optional[int] = None,
         attn_impl: str = 'flash',
         clip_qkv: Optional[float] = None,
         qk_ln: bool = False,
@@ -473,8 +474,10 @@ class GroupedQueryAttention(nn.Module):
         fc_type: Optional[dict[str, Any]] = None,
         device: Optional[str] = None,
         bias: bool = True,
+        attention_bias: bool = True,
         sliding_window_size: int = -1,
         reuse_kv_layer_idx: Optional[int] = None,
+        reuse_kv_x_layer_idx: Optional[int] = None,
         attn_logit_softcapping: Optional[float] = None,
         attn_temperature_tuning: Optional[dict] = None,
         kv_dim: Optional[int] = None,
@@ -492,13 +495,24 @@ class GroupedQueryAttention(nn.Module):
         self.n_heads = n_heads
         self.kv_n_heads = kv_n_heads
         self.sliding_window_size = sliding_window_size
+        if reuse_kv_x_layer_idx is not None:
+            if reuse_kv_layer_idx is not None:
+                raise ValueError(
+                    'Only one of reuse_kv_layer_idx and reuse_kv_x_layer_idx can be set.',
+                )
+            # For reuse_kv_x_layer_idx, we call Wq on the current layer's x and Wk, Wv on a previous layer's x, hence we cannot support fused_qkv.
+            if self.fused_qkv:
+                raise ValueError(
+                    'reuse_kv_x_layer_idx is not supported with fused_qkv.',
+                )
         self.reuse_kv_layer_idx = reuse_kv_layer_idx
+        self.reuse_kv_x_layer_idx = reuse_kv_x_layer_idx
         self.attn_logit_softcapping = attn_logit_softcapping
         self.attn_temperature_tuning = attn_temperature_tuning
         self.nope = nope
 
         self.kv_dim = kv_dim if kv_dim is not None else self.d_model
-        self.head_dim = d_model // n_heads
+        self.head_dim = head_dim if head_dim is not None else d_model // n_heads
 
         # Usually, fc_type dict should be passed in through MPTBlock's __init__ function.
         if fc_type is None:
@@ -506,6 +520,11 @@ class GroupedQueryAttention(nn.Module):
             fc_type['bias'] = bias
             fc_type['device'] = device
         fc_type_name = fc_type['name']
+
+        # for attention inputs
+        qkv_fc_type = copy.deepcopy(fc_type)
+        qkv_fc_type['bias'] = attention_bias
+        qkv_fc_type_name = qkv_fc_type['name']
 
         if self.kv_n_heads <= 0:
             raise ValueError('kv_n_heads should be greater than zero.')
@@ -529,20 +548,21 @@ class GroupedQueryAttention(nn.Module):
 
         if self.reuse_kv_layer_idx is not None:
             self.Wq = build_fc(
-                name=fc_type_name,
+                name=qkv_fc_type_name,
                 in_features=self.d_model,
-                out_features=self.d_model,
-                fc_kwargs=fc_type,
+                out_features=self.n_heads * self.head_dim,
+                fc_kwargs=qkv_fc_type,
             )
             # for param init fn; enables shape based init of fused layers
             fuse_splits = [i * self.head_dim for i in range(1, self.n_heads)]
             self.Wq._fused = (0, fuse_splits)
         elif self.fused_qkv:
             self.Wqkv = build_fc(
-                name=fc_type_name,
+                name=qkv_fc_type_name,
                 in_features=self.d_model,
-                out_features=self.d_model + 2 * self.kv_n_heads * self.head_dim,
-                fc_kwargs=fc_type,
+                out_features=self.n_heads * self.head_dim +
+                2 * self.kv_n_heads * self.head_dim,
+                fc_kwargs=qkv_fc_type,
             )
             # for param init fn; enables shape based init of fused layers
             fuse_splits = [
@@ -552,22 +572,22 @@ class GroupedQueryAttention(nn.Module):
             self.Wqkv._fused = (0, fuse_splits)
         else:
             self.Wq = build_fc(
-                name=fc_type_name,
+                name=qkv_fc_type_name,
                 in_features=self.d_model,
-                out_features=self.d_model,
-                fc_kwargs=fc_type,
+                out_features=self.n_heads * self.head_dim,
+                fc_kwargs=qkv_fc_type,
             )
             self.Wk = build_fc(
-                name=fc_type_name,
+                name=qkv_fc_type_name,
                 in_features=self.kv_dim,
                 out_features=self.kv_n_heads * self.head_dim,
-                fc_kwargs=fc_type,
+                fc_kwargs=qkv_fc_type,
             )
             self.Wv = build_fc(
-                name=fc_type_name,
+                name=qkv_fc_type_name,
                 in_features=self.kv_dim,
                 out_features=self.kv_n_heads * self.head_dim,
-                fc_kwargs=fc_type,
+                fc_kwargs=qkv_fc_type,
             )
             # for param init fn; enables shape based init of fused layers
             q_fuse_splits = [i * self.head_dim for i in range(1, self.n_heads)]
@@ -579,7 +599,7 @@ class GroupedQueryAttention(nn.Module):
             self.Wv._fused = (0, kv_fuse_splits)
 
         if self.qk_ln or self.qk_gn:
-            norm_size = self.head_dim if qk_gn else d_model
+            norm_size = self.head_dim if qk_gn else self.n_heads * self.head_dim
             self.q_ln = build_norm(
                 name=norm_type.lower(),
                 normalized_shape=norm_size,
@@ -600,7 +620,7 @@ class GroupedQueryAttention(nn.Module):
 
         self.out_proj = build_fc(
             name=fc_type_name,
-            in_features=self.d_model,
+            in_features=self.n_heads * self.head_dim,
             out_features=self.d_model,
             fc_kwargs=fc_type,
         )
@@ -620,6 +640,7 @@ class GroupedQueryAttention(nn.Module):
         prev_layer_key_value: Optional[tuple[torch.Tensor,
                                              torch.Tensor]] = None,
         key_value_states: Optional[torch.Tensor] = None,
+        x_prev: Optional[torch.Tensor] = None,
         pos_id_within_seq: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
         torch.Tensor, torch.Tensor]]]:
@@ -629,6 +650,7 @@ class GroupedQueryAttention(nn.Module):
         query, key, value = self.get_qkv(
             x=x,
             key_value_states=key_value_states,
+            x_prev=x_prev,
             **extra_kwargs,
         )
 
@@ -685,6 +707,7 @@ class GroupedQueryAttention(nn.Module):
     def get_qkv(
         self,
         x: torch.Tensor,
+        x_prev: Optional[torch.Tensor] = None,
         prev_layer_key_value: Optional[tuple[torch.Tensor,
                                              torch.Tensor]] = None,
         key_value_states: Optional[torch.Tensor] = None,
@@ -693,6 +716,7 @@ class GroupedQueryAttention(nn.Module):
 
         Args:
             x (torch.Tensor): The input query tensor.
+            x_prev (Optional[torch.Tensor]): The input tensor for the previous layer.
             prev_layer_key_value  (Optional[Tuple[torch.Tensor, torch.Tensor]]): The key value of the previous layer.
             key_value_states (Optional[torch.Tensor]): The input tensor for keys and values.
 
@@ -746,11 +770,22 @@ class GroupedQueryAttention(nn.Module):
         else:
             query = self.Wq(x)
             if key_value_states is not None:
+                if self.reuse_kv_x_layer_idx is not None:
+                    raise NotImplementedError(
+                        'reuse_kv_x_layer_idx is not supported with key_value_states.',
+                    )
                 key = self.Wk(key_value_states)
                 value = self.Wv(key_value_states)
             else:
-                key = self.Wk(x)
-                value = self.Wv(x)
+                kv_input = x
+                if self.reuse_kv_x_layer_idx is not None:
+                    if x_prev is None:
+                        raise ValueError(
+                            'x_prev is None, cannot reuse_kv_x_layer_idx.',
+                        )
+                    kv_input = x_prev
+                key = self.Wk(kv_input)
+                value = self.Wv(kv_input)
 
             if self.clip_qkv:
                 query = query.clamp(min=-self.clip_qkv, max=self.clip_qkv)
@@ -892,6 +927,7 @@ class MultiheadAttention(GroupedQueryAttention):
         self,
         d_model: int,
         n_heads: int,
+        head_dim: Optional[int] = None,
         attn_impl: str = 'flash',
         clip_qkv: Optional[float] = None,
         qk_ln: bool = False,
@@ -904,8 +940,10 @@ class MultiheadAttention(GroupedQueryAttention):
         fc_type: Optional[dict[str, Any]] = None,
         device: Optional[str] = None,
         bias: bool = True,
+        attention_bias: bool = True,
         sliding_window_size: int = -1,
         reuse_kv_layer_idx: Optional[int] = None,
+        reuse_kv_x_layer_idx: Optional[int] = None,
         attn_logit_softcapping: Optional[float] = None,
         attn_temperature_tuning: Optional[dict] = None,
         kv_dim: Optional[int] = None,
@@ -915,6 +953,7 @@ class MultiheadAttention(GroupedQueryAttention):
             d_model=d_model,
             n_heads=n_heads,
             kv_n_heads=n_heads,  # for MHA, same # heads as kv groups
+            head_dim=head_dim,
             attn_impl=attn_impl,
             clip_qkv=clip_qkv,
             qk_ln=qk_ln,
@@ -927,8 +966,10 @@ class MultiheadAttention(GroupedQueryAttention):
             fc_type=fc_type,
             device=device,
             bias=bias,
+            attention_bias=attention_bias,
             sliding_window_size=sliding_window_size,
             reuse_kv_layer_idx=reuse_kv_layer_idx,
+            reuse_kv_x_layer_idx=reuse_kv_x_layer_idx,
             attn_logit_softcapping=attn_logit_softcapping,
             attn_temperature_tuning=attn_temperature_tuning,
             kv_dim=kv_dim,
@@ -947,6 +988,7 @@ class MultiQueryAttention(GroupedQueryAttention):
         self,
         d_model: int,
         n_heads: int,
+        head_dim: Optional[int] = None,
         attn_impl: str = 'flash',
         clip_qkv: Optional[float] = None,
         qk_ln: bool = False,
@@ -959,8 +1001,10 @@ class MultiQueryAttention(GroupedQueryAttention):
         fc_type: Optional[dict[str, Any]] = None,
         device: Optional[str] = None,
         bias: bool = True,
+        attention_bias: bool = True,
         sliding_window_size: int = -1,
         reuse_kv_layer_idx: Optional[int] = None,
+        reuse_kv_x_layer_idx: Optional[int] = None,
         attn_logit_softcapping: Optional[float] = None,
         attn_temperature_tuning: Optional[dict] = None,
         kv_dim: Optional[int] = None,
@@ -970,6 +1014,7 @@ class MultiQueryAttention(GroupedQueryAttention):
             d_model=d_model,
             n_heads=n_heads,
             kv_n_heads=1,  # for MQA, 1 head
+            head_dim=head_dim,
             attn_impl=attn_impl,
             clip_qkv=clip_qkv,
             qk_ln=qk_ln,
@@ -982,8 +1027,10 @@ class MultiQueryAttention(GroupedQueryAttention):
             fc_type=fc_type,
             device=device,
             bias=bias,
+            attention_bias=attention_bias,
             sliding_window_size=sliding_window_size,
             reuse_kv_layer_idx=reuse_kv_layer_idx,
+            reuse_kv_x_layer_idx=reuse_kv_x_layer_idx,
             attn_logit_softcapping=attn_logit_softcapping,
             attn_temperature_tuning=attn_temperature_tuning,
             kv_dim=kv_dim,

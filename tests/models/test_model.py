@@ -100,6 +100,7 @@ def _get_objs(
     device = 'cuda' if is_gpu else 'cpu'
     test_cfg.precision = 'amp_bf16' if is_gpu else 'fp32'
     test_cfg.model.attn_config = {
+        'fused_qkv': False,
         'attn_impl': attn_impl,
     }
     test_cfg.model.init_device = device
@@ -804,6 +805,8 @@ def test_lora_id():
 
 @pytest.mark.parametrize('norm_type', norms.get_all())
 @pytest.mark.parametrize('no_bias', [False, True])
+@pytest.mark.parametrize('attention_bias', [False, True, None])
+@pytest.mark.parametrize('head_dim', [64, None])
 @pytest.mark.parametrize('tie_word_embeddings', [True, False])
 @pytest.mark.parametrize(
     'expansion_ratio,ffn_hidden_size',
@@ -846,9 +849,11 @@ def test_lora_id():
 def test_mpt_creation(
     norm_type: str,
     no_bias: bool,
+    attention_bias: Optional[bool],
+    head_dim: Optional[int],
     tie_word_embeddings: bool,
     expansion_ratio: Union[int, float],
-    ffn_hidden_size: int,
+    ffn_hidden_size: Optional[int],
     ffn_act_fn: dict,
 ):
     if norm_type == 'triton_rmsnorm' and not is_flash_v2_installed():
@@ -862,6 +867,7 @@ def test_mpt_creation(
         d_model=128,
         n_heads=4,
         n_layers=2,
+        head_dim=head_dim,
         expansion_ratio=expansion_ratio,
         max_seq_len=2048,
         emb_pdrop=0.1,
@@ -871,6 +877,7 @@ def test_mpt_creation(
         },
         norm_type=norm_type,
         no_bias=no_bias,
+        attention_bias=attention_bias,
         tie_word_embeddings=tie_word_embeddings,
         ffn_config={
             'ffn_type': 'mptmlp',
@@ -884,6 +891,7 @@ def test_mpt_creation(
     assert mpt.config.d_model == 128
     assert mpt.config.n_heads == 4
     assert mpt.config.n_layers == 2
+    assert mpt.config.head_dim == head_dim
     if ffn_hidden_size is None:
         assert mpt.config.expansion_ratio == expansion_ratio
     else:
@@ -905,6 +913,7 @@ def test_mpt_creation(
     assert len(mpt.transformer.blocks) == 2
 
     d_model = hf_config.d_model
+    n_heads = mpt.config.n_heads
     if ffn_hidden_size is None:  # type: ignore (sometimes it may not be none)
         ffn_hidden_size = int(hf_config.d_model * hf_config.expansion_ratio)
     for block in mpt.transformer.blocks:
@@ -924,6 +933,42 @@ def test_mpt_creation(
         ])
         assert block.resid_attn_dropout.p == 0.2
         assert block.resid_ffn_dropout.p == 0.2
+
+        attn_should_have_bias = (
+            attention_bias is True or (attention_bias is None and not no_bias)
+        )
+        other_should_have_bias = not no_bias
+
+        attn_head_dim_set = head_dim is not None
+
+        if not attn_head_dim_set:
+            block_head_dim = d_model // n_heads
+        else:
+            block_head_dim = head_dim
+        assert block.attn.Wqkv.weight.shape == torch.Size([
+            3 * n_heads * block_head_dim,
+            d_model,
+        ])
+
+        if attn_should_have_bias:
+            assert block.attn.Wqkv.bias.shape == torch.Size([
+                3 * n_heads * block_head_dim,
+            ])
+        else:
+            assert block.attn.Wqkv.bias is None
+
+        if other_should_have_bias:
+            assert block.attn.out_proj.bias.shape == torch.Size([d_model])
+            assert block.ffn.up_proj.bias.shape == torch.Size([
+                ffn_hidden_size,
+            ])
+            assert block.ffn.down_proj.bias.shape == torch.Size([
+                hf_config.d_model,
+            ])
+        else:
+            assert block.attn.out_proj.bias is None
+            assert block.ffn.up_proj.bias is None
+            assert block.ffn.down_proj.bias is None
 
 
 @pytest.mark.gpu
@@ -2664,26 +2709,118 @@ def test_construct_blocks():
                           5].attn.reuse_kv_layer_idx == 0  # type: ignore
 
 
+def test_construct_blocks_swiftkv():
+    n_layers = 8
+
+    config = MPTConfig(
+        d_model=32,
+        n_heads=16,
+        n_layers=n_layers,
+        expansion_ratio=2,
+        max_seq_len=64,
+        attn_config={
+            'attn_impl': 'flash',
+            'attn_type': 'grouped_query_attention',
+            'kv_n_heads': 4,
+            'fused_qkv': False,
+        },
+    )
+
+    # First half of the network uses standard attention layers.
+    # In the second half, every pair of layers share their KV cache, and the first layer of each pair reuses the input to the kv cache.
+    config.block_overrides = {}
+    config.block_overrides['overrides'] = {
+        'reuse_kv_x_layer': {
+            'attn_config': {
+                'reuse_kv_x_layer_idx': -2,
+            },
+        },
+        'reuse_kv_layer': {
+            'attn_config': {
+                'reuse_kv_layer_idx': -1,
+            },
+        },
+    }
+    config.block_overrides['order'] = [
+        {
+            'name': 'default',
+        },
+        {
+            'name': 'default',
+        },
+        {
+            'name': 'default',
+        },
+        {
+            'name': 'default',
+        },
+        {
+            'name': 'default',
+        },
+        {
+            'name': 'reuse_kv_layer',
+        },
+        {
+            'name': 'reuse_kv_x_layer',
+        },
+        {
+            'name': 'reuse_kv_layer',
+        },
+    ]
+
+    block_list = MPTModel(config).construct_blocks(config)
+
+    assert len(block_list) == n_layers
+
+    for i in range(5):
+        assert block_list[i].attn.reuse_kv_layer_idx is None  # type: ignore
+        assert block_list[i].attn.reuse_kv_x_layer_idx is None  # type: ignore
+
+    assert block_list[5].attn.reuse_kv_layer_idx == 4  # type: ignore
+    assert block_list[5].attn.reuse_kv_x_layer_idx is None  # type: ignore
+    assert block_list[6].attn.reuse_kv_layer_idx is None  # type: ignore
+    assert block_list[6].attn.reuse_kv_x_layer_idx == 4  # type: ignore
+    assert block_list[7].attn.reuse_kv_layer_idx == 6  # type: ignore
+    assert block_list[7].attn.reuse_kv_x_layer_idx is None  # type: ignore
+
+
 @pytest.mark.gpu
+@pytest.mark.parametrize(
+    'reuse_type',
+    [
+        'reuse_kv_layer',
+        'reuse_kv_x_layer',
+    ],
+)
+@pytest.mark.parametrize(
+    'fuse_norm_attn_norm',
+    [
+        True,
+        False,
+    ],
+)
 def test_reuse_prev_layer_kv_cache(
     request: pytest.FixtureRequest,
+    reuse_type: str,
+    fuse_norm_attn_norm: bool,
     batch_size: int = 2,
 ):
     conf_path = 'scripts/train/yamls/pretrain/testing.yaml'
     model_config_overrides = {
+        'fuse_norm_attn_norm': fuse_norm_attn_norm,
         'block_overrides': {
             'order': [
                 {
                     'name': 'default',
                 },
                 {
-                    'name': 'kv_reuse_layer',
+                    'name': reuse_type,
                 },
             ],
             'overrides': {
-                'kv_reuse_layer': {
+                reuse_type: {
                     'attn_config': {
-                        'reuse_kv_layer_idx': -1,
+                        f'{reuse_type}_idx': -1,
                     },
                 },
             },
@@ -2704,6 +2841,22 @@ def test_reuse_prev_layer_kv_cache(
         test_cfg.max_seq_len,
     ])
     model.train()
+
+    if reuse_type == 'reuse_kv_x_layer':
+        if fuse_norm_attn_norm:
+            model.model.transformer.blocks[1].norm_attn_norm.norm_1.load_state_dict(  # type: ignore
+                model.model.transformer.blocks[0].norm_attn_norm.norm_1.state_dict(),  # type: ignore
+            )
+            model.model.transformer.blocks[1].norm_attn_norm.attn.load_state_dict(  # type: ignore
+                model.model.transformer.blocks[0].norm_attn_norm.attn.state_dict(),  # type: ignore
+            )
+        else:
+            model.model.transformer.blocks[1].norm_1.load_state_dict(  # type: ignore
+                model.model.transformer.blocks[0].norm_1.state_dict(),  # type: ignore
+            )
+            model.model.transformer.blocks[1].attn.load_state_dict(  # type: ignore
+                model.model.transformer.blocks[0].attn.state_dict(),  # type: ignore
+            )
 
     prev_layer_key_value_dict = {}
 
@@ -2726,13 +2879,16 @@ def test_reuse_prev_layer_kv_cache(
         assert torch.all(
             outputs.past_key_values[0][1] == outputs.past_key_values[1][1],
         )
-        assert 0 not in prev_layer_key_value_dict
-        assert torch.all(
-            prev_layer_key_value_dict[1][0] == outputs.past_key_values[0][0],
-        )
-        assert torch.all(
-            prev_layer_key_value_dict[1][1] == outputs.past_key_values[0][1],
-        )
+        if reuse_type == 'reuse_kv_layer':
+            assert 0 not in prev_layer_key_value_dict
+            assert torch.all(
+                prev_layer_key_value_dict[1][0] == outputs.past_key_values[0]
+                [0],
+            )
+            assert torch.all(
+                prev_layer_key_value_dict[1][1] == outputs.past_key_values[0]
+                [1],
+            )
 
 
 def test_override_block_args():
@@ -2787,8 +2943,8 @@ def test_get_modules_order_expanded():
     assert expected_list == MPTModel._get_modules_order_expanded(order)
 
 
-@pytest.mark.parametrize('reuse_kv_layer_idx', [-2, -1, 0])
-def test_resolve_reuse_kv_layer_idx(reuse_kv_layer_idx: int):
+@pytest.mark.parametrize('reuse_kv_layer_idx', [-2, 0])
+def test_resolve_reuse_state_layer_idx(reuse_kv_layer_idx: int):
     layer_a_override = {
         'key_1': 'value_a',
         'attn_config': {
@@ -2829,7 +2985,7 @@ def test_resolve_reuse_kv_layer_idx(reuse_kv_layer_idx: int):
     reuse_kv_layer_idx_dict = {}
 
     def _validate_helper(b_idx: int) -> int:
-        return MPTModel._resolve_reuse_kv_layer_idx(
+        return MPTModel._resolve_reuse_state_layer_idx(
             overrides_definition=block_overrides['overrides'],
             model_modules_order_expanded=model_modules_order_expanded,
             b_idx=b_idx,
@@ -2837,27 +2993,17 @@ def test_resolve_reuse_kv_layer_idx(reuse_kv_layer_idx: int):
                 block_overrides['overrides'][model_modules_order_expanded[b_idx]
                                             ],
             ),
-            reuse_kv_layer_idx_dict=reuse_kv_layer_idx_dict,
+            reuse_state_layer_idx_dict=reuse_kv_layer_idx_dict,
+            reuse_type='reuse_kv_layer_idx',
         )
 
-    if reuse_kv_layer_idx == -1:
-        assert _validate_helper(b_idx=2) == 1
-        assert _validate_helper(b_idx=3) == 1
-        assert _validate_helper(b_idx=4) == 1
-        with pytest.raises(
-            expected_exception=ValueError,
-            match=
-            'For reusing the kv cache of a previous layer, the previous layer should match the block config as the current layer\.',  # type: ignore
-        ):
-            _validate_helper(b_idx=6)
-
-    elif reuse_kv_layer_idx == -2:
+    if reuse_kv_layer_idx == -2:
         assert _validate_helper(b_idx=2) == 0
     else:
         with pytest.raises(
             expected_exception=ValueError,
             match=
-            'The relative index of kv layer to reuse, override_attn_config\\[\'reuse_kv_layer_idx\'\\]=0, should be negative.',  # type: ignore
+            'The relative index of kv layer to reuse should be negative.',  # type: ignore
         ):
             _validate_helper(b_idx=2)
 

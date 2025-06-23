@@ -86,7 +86,7 @@ extra_deps['dev'] = [
     'pyright==1.1.256',
     'toml>=0.10.2,<0.11',
     'packaging>=21,<26',
-    'hf_transfer==0.1.8',
+    'hf_transfer==0.1.9',
     'tenacity>=9,<10',
 ]
 

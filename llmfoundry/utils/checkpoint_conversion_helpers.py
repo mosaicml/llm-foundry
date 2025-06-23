@@ -37,7 +37,9 @@ def _get_weight_data_type(data_type: str):
     elif data_type == 'fp16':
         return np.float16
     else:
-        raise RuntimeError(f'Unsupported data type: {data_type} for conversion.')
+        raise RuntimeError(
+            f'Unsupported data type: {data_type} for conversion.'
+        )
 
 
 # TODO: move this functionality to composer once the bug fixes are upstreamed

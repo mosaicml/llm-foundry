@@ -38,7 +38,7 @@ def _get_weight_data_type(data_type: str):
         return np.float16
     else:
         raise RuntimeError(
-            f'Unsupported data type: {data_type} for conversion.'
+            f'Unsupported data type: {data_type} for conversion.',
         )
 
 

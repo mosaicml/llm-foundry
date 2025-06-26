@@ -67,7 +67,7 @@ install_requires = [
     'onnx==1.18.0',
     'onnxruntime==1.22.0',
     'boto3>=1.21.45,<2',
-    'huggingface-hub[hf_xet]>=0.30.0,<0.33',
+    'huggingface-hub[hf_xet]>=0.30.0,<0.34',
     'beautifulsoup4>=4.12.2,<5',  # required for model download utils
     'tenacity>=8.2.3,<10',
     'catalogue>=2,<3',
@@ -78,7 +78,7 @@ install_requires = [
 extra_deps = {}
 
 extra_deps['dev'] = [
-    'coverage[toml]==7.8.2',
+    'coverage[toml]==7.9.1',
     'pre-commit>=3.4.0,<4',
     'pytest>=7.2.1,<9',
     'pytest_codeblocks>=0.16.1,<0.18',
@@ -86,7 +86,7 @@ extra_deps['dev'] = [
     'pyright==1.1.256',
     'toml>=0.10.2,<0.11',
     'packaging>=21,<26',
-    'hf_transfer==0.1.8',
+    'hf_transfer==0.1.9',
     'tenacity>=9,<10',
 ]
 

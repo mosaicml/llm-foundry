@@ -448,3 +448,42 @@ def test_apply_temperature_tuning():
         pos_id_within_seq=pos_id_within_seq,
     )
     assert torch.allclose(result, expected_result)
+
+
+@pytest.mark.parametrize('dim', [1024])
+def test_get_qkv_reuse_kv_x(dim: int):
+    attn_name = 'grouped_query_attention'
+    d_head = 128
+    n_heads = dim // d_head
+
+    attn_config = {
+        'd_model': dim,
+        'n_heads': n_heads,
+        'fc_type': {
+            'name': 'torch',
+        },
+        'device': 'cpu',
+        'attn_pdrop': 0.0,
+        'attn_impl': 'torch',
+        'qk_ln': False,
+        'qk_gn': False,
+        'clip_qkv': None,
+        'softmax_scale': None,
+        'sliding_window_size': -1,
+        'kv_n_heads': 2,
+        'fused_qkv': False,
+        'reuse_kv_x_layer_idx': 0,
+    }
+
+    attn_layer = build_attention_layer(
+        name=attn_name,
+        attn_kwargs=attn_config,
+    )
+
+    x1 = torch.randn(1, 1, dim)
+    x2 = torch.randn(1, 1, dim)
+
+    q, k, v = attn_layer.get_qkv(x1, x_prev=x2)
+    assert torch.allclose(q, attn_layer.Wq(x1))
+    assert torch.allclose(k, attn_layer.Wk(x2))
+    assert torch.allclose(v, attn_layer.Wv(x2))

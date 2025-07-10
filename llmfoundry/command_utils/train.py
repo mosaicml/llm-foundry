@@ -331,6 +331,11 @@ def train(cfg: DictConfig) -> Trainer:
     # Optional tp config
     tp_config: Optional[Union[TPConfig, dict[str, Any]]] = train_cfg.tp_config
 
+    print("[1] fsdp_config")
+    from pprint import pprint
+    pprint(fsdp_config)
+    print()
+
     # Warn if FSDP or TP is enabled but user only has 1 GPU
     if dist.get_world_size(
     ) == 1 and (fsdp_config is not None or tp_config is not None):
@@ -349,6 +354,11 @@ def train(cfg: DictConfig) -> Trainer:
     init_context = process_init_device(model_config, fsdp_config, tp_config)
     logged_cfg.update({'fsdp_config': copy.deepcopy(fsdp_config)}, merge=True)
     logged_cfg.update({'tp_config': copy.deepcopy(tp_config)}, merge=True)
+
+    print("[2] fsdp_config")
+    from pprint import pprint
+    pprint(fsdp_config)
+    print()
 
     if fsdp_config is not None:
         if 'load_planner' in fsdp_config:
@@ -374,6 +384,11 @@ def train(cfg: DictConfig) -> Trainer:
                 save_planner_name,
                 **save_planner_config,
             )
+
+    print("[3] fsdp_config")
+    from pprint import pprint
+    pprint(fsdp_config)
+    print()
 
     # Build tokenizer
     tokenizer = None

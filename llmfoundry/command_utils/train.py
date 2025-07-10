@@ -214,24 +214,12 @@ def train(cfg: DictConfig) -> Trainer:
     for code_path in code_paths:
         import_file(code_path)
 
-    print("cfg")
-    from pprint import pprint
-    pprint(cfg)
-    print()
-
     logged_cfg, train_cfg = make_dataclass_and_log_config(
         cfg,
         TrainConfig,
         TRAIN_CONFIG_KEYS,
         transforms='all',
     )
-
-    print("train_cfg")
-    from pprint import pprint
-    pprint(train_cfg)
-    print()
-    print("fsdp_config")
-    pprint(train_cfg.fsdp_config)
 
     # Set logging level
     if train_cfg.python_log_level is not None:
@@ -545,6 +533,11 @@ def train(cfg: DictConfig) -> Trainer:
 
     # Parallelism config
     parallelism_config = {'fsdp': fsdp_config, 'tp': tp_config}
+
+    print("parallelism_config")
+    from pprint import pprint
+    pprint(parallelism_config)
+    print()
 
     # Optimizer
     optimizer_name: str = train_cfg.optimizer.pop('name')

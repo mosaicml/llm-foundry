@@ -214,12 +214,22 @@ def train(cfg: DictConfig) -> Trainer:
     for code_path in code_paths:
         import_file(code_path)
 
+    print("cfg")
+    from pprint import pprint
+    pprint(cfg)
+    print()
+
     logged_cfg, train_cfg = make_dataclass_and_log_config(
         cfg,
         TrainConfig,
         TRAIN_CONFIG_KEYS,
         transforms='all',
     )
+
+    print("train_cfg.fsdp_config")
+    from pprint import pprint
+    pprint(train_cfg.fsdp_config)
+    print()
 
     # Set logging level
     if train_cfg.python_log_level is not None:
@@ -282,6 +292,11 @@ def train(cfg: DictConfig) -> Trainer:
 
     # Optional fsdp data, fine-tuning, and eval configs
     fsdp_config: Optional[dict[str, Any]] = train_cfg.fsdp_config
+
+    print("fsdp_config")
+    from pprint import pprint
+    pprint(fsdp_config)
+    print()
 
     eval_loader_config = train_cfg.eval_loader if train_cfg.eval_loader is not None else train_cfg.eval_loaders
     icl_tasks_config = train_cfg.icl_tasks or train_cfg.icl_tasks_str

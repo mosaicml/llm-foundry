@@ -7,9 +7,10 @@ import tempfile
 from pathlib import Path
 
 import torch
-from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from composer.core import Callback, State
-from composer.core.state import fsdp_state_dict_type_context
+from composer.core.state import (
+    fsdp_state_dict_type_context,
+)
 from composer.loggers import Logger
 from composer.loggers.remote_uploader_downloader import RemoteUploaderDownloader
 from composer.utils import (
@@ -122,7 +123,6 @@ class MonolithicCheckpointSaver(Callback):
                                 optimizer,
                             ),
                     }
-
             if dist.get_global_rank() == 0:
                 torch.save(state_dict, save_path)
 

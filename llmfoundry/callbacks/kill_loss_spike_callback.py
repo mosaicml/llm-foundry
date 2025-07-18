@@ -1,6 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """Track training runs for loss spikes or persistently high training loss."""
 from __future__ import annotations
 

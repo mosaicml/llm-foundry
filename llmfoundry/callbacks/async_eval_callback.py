@@ -1,6 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """Run the eval loop asynchronously as part of a MosaicML platform run.
 
 This callback is currently experimental. The API may change in the future.

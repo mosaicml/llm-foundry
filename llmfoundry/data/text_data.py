@@ -1,6 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """Build a StreamingTextDataset dataset and dataloader for training."""
 
 import inspect
@@ -291,7 +290,9 @@ class ConcatenatedSequenceCollatorWrapper:
         return torch.cat([left_zeros, cumulative_sep[:, :-1]], dim=1)
 
 
-def build_streams(streams: Optional[dict[str, Any]] = None,):
+def build_streams(
+    streams: Optional[dict[str, Any]] = None,
+):
     streams_dict = streams
     # build streams
     streams_ret = []
@@ -337,7 +338,9 @@ def build_text_dataloader(
         StreamingTextDataset,
     ).parameters
 
-    valid_base_dataset_params = inspect.signature(StreamingDataset,).parameters
+    valid_base_dataset_params = inspect.signature(
+        StreamingDataset,
+    ).parameters
 
     dataset_config_subset_for_streaming_text_dataset = {
         k: v

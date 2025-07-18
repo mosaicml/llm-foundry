@@ -1,6 +1,5 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """Log model outputs and expected outputs during ICL evaluation."""
 
 import warnings
@@ -69,12 +68,12 @@ class EvalOutputLogging(Callback):
 
         assert state.outputs is not None
         assert state.metric_outputs is not None
-        logging_dict: dict[str,
-                           Union[list[Any], torch.Tensor,
-                                 Sequence[torch.Tensor]],
-                          ] = deepcopy(
-                              state.metric_outputs,
-                          )
+        logging_dict: dict[
+            str,
+            Union[list[Any], torch.Tensor, Sequence[torch.Tensor]],
+        ] = deepcopy(
+            state.metric_outputs,
+        )
 
         if state.batch.get('mode') == 'generate':
             # Outputs are already detokenized

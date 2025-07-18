@@ -265,7 +265,9 @@ class LossPerpVLen(Metric):
         if sequence_id is not None:
             seq_id_mask = (sequence_id != -1)
             sequence_id = torch.where(seq_id_mask, sequence_id, 0)
-            seq_id_expanded = torch.nn.functional.one_hot(sequence_id,)
+            seq_id_expanded = torch.nn.functional.one_hot(
+                sequence_id,
+            )
             seq_id_expanded = torch.where(
                 torch.unsqueeze(seq_id_mask, dim=-1),
                 seq_id_expanded,

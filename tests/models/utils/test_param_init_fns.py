@@ -11,9 +11,22 @@ import torch
 from omegaconf import DictConfig, ListConfig
 from omegaconf import OmegaConf as om
 from torch import nn
+from torch.distributed._tensor import (
+    DeviceMesh,
+    DTensor,
+    Shard,
+    distribute_tensor,
+)
 
 from llmfoundry.layers_registry import param_init_fns
 from llmfoundry.models.utils import generic_param_init_fn_
+from llmfoundry.models.utils.param_init_fns import (
+    embedding_init,
+    fc_init,
+    fused_param_init_helper,
+    multihead_attention_init,
+    stacked_param_init_helper,
+)
 
 
 class MLP(nn.Module):
@@ -205,7 +218,9 @@ def test_emb_init(emb_init_cfg: Optional[tuple[str, Union[int, list[int]]]]):
     'padding_idx',
     [0, 2],
 )
-def test_emb_padding_init(padding_idx: int,):
+def test_emb_padding_init(
+    padding_idx: int,
+):
     cfg: dict[str, Union[int, list[int]]] = {
         'vocab_size': 64,
         'in_features': 16,
@@ -226,3 +241,437 @@ def test_emb_padding_init(padding_idx: int,):
 
     if dict_cfg.get('emb_init_std') is not None:
         assert (model.weight[padding_idx] == 0).all()
+
+
+def init_arange_(weight: torch.Tensor) -> None:
+    with torch.no_grad():
+        weight.copy_(
+            torch.arange(weight.numel()).reshape(weight.shape).float(),
+        )
+
+
+@pytest.mark.world_size(2)
+def test_fused_init_helper_dtensor_vs_tensor():
+    # Create a simple device mesh for CPU
+    mesh = DeviceMesh('cpu', [0, 1])
+
+    regular_tensor = torch.nn.Parameter(torch.zeros(4, 4))
+
+    dtensor = torch.nn.Parameter(
+        distribute_tensor(regular_tensor, mesh, [Shard(0)]),
+    )
+
+    # Define fused parameters (dimension 0, split at index 2)
+    fused_params = (0, [2])
+
+    # Initialize both tensors using fused_param_init_helper
+    fused_param_init_helper(regular_tensor, init_arange_, fused_params)
+    fused_param_init_helper(dtensor, init_arange_, fused_params)
+
+    assert isinstance(
+        dtensor,
+        torch.nn.Parameter,
+    ), f'param is not an nn.Parameter anymore: {type(dtensor)}'
+    assert isinstance(
+        dtensor,
+        DTensor,
+    ), f'DTensor is not a DTensor: {type(dtensor)}'
+
+    # For comparison, convert DTensor to regular tensor
+    dtensor_result = dtensor.full_tensor()
+
+    # Verify results are identical
+    assert torch.equal(regular_tensor, dtensor_result), \
+        f'fused_param_init_helper produced different results for regular tensor: {regular_tensor} vs DTensor: {dtensor_result}'
+
+    # Check that each partition was separately initialized as expected
+    numel_half = dtensor_result.numel() // 2
+    expected_result = torch.cat([
+        torch.arange(numel_half),
+        torch.arange(numel_half),
+    ]).reshape(dtensor_result.shape).float()
+    assert torch.equal(
+        regular_tensor,
+        expected_result,
+    ), f'Regular tensor was not initialized correctly: {regular_tensor} vs {expected_result}'
+    assert torch.equal(
+        dtensor_result,
+        expected_result,
+    ), f'DTensor was not initialized correctly: {dtensor_result} vs {expected_result}'
+
+
+@pytest.mark.world_size(2)
+@pytest.mark.parametrize('is_fused', [False, True])
+def test_fc_init_dtensor_vs_tensor(is_fused: bool):
+    # Create a simple device mesh for CPU
+    mesh = DeviceMesh('cpu', [0, 1])
+
+    # Set up minimal config
+    init_div_is_residual = True
+    div_is_residual = 2.0
+
+    # Create a regular linear layer
+    regular_linear = nn.Linear(8, 4)
+
+    # Create a linear layer with DTensor parameters
+    dtensor_linear = nn.Linear(8, 4)
+
+    # Convert the weight and bias to DTensor
+    dtensor_linear.weight = torch.nn.Parameter(
+        distribute_tensor(dtensor_linear.weight, mesh, [Shard(0)]),
+    )
+    dtensor_linear.bias = torch.nn.Parameter(
+        distribute_tensor(dtensor_linear.bias, mesh, [Shard(0)]),
+    )
+
+    # Test the residual path
+    regular_linear._is_residual = True
+    dtensor_linear._is_residual = True
+
+    # For fused case, add the _fused attribute
+    if is_fused:
+        # Define fused parameters (dimension 0, split at index 2)
+        fused_params = (0, [2])
+        regular_linear._fused = fused_params
+        dtensor_linear._fused = fused_params
+
+    # Initialize both modules using fc_init
+    fc_init(regular_linear, init_arange_, init_div_is_residual, div_is_residual)
+    fc_init(dtensor_linear, init_arange_, init_div_is_residual, div_is_residual)
+
+    # For comparison, convert DTensor to regular tensor
+    assert isinstance(
+        dtensor_linear.weight,
+        DTensor,
+    ), f'DTensor is not a DTensor: {type(dtensor_linear.weight)}'
+    assert isinstance(
+        dtensor_linear.bias,
+        DTensor,
+    ), f'DTensor is not a DTensor: {type(dtensor_linear.bias)}'
+    dtensor_weight = dtensor_linear.weight.full_tensor()
+    dtensor_bias = dtensor_linear.bias.full_tensor()
+
+    # Verify weight results are identical
+    assert torch.equal(regular_linear.weight, dtensor_weight), \
+        f'regular tensor: {regular_linear.weight} vs DTensor: {dtensor_weight}'
+
+    # Verify bias results are identical (should be all zeros)
+    assert torch.equal(regular_linear.bias, dtensor_bias), \
+        f'regular tensor: {regular_linear.bias} vs DTensor: {dtensor_bias}'
+
+    if is_fused:
+        # For fused case, check that each partition was separately initialized as expected
+        # Following the same verification logic as in test_fused_init_helper_dtensor_vs_tensor
+        numel_half = regular_linear.weight.numel() // 2
+        expected_weight = torch.cat([
+            torch.arange(numel_half),
+            torch.arange(numel_half),
+        ]).reshape(regular_linear.weight.shape).float()
+
+        # Apply div_is_residual factor for residual path
+        expected_weight = expected_weight / div_is_residual
+    else:
+        # For non-fused case, the initialization is simpler
+        expected_weight = torch.arange(regular_linear.weight.numel()).reshape(
+            regular_linear.weight.shape,
+        ).float() / div_is_residual
+    assert torch.equal(
+        dtensor_weight,
+        expected_weight,
+    ), f'DTensor weight was not initialized correctly: {dtensor_weight} vs {expected_weight}'
+
+    # Bias should be all zeros in both cases
+    assert torch.all(dtensor_bias == 0), \
+        f'DTensor bias was not initialized correctly: {dtensor_bias}'
+
+
+@pytest.mark.world_size(2)
+def test_stacked_param_init_helper_dtensor_vs_tensor():
+    # Create a simple device mesh for CPU
+    mesh = DeviceMesh('cpu', [0, 1])
+
+    regular_tensor = torch.nn.Parameter(torch.zeros(4, 4))
+
+    dtensor = torch.nn.Parameter(
+        distribute_tensor(regular_tensor, mesh, [Shard(0)]),
+    )
+
+    # Choose a stack dimension
+    stack_dim = 0
+
+    # Initialize both tensors using stacked_param_init_helper
+    stacked_param_init_helper(regular_tensor, init_arange_, stack_dim)
+    stacked_param_init_helper(dtensor, init_arange_, stack_dim)
+
+    assert isinstance(
+        dtensor,
+        torch.nn.Parameter,
+    ), f'param is not an nn.Parameter anymore: {type(dtensor)}'
+    assert isinstance(
+        dtensor,
+        DTensor,
+    ), f'DTensor is not a DTensor: {type(dtensor)}'
+
+    # For comparison, convert DTensor to regular tensor
+    dtensor_result = dtensor.full_tensor()
+
+    # Verify results are identical
+    assert torch.equal(regular_tensor, dtensor_result), \
+        f'stacked_param_init_helper produced different results for regular tensor: {regular_tensor} vs DTensor: {dtensor_result}'
+
+    # Check that each slice along stack_dim was separately initialized as expected
+    rows, cols = regular_tensor.shape
+    for idx in range(regular_tensor.size(stack_dim)):
+        if stack_dim == 0:
+            expected_slice = torch.arange(cols).float()
+            actual_slice = regular_tensor[idx]
+        else:
+            expected_slice = torch.arange(rows).float()
+            actual_slice = regular_tensor[:, idx]
+
+        assert torch.equal(actual_slice, expected_slice), \
+            f'Slice {idx} was not initialized correctly: {actual_slice} vs {expected_slice}'
+
+
+@pytest.mark.world_size(2)
+@pytest.mark.parametrize('use_padding_idx', [False, True])
+@pytest.mark.parametrize('init_type', ['std', 'uniform', 'default'])
+def test_embedding_init_dtensor_vs_tensor(
+    use_padding_idx: bool,
+    init_type: str,
+):
+    # Create a simple device mesh for CPU
+    mesh = DeviceMesh('cpu', [0, 1])
+
+    # Setup parameters
+    vocab_size, embed_dim = 10, 4
+    padding_idx = 2 if use_padding_idx else None
+
+    # Create a regular embedding layer
+    regular_embedding = nn.Embedding(
+        vocab_size,
+        embed_dim,
+        padding_idx=padding_idx,
+    )
+
+    # Create an embedding layer with DTensor parameters
+    dtensor_embedding = nn.Embedding(
+        vocab_size,
+        embed_dim,
+        padding_idx=padding_idx,
+    )
+
+    # Convert the weight to DTensor
+    dtensor_embedding.weight = torch.nn.Parameter(
+        distribute_tensor(dtensor_embedding.weight, mesh, [Shard(0)]),
+    )
+
+    # Initialize both modules using embedding_init
+    embedding_init(regular_embedding, init_arange_, None, None)
+    embedding_init(dtensor_embedding, init_arange_, None, None)
+
+    # For comparison, convert DTensor to regular tensor
+    assert isinstance(
+        dtensor_embedding.weight,
+        DTensor,
+    ), f'DTensor is not a DTensor: {type(dtensor_embedding.weight)}'
+    dtensor_weight = dtensor_embedding.weight.full_tensor()
+
+    # Verify weight results are identical
+    assert torch.equal(regular_embedding.weight, dtensor_weight), \
+        f'regular tensor: {regular_embedding.weight} vs DTensor: {dtensor_weight}'
+
+    # Additional test for padding_idx
+    if padding_idx is not None:
+        assert torch.all(regular_embedding.weight[padding_idx] == 0), \
+            f'Regular embedding padding not initialized to zero: {regular_embedding.weight[padding_idx]}'
+        assert torch.all(dtensor_weight[padding_idx] == 0), \
+            f'DTensor embedding padding not initialized to zero: {dtensor_weight[padding_idx]}'
+
+
+@pytest.mark.world_size(2)
+@pytest.mark.parametrize('qkv_same_dim', [True, False])
+@pytest.mark.parametrize('is_residual', [True, False])
+def test_multihead_attention_init_dtensor_vs_tensor(
+    qkv_same_dim: bool,
+    is_residual: bool,
+):
+    # Create a simple device mesh for CPU
+    mesh = DeviceMesh('cpu', [0, 1])
+
+    # Setup parameters
+    d_model = 8
+    nhead = 2
+
+    # Set up minimal config
+    init_div_is_residual = True
+    div_is_residual = 2.0
+
+    # Create regular MultiheadAttention
+    regular_mha = nn.MultiheadAttention(
+        embed_dim=d_model,
+        num_heads=nhead,
+        kdim=d_model if qkv_same_dim else d_model * 2,
+        vdim=d_model if qkv_same_dim else d_model * 2,
+        batch_first=True,
+        add_bias_kv=not qkv_same_dim,
+    )
+
+    # Create MultiheadAttention with DTensor parameters
+    dtensor_mha = nn.MultiheadAttention(
+        embed_dim=d_model,
+        num_heads=nhead,
+        kdim=d_model if qkv_same_dim else d_model * 2,
+        vdim=d_model if qkv_same_dim else d_model * 2,
+        batch_first=True,
+        add_bias_kv=not qkv_same_dim,
+    )
+
+    # Mark out_proj as residual if needed
+    if is_residual:
+        regular_mha.out_proj._is_residual = True
+        dtensor_mha.out_proj._is_residual = True
+
+    # Convert parameters to DTensor
+    if qkv_same_dim:
+        # In case of same dimensions, in_proj_weight is used
+        dtensor_mha.in_proj_weight = torch.nn.Parameter(
+            distribute_tensor(dtensor_mha.in_proj_weight, mesh, [Shard(0)]),
+        )
+        dtensor_mha.in_proj_bias = torch.nn.Parameter(
+            distribute_tensor(dtensor_mha.in_proj_bias, mesh, [Shard(0)]),
+        )
+    else:
+        # In case of different dimensions, q/k/v_proj_weight are used
+        dtensor_mha.q_proj_weight = torch.nn.Parameter(
+            distribute_tensor(dtensor_mha.q_proj_weight, mesh, [Shard(0)]),
+        )
+        dtensor_mha.k_proj_weight = torch.nn.Parameter(
+            distribute_tensor(dtensor_mha.k_proj_weight, mesh, [Shard(0)]),
+        )
+        dtensor_mha.v_proj_weight = torch.nn.Parameter(
+            distribute_tensor(dtensor_mha.v_proj_weight, mesh, [Shard(0)]),
+        )
+        dtensor_mha.bias_k = torch.nn.Parameter(
+            distribute_tensor(
+                dtensor_mha.bias_k,  # type: ignore
+                mesh,
+                [Shard(0)],
+            ),
+        )
+        dtensor_mha.bias_v = torch.nn.Parameter(
+            distribute_tensor(
+                dtensor_mha.bias_v,  # type: ignore
+                mesh,
+                [Shard(0)],
+            ),
+        )
+
+    # Convert out_proj parameters to DTensor
+    dtensor_mha.out_proj.weight = torch.nn.Parameter(
+        distribute_tensor(dtensor_mha.out_proj.weight, mesh, [Shard(0)]),
+    )
+    dtensor_mha.out_proj.bias = torch.nn.Parameter(
+        distribute_tensor(dtensor_mha.out_proj.bias, mesh, [Shard(0)]),
+    )
+
+    # Initialize both modules using multihead_attention_init
+    multihead_attention_init(
+        regular_mha,
+        init_arange_,
+        d_model,
+        init_div_is_residual,
+        div_is_residual,
+    )
+    multihead_attention_init(
+        dtensor_mha,
+        init_arange_,
+        d_model,
+        init_div_is_residual,
+        div_is_residual,
+    )
+
+    # Convert DTensor parameters to regular tensors for comparison
+    if qkv_same_dim:
+        # Compare in_proj_weight
+        assert isinstance(
+            dtensor_mha.in_proj_weight,
+            DTensor,
+        ), f'DTensor is not a DTensor: {type(dtensor_mha.in_proj_weight)}'
+        dtensor_in_proj_weight = dtensor_mha.in_proj_weight.full_tensor()
+        assert torch.equal(regular_mha.in_proj_weight, dtensor_in_proj_weight), \
+            f'regular in_proj_weight: {regular_mha.in_proj_weight} vs DTensor: {dtensor_in_proj_weight}'
+        assert isinstance(
+            dtensor_mha.in_proj_bias,
+            DTensor,
+        ), f'DTensor is not a DTensor: {type(dtensor_mha.in_proj_bias)}'
+        dtensor_in_proj_bias = dtensor_mha.in_proj_bias.full_tensor()
+        assert torch.equal(regular_mha.in_proj_bias, dtensor_in_proj_bias), \
+            f'regular in_proj_bias: {regular_mha.in_proj_bias} vs DTensor: {dtensor_in_proj_bias}'
+    else:
+        # Compare q/k/v_proj_weight
+        assert isinstance(
+            dtensor_mha.q_proj_weight,
+            DTensor,
+        ), f'DTensor is not a DTensor: {type(dtensor_mha.q_proj_weight)}'
+        dtensor_q_proj_weight = dtensor_mha.q_proj_weight.full_tensor()
+        assert isinstance(
+            dtensor_mha.k_proj_weight,
+            DTensor,
+        ), f'DTensor is not a DTensor: {type(dtensor_mha.k_proj_weight)}'
+        dtensor_k_proj_weight = dtensor_mha.k_proj_weight.full_tensor()
+        assert isinstance(
+            dtensor_mha.v_proj_weight,
+            DTensor,
+        ), f'DTensor is not a DTensor: {type(dtensor_mha.v_proj_weight)}'
+        dtensor_v_proj_weight = dtensor_mha.v_proj_weight.full_tensor()
+        assert torch.equal(regular_mha.q_proj_weight, dtensor_q_proj_weight), \
+            f'regular q_proj_weight: {regular_mha.q_proj_weight} vs DTensor: {dtensor_q_proj_weight}'
+        assert torch.equal(regular_mha.k_proj_weight, dtensor_k_proj_weight), \
+            f'regular k_proj_weight: {regular_mha.k_proj_weight} vs DTensor: {dtensor_k_proj_weight}'
+        assert torch.equal(regular_mha.v_proj_weight, dtensor_v_proj_weight), \
+            f'regular v_proj_weight: {regular_mha.v_proj_weight} vs DTensor: {dtensor_v_proj_weight}'
+        assert isinstance(
+            dtensor_mha.bias_k,
+            DTensor,
+        ), f'DTensor is not a DTensor: {type(dtensor_mha.bias_k)}'
+        dtensor_bias_k = dtensor_mha.bias_k.full_tensor()
+        assert isinstance(
+            dtensor_mha.bias_v,
+            DTensor,
+        ), f'DTensor is not a DTensor: {type(dtensor_mha.bias_v)}'
+        dtensor_bias_v = dtensor_mha.bias_v.full_tensor()
+        assert torch.equal(
+            regular_mha.bias_k,  # type: ignore
+            dtensor_bias_k,
+        ), f'regular bias_k: {regular_mha.bias_k} vs DTensor: {dtensor_bias_k}'
+        assert torch.equal(
+            regular_mha.bias_v,  # type: ignore
+            dtensor_bias_v,
+        ), f'regular bias_v: {regular_mha.bias_v} vs DTensor: {dtensor_bias_v}'
+
+    # Compare out_proj parameters
+    assert isinstance(
+        dtensor_mha.out_proj.weight,
+        DTensor,
+    ), f'DTensor is not a DTensor: {type(dtensor_mha.out_proj.weight)}'
+    dtensor_out_proj_weight = dtensor_mha.out_proj.weight.full_tensor()
+    assert isinstance(
+        dtensor_mha.out_proj.bias,
+        DTensor,
+    ), f'DTensor is not a DTensor: {type(dtensor_mha.out_proj.bias)}'
+    dtensor_out_proj_bias = dtensor_mha.out_proj.bias.full_tensor()
+    assert torch.equal(regular_mha.out_proj.weight, dtensor_out_proj_weight), \
+        f'regular out_proj.weight: {regular_mha.out_proj.weight} vs DTensor: {dtensor_out_proj_weight}'
+    assert torch.equal(regular_mha.out_proj.bias, dtensor_out_proj_bias), \
+        f'regular out_proj.bias: {regular_mha.out_proj.bias} vs DTensor: {dtensor_out_proj_bias}'
+
+    # For residual case, verify scaling was applied correctly
+    if is_residual:
+        # The out_proj weight should be scaled by div_is_residual
+        expected_out_proj_weight = torch.arange(
+            regular_mha.out_proj.weight.numel(),
+        ).reshape(regular_mha.out_proj.weight.shape).float() / div_is_residual
+
+        assert torch.equal(dtensor_out_proj_weight, expected_out_proj_weight), \
+            f'DTensor out_proj.weight was not scaled correctly: {dtensor_out_proj_weight} vs {expected_out_proj_weight}'

@@ -1,6 +1,6 @@
 # build requirements
 [build-system]
-requires = ["setuptools < 80.0.0"]
+requires = ["setuptools < 81.0.0"]
 build-backend = "setuptools.build_meta"
 
 # iSort
@@ -179,7 +179,7 @@ blank_lines_around_top_level_definition = 2
 blank_line_before_class_docstring = false
 
 # Insert a blank line before a module docstring.
-blank_line_before_module_docstring = true
+blank_line_before_module_docstring = false
 
 # Insert a blank line before a 'def' or 'class' immediately nested
 # within another 'def' or 'class'. For example:

@@ -22,15 +22,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-        - name: "gpu-2.6.0-1"
-          container: mosaicml/llm-foundry:2.6.0_cu124-latest
+        - name: "gpu-2.7.0-1"
+          container: mosaicml/llm-foundry:2.7.0_cu128-latest
           markers: "gpu"
           pip_deps: "[all]"
           pytest_command: "coverage run -m pytest"
-          ci_repo_gpu_test_ref: v0.2.2
+          ci_repo_gpu_test_ref: v0.3.5
     steps:
     - name: Run PR GPU Tests
-      uses: mosaicml/ci-testing/.github/actions/pytest-gpu@v0.2.2
+      uses: mosaicml/ci-testing/.github/actions/pytest-gpu@v0.3.5
       with:
         container: ${{ matrix.container }}
         git_repo: mosaicml/llm-foundry
@@ -51,15 +51,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-        - name: "gpu-2.6.0-2"
-          container: mosaicml/llm-foundry:2.6.0_cu124-latest
+        - name: "gpu-2.7.0-2"
+          container: mosaicml/llm-foundry:2.7.0_cu128-latest
           markers: "gpu"
           pip_deps: "[all]"
           pytest_command: "coverage run -m pytest"
-          ci_repo_gpu_test_ref: v0.2.2
+          ci_repo_gpu_test_ref: v0.3.5
     steps:
     - name: Run PR GPU Tests
-      uses: mosaicml/ci-testing/.github/actions/pytest-gpu@v0.2.2
+      uses: mosaicml/ci-testing/.github/actions/pytest-gpu@v0.3.5
       with:
         container: ${{ matrix.container }}
         git_repo: mosaicml/llm-foundry
@@ -80,15 +80,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-        - name: "gpu-2.6.0-4"
-          container: mosaicml/llm-foundry:2.6.0_cu124-latest
+        - name: "gpu-2.7.0-4"
+          container: mosaicml/llm-foundry:2.7.0_cu128-latest
           markers: "gpu"
           pip_deps: "[all]"
           pytest_command: "coverage run -m pytest"
-          ci_repo_gpu_test_ref: v0.2.2
+          ci_repo_gpu_test_ref: v0.3.5
     steps:
     - name: Run PR GPU Tests
-      uses: mosaicml/ci-testing/.github/actions/pytest-gpu@v0.2.2
+      uses: mosaicml/ci-testing/.github/actions/pytest-gpu@v0.3.5
       with:
         container: ${{ matrix.container }}
         git_repo: mosaicml/llm-foundry

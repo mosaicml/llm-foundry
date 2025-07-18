@@ -219,6 +219,11 @@ def _log_model_with_multi_process(
 class HuggingFaceCheckpointer(Callback):
     """Save a huggingface formatted checkpoint during training.
 
+    The shard size for saving a checkpoint can be controlled by setting the
+    environment variable ``LLM_FOUNDRY_SAVE_FOLDER_HF_MAX_SHARD_SIZE``.
+    Documentation for this parameter can be found at
+    https://huggingface.co/docs/transformers/en/main_classes/model#transformers.PreTrainedModel.push_to_hub.max_shard_size
+
     Args:
         save_folder (str): Top level folder to save checkpoints to (can be a
             URI). It is likely that this would be the same as your save_folder.
@@ -638,7 +643,9 @@ class HuggingFaceCheckpointer(Callback):
         assert isinstance(state_dict_model, nn.Module)
 
         for _, module in state_dict_model.named_modules():
-            hooks.append(module._register_state_dict_hook(tensor_hook),)
+            hooks.append(
+                module._register_state_dict_hook(tensor_hook),
+            )
 
         state_dict = get_model_state_dict(
             state_dict_model,
@@ -840,10 +847,16 @@ class HuggingFaceCheckpointer(Callback):
                     True,
                 ) if is_te_imported and state.precision == Precision.AMP_FP8 else contextlib.nullcontext(
                 )
+
+                _LLM_FOUNDRY_SAVE_FOLDER_HF_MAX_SHARD_SIZE = os.environ.get(
+                    'LLM_FOUNDRY_SAVE_FOLDER_HF_MAX_SHARD_SIZE',
+                    '1GB',
+                )
                 with context_manager:
                     new_model_instance.save_pretrained(
                         temp_save_dir,
-                        max_shard_size='1GB',
+                        max_shard_size=
+                        _LLM_FOUNDRY_SAVE_FOLDER_HF_MAX_SHARD_SIZE,
                     )
                 if original_tokenizer is not None:  # type: ignore
                     assert isinstance(

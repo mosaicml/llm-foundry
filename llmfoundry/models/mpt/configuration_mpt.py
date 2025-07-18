@@ -1,6 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """A HuggingFace-style model configuration."""
 
 import copy
@@ -31,6 +30,7 @@ class MPTConfig(PretrainedConfig):
         d_model: int = 2048,
         n_heads: int = 16,
         n_layers: int = 24,
+        head_dim: Optional[int] = None,
         expansion_ratio: Union[int, float] = 4,
         max_seq_len: int = 2048,
         vocab_size: int = 50368,
@@ -42,6 +42,7 @@ class MPTConfig(PretrainedConfig):
         init_device: str = 'cpu',
         logit_scale: Optional[Union[float, str]] = None,
         no_bias: bool = False,
+        attention_bias: Optional[bool] = None,
         embedding_fraction: float = 1.0,
         norm_type: str = 'low_precision_layernorm',
         norm_eps: float = 1e-05,
@@ -60,6 +61,7 @@ class MPTConfig(PretrainedConfig):
             d_model (int): The size of the embedding dimension of the model.
             n_heads (int): The number of attention heads.
             n_layers (int): The number of layers in the model.
+            head_dim (Optional[int]): If not None, sets the attention head dimension.
             expansion_ratio (Union[int, float]): The ratio of the up/down scale in the ffn.
             max_seq_len (int): The maximum sequence length of the model.
             vocab_size (int): The size of the vocabulary.
@@ -102,6 +104,9 @@ class MPTConfig(PretrainedConfig):
             init_device (str): The device to use for parameter initialization.
             logit_scale (Optional[Union[float, str]]): If not None, scale the logits by this value.
             no_bias (bool): Whether to use bias in all layers.
+            attention_bias (bool): Whether to use bias in the QKV projections of the attention layer. This takes precedence over the
+                `no_bias` flag. If `no_bias` is True and this is True, then bias for QKV projections will be used. Default is None,
+                which means it will use the value of `no_bias` flag.
             embedding_fraction (float): The fraction to scale the gradients of the embedding layer by.
             norm_type (str): choose type of norm to use
             norm_eps (float): epsilon value for norm layer
@@ -155,6 +160,7 @@ class MPTConfig(PretrainedConfig):
         self.d_model = d_model
         self.n_heads = n_heads
         self.n_layers = n_layers
+        self.head_dim = head_dim
         self.expansion_ratio = expansion_ratio
         if max_seq_len != int(max_seq_len):
             raise ValueError('max_seq_len must be an integer')
@@ -172,6 +178,7 @@ class MPTConfig(PretrainedConfig):
         self.init_device = init_device
         self.logit_scale = logit_scale
         self.no_bias = no_bias
+        self.attention_bias = attention_bias if attention_bias is not None else not no_bias
         self.embedding_fraction = embedding_fraction
         self.norm_type = norm_type
         self.norm_eps = norm_eps
@@ -182,6 +189,7 @@ class MPTConfig(PretrainedConfig):
 
         if block_overrides is not None:
             self._validate_block_overrides(block_overrides)
+
         self.block_overrides = block_overrides
         self.final_logit_softcapping = final_logit_softcapping
 
@@ -195,6 +203,11 @@ class MPTConfig(PretrainedConfig):
             del kwargs['name']
         if 'loss_fn' in kwargs:
             del kwargs['loss_fn']
+        if self.attn_config.get('nope', False):
+            # TODO: enable `nope` as a valid option to default position encoding.
+            raise ValueError(
+                'nope cannot be specified as the default position encoding, it can only be specified as an override using block_overrides. Please use alibi or rope instead.',
+            )
         if self.attn_config.get('alibi',
                                 False) or self.attn_config.get('rope', False):
             self.learned_pos_emb = False
@@ -212,13 +225,33 @@ class MPTConfig(PretrainedConfig):
     def _validate_block_overrides(self, block_overrides: dict[str, Any]):
         warnings.warn(ExperimentalWarning('block_overrides'))
         if 'order' not in block_overrides:
-            raise ValueError('`order` should be defined in block_overrides',)
+            raise ValueError(
+                '`order` should be defined in block_overrides',
+            )
         if 'overrides' not in block_overrides:
             raise ValueError(
                 '`overrides` should be defined in block_overrides',
             )
         if 'default' in block_overrides['overrides'].keys():
-            raise ValueError('block overrides cannot be named "default".',)
+            raise ValueError(
+                'block overrides cannot be named "default".',
+            )
+
+        for override_def in block_overrides['overrides'].values():
+            if 'attn_config' in override_def and override_def[
+                'attn_config'].get('nope', False):
+                if self.learned_pos_emb:
+                    raise ValueError(
+                        'nope position encoding block override cannot be used with learned_pos_emb.',
+                    )
+                if self.attn_config['attn_impl'
+                                   ] == 'torch' and self.attn_config.get(
+                                       'alibi',
+                                       False,
+                                   ):
+                    raise ValueError(
+                        'nope position encoding block override cannot be used with alibi when using torch attention.',
+                    )
 
     def _set_config_defaults(
         self,
@@ -323,8 +356,9 @@ class MPTConfig(PretrainedConfig):
                     'If using the dail implementation of rope, the flash_attn library v2.0.1 or higher must be installed. Please check the instructions at https://github.com/mosaicml/llm-foundry/blob/main/TUTORIAL.md#what-kinds-of-positional-embeddings-does-llm-foundry-support',
                 )
         if self.attn_config['sliding_window_size'] != -1 and self.attn_config[
-            'attn_impl'
-        ] == 'flash' and not is_flash_v2_installed(v2_version='v2.3.0',):
+            'attn_impl'] == 'flash' and not is_flash_v2_installed(
+                v2_version='v2.3.0',
+            ):
             raise NotImplementedError(
                 'sliding window attention only implemented for torch attention and flash attention (v2.3.0 or higher).',
             )
@@ -333,9 +367,10 @@ class MPTConfig(PretrainedConfig):
                 raise ValueError(
                     'Attention attn_logit_softcapping should be positive.',
                 )
-            if self.attn_config[
-                'attn_impl'
-            ] == 'flash' and not is_flash_v2_installed(v2_version='v2.6.2',):
+            if self.attn_config['attn_impl'
+                               ] == 'flash' and not is_flash_v2_installed(
+                                   v2_version='v2.6.2',
+                               ):
                 raise NotImplementedError(
                     'Attention attn_logit_softcapping is only implemented with torch attention or flash attention v2.6.2 (or higher).',
                 )
@@ -406,5 +441,11 @@ class MPTConfig(PretrainedConfig):
             'attn_config': {
                 'sliding_window_size': None,
                 'reuse_kv_layer_idx': None,
+                'reuse_kv_x_layer_idx': None,
+                'attn_temperature_tuning': {
+                    'floor_scale': None,
+                    'attn_scale': None,
+                },
+                'nope': None,
             },
         }

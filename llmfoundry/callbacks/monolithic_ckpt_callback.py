@@ -18,6 +18,7 @@ from composer.utils import (
     parse_uri,
     reproducibility,
 )
+from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 
 __all__ = ['MonolithicCheckpointSaver']
 
@@ -111,13 +112,9 @@ class MonolithicCheckpointSaver(Callback):
             ):
                 state_dict['state']['model'] = state.model.state_dict()
 
-            # Add in unsharded optimizer state dict.
-            if self.keep_optimizers:
-                optimizer = state.optimizers[0]
-                with fsdp_state_dict_type_context(
-                    state.model,
-                    state_dict_type='full',
-                ):
+                # Add in unsharded optimizer state dict.
+                if self.keep_optimizers:
+                    optimizer = state.optimizers[0]
                     state_dict['state']['optimizers'] = {
                         type(optimizer).__qualname__:
                             FSDP.optim_state_dict(
@@ -132,6 +129,7 @@ class MonolithicCheckpointSaver(Callback):
             if self.upload_to_object_store and self.remote_ud is not None and dist.get_global_rank(
             ) == 0:
                 remote_file_name = str(Path(save_dir) / Path(filename))
+                print(f'Saving checkpoint to {remote_file_name}')
                 self.remote_ud.upload_file(
                     state=state,
                     remote_file_name=remote_file_name,

@@ -13,7 +13,9 @@ log = logging.getLogger(__name__)
 
 
 def _timeout(timeout: int):
-    log.error(f'Timeout after {timeout} seconds of inactivity after fit_end.',)
+    log.error(
+        f'Timeout after {timeout} seconds of inactivity after fit_end.',
+    )
     os.kill(os.getpid(), signal.SIGINT)
 
 

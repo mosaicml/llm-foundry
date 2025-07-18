@@ -1,6 +1,5 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """Enable curriculum learning by specifying a schedule of datasets to train on.
 
 This module provides a CurriculumLearning callback that allows for dynamic

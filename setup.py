@@ -1,6 +1,5 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """MosaicML LLM Foundry package setup."""
 
 import copy
@@ -53,22 +52,22 @@ classifiers = [
 
 install_requires = [
     'mosaicml[libcloud,wandb,oci,gcs,mlflow]>=0.32.0,<0.33',
-    'mlflow>=2.14.1,<2.22',
-    'accelerate>=0.25,<1.7',  # for HF inference `device_map`
+    'mlflow>=2.14.1,<3.2',
+    'accelerate>=0.25,<1.9',  # for HF inference `device_map`
     'transformers>=v4.51.0,<4.52',
-    'mosaicml-streaming>=0.13.0,<0.14',
-    'torch>=2.6.0,<2.7.1',
-    'datasets>=3.3.2,<3.4',
+    'mosaicml-streaming>=0.12.0,<0.13',
+    'torch>=2.7.0,<2.7.1',
+    'datasets>=3.3.2,<3.7',
     'fsspec==2023.6.0',  # newer version results in a bug in datasets that duplicates data
     'sentencepiece==0.2.0',
     'einops==0.8.1',
     'omegaconf>=2.2.3,<3',
     'slack-sdk<4',
     'mosaicml-cli>=0.6.10,<1',
-    'onnx==1.17.0',
-    'onnxruntime==1.19.2',
+    'onnx==1.18.0',
+    'onnxruntime==1.22.0',
     'boto3>=1.21.45,<2',
-    'huggingface-hub>=0.19.0,<0.31',
+    'huggingface-hub[hf_xet]>=0.30.0,<0.34',
     'beautifulsoup4>=4.12.2,<5',  # required for model download utils
     'tenacity>=8.2.3,<10',
     'catalogue>=2,<3',
@@ -79,7 +78,7 @@ install_requires = [
 extra_deps = {}
 
 extra_deps['dev'] = [
-    'coverage[toml]==7.8.0',
+    'coverage[toml]==7.9.2',
     'pre-commit>=3.4.0,<4',
     'pytest>=7.2.1,<9',
     'pytest_codeblocks>=0.16.1,<0.18',
@@ -87,7 +86,7 @@ extra_deps['dev'] = [
     'pyright==1.1.256',
     'toml>=0.10.2,<0.11',
     'packaging>=21,<26',
-    'hf_transfer==0.1.8',
+    'hf_transfer==0.1.9',
     'tenacity>=9,<10',
 ]
 
@@ -121,7 +120,7 @@ extra_deps['openai'] = [
 
 extra_deps['megablocks'] = [
     'megablocks<1.0',
-    'grouped-gemm==0.1.6',
+    'grouped-gemm==0.3.0',
 ]
 
 extra_deps['te'] = [

@@ -26,9 +26,12 @@ def convert_dataset_hf(
         Optional[str],
         Option(help='Subset of the dataset (e.g., "all" or "en")'),
     ] = None,
-    splits: Annotated[str,
-                      Option(help='Comma-separated list of dataset splits',),
-                     ] = 'train, train_small, val, val_small, val_xsmall',
+    splits: Annotated[
+        str,
+        Option(
+            help='Comma-separated list of dataset splits',
+        ),
+    ] = 'train, train_small, val, val_small, val_xsmall',
     compression: Annotated[Optional[str],
                            Option(help='Compression type')] = None,
     concat_tokens: Annotated[
@@ -118,12 +121,14 @@ def convert_finetuning_dataset_cli(
             help=
             'Name of the dataset (e.g., first argument to `datasets.load_dataset`, for jsonl data format, it is `json`).',
         )],
-    data_subset: Annotated[
-        Optional[str],
-        Option(help='(Optional) subset of data to use.',)] = None,
-    splits: Annotated[str,
-                      Option(help='Comma-separated list of dataset splits'),
-                     ] = 'train,validation',
+    data_subset: Annotated[Optional[str],
+                           Option(
+                               help='(Optional) subset of data to use.',
+                           )] = None,
+    splits: Annotated[
+        str,
+        Option(help='Comma-separated list of dataset splits'),
+    ] = 'train,validation',
     preprocessor: Annotated[
         Optional[str],
         Option(

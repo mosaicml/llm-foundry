@@ -1,6 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """Streaming dataset conversion scripts for C4 and The Pile."""
 import json
 import os
@@ -294,7 +293,8 @@ def generate_samples(
             n_samples += 1
             yield {
                 k:
-                v[idx].numpy() if isinstance(v[idx], torch.Tensor) else v[idx]
+                    v[idx].numpy()
+                    if isinstance(v[idx], torch.Tensor) else v[idx]
                 for k, v in batch.items()
             }
 

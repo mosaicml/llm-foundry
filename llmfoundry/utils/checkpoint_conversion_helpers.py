@@ -1,6 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """Helper methods for the checkpoint conversion scripts.
 
 The checkpoint conversion scripts are located in the
@@ -38,7 +37,9 @@ def _get_weight_data_type(data_type: str):
     elif data_type == 'fp16':
         return np.float16
     else:
-        raise RuntimeError('Unsupported data type: {data_type} for conversion.')
+        raise RuntimeError(
+            f'Unsupported data type: {data_type} for conversion.',
+        )
 
 
 # TODO: move this functionality to composer once the bug fixes are upstreamed

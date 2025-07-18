@@ -15,13 +15,28 @@ from transformers import (
     PreTrainedModel,
     PreTrainedTokenizerBase,
 )
+from transformers.models.llama4.configuration_llama4 import Llama4TextConfig
 
+from llmfoundry.models.hf import BaseHuggingFaceModel
 from llmfoundry.models.hf.hf_fsdp import rgetattr
 from llmfoundry.models.mpt import MPTConfig, MPTForCausalLM
 from llmfoundry.utils.builders import build_composer_model
 from llmfoundry.utils.config_utils import (
     to_dict_container,
 )
+
+
+@pytest.fixture
+def tiny_llama_save_dir(tmp_path: Path, tiny_codellama_model: PreTrainedModel):
+    assert isinstance(tiny_codellama_model, PreTrainedModel)
+    assert tiny_codellama_model.generation_config is not None
+
+    save_dir = tmp_path / 'model'
+
+    # Save the model.
+    tiny_codellama_model.save_pretrained(save_dir)
+
+    return save_dir
 
 
 def test_remote_code_false_mpt(
@@ -236,7 +251,7 @@ def test_simple_dtype():
         },
         'pretrained': False,
         'init_device': 'cpu',
-        'use_flash_attention_2': False,
+        'attn_implementation': 'eager',
     }
 
     name = model_cfg.pop('name')
@@ -263,7 +278,7 @@ def test_use_flash():
         },
         'pretrained': False,
         'init_device': 'cpu',
-        'use_flash_attention_2': True,
+        'attn_implementation': 'flash_attention_2',
     }
 
     name = model_cfg.pop('name')
@@ -335,3 +350,110 @@ def test_generation_config(
 
     # save_pretrained and reloading with hf_causal_lm should use the bos_token_id we set from earlier.
     assert inner_model.generation_config.bos_token_id == new_bos_token_id  # type: ignore
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize(
+    'attn_implementation',
+    ['eager', 'flash_attention_2', 'sdpa'],
+)
+def test_attn_implementation(
+    attn_implementation: str,
+    tiny_llama_save_dir: Path,
+):
+    model_cfg = {
+        'name': 'hf_causal_lm',
+        'pretrained_model_name_or_path': str(tiny_llama_save_dir),
+        'config_overrides': {
+            'num_hidden_layers': 2,
+            'hidden_size': 32,
+            'intermediate_size': 64,
+            'torch_dtype': 'bfloat16',
+        },
+        'pretrained': False,
+        'attn_implementation': attn_implementation,
+    }
+
+    name = model_cfg.pop('name')
+    model = build_composer_model(
+        name=name,
+        cfg=model_cfg,
+        tokenizer=None,  # type: ignore
+    )
+
+    # llama config uses _attn_implementation
+    assert model.config._attn_implementation == attn_implementation  # type: ignore
+
+
+@pytest.mark.gpu
+def test_attn_implementation_override(tiny_llama_save_dir: Path):
+    model_cfg = {
+        'name': 'hf_causal_lm',
+        'pretrained_model_name_or_path': str(tiny_llama_save_dir),
+        'config_overrides': {
+            'num_hidden_layers': 2,
+            'hidden_size': 32,
+            'intermediate_size': 64,
+            'torch_dtype': 'bfloat16',
+        },
+        'pretrained': False,
+        'use_flash_attention_2': True,
+        'attn_implementation': 'eager',
+    }
+
+    name = model_cfg.pop('name')
+    model = build_composer_model(
+        name=name,
+        cfg=model_cfg,
+        tokenizer=None,  # type: ignore
+    )
+
+    # llama config uses _attn_implementation
+    assert model.config._attn_implementation == 'flash_attention_2'  # type: ignore
+
+
+@pytest.mark.gpu
+def test_attn_implementation_none(tiny_llama_save_dir: Path):
+    model_cfg = {
+        'name': 'hf_causal_lm',
+        'pretrained_model_name_or_path': str(tiny_llama_save_dir),
+        'config_overrides': {
+            'num_hidden_layers': 2,
+            'hidden_size': 32,
+            'intermediate_size': 64,
+            'torch_dtype': 'bfloat16',
+        },
+        'pretrained': False,
+        'use_flash_attention_2': False,
+    }
+
+    name = model_cfg.pop('name')
+    model = build_composer_model(
+        name=name,
+        cfg=model_cfg,
+        tokenizer=None,  # type: ignore
+    )
+
+    # llama config uses _attn_implementation
+    assert model.config._attn_implementation == 'eager'  # type: ignore
+
+
+def test_text_config(tiny_llama4_config: PretrainedConfig, tmp_path: Path):
+    save_path = tmp_path / 'model'
+    tiny_llama4_config.save_pretrained(save_path)
+
+    class TestModel(BaseHuggingFaceModel):
+        subselect_config_attr = 'text_config'
+
+    config = TestModel.build_config(
+        pretrained_model_name_or_path=str(save_path),
+        trust_remote_code=True,
+        use_auth_token=False,
+        attn_implementation='eager',
+        config_overrides={},
+    )
+
+    assert isinstance(config, Llama4TextConfig)
+    assert config.attn_implementation == 'eager'
+    assert config.use_cache == False
+    assert config.torch_dtype == 'float32'

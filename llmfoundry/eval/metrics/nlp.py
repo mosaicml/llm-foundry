@@ -1,6 +1,5 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """A collection of common torchmetrics for NLP tasks."""
 
 import copy
@@ -74,9 +73,6 @@ class InContextLearningMetric(Metric):
     ):
         """Abstract interface for computing an in-context learning metrics.
 
-        The `output_logits` argument is deprecated and will be removed in v0.21 while it's functionality will
-        be moved to `outputs`.
-
         Args:
             batch (dict): Batch must consist minimally of `input_ids` as well as any other structure needed
                 to compute the metric.
@@ -133,7 +129,8 @@ class InContextLearningGenerationExactMatchAccuracy(InContextLearningMetric):
     def normalize_answer(self, answer: str):
         """Lower text and remove punctuation, articles and extra whitespace.
 
-        Copied from https://github.com/mandarjoshi90/triviaqa/blob/master/evaluation/triviaqa_evaluation.py
+        Copied from
+        https://github.com/mandarjoshi90/triviaqa/blob/master/evaluation/triviaqa_evaluation.py
         """
 
         def remove_articles(text: str) -> str:

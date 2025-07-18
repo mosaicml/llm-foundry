@@ -1,6 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """Streaming dataset conversion scripts for json files."""
 import os
 from enum import Enum
@@ -140,8 +139,6 @@ def convert_dataset_json(
         no_wrap=no_wrap,
         tokenizer=built_tokenizer,
     )
-
-    print('here')
 
     # Write samples
     print(f'Converting to MDS format...')

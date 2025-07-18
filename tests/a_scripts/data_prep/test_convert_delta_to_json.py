@@ -144,7 +144,9 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )
         mock_workspace_client.return_value.clusters.get = mock_cluster_get
 
-        with UncreatedNamedTemporaryFile(suffix='.jsonl',) as tf:
+        with UncreatedNamedTemporaryFile(
+            suffix='.jsonl',
+        ) as tf:
             mock_combine_jsons.side_effect = _mock_write_jsonl(tf.name)
             json_output_folder, json_output_filename = os.path.split(tf.name)
             fetch_DT(
@@ -328,7 +330,9 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )  # Mock return value for getOrCreate
         mock_databricks_session.builder.remote.return_value = mock_remote
 
-        with UncreatedNamedTemporaryFile(suffix='.jsonl',) as tf:
+        with UncreatedNamedTemporaryFile(
+            suffix='.jsonl',
+        ) as tf:
             mock_combine_jsons.side_effect = _mock_write_jsonl(tf.name)
             json_output_folder, json_output_filename = os.path.split(tf.name)
             fetch_DT(
@@ -387,7 +391,9 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
-        with UncreatedNamedTemporaryFile(suffix='.jsonl',) as tf:
+        with UncreatedNamedTemporaryFile(
+            suffix='.jsonl',
+        ) as tf:
             mock_combine_jsons.side_effect = _mock_write_jsonl(tf.name)
             json_output_folder, json_output_filename = os.path.split(tf.name)
             fetch_DT(
@@ -447,7 +453,9 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
-        with UncreatedNamedTemporaryFile(suffix='.jsonl',) as tf:
+        with UncreatedNamedTemporaryFile(
+            suffix='.jsonl',
+        ) as tf:
             mock_combine_jsons.side_effect = _mock_write_jsonl(tf.name)
             json_output_folder, json_output_filename = os.path.split(tf.name)
             fetch_DT(
@@ -507,7 +515,9 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         )
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
-        with UncreatedNamedTemporaryFile(suffix='.jsonl',) as tf:
+        with UncreatedNamedTemporaryFile(
+            suffix='.jsonl',
+        ) as tf:
             mock_combine_jsons.side_effect = _mock_write_jsonl(tf.name)
             json_output_folder, json_output_filename = os.path.split(tf.name)
             fetch_DT(
@@ -563,7 +573,9 @@ class TestConvertDeltaToJsonl(unittest.TestCase):
         mock_cluster_response = Namespace(spark_version='14.2.0-scala2.12')
         mock_workspace_client.return_value.clusters.get.return_value = mock_cluster_response
 
-        with UncreatedNamedTemporaryFile(suffix='.jsonl',) as tf:
+        with UncreatedNamedTemporaryFile(
+            suffix='.jsonl',
+        ) as tf:
             mock_combine_jsons.side_effect = _mock_write_jsonl(tf.name)
             json_output_folder, json_output_filename = os.path.split(tf.name)
             fetch_DT(

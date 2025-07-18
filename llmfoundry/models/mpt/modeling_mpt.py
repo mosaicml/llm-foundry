@@ -1,6 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """A simple, flexible implementation of a GPT model.
 
 Inspired by https://github.com/karpathy/minGPT/blob/master/mingpt/model.py
@@ -142,6 +141,7 @@ def gen_rotary_embedding(
     max_seq_len: int,
     d_model: int,
     n_heads: int,
+    head_dim: Optional[int] = None,
 ):
     rope_head_dim = d_model // n_heads
     if rope_impl == 'dail':
@@ -166,6 +166,7 @@ def gen_rotary_embedding(
             max_position_embeddings=max_seq_len,
             hidden_size=d_model,
             num_attention_heads=n_heads,
+            head_dim=head_dim,
         )
         return LlamaRotaryEmbeddingFoundry(config=partial_llama_config)
     raise ValueError('rope_impl needs to be either dail or hf')
@@ -232,7 +233,24 @@ def gen_attention_mask_in_length(
             ```.
             (The description above is taken verbatim from https://github.com/Dao-AILab/flash-attention/blob/9356a1c0389660d7e231ff3163c1ac17d9e3824a/flash_attn/bert_padding.py#L125 .)
     """
+    return _get_attn_mask_in_len_seq_one_hot(
+        sequence_id,
+        S,
+        attn_uses_sequence_id,
+        attn_impl,
+        attention_mask,
+    )[0]
+
+
+def _get_attn_mask_in_len_seq_one_hot(
+    sequence_id: Union[None, torch.Tensor],
+    S: int,
+    attn_uses_sequence_id: bool,
+    attn_impl: str,
+    attention_mask: Union[torch.Tensor, None],
+):
     attention_mask_in_length = None
+    sequence_id_one_hot = None
     if (sequence_id
         is not None) and attn_uses_sequence_id and (attn_impl == 'flash'):
         # Check if sequence has left padding. If yes, raise an error.
@@ -250,13 +268,14 @@ def gen_attention_mask_in_length(
             # We replace those -1 with 0 to prevent `torch.nn.functional.one_hot(sequence_id)` in the next line from failing.
             # We apply the attention mask again after the one_hot operation.
             sequence_id = sequence_id.masked_fill(~attention_mask, 0)
-        attention_mask_in_length = torch.nn.functional.one_hot(sequence_id)
+        sequence_id_one_hot = torch.nn.functional.one_hot(sequence_id)
         if attention_mask is not None:
-            attention_mask_in_length = attention_mask_in_length.masked_fill(
+            sequence_id_one_hot = sequence_id_one_hot.masked_fill(
                 ~attention_mask.unsqueeze(-1),
                 0,
             )
-        attention_mask_in_length = attention_mask_in_length.sum(dim=1)
+
+        attention_mask_in_length = sequence_id_one_hot.sum(dim=1)
         attention_mask_in_length = torch.nn.functional.pad(
             attention_mask_in_length,
             (0, S - attention_mask_in_length.shape[-1]),
@@ -264,7 +283,32 @@ def gen_attention_mask_in_length(
             value=0,
         )
 
-    return attention_mask_in_length
+    return attention_mask_in_length, sequence_id_one_hot
+
+
+def gen_sequence_id_info(
+    sequence_id: Union[None, torch.Tensor],
+    S: int,
+    attn_uses_sequence_id: bool,
+    attn_impl: str,
+    attention_mask: Union[torch.Tensor, None],
+    device: Union[torch.device, str],
+):
+    attention_mask_in_length, sequence_id_one_hot = _get_attn_mask_in_len_seq_one_hot(
+        sequence_id,
+        S,
+        attn_uses_sequence_id,
+        attn_impl,
+        attention_mask,
+    )
+
+    if sequence_id_one_hot is not None:
+        pos_id_within_seq = sequence_id_one_hot.cumsum(dim=1)
+        pos_id_within_seq = sequence_id_one_hot * pos_id_within_seq
+        pos_id_within_seq = pos_id_within_seq.sum(dim=-1) - 1
+        return attention_mask_in_length, pos_id_within_seq
+
+    return None, torch.arange(S, device=device)[None, :]
 
 
 def gen_flash_attn_padding_info(
@@ -415,7 +459,9 @@ class MPTModel(MPTPreTrainedModel):
         self.mb_args = None
         self.shift_labels = True
 
-        self.blocks = self.construct_blocks(config=config,)
+        self.blocks = self.construct_blocks(
+            config=config,
+        )
 
         # Tag all modules in the transformer blocks with the corresponding block_idx and max_block_idx
         for i, block in enumerate(self.blocks):
@@ -442,6 +488,7 @@ class MPTModel(MPTPreTrainedModel):
                 max_seq_len=self.config.max_seq_len,
                 d_model=config.d_model,
                 n_heads=config.n_heads,
+                head_dim=config.head_dim,
             )
 
         if config.init_device != 'meta':
@@ -466,8 +513,13 @@ class MPTModel(MPTPreTrainedModel):
 
         if config.no_bias:
             for module in self.modules():
-                if hasattr(module,
-                           'bias') and isinstance(module.bias, nn.Parameter):
+                if isinstance(module, nn.Linear):
+                    continue
+
+                if hasattr(
+                    module,
+                    'bias',
+                ) and isinstance(module.bias, nn.Parameter):
                     log.debug(f'Removing bias from {module=}.')
                     module.register_parameter('bias', None)
 
@@ -494,7 +546,10 @@ class MPTModel(MPTPreTrainedModel):
             nn.ModuleList: The list of Transformer blocks.
         """
         block_args = self.extract_block_args(config.to_dict())
-        self.kv_cache_layers = set()  # type: ignore
+        self.state_cache_layers = {  # type: ignore
+            'reuse_kv_layer_idx': set(),
+            'reuse_kv_x_layer_idx': set(),
+        }
         self.blocks_fuse_norm_attn_norm = block_args.get(  # type: ignore
             'fuse_norm_attn_norm',
             False,
@@ -536,7 +591,10 @@ class MPTModel(MPTPreTrainedModel):
         new_block_args_list = []
         layer_description_list = []
 
-        reuse_kv_layer_idx_dict = {}
+        reuse_state_layer_idx_dicts = {
+            'reuse_kv_layer_idx': {},
+            'reuse_kv_x_layer_idx': {},
+        }
         for b_idx in range(config.n_layers):
             module_name = model_modules_order_expanded[b_idx]
             override_config = {}
@@ -544,22 +602,35 @@ class MPTModel(MPTPreTrainedModel):
                 override_config = copy.deepcopy(
                     config.block_overrides['overrides'][module_name],
                 )
-                if 'reuse_kv_layer_idx' in override_config.get(
-                    'attn_config',
-                    {},
-                ):
-                    reuse_kv_layer_idx = MPTModel._resolve_reuse_kv_layer_idx(
+                attn_config = override_config.get('attn_config', {})
+                if 'reuse_kv_layer_idx' in attn_config and 'reuse_kv_x_layer_idx' in attn_config:
+                    raise ValueError(
+                        'Only one of reuse_kv_layer_idx and reuse_kv_x_layer_idx can be specified.',
+                    )
+
+                reuse_type = None
+                if 'reuse_kv_layer_idx' in attn_config:
+                    reuse_type = 'reuse_kv_layer_idx'
+                elif 'reuse_kv_x_layer_idx' in attn_config:
+                    reuse_type = 'reuse_kv_x_layer_idx'
+
+                if reuse_type is not None:
+                    reuse_state_layer_idx = MPTModel._resolve_reuse_state_layer_idx(
                         overrides_definition=config.
                         block_overrides['overrides'],
                         model_modules_order_expanded=
                         model_modules_order_expanded,
                         b_idx=b_idx,
                         override_config=override_config,
-                        reuse_kv_layer_idx_dict=reuse_kv_layer_idx_dict,
+                        reuse_state_layer_idx_dict=reuse_state_layer_idx_dicts[
+                            reuse_type],
+                        reuse_type=reuse_type,
                     )
-                    override_config['attn_config']['reuse_kv_layer_idx'
-                                                  ] = reuse_kv_layer_idx
-                    self.kv_cache_layers.add(reuse_kv_layer_idx)
+                    override_config['attn_config'][reuse_type
+                                                  ] = reuse_state_layer_idx
+                    self.state_cache_layers[reuse_type].add(
+                        reuse_state_layer_idx,
+                    )
             layer_description_list.append([
                 b_idx,
                 module_name,
@@ -581,46 +652,39 @@ class MPTModel(MPTPreTrainedModel):
         return new_block_args_list
 
     @staticmethod
-    def _resolve_reuse_kv_layer_idx(
+    def _resolve_reuse_state_layer_idx(
         overrides_definition: dict[str, Any],
         model_modules_order_expanded: list[str],
         b_idx: int,
         override_config: dict[str, Any],
-        reuse_kv_layer_idx_dict: dict[int, int],
+        reuse_state_layer_idx_dict: dict[int, int],
+        reuse_type: str,
     ) -> int:
         override_attn_config = override_config['attn_config']
-        if override_attn_config['reuse_kv_layer_idx'] >= 0:
-            reuse_kv_layer_idx = override_attn_config['reuse_kv_layer_idx']
+        if override_attn_config[reuse_type] >= 0:
             raise ValueError(
-                f'The relative index of kv layer to reuse, override_attn_config[\'reuse_kv_layer_idx\']={reuse_kv_layer_idx}, should be negative.',
+                f'The relative index of kv layer to reuse should be negative.',
             )
-        reuse_kv_layer_idx = b_idx + override_attn_config['reuse_kv_layer_idx']
-        if reuse_kv_layer_idx < 0:
+        reuse_state_layer_idx = b_idx + override_attn_config[reuse_type]
+        if reuse_state_layer_idx < 0:
             raise ValueError(
-                f'The absolute index of kv layer to reuse, {reuse_kv_layer_idx} should be non-negative.',
+                f'The absolute index of kv layer to reuse, {reuse_state_layer_idx} should be non-negative.',
             )
-        if reuse_kv_layer_idx in reuse_kv_layer_idx_dict:
-            reuse_kv_layer_idx = reuse_kv_layer_idx_dict[reuse_kv_layer_idx]
-        reuse_kv_layer_idx_dict[b_idx] = reuse_kv_layer_idx
+        if reuse_state_layer_idx in reuse_state_layer_idx_dict:
+            reuse_state_layer_idx = reuse_state_layer_idx_dict[
+                reuse_state_layer_idx]
+        reuse_state_layer_idx_dict[b_idx] = reuse_state_layer_idx
 
-        parent_layer_name = model_modules_order_expanded[reuse_kv_layer_idx]
+        parent_layer_name = model_modules_order_expanded[reuse_state_layer_idx]
         parent_config = {} if parent_layer_name == 'default' else copy.deepcopy(
             overrides_definition[parent_layer_name],
         )
         if 'attn_config' not in parent_config:
             parent_config['attn_config'] = {}
-        parent_config['attn_config']['reuse_kv_layer_idx'] = override_config[
-            'attn_config']['reuse_kv_layer_idx']
+        parent_config['attn_config'][reuse_type] = override_config['attn_config'
+                                                                  ][reuse_type]
 
-        if override_config != parent_config and not (
-            'allow_mismatch' in override_config and
-            override_config['allow_mismatch']
-        ):
-            raise ValueError(
-                'For reusing the kv cache of a previous layer, the previous layer should match the block config as the current layer.',
-            )
-
-        return reuse_kv_layer_idx
+        return reuse_state_layer_idx
 
     @staticmethod
     def _get_modules_order_expanded(order: list[dict[str, Any]]) -> list[str]:
@@ -915,12 +979,13 @@ class MPTModel(MPTPreTrainedModel):
             attention_mask=attention_mask,
             sequence_id=sequence_id,
         )
-        attention_mask_in_length = gen_attention_mask_in_length(
+        attention_mask_in_length, pos_id_within_seq = gen_sequence_id_info(
             sequence_id=sequence_id,
             S=S,
             attn_uses_sequence_id=self.attn_uses_sequence_id,
             attn_impl=self.attn_impl,
             attention_mask=attention_mask,
+            device=x.device,
         )
 
         alibi_slopes = None  # alibi_slopes will only be used by flash attention for ALiBi
@@ -935,7 +1000,7 @@ class MPTModel(MPTPreTrainedModel):
         # initialize the past key values cache if it should be used
         presents = () if use_cache else None
         if (
-            use_cache or len(self.kv_cache_layers) > 0
+            use_cache or len(self.state_cache_layers['reuse_kv_layer_idx']) > 0
         ) and past_key_values is None:
             past_key_values = [() for _ in range(self.config.n_layers)
                               ]  # type: ignore
@@ -954,17 +1019,30 @@ class MPTModel(MPTPreTrainedModel):
             )
 
         layer_kv_cache_dict = {}
+        layer_kv_x_cache_dict = {}
         for b_idx, block in enumerate(self.blocks):
             attn_block = block.norm_attn_norm.attn if self.blocks_fuse_norm_attn_norm else block.attn  # type: ignore
             if attn_block.reuse_kv_layer_idx is not None:  # type: ignore
                 if attn_block.reuse_kv_layer_idx not in layer_kv_cache_dict:  # type: ignore
                     raise KeyError(
-                        f'kv cache for layer {block.reuse_kv_layer_idx} not found in {layer_kv_cache_dict=}.',  # type: ignore
+                        f'kv cache for layer {attn_block.reuse_kv_layer_idx} not found in {layer_kv_cache_dict=}.',  # type: ignore
                     )
                 prev_layer_key_value = layer_kv_cache_dict[
                     attn_block.reuse_kv_layer_idx]  # type: ignore
             else:
                 prev_layer_key_value = None
+            if b_idx in self.state_cache_layers['reuse_kv_x_layer_idx']:
+                layer_kv_x_cache_dict[b_idx] = x
+            if attn_block.reuse_kv_x_layer_idx is not None:  # type: ignore
+                if attn_block.reuse_kv_x_layer_idx not in layer_kv_x_cache_dict:  # type: ignore
+                    raise KeyError(
+                        f'kv cache for layer {attn_block.reuse_kv_x_layer_idx} not found in {layer_kv_x_cache_dict=}.',  # type: ignore
+                    )
+                x_prev = layer_kv_x_cache_dict[
+                    attn_block.reuse_kv_x_layer_idx  # type: ignore
+                ]
+            else:
+                x_prev = None
             if output_hidden_states:
                 assert all_hidden_states is not None  # pyright
                 all_hidden_states = all_hidden_states + (x,)
@@ -974,6 +1052,8 @@ class MPTModel(MPTPreTrainedModel):
             extra_kwargs = {}
             if prev_layer_key_value is not None:
                 extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
+            if pos_id_within_seq is not None:
+                extra_kwargs['pos_id_within_seq'] = pos_id_within_seq
             x, attn_weights, present = block(
                 x,
                 past_key_value=past_key_value,
@@ -984,11 +1064,12 @@ class MPTModel(MPTPreTrainedModel):
                 output_attentions=bool(output_attentions),
                 alibi_slopes=alibi_slopes,
                 flash_attn_padding_info=flash_attn_padding_info,
+                x_prev=x_prev,
                 **extra_kwargs,
             )
             if presents is not None:
                 presents += (present,)
-            if b_idx in self.kv_cache_layers:
+            if b_idx in self.state_cache_layers['reuse_kv_layer_idx']:
                 layer_kv_cache_dict[b_idx] = [
                     present[0][:, past_position:],
                     present[1][:, past_position:],
@@ -1327,7 +1408,8 @@ class MPTForCausalLM(MPTPreTrainedModel):
     ) -> list[tuple[torch.Tensor, ...]]:
         """Used by HuggingFace generate when using beam search with kv-caching.
 
-        See https://github.com/huggingface/transformers/blob/3ec7a47664ebe40c40f4b722f6bb1cd30c3821ec/src/transformers/models/gpt2/modeling_gpt2.py#L1122-L1133
+        See
+        https://github.com/huggingface/transformers/blob/3ec7a47664ebe40c40f4b722f6bb1cd30c3821ec/src/transformers/models/gpt2/modeling_gpt2.py#L1122-L1133
         for an example in transformers.
         """
         reordered_past = []
@@ -1363,8 +1445,8 @@ def compute_loss_from_logits(
     if torch.all(targets == loss_fn.ignore_index):  # type: ignore
         loss = losses.sum()
     else:
-        loss = losses.sum() / (targets !=
-                               loss_fn.ignore_index).sum()  # type: ignore
+        loss = losses.sum() / (targets
+                               != loss_fn.ignore_index).sum()  # type: ignore
 
     return loss
 

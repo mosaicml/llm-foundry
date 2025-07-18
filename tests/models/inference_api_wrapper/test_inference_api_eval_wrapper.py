@@ -95,6 +95,7 @@ def mock_create(**kwargs: dict[str, str]):
         return MockCompletion(' ')
 
 
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
 def test_openai_api_eval_wrapper(tmp_path: str, openai_api_key_env_var: str):
     _ = pytest.importorskip('openai')
 
@@ -133,6 +134,7 @@ def test_openai_api_eval_wrapper(tmp_path: str, openai_api_key_env_var: str):
         assert acc == 0.5
 
 
+@pytest.mark.filterwarnings('ignore::DeprecationWarning')
 def test_chat_api_eval_wrapper(tmp_path: str, openai_api_key_env_var: str):
     _ = pytest.importorskip('openai')
 

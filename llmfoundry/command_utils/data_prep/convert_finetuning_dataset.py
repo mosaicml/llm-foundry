@@ -323,7 +323,9 @@ def convert_finetuning_dataset_from_args(
     else:
         parsed_tokenizer_kwargs = {}
 
-    if len(data_files) > 0 and len(data_files,) != len(splits):
+    if len(data_files) > 0 and len(
+        data_files,
+    ) != len(splits):
         raise ValueError(
             f'If data_files is set, data_files and splits must have the same length. Got {len(data_files)=} while {len(splits)=}',
         )

@@ -1,6 +1,5 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """GPT Blocks used for the GPT Model."""
 
 import copy
@@ -38,6 +37,7 @@ class MPTBlock(nn.Module):
         d_model: int,
         n_heads: int,
         expansion_ratio: int,
+        head_dim: Optional[int] = None,
         attn_config: Optional[dict] = None,
         ffn_config: Optional[dict] = None,
         resid_pdrop: float = 0.0,
@@ -46,6 +46,7 @@ class MPTBlock(nn.Module):
         fc_type: Optional[dict[str, Any]] = None,
         device: Optional[str] = None,
         no_bias: bool = False,
+        attention_bias: bool = True,
         use_pad_tok_in_ffn: bool = True,
         **kwargs: Any,
     ):
@@ -88,6 +89,8 @@ class MPTBlock(nn.Module):
                 norm_eps=norm_eps,
                 device=device,
                 no_bias=no_bias,
+                attention_bias=attention_bias,
+                head_dim=head_dim,
             )
         else:
             assert isinstance(attn_config['attn_type'], str)
@@ -109,9 +112,11 @@ class MPTBlock(nn.Module):
                 attn_kwargs={
                     'd_model': d_model,
                     'n_heads': n_heads,
+                    'head_dim': head_dim,
                     'fc_type': fc_type,
                     'device': device,
                     'bias': not no_bias,
+                    'attention_bias': attention_bias,
                     **attn_config_subset_for_attn_class,
                 },
             )
@@ -165,6 +170,8 @@ class MPTBlock(nn.Module):
         prev_layer_key_value: Optional[tuple[torch.Tensor,
                                              torch.Tensor]] = None,
         key_value_states: Optional[torch.Tensor] = None,
+        x_prev: Optional[torch.Tensor] = None,
+        pos_id_within_seq: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
         torch.Tensor, torch.Tensor]]]:
         extra_kwargs = {}
@@ -172,6 +179,8 @@ class MPTBlock(nn.Module):
             extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
         if key_value_states is not None:
             extra_kwargs['key_value_states'] = key_value_states
+        if pos_id_within_seq is not None:
+            extra_kwargs['pos_id_within_seq'] = pos_id_within_seq
 
         if self.fuse_norm_attn_norm:
             x, m, attn_weights, past_key_value = self.norm_attn_norm(
@@ -184,10 +193,13 @@ class MPTBlock(nn.Module):
                 output_attentions=output_attentions,
                 alibi_slopes=alibi_slopes,
                 flash_attn_padding_info=flash_attn_padding_info,
+                x_prev=x_prev,
                 **extra_kwargs,
             )
         else:
             a = self.norm_1(x)
+            if x_prev is not None:
+                x_prev = self.norm_1(x_prev)
             b, attn_weights, past_key_value = self.attn(
                 a,
                 past_key_value=past_key_value,
@@ -198,6 +210,7 @@ class MPTBlock(nn.Module):
                 needs_weights=output_attentions,
                 alibi_slopes=alibi_slopes,
                 flash_attn_padding_info=flash_attn_padding_info,
+                x_prev=x_prev,
                 **extra_kwargs,
             )
             x = x + self.resid_attn_dropout(b)
@@ -208,8 +221,11 @@ class MPTBlock(nn.Module):
         n = self.apply_ffn(attention_mask, m)
         # In the following line we move the `x` tensor to the same devices as the output of ffn layer. This operation should be a no-op during training.
         # This is done to fix pipeline parallel generation using hf.generate. Please see this comment for details: https://github.com/mosaicml/llm-foundry/pull/1332#issue-2386827204
-        x = x.to(device=n.device,
-                ) + self.resid_ffn_dropout(n).to(device=n.device,)
+        x = x.to(
+            device=n.device,
+        ) + self.resid_ffn_dropout(n).to(
+            device=n.device,
+        )
         return x, attn_weights, past_key_value
 
     def apply_ffn(
@@ -272,6 +288,8 @@ class FusedNormAttentionNorm(nn.Module):
         norm_eps: float = 1e-05,
         device: Optional[str] = None,
         no_bias: bool = False,
+        attention_bias: bool = True,
+        head_dim: Optional[int] = None,
         **kwargs: Any,
     ):
         super().__init__()
@@ -304,6 +322,8 @@ class FusedNormAttentionNorm(nn.Module):
                 'fc_type': fc_type,
                 'device': device,
                 'bias': not no_bias,
+                'attention_bias': attention_bias,
+                'head_dim': head_dim,
                 **attn_config_subset_for_attn_class,
             },
         )
@@ -332,14 +352,20 @@ class FusedNormAttentionNorm(nn.Module):
         prev_layer_key_value: Optional[tuple[torch.Tensor,
                                              torch.Tensor]] = None,
         key_value_states: Optional[torch.Tensor] = None,
+        x_prev: Optional[torch.Tensor] = None,
+        pos_id_within_seq: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor],
                Optional[tuple[torch.Tensor, torch.Tensor]]]:
         a = self.norm_1(x)
         extra_kwargs = {}
         if prev_layer_key_value is not None:
             extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
+        if x_prev is not None:
+            x_prev = self.norm_1(x_prev)
         if key_value_states is not None:
             extra_kwargs['key_value_states'] = key_value_states
+        if pos_id_within_seq is not None:
+            extra_kwargs['pos_id_within_seq'] = pos_id_within_seq
 
         b, attn_weights, past_key_value = self.attn(
             a,
@@ -351,6 +377,7 @@ class FusedNormAttentionNorm(nn.Module):
             needs_weights=output_attentions,
             alibi_slopes=alibi_slopes,
             flash_attn_padding_info=flash_attn_padding_info,
+            x_prev=x_prev,
             **extra_kwargs,
         )
         x = x + self.resid_attn_dropout(b)

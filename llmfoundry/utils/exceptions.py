@@ -1,6 +1,5 @@
 # Copyright 2024 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
-
 """Custom exceptions for the LLMFoundry."""
 from typing import Any, Literal, Optional, Union
 

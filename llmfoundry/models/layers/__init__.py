@@ -28,7 +28,6 @@ from llmfoundry.models.layers.norm import (
     LPRMSNorm,
     RMSNorm,
     TritonRMSNorm,
-    rms_norm,
 )
 
 __all__ = [
@@ -57,5 +56,4 @@ __all__ = [
     'LPRMSNorm',
     'RMSNorm',
     'TritonRMSNorm',
-    'rms_norm',
 ]

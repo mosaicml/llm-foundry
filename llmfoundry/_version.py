@@ -2,4 +2,4 @@
 # SPDX-License-Identifier: Apache-2.0
 """The LLM Foundry Version."""
 
-__version__ = '0.22.0.dev0'
+__version__ = '0.22.0'

@@ -673,6 +673,7 @@ class HuggingFaceCheckpointer(Callback):
             # initialization cost.
             with init_empty_weights():
                 if self.using_peft:
+                    import peft
                     from peft import PeftModel
                     assert isinstance(original_model, PeftModel)
                     active_adapter = original_model.active_adapter  # type: ignore
@@ -680,10 +681,25 @@ class HuggingFaceCheckpointer(Callback):
                     )
                     new_base_model_instance = type(base_model)(new_config)
 
+                    # TODO: Deprecate this when we no longer support peft 0.16.0 from upstream
+                    if peft.__version__ == '0.16.0':
+                        # due to https://github.com/huggingface/peft/issues/2634, we need to change
+                        # the peft type to an enum. Should be fixed in 0.17.0 by
+                        # https://github.com/huggingface/peft/pull/2635
+                        peft_config = copy.copy(
+                            original_model.
+                            peft_config[active_adapter],  # type: ignore
+                        )
+                        peft_config.peft_type = peft.PeftType(  # type: ignore
+                            peft_config.peft_type,  # type: ignore
+                        )
+                    else:
+                        peft_config = original_model.peft_config[  # type: ignore
+                            active_adapter]  # type: ignore
+
                     new_model_instance = type(original_model)(
                         new_base_model_instance,  # type: ignore
-                        original_model.
-                        peft_config[active_adapter],  # type: ignore
+                        peft_config,  # type: ignore
                     )
                     del new_base_model_instance
                 else:

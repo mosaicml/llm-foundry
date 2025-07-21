@@ -681,6 +681,7 @@ class HuggingFaceCheckpointer(Callback):
                     )
                     new_base_model_instance = type(base_model)(new_config)
 
+                    # TODO: Deprecate this when we no longer support peft 0.16.0 from upstream
                     if peft.__version__ == '0.16.0':
                         # due to https://github.com/huggingface/peft/issues/2634, we need to change
                         # the peft type to an enum. Should be fixed in 0.17.0 by

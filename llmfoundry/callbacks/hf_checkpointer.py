@@ -686,13 +686,15 @@ class HuggingFaceCheckpointer(Callback):
                         # the peft type to an enum. Should be fixed in 0.17.0 by
                         # https://github.com/huggingface/peft/pull/2635
                         peft_config = copy.copy(
-                            original_model.peft_config[active_adapter],  # type: ignore
+                            original_model.
+                            peft_config[active_adapter],  # type: ignore
                         )
                         peft_config.peft_type = peft.PeftType(  # type: ignore
                             peft_config.peft_type,  # type: ignore
                         )
                     else:
-                        peft_config = original_model.peft_config[active_adapter]  # type: ignore
+                        peft_config = original_model.peft_config[  # type: ignore
+                            active_adapter]  # type: ignore
 
                     new_model_instance = type(original_model)(
                         new_base_model_instance,  # type: ignore

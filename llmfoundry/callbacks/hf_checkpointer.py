@@ -674,6 +674,7 @@ class HuggingFaceCheckpointer(Callback):
             with init_empty_weights():
                 if self.using_peft:
                     from peft import PeftModel
+                    import pdb; pdb.set_trace()
                     assert isinstance(original_model, PeftModel)
                     active_adapter = original_model.active_adapter  # type: ignore
                     base_model: PreTrainedModel = original_model.get_base_model(  # type: ignore

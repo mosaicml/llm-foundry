@@ -91,7 +91,7 @@ extra_deps['dev'] = [
 ]
 
 extra_deps['databricks'] = [
-    'mosaicml[databricks]@git+https://github.com/mosaicml/composer.git@summon-full-params',
+    'mosaicml[databricks]@git+https://github.com/mosaicml/composer.git@summon-full-params-profiler',
     'numpy<2',
     'databricks-sql-connector>=3,<4',
     'databricks-connect==14.1.0',
@@ -99,7 +99,7 @@ extra_deps['databricks'] = [
 ]
 
 extra_deps['tensorboard'] = [
-    'mosaicml[tensorboard]@git+https://github.com/mosaicml/composer.git@summon-full-params',
+    'mosaicml[tensorboard]@git+https://github.com/mosaicml/composer.git@summon-full-params-profiler',
 ]
 
 # Flash 2 group kept for backwards compatibility
@@ -108,7 +108,7 @@ extra_deps['gpu-flash2'] = []
 extra_deps['gpu'] = copy.deepcopy(extra_deps['gpu-flash2'])
 
 extra_deps['peft'] = [
-    'mosaicml[peft]@git+https://github.com/mosaicml/composer.git@summon-full-params',
+    'mosaicml[peft]@git+https://github.com/mosaicml/composer.git@summon-full-params-profiler',
 ]
 
 extra_deps['openai'] = [
@@ -116,10 +116,7 @@ extra_deps['openai'] = [
     'tiktoken>=0.4,<0.9.1',
 ]
 
-extra_deps['megablocks'] = [
-    'megablocks<1.0',
-    'grouped-gemm==0.3.0',
-]
+extra_deps['megablocks'] = []
 
 extra_deps['te'] = [
     'transformer-engine[pytorch]>=1.13.0,<2.0',

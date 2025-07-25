@@ -51,7 +51,7 @@ classifiers = [
 ]
 
 install_requires = [
-    'mosaicml[libcloud,wandb,oci,gcs,mlflow]@git+https://github.com/mosaicml/composer.git@summon-full-params-profiler',
+    'mosaicml[libcloud,wandb,oci,gcs,mlflow]@git+https://github.com/mosaicml/composer.git@summon-full-params',
     'mlflow>=2.14.1,<3.2',
     'accelerate>=0.25,<1.9',  # for HF inference `device_map`
     'transformers>=v4.51.0,<4.52',
@@ -91,7 +91,7 @@ extra_deps['dev'] = [
 ]
 
 extra_deps['databricks'] = [
-    'mosaicml[databricks]@git+https://github.com/mosaicml/composer.git@summon-full-params-profiler',
+    'mosaicml[databricks]@git+https://github.com/mosaicml/composer.git@summon-full-params',
     'numpy<2',
     'databricks-sql-connector>=3,<4',
     'databricks-connect==14.1.0',
@@ -99,7 +99,7 @@ extra_deps['databricks'] = [
 ]
 
 extra_deps['tensorboard'] = [
-    'mosaicml[tensorboard]@git+https://github.com/mosaicml/composer.git@summon-full-params-profiler',
+    'mosaicml[tensorboard]@git+https://github.com/mosaicml/composer.git@summon-full-params',
 ]
 
 # Flash 2 group kept for backwards compatibility
@@ -108,7 +108,7 @@ extra_deps['gpu-flash2'] = []
 extra_deps['gpu'] = copy.deepcopy(extra_deps['gpu-flash2'])
 
 extra_deps['peft'] = [
-    'mosaicml[peft]@git+https://github.com/mosaicml/composer.git@summon-full-params-profiler',
+    'mosaicml[peft]@git+https://github.com/mosaicml/composer.git@summon-full-params',
 ]
 
 extra_deps['openai'] = [

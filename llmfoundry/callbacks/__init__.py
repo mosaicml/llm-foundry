@@ -39,6 +39,8 @@ from llmfoundry.callbacks.resumption_callbacks import (
 )
 from llmfoundry.callbacks.run_timeout_callback import RunTimeoutCallback
 from llmfoundry.callbacks.scheduled_gc_callback import ScheduledGarbageCollector
+from llmfoundry.callbacks.sliding_window_size_warmup_callback import \
+    SlidingWindowSizeWarmerUpper
 from llmfoundry.registry import callbacks, callbacks_with_config
 
 callbacks.register('system_metrics_monitor', func=SystemMetricsMonitor)
@@ -69,6 +71,10 @@ callbacks.register('load_checkpoint', func=LoadCheckpoint)
 callbacks_with_config.register('async_eval', func=AsyncEval)
 callbacks_with_config.register('curriculum_learning', func=CurriculumLearning)
 callbacks_with_config.register('dataset_swap', func=DatasetSwap)
+callbacks_with_config.register(
+    'sliding_window_size_warmer_upper',
+    func=SlidingWindowSizeWarmerUpper,
+)
 
 __all__ = [
     'FDiffMetrics',
@@ -83,4 +89,5 @@ __all__ = [
     'CurriculumLearning',
     'LossPerpVsContextLengthLogger',
     'KillLossSpike',
+    'SlidingWindowSizeWarmerUpper',
 ]

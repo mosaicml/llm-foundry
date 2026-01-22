@@ -7,6 +7,7 @@ from composer.loggers import (
     MosaicMLLogger,
     TensorboardLogger,
     WandBLogger,
+    FileLogger
 )
 
 from llmfoundry.registry import loggers
@@ -20,3 +21,4 @@ loggers.register(
 )  # for backwards compatibility
 loggers.register('mlflow', func=MLFlowLogger)
 loggers.register('mosaicml', func=MosaicMLLogger)
+loggers.register('filelogger', func=FileLogger)

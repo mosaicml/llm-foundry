@@ -834,7 +834,7 @@ def _verify_uc_path(path: str) -> bool:
         return False
     except Exception as e:
         log.warning(
-            f'Error occured when attempting to connect with Databricks WorkspaceClient. ' + \
+            f'Error occurred when attempting to connect with Databricks WorkspaceClient. ' + \
             f'Error details: {str(e)}. This does not block creating `UCVolumeDatasetSource`, ' + \
             f'but your `UCVolumeDatasetSource` might be invalid.',
         )
@@ -852,7 +852,7 @@ def _verify_uc_path(path: str) -> bool:
                 return False
         except Exception as e:
             log.warning(
-                f'Error occured when verifying path of `UCVolumeDatasetSource`. ' + \
+                f'Error occurred when verifying path of `UCVolumeDatasetSource`. ' + \
                 f'Error details: {str(e)}. This does not block creating `UCVolumeDatasetSource`, ' + \
                 f'but your `UCVolumeDatasetSource` might be invalid.',
             )

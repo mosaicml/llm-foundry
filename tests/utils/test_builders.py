@@ -1,6 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
+import contextlib
 import re
 import unittest.mock as mock
 from copy import deepcopy
@@ -64,6 +65,46 @@ def test_tokenizer_no_EOS():
         match='The tokenizer bert-base-uncased must have an eos_token.',
     ):
         build_tokenizer('bert-base-uncased', {})
+
+
+def test_build_tokenizer_handles_missing_signal_file_cleanup():
+    class _DummyTokenizer:
+        eos_token = '</s>'
+        model_max_length = 0
+
+    with mock.patch(
+        'llmfoundry.utils.builders.AutoTokenizer.from_pretrained',
+        return_value=_DummyTokenizer(),
+    ) as patched_tokenizer, mock.patch(
+        'llmfoundry.utils.builders.dist.get_node_signal_file_name',
+        return_value='._signal_file_node0_test',
+    ), mock.patch(
+        'llmfoundry.utils.builders.dist.is_available',
+        return_value=True,
+    ), mock.patch(
+        'llmfoundry.utils.builders.dist.is_initialized',
+        return_value=True,
+    ), mock.patch(
+        'llmfoundry.utils.builders.dist.get_world_size',
+        return_value=2,
+    ), mock.patch(
+        'llmfoundry.utils.builders.dist.get_local_rank',
+        return_value=0,
+    ), mock.patch(
+        'llmfoundry.utils.builders.dist.local_rank_zero_download_and_wait',
+        return_value=contextlib.nullcontext(),
+    ), mock.patch(
+        'llmfoundry.utils.builders.dist.barrier',
+    ), mock.patch(
+        'builtins.open',
+        mock.mock_open(),
+    ), mock.patch(
+        'llmfoundry.utils.builders.os.remove',
+        side_effect=FileNotFoundError,
+    ):
+        tokenizer = build_tokenizer('dummy-tokenizer', {})
+
+    assert tokenizer is patched_tokenizer.return_value
 
 
 def test_build_callback_fails():

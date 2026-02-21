@@ -437,7 +437,8 @@ def calculate_markdown_results(
             'Benchmark',
             'Subtask',
             'Metric',
-            'Value',
+            # Backward-compatible column name; now stores generic metric values.
+            'Accuracy',
             'Number few shot',
             'Model',
         ],
@@ -453,7 +454,7 @@ def calculate_markdown_results(
                         'Benchmark': benchmark,
                         'Subtask': None,
                         'Metric': metric,
-                        'Value': subscores[0]['val'],
+                        'Accuracy': subscores[0]['val'],
                         'Number few shot': num_shot,
                         'Model': model_name,
                     }
@@ -468,7 +469,7 @@ def calculate_markdown_results(
                             'Average',
                         'Metric':
                             metric,
-                        'Value':
+                        'Accuracy':
                             sum(s['val'] for s in subscores) / len(subscores),
                         'Number few shot':
                             num_shot,
@@ -486,7 +487,7 @@ def calculate_markdown_results(
                                 sub['subcat'],
                             'Metric':
                                 metric,
-                            'Value':
+                            'Accuracy':
                                 sub['val'],
                             'Number few shot':
                                 num_shot,

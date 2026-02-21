@@ -8,7 +8,6 @@ from typing import Any, Union
 
 import omegaconf as om
 import pytest
-import torch
 from composer import Trainer
 from composer.loggers import InMemoryLogger
 
@@ -79,7 +78,7 @@ def test_icl_eval(
     assert isinstance(eval_cfg, om.DictConfig)
     evaluate(eval_cfg)
     out, _ = capfd.readouterr()
-    expected_results = '| Category                    | Benchmark      | Subtask   | Metric                      |   Value | Number few shot   | Model    |\n|:----------------------------|:---------------|:----------|:----------------------------|--------:|:------------------|:---------|\n| language_understanding_lite | lambada_openai |           | InContextLearningLMAccuracy |       0 | 0-shot            | tiny_mpt |'
+    expected_results = '| Category                    | Benchmark      | Subtask   | Metric                      |   Accuracy | Number few shot   | Model    |\n|:----------------------------|:---------------|:----------|:----------------------------|-----------:|:------------------|:---------|\n| language_understanding_lite | lambada_openai |           | InContextLearningLMAccuracy |          0 | 0-shot            | tiny_mpt |'
     assert expected_results in out
     expected_results = '| model_name   |   default_average |   language_understanding_lite |\n|:-------------|------------------:|------------------------------:|\n| tiny_mpt     |                 0 |                             0 |'
     assert expected_results in out
@@ -91,7 +90,16 @@ class _DummyMetric:
         self.value = value
 
     def compute(self):
-        return torch.tensor(self.value)
+        return _DummyTensor(self.value)
+
+
+class _DummyTensor:
+
+    def __init__(self, value: float):
+        self.value = value
+
+    def item(self):
+        return self.value
 
 
 def test_calculate_markdown_results_includes_non_accuracy_metric_names():
@@ -148,14 +156,14 @@ def test_calculate_markdown_results_includes_non_accuracy_metric_names():
         (results['Metric'] == 'LanguageCrossEntropy')
     ]
     assert len(lambada_ce) == 1
-    assert lambada_ce.iloc[0]['Value'] == pytest.approx(1.25)
+    assert lambada_ce.iloc[0]['Accuracy'] == pytest.approx(1.25)
 
     mmlu_avg = results[
         (results['Benchmark'] == 'mmlu') & (results['Subtask'] == 'Average') &
         (results['Metric'] == 'CustomF1')
     ]
     assert len(mmlu_avg) == 1
-    assert mmlu_avg.iloc[0]['Value'] == pytest.approx(0.7)
+    assert mmlu_avg.iloc[0]['Accuracy'] == pytest.approx(0.7)
 
 
 def test_loader_eval(

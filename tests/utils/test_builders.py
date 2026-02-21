@@ -95,16 +95,18 @@ def test_build_tokenizer_handles_missing_signal_file_cleanup():
         return_value=contextlib.nullcontext(),
     ), mock.patch(
         'llmfoundry.utils.builders.dist.barrier',
-    ), mock.patch(
+    ) as patched_barrier, mock.patch(
         'builtins.open',
         mock.mock_open(),
     ), mock.patch(
         'llmfoundry.utils.builders.os.remove',
         side_effect=FileNotFoundError,
-    ):
+    ) as patched_remove:
         tokenizer = build_tokenizer('dummy-tokenizer', {})
 
     assert tokenizer is patched_tokenizer.return_value
+    patched_barrier.assert_called_once()
+    patched_remove.assert_called_once_with('._signal_file_node0_test')
 
 
 def test_build_callback_fails():

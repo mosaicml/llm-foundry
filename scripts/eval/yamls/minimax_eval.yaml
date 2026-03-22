@@ -1,0 +1,24 @@
+seed: 1
+max_seq_len: 1024
+device_eval_batch_size: 4
+models:
+-
+  model_name: minimax/MiniMax-M2.7
+  model:
+    name: minimax_chat
+    version: MiniMax-M2.7
+  tokenizer:
+    name: tiktoken
+    kwargs:
+      model_name: gpt-4
+-
+  model_name: minimax/MiniMax-M2.5-highspeed
+  model:
+    name: minimax_chat
+    version: MiniMax-M2.5-highspeed
+  tokenizer:
+    name: tiktoken
+    kwargs:
+      model_name: gpt-4
+
+icl_tasks: "eval/yamls/lm_tasks_v0.2.yaml"

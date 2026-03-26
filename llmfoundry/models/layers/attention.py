@@ -1137,8 +1137,613 @@ def build_alibi_bias(
     return alibi_bias.to(dtype=dtype)
 
 
+from native_sparse_attention.ops import (
+    compressed_attention,
+    topk_sparse_attention,
+    avgpool_compress,
+    weightedpool_compress,
+    linear_compress,
+)
+
+COMPRESS_TYPE_TO_FUNC = {
+    "avgpool": avgpool_compress,
+    "weightedpool": weightedpool_compress,
+    "linear": linear_compress,
+}
+
+COMPRESS_TYPE_TO_WEIGHT = {
+    "avgpool": lambda num_heads, head_dim, kernel_size: None,
+    "weightedpool": lambda num_heads, head_dim, kernel_size: torch.nn.Parameter(
+        torch.zeros(num_heads, kernel_size)
+    ),
+    "linear": lambda num_heads, head_dim, kernel_size: torch.nn.Parameter(
+        torch.zeros(num_heads, head_dim * kernel_size, head_dim)
+    ),
+}
+import nvtx
+def nsa_attn_fn(
+    x: torch.Tensor,
+    query: torch.Tensor,
+    key: torch.Tensor,
+    value: torch.Tensor,
+    n_heads: int,
+    kv_n_heads: int,
+    head_dim: int,
+    kernel_size: int,
+    kernel_stride: int,
+    block_size: int, 
+    topk: int, 
+    init_blocks: int, 
+    local_blocks: int,
+    gate: torch.nn.Module,
+    past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
+    softmax_scale: Optional[float] = None,
+    attn_bias: Optional[torch.Tensor] = None,
+    key_padding_mask: Optional[torch.Tensor] = None,
+    is_causal: bool = False,
+    dropout_p: float = 0.0,
+    training: bool = False,
+    needs_weights: bool = False,
+    should_repeat_kv_for_gqa: Optional[bool] = True,
+    sliding_window_size: int = -1,
+    alibi_slopes: Optional[torch.Tensor] = None,
+    flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
+    attn_logit_softcapping: Optional[float] = None,
+    compress_type: str = 'avgpool',
+) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor,
+                                                                torch.Tensor]]]:
+    if key_padding_mask is not None:
+        raise ValueError('key_padding_mask should be None for flash attn.')
+    del key_padding_mask
+    if flash_attn_padding_info is None:
+        raise ValueError('flash_attn_padding_info is required for flash attn and native sparse attention.')
+    try:
+        from flash_attn import bert_padding, flash_attn_interface  # type: ignore # yapf: disable # isort: skip
+    except:
+        raise RuntimeError(
+            'Please install flash-attn==1.0.9 or flash-attn==2.3.6',
+        )
+
+    check_valid_inputs(query, key, value)
+
+    if past_key_value is not None:
+        if len(past_key_value) != 0:
+            key = torch.cat([past_key_value[0], key], dim=1)
+            value = torch.cat([past_key_value[1], value], dim=1)
+
+        past_key_value = (key, value)
+
+    if attn_bias is not None:
+        raise NotImplementedError(f'attn_bias not implemented for flash attn.')
+
+    batch_size, seqlen = query.shape[:2]
+
+    # In the following lines we move the tensors to the same devices as query, key, and value respectively. These operations should be no-ops during training.
+    # This is done to fix pipeline parallel generation using hf.generate. Please see this comment for details: https://github.com/mosaicml/llm-foundry/pull/1332#issue-2386827204
+    indices_q = flash_attn_padding_info['indices_q'].to(query.device)
+    indices_k = flash_attn_padding_info['indices_k'].to(key.device)
+    indices_v = flash_attn_padding_info['indices_v'].to(value.device)
+    cu_seqlens_q = flash_attn_padding_info['cu_seqlens_q'].to(query.device)
+    cu_seqlens_k = flash_attn_padding_info['cu_seqlens_k'].to(key.device)
+    max_seqlen_q = flash_attn_padding_info['max_seqlen_q']
+    max_seqlen_k = flash_attn_padding_info['max_seqlen_k']
+
+    query_unpad = bert_padding.index_first_axis(
+        rearrange(query, 'b s ... -> (b s) ...'),
+        indices_q,
+    )
+
+
+    query_unpad = rearrange(query_unpad, 'nnz (h d) -> nnz h d', h=n_heads)
+
+    key_unpad = bert_padding.index_first_axis(
+        rearrange(key, 'b s ... -> (b s) ...'),
+        indices_k,
+    )
+    key_unpad = rearrange(key_unpad, 'nnz (h d) -> nnz h d', h=kv_n_heads)
+
+    value_unpad = bert_padding.index_first_axis(
+        rearrange(value, 'b s ... -> (b s) ...'),
+        indices_v,
+    )
+    value_unpad = rearrange(value_unpad, 'nnz (h d) -> nnz h d', h=kv_n_heads)
+
+    dropout_p = dropout_p if training else 0.0
+
+    reset_is_causal = _reset_is_causal(query.size(1), key.size(1), is_causal)
+
+
+    ##get the cu_seq_lens needed for compression
+    seqlens_q = cu_seqlens_q[1:] - cu_seqlens_q[:-1]
+    seqlens_k = cu_seqlens_k[1:] - cu_seqlens_k[:-1]
+
+    
+    # block size 
+    # topk
+    # init blocks
+    # local blocks 
+
+    compress_func = COMPRESS_TYPE_TO_FUNC[compress_type]
+
+    compress_key = COMPRESS_TYPE_TO_WEIGHT[compress_type](
+            kv_n_heads, head_dim, kernel_size
+    )
+
+    compress_value = COMPRESS_TYPE_TO_WEIGHT[compress_type](
+            kv_n_heads, head_dim, kernel_size
+    )
+
+    torch.cuda.nvtx.range_push("nsa_comp_fn")
+    compressed_k, compressed_cu_seqlens_k = compress_func(
+            key_unpad,
+            compress_key,
+            cu_seqlens_k,
+            kernel_size,
+            kernel_stride,
+            None,
+        ) ##intra block not used, please revisit 
+    
+    compressed_v, _ = compress_func(
+        value_unpad,
+        compress_value,
+        cu_seqlens_k,
+        kernel_size,
+        kernel_stride,
+        None,
+    )
+    torch.cuda.nvtx.range_pop()
+
+    torch.cuda.nvtx.range_push("nsa_comp_attn_fn")
+    compressed_seqlens_k = compressed_cu_seqlens_k[1:] - compressed_cu_seqlens_k[:-1]
+    compressed_attn_output, topk_idx = compressed_attention(
+        query_unpad,
+        compressed_k,
+        compressed_v,
+        kernel_size,
+        kernel_stride,
+        block_size,
+        topk,
+        cu_seqlens_q,
+        compressed_cu_seqlens_k,
+        seqlens_k.max().item(),
+        compressed_seqlens_k.max().item(),
+        None,
+        init_blocks,
+        local_blocks,
+    )
+    torch.cuda.nvtx.range_pop()
+
+    torch.cuda.nvtx.range_push("nsa_topk_attn_fn")
+    sparse_attn_output = topk_sparse_attention(
+            query_unpad, key_unpad, value_unpad, topk_idx, block_size, cu_seqlens_q, None
+    )
+    torch.cuda.nvtx.range_pop()
+
+    if not is_flash_v2_installed():
+        raise ValueError("flashattnv2 is needed")
+    
+    extra_attn_kwargs = {}
+    if check_alibi_support('flash'):
+        extra_attn_kwargs['alibi_slopes'] = alibi_slopes
+    elif alibi_slopes is not None:
+        raise ValueError(
+            'alibi_slopes is only supported for flash-attn>=2.4.2',
+        )
+    if is_flash_v2_installed(
+        v2_version='v2.6.2',
+    ) and attn_logit_softcapping is not None:
+        extra_attn_kwargs['softcap'] = attn_logit_softcapping
+    
+
+    
+    torch.cuda.nvtx.range_push("nsa_sliding_window_attn")
+    sliding_attn_output = flash_attn_interface.flash_attn_varlen_func(
+            q=query_unpad,
+            k=key_unpad,
+            v=value_unpad,
+            cu_seqlens_q=cu_seqlens_q,
+            cu_seqlens_k=cu_seqlens_k,
+            max_seqlen_q=max_seqlen_q,
+            max_seqlen_k=max_seqlen_k,
+            dropout_p=dropout_p,
+            softmax_scale=softmax_scale,
+            causal=reset_is_causal,
+            return_attn_probs=needs_weights,
+            window_size=(sliding_window_size, -1),
+            **extra_attn_kwargs,
+    )
+    torch.cuda.nvtx.range_pop()
+
+    x_unpad = bert_padding.index_first_axis(
+        rearrange(x, 'b s ... -> (b s) ...'),
+        indices_q,
+    )
+
+    ##print(3)
+
+    gate = gate(x_unpad)
+    gate = rearrange(gate, "n (h g) -> n h g", g=3)
+
+    attn_output = (
+        gate[..., 0:1] * compressed_attn_output
+        + gate[..., 1:2] * sparse_attn_output
+        + gate[..., 2:3] * sliding_attn_output
+    )
+
+    # print("cmp shape ", compressed_attn_output.shape)
+    # print("sparse shape ", sparse_attn_output.shape)
+    # print("sliding shape ", sliding_attn_output.shape)
+    # print("this is done here")
+
+    attn_output = bert_padding.pad_input(
+        rearrange(attn_output, 'nnz h d -> nnz (h d)'),
+        indices_q, batch_size, seqlen
+    )   
+
+    return attn_output, None, past_key_value
+
+@attention_classes.register_class('native_sparse_attention')
+class NativeSparseAttention(GroupedQueryAttention):
+
+    def __init__(
+        self,
+        d_model: int,
+        n_heads: int,
+        kv_n_heads: int,
+        head_dim: Optional[int] = None,
+        attn_impl: str = 'flash',
+        clip_qkv: Optional[float] = None,
+        qk_ln: bool = False,
+        qk_gn: bool = False,
+        fused_qkv: bool = True,
+        softmax_scale: Optional[float] = None,
+        attn_pdrop: float = 0.0,
+        norm_type: str = 'low_precision_layernorm',
+        norm_eps: float = 1e-05,
+        fc_type: Optional[dict[str, Any]] = None,
+        device: Optional[str] = None,
+        bias: bool = True,
+        attention_bias: bool = True,
+        sliding_window_size: int = 512,
+        reuse_kv_layer_idx: Optional[int] = None,
+        reuse_kv_x_layer_idx: Optional[int] = None,
+        attn_logit_softcapping: Optional[float] = None,
+        attn_temperature_tuning: Optional[dict] = None,
+        kv_dim: Optional[int] = None,
+        nope: bool = False,
+        compress_type: str = "avgpool", 
+        kernel_size: int = 32, 
+        kernel_stride: int = 16,
+        block_size: int = 64,
+        topk: int = 16,
+        init_blocks: int = 1, 
+        local_blocks: int = 2
+    ):
+        super().__init__(
+            d_model=d_model,
+            n_heads=n_heads,
+            kv_n_heads=kv_n_heads,  
+            head_dim=head_dim,
+            attn_impl='flash',
+            clip_qkv=clip_qkv,
+            qk_ln=qk_ln,
+            qk_gn=qk_gn,
+            fused_qkv=fused_qkv,
+            softmax_scale=softmax_scale,
+            attn_pdrop=attn_pdrop,
+            norm_type=norm_type,
+            norm_eps=norm_eps,
+            fc_type=fc_type,
+            device=device,
+            bias=bias,
+            attention_bias=attention_bias,
+            sliding_window_size=sliding_window_size,
+            reuse_kv_layer_idx=reuse_kv_layer_idx,
+            reuse_kv_x_layer_idx=reuse_kv_x_layer_idx,
+            attn_logit_softcapping=attn_logit_softcapping,
+            attn_temperature_tuning=attn_temperature_tuning,
+            kv_dim=kv_dim,
+            nope=nope,
+        )
+
+        ##arguments specific to NSA
+        self.compress_type = compress_type
+        self.kernel_size = kernel_size
+        self.kernel_stride = kernel_stride
+        self.block_size = block_size
+        self.topk = topk
+        self.init_blocks = init_blocks
+        self.local_blocks = local_blocks
+
+        ##inits specific to NSA
+        # nsa compress func
+        self.compress_func = COMPRESS_TYPE_TO_FUNC[self.compress_type]
+
+        # nsa parameteres
+        self.compress_key = COMPRESS_TYPE_TO_WEIGHT[self.compress_type](
+            kv_n_heads, head_dim, self.kernel_size
+        )
+
+        self.compress_value = COMPRESS_TYPE_TO_WEIGHT[self.compress_type](
+            kv_n_heads, head_dim, self.kernel_size
+        )
+
+        self.intra_block_pe = torch.nn.Parameter(
+            torch.zeros(self.kv_n_heads, self.kernel_size, self.head_dim)
+        ) ##dont really know what this does for now, COME BACK AND LOOK AT IT
+
+        # gate function
+        self.gate = torch.nn.Sequential(
+            torch.nn.Linear(self.d_model, self.n_heads * 3, bias=False),
+            torch.nn.Sigmoid(),
+        )
+        # print("look over here ", self.sliding_window_size)
+        # we assume that there is random init of weights, 
+        # thus we dont copy init_params
+    
+    ##things to note: throw an error if flash (needs to be >= v2) is not used 
+    ##
+    
+    
+    def forward(
+        self,
+        x: torch.Tensor,
+        past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
+        attn_bias: Optional[torch.Tensor] = None,
+        attention_mask: Optional[torch.Tensor] = None,
+        rotary_emb_w_meta_info: Optional[dict] = None,
+        is_causal: bool = True,
+        needs_weights: bool = False,
+        alibi_slopes: Optional[torch.Tensor] = None,
+        flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
+        prev_layer_key_value: Optional[tuple[torch.Tensor,
+                                             torch.Tensor]] = None,
+        key_value_states: Optional[torch.Tensor] = None,
+        x_prev: Optional[torch.Tensor] = None,
+        pos_id_within_seq: Optional[torch.Tensor] = None,
+    ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
+        torch.Tensor, torch.Tensor]]]:
+        torch.cuda.nvtx.range_push("nsa_forward")
+
+        extra_kwargs = {}
+        if prev_layer_key_value is not None:
+            extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
+        query, key, value = self.get_qkv(
+            x=x,
+            key_value_states=key_value_states,
+            x_prev=x_prev,
+            **extra_kwargs,
+        )
+
+        query = self._apply_temperature_tuning(pos_id_within_seq, query)
+
+        if rotary_emb_w_meta_info is not None and not self.nope:
+            query, key, value = self._apply_rotary_embeddings(
+                rotary_emb_w_meta_info,
+                query,
+                key,
+                value,
+            )
+
+        extra_attn_kwargs = self.get_implementation_specific_args(
+            attention_mask,
+            alibi_slopes,
+            flash_attn_padding_info,
+        )
+
+        torch.cuda.nvtx.range_push("nsa_attn_fn")
+        ##print("nsa invoked here")
+        context, attn_weights, past_key_value = nsa_attn_fn(
+            x,
+            query,
+            key,
+            value,
+            n_heads=self.n_heads,
+            kv_n_heads=self.kv_n_heads,
+            head_dim=self.head_dim,
+            kernel_size=self.kernel_size, 
+            kernel_stride=self.kernel_stride, 
+            block_size=self.block_size, 
+            topk=self.topk, 
+            init_blocks=self.init_blocks, 
+            local_blocks=self.local_blocks,
+            gate=self.gate,
+            past_key_value=past_key_value,
+            softmax_scale=self.softmax_scale,
+            attn_bias=attn_bias,
+            is_causal=is_causal,
+            dropout_p=self.attn_dropout_p,
+            training=self.training,
+            needs_weights=needs_weights,
+            attn_logit_softcapping=self.attn_logit_softcapping,
+            sliding_window_size=self.sliding_window_size,
+            **extra_attn_kwargs
+        )
+        torch.cuda.nvtx.range_pop()
+
+        torch.cuda.nvtx.range_pop()
+        return self.out_proj(context), attn_weights, past_key_value
+
+
+from fla.ops.nsa.parallel import parallel_nsa
+
+
+@attention_classes.register_class('native_sparse_attention2')
+class NativeSparseAttention2(GroupedQueryAttention):
+
+    def __init__(
+        self,
+        d_model: int,
+        n_heads: int,
+        kv_n_heads: int,
+        head_dim: Optional[int] = None,
+        attn_impl: str = 'flash',
+        clip_qkv: Optional[float] = None,
+        qk_ln: bool = False,
+        qk_gn: bool = False,
+        fused_qkv: bool = True,
+        softmax_scale: Optional[float] = None,
+        attn_pdrop: float = 0.0,
+        norm_type: str = 'low_precision_layernorm',
+        norm_eps: float = 1e-05,
+        fc_type: Optional[dict[str, Any]] = None,
+        device: Optional[str] = None,
+        bias: bool = True,
+        attention_bias: bool = True,
+        sliding_window_size: int = 512,
+        reuse_kv_layer_idx: Optional[int] = None,
+        reuse_kv_x_layer_idx: Optional[int] = None,
+        attn_logit_softcapping: Optional[float] = None,
+        attn_temperature_tuning: Optional[dict] = None,
+        kv_dim: Optional[int] = None,
+        nope: bool = False,
+        compress_type: str = "linear", 
+        kernel_size: int = 32, 
+        kernel_stride: int = 16,
+        block_size: int = 64,
+        topk: int = 16,
+        init_blocks: int = 1, 
+        local_blocks: int = 2
+    ):
+        super().__init__(
+            d_model=d_model,
+            n_heads=n_heads,
+            kv_n_heads=kv_n_heads,  
+            head_dim=head_dim,
+            attn_impl='flash',
+            clip_qkv=clip_qkv,
+            qk_ln=qk_ln,
+            qk_gn=qk_gn,
+            fused_qkv=fused_qkv,
+            softmax_scale=softmax_scale,
+            attn_pdrop=attn_pdrop,
+            norm_type=norm_type,
+            norm_eps=norm_eps,
+            fc_type=fc_type,
+            device=device,
+            bias=bias,
+            attention_bias=attention_bias,
+            sliding_window_size=sliding_window_size,
+            reuse_kv_layer_idx=reuse_kv_layer_idx,
+            reuse_kv_x_layer_idx=reuse_kv_x_layer_idx,
+            attn_logit_softcapping=attn_logit_softcapping,
+            attn_temperature_tuning=attn_temperature_tuning,
+            kv_dim=kv_dim,
+            nope=nope,
+        )
+
+        ##arguments specific to NSA
+        self.compress_type = compress_type
+        self.kernel_size = kernel_size
+        self.kernel_stride = kernel_stride
+        self.block_size = block_size
+        self.topk = topk
+        self.init_blocks = init_blocks
+        self.local_blocks = local_blocks
+
+        # gate function
+        self.gate = torch.nn.Sequential(
+            torch.nn.Linear(self.d_model, self.n_heads * 3, bias=False),
+            torch.nn.Sigmoid(),
+        )
+        # print("look over here ", self.sliding_window_size)
+        # we assume that there is random init of weights, 
+        # thus we dont copy init_params
+    
+    ##things to note: throw an error if flash (needs to be >= v2) is not used 
+    ##
+    
+    
+    def forward(
+        self,
+        x: torch.Tensor,
+        past_key_value: Optional[tuple[torch.Tensor, torch.Tensor]] = None,
+        attn_bias: Optional[torch.Tensor] = None,
+        attention_mask: Optional[torch.Tensor] = None,
+        rotary_emb_w_meta_info: Optional[dict] = None,
+        is_causal: bool = True,
+        needs_weights: bool = False,
+        alibi_slopes: Optional[torch.Tensor] = None,
+        flash_attn_padding_info: Optional[dict[str, torch.Tensor]] = None,
+        prev_layer_key_value: Optional[tuple[torch.Tensor,
+                                             torch.Tensor]] = None,
+        key_value_states: Optional[torch.Tensor] = None,
+        x_prev: Optional[torch.Tensor] = None,
+        pos_id_within_seq: Optional[torch.Tensor] = None,
+    ) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[
+        torch.Tensor, torch.Tensor]]]:
+        torch.cuda.nvtx.range_push("nsa2_forward")
+
+        extra_kwargs = {}
+        if prev_layer_key_value is not None:
+            extra_kwargs['prev_layer_key_value'] = prev_layer_key_value
+        query, key, value = self.get_qkv(
+            x=x,
+            key_value_states=key_value_states,
+            x_prev=x_prev,
+            **extra_kwargs,
+        )
+
+        query = self._apply_temperature_tuning(pos_id_within_seq, query)
+
+        if rotary_emb_w_meta_info is not None and not self.nope:
+            query, key, value = self._apply_rotary_embeddings(
+                rotary_emb_w_meta_info,
+                query,
+                key,
+                value,
+            )
+
+        extra_attn_kwargs = self.get_implementation_specific_args(
+            attention_mask,
+            alibi_slopes,
+            flash_attn_padding_info,
+        )
+
+        # print(query.shape) 
+        # print(key.shape) 
+        # print(value.shape)
+
+        batch_size, seq_len, _ = query.shape
+
+        q = rearrange(query, "... (h d) -> ... h d", d = self.head_dim)
+        k = rearrange(key, "... (h d) -> ... h d", d = self.head_dim)
+        v = rearrange(value, "... (h d) -> ... h d", d = self.head_dim)
+
+        g = rearrange(self.gate(x), '... (h d) -> ... h d', d=3)
+        g_cmp, g_slc, g_swa = g.sigmoid().unbind(-1)
+
+        # print("g shape")
+        # print(g_cmp.shape)
+        # print(g_slc.shape) 
+        # print(g_swa.shape)
+        cu_seqlens_q = flash_attn_padding_info['cu_seqlens_q'].to(query.device)
+
+        torch.cuda.nvtx.range_push("nsa2_attn_fn")
+        o = parallel_nsa(
+            q=q,
+            k=k,
+            v=v,
+            g_cmp=g_cmp,
+            g_slc=g_slc,
+            g_swa=g_swa,
+            block_size=self.block_size,
+            block_counts=self.topk,
+            window_size=self.sliding_window_size,
+            head_first=False
+        )
+        torch.cuda.nvtx.range_pop()
+
+        o = o.reshape(batch_size, seq_len, -1)
+
+        torch.cuda.nvtx.range_pop()
+        return self.out_proj(o), None, None
+
+
+
 attention_implementations.register('flash', func=flash_attn_fn)
 attention_implementations.register(
     'torch',
     func=scaled_multihead_dot_product_attention,
 )
+

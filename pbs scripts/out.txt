@@ -1,0 +1,1172 @@
+/var/spool/pbs/mom_priv/jobs/79462.pbs111.SC: line 14: deactivate: command not found
+WARNING: CPU IP/backtrace sampling not supported, disabling.
+Try the 'nsys status --environment' command to learn more.
+
+WARNING: CPU context switch tracing not supported, disabling.
+Try the 'nsys status --environment' command to learn more.
+
+/home/users/nus/e1113744/llm-foundry/llmfoundry/callbacks/env_logging_callback.py:10: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+2025-08-27 00:33:46,078: rank0[2347451][MainThread]: DEBUG: llmfoundry.command_utils.train: Initializing dist with device...
+[W827 00:33:46.136234911 Utils.hpp:137] Warning: Environment variable NCCL_ASYNC_ERROR_HANDLING is deprecated; use TORCH_NCCL_ASYNC_ERROR_HANDLING instead (function operator())
+2025-08-27 00:33:46,621: rank0[2347451][MainThread]: DEBUG: llmfoundry.command_utils.train: Testing barrier with device...
+[rank0]:[W827 00:33:46.471807915 ProcessGroupNCCL.cpp:4715] [PG ID 0 PG GUID 0 Rank 0]  using GPU 0 as device used by this process is currently unknown. This can potentially cause a hang if this rank to GPU mapping is incorrect. You can pecify device_id in init_process_group() to force use of a particular device.
+2025-08-27 00:33:49,526: rank0[2347451][MainThread]: DEBUG: llmfoundry.command_utils.train: Barrier test passed with device.
+2025-08-27 00:33:49,622: rank0[2347451][MainThread]: INFO: llmfoundry.command_utils.train: As run_name, save_folder, and save_latest_filename are set,                 changing autoresume default to True...
+2025-08-27 00:33:49,622: rank0[2347451][MainThread]: INFO: llmfoundry.command_utils.train: Building tokenizer...
+2025-08-27 00:33:55,558: rank0[2347451][MainThread]: INFO: llmfoundry.command_utils.train: Building train loader...
+2025-08-27 00:33:55,559: rank0[2347451][MainThread]: INFO: streaming.base.dataset: Because `predownload` was not specified, it will default to 8*batch_size if batch_size is not None, otherwise 64.
+2025-08-27 00:33:56,086: rank0[2347451][MainThread]: INFO: llmfoundry.command_utils.train: Building eval loader...
+2025-08-27 00:33:56,086: rank0[2347451][MainThread]: INFO: streaming.base.dataset: Because `predownload` was not specified, it will default to 8*batch_size if batch_size is not None, otherwise 64.
+2025-08-27 00:33:56,125: rank0[2347451][MainThread]: INFO: llmfoundry.command_utils.train: Initializing model...
+MPTForCausalLM has generative capabilities, as `prepare_inputs_for_generation` is explicitly overwritten. However, it doesn't directly inherit from `GenerationMixin`. From 👉v4.50👈 onwards, `PreTrainedModel` will NOT inherit from `GenerationMixin`, and this model will lose the ability to call `generate` and other related functions.
+  - If you're using `trust_remote_code=True`, you can get rid of this warning by loading the model with an auto class. See https://huggingface.co/docs/transformers/en/model_doc/auto#auto-classes
+  - If you are the owner of the model architecture code, please modify your model class such that it inherits from `GenerationMixin` (after `PreTrainedModel`, otherwise you'll get an exception).
+  - If you are not the owner of the model architecture class, please contact the model code owner to update it.
+2025-08-27 00:33:56,127: rank0[2347451][MainThread]: INFO: llmfoundry.models.mpt.modeling_mpt: Instantiating an MPTForCausalLM model from /home/users/nus/e1113744/llm-foundry/llmfoundry/models/mpt/modeling_mpt.py
+2025-08-27 00:33:56,214: rank0[2347451][MainThread]: DEBUG: llmfoundry.models.mpt.modeling_mpt: MPTModel(
+  (wte): SharedEmbedding(50368, 1024)
+  (wpe): Embedding(32768, 1024)
+  (emb_drop): Dropout(p=0.0, inplace=False)
+  (blocks): ModuleList(
+    (0): MPTBlock(
+      (norm_1): LPLayerNorm((1024,), eps=1e-05, elementwise_affine=True)
+      (attn): MultiQueryAttention(
+        (Wqkv): Linear(in_features=1024, out_features=1152, bias=True)
+        (out_proj): Linear(in_features=1024, out_features=1024, bias=True)
+      )
+      (norm_2): LPLayerNorm((1024,), eps=1e-05, elementwise_affine=True)
+      (ffn): MPTMLP(
+        (up_proj): Linear(in_features=1024, out_features=4096, bias=True)
+        (down_proj): Linear(in_features=4096, out_features=1024, bias=True)
+      )
+      (resid_attn_dropout): Dropout(p=0.0, inplace=False)
+      (resid_ffn_dropout): Dropout(p=0.0, inplace=False)
+    )
+  )
+  (norm_f): LPLayerNorm((1024,), eps=1e-05, elementwise_affine=True)
+)
+2025-08-27 00:33:56,215: rank0[2347451][MainThread]: DEBUG: llmfoundry.models.mpt.modeling_mpt: Using kaiming_normal_ initialization.
+2025-08-27 00:33:59,162: rank0[2347451][MainThread]: INFO: llmfoundry.command_utils.train: Building trainer...
+2025-08-27 00:33:59,164: rank0[2347451][MainThread]: INFO: composer.utils.reproducibility: Setting seed to 17
+2025-08-27 00:33:59,166: rank0[2347451][MainThread]: INFO: composer.trainer.trainer: Run name: mpt-350m-flash-4-H100-nsys-run
+2025-08-27 00:33:59,166: rank0[2347451][MainThread]: INFO: composer.core.state: Automatically setting data_parallel_shard to have parallelization degree 2.
+wandb: Using wandb-core as the SDK backend.  Please refer to https://wandb.me/wandb-core for more information.
+wandb: Currently logged in as: runjiachen (runjiachen-nus). Use `wandb login --relogin` to force relogin
+wandb: - Waiting for wandb.init()...wandb: \ Waiting for wandb.init()...wandb: | Waiting for wandb.init()...wandb: Tracking run with wandb version 0.18.7
+wandb: Run data is saved locally in /home/users/nus/e1113744/llm-foundry/scripts/wandb/run-20250827_003404-oan67c0g
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run mpt-350m-flash-4-H100-nsys-run
+wandb: ⭐️ View project at https://wandb.ai/runjiachen-nus/llm-foundry-scripts_train
+wandb: 🚀 View run at https://wandb.ai/runjiachen-nus/llm-foundry-scripts_train/runs/oan67c0g
+2025-08-27 00:34:10,120: rank0[2347451][MainThread]: INFO: composer.trainer.trainer: Stepping schedulers every batch. To step schedulers every epoch, set `step_schedulers_every_batch=False`.
+2025-08-27 00:34:10,368: rank0[2347451][MainThread]: INFO: composer.utils.reproducibility: Setting seed to 17
+2025-08-27 00:34:10,614: rank0[2347451][MainThread]: DEBUG: composer.utils.reproducibility: Restoring the RNG state
+2025-08-27 00:34:10,616: rank0[2347451][MainThread]: INFO: composer.trainer.trainer: Setting seed to 17
+2025-08-27 00:34:10,616: rank0[2347451][MainThread]: INFO: composer.utils.reproducibility: Setting seed to 17
+2025-08-27 00:34:10,617: rank0[2347451][MainThread]: INFO: llmfoundry.command_utils.train: Logging config
+2025-08-27 00:34:10,933: rank0[2347451][MainThread]: INFO: llmfoundry.command_utils.train: Starting training...
+2025-08-27 00:34:10,933: rank0[2347451][MainThread]: INFO: composer.trainer.trainer: Using precision Precision.AMP_BF16
+******************************
+Config:
+algorithms:
+  gradient_clipping:
+    clipping_threshold: 1.0
+    clipping_type: norm
+callbacks:
+  lr_monitor: {}
+  memory_monitor: {}
+  nsys_callback:
+    start_batch: 27
+    stop_batch: 29
+  runtime_estimator: {}
+  speed_monitor:
+    window_size: 10
+composer_commit_hash: None
+composer_version: 0.32.1
+console_log_interval: 1ba
+device_eval_batch_size: 8
+device_train_batch_size: 128
+device_train_grad_accum: 128
+device_train_microbatch_size: 1
+enabled_algorithms/GradientClipping: true
+eval_first: false
+eval_interval: 0
+eval_loader:
+  dataset:
+    local: /home/users/nus/e1113744/scratch/c4_long_seq
+    max_seq_len: 32768
+    remote: null
+    shuffle: false
+    shuffle_seed: 17
+    split: val
+  drop_last: false
+  name: text
+  num_workers: 8
+eval_subset_num_batches: -1
+fsdp_config:
+  activation_checkpointing: false
+  activation_checkpointing_reentrant: false
+  activation_cpu_offload: false
+  limit_all_gathers: true
+  mixed_precision: PURE
+  sharding_strategy: FULL_SHARD
+global_train_batch_size: 256
+log_to_console: true
+loggers:
+  wandb: {}
+max_duration: 30ba
+max_seq_len: 32768
+merge: true
+model:
+  attn_config:
+    attn_impl: flash
+    attn_type: multiquery_attention
+  d_model: 1024
+  expansion_ratio: 4
+  init_device: meta
+  max_seq_len: 32768
+  n_heads: 16
+  n_layers: 1
+  name: mpt_causal_lm
+  vocab_size: 50368
+n_active_params: 95761536
+n_gpus: 2
+n_params: 95761536
+n_trainable_params: 95761536
+node_name: unknown because NODENAME environment variable not set
+num_gpus_per_node: 2
+num_nodes: 1
+optimizer:
+  betas:
+  - 0.9
+  - 0.95
+  eps: 1.0e-08
+  lr: 0.0003
+  name: decoupled_adamw
+  weight_decay: 0.0
+precision: amp_bf16
+progress_bar: false
+rank_zero_seed: 17
+run_name: mpt-350m-flash-4-H100-nsys-run
+save_folder: mpt-350m
+save_interval: 100ba
+save_num_checkpoints_to_keep: 1
+scheduler:
+  alpha_f: 0.1
+  name: cosine_with_warmup
+  t_warmup: 100ba
+seed: 17
+time/remaining_estimate_unit: hours
+tokenizer:
+  kwargs:
+    model_max_length: 32768
+  name: EleutherAI/gpt-neox-20b
+tp_config: null
+train_loader:
+  dataset:
+    local: /home/users/nus/e1113744/scratch/c4_long_seq
+    max_seq_len: 32768
+    remote: null
+    shuffle: true
+    shuffle_seed: 17
+    split: train
+  drop_last: true
+  name: text
+  num_workers: 8
+variables:
+  data_local: /home/users/nus/e1113744/scratch/c4_long_seq
+  data_remote: null
+  global_seed: 17
+  max_seq_len: 32768
+  run_name: null
+
+******************************
+2025-08-27 00:34:10,939: rank0[2347451][MainThread]: DEBUG: composer.trainer.trainer: Spinning the dataloaders
+2025-08-27 00:34:11,144: rank0[2349579][MainThread]: INFO: streaming.base.dataset: Because `num_canonical_nodes` was not specified, and `shuffle_algo` is py1e, it will default to be equal to physical nodes.
+2025-08-27 00:34:11,144: rank0[2349579][MainThread]: INFO: streaming.base.dataset: Because `shuffle_block_size` was not specified, it will default to max(4_000_000 // num_canonical_nodes, 1 << 18) if num_canonical_nodes is not None, otherwise 262144.
+2025-08-27 00:34:11,232: rank0[2349579][MainThread]: DEBUG: streaming.base.partition: Using 1 repeated samples to ensure that the epoch size is divisible by the number of total devices. This ensures that each device contributes the same number of samples per global batch. 
+2025-08-27 00:34:11,485: rank0[2347451][MainThread]: DEBUG: composer.trainer.trainer: Starting training loop
+2025-08-27 00:34:11,664: rank0[2349684][MainThread]: INFO: streaming.base.dataset: Because `num_canonical_nodes` was not specified, and `shuffle_algo` is py1e, it will default to be equal to physical nodes.
+2025-08-27 00:34:11,665: rank0[2349684][MainThread]: INFO: streaming.base.dataset: Because `shuffle_block_size` was not specified, it will default to max(4_000_000 // num_canonical_nodes, 1 << 18) if num_canonical_nodes is not None, otherwise 262144.
+2025-08-27 00:34:11,934: rank0[2349684][MainThread]: DEBUG: streaming.base.partition: Using 1 repeated samples to ensure that the epoch size is divisible by the number of total devices. This ensures that each device contributes the same number of samples per global batch. 
+/home/users/nus/e1113744/llm-foundry/.venv/lib/python3.11/site-packages/composer/trainer/trainer.py:2838: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.detach().clone() or sourceTensor.detach().clone().requires_grad_(True), rather than torch.tensor(sourceTensor).
+  current_batch_size = self.state.device.tensor_to_device(torch.tensor(current_batch_size))
+[batch=1/30]:
+	 Train nsys_api/start_batch: 27
+	 Train nsys_api/stop_batch: 29
+	 Train nsys_api/only_rank0: 0
+	 Train time/epoch: 0
+	 Train time/batch: 0
+	 Train time/sample: 0
+	 Train time/batch_in_epoch: 0
+	 Train time/sample_in_epoch: 0
+	 Train time/token: 0
+	 Train time/token_in_epoch: 0
+	 Train memory/current_allocated_mem: 3.7513
+	 Train memory/current_active_mem: 3.7513
+	 Train memory/current_inactive_mem: 0.3738
+	 Train memory/current_reserved_mem: 15.9450
+	 Train memory/peak_allocated_mem: 13.6550
+	 Train memory/peak_active_mem: 14.0710
+	 Train memory/peak_inactive_mem: 3.1686
+	 Train memory/peak_reserved_mem: 15.9450
+	 Train memory/alloc_retries: 0
+	 Train trainer/device_train_microbatch_size: 1
+	 Train loss/train/total: 11.8748
+	 Train metrics/train/LanguageCrossEntropy: 11.8748
+	 Train metrics/train/LanguagePerplexity: 143605.6562
+	 Train metrics/train/TokenAccuracy: 0.0000
+	 Train time/train: 0.0044
+	 Train time/val: 0.0000
+	 Train time/total: 0.0044
+	 Train lr-DecoupledAdamW/group0: 0.0000
+[batch=2/30]:
+	 Train time/batch: 1
+	 Train time/sample: 256
+	 Train time/batch_in_epoch: 1
+	 Train time/sample_in_epoch: 256
+	 Train time/token: 8388608
+	 Train time/token_in_epoch: 8388608
+	 Train memory/current_allocated_mem: 4.1344
+	 Train memory/current_active_mem: 4.1344
+	 Train memory/current_inactive_mem: 0.2969
+	 Train memory/current_reserved_mem: 22.5460
+	 Train memory/peak_allocated_mem: 14.0380
+	 Train memory/peak_active_mem: 14.4550
+	 Train memory/peak_inactive_mem: 7.0418
+	 Train memory/peak_reserved_mem: 22.5460
+	 Train memory/alloc_retries: 0
+	 Train trainer/device_train_microbatch_size: 1
+	 Train loss/train/total: 11.8747
+	 Train metrics/train/LanguageCrossEntropy: 11.8747
+	 Train metrics/train/LanguagePerplexity: 143588.4062
+	 Train metrics/train/TokenAccuracy: 0.0000
+	 Train time/train: 0.0072
+	 Train time/val: 0.0000
+	 Train time/total: 0.0072
+	 Train lr-DecoupledAdamW/group0: 0.0000
+	 Train time/remaining_estimate: 0.0791
+[batch=3/30]:
+	 Train time/batch: 2
+	 Train time/sample: 512
+	 Train time/batch_in_epoch: 2
+	 Train time/sample_in_epoch: 512
+	 Train time/token: 16777216
+	 Train time/token_in_epoch: 16777216
+	 Train memory/current_allocated_mem: 4.1344
+	 Train memory/current_active_mem: 4.1344
+	 Train memory/current_inactive_mem: 0.2969
+	 Train memory/current_reserved_mem: 22.5460
+	 Train memory/peak_allocated_mem: 14.0380
+	 Train memory/peak_active_mem: 14.4550
+	 Train memory/peak_inactive_mem: 7.0418
+	 Train memory/peak_reserved_mem: 22.5460
+	 Train memory/alloc_retries: 0
+	 Train trainer/device_train_microbatch_size: 1
+	 Train loss/train/total: 11.8752
+	 Train metrics/train/LanguageCrossEntropy: 11.8752
+	 Train metrics/train/LanguagePerplexity: 143657.9844
+	 Train metrics/train/TokenAccuracy: 0.0000
+	 Train time/train: 0.0101
+	 Train time/val: 0.0000
+	 Train time/total: 0.0101
+	 Train lr-DecoupledAdamW/group0: 0.0000
+	 Train time/remaining_estimate: 0.0764
+[batch=4/30]:
+	 Train time/batch: 3
+	 Train time/sample: 768
+	 Train time/batch_in_epoch: 3
+	 Train time/sample_in_epoch: 768
+	 Train time/token: 25165824
+	 Train time/token_in_epoch: 25165824
+	 Train memory/current_allocated_mem: 4.1344
+	 Train memory/current_active_mem: 4.1344
+	 Train memory/current_inactive_mem: 0.2969
+	 Train memory/current_reserved_mem: 22.5460
+	 Train memory/peak_allocated_mem: 14.0380
+	 Train memory/peak_active_mem: 14.4550
+	 Train memory/peak_inactive_mem: 7.0418
+	 Train memory/peak_reserved_mem: 22.5460
+	 Train memory/alloc_retries: 0
+	 Train trainer/device_train_microbatch_size: 1
+	 Train loss/train/total: 11.8503
+	 Train metrics/train/LanguageCrossEntropy: 11.8503
+	 Train metrics/train/LanguagePerplexity: 140128.8906
+	 Train metrics/train/TokenAccuracy: 0.0000
+	 Train time/train: 0.0129
+	 Train time/val: 0.0000
+	 Train time/total: 0.0129
+	 Train lr-DecoupledAdamW/group0: 0.0000
+	 Train time/remaining_estimate: 0.0734
+[batch=5/30]:
+	 Train time/batch: 4
+	 Train time/sample: 1024
+	 Train time/batch_in_epoch: 4
+	 Train time/sample_in_epoch: 1024
+	 Train time/token: 33554432
+	 Train time/token_in_epoch: 33554432
+	 Train memory/current_allocated_mem: 4.1344
+	 Train memory/current_active_mem: 4.1344
+	 Train memory/current_inactive_mem: 0.2969
+	 Train memory/current_reserved_mem: 22.5460
+	 Train memory/peak_allocated_mem: 14.0380
+	 Train memory/peak_active_mem: 14.4550
+	 Train memory/peak_inactive_mem: 7.0418
+	 Train memory/peak_reserved_mem: 22.5460
+	 Train memory/alloc_retries: 0
+	 Train trainer/device_train_microbatch_size: 1
+	 Train loss/train/total: 11.7981
+	 Train metrics/train/LanguageCrossEntropy: 11.7981
+	 Train metrics/train/LanguagePerplexity: 132992.8750
+	 Train metrics/train/TokenAccuracy: 0.0000
+	 Train time/train: 0.0157
+	 Train time/val: 0.0000
+	 Train time/total: 0.0157
+	 Train lr-DecoupledAdamW/group0: 0.0000
+	 Train time/remaining_estimate: 0.0706
+[batch=6/30]:
+	 Train time/batch: 5
+	 Train time/sample: 1280
+	 Train time/batch_in_epoch: 5
+	 Train time/sample_in_epoch: 1280
+	 Train time/token: 41943040
+	 Train time/token_in_epoch: 41943040
+	 Train memory/current_allocated_mem: 4.1344
+	 Train memory/current_active_mem: 4.1344
+	 Train memory/current_inactive_mem: 0.2969
+	 Train memory/current_reserved_mem: 22.5460
+	 Train memory/peak_allocated_mem: 14.0380
+	 Train memory/peak_active_mem: 14.4550
+	 Train memory/peak_inactive_mem: 7.0418
+	 Train memory/peak_reserved_mem: 22.5460
+	 Train memory/alloc_retries: 0
+	 Train trainer/device_train_microbatch_size: 1
+	 Train loss/train/total: 11.7230
+	 Train metrics/train/LanguageCrossEntropy: 11.7230
+	 Train metrics/train/LanguagePerplexity: 123378.9609
+	 Train metrics/train/TokenAccuracy: 0.0000
+	 Train time/train: 0.0185
+	 Train time/val: 0.0000
+	 Train time/total: 0.0185
+	 Train lr-DecoupledAdamW/group0: 0.0000
+	 Train time/remaining_estimate: 0.0678
+[batch=7/30]:
+	 Train time/batch: 6
+	 Train time/sample: 1536
+	 Train time/batch_in_epoch: 6
+	 Train time/sample_in_epoch: 1536
+	 Train time/token: 50331648
+	 Train time/token_in_epoch: 50331648
+	 Train memory/current_allocated_mem: 4.1344
+	 Train memory/current_active_mem: 4.1344
+	 Train memory/current_inactive_mem: 0.2969
+	 Train memory/current_reserved_mem: 22.5460
+	 Train memory/peak_allocated_mem: 14.0380
+	 Train memory/peak_active_mem: 14.4550
+	 Train memory/peak_inactive_mem: 7.0418
+	 Train memory/peak_reserved_mem: 22.5460
+	 Train memory/alloc_retries: 0
+	 Train trainer/device_train_microbatch_size: 1
+	 Train loss/train/total: 11.6191
+	 Train metrics/train/LanguageCrossEntropy: 11.6191
+	 Train metrics/train/LanguagePerplexity: 111202.9375
+	 Train metrics/train/TokenAccuracy: 0.0001
+	 Train time/train: 0.0214
+	 Train time/val: 0.0000
+	 Train time/total: 0.0214
+	 Train lr-DecoupledAdamW/group0: 0.0000
+	 Train time/remaining_estimate: 0.0650
+[batch=8/30]:
+	 Train time/batch: 7
+	 Train time/sample: 1792
+	 Train time/batch_in_epoch: 7
+	 Train time/sample_in_epoch: 1792
+	 Train time/token: 58720256
+	 Train time/token_in_epoch: 58720256
+	 Train memory/current_allocated_mem: 4.1344
+	 Train memory/current_active_mem: 4.1344
+	 Train memory/current_inactive_mem: 0.2969
+	 Train memory/current_reserved_mem: 22.5460
+	 Train memory/peak_allocated_mem: 14.0380
+	 Train memory/peak_active_mem: 14.4550
+	 Train memory/peak_inactive_mem: 7.0418
+	 Train memory/peak_reserved_mem: 22.5460
+	 Train memory/alloc_retries: 0
+	 Train trainer/device_train_microbatch_size: 1
+	 Train loss/train/total: 11.4942
+	 Train metrics/train/LanguageCrossEntropy: 11.4942
+	 Train metrics/train/LanguagePerplexity: 98147.2891
+	 Train metrics/train/TokenAccuracy: 0.0002
+	 Train time/train: 0.0242
+	 Train time/val: 0.0000
+	 Train time/total: 0.0242
+	 Train lr-DecoupledAdamW/group0: 0.0000
+	 Train time/remaining_estimate: 0.0622
+[batch=9/30]:
+	 Train time/batch: 8
+	 Train time/sample: 2048
+	 Train time/batch_in_epoch: 8
+	 Train time/sample_in_epoch: 2048
+	 Train time/token: 67108864
+	 Train time/token_in_epoch: 67108864
+	 Train memory/current_allocated_mem: 4.1344
+	 Train memory/current_active_mem: 4.1344
+	 Train memory/current_inactive_mem: 0.2969
+	 Train memory/current_reserved_mem: 22.5460
+	 Train memory/peak_allocated_mem: 14.0380
+	 Train memory/peak_active_mem: 14.4550
+	 Train memory/peak_inactive_mem: 7.0418
+	 Train memory/peak_reserved_mem: 22.5460
+	 Train memory/alloc_retries: 0
+	 Train trainer/device_train_microbatch_size: 1
+	 Train loss/train/total: 11.3455
+	 Train metrics/train/LanguageCrossEntropy: 11.3455
+	 Train metrics/train/LanguagePerplexity: 84581.2266
+	 Train metrics/train/TokenAccuracy: 0.0009
+	 Train time/train: 0.0270
+	 Train time/val: 0.0000
+	 Train time/total: 0.0270
+	 Train lr-DecoupledAdamW/group0: 0.0000
+	 Train time/remaining_estimate: 0.0594
+[batch=10/30]:
+	 Train time/batch: 9
+	 Train time/sample: 2304
+	 Train time/batch_in_epoch: 9
+	 Train time/sample_in_epoch: 2304
+	 Train time/token: 75497472
+	 Train time/token_in_epoch: 75497472
+	 Train memory/current_allocated_mem: 4.1344
+	 Train memory/current_active_mem: 4.1344
+	 Train memory/current_inactive_mem: 0.2969
+	 Train memory/current_reserved_mem: 22.5460
+	 Train memory/peak_allocated_mem: 14.0380
+	 Train memory/peak_active_mem: 14.4550
+	 Train memory/peak_inactive_mem: 7.0418
+	 Train memory/peak_reserved_mem: 22.5460
+	 Train memory/alloc_retries: 0
+	 Train trainer/device_train_microbatch_size: 1
+	 Train loss/train/total: 11.1729
+	 Train metrics/train/LanguageCrossEntropy: 11.1729
+	 Train metrics/train/LanguagePerplexity: 71176.6641
+	 Train metrics/train/TokenAccuracy: 0.0039
+	 Train time/train: 0.0298
+	 Train time/val: 0.0000
+	 Train time/total: 0.0298
+	 Train lr-DecoupledAdamW/group0: 0.0000
+	 Train time/remaining_estimate: 0.0565
+[batch=11/30]:
+	 Train time/batch: 10
+	 Train time/sample: 2560
+	 Train time/batch_in_epoch: 10
+	 Train time/sample_in_epoch: 2560
+	 Train time/token: 83886080
+	 Train time/token_in_epoch: 83886080
+	 Train memory/current_allocated_mem: 4.1344
+	 Train memory/current_active_mem: 4.1344
+	 Train memory/current_inactive_mem: 0.2969
+	 Train memory/current_reserved_mem: 22.5460
+	 Train memory/peak_allocated_mem: 14.0380
+	 Train memory/peak_active_mem: 14.4550
+	 Train memory/peak_inactive_mem: 7.0418
+	 Train memory/peak_reserved_mem: 22.5460
+	 Train memory/alloc_retries: 0
+	 Train trainer/device_train_microbatch_size: 1
+	 Train loss/train/total: 10.9810
+	 Train metrics/train/LanguageCrossEntropy: 10.9810
+	 Train metrics/train/LanguagePerplexity: 58747.4922
+	 Train metrics/train/TokenAccuracy: 0.0134
+	 Train throughput/batches_per_sec: 0.0982
+	 Train throughput/samples_per_sec: 25.1488
+	 Train throughput/device/batches_per_sec: 0.0491
+	 Train throughput/device/samples_per_sec: 12.5744
+	 Train throughput/tokens_per_sec: 824075.1530
+	 Train throughput/device/tokens_per_sec: 412037.5765
+	 Train throughput/flops_per_sec: 805304698753370.2500
+	 Train throughput/device/flops_per_sec: 402652349376685.1250
+	 Train throughput/device/mfu: 0.4069
+	 Train time/train: 0.0327
+	 Train time/val: 0.0000
+	 Train time/total: 0.0327
+	 Train lr-DecoupledAdamW/group0: 0.0000
+	 Train time/remaining_estimate: 0.0537
+[batch=12/30]:
+	 Train time/batch: 11
+	 Train time/sample: 2816
+	 Train time/batch_in_epoch: 11
+	 Train time/sample_in_epoch: 2816
+	 Train time/token: 92274688
+	 Train time/token_in_epoch: 92274688
+	 Train memory/current_allocated_mem: 4.1344
+	 Train memory/current_active_mem: 4.1344
+	 Train memory/current_inactive_mem: 0.2969
+	 Train memory/current_reserved_mem: 22.5460
+	 Train memory/peak_allocated_mem: 14.0380
+	 Train memory/peak_active_mem: 14.4550
+	 Train memory/peak_inactive_mem: 7.0418
+	 Train memory/peak_reserved_mem: 22.5460
+	 Train memory/alloc_retries: 0
+	 Train trainer/device_train_microbatch_size: 1
+	 Train loss/train/total: 10.7834
+	 Train metrics/train/LanguageCrossEntropy: 10.7833
+	 Train metrics/train/LanguagePerplexity: 48211.2227
+	 Train metrics/train/TokenAccuracy: 0.0296
+	 Train throughput/batches_per_sec: 0.0983
+	 Train throughput/samples_per_sec: 25.1566
+	 Train throughput/device/batches_per_sec: 0.0491
+	 Train throughput/device/samples_per_sec: 12.5783
+	 Train throughput/tokens_per_sec: 824331.5525
+	 Train throughput/device/tokens_per_sec: 412165.7762
+	 Train throughput/flops_per_sec: 805555258095903.1250
+	 Train throughput/device/flops_per_sec: 402777629047951.5625
+	 Train throughput/device/mfu: 0.4071
+	 Train time/train: 0.0355
+	 Train time/val: 0.0000
+	 Train time/total: 0.0355
+	 Train lr-DecoupledAdamW/group0: 0.0000
+	 Train time/remaining_estimate: 0.0509
+[batch=13/30]:
+	 Train time/batch: 12
+	 Train time/sample: 3072
+	 Train time/batch_in_epoch: 12
+	 Train time/sample_in_epoch: 3072
+	 Train time/token: 100663296
+	 Train time/token_in_epoch: 100663296
+	 Train memory/current_allocated_mem: 4.1344
+	 Train memory/current_active_mem: 4.1344
+	 Train memory/current_inactive_mem: 0.2969
+	 Train memory/current_reserved_mem: 22.5460
+	 Train memory/peak_allocated_mem: 14.0380
+	 Train memory/peak_active_mem: 14.4550
+	 Train memory/peak_inactive_mem: 7.0418
+	 Train memory/peak_reserved_mem: 22.5460
+	 Train memory/alloc_retries: 0
+	 Train trainer/device_train_microbatch_size: 1
+	 Train loss/train/total: 10.5702
+	 Train metrics/train/LanguageCrossEntropy: 10.5702
+	 Train metrics/train/LanguagePerplexity: 38955.6094
+	 Train metrics/train/TokenAccuracy: 0.0415
+	 Train throughput/batches_per_sec: 0.0983
+	 Train throughput/samples_per_sec: 25.1657
+	 Train throughput/device/batches_per_sec: 0.0492
+	 Train throughput/device/samples_per_sec: 12.5828
+	 Train throughput/tokens_per_sec: 824628.1713
+	 Train throughput/device/tokens_per_sec: 412314.0857
+	 Train throughput/flops_per_sec: 805845120673904.7500
+	 Train throughput/device/flops_per_sec: 402922560336952.3750
+	 Train throughput/device/mfu: 0.4072
+	 Train time/train: 0.0383
+	 Train time/val: 0.0000
+	 Train time/total: 0.0383
+	 Train lr-DecoupledAdamW/group0: 0.0000
+	 Train time/remaining_estimate: 0.0480
+[batch=14/30]:
+	 Train time/batch: 13
+	 Train time/sample: 3328
+	 Train time/batch_in_epoch: 13
+	 Train time/sample_in_epoch: 3328
+	 Train time/token: 109051904
+	 Train time/token_in_epoch: 109051904
+	 Train memory/current_allocated_mem: 4.1344
+	 Train memory/current_active_mem: 4.1344
+	 Train memory/current_inactive_mem: 0.2969
+	 Train memory/current_reserved_mem: 22.5460
+	 Train memory/peak_allocated_mem: 14.0380
+	 Train memory/peak_active_mem: 14.4550
+	 Train memory/peak_inactive_mem: 7.0418
+	 Train memory/peak_reserved_mem: 22.5460
+	 Train memory/alloc_retries: 0
+	 Train trainer/device_train_microbatch_size: 1
+	 Train loss/train/total: 10.3840
+	 Train metrics/train/LanguageCrossEntropy: 10.3840
+	 Train metrics/train/LanguagePerplexity: 32339.4355
+	 Train metrics/train/TokenAccuracy: 0.0458
+	 Train throughput/batches_per_sec: 0.0983
+	 Train throughput/samples_per_sec: 25.1557
+	 Train throughput/device/batches_per_sec: 0.0491
+	 Train throughput/device/samples_per_sec: 12.5778
+	 Train throughput/tokens_per_sec: 824301.0632
+	 Train throughput/device/tokens_per_sec: 412150.5316
+	 Train throughput/flops_per_sec: 805525463265943.3750
+	 Train throughput/device/flops_per_sec: 402762731632971.6875
+	 Train throughput/device/mfu: 0.4070
+	 Train time/train: 0.0411
+	 Train time/val: 0.0000
+	 Train time/total: 0.0411
+	 Train lr-DecoupledAdamW/group0: 0.0000
+	 Train time/remaining_estimate: 0.0452
+[batch=15/30]:
+	 Train time/batch: 14
+	 Train time/sample: 3584
+	 Train time/batch_in_epoch: 14
+	 Train time/sample_in_epoch: 3584
+	 Train time/token: 117440512
+	 Train time/token_in_epoch: 117440512
+	 Train memory/current_allocated_mem: 4.1344
+	 Train memory/current_active_mem: 4.1344
+	 Train memory/current_inactive_mem: 0.2969
+	 Train memory/current_reserved_mem: 22.5460
+	 Train memory/peak_allocated_mem: 14.0380
+	 Train memory/peak_active_mem: 14.4550
+	 Train memory/peak_inactive_mem: 7.0418
+	 Train memory/peak_reserved_mem: 22.5460
+	 Train memory/alloc_retries: 0
+	 Train trainer/device_train_microbatch_size: 1
+	 Train loss/train/total: 10.2464
+	 Train metrics/train/LanguageCrossEntropy: 10.2464
+	 Train metrics/train/LanguagePerplexity: 28180.1250
+	 Train metrics/train/TokenAccuracy: 0.0502
+	 Train throughput/batches_per_sec: 0.0983
+	 Train throughput/samples_per_sec: 25.1560
+	 Train throughput/device/batches_per_sec: 0.0491
+	 Train throughput/device/samples_per_sec: 12.5780
+	 Train throughput/tokens_per_sec: 824313.1079
+	 Train throughput/device/tokens_per_sec: 412156.5540
+	 Train throughput/flops_per_sec: 805537233701868.6250
+	 Train throughput/device/flops_per_sec: 402768616850934.3125
+	 Train throughput/device/mfu: 0.4070
+	 Train time/train: 0.0440
+	 Train time/val: 0.0000
+	 Train time/total: 0.0440
+	 Train lr-DecoupledAdamW/group0: 0.0000
+	 Train time/remaining_estimate: 0.0424
+[batch=16/30]:
+	 Train time/batch: 15
+	 Train time/sample: 3840
+	 Train time/batch_in_epoch: 15
+	 Train time/sample_in_epoch: 3840
+	 Train time/token: 125829120
+	 Train time/token_in_epoch: 125829120
+	 Train memory/current_allocated_mem: 4.1344
+	 Train memory/current_active_mem: 4.1344
+	 Train memory/current_inactive_mem: 0.2969
+	 Train memory/current_reserved_mem: 22.5460
+	 Train memory/peak_allocated_mem: 14.0380
+	 Train memory/peak_active_mem: 14.4550
+	 Train memory/peak_inactive_mem: 7.0418
+	 Train memory/peak_reserved_mem: 22.5460
+	 Train memory/alloc_retries: 0
+	 Train trainer/device_train_microbatch_size: 1
+	 Train loss/train/total: 10.1625
+	 Train metrics/train/LanguageCrossEntropy: 10.1625
+	 Train metrics/train/LanguagePerplexity: 25912.4395
+	 Train metrics/train/TokenAccuracy: 0.0555
+	 Train throughput/batches_per_sec: 0.0983
+	 Train throughput/samples_per_sec: 25.1728
+	 Train throughput/device/batches_per_sec: 0.0492
+	 Train throughput/device/samples_per_sec: 12.5864
+	 Train throughput/tokens_per_sec: 824863.1609
+	 Train throughput/device/tokens_per_sec: 412431.5804
+	 Train throughput/flops_per_sec: 806074757729417.0000
+	 Train throughput/device/flops_per_sec: 403037378864708.5000
+	 Train throughput/device/mfu: 0.4073
+	 Train time/train: 0.0468
+	 Train time/val: 0.0000
+	 Train time/total: 0.0468
+	 Train lr-DecoupledAdamW/group0: 0.0000
+	 Train time/remaining_estimate: 0.0396
+[batch=17/30]:
+	 Train time/batch: 16
+	 Train time/sample: 4096
+	 Train time/batch_in_epoch: 16
+	 Train time/sample_in_epoch: 4096
+	 Train time/token: 134217728
+	 Train time/token_in_epoch: 134217728
+	 Train memory/current_allocated_mem: 4.1344
+	 Train memory/current_active_mem: 4.1344
+	 Train memory/current_inactive_mem: 0.2969
+	 Train memory/current_reserved_mem: 22.5460
+	 Train memory/peak_allocated_mem: 14.0380
+	 Train memory/peak_active_mem: 14.4550
+	 Train memory/peak_inactive_mem: 7.0418
+	 Train memory/peak_reserved_mem: 22.5460
+	 Train memory/alloc_retries: 0
+	 Train trainer/device_train_microbatch_size: 1
+	 Train loss/train/total: 10.0876
+	 Train metrics/train/LanguageCrossEntropy: 10.0876
+	 Train metrics/train/LanguagePerplexity: 24042.2344
+	 Train metrics/train/TokenAccuracy: 0.0577
+	 Train throughput/batches_per_sec: 0.0984
+	 Train throughput/samples_per_sec: 25.1945
+	 Train throughput/device/batches_per_sec: 0.0492
+	 Train throughput/device/samples_per_sec: 12.5972
+	 Train throughput/tokens_per_sec: 825572.3544
+	 Train throughput/device/tokens_per_sec: 412786.1772
+	 Train throughput/flops_per_sec: 806767797502606.1250
+	 Train throughput/device/flops_per_sec: 403383898751303.0625
+	 Train throughput/device/mfu: 0.4077
+	 Train time/train: 0.0496
+	 Train time/val: 0.0000
+	 Train time/total: 0.0496
+	 Train lr-DecoupledAdamW/group0: 0.0000
+	 Train time/remaining_estimate: 0.0367
+[batch=18/30]:
+	 Train time/batch: 17
+	 Train time/sample: 4352
+	 Train time/batch_in_epoch: 17
+	 Train time/sample_in_epoch: 4352
+	 Train time/token: 142606336
+	 Train time/token_in_epoch: 142606336
+	 Train memory/current_allocated_mem: 4.1344
+	 Train memory/current_active_mem: 4.1344
+	 Train memory/current_inactive_mem: 0.2969
+	 Train memory/current_reserved_mem: 22.5460
+	 Train memory/peak_allocated_mem: 14.0380
+	 Train memory/peak_active_mem: 14.4550
+	 Train memory/peak_inactive_mem: 7.0418
+	 Train memory/peak_reserved_mem: 22.5460
+	 Train memory/alloc_retries: 0
+	 Train trainer/device_train_microbatch_size: 1
+	 Train loss/train/total: 9.9840
+	 Train metrics/train/LanguageCrossEntropy: 9.9840
+	 Train metrics/train/LanguagePerplexity: 21677.2031
+	 Train metrics/train/TokenAccuracy: 0.0577
+	 Train throughput/batches_per_sec: 0.0985
+	 Train throughput/samples_per_sec: 25.2083
+	 Train throughput/device/batches_per_sec: 0.0492
+	 Train throughput/device/samples_per_sec: 12.6041
+	 Train throughput/tokens_per_sec: 826024.2022
+	 Train throughput/device/tokens_per_sec: 413012.1011
+	 Train throughput/flops_per_sec: 807209353305495.0000
+	 Train throughput/device/flops_per_sec: 403604676652747.5000
+	 Train throughput/device/mfu: 0.4079
+	 Train time/train: 0.0524
+	 Train time/val: 0.0000
+	 Train time/total: 0.0524
+	 Train lr-DecoupledAdamW/group0: 0.0001
+	 Train time/remaining_estimate: 0.0339
+[batch=19/30]:
+	 Train time/batch: 18
+	 Train time/sample: 4608
+	 Train time/batch_in_epoch: 18
+	 Train time/sample_in_epoch: 4608
+	 Train time/token: 150994944
+	 Train time/token_in_epoch: 150994944
+	 Train memory/current_allocated_mem: 4.1344
+	 Train memory/current_active_mem: 4.1344
+	 Train memory/current_inactive_mem: 0.2969
+	 Train memory/current_reserved_mem: 22.5460
+	 Train memory/peak_allocated_mem: 14.0380
+	 Train memory/peak_active_mem: 14.4550
+	 Train memory/peak_inactive_mem: 7.0418
+	 Train memory/peak_reserved_mem: 22.5460
+	 Train memory/alloc_retries: 0
+	 Train trainer/device_train_microbatch_size: 1
+	 Train loss/train/total: 9.8677
+	 Train metrics/train/LanguageCrossEntropy: 9.8677
+	 Train metrics/train/LanguagePerplexity: 19297.6895
+	 Train metrics/train/TokenAccuracy: 0.0565
+	 Train throughput/batches_per_sec: 0.0984
+	 Train throughput/samples_per_sec: 25.2021
+	 Train throughput/device/batches_per_sec: 0.0492
+	 Train throughput/device/samples_per_sec: 12.6011
+	 Train throughput/tokens_per_sec: 825823.7354
+	 Train throughput/device/tokens_per_sec: 412911.8677
+	 Train throughput/flops_per_sec: 807013452687834.8750
+	 Train throughput/device/flops_per_sec: 403506726343917.4375
+	 Train throughput/device/mfu: 0.4078
+	 Train time/train: 0.0552
+	 Train time/val: 0.0000
+	 Train time/total: 0.0552
+	 Train lr-DecoupledAdamW/group0: 0.0001
+	 Train time/remaining_estimate: 0.0311
+[batch=20/30]:
+	 Train time/batch: 19
+	 Train time/sample: 4864
+	 Train time/batch_in_epoch: 19
+	 Train time/sample_in_epoch: 4864
+	 Train time/token: 159383552
+	 Train time/token_in_epoch: 159383552
+	 Train memory/current_allocated_mem: 4.1344
+	 Train memory/current_active_mem: 4.1344
+	 Train memory/current_inactive_mem: 0.2969
+	 Train memory/current_reserved_mem: 22.5460
+	 Train memory/peak_allocated_mem: 14.0380
+	 Train memory/peak_active_mem: 14.4550
+	 Train memory/peak_inactive_mem: 7.0418
+	 Train memory/peak_reserved_mem: 22.5460
+	 Train memory/alloc_retries: 0
+	 Train trainer/device_train_microbatch_size: 1
+	 Train loss/train/total: 9.7313
+	 Train metrics/train/LanguageCrossEntropy: 9.7313
+	 Train metrics/train/LanguagePerplexity: 16836.5762
+	 Train metrics/train/TokenAccuracy: 0.0558
+	 Train throughput/batches_per_sec: 0.0984
+	 Train throughput/samples_per_sec: 25.2012
+	 Train throughput/device/batches_per_sec: 0.0492
+	 Train throughput/device/samples_per_sec: 12.6006
+	 Train throughput/tokens_per_sec: 825793.6722
+	 Train throughput/device/tokens_per_sec: 412896.8361
+	 Train throughput/flops_per_sec: 806984074207206.0000
+	 Train throughput/device/flops_per_sec: 403492037103603.0000
+	 Train throughput/device/mfu: 0.4078
+	 Train time/train: 0.0581
+	 Train time/val: 0.0000
+	 Train time/total: 0.0581
+	 Train lr-DecoupledAdamW/group0: 0.0001
+	 Train time/remaining_estimate: 0.0282
+[batch=21/30]:
+	 Train time/batch: 20
+	 Train time/sample: 5120
+	 Train time/batch_in_epoch: 20
+	 Train time/sample_in_epoch: 5120
+	 Train time/token: 167772160
+	 Train time/token_in_epoch: 167772160
+	 Train memory/current_allocated_mem: 4.1344
+	 Train memory/current_active_mem: 4.1344
+	 Train memory/current_inactive_mem: 0.2969
+	 Train memory/current_reserved_mem: 22.5460
+	 Train memory/peak_allocated_mem: 14.0380
+	 Train memory/peak_active_mem: 14.4550
+	 Train memory/peak_inactive_mem: 7.0418
+	 Train memory/peak_reserved_mem: 22.5460
+	 Train memory/alloc_retries: 0
+	 Train trainer/device_train_microbatch_size: 1
+	 Train loss/train/total: 9.6474
+	 Train metrics/train/LanguageCrossEntropy: 9.6474
+	 Train metrics/train/LanguagePerplexity: 15481.3193
+	 Train metrics/train/TokenAccuracy: 0.0508
+	 Train throughput/batches_per_sec: 0.0984
+	 Train throughput/samples_per_sec: 25.2018
+	 Train throughput/device/batches_per_sec: 0.0492
+	 Train throughput/device/samples_per_sec: 12.6009
+	 Train throughput/tokens_per_sec: 825811.6952
+	 Train throughput/device/tokens_per_sec: 412905.8476
+	 Train throughput/flops_per_sec: 807001686738832.0000
+	 Train throughput/device/flops_per_sec: 403500843369416.0000
+	 Train throughput/device/mfu: 0.4078
+	 Train time/train: 0.0609
+	 Train time/val: 0.0000
+	 Train time/total: 0.0609
+	 Train lr-DecoupledAdamW/group0: 0.0001
+	 Train time/remaining_estimate: 0.0254
+[batch=22/30]:
+	 Train time/batch: 21
+	 Train time/sample: 5376
+	 Train time/batch_in_epoch: 21
+	 Train time/sample_in_epoch: 5376
+	 Train time/token: 176160768
+	 Train time/token_in_epoch: 176160768
+	 Train memory/current_allocated_mem: 4.1344
+	 Train memory/current_active_mem: 4.1344
+	 Train memory/current_inactive_mem: 0.2969
+	 Train memory/current_reserved_mem: 22.5460
+	 Train memory/peak_allocated_mem: 14.0380
+	 Train memory/peak_active_mem: 14.4550
+	 Train memory/peak_inactive_mem: 7.0418
+	 Train memory/peak_reserved_mem: 22.5460
+	 Train memory/alloc_retries: 0
+	 Train trainer/device_train_microbatch_size: 1
+	 Train loss/train/total: 9.5707
+	 Train metrics/train/LanguageCrossEntropy: 9.5707
+	 Train metrics/train/LanguagePerplexity: 14337.9258
+	 Train metrics/train/TokenAccuracy: 0.0455
+	 Train throughput/batches_per_sec: 0.0985
+	 Train throughput/samples_per_sec: 25.2130
+	 Train throughput/device/batches_per_sec: 0.0492
+	 Train throughput/device/samples_per_sec: 12.6065
+	 Train throughput/tokens_per_sec: 826180.0109
+	 Train throughput/device/tokens_per_sec: 413090.0054
+	 Train throughput/flops_per_sec: 807361613051673.6250
+	 Train throughput/device/flops_per_sec: 403680806525836.8125
+	 Train throughput/device/mfu: 0.4080
+	 Train time/train: 0.0637
+	 Train time/val: 0.0000
+	 Train time/total: 0.0637
+	 Train lr-DecoupledAdamW/group0: 0.0001
+	 Train time/remaining_estimate: 0.0226
+[batch=23/30]:
+	 Train time/batch: 22
+	 Train time/sample: 5632
+	 Train time/batch_in_epoch: 22
+	 Train time/sample_in_epoch: 5632
+	 Train time/token: 184549376
+	 Train time/token_in_epoch: 184549376
+	 Train memory/current_allocated_mem: 4.1344
+	 Train memory/current_active_mem: 4.1344
+	 Train memory/current_inactive_mem: 0.2969
+	 Train memory/current_reserved_mem: 22.5460
+	 Train memory/peak_allocated_mem: 14.0380
+	 Train memory/peak_active_mem: 14.4550
+	 Train memory/peak_inactive_mem: 7.0418
+	 Train memory/peak_reserved_mem: 22.5460
+	 Train memory/alloc_retries: 0
+	 Train trainer/device_train_microbatch_size: 1
+	 Train loss/train/total: 9.4597
+	 Train metrics/train/LanguageCrossEntropy: 9.4597
+	 Train metrics/train/LanguagePerplexity: 12832.4082
+	 Train metrics/train/TokenAccuracy: 0.0423
+	 Train throughput/batches_per_sec: 0.0985
+	 Train throughput/samples_per_sec: 25.2232
+	 Train throughput/device/batches_per_sec: 0.0493
+	 Train throughput/device/samples_per_sec: 12.6116
+	 Train throughput/tokens_per_sec: 826512.4071
+	 Train throughput/device/tokens_per_sec: 413256.2035
+	 Train throughput/flops_per_sec: 807686438089741.3750
+	 Train throughput/device/flops_per_sec: 403843219044870.6875
+	 Train throughput/device/mfu: 0.4081
+	 Train time/train: 0.0665
+	 Train time/val: 0.0000
+	 Train time/total: 0.0665
+	 Train lr-DecoupledAdamW/group0: 0.0001
+	 Train time/remaining_estimate: 0.0198
+[batch=24/30]:
+	 Train time/batch: 23
+	 Train time/sample: 5888
+	 Train time/batch_in_epoch: 23
+	 Train time/sample_in_epoch: 5888
+	 Train time/token: 192937984
+	 Train time/token_in_epoch: 192937984
+	 Train memory/current_allocated_mem: 4.1344
+	 Train memory/current_active_mem: 4.1344
+	 Train memory/current_inactive_mem: 0.2969
+	 Train memory/current_reserved_mem: 22.5460
+	 Train memory/peak_allocated_mem: 14.0380
+	 Train memory/peak_active_mem: 14.4550
+	 Train memory/peak_inactive_mem: 7.0418
+	 Train memory/peak_reserved_mem: 22.5460
+	 Train memory/alloc_retries: 0
+	 Train trainer/device_train_microbatch_size: 1
+	 Train loss/train/total: 9.3659
+	 Train metrics/train/LanguageCrossEntropy: 9.3659
+	 Train metrics/train/LanguagePerplexity: 11683.4736
+	 Train metrics/train/TokenAccuracy: 0.0409
+	 Train throughput/batches_per_sec: 0.0985
+	 Train throughput/samples_per_sec: 25.2242
+	 Train throughput/device/batches_per_sec: 0.0493
+	 Train throughput/device/samples_per_sec: 12.6121
+	 Train throughput/tokens_per_sec: 826546.0817
+	 Train throughput/device/tokens_per_sec: 413273.0408
+	 Train throughput/flops_per_sec: 807719345634123.8750
+	 Train throughput/device/flops_per_sec: 403859672817061.9375
+	 Train throughput/device/mfu: 0.4081
+	 Train time/train: 0.0693
+	 Train time/val: 0.0000
+	 Train time/total: 0.0693
+	 Train lr-DecoupledAdamW/group0: 0.0001
+	 Train time/remaining_estimate: 0.0169
+[batch=25/30]:
+	 Train time/batch: 24
+	 Train time/sample: 6144
+	 Train time/batch_in_epoch: 24
+	 Train time/sample_in_epoch: 6144
+	 Train time/token: 201326592
+	 Train time/token_in_epoch: 201326592
+	 Train memory/current_allocated_mem: 4.1344
+	 Train memory/current_active_mem: 4.1344
+	 Train memory/current_inactive_mem: 0.2969
+	 Train memory/current_reserved_mem: 22.5460
+	 Train memory/peak_allocated_mem: 14.0380
+	 Train memory/peak_active_mem: 14.4550
+	 Train memory/peak_inactive_mem: 7.0418
+	 Train memory/peak_reserved_mem: 22.5460
+	 Train memory/alloc_retries: 0
+	 Train trainer/device_train_microbatch_size: 1
+	 Train loss/train/total: 9.2570
+	 Train metrics/train/LanguageCrossEntropy: 9.2570
+	 Train metrics/train/LanguagePerplexity: 10477.6533
+	 Train metrics/train/TokenAccuracy: 0.0423
+	 Train throughput/batches_per_sec: 0.0985
+	 Train throughput/samples_per_sec: 25.2266
+	 Train throughput/device/batches_per_sec: 0.0493
+	 Train throughput/device/samples_per_sec: 12.6133
+	 Train throughput/tokens_per_sec: 826624.6147
+	 Train throughput/device/tokens_per_sec: 413312.3074
+	 Train throughput/flops_per_sec: 807796089919242.1250
+	 Train throughput/device/flops_per_sec: 403898044959621.0625
+	 Train throughput/device/mfu: 0.4082
+	 Train time/train: 0.0722
+	 Train time/val: 0.0000
+	 Train time/total: 0.0722
+	 Train lr-DecoupledAdamW/group0: 0.0001
+	 Train time/remaining_estimate: 0.0141
+[batch=26/30]:
+	 Train time/batch: 25
+	 Train time/sample: 6400
+	 Train time/batch_in_epoch: 25
+	 Train time/sample_in_epoch: 6400
+	 Train time/token: 209715200
+	 Train time/token_in_epoch: 209715200
+	 Train memory/current_allocated_mem: 4.1344
+	 Train memory/current_active_mem: 4.1344
+	 Train memory/current_inactive_mem: 0.2969
+	 Train memory/current_reserved_mem: 22.5460
+	 Train memory/peak_allocated_mem: 14.0380
+	 Train memory/peak_active_mem: 14.4550
+	 Train memory/peak_inactive_mem: 7.0418
+	 Train memory/peak_reserved_mem: 22.5460
+	 Train memory/alloc_retries: 0
+	 Train trainer/device_train_microbatch_size: 1
+	 Train loss/train/total: 9.1643
+	 Train metrics/train/LanguageCrossEntropy: 9.1642
+	 Train metrics/train/LanguagePerplexity: 9549.4600
+	 Train metrics/train/TokenAccuracy: 0.0480
+	 Train throughput/batches_per_sec: 0.0985
+	 Train throughput/samples_per_sec: 25.2253
+	 Train throughput/device/batches_per_sec: 0.0493
+	 Train throughput/device/samples_per_sec: 12.6127
+	 Train throughput/tokens_per_sec: 826583.0088
+	 Train throughput/device/tokens_per_sec: 413291.5044
+	 Train throughput/flops_per_sec: 807755431619929.7500
+	 Train throughput/device/flops_per_sec: 403877715809964.8750
+	 Train throughput/device/mfu: 0.4082
+	 Train time/train: 0.0750
+	 Train time/val: 0.0000
+	 Train time/total: 0.0750
+	 Train lr-DecoupledAdamW/group0: 0.0001
+	 Train time/remaining_estimate: 0.0113
+[batch=27/30]:
+	 Train time/batch: 26
+	 Train time/sample: 6656
+	 Train time/batch_in_epoch: 26
+	 Train time/sample_in_epoch: 6656
+	 Train time/token: 218103808
+	 Train time/token_in_epoch: 218103808
+	 Train memory/current_allocated_mem: 4.1344
+	 Train memory/current_active_mem: 4.1344
+	 Train memory/current_inactive_mem: 0.2969
+	 Train memory/current_reserved_mem: 22.5460
+	 Train memory/peak_allocated_mem: 14.0380
+	 Train memory/peak_active_mem: 14.4550
+	 Train memory/peak_inactive_mem: 7.0418
+	 Train memory/peak_reserved_mem: 22.5460
+	 Train memory/alloc_retries: 0
+	 Train trainer/device_train_microbatch_size: 1
+	 Train loss/train/total: 9.0522
+	 Train metrics/train/LanguageCrossEntropy: 9.0522
+	 Train metrics/train/LanguagePerplexity: 8537.4648
+	 Train metrics/train/TokenAccuracy: 0.0585
+	 Train throughput/batches_per_sec: 0.0985
+	 Train throughput/samples_per_sec: 25.2190
+	 Train throughput/device/batches_per_sec: 0.0493
+	 Train throughput/device/samples_per_sec: 12.6095
+	 Train throughput/tokens_per_sec: 826377.6630
+	 Train throughput/device/tokens_per_sec: 413188.8315
+	 Train throughput/flops_per_sec: 807554763123392.6250
+	 Train throughput/device/flops_per_sec: 403777381561696.3125
+	 Train throughput/device/mfu: 0.4081
+	 Train time/train: 0.0778
+	 Train time/val: 0.0000
+	 Train time/total: 0.0778
+	 Train lr-DecoupledAdamW/group0: 0.0001
+	 Train time/remaining_estimate: 0.0085
+[batch=28/30]:
+	 Train nsys_api/window: "open"
+	 Train nsys_api/batch: 27
+	 Train nsys_api/start_ok: 1
+	 Train nsys/dataloader_sec: 0.0021
+	 Train nsys/batch: 27
+	 Train time/batch: 27
+	 Train time/sample: 6912
+	 Train time/batch_in_epoch: 27
+	 Train time/sample_in_epoch: 6912
+	 Train time/token: 226492416
+	 Train time/token_in_epoch: 226492416
+	 Train nsys/forward_sec: 0.0173
+	 Train nsys/loss_sec: 0.0022
+	 Train nsys/backward_sec: 0.0361
+	 Train memory/current_allocated_mem: 4.1344
+	 Train memory/current_active_mem: 4.1344
+	 Train memory/current_inactive_mem: 0.2969
+	 Train memory/current_reserved_mem: 22.5460
+	 Train memory/peak_allocated_mem: 14.0380
+	 Train memory/peak_active_mem: 14.4550
+	 Train memory/peak_inactive_mem: 7.0418
+	 Train memory/peak_reserved_mem: 22.5460
+	 Train memory/alloc_retries: 0
+	 Train trainer/device_train_microbatch_size: 1
+	 Train loss/train/total: 8.9537
+	 Train metrics/train/LanguageCrossEntropy: 8.9537
+	 Train metrics/train/LanguagePerplexity: 7736.1035
+	 Train metrics/train/TokenAccuracy: 0.0649
+	 Train throughput/batches_per_sec: 0.0957
+	 Train throughput/samples_per_sec: 24.4958
+	 Train throughput/device/batches_per_sec: 0.0478
+	 Train throughput/device/samples_per_sec: 12.2479
+	 Train throughput/tokens_per_sec: 802679.7763
+	 Train throughput/device/tokens_per_sec: 401339.8882
+	 Train throughput/flops_per_sec: 784396657433092.6250
+	 Train throughput/device/flops_per_sec: 392198328716546.3125
+	 Train throughput/device/mfu: 0.3964
+	 Train time/train: 0.0814
+	 Train time/val: 0.0000
+	 Train time/total: 0.0814
+	 Train lr-DecoupledAdamW/group0: 0.0001
+	 Train time/remaining_estimate: 0.0057
+[batch=29/30]:
+	 Train nsys/dataloader_sec: 0.0017
+	 Train nsys/batch: 28
+	 Train time/batch: 28
+	 Train time/sample: 7168
+	 Train time/batch_in_epoch: 28
+	 Train time/sample_in_epoch: 7168
+	 Train time/token: 234881024
+	 Train time/token_in_epoch: 234881024
+	 Train nsys/forward_sec: 0.0173
+	 Train nsys/loss_sec: 0.0023
+	 Train nsys/backward_sec: 0.0363
+	 Train memory/current_allocated_mem: 4.1344
+	 Train memory/current_active_mem: 4.1344
+	 Train memory/current_inactive_mem: 0.2969
+	 Train memory/current_reserved_mem: 22.5460
+	 Train memory/peak_allocated_mem: 14.0380
+	 Train memory/peak_active_mem: 14.4550
+	 Train memory/peak_inactive_mem: 7.0418
+	 Train memory/peak_reserved_mem: 22.5460
+	 Train memory/alloc_retries: 0
+	 Train trainer/device_train_microbatch_size: 1
+	 Train loss/train/total: 8.8686
+	 Train metrics/train/LanguageCrossEntropy: 8.8686
+	 Train metrics/train/LanguagePerplexity: 7105.4414
+	 Train metrics/train/TokenAccuracy: 0.0662
+	 Train throughput/batches_per_sec: 0.0956
+	 Train throughput/samples_per_sec: 24.4683
+	 Train throughput/device/batches_per_sec: 0.0478
+	 Train throughput/device/samples_per_sec: 12.2342
+	 Train throughput/tokens_per_sec: 801777.5768
+	 Train throughput/device/tokens_per_sec: 400888.7884
+	 Train throughput/flops_per_sec: 783515007897739.3750
+	 Train throughput/device/flops_per_sec: 391757503948869.6875
+	 Train throughput/device/mfu: 0.3959
+	 Train time/train: 0.0843
+	 Train time/val: 0.0000
+	 Train time/total: 0.0843
+	 Train lr-DecoupledAdamW/group0: 0.0001
+	 Train time/remaining_estimate: 0.0029
+Traceback (most recent call last):
+  File "/home/users/nus/e1113744/llm-foundry/.venv/lib/python3.11/site-packages/composer/cli/launcher.py", line 575, in main
+    _monitor_processes(processes)
+  File "/home/users/nus/e1113744/llm-foundry/.venv/lib/python3.11/site-packages/composer/cli/launcher.py", line 414, in _monitor_processes
+    time.sleep(0.1)
+  File "/home/users/nus/e1113744/llm-foundry/.venv/lib/python3.11/site-packages/composer/core/engine.py", line 123, in sigterm_handler
+    sys.exit(128 + signal)
+SystemExit: 143
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+			Resource Usage on 2025-08-27 00:39:37.758484:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	JobId: 79462.pbs111
+	Project: 71001002
+	Exit Status: 0
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	NCPUs: Requested(28), Used(28)
+	CPU Time Used: 00:12:26
+	Memory: Requested(470gb), Used(16873936kb)
+	Vmem Used: 17803412kb
+	Walltime: Requested(12:00:00), Used(00:07:43)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	Execution Nodes Used: (a2ap-dgx031:ngpus=2:ncpus=28:mem=492830720kb)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	GPU Duration: 7.81mins
+	GPU Power Consumed: 415.98W
+	GPU Max GPU Memory Used: 45.12GB
+	Memory Throughput Rate (Average): a2ap-dgx031:(gpu5:24%+gpu4:24%)
+	Memory Throughput Rate (Max): a2ap-dgx031:(gpu5:41%+gpu4:40%)
+	Memory Throughput Rate (Min): a2ap-dgx031:(gpu5:0%+gpu4:0%)
+	GPU SM Utilization (Average): a2ap-dgx031:(gpu5:64%+gpu4:64%)
+	GPU SM Utilization (Max): a2ap-dgx031:(gpu5:100%+gpu4:100%)
+	GPU SM Utilization (Min): a2ap-dgx031:(gpu5:0%+gpu4:0%)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Warning: None
+GPU application profile: Medium
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+

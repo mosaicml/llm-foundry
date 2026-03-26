@@ -984,6 +984,52 @@ def xavier_normal_param_init_fn_(
     )
 
 
+@summon_dtensor
+def nsa_init(
+    module: nn.Module,
+    init_fn_: Callable,
+    d_model: Optional[int],
+    init_div_is_residual: Union[int, float, str, bool],
+    div_is_residual: float,
+    **kwargs: Any,
+) -> bool:
+    from llmfoundry.models.layers.attention import NativeSparseAttention  # adjust import
+    if isinstance(module, NativeSparseAttention):
+        # 1) init extra learnable tensors on NSA
+        if hasattr(module, 'intra_block_pe') and isinstance(module.intra_block_pe, nn.Parameter):
+            with torch.no_grad():
+                module.intra_block_pe.zero_()  # or your preferred scheme
+
+        # 2) init compression weights (handle Linear/Conv or your custom class)
+        for comp in [getattr(module, 'compress_key', None), getattr(module, 'compress_value', None)]:
+            if comp is None:
+                continue
+            if isinstance(comp, nn.Linear):
+                init_fn_(comp.weight)
+                if comp.bias is not None:
+                    torch.nn.init.zeros_(comp.bias)
+            elif isinstance(comp, nn.Conv1d):
+                init_fn_(comp.weight)
+                if comp.bias is not None:
+                    torch.nn.init.zeros_(comp.bias)
+            else:
+                # custom module: initialize its .weight/.bias or expose a method
+                if hasattr(comp, 'reset_parameters'):
+                    comp.reset_parameters()
+                elif hasattr(comp, 'weight'):
+                    init_fn_(comp.weight)
+                    if getattr(comp, 'bias', None) is not None:
+                        torch.nn.init.zeros_(comp.bias)
+
+        # 3) (optional) scale residual proj if desired, like other inits do
+        if getattr(module.out_proj, '_is_residual', False) and init_div_is_residual is not False:
+            with torch.no_grad():
+                module.out_proj.weight.div_(div_is_residual)
+
+        return True
+    return False
+
+
 param_init_fns.register('default_', func=torch_default_param_init_fn_)
 param_init_fns.register('baseline_', func=baseline_param_init_fn_)
 param_init_fns.register('kaiming_uniform_', func=kaiming_uniform_param_init_fn_)
@@ -999,3 +1045,4 @@ module_init_fns.register('norm', func=norm_init)
 module_init_fns.register('multihead_attention', func=multihead_attention_init)
 module_init_fns.register('te_layernorm_mlp', func=te_layernorm_mlp_init)
 module_init_fns.register('moe', func=moe_init)
+module_init_fns.register('native_sparse_attention', func=nsa_init)

@@ -1,0 +1,23 @@
+#!/bin/bash
+#PBS -l select=1:ncpus=96
+#PBS -l walltime=48:00:00
+#PBS -N llmfoundry_nsa_profile
+#PBS -o data_out.txt
+#PBS -j oe
+#PBS -q ic102
+#PBS -P 71001002
+
+# Exit on any error
+set -e
+
+# Deactivate any existing env and activate LLM Foundry virtual env
+deactivate || true
+cd llm-foundry/
+source .venv/bin/activate 
+cd scripts
+
+python data_prep/convert_dataset_hf.py \
+  --dataset togethercomputer/RedPajama-Data-V2 --data_subset en \
+  --out_root /home/users/nus/e1113744/scratch/red_pajama --splits train val \
+  --concat_tokens 32768 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>' >> data_out.txt
+

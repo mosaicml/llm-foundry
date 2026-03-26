@@ -1,0 +1,19 @@
+
+
+python inference/convert_composer_to_hf.py \
+  --composer_path mpt-350m/ep0-ba800-rank0.pt \
+  --hf_output_path mpt-350m-hf \
+  --output_precision bf16 
+
+composer eval/eval.py \
+  eval/yamls/hf_eval.yaml \
+  icl_tasks=eval/yamls/copa.yaml \
+  model_name_or_path=mpt-350m-hf
+
+
+python inference/hf_generate.py \
+  --name_or_path mpt-350m-hf \
+  --max_new_tokens 256 \
+  --prompts \
+    "The answer to life, the universe, and happiness is" \
+    "Here's a quick recipe for baking chocolate chip cookies: Start by"

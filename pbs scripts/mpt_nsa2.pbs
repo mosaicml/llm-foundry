@@ -1,0 +1,49 @@
+#!/bin/bash
+#PBS -l select=1:ngpus=1
+#PBS -l walltime=12:00:00
+#PBS -N llmfoundry_nsa2_profile
+#PBS -o out_nsa2.txt
+#PBS -j oe
+#PBS -q normal
+#PBS -P 71001002
+
+# Exit on any error
+set -e
+
+# Deactivate any existing env and activate LLM Foundry virtual env
+deactivate || true
+cd llm-foundry/
+source .venv/bin/activate 
+cd scripts
+
+# Logging
+echo "starting NSA training with nsys profiling" >> out_nsa2.txt 
+export NSYS_NVTX_PROFILER_REGISTER_ONLY=0 
+echo "done here" >> out_nsa.txt 
+
+# NCCL safety exports
+export NCCL_ASYNC_ERROR_HANDLING=1  
+export TORCH_NCCL_BLOCKING_WAIT_TIMEOUT_MS=900000 
+
+# Output profile path
+PROFILE_OUTPUT_DIR="/home/users/nus/e1113744/scratch"
+PROFILE_NAME="llmfoundry_nsa2_profile"
+
+# Run with NVIDIA Nsight Systems profiler
+PATH=$HOME/nsight-systems-2025.3.1/bin:$PATH \
+nsys profile \
+  -o /home/users/nus/e1113744/scratch/llmfoundry_nsa2_profile \
+  --trace=cuda,nvtx,osrt \
+  --force-overwrite=true \
+  --capture-range=nvtx \
+  --nvtx-capture=nsys_callback \
+  --capture-range-end=stop \
+  composer train/train.py \
+    train/yamls/pretrain/mpt-350m-nsa2.yaml \
+    variables.data_local=/home/users/nus/e1113744/scratch/c4_long_seq \
+    train_loader.dataset.split=train \
+    eval_loader.dataset.split=val \
+    max_duration=21ba \
+    eval_interval=0 \
+    save_folder=mpt-350m-nsa2 >> out_nsa2.txt
+

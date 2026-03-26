@@ -1,0 +1,48 @@
+/var/spool/pbs/mom_priv/jobs/74449.pbs111.SC: line 14: deactivate: command not found
+/home/users/nus/e1113744/llm-foundry/llmfoundry/callbacks/env_logging_callback.py:10: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+Traceback (most recent call last):
+  File "/home/users/nus/e1113744/llm-foundry/llmfoundry/command_utils/data_prep/convert_dataset_hf.py", line 336, in convert_dataset_hf
+    dataset_constants = CONSTS[dataset]
+                        ~~~~~~^^^^^^^^^
+KeyError: 'togethercomputer/RedPajama-Data-V2'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/users/nus/e1113744/llm-foundry/scripts/data_prep/convert_dataset_hf.py", line 50, in <module>
+    convert_dataset_hf_from_args(
+  File "/home/users/nus/e1113744/llm-foundry/llmfoundry/command_utils/data_prep/convert_dataset_hf.py", line 478, in convert_dataset_hf_from_args
+    convert_dataset_hf(
+  File "/home/users/nus/e1113744/llm-foundry/llmfoundry/command_utils/data_prep/convert_dataset_hf.py", line 338, in convert_dataset_hf
+    raise ValueError(
+ValueError: Constants for dataset "togethercomputer/RedPajama-Data-V2" not found. Currently only "the_pile" and "allenai/c4" are supported.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+			Resource Usage on 2025-08-17 15:15:25.452941:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	JobId: 74449.pbs111
+	Project: 71001002
+	Exit Status: 1
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	NCPUs: Requested(98), Used(98)
+	CPU Time Used: 00:01:10
+	Memory: Requested(1645gb), Used(1966744kb)
+	Vmem Used: 92185644kb
+	Walltime: Requested(48:00:00), Used(00:04:19)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	Execution Nodes Used: (a2ap-dgx031:ncpus=98:ngpus=7:mem=1724907520kb)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	GPU Duration: 4.41mins
+	GPU Power Consumed: 71.12W
+	GPU Max GPU Memory Used: 0.0B
+	Memory Throughput Rate (Average): a2ap-dgx031:(gpu1:0%+gpu0:0%+gpu2:0%+gpu3:0%+gpu5:0%+gpu4:0%+gpu6:0%)
+	Memory Throughput Rate (Max): a2ap-dgx031:(gpu1:0%+gpu0:0%+gpu2:0%+gpu3:0%+gpu5:0%+gpu4:0%+gpu6:0%)
+	Memory Throughput Rate (Min): a2ap-dgx031:(gpu1:0%+gpu0:0%+gpu2:0%+gpu3:0%+gpu5:0%+gpu4:0%+gpu6:0%)
+	GPU SM Utilization (Average): a2ap-dgx031:(gpu1:0%+gpu0:0%+gpu2:0%+gpu3:0%+gpu5:0%+gpu4:0%+gpu6:0%)
+	GPU SM Utilization (Max): a2ap-dgx031:(gpu1:0%+gpu0:0%+gpu2:0%+gpu3:0%+gpu5:0%+gpu4:0%+gpu6:0%)
+	GPU SM Utilization (Min): a2ap-dgx031:(gpu1:0%+gpu0:0%+gpu2:0%+gpu3:0%+gpu5:0%+gpu4:0%+gpu6:0%)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Warning: All GPUs have a percentage of 0 utilisation.
+GPU application profile: Idle
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+

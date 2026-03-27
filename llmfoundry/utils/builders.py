@@ -542,7 +542,9 @@ def build_tokenizer(
         dist.barrier()
 
         if dist.get_local_rank() == 0:
-            os.remove(signal_file_path)
+            # Another rank can remove the shared signal file first on network filesystems.
+            with contextlib.suppress(FileNotFoundError):
+                os.remove(signal_file_path)
 
     return tokenizer
 

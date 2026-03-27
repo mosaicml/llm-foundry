@@ -542,7 +542,8 @@ def build_tokenizer(
         dist.barrier()
 
         if dist.get_local_rank() == 0:
-            os.remove(signal_file_path)
+            with contextlib.suppress(FileNotFoundError):
+                os.remove(signal_file_path)
 
     return tokenizer
 

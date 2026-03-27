@@ -12,6 +12,7 @@ from composer import Trainer
 from composer.loggers import InMemoryLogger
 
 from llmfoundry.command_utils import evaluate
+from llmfoundry.command_utils.eval import calculate_markdown_results
 from llmfoundry.utils import build_tokenizer
 from llmfoundry.utils.builders import build_composer_model
 from llmfoundry.utils.config_utils import EVAL_CONFIG_KEYS, to_dict_container
@@ -77,10 +78,92 @@ def test_icl_eval(
     assert isinstance(eval_cfg, om.DictConfig)
     evaluate(eval_cfg)
     out, _ = capfd.readouterr()
-    expected_results = '| Category                    | Benchmark      | Subtask   |   Accuracy | Number few shot   | Model    |\n|:----------------------------|:---------------|:----------|-----------:|:------------------|:---------|\n| language_understanding_lite | lambada_openai |           |          0 | 0-shot            | tiny_mpt |'
+    expected_results = '| Category                    | Benchmark      | Subtask   | Metric                      |   Accuracy | Number few shot   | Model    |\n|:----------------------------|:---------------|:----------|:----------------------------|-----------:|:------------------|:---------|\n| language_understanding_lite | lambada_openai |           | InContextLearningLMAccuracy |          0 | 0-shot            | tiny_mpt |'
     assert expected_results in out
     expected_results = '| model_name   |   default_average |   language_understanding_lite |\n|:-------------|------------------:|------------------------------:|\n| tiny_mpt     |                 0 |                             0 |'
     assert expected_results in out
+
+
+class _DummyMetric:
+
+    def __init__(self, value: float):
+        self.value = value
+
+    def compute(self):
+        return _DummyTensor(self.value)
+
+
+class _DummyTensor:
+
+    def __init__(self, value: float):
+        self.value = value
+
+    def item(self):
+        return self.value
+
+
+def test_calculate_markdown_results_includes_non_accuracy_metric_names():
+    logger_keys = [
+        'metrics/lambada_openai/0-shot/InContextLearningLMAccuracy',
+        'metrics/lambada_openai/0-shot/LanguageCrossEntropy',
+        'metrics/mmlu/5-shot/computer_security/CustomF1',
+        'metrics/mmlu/5-shot/human_aging/CustomF1',
+    ]
+    eval_metrics = {
+        'lambada_openai/0-shot': {
+            'InContextLearningLMAccuracy': _DummyMetric(0.5),
+            'LanguageCrossEntropy': _DummyMetric(1.25),
+        },
+        'mmlu/5-shot/computer_security': {
+            'CustomF1': _DummyMetric(0.8),
+        },
+        'mmlu/5-shot/human_aging': {
+            'CustomF1': _DummyMetric(0.6),
+        },
+    }
+
+    trainer = type(
+        'TrainerStub',
+        (),
+        {
+            'state': type(
+                'TrainerStateStub',
+                (),
+                {
+                    'eval_metrics': eval_metrics,
+                },
+            )(),
+        },
+    )()
+    results = calculate_markdown_results(
+        logger_keys=logger_keys,
+        trainer=trainer,  # pyright: ignore[reportArgumentType]
+        benchmark_to_taxonomy={
+            'lambada_openai': 'language_understanding_lite',
+            'mmlu': 'knowledge',
+        },
+        model_name='tiny_mpt',
+    )
+
+    assert set(results['Metric']) == {
+        'InContextLearningLMAccuracy',
+        'LanguageCrossEntropy',
+        'CustomF1',
+    }
+
+    lambada_ce = results[
+        (results['Benchmark'] == 'lambada_openai') &
+        (results['Metric'] == 'LanguageCrossEntropy')
+    ]
+    assert len(lambada_ce) == 1
+    assert lambada_ce.iloc[0]['Accuracy'] == pytest.approx(1.25)
+
+    mmlu_avg = results[
+        (results['Benchmark'] == 'mmlu') & (results['Subtask'] == 'Average') &
+        (results['Metric'] == 'CustomF1')
+    ]
+    assert len(mmlu_avg) == 1
+    assert mmlu_avg.iloc[0]['Accuracy'] == pytest.approx(0.7)
 
 
 def test_loader_eval(

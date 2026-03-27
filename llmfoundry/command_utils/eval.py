@@ -397,10 +397,16 @@ def calculate_markdown_results(
     results = {}
 
     for key in logger_keys:
-        # dl_name is either 2-tuple (benchmark_name, num_fewshot)
-        # or 3-tuple (benchmark_name, num_fewshot, subcategory)
-        dl_name, metric_name = key.split('/')[1:-1], key.split('/')[-1]
-        if 'Accuracy' not in metric_name:
+        parts = key.split('/')
+        # Metrics are expected to be:
+        # metrics/{benchmark}/{num_fewshot}/{metric_name}
+        # or metrics/{benchmark}/{num_fewshot}/{subcategory}/{metric_name}
+        if len(parts) < 4 or parts[0] != 'metrics':
+            continue
+
+        dl_name, metric_name = parts[1:-1], parts[-1]
+        # Skip malformed keys and keep processing other metrics.
+        if len(dl_name) not in (2, 3):
             continue
 
         metric = trainer.state.eval_metrics.get('/'.join(dl_name),
@@ -408,6 +414,9 @@ def calculate_markdown_results(
 
         if metric is None:
             continue
+        metric_value = metric.compute()
+        if hasattr(metric_value, 'item'):
+            metric_value = metric_value.item()
         if dl_name[1] not in results:
             results[dl_name[1]] = {}
 
@@ -418,7 +427,7 @@ def calculate_markdown_results(
             results[dl_name[1]][dl_name[0]][metric_name] = []
 
         results[dl_name[1]][dl_name[0]][metric_name].append({
-            'val': metric.compute(),
+            'val': metric_value,
             'subcat': dl_name[-1] if len(dl_name) == 3 else 'no_subcat',
         })
 
@@ -427,6 +436,8 @@ def calculate_markdown_results(
             'Category',
             'Benchmark',
             'Subtask',
+            'Metric',
+            # Backward-compatible column name; now stores generic metric values.
             'Accuracy',
             'Number few shot',
             'Model',
@@ -442,6 +453,7 @@ def calculate_markdown_results(
                         'Category': benchmark_to_taxonomy.get(benchmark, ''),
                         'Benchmark': benchmark,
                         'Subtask': None,
+                        'Metric': metric,
                         'Accuracy': subscores[0]['val'],
                         'Number few shot': num_shot,
                         'Model': model_name,
@@ -455,6 +467,8 @@ def calculate_markdown_results(
                             benchmark,
                         'Subtask':
                             'Average',
+                        'Metric':
+                            metric,
                         'Accuracy':
                             sum(s['val'] for s in subscores) / len(subscores),
                         'Number few shot':
@@ -471,6 +485,8 @@ def calculate_markdown_results(
                                 None,
                             'Subtask':
                                 sub['subcat'],
+                            'Metric':
+                                metric,
                             'Accuracy':
                                 sub['val'],
                             'Number few shot':

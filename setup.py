@@ -65,7 +65,7 @@ install_requires = [
     'slack-sdk<4',
     'mosaicml-cli>=0.6.10,<1',
     'onnx==1.18.0',
-    'onnxruntime==1.22.0',
+    'onnxruntime==1.23.2',
     'boto3>=1.21.45,<2',
     'huggingface-hub[hf_xet]>=0.30.0,<0.34',
     'beautifulsoup4>=4.12.2,<5',  # required for model download utils

@@ -5,6 +5,7 @@ from llmfoundry.models.hf import ComposerHFCausalLM, ComposerHFT5
 from llmfoundry.models.inference_api_wrapper import (
     FMAPICasualLMEvalWrapper,
     FMAPIChatAPIEvalWrapper,
+    MiniMaxChatAPIEvalWrapper,
     OpenAICausalLMEvalWrapper,
     OpenAIChatAPIEvalWrapper,
 )
@@ -25,6 +26,7 @@ models.register('openai_causal_lm', func=OpenAICausalLMEvalWrapper)
 models.register('fmapi_causal_lm', func=FMAPICasualLMEvalWrapper)
 models.register('openai_chat', func=OpenAIChatAPIEvalWrapper)
 models.register('fmapi_chat', func=FMAPIChatAPIEvalWrapper)
+models.register('minimax_chat', func=MiniMaxChatAPIEvalWrapper)
 models.register('finetune_embedding_model', func=FinetuneEmbeddingModel)
 models.register('contrastive_lm', func=ContrastiveModel)
 
@@ -40,4 +42,5 @@ __all__ = [
     'FMAPICasualLMEvalWrapper',
     'OpenAIChatAPIEvalWrapper',
     'FMAPIChatAPIEvalWrapper',
+    'MiniMaxChatAPIEvalWrapper',
 ]

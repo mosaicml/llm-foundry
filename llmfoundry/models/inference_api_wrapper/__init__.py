@@ -8,6 +8,10 @@ from llmfoundry.models.inference_api_wrapper.fmapi import (
 )
 from llmfoundry.models.inference_api_wrapper.interface import \
     InferenceAPIEvalWrapper
+from llmfoundry.models.inference_api_wrapper.minimax import (
+    MiniMaxChatAPIEvalWrapper,
+    MiniMaxEvalInterface,
+)
 from llmfoundry.models.inference_api_wrapper.openai_causal_lm import (
     OpenAICausalLMEvalWrapper,
     OpenAIChatAPIEvalWrapper,
@@ -22,4 +26,6 @@ __all__ = [
     'FMAPICasualLMEvalWrapper',
     'FMAPIChatAPIEvalWrapper',
     'FMAPIEvalInterface',
+    'MiniMaxChatAPIEvalWrapper',
+    'MiniMaxEvalInterface',
 ]

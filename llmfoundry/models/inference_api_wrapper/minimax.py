@@ -3,7 +3,8 @@
 """Implements MiniMax chat and causal LM inference API wrappers.
 
 MiniMax provides an OpenAI-compatible API at https://api.minimax.io/v1,
-supporting models such as MiniMax-M2.7 and MiniMax-M2.5-highspeed.
+supporting models such as MiniMax-M3 (default), MiniMax-M2.7, and
+MiniMax-M2.7-highspeed.
 """
 
 import logging
@@ -84,5 +85,6 @@ class MiniMaxChatAPIEvalWrapper(MiniMaxEvalInterface, OpenAIChatAPIEvalWrapper):
 
     Uses the OpenAI-compatible ``/v1/chat/completions`` endpoint.
     Configure the model version via the ``version`` field in the model
-    config (e.g. ``MiniMax-M2.7`` or ``MiniMax-M2.5-highspeed``).
+    config (e.g. ``MiniMax-M3``, ``MiniMax-M2.7`` or
+    ``MiniMax-M2.7-highspeed``).
     """

@@ -53,14 +53,14 @@ def test_minimax_chat_completion_live():
 
     model = MiniMaxChatAPIEvalWrapper(
         om_model_config=DictConfig({
-            'version': 'MiniMax-M2.7',
+            'version': 'MiniMax-M3',
         }),
         tokenizer=mock_tokenizer,
     )
 
     # Make a real API call
     completion = model.client.chat.completions.create(
-        model='MiniMax-M2.7',
+        model='MiniMax-M3',
         messages=[{
             'role': 'user',
             'content': 'Say "hello" and nothing else.',
@@ -80,8 +80,8 @@ def test_minimax_chat_completion_live():
     reason='MINIMAX_API_KEY not set',
 )
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
-def test_minimax_m25_highspeed_live():
-    """Integration test: verify MiniMax-M2.5-highspeed model works."""
+def test_minimax_m27_highspeed_live():
+    """Integration test: verify MiniMax-M2.7-highspeed model works."""
     openai = pytest.importorskip('openai')
 
     os.environ.pop('OPENAI_API_KEY', None)
@@ -96,13 +96,13 @@ def test_minimax_m25_highspeed_live():
 
     model = MiniMaxChatAPIEvalWrapper(
         om_model_config=DictConfig({
-            'version': 'MiniMax-M2.5-highspeed',
+            'version': 'MiniMax-M2.7-highspeed',
         }),
         tokenizer=mock_tokenizer,
     )
 
     completion = model.client.chat.completions.create(
-        model='MiniMax-M2.5-highspeed',
+        model='MiniMax-M2.7-highspeed',
         messages=[{
             'role': 'user',
             'content': 'Say "hello world" and nothing else.',
@@ -138,13 +138,13 @@ def test_minimax_streaming_live():
 
     model = MiniMaxChatAPIEvalWrapper(
         om_model_config=DictConfig({
-            'version': 'MiniMax-M2.7',
+            'version': 'MiniMax-M3',
         }),
         tokenizer=mock_tokenizer,
     )
 
     stream = model.client.chat.completions.create(
-        model='MiniMax-M2.7',
+        model='MiniMax-M3',
         messages=[{
             'role': 'user',
             'content': 'Say "test" and nothing else.',

@@ -60,7 +60,7 @@ def test_minimax_missing_api_key():
     with pytest.raises(ValueError, match='No MiniMax API key found'):
         MiniMaxChatAPIEvalWrapper(
             om_model_config=DictConfig({
-                'version': 'MiniMax-M2.7',
+                'version': 'MiniMax-M3',
             }),
             tokenizer=mock_tokenizer,
         )
@@ -80,11 +80,11 @@ def test_minimax_uses_minimax_api_key():
 
     model = MiniMaxChatAPIEvalWrapper(
         om_model_config=DictConfig({
-            'version': 'MiniMax-M2.7',
+            'version': 'MiniMax-M3',
         }),
         tokenizer=mock_tokenizer,
     )
-    assert model.model_name == 'MiniMax-M2.7'
+    assert model.model_name == 'MiniMax-M3'
     assert model.client.base_url.host == 'api.minimax.io'
 
 
@@ -102,12 +102,12 @@ def test_minimax_uses_openai_key_if_set():
 
     model = MiniMaxChatAPIEvalWrapper(
         om_model_config=DictConfig({
-            'version': 'MiniMax-M2.7',
+            'version': 'MiniMax-M3',
         }),
         tokenizer=mock_tokenizer,
     )
     # Should succeed without MINIMAX_API_KEY when OPENAI_API_KEY is set
-    assert model.model_name == 'MiniMax-M2.7'
+    assert model.model_name == 'MiniMax-M3'
 
 
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
@@ -124,7 +124,7 @@ def test_minimax_default_base_url():
 
     model = MiniMaxChatAPIEvalWrapper(
         om_model_config=DictConfig({
-            'version': 'MiniMax-M2.7',
+            'version': 'MiniMax-M3',
         }),
         tokenizer=mock_tokenizer,
     )
@@ -146,7 +146,7 @@ def test_minimax_custom_base_url():
 
     model = MiniMaxChatAPIEvalWrapper(
         om_model_config=DictConfig({
-            'version': 'MiniMax-M2.7',
+            'version': 'MiniMax-M3',
             'base_url': 'https://custom.minimax.io/v1',
         }),
         tokenizer=mock_tokenizer,
@@ -168,11 +168,11 @@ def test_minimax_model_name_from_version():
 
     model = MiniMaxChatAPIEvalWrapper(
         om_model_config=DictConfig({
-            'version': 'MiniMax-M2.5-highspeed',
+            'version': 'MiniMax-M2.7-highspeed',
         }),
         tokenizer=mock_tokenizer,
     )
-    assert model.model_name == 'MiniMax-M2.5-highspeed'
+    assert model.model_name == 'MiniMax-M2.7-highspeed'
 
 
 @pytest.mark.filterwarnings('ignore::DeprecationWarning')
@@ -210,7 +210,7 @@ def test_minimax_inherits_chat_api_methods():
 
     chatmodel = MiniMaxChatAPIEvalWrapper(
         om_model_config=DictConfig({
-            'version': 'MiniMax-M2.7',
+            'version': 'MiniMax-M3',
         }),
         tokenizer=mock_tokenizer,
     )

@@ -378,3 +378,15 @@ Check out [TUTORIAL.md](https://github.com/mosaicml/llm-foundry/blob/main/TUTORI
 If you run into any problems with the code, please file Github issues directly to this repo.
 
 If you want to train LLMs on the MosaicML platform, reach out to us at [demo@mosaicml.com](mailto:demo@mosaicml.com)!
+
+
+## Contributing
+
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on
+how to report bugs, suggest features, and submit pull requests.
+
+By participating, you agree to our [Code of Conduct](CODE_OF_CONDUCT.md).
+
+---
+
+*[Mukller](https://github.com/Mukller)*

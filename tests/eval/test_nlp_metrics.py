@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 from typing import Any, cast
 
+import pytest
 import torch
 from transformers import PreTrainedTokenizerBase
 
@@ -90,6 +91,120 @@ def test_in_context_learning_qa_cot_accuracy():
     metric.update(batch, outputs, labels)
 
     assert metric.compute() == (2 / 4)
+
+
+@pytest.mark.parametrize(
+    'output,labels,do_normalization,expected',
+    [
+        # A label that is empty once cleaned (a bare article, punctuation
+        # only, whitespace only) must not match arbitrary output.
+        pytest.param(
+            'Some unrelated text',
+            ['The'],
+            True,
+            0.0,
+            id='bare_article',
+        ),
+        pytest.param('garbage', ['A'], True, 0.0, id='bare_article_a'),
+        pytest.param('garbage', ['...'], True, 0.0, id='punctuation_only'),
+        pytest.param(
+            'I cannot answer that.',
+            ['The'],
+            True,
+            0.0,
+            id='refusal',
+        ),
+        pytest.param(
+            'London',
+            ['the', 'Paris'],
+            True,
+            0.0,
+            id='empty_alias_next_to_real_alias',
+        ),
+        pytest.param(
+            'garbage',
+            ['   '],
+            False,
+            0.0,
+            id='whitespace_only_no_normalization',
+        ),
+        # Controls that must behave the same before and after the fix.
+        pytest.param('London', ['Paris'], True, 0.0, id='plain_miss'),
+        pytest.param('', ['Paris'], True, 0.0, id='empty_output_plain_label'),
+        pytest.param(
+            'Paris is the capital',
+            ['Paris'],
+            True,
+            1.0,
+            id='plain_prefix_hit',
+        ),
+        pytest.param(
+            'paris',
+            ['the', 'Paris'],
+            True,
+            1.0,
+            id='real_alias_still_matches',
+        ),
+        pytest.param(
+            'The Who were a band',
+            ['The Who'],
+            True,
+            1.0,
+            id='article_inside_label',
+        ),
+        pytest.param('The The The', ['The Who'], True, 0.0, id='article_miss'),
+        pytest.param(
+            'The cat',
+            ['The'],
+            False,
+            1.0,
+            id='no_normalization_prefix_hit',
+        ),
+        pytest.param(
+            'the cat',
+            ['The'],
+            False,
+            0.0,
+            id='no_normalization_case_miss',
+        ),
+        # A correct answer: the gold is a bare article and the model says
+        # exactly that. Dropping empty labels would score this as wrong.
+        pytest.param('The', ['The'], True, 1.0, id='bare_article_exact'),
+        pytest.param('the.', ['The'], True, 1.0, id='bare_article_punct'),
+        pytest.param(
+            'A',
+            ['a', 'letter a'],
+            True,
+            1.0,
+            id='bare_article_alias',
+        ),
+    ],
+)
+def test_in_context_learning_qa_accuracy_empty_normalized_label(
+    output: str,
+    labels: list[str],
+    do_normalization: bool,
+    expected: float,
+):
+    batch = {
+        'cot_delimiter': '',
+        'labels': [labels],
+        'do_normalization': do_normalization,
+    }
+    metric = InContextLearningGenerationExactMatchAccuracy()
+    metric.update(batch, [output], [labels])
+
+    assert metric.compute() == expected
+
+
+def test_in_context_learning_qa_accuracy_empty_normalized_label_batch():
+    outputs = ['The', 'garbage', 'Paris is the capital', 'London']
+    labels = [['The'], ['the'], ['the', 'Paris'], ['Paris']]
+    batch = {'cot_delimiter': '', 'labels': labels}
+    metric = InContextLearningGenerationExactMatchAccuracy()
+    metric.update(batch, outputs, labels)
+
+    assert metric.compute() == 0.5
 
 
 def test_in_context_learning_mc_accuracy(

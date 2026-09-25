@@ -195,8 +195,12 @@ class InContextLearningGenerationExactMatchAccuracy(InContextLearningMetric):
             assert isinstance(self.correct, Tensor)
             assert isinstance(self.total, Tensor)
 
+            # A label that is empty once cleaned (e.g. a bare article or
+            # punctuation only) is a prefix of every string, so it only counts
+            # as a match for an empty output, not for any output.
             if any(
-                cleaned_final_answer.startswith(label)
+                cleaned_final_answer.startswith(label) and
+                (len(label) > 0 or len(cleaned_final_answer) == 0)
                 for label in cleaned_sample_labels
             ):
                 self.correct += torch.tensor(1.0)

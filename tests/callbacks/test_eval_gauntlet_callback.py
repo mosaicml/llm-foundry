@@ -128,3 +128,78 @@ def test_gauntlet_callback(
     else:
         assert result['icl/metrics/eval_gauntlet/core_average'
                      ] == pytest.approx(0.25)
+
+
+@pytest.mark.parametrize(
+    'icl_task_config,missing_benchmarks',
+    [
+        (
+            """
+            - label: jeopardy_small
+              dataset_uri: eval/local_data/world_knowledge/jeopardy_small.jsonl
+              num_fewshot: [10]
+              icl_task_type: language_modeling
+              continuation_delimiter: "\nAnswer: "
+              has_categories: true
+            """,
+            ['lambada_openai_small/0-shot'],
+        ),
+        (
+            """
+            - label: jeopardy_small
+              dataset_uri: eval/local_data/world_knowledge/jeopardy_small.jsonl
+              num_fewshot: [5]
+              icl_task_type: language_modeling
+              continuation_delimiter: "\nAnswer: "
+              has_categories: true
+            """,
+            [
+                'jeopardy_small/10-shot',
+                'lambada_openai_small/0-shot',
+            ],
+        ),
+    ],
+    ids=['partial-mismatch', 'complete-mismatch'],
+)
+def test_gauntlet_rejects_missing_icl_tasks(
+    icl_task_config: str,
+    missing_benchmarks: list[str],
+    tiny_neox_tokenizer: PreTrainedTokenizerBase,
+):
+    icl_tasks = om.OmegaConf.create(icl_task_config)
+    icl_task_config_list: list[om.DictConfig] = list(icl_tasks)  # type: ignore
+
+    eval_gauntlet_config = om.OmegaConf.create(
+        """
+        weighting: EQUAL
+        subtract_random_baseline: true
+        rescale_accuracy: true
+        categories:
+        - name: world_knowledge
+          benchmarks:
+            - name: jeopardy_small
+              num_fewshot: 10
+              random_baseline: 0
+        - name: language_understanding
+          benchmarks:
+            - name: lambada_openai_small
+              num_fewshot: 0
+              random_baseline: 0.0
+        """,
+    )
+
+    assert isinstance(eval_gauntlet_config, om.DictConfig)
+
+    with pytest.raises(ValueError) as exc_info:
+        build_icl_data_and_gauntlet(
+            [to_dict_container(c) for c in icl_task_config_list],
+            to_dict_container(eval_gauntlet_config),
+            tiny_neox_tokenizer,
+            4,
+            1024,
+            1,
+        )
+
+    error_message = str(exc_info.value)
+    for benchmark in missing_benchmarks:
+        assert benchmark in error_message

@@ -177,6 +177,34 @@ def build_icl_data_and_gauntlet(
             raise ValueError(
                 f'Got invalid type for eval_gauntlet_config: {type(eval_gauntlet_config)}',
             )
+
+        if isinstance(icl_tasks_config, str):
+            with open(icl_tasks_config, 'r') as icl_f:
+                icl_task_cfg = om.load(icl_f)
+            icl_tasks = to_list_container(icl_task_cfg.icl_tasks)
+        else:
+            icl_tasks = icl_tasks_config
+
+        icl_task_keys = {
+            f"{icl_task['label']}/{num_fewshot}-shot" for icl_task in icl_tasks
+            for num_fewshot in icl_task['num_fewshot']
+        }
+
+        missing_benchmarks = []
+        for category in eval_gauntlet['categories']:
+            for benchmark in category['benchmarks']:
+                benchmark_key = (
+                    f"{benchmark['name']}/{benchmark['num_fewshot']}-shot"
+                )
+                if benchmark_key not in icl_task_keys:
+                    missing_benchmarks.append(benchmark_key)
+
+        if missing_benchmarks:
+            missing_benchmarks_str = ', '.join(sorted(missing_benchmarks))
+            raise ValueError(
+                f'Eval gauntlet benchmarks must have matching ICL tasks. Missing ICL tasks: {missing_benchmarks_str}',
+            )
+
         eval_gauntlet['logger_keys'] = logger_keys
         eval_gauntlet['benchmark_sizes'] = {
             e.label: e.dataloader.num_samples for e in icl_evaluators
